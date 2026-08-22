@@ -1,0 +1,1843 @@
+{
+  "version": "stage9.strategies-write.v1",
+  "cases": [
+    {
+      "name": "update-success-unknown-field-ignored",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"],\"interval\":\" 1m \",\"chartType\":\"heikinashi\",\"executionMode\":\"paper\",\"runtimeRisk\":{\"mode\":\"close_only\",\"closeOnly\":true,\"maxOrderQuantity\":1.5,\"dailyMaxOrders\":2,\"pauseOnReject\":true},\"unknownField\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "heikinashi",
+              "executionMode": "paper",
+              "interval": " 1m ",
+              "runtimeRisk": {
+                "closeOnly": true,
+                "dailyMaxOrders": 2,
+                "maxOrderQuantity": 1.5,
+                "mode": "close_only",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "instanceId": "fixture-instance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "update-null-body-zero-value",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "null"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "",
+              "executionMode": "",
+              "interval": "",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "",
+                "pauseOnReject": false
+              },
+              "symbols": null
+            },
+            "instanceId": "fixture-instance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "update-trailing-json-first-value-wins",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"]}{\"ignored\":true}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "",
+              "executionMode": "",
+              "interval": "",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "instanceId": "fixture-instance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "update-empty-body-rejected-before-port",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid instance payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "update-malformed-body-rejected-before-port",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid instance payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "update-not-found",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/missing"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"]}"
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy instance not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "",
+              "executionMode": "",
+              "interval": "",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "instanceId": "missing"
+          }
+        ]
+      }
+    },
+    {
+      "name": "update-busy",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"]}"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy instance must be stopped before modification"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "",
+              "executionMode": "",
+              "interval": "",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "instanceId": "fixture-instance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "update-store-failure",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"]}"
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to update strategy instance"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": [
+          {
+            "binding": {
+              "chartType": "",
+              "executionMode": "",
+              "interval": "",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "instanceId": "fixture-instance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "runtime-risk-success-unknown-field-ignored",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/runtime-risk"
+      ],
+      "requestBodies": [
+        "{\"mode\":\"close_only\",\"closeOnly\":true,\"maxOrderNotional\":1000.25,\"dailyMaxOrders\":5,\"pauseOnReject\":true,\"unknownField\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": false,
+            "status": "RUNNING"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "risk": {
+              "closeOnly": true,
+              "dailyMaxOrders": 5,
+              "maxOrderNotional": 1000.25,
+              "mode": "close_only",
+              "pauseOnReject": true
+            }
+          }
+        ],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "runtime-risk-null-body-zero-value",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/runtime-risk"
+      ],
+      "requestBodies": [
+        "null"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "risk": {
+              "closeOnly": false,
+              "mode": "",
+              "pauseOnReject": false
+            }
+          }
+        ],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "runtime-risk-trailing-json-first-value-wins",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/runtime-risk"
+      ],
+      "requestBodies": [
+        "{\"mode\":\"observe\"}{\"ignored\":true}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "risk": {
+              "closeOnly": false,
+              "mode": "observe",
+              "pauseOnReject": false
+            }
+          }
+        ],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "runtime-risk-malformed-body-rejected-before-port",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/runtime-risk"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid runtime risk payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "runtime-risk-not-found",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/missing/runtime-risk"
+      ],
+      "requestBodies": [
+        "{\"mode\":\"observe\"}"
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy instance not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [
+          {
+            "instanceId": "missing",
+            "risk": {
+              "closeOnly": false,
+              "mode": "observe",
+              "pauseOnReject": false
+            }
+          }
+        ],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "runtime-risk-store-failure",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/runtime-risk"
+      ],
+      "requestBodies": [
+        "{\"mode\":\"observe\"}"
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to update strategy runtime risk"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "risk": {
+              "closeOnly": false,
+              "mode": "observe",
+              "pauseOnReject": false
+            }
+          }
+        ],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "pause-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/pause"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": false,
+            "status": "PAUSED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [
+          "fixture-instance"
+        ],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "PAUSED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "pause-repeat-replays-side-effects",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/pause",
+        "/api/v1/strategies/fixture-instance/pause"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": false,
+            "status": "PAUSED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        },
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": false,
+            "status": "PAUSED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [
+          "fixture-instance",
+          "fixture-instance"
+        ],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "PAUSED"
+          },
+          {
+            "instanceId": "fixture-instance",
+            "status": "PAUSED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "pause-not-found",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/missing/pause"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy instance not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [
+          {
+            "instanceId": "missing",
+            "status": "PAUSED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "pause-upstream-uses-start-failure-code",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/pause"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        502
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_RUNTIME_START_FAILED",
+            "message": "runtime cleanup failed"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "PAUSED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "stop-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/stop"
+      ],
+      "requestBodies": [
+        "ignored body is not bound"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [
+          "fixture-instance"
+        ],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "STOPPED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "stop-busy",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/stop"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy transition is busy"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "STOPPED"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        "malformed body is ignored by start"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": false,
+            "status": "RUNNING"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "RUNNING"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-missing",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/missing/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy instance not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-not-startable",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy instance is not startable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-runtime-capacity-maps-busy",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "运行实例 PineTS Worker 已达到上限。请停止其他运行实例，或到设置的 PineTS Worker 中调高“运行实例 Worker 最大值”后再启动。"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-context-cancelled-maps-gateway",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        502
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_RUNTIME_START_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-timeout-maps-gateway",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        502
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_RUNTIME_START_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-transition-failure-stops-runtime",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        502
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_RUNTIME_START_FAILED",
+            "message": "catalog transition unavailable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [
+          "fixture-instance"
+        ],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "RUNNING"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "start-transition-busy-stops-runtime",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/start"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy transition is busy"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [
+          "fixture-instance"
+        ],
+        "stopCalls": [
+          "fixture-instance"
+        ],
+        "transitionCalls": [
+          {
+            "instanceId": "fixture-instance",
+            "status": "RUNNING"
+          }
+        ],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "refresh-definition-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/refresh-definition"
+      ],
+      "requestBodies": [
+        "malformed body is ignored by refresh"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [
+          "fixture-instance"
+        ],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "refresh-definition-not-found",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/missing/refresh-definition"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy definition not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [
+          "missing"
+        ],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "refresh-definition-failure",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance/refresh-definition"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to refresh strategy definition"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [],
+        "refreshCalls": [
+          "fixture-instance"
+        ],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "delete-success",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        "ignored body is not bound"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "paper",
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "observe",
+                "pauseOnReject": true
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T05:00:00Z",
+            "definition": {
+              "name": "Fixture Strategy",
+              "strategyId": "fixture-strategy",
+              "version": "1.2.0"
+            },
+            "id": "fixture-instance",
+            "logs": [
+              "fixture runtime"
+            ],
+            "params": {
+              "symbol": "US.AAPL"
+            },
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [
+          "fixture-instance"
+        ],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "delete-not-found",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategies/missing"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy instance not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [
+          "missing"
+        ],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "delete-busy",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy instance is running"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [
+          "fixture-instance"
+        ],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    },
+    {
+      "name": "delete-store-failure",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategies/fixture-instance"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "portCalls": [
+        true
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to delete strategy instance"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "deleteCalls": [
+          "fixture-instance"
+        ],
+        "refreshCalls": [],
+        "runtimeRiskCalls": [],
+        "startCalls": [],
+        "stopCalls": [],
+        "transitionCalls": [],
+        "updateCalls": []
+      }
+    }
+  ]
+}
