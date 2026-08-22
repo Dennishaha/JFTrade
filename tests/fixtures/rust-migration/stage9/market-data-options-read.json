@@ -1,0 +1,128 @@
+{
+  "version": "stage9.market-data-options-read.v1",
+  "cases": [
+    {
+      "name": "chain",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/chains/US.AAPL?brokerId=api-test\u0026market=US\u0026operation=chain",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_chain"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_chain",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "expirations",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/expirations/US.AAPL?brokerId=api-test\u0026market=US\u0026operation=expirations",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_chain"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_chain",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "screen",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/screens?brokerId=api-test\u0026market=US\u0026operation=screen",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_screen"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_screen",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "analysis",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test\u0026market=US",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_analysis"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_analysis",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "events",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/events?brokerId=api-test\u0026market=US",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_events"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_events",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "broker-capability-unavailable",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/options/chains/US.AAPL?brokerId=missing\u0026market=US",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    }
+  ]
+}

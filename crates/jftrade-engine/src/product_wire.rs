@@ -104,7 +104,6 @@ fn agent_templates_wire() -> serde_json::Value {
         }]
     })
 }
-
 fn runtime_message(runtime: &ProductRuntimeSnapshot) -> String {
     if let Some(error) = &runtime.last_error {
         return format!("Rust retained runtime failed: {error}");
@@ -266,6 +265,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_market_data_derivative_read_path(path) => {
                     self.market_data_derivative_read(path, &request.query)
                 }
+                ("GET", path) if is_market_data_options_read_path(path) => {
+                    self.market_data_options_read(path, &request.query)
+                }
                 ("GET", path) if is_broker_read_path(path) => {
                     self.broker_read(path, &request.query)
                 }
@@ -344,7 +346,6 @@ struct ExchangeCalendarWriteRequest {
 struct MarketDataProviderWriteRequest {
     active_provider: String,
 }
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct ExchangeCalendarWriteInput {
@@ -355,7 +356,6 @@ struct ExchangeCalendarWriteInput {
     source_policies: Vec<jftrade_settings::ExchangeCalendarSourcePolicy>,
     manual_overrides: Vec<jftrade_settings::ExchangeCalendarManualOverride>,
 }
-
 impl From<ExchangeCalendarWriteInput> for ExchangeCalendarSettings {
     fn from(input: ExchangeCalendarWriteInput) -> Self {
         Self {

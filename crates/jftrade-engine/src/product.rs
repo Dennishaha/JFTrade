@@ -7,6 +7,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+use crate::product_data_management;
+use crate::product_runtime::{ProductRuntimeSnapshot, ProductRuntimeState};
+use crate::real_trade_control::{
+    REAL_TRADE_CONTROL_PATH_ENV, RealTradeControlReader, derive_real_trade_control_path,
+};
+use crate::runtime_dependencies;
 use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock, PortFuture,
     RouteCatalog, RouteCatalogError, RouteSpec, SystemClock, TransportMetrics, build_router,
@@ -40,20 +46,12 @@ use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-
-use crate::product_data_management;
-use crate::product_runtime::{ProductRuntimeSnapshot, ProductRuntimeState};
-use crate::real_trade_control::{
-    REAL_TRADE_CONTROL_PATH_ENV, RealTradeControlReader, derive_real_trade_control_path,
-};
-use crate::runtime_dependencies;
 pub const PRODUCT_BIND_ENV: &str = "JFTRADE_RUST_API_BIND";
 pub const PRODUCT_SETTINGS_PATH_ENV: &str = "JFTRADE_SETTINGS_PATH";
 pub const PRODUCT_DESKTOP_TOKEN_ENV: &str = "JFTRADE_DESKTOP_TOKEN";
 pub const PRODUCT_REHEARSAL_PROTOCOL_VERSION: &str = "jftrade-product-rehearsal.v1";
 pub const PRODUCT_READ_ONLY_ROUTE_PROFILE: &str = "read-only-shadow.v1";
 pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
-
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 include!("product_research_preset_port.rs");
@@ -61,8 +59,8 @@ include!("product_execution_read_port.rs");
 include!("product_market_data_provider_read_port.rs");
 include!("product_market_data_catalog_read_port.rs");
 include!("product_market_data_derivative_read_port.rs");
+include!("product_market_data_options_read_port.rs");
 include!("product_snapshot_errors.rs");
-
 /// Consumer-owned read port for local watchlist membership projections.  The
 /// port is accepted only in test-cutover wiring until the Rust store adapter
 /// owns the same SQLite lifecycle as the Go watchlist service.
@@ -72,7 +70,6 @@ pub trait WatchlistMembershipSnapshotPort: Send + Sync + std::fmt::Debug {
         instrument_id: &str,
     ) -> Result<Memberships, WatchlistMembershipSnapshotError>;
 }
-
 /// Consumer-owned read-only projections for the watchlist catalog. The Go
 /// service remains responsible for SQLite access, normalization, pagination,
 /// and source lifecycle; Rust only exposes the captured wire projection in
@@ -84,26 +81,22 @@ pub trait WatchlistReadSnapshotPort: Send + Sync + std::fmt::Debug {
         query: &str,
     ) -> Result<serde_json::Value, WatchlistReadSnapshotError>;
 }
-
 /// Consumer-owned broker portfolio projections. The Go broker runtime remains
 /// the only provider/OpenD owner; this port is test-cutover-only.
 pub trait PortfolioSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, PortfolioSnapshotError>;
 }
-
 /// Consumer-owned provider research projections. The Go provider runtime
 /// remains the only production owner; this port is test-cutover-only.
 pub trait ResearchReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(&self, path: &str, query: &str)
     -> Result<serde_json::Value, ResearchReadSnapshotError>;
 }
-
 /// Consumer-owned broker read projections. The Go broker runtime remains the
 /// only production owner; this port is test-cutover-only.
 pub trait BrokerReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(&self, path: &str, query: &str) -> Result<serde_json::Value, BrokerReadSnapshotError>;
 }
-
 /// Consumer-owned read port for the current Go plugin catalog's uninstall
 /// guidance. The port carries the complete wire projection so Rust does not
 /// duplicate platform-specific path normalization or shell quoting.
@@ -113,19 +106,16 @@ pub trait PluginUninstallGuidanceSnapshotPort: Send + Sync + std::fmt::Debug {
         plugin_id: &str,
     ) -> Result<Option<PluginUninstallGuidance>, PluginUninstallGuidanceSnapshotError>;
 }
-
 /// Consumer-owned read-only projection for the Go plugin catalog and its
 /// persisted operation status. The port carries complete wire values so Rust
 /// does not reproduce catalog normalization or activate the plugin runtime.
 pub trait PluginSnapshotPort: Send + Sync + std::fmt::Debug {
     fn catalog(&self) -> Result<serde_json::Value, PluginSnapshotError>;
-
     fn operation(
         &self,
         operation_id: &str,
     ) -> Result<Option<serde_json::Value>, PluginSnapshotError>;
 }
-
 /// Consumer-owned read port for Go's customization alert projections. The
 /// port carries the complete wire value so the Rust shadow does not connect to
 /// OpenD or duplicate the Futu alert adapter before ownership is cut over.
@@ -136,7 +126,6 @@ pub trait AlertSnapshotPort: Send + Sync + std::fmt::Debug {
         raw_query: &str,
     ) -> Result<serde_json::Value, AlertSnapshotError>;
 }
-
 /// Consumer-owned read-only projection for strategy definition routes.
 ///
 /// The port carries the complete JSON projection because the Go owner still
@@ -163,20 +152,17 @@ pub trait StrategyDefinitionSnapshotPort: Send + Sync + std::fmt::Debug {
         version: &str,
     ) -> Result<Option<Value>, StrategyDefinitionSnapshotError>;
 }
-
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StrategyDefinitionPreview {
     pub interval: Option<String>,
     pub symbol: Option<String>,
     pub use_extended_hours: bool,
 }
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AlertKind {
     Price,
     OptionEvents,
 }
-
 #[derive(Clone)]
 pub struct ProductConfig {
     bind_address: SocketAddr,
@@ -195,6 +181,7 @@ pub struct ProductConfig {
     market_data_catalog_read_snapshot_port: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     market_data_derivative_read_snapshot_port:
         Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
+    market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -258,6 +245,7 @@ impl ProductConfig {
             market_data_provider_read_snapshot_port: None,
             market_data_catalog_read_snapshot_port: None,
             market_data_derivative_read_snapshot_port: None,
+            market_data_options_read_snapshot_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -433,6 +421,15 @@ impl ProductConfig {
         port: Arc<dyn MarketDataDerivativeReadSnapshotPort>,
     ) -> Self {
         self.market_data_derivative_read_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_market_data_options_read_snapshot_port(
+        mut self,
+        port: Arc<dyn MarketDataOptionsReadSnapshotPort>,
+    ) -> Self {
+        self.market_data_options_read_snapshot_port = Some(port);
         self
     }
 
@@ -649,6 +646,9 @@ pub(crate) async fn start_product_with_runtime_state(
             market_data_derivative_read_snapshot: config
                 .market_data_derivative_read_snapshot_port
                 .clone(),
+            market_data_options_read_snapshot: config
+                .market_data_options_read_snapshot_port
+                .clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
@@ -748,6 +748,7 @@ include!("product_api_execution.rs");
 include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");
+include!("product_api_market_data_options_read.rs");
 include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");

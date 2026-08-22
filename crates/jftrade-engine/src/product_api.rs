@@ -18,6 +18,7 @@ struct ProductApi {
     market_data_catalog_read_snapshot_port: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     market_data_derivative_read_snapshot_port:
         Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
+    market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -43,6 +44,7 @@ struct ProductOptionalPorts {
     market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
     market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
     market_data_derivative_read_snapshot: Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
+    market_data_options_read_snapshot: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -101,6 +103,7 @@ impl ProductApi {
             market_data_provider_read_snapshot_port: optional_ports.market_data_provider_read_snapshot,
             market_data_catalog_read_snapshot_port: optional_ports.market_data_catalog_read_snapshot,
             market_data_derivative_read_snapshot_port: optional_ports.market_data_derivative_read_snapshot,
+            market_data_options_read_snapshot_port: optional_ports.market_data_options_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
@@ -291,7 +294,6 @@ impl ProductApi {
             .map(|appearance| ApiOutput::Json(json!({ "appearance": appearance })))
             .map_err(settings_failure)
     }
-
     async fn runtime_dependencies(&self) -> ApiOutput {
         let dependencies =
             runtime_dependencies::inspect(SystemClock.now_rfc3339(), self.runtime.node_runtime())
@@ -301,7 +303,6 @@ impl ProductApi {
                 .expect("runtime dependency projection must be serializable"),
         )
     }
-
     fn futu_open_d_install_guide(&self) -> Result<ApiOutput, ApiFailure> {
         let settings = self
             .settings
@@ -451,7 +452,6 @@ impl ProductApi {
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "resource not found"))?;
         Ok(ApiOutput::Json(definition))
     }
-
     fn strategy_definition_versions(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
         let definition_id = strategy_definition_versions_id(path)?;
         let port = self.strategy_definition_port()?;

@@ -559,6 +559,9 @@ mod market_data_catalog_read_tests;
 #[path = "product_market_data_derivative_read_tests.rs"]
 mod market_data_derivative_read_tests;
 
+#[path = "product_market_data_options_read_tests.rs"]
+mod market_data_options_read_tests;
+
 #[path = "product_brokers_tests.rs"]
 mod broker_read_tests;
 
@@ -2037,6 +2040,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             market_data_provider_read: true,
             market_data_catalog_read: true,
             market_data_derivative_read: true,
+            market_data_options_read: true,
             broker_read: true,
             remote_watchlist: true,
             system_read: true,
@@ -2049,7 +2053,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 119);
+    assert_eq!(cutover.routes().len(), 124);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
