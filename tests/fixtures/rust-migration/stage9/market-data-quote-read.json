@@ -1,0 +1,361 @@
+{
+  "version": "stage9.market-data-quote-read.v1",
+  "cases": [
+    {
+      "name": "subscriptions-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/subscriptions",
+      "expectedStatus": 200,
+      "data": {
+        "brokerState": {
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "remainQuota": null,
+          "totalUsedQuota": null
+        },
+        "desiredCount": 0,
+        "entries": [],
+        "ownActiveCount": 0,
+        "pendingReleaseCount": 0,
+        "quota": {
+          "byMarket": [],
+          "totalLimit": null,
+          "totalRemaining": null,
+          "totalUsed": 0
+        },
+        "remainQuota": null,
+        "totalActiveSubscriptions": 0,
+        "totalUsedQuota": null
+      }
+    },
+    {
+      "name": "securities-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/securities/US/AAPL",
+      "expectedStatus": 200,
+      "data": {
+        "lotSize": 1,
+        "name": "Fixture Apple",
+        "symbol": "US.AAPL"
+      }
+    },
+    {
+      "name": "securities-cn-qualified-normalizes-to-leaf",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/securities/CN/SH.600519",
+      "expectedStatus": 200,
+      "data": {
+        "lotSize": 100,
+        "name": "Fixture Moutai",
+        "symbol": "SH.600519"
+      }
+    },
+    {
+      "name": "securities-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/securities/US/FAIL",
+      "expectedStatus": 502,
+      "errorCode": "MARKET_SECURITY_DETAILS_FAILED",
+      "errorMessage": "fixture security unavailable"
+    },
+    {
+      "name": "snapshots-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/snapshots/US/AAPL?refresh=true",
+      "expectedStatus": 200,
+      "data": {
+        "meta": {
+          "fromCache": false,
+          "instrumentId": "US.AAPL",
+          "resolvedAt": "fixture-time",
+          "source": "fixture-quote"
+        },
+        "request": {
+          "instrumentId": "US.AAPL",
+          "market": "US",
+          "symbol": "AAPL"
+        },
+        "snapshot": {
+          "ask": "101.3",
+          "at": "2026-08-22T13:30:00Z",
+          "bid": "101.2",
+          "extended": {
+            "afterMarket": null,
+            "overnight": null,
+            "preMarket": null
+          },
+          "extendedHours": false,
+          "highPrice": "102",
+          "lastClosePrice": "100.5",
+          "lowPrice": "99",
+          "observedAt": "fixture-time",
+          "openPrice": "100",
+          "previousClosePrice": "100.5",
+          "price": "101.25",
+          "session": "regular",
+          "turnover": "101250",
+          "volume": "1000"
+        }
+      }
+    },
+    {
+      "name": "snapshots-invalid-refresh",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/snapshots/US/AAPL?refresh=maybe",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid refresh query"
+    },
+    {
+      "name": "snapshots-capability-unsupported",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/snapshots/US/AAPL",
+      "expectedStatus": 409,
+      "errorCode": "MARKET_DATA_CAPABILITY_UNSUPPORTED",
+      "errorMessage": "market-data capability is unsupported: active provider \"fixture-quote\" does not support snapshots"
+    },
+    {
+      "name": "snapshots-provider-warming-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/snapshots/SH/600519",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试"
+    },
+    {
+      "name": "candles-ready-with-range-and-sessions",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=5m\u0026limit=2\u0026fromTime=2026-08-01T00:00:00Z\u0026toTime=2026-08-02T00:00:00Z\u0026sessions=regular\u0026sessions=extended",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [
+          {
+            "at": "2026-08-01T13:30:00Z",
+            "close": "101.0",
+            "open": "100.0"
+          }
+        ],
+        "pagination": {
+          "hasMore": false
+        },
+        "source": "fixture-candles"
+      }
+    },
+    {
+      "name": "candles-empty-result",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/HK/00700?period=1d\u0026limit=10",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [],
+        "pagination": {
+          "hasMore": false
+        },
+        "source": "fixture-empty"
+      }
+    },
+    {
+      "name": "candles-invalid-period",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=bad",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid candle query"
+    },
+    {
+      "name": "candles-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/FAIL?period=1m",
+      "expectedStatus": 502,
+      "errorCode": "OPEND_CANDLES_FAILED",
+      "errorMessage": "fixture candles unavailable"
+    },
+    {
+      "name": "depth-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/depth/US/AAPL?num=2",
+      "expectedStatus": 200,
+      "data": {
+        "asks": [
+          {
+            "price": "101.0",
+            "volume": "12"
+          }
+        ],
+        "bids": [
+          {
+            "price": "100.0",
+            "volume": "10"
+          }
+        ],
+        "symbol": "US.AAPL"
+      }
+    },
+    {
+      "name": "depth-invalid-num",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/depth/US/AAPL?num=bad",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "num must be an integer"
+    },
+    {
+      "name": "depth-provider-busy-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/depth/SZ/000001",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试"
+    },
+    {
+      "name": "profile-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/instruments/US.AAPL/profile?brokerId=api-test\u0026market=US\u0026pageSize=5",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "market.instrument_profile"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.instrument_profile",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "intraday-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/intraday/US.AAPL?brokerId=api-test\u0026market=US\u0026pageSize=3",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "market.intraday"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.intraday",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "ticks-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/ticks/US.AAPL?brokerId=api-test\u0026market=US\u0026pageSize=3",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "market.ticks"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.ticks",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "broker-queue-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/broker-queue/US.AAPL?brokerId=api-test\u0026market=US",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "market.broker_queue"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.broker_queue",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "capital-flow-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/capital-flow/US.AAPL?brokerId=api-test\u0026market=US",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "market.capital_flow"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.capital_flow",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      }
+    },
+    {
+      "name": "intraday-capability-unavailable",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/intraday/US.AAPL?brokerId=missing\u0026market=US",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "ticks-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/ticks/US.AAPL?brokerId=api-test\u0026market=US",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "fixture ticks unavailable"
+    },
+    {
+      "name": "broker-queue-provider-warming-retry",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/broker-queue/US.AAPL?brokerId=api-test\u0026market=US",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试"
+    }
+  ]
+}

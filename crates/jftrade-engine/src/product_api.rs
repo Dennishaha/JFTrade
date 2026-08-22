@@ -1,3 +1,5 @@
+include!("product_api_types.rs");
+
 struct ProductApi {
     api_port: u16,
     settings: ProductSettingsServices,
@@ -21,6 +23,7 @@ struct ProductApi {
     market_data_options_read_snapshot_port: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
     market_data_news_actions_read_snapshot_port:
         Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
+    market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -34,50 +37,6 @@ struct ProductApi {
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
-}
-struct ProductOptionalPorts {
-    notification: Option<Arc<dyn ProductNotificationPort>>,
-    calendar_manager: Option<Arc<CalendarManager>>,
-    watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
-    watchlist_read_snapshot: Option<Arc<dyn WatchlistReadSnapshotPort>>,
-    portfolio_snapshot: Option<Arc<dyn PortfolioSnapshotPort>>,
-    research_read_snapshot: Option<Arc<dyn ResearchReadSnapshotPort>>,
-    research_preset_read_snapshot: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
-    execution_read_snapshot: Option<Arc<dyn ExecutionReadSnapshotPort>>,
-    market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
-    market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
-    market_data_derivative_read_snapshot: Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
-    market_data_options_read_snapshot: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
-    market_data_news_actions_read_snapshot: Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
-    broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
-    system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
-    remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
-    plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
-    plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
-    alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
-    strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
-    backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
-    backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
-    strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
-    auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
-}
-struct ProductSettingsServices {
-    appearance: AppearanceService,
-    brokers: BrokerSettingsService,
-    onboarding: OnboardingSettingsService,
-    futu_install: FutuOpenDInstallSettingsService,
-    execution: ExecutionService,
-    assistant_runtime: AssistantRuntimeService,
-    system_notifications: SystemNotificationService,
-    pine_worker: PineWorkerSettingsService,
-    security: SecuritySettingsService,
-    market_data_provider: MarketDataProviderSettingsService,
-    backtest_market_data_provider: BacktestMarketDataProviderSettingsService,
-    mcp_server: McpServerSettingsService,
-    exchange_calendars: ExchangeCalendarSettingsService,
-    data_management: OverviewService,
-    cleanup_preview: Arc<CleanupPreviewService>,
-    maintenance: MaintenanceService,
 }
 impl ProductApi {
     fn new(
@@ -111,6 +70,7 @@ impl ProductApi {
             market_data_options_read_snapshot_port: optional_ports.market_data_options_read_snapshot,
             market_data_news_actions_read_snapshot_port: optional_ports
                 .market_data_news_actions_read_snapshot,
+            market_data_quote_read_snapshot_port: optional_ports.market_data_quote_read_snapshot,
             broker_read_snapshot_port: optional_ports.broker_read_snapshot,
             system_read_snapshot_port: optional_ports.system_read_snapshot,
             remote_watchlist_snapshot_port: optional_ports.remote_watchlist_snapshot,
