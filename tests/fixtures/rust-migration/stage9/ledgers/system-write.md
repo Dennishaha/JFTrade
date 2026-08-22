@@ -3,7 +3,9 @@
 - Group: `system-write`
 - Tier: A: real-trade safety controls and OpenD runtime reset are state-changing operations. The Rust side is a test-only rehearsal leaf; it is not a production owner.
 - Dynamic baseline before this worker: `278 baseline / 26 shadow / 228 cutover-test-only / 0 cutover-qualified / 24 remaining / 0 Rust production owner`.
-- Routes in this group: 7 remaining operations. `route-ownership.json` is integration-owned and intentionally unchanged by this worker; the seven operations remain `remaining` until the integration branch adds the port wiring and ownership evidence.
+- Routes in this group: 7 system mutations. The integration branch now registers
+  them only behind the explicit `SystemWritePort`; ownership is
+  `cutover-test-only`, while Go remains the production owner.
 - Go owner: `internal/api/system`, `internal/system.Service`, `internal/trading.RealTradeControlPlane`, `internal/app/apiserver/futuapp` and the production composition root. Go continues to own OpenD, real-trade state, persistence, broker safety decisions, notifications, and the formal HTTP/Wails entry points.
 - Rust rehearsal owner: `crates/jftrade-engine/src/product_system_write_port.rs` behind an injected `SystemWritePort` used only by `crates/jftrade-engine/tests/stage9_system_write.rs`. The leaf has no SQLite, broker, OpenD, notification, task, or persistence capability.
 - Fixture: `tests/fixtures/rust-migration/stage9/system-write.json` (`47` cases, `68` requests).
@@ -119,23 +121,27 @@ owner: integration branch
 - The Rust route must be registered only when `ProductConfig::test_cutover` carries the system write port. Without it, the route must remain absent; with an unavailable adapter, it must fail closed and never retry Go.
 - Go remains the sole writer and safety decision owner. Any future owner switch must be one composition-root choice with rollback/fencing evidence; no dual dispatch is allowed.
 
-## Integration hook (not changed by this worker)
+## Integration hook
 
-The integration branch must apply the smallest shared patch to:
+The shared integration applied the smallest patch to:
 
 1. Add an optional `SystemWritePort` to the product test-cutover port set and system route capability.
 2. Dispatch exact method/path matches through this leaf before the existing read routes, preserving shared auth/access-surface and raw-response wire handling.
 3. Add system write route-isolation tests proving default absence, port-unavailable fail-closed behavior, read/write method isolation, and no changes to the 26 shadow routes.
-4. Update `route-ownership.json` and the shared stage9 coverage/differential ledger for the seven operations only; until then they remain `remaining`.
+4. Update `route-ownership.json` and the shared stage9 coverage/differential ledger for the seven operations only; they now remain `cutover-test-only`.
 
-Those shared files are deliberately outside this commit: `product.rs`, `product_api*.rs`, `product_route_assembly.rs`, `product_config_ports.rs`, `product_tests.rs`, `product_wire.rs`, `route-ownership.json`, `scripts/module-map.json`, `scripts/test-affected.test.mjs`, shared differential runners, architecture docs, and generated contracts.
+The shared files are now integrated on the parent branch; generated contracts and
+the default production profile remain unchanged.
 
 ## Verification
 
 - `go test scripts/rust-migration/stage9_system_write_reference_test.go -run '^TestStage9SystemWriteFixtureMatchesCurrentGoOwner$' -count=1` — passed.
 - `cargo test -p jftrade-engine --test stage9_system_write -- --nocapture` — passed; 9 tests, including 47-case/68-request fixture replay.
-- `node scripts/rust-migration/check-stage9-system-write.mjs` — required dedicated differential.
-- `cargo fmt --all -- --check` and the narrow Rust layout/Clippy checks — required after this leaf is settled.
-- `git diff --check` — required before commit.
+- `node scripts/rust-migration/check-stage9-system-write.mjs` — passed.
+- Product route isolation, Rust layout, focused Clippy, rustfmt, and the unified
+  Stage 9 product differential — passed.
+- `git diff --check` — passed.
 
-The current dynamic route gate remains `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner` until the integration branch updates the shared ownership fixture.
+The current dynamic route gate is `26 shadow / 242 cutover-test-only / 0
+qualified / 10 remaining / 0 Rust production owner`; unique owner, recovery,
+release, security, and hard-cut gates remain open.

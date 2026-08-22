@@ -628,6 +628,8 @@ run("cargo", [
 for (const testName of [
   "^TestStage9ResearchPresetsWriteFixtureMatchesCurrentGoOwner$",
   "^TestStage9StrategyDefinitionsWriteFixtureMatchesCurrentGoOwner$",
+  "^TestStage9ExecutionWriteFixtureMatchesCurrentGoOwner$",
+  "^TestStage9SystemWriteFixtureMatchesCurrentGoOwner$",
 ]) {
   run("go", [
     "test",
@@ -677,6 +679,8 @@ run("node", ["scripts/rust-migration/check-stage9-watchlist-write.mjs"]);
 run("node", ["scripts/rust-migration/check-stage9-backtests-write.mjs"]);
 run("node", ["scripts/rust-migration/check-stage9-adk-mutations.mjs"]);
 run("node", ["scripts/rust-migration/check-stage9-strategies-write.mjs"]);
+run("node", ["scripts/rust-migration/check-stage9-execution-write.mjs"]);
+run("node", ["scripts/rust-migration/check-stage9-system-write.mjs"]);
 for (const testName of [
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_match_group_fixture_in_cutover_only",
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",
@@ -684,6 +688,8 @@ for (const testName of [
   "product::tests::market_data_prediction_read_tests::market_data_prediction_read_routes_match_group_fixture_in_cutover_only",
   "product::tests::market_data_prediction_read_tests::market_data_prediction_read_routes_fail_closed_when_snapshot_is_unavailable",
   "product::tests::market_data_prediction_read_tests::market_data_prediction_read_routes_are_not_registered_without_snapshot_port",
+  "product::tests::execution_write_product_tests::execution_write_routes_register_only_with_explicit_test_port",
+  "product::tests::system_write_product_tests::system_write_routes_register_only_with_explicit_test_port",
 ]) {
   run("cargo", [
     "test",
@@ -1382,4 +1388,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/research-presets-write/strategy-definitions-write/strategy-definitions-read/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-provider-actions/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/adk-chat-stream/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus.");
+console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/research-presets-write/strategy-definitions-write/strategy-definitions-read/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-provider-actions/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/adk-chat-stream/market-data-quote-read/market-data-prediction-read/broker/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus, execution/system write rehearsals.");

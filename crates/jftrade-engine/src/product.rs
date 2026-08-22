@@ -67,6 +67,7 @@ include!("product_market_data_quote_read_port.rs");
 include!("product_market_data_prediction_read_port.rs");
 include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
+include!("product_stage9_write_ports.rs");
 include!("product_auth_session_port.rs");
 #[path = "product_auth_session_write_port.rs"]
 mod product_auth_session_write_port;
@@ -139,16 +140,12 @@ use product_strategy_runtime_write_port::{
     StrategyRuntimeWritePort, StrategyRuntimeWriteResponse, dispatch_strategy_runtime_write,
     strategy_runtime_write_routes,
 };
-
 #[path = "strategy_pine.rs"]
 mod strategy_pine;
-
 use strategy_pine::{
     STRATEGY_PINE_ANALYZE_PATH, StrategyPineAnalyzeSnapshotPort, dispatch_strategy_pine_analyze,
 };
-
 const WS_LIVE_ROUTE: (&str, &str) = ("GET", "/api/v1/ws/live");
-
 /// Test-cutover gate for the existing authenticated loopback WebSocket
 /// transport. Go remains the owner of live backend and subscription state.
 pub trait WsLiveSnapshotPort: Send + Sync + std::fmt::Debug {
@@ -308,9 +305,9 @@ pub struct ProductConfig {
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
+    stage9_write_ports: ProductStage9WritePorts,
     capabilities: ProductCapabilities,
 }
-
 impl std::fmt::Debug for ProductConfig {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -324,7 +321,6 @@ impl std::fmt::Debug for ProductConfig {
             .finish_non_exhaustive()
     }
 }
-
 const PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV: &str = "JFTRADE_RUST_INTERNAL_PROXY_PROTOCOL";
 
 impl ProductConfig {
@@ -392,6 +388,7 @@ impl ProductConfig {
             strategy_runtime_write_port: None,
             auth_session_snapshot_port: None,
             auth_session_write_port: None,
+            stage9_write_ports: ProductStage9WritePorts::default(),
             capabilities: ProductCapabilities::default(),
         })
     }
@@ -676,6 +673,7 @@ pub(crate) async fn start_product_with_runtime_state(
             strategy_runtime_write: config.strategy_runtime_write_port.clone(),
             auth_session_snapshot: config.auth_session_snapshot_port.clone(),
             auth_session_write: config.auth_session_write_port.clone(),
+            stage9_write_ports: config.stage9_write_ports.clone(),
         },
         config.capabilities.clone(),
     ));
@@ -729,6 +727,7 @@ include!("product_api_watchlist.rs");
 include!("product_api_portfolio.rs");
 include!("product_api_research.rs");
 include!("product_api_execution.rs");
+include!("product_api_stage9_writes.rs");
 include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");

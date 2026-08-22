@@ -1,3 +1,9 @@
+#[derive(Clone, Default)]
+struct ProductStage9WritePorts {
+    execution: Option<Arc<dyn ExecutionWritePort>>,
+    system: Option<Arc<dyn SystemWritePort>>,
+}
+
 struct ProductOptionalPorts {
     notification: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
@@ -41,6 +47,7 @@ struct ProductOptionalPorts {
     strategy_runtime_write: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
+    stage9_write_ports: ProductStage9WritePorts,
 }
 
 struct ProductSettingsServices {

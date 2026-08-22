@@ -67,6 +67,12 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_execution_write_port(mut self, port: Arc<dyn ExecutionWritePort>) -> Self {
+        self.stage9_write_ports.execution = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_market_data_provider_read_snapshot_port(
         mut self,
         port: Arc<dyn MarketDataProviderReadSnapshotPort>,
@@ -279,6 +285,12 @@ impl ProductConfig {
     #[cfg(test)]
     fn with_auth_session_write_port(mut self, port: Arc<dyn AuthSessionWritePort>) -> Self {
         self.auth_session_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_system_write_port(mut self, port: Arc<dyn SystemWritePort>) -> Self {
+        self.stage9_write_ports.system = Some(port);
         self
     }
 }

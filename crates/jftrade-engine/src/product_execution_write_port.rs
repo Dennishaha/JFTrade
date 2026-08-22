@@ -42,6 +42,7 @@ pub enum ExecutionWriteOperation {
     OrderPreview,
 }
 
+#[allow(dead_code)]
 impl ExecutionWriteOperation {
     pub const fn name(self) -> &'static str {
         match self {
@@ -66,6 +67,7 @@ impl ExecutionWriteOperation {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ExecutionWriteContext {
     #[default]

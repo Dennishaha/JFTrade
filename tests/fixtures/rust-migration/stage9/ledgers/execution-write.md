@@ -14,7 +14,8 @@
 - Production owner: Go remains the sole owner of broker/OpenD sessions,
   pre-trade risk, preview/RFQ persistence, execution SQLite, order-update
   workers, notifications, and all order side effects. Rust is an isolated,
-  consumer-owned test-only leaf and is not registered by any product profile.
+  consumer-owned test-only leaf registered only when the explicit product
+  test-cutover profile supplies `ExecutionWritePort`.
 - Fixture: `tests/fixtures/rust-migration/stage9/execution-write.json`
   (`stage9.execution-write.v1`, 57 cases / 62 requests).
 - Go reference:
@@ -236,15 +237,13 @@ agree on the exercised boundary; durable store evidence is explicitly absent.
 
 ## Ownership and integration handoff
 
-- This worker intentionally does **not** modify the shared
-  `stage9/route-ownership.json`, `product.rs`, `product_api*.rs`,
-  `product_route_assembly.rs`, `product_config_ports.rs`, `product_tests.rs`,
-  `product_wire.rs`, `scripts/module-map.json`, or the shared differential.
-- The integration branch may add the seven operations as
-  `cutover-test-only` only behind an authenticated explicit mutation port and
-  update the shared evidence/counts. Until then the dynamic gate remains
-  `278 baseline / 26 shadow / 228 cutover-test-only / 0 cutover-qualified /
-  24 remaining / 0 Rust production owner`.
+- The shared integration registers all seven operations only behind an
+  authenticated explicit `ExecutionWritePort`; default and read-only profiles
+  remain unchanged. `route-ownership.json` records them as
+  `cutover-test-only`, with Go still the production owner.
+- The dynamic gate after integration is `278 baseline / 26 shadow / 242
+  cutover-test-only / 0 cutover-qualified / 10 remaining / 0 Rust production
+  owner`.
 - No default profile, production owner, broker/OpenD connection, SQLite write,
   notification/task side effect, Wails binding, OpenAPI asset, or Go deletion
   changed in this worker commit.
@@ -254,8 +253,9 @@ agree on the exercised boundary; durable store evidence is explicitly absent.
 - Go fixture reference: `go test scripts/rust-migration/stage9_execution_write_reference_test.go -run '^TestStage9ExecutionWriteFixtureMatchesCurrentGoOwner$' -count=1`.
 - Rust replay: `cargo test -p jftrade-engine --test stage9_execution_write -- --nocapture`.
 - Differential: `node scripts/rust-migration/check-stage9-execution-write.mjs`.
-- Pending before commit: rustfmt/check, focused Clippy/layout checks,
-  `node --check`, `git diff --check`, and final worker-scope audit.
+- Integration verification: dedicated differential, Rust leaf replay, product
+  route-isolation test, route coverage, layout, focused Clippy, `node --check`,
+  and `git diff --check` all pass.
 - This is a rehearsal only; A-tier unique-owner switch, production ledger
   fencing, broker/OpenD live, durable recovery, four-platform signed release,
   security/SBOM, backup/restore, and hard-cut gates remain open.

@@ -43,6 +43,7 @@ pub enum SystemWriteOperation {
     UpdateRisk,
 }
 
+#[allow(dead_code)]
 impl SystemWriteOperation {
     pub const fn name(self) -> &'static str {
         match self {
@@ -137,6 +138,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
 pub enum SystemWritePortError {
     #[error("system write port is unavailable: {0}")]

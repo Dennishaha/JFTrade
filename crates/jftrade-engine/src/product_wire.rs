@@ -126,6 +126,7 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/system/worker/broker-order-updates") => {
                     self.system_read("/api/v1/system/worker/broker-order-updates")
                 }
+                (method, path) if is_system_write_path(method, path) && self.stage9_write_ports.system.is_some() => self.system_write(&request),
                 ("GET", "/api/v1/adk/agent-templates") => {
                     Ok(ApiOutput::Json(agent_templates_wire()))
                 }
@@ -243,6 +244,7 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_execution_read_path(path) => {
                     self.execution_read(path, &request.query)
                 }
+                (method, path) if is_execution_write_path(method, path) && self.stage9_write_ports.execution.is_some() => self.execution_write(&request),
                 ("GET", path) if is_market_data_provider_read_path(path) => {
                     self.market_data_provider_read(path, &request.query)
                 }
@@ -382,7 +384,6 @@ impl From<ExchangeCalendarWriteInput> for ExchangeCalendarSettings {
 fn settings_failure(error: jftrade_settings::SettingsStoreError) -> ApiFailure {
     ApiFailure::new(500, "SETTINGS_SAVE_FAILED", error.to_string())
 }
-
 fn settings_read_failure(error: jftrade_settings::SettingsStoreError) -> ApiFailure {
     ApiFailure::new(500, "SETTINGS_READ_FAILED", error.to_string())
 }
@@ -390,7 +391,6 @@ fn settings_read_failure(error: jftrade_settings::SettingsStoreError) -> ApiFail
 fn mcp_server_read_failure(error: McpServerSettingsError) -> ApiFailure {
     ApiFailure::new(500, "SETTINGS_READ_FAILED", error.to_string())
 }
-
 fn mcp_server_save_failure(error: McpServerSettingsError) -> ApiFailure {
     let message = error.to_string();
     match error {

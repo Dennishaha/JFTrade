@@ -51,6 +51,7 @@ struct ProductApi {
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
+    stage9_write_ports: ProductStage9WritePorts,
     notification_sequence: AtomicU64,
     capabilities: ProductCapabilities,
 }
@@ -120,6 +121,7 @@ impl ProductApi {
             strategy_runtime_write_port: optional_ports.strategy_runtime_write,
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             auth_session_write_port: optional_ports.auth_session_write,
+            stage9_write_ports: optional_ports.stage9_write_ports,
             notification_sequence: AtomicU64::new(0),
             capabilities,
         }
@@ -513,7 +515,6 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(|error| maintenance_failure(error, "DATABASE_BACKUP_FAILED"))
     }
-
     fn database_rebuild(&self, body: &[u8]) -> Result<ApiOutput, ApiFailure> {
         let request: RebuildRequest = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid database rebuild payload"))?;
@@ -523,7 +524,6 @@ impl ProductApi {
             .map(|response| ApiOutput::Json(json!(response)))
             .map_err(|error| maintenance_failure(error, "DATABASE_REBUILD_REJECTED"))
     }
-
     fn real_trade_approvals(&self) -> ApiOutput {
         ApiOutput::Json(json!(self.real_trade_control.snapshot().approvals()))
     }
