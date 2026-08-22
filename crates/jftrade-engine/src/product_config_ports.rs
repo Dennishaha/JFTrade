@@ -181,6 +181,21 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_research_preset_write_port(mut self, port: Arc<dyn ResearchPresetWritePort>) -> Self {
+        self.research_preset_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_strategy_definition_write_port(
+        mut self,
+        port: Arc<dyn StrategyDefinitionWritePort>,
+    ) -> Self {
+        self.strategy_definition_write_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_market_data_provider_actions_port(
         mut self,
         port: Arc<dyn MarketDataProviderActionsPort>,

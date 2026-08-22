@@ -1,0 +1,88 @@
+# Strategy Definitions Write Group Ledger
+
+- Group: `strategy-definitions-write`
+- Tier: A mutation/state change; this slice is test-cutover-only.
+- Operations: 5: create, update, delete, apply-linked-instances, and instantiate under `/api/v1/strategy-definitions`.
+- Go remains the production owner of the strategy definition store, version history, soft-delete guard, catalog instances, Pine compilation, runtime lifecycle, and all SQLite writes.
+- Rust boundary: `product_strategy_definition_write_port.rs` accepts a complete consumer-owned mutation projection. It has no SQLite, PineTS, Provider/OpenD, runtime, notification, or production route registration.
+- Fixture: `tests/fixtures/rust-migration/stage9/strategy-definitions-write.json` (20 cases).
+- Go reference: `scripts/rust-migration/stage9_strategy_definitions_write_reference_test.go`.
+- Differential: `scripts/rust-migration/check-stage9-strategy-definitions-write.mjs`.
+- Rust leaf: `crates/jftrade-engine/tests/stage9_strategy_definitions_write.rs`.
+
+## Contract ledger
+
+| Method | Path | Go observable behavior | Failure/error precedence |
+| --- | --- | --- | --- |
+| POST | `/api/v1/strategy-definitions` | JSON definition is bound through the Go service; client-supplied `id` is cleared before the store upsert, and the complete versioned definition is returned in the standard envelope. | Malformed body is `400 BAD_REQUEST` before store access; semantic/script validation remains `400`; store failure is `500 STRATEGY_FAILED`. |
+| PUT | `/api/v1/strategy-definitions/{definitionId}` | Path ID overwrites any body ID. The Go store preserves its upsert/version behavior, including repeated updates and missing-ID upsert. | Malformed body is `400`; store/snapshot failure is `500 STRATEGY_FAILED`; the fixture preserves the current version and rollback observations. |
+| DELETE | `/api/v1/strategy-definitions/{definitionId}` | Go first checks linked instance IDs. A linked definition returns a `400 BAD_REQUEST`; once unlinked, delete soft-deletes and returns the definition projection. | Invalid path is `400`; linked guard precedes delete; missing definition is `404 NOT_FOUND`; store failure is `500 STRATEGY_FAILED`. |
+| POST | `/api/v1/strategy-definitions/{definitionId}/apply-linked-instances` | Go loads the definition, applies the latest version to eligible linked instances, and returns applied/alreadyLatest/skippedBusy counts. | Definition read failure maps to `400`; missing definition is `404`; busy/application errors preserve the Go `400`/`500` mapping. |
+| POST | `/api/v1/strategy-definitions/{definitionId}/instantiate` | Go loads the definition before binding the optional body. Empty body creates an instance with zero-value binding; valid body is normalized by the catalog and returns the complete stopped instance projection. | Missing definition is `404` before malformed body; malformed binding is `400`; catalog failure is `500 STRATEGY_FAILED`. |
+
+The fixture normalizes only generated definition/instance IDs and the response clock to `2026-08-22T06:00:00Z`; it keeps input whitespace, nullable fields, version values, status, and catalog projections. Concurrent case output is fixture-owned and preserves the observed Go result multiset.
+
+## Three-way quirks
+
+quirk: Create explicitly clears a client-provided definition ID, while update forces the path ID over a body ID.
+范围: `strategy-definitions-write` / POST and PUT definition routes
+证据: Go reference `create-success-client-id-ignored`, `update-version-and-duplicate`; fixture `expectedObservation.definitionSaves`; Rust input replay.
+分类: go-behavior
+判定: intended
+处置: 复刻，待硬切后修复
+风险: medium
+owner: Go until cutover
+后续: retain the request precedence in every future adapter.
+
+quirk: Instantiate reads the definition before decoding the optional binding body, so a missing definition returns `404 NOT_FOUND` even when the body is malformed.
+范围: `strategy-definitions-write` / POST `.../{definitionId}/instantiate`
+证据: Go route order, fixture `instantiate-definition-missing-precedes-malformed-body`, Rust replay.
+分类: go-behavior
+判定: intended
+处置: 复刻，待硬切后修复
+风险: high
+owner: Go until cutover
+后续: preserve error precedence; a production Rust adapter must keep definition lookup and binding validation ordering.
+
+quirk: Delete does a linked-instance guard before soft delete; the first linked request is `400` and a later unlinked request succeeds.
+范围: `strategy-definitions-write` / DELETE definition
+证据: fixture `delete-linked-guard-then-soft-delete`, Go catalog fixture observations, Rust replay.
+分类: go-behavior
+判定: intended
+处置: 复刻，待硬切后修复
+风险: high
+owner: Go until cutover
+后续: require atomic linked-state/delete recovery evidence before qualification.
+
+quirk: Concurrent updates are observable as repeated successful version projections in the current Go fixture rather than an explicit conflict envelope; no Rust-side conflict policy is inferred from this corpus.
+范围: `strategy-definitions-write` / PUT definition concurrent update
+证据: Go reference `concurrent-update-no-lost-version`, fixture response multiset and `definitionSaves` observations.
+分类: go-behavior
+判定: unresolved
+处置: 复刻 captured behavior; add a real cancellation/transaction/restart differential before qualification.
+风险: release-blocker
+owner: Go/integration branch
+后续: resolve with a three-way durable-store replay and owner-fencing review; do not mark this A group qualified while unresolved.
+
+quirk: Fixture-generated definition/instance IDs and response timestamps are dynamic and are normalized only in the reference harness; input and business fields are not normalized.
+范围: all five operations / fixture harness
+证据: reference normalization and fixture `createdAt`, `updatedAt`, generated IDs.
+分类: fixture
+判定: intended
+处置: 修复 fixture/harness；保留 public field shape and timestamp format checks
+风险: low
+owner: integration branch
+后续: compare clock and ID semantics separately in a production rehearsal.
+
+## Verification and integration handoff
+
+quirk: The shared product route-count assertion was updated with the new optional ports but initially expected 196 routes; the ownership ledger and the assembled catalog both resolve to 195 (`278 - 83`), so the assertion was corrected to 195. 三方复核: `route-ownership.json` derived counts, `product_routes` output, and the Go/Rust product differential were compared. 分类: harness. 判定: confirmed. 处置: corrected the test-only count; no route, wire, owner, or default-profile behavior changed.
+
+quirk: The standalone strategy fixture harness used a `match` equivalent to `matches!`, which the repository's `clippy -D warnings` gate rejects. 三方复核: fixture port-call cases, the Go reference's malformed-body precedence, and Rust leaf replay were compared before the mechanical rewrite. 分类: harness. 判定: confirmed. 处置: replaced only the equivalent predicate; port-call precedence and observable responses are unchanged.
+
+- Go reference fixture test: passed.
+- Rust standalone fixture replay, exact route inventory, unavailable-port and read-isolation tests: passed.
+- Dedicated differential: passed (`node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs`).
+- Shared product differential: passed after integration registration (`pnpm run test:rust:stage9:product-differential`).
+- `route-ownership.json` records all five operations as `cutover-test-only`; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
+- `pnpm run check:quick`, `pnpm run check:rust`, generated-contract checks, production owner changes, real SQLite/Pine/runtime activation, and qualification/release gates are not claimed here.

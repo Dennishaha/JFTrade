@@ -40,6 +40,8 @@ enum ProductCapability {
     SystemRead,
     Plugins,
     PluginsWrite,
+    ResearchPresetWrite,
+    StrategyDefinitionWrite,
     MarketDataProviderActions,
     AdkChatStream,
     PluginUninstallGuidance,
@@ -98,6 +100,8 @@ impl ProductCapabilities {
             ProductCapability::SystemRead,
             ProductCapability::Plugins,
             ProductCapability::PluginsWrite,
+            ProductCapability::ResearchPresetWrite,
+            ProductCapability::StrategyDefinitionWrite,
             ProductCapability::MarketDataProviderActions,
             ProductCapability::AdkChatStream,
             ProductCapability::PluginUninstallGuidance,
@@ -150,6 +154,8 @@ impl ProductCapabilities {
                     | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginsWrite
+                    | ProductCapability::ResearchPresetWrite
+                    | ProductCapability::StrategyDefinitionWrite
                     | ProductCapability::MarketDataProviderActions
                     | ProductCapability::AdkChatStream
                     | ProductCapability::PluginUninstallGuidance
@@ -196,6 +202,8 @@ struct ProductRoutePorts {
     system_read: bool,
     plugins: bool,
     plugins_write: bool,
+    research_preset_write: bool,
+    strategy_definition_write: bool,
     market_data_provider_actions: bool,
     adk_chat_stream: bool,
     plugin_uninstall_guidance: bool,
@@ -259,6 +267,8 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),
+        research_preset_write: config.research_preset_write_port.is_some(),
+        strategy_definition_write: config.strategy_definition_write_port.is_some(),
         market_data_provider_actions: config
             .market_data_provider_actions_port
             .is_some(),
@@ -324,6 +334,7 @@ fn product_routes(
         capabilities,
         ports,
     ));
+    routes.extend(product_strategy_research_write_routes(capabilities, ports));
     RouteCatalog::new(routes)
 }
 
@@ -346,3 +357,4 @@ include!("product_market_data_quote_read_routes.rs");
 include!("product_routes_market_data_prediction_read.rs");
 include!("product_routes_strategies.rs");
 include!("product_routes_watchlist_research_trading.rs");
+include!("product_routes_strategy_research_writes.rs");

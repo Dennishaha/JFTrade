@@ -175,14 +175,17 @@
       "method": "DELETE",
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -216,14 +219,17 @@
       "method": "DELETE",
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -2095,7 +2101,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:strategy-definitions-differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
@@ -2110,7 +2116,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:strategy-definitions-differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
@@ -2125,7 +2131,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:strategy-definitions-differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
@@ -2140,7 +2146,7 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:strategy-definitions-differential"
+        "pnpm run test:rust:stage9:product-differential"
       ]
     },
     {
@@ -2533,14 +2539,17 @@
       "method": "PATCH",
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "PATCH",
@@ -3231,14 +3240,17 @@
       "method": "POST",
       "path": "/api/v1/research/screens/presets",
       "capability": "research",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3416,40 +3428,49 @@
       "method": "POST",
       "path": "/api/v1/strategy-definitions",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/strategy-definitions/{definitionId}/apply-linked-instances",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/strategy-definitions/{definitionId}/instantiate",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3963,14 +3984,17 @@
       "method": "PUT",
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "PUT",

@@ -15,4 +15,6 @@
 
 Known quirks: preview query values select Go's existing warmup projection without changing persisted definition fields; timestamps are normalized only in the fixture. This slice reproduces those values and does not repair legacy normalization behavior.
 
+quirk: The four read-operation evidence entries previously named `pnpm run test:rust:stage9:strategy-definitions-differential`, but that command is not defined in `package.json` and the shared runner is the executable differential. 三方复核: Go read fixture/reference, Rust `strategy_definition_routes_match_group_fixture_in_cutover_only` replay, and `package.json`/`check-stage9-product-differential.mjs` were compared. 分类: harness. 判定: confirmed. 处置: corrected the ledger evidence to `pnpm run test:rust:stage9:product-differential`; no Go observable behavior or route ownership changed.
+
 Route ownership for all four operations is `cutover-test-only`, `productionOwner=go`, `goRemovalStatus=retained`. The default shadow catalog does not register these routes.

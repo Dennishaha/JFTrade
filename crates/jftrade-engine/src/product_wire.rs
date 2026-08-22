@@ -236,6 +236,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_research_preset_read_path(path) => {
                     self.research_preset_read(path, &request.query)
                 }
+                (method, path) if is_product_write_path(method, path) => {
+                    self.product_write_mutation(&request)
+                }
                 ("GET", path) if is_execution_read_path(path) => {
                     self.execution_read(path, &request.query)
                 }

@@ -23,6 +23,8 @@ struct ProductOptionalPorts {
     plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write: Option<Arc<dyn PluginWritePort>>,
+    research_preset_write: Option<Arc<dyn ResearchPresetWritePort>>,
+    strategy_definition_write: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: Option<Arc<dyn MarketDataProviderActionsPort>>,
     adk_chat_stream: Option<Arc<dyn AdkChatStreamPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,

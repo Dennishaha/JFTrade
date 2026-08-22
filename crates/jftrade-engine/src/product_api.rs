@@ -34,6 +34,8 @@ struct ProductApi {
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
+    research_preset_write_port: Option<Arc<dyn ResearchPresetWritePort>>,
+    strategy_definition_write_port: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: MarketDataProviderActionsApi,
     adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -93,6 +95,8 @@ impl ProductApi {
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
             plugin_write_port: optional_ports.plugin_write,
+            research_preset_write_port: optional_ports.research_preset_write,
+            strategy_definition_write_port: optional_ports.strategy_definition_write,
             market_data_provider_actions: MarketDataProviderActionsApi::new(
                 optional_ports.market_data_provider_actions,
             ),
