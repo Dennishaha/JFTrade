@@ -1,0 +1,1825 @@
+{
+  "version": "stage9.backtests-write.v1",
+  "timestamp": "2026-08-23T04:00:00Z",
+  "cases": [
+    {
+      "name": "start-success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "id": "fixture-run",
+              "message": "backtest queued",
+              "status": "queued"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 1,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-trailing-json-is-ignored",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"} {\"ignored\":true}"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "id": "fixture-run",
+              "message": "backtest queued",
+              "status": "queued"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 1,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-null-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "null"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "definitionId is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": null
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-empty-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid backtest request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-malformed-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid backtest request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-array-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "[]"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid backtest request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-invalid-instrument",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"symbol\":\"bad symbol\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "market is required when symbol has no market prefix"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "startTime": "2024-01-02T00:00:00Z",
+            "symbol": "bad symbol"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-strategy-missing",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-strategy-missing",
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "strategy definition not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-strategy-provider-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-strategy-error",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BACKTEST_START_FAILED",
+              "message": "start backtest failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-run-store-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-run-store-error",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BACKTEST_START_FAILED",
+              "message": "start backtest failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 1,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-canceled-context-still-queues",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}",
+          "context": "canceled"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "id": "fixture-run",
+              "message": "backtest queued",
+              "status": "queued"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 1,
+        "runAdds": 1,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "start-repeated-write-is-not-idempotent",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests",
+          "body": "{\"definitionId\":\"def-1\",\"market\":\"US\",\"code\":\"AAPL\",\"interval\":\"1d\",\"startTime\":\"2024-01-02T00:00:00Z\",\"endTime\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "start-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "id": "fixture-run",
+              "message": "backtest queued",
+              "status": "queued"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "id": "fixture-run",
+              "message": "backtest queued",
+              "status": "queued"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        },
+        {
+          "operation": "start",
+          "payload": {
+            "code": "AAPL",
+            "definitionId": "def-1",
+            "endTime": "2024-01-03T00:00:00Z",
+            "interval": "1d",
+            "market": "US",
+            "startTime": "2024-01-02T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 2,
+        "runAdds": 2,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "intervals": [
+                "1d"
+              ],
+              "marketDataProvider": "futu",
+              "message": "sync started",
+              "sessionScope": "regular",
+              "since": "2024-01-02T00:00:00Z",
+              "symbol": "US.AAPL",
+              "taskId": "fixture-task",
+              "until": "2024-01-03T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 1,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-default-intervals",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "intervals": [
+                "1m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "1d",
+                "1w"
+              ],
+              "marketDataProvider": "futu",
+              "message": "sync started",
+              "sessionScope": "regular",
+              "since": "2024-01-02T00:00:00Z",
+              "symbol": "US.AAPL",
+              "taskId": "fixture-task",
+              "until": "2024-01-03T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 1,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-null-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "null"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "intervals": [
+                "1m",
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "1d",
+                "1w"
+              ],
+              "marketDataProvider": "futu",
+              "message": "sync started",
+              "sessionScope": "regular",
+              "since": "2026-07-23T04:00:00Z",
+              "symbol": "HK.00700",
+              "taskId": "fixture-task",
+              "until": "2026-08-22T04:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": null
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 1,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-empty-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid sync request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-malformed-body",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid sync request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-invalid-session-scope",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\",\"sessionScope\":\"legacy\"}"
+        }
+      ],
+      "portMode": "sync-success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "sessionScope must be \"regular\" or \"extended\""
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "sessionScope": "legacy",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-adapter-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-adapter-error",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "SYNC_FAILED",
+              "message": "open kline sync adapter: sqlite unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-adapter-canceled",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-adapter-canceled",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "SYNC_FAILED",
+              "message": "open kline sync adapter: context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-adapter-deadline",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-adapter-deadline",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "SYNC_FAILED",
+              "message": "open kline sync adapter: context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "sync-task-store-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/backtests/sync",
+          "body": "{\"market\":\"US\",\"code\":\"AAPL\",\"intervals\":[\"1d\"],\"since\":\"2024-01-02T00:00:00Z\",\"until\":\"2024-01-03T00:00:00Z\"}"
+        }
+      ],
+      "portMode": "sync-task-store-error",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "SYNC_FAILED",
+              "message": "sync task store not configured"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "sync",
+          "payload": {
+            "code": "AAPL",
+            "intervals": [
+              "1d"
+            ],
+            "market": "US",
+            "since": "2024-01-02T00:00:00Z",
+            "until": "2024-01-03T00:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 1,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "cancel-success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/fixture-task"
+        }
+      ],
+      "portMode": "cancel-success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "status": "cancelled",
+              "taskId": "fixture-task"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "cancel-sync",
+          "taskId": "fixture-task"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 1,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "cancel-missing",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/missing-task"
+        }
+      ],
+      "portMode": "cancel-missing",
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "sync task not found or already completed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "cancel-sync",
+          "taskId": "missing-task"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 1,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "cancel-repeat-is-not-idempotent",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/fixture-task"
+        },
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/fixture-task"
+        }
+      ],
+      "portMode": "cancel-repeat",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "status": "cancelled",
+              "taskId": "fixture-task"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        },
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "sync task not found or already completed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "cancel-sync",
+          "taskId": "fixture-task"
+        },
+        {
+          "operation": "cancel-sync",
+          "taskId": "fixture-task"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 2,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "cancel-blank-id",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/%20"
+        }
+      ],
+      "portMode": "cancel-missing",
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "sync task not found or already completed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "cancel-sync",
+          "taskId": ""
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 1,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "cancel-invalid-escape",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/sync/%zz"
+        }
+      ],
+      "portMode": "cancel-missing",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "taskId is invalid"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "delete-completed-success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-completed",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "deleted": true,
+              "id": "fixture-run"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-failed-success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-failed",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "deleted": true,
+              "id": "fixture-run"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-cancelled-success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-cancelled",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "deleted": true,
+              "id": "fixture-run"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-running-rejected",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-running",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "only completed, failed or cancelled backtest runs can be deleted"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "delete-missing",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/missing-run"
+        }
+      ],
+      "portMode": "delete-missing",
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "backtest run not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "missing-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "delete-store-failure",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-store-error",
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BACKTEST_RUN_STORE_FAILED",
+              "message": "delete backtest run failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-status-delete-race",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-race",
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "backtest run not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 1,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-failure-recovers-after-restart",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        },
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-recovery",
+      "restartAfterFirst": true,
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BACKTEST_RUN_STORE_FAILED",
+              "message": "delete backtest run failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "deleted": true,
+              "id": "fixture-run"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        },
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 2,
+        "runDeletes": 2
+      }
+    },
+    {
+      "name": "delete-repeated-write-is-not-idempotent",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        },
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/fixture-run"
+        }
+      ],
+      "portMode": "delete-completed",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "deleted": true,
+              "id": "fixture-run"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        },
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "backtest run not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "calls": [
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        },
+        {
+          "operation": "delete",
+          "runId": "fixture-run"
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 2,
+        "runDeletes": 1
+      }
+    },
+    {
+      "name": "delete-blank-id",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/%20"
+        }
+      ],
+      "portMode": "delete-missing",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "backtest run id is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    },
+    {
+      "name": "delete-invalid-escape",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/backtests/%zz"
+        }
+      ],
+      "portMode": "delete-missing",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "backtest run id is invalid"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T04:00:00Z"
+          }
+        }
+      ],
+      "effects": {
+        "strategyLookups": 0,
+        "runAdds": 0,
+        "syncAdapterOpens": 0,
+        "syncTaskAdds": 0,
+        "syncCancels": 0,
+        "runStatusReads": 0,
+        "runDeletes": 0
+      }
+    }
+  ]
+}
