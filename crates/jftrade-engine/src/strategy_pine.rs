@@ -48,6 +48,7 @@ pub trait StrategyPineAnalyzeSnapshotPort: Send + Sync + std::fmt::Debug {
     ) -> Result<Value, StrategyPineAnalyzeSnapshotError>;
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum StrategyPineAnalyzeSnapshotError {
     #[error("strategy-pine analyze snapshot is unavailable: {0}")]

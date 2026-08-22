@@ -190,6 +190,15 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_strategy_pine_analyze_snapshot_port(
+        mut self,
+        port: Arc<dyn StrategyPineAnalyzeSnapshotPort>,
+    ) -> Self {
+        self.strategy_pine_analyze_snapshot_port = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_ws_live_snapshot_port(mut self, port: Arc<dyn WsLiveSnapshotPort>) -> Self {
         self.ws_live_snapshot_port = Some(port);
         self

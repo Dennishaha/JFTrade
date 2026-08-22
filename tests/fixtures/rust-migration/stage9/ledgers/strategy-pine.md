@@ -3,6 +3,7 @@
 - Group: `strategy-pine`
 - Tier: B; the one analyze route depends on the PineTS worker/analysis projection and therefore remains lifecycle- and failure-sensitive.
 - Operations: 1 `POST /api/v1/strategy-pine/analyze`.
+- Current ownership: `cutover-test-only`; the route is registered only when the explicit product test-cutover profile supplies `StrategyPineAnalyzeSnapshotPort`. Go remains the production owner.
 - Production owner: Go remains the only production owner of Pine parsing, analysis metadata, PineTS worker lifecycle, and the external shadow projection. Rust receives only a complete JSON projection through `StrategyPineAnalyzeSnapshotPort` in an explicit integration-owned test-cutover wiring.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategy-pine.json`
 - Go reference: `scripts/rust-migration/stage9_strategy_pine_reference_test.go`
@@ -75,15 +76,9 @@ quirk: Full workspace `check:rust` and `check:quick` cannot reach their final ga
 owner: integration branch / desktop preparation harness
 后续: Prepare the standard desktop development/release assets on the integration branch and rerun `pnpm run check:rust` and `pnpm run check:quick`; no strategy-pine source change is required.
 
-## Integration handoff
+## Integration Review
 
-This worker intentionally does not edit `route-ownership.json`, any `product*.rs` composition or route assembly file, the shared differential runner, migration architecture docs, or manifests. The group remains Go-owned and not Rust production-owned until the integration branch applies the wiring patch.
-
-The exact shared patch is:
-
-1. Add `mod strategy_pine` or an `include!` leaf entry in `crates/jftrade-engine/src/product.rs`, import the exclusive `StrategyPineAnalyzeSnapshotPort`, add an optional field to `ProductOptionalPorts` and `ProductApi`, and add a test-only builder on `ProductConfig` that accepts an `Arc<dyn StrategyPineAnalyzeSnapshotPort>`.
-2. Add a `ProductApi` dispatch arm for exactly `POST /api/v1/strategy-pine/analyze` that calls `dispatch_strategy_pine_analyze`, maps the leaf response into the existing transport envelope, and registers the route only when the explicit test-cutover port is present. Do not register it in the default profile and do not create a production worker or analyzer owner.
-3. Add the one route to `product_route_assembly.rs`/capability metadata and the existing product test-cutover differential registration, preserving Go as `productionOwner` and keeping `goRemovalStatus=retained`.
-4. On the integration branch, update `tests/fixtures/rust-migration/stage9/route-ownership.json` and shared Stage 9 coverage/evidence only after the group differential, `check:quick`, and `check:rust` pass.
-
-Suggested next wave: after this B-tier group is integrated, choose another independent B-tier worker-dependent group with no shared file overlap; keep this group out of production cutover until the cancellation rehearsal and worker recovery evidence are complete.
+- Product wiring adds a private `strategy_pine` module, a consumer-owned `StrategyPineAnalyzeSnapshotPort`, and an exact `POST /api/v1/strategy-pine/analyze` dispatch arm. The default product profile does not register the route; the explicit test-cutover profile reports 48 routes without the port and 49 with it.
+- The shared differential runs `TestStage9StrategyPineFixtureMatchesCurrentGoOwner` and the three product tests for fixture replay, snapshot failure/retry metadata, and unregistered-route isolation. The product adapter maps the leaf projection into the existing JSON envelope and preserves `Retry-After` through `ApiFailure`.
+- No Pine parser, PineTS worker, Provider/OpenD lifecycle, SQLite access, strategy state mutation, notification, or second production owner was added. `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
+- The group is not `cutover-qualified`: the cancellation rehearsal, worker recovery/release evidence, and final four-platform production gates remain outstanding.

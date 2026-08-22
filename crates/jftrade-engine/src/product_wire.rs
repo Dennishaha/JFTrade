@@ -188,6 +188,9 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_strategy_read_path(path) => {
                     self.strategy_read(path, &request.query)
                 }
+                ("POST", STRATEGY_PINE_ANALYZE_PATH) => {
+                    self.strategy_pine_analyze(&request.body)
+                }
                 ("GET", "/api/v1/research/screens/catalog") => {
                     self.research_screen_catalog(&request.query)
                 }

@@ -24,6 +24,7 @@ struct ProductOptionalPorts {
     plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    strategy_pine_analyze_snapshot: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
     backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,

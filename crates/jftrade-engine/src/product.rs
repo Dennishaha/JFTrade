@@ -69,6 +69,14 @@ include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_auth_session_port.rs");
 include!("product_snapshot_errors.rs");
+
+#[path = "strategy_pine.rs"]
+mod strategy_pine;
+
+use strategy_pine::{
+    STRATEGY_PINE_ANALYZE_PATH, StrategyPineAnalyzeSnapshotPort, dispatch_strategy_pine_analyze,
+};
+
 const WS_LIVE_ROUTE: (&str, &str) = ("GET", "/api/v1/ws/live");
 
 /// Test-cutover gate for the existing authenticated loopback WebSocket
@@ -212,6 +220,7 @@ pub struct ProductConfig {
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    strategy_pine_analyze_snapshot_port: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
     ws_live_snapshot_port: Option<Arc<dyn WsLiveSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
@@ -283,6 +292,7 @@ impl ProductConfig {
             plugin_snapshot_port: None,
             alert_snapshot_port: None,
             strategy_definition_snapshot_port: None,
+            strategy_pine_analyze_snapshot_port: None,
             ws_live_snapshot_port: None,
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
@@ -555,6 +565,7 @@ pub(crate) async fn start_product_with_runtime_state(
             plugin_snapshot: config.plugin_snapshot_port.clone(),
             alert_snapshot: config.alert_snapshot_port.clone(),
             strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
+            strategy_pine_analyze_snapshot: config.strategy_pine_analyze_snapshot_port.clone(),
             backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
@@ -624,6 +635,7 @@ include!("product_api_brokers.rs");
 include!("product_api_watchlists.rs");
 include!("product_api_plugins.rs");
 include!("product_api_strategy_definitions.rs");
+include!("product_api_strategy_pine.rs");
 include!("product_api_auth_session.rs");
 include!("product_wire.rs");
 include!("product_provider_wire.rs");

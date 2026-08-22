@@ -45,6 +45,7 @@ enum ProductCapability {
     BacktestRead,
     BacktestSyncRead,
     StrategyRead,
+    StrategyPineAnalyze,
     WsLive,
 }
 
@@ -98,6 +99,7 @@ impl ProductCapabilities {
             ProductCapability::BacktestRead,
             ProductCapability::BacktestSyncRead,
             ProductCapability::StrategyRead,
+            ProductCapability::StrategyPineAnalyze,
             ProductCapability::WsLive,
         ]))
     }
@@ -145,6 +147,7 @@ impl ProductCapabilities {
                     | ProductCapability::BacktestRead
                     | ProductCapability::BacktestSyncRead
                     | ProductCapability::StrategyRead
+                    | ProductCapability::StrategyPineAnalyze
                     | ProductCapability::WsLive
             )
         })
@@ -185,6 +188,7 @@ struct ProductRoutePorts {
     backtest_read: bool,
     backtest_sync_read: bool,
     strategy_read: bool,
+    strategy_pine_analyze: bool,
     ws_live: bool,
 }
 
@@ -227,6 +231,9 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         backtest_read: config.backtest_read_snapshot_port.is_some(),
         backtest_sync_read: config.backtest_sync_read_snapshot_port.is_some(),
         strategy_read: config.strategy_read_snapshot_port.is_some(),
+        strategy_pine_analyze: config
+            .strategy_pine_analyze_snapshot_port
+            .is_some(),
         ws_live: config
             .ws_live_snapshot_port
             .as_ref()
@@ -264,6 +271,11 @@ fn product_routes(
     routes.extend(product_market_data_quote_read_routes(capabilities, ports));
     routes.extend(product_market_data_prediction_read_routes(capabilities, ports));
     routes.extend(product_strategy_read_routes(capabilities, ports));
+    if ports.strategy_pine_analyze
+        && capabilities.contains(ProductCapability::StrategyPineAnalyze)
+    {
+        routes.push(route("POST", STRATEGY_PINE_ANALYZE_PATH));
+    }
     if ports.ws_live && capabilities.contains(ProductCapability::WsLive) {
         routes.push(route(WS_LIVE_ROUTE.0, WS_LIVE_ROUTE.1));
     }
