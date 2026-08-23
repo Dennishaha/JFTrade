@@ -745,6 +745,7 @@ include!("product_api_alerts_write.rs");
 include!("product_api_plugins_write.rs");
 include!("product_api_strategy_research_writes.rs");
 include!("product_wire.rs");
+include!("product_wire_strategy_definitions.rs");
 include!("product_wire_stage9.rs");
 include!("product_wire_helpers.rs");
 include!("product_provider_wire.rs");
