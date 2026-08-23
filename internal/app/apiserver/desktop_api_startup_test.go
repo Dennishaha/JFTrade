@@ -96,8 +96,8 @@ func TestAPIServerHelperBoundaries(t *testing.T) {
 	}
 }
 
-func TestImmutableCatalogRehearsalSelectionIsExactAndFailClosed(t *testing.T) {
-	if operations, err := immutableCatalogRehearsalOperations(nil); err != nil || operations != nil {
+func TestReadOnlyShadowRehearsalSelectionIsExactAndFailClosed(t *testing.T) {
+	if operations, err := readOnlyShadowRehearsalOperations(nil); err != nil || operations != nil {
 		t.Fatalf("disabled rehearsal = %#v, %v", operations, err)
 	}
 	fixture := rehearsalRuntimeFixture{
@@ -105,27 +105,29 @@ func TestImmutableCatalogRehearsalSelectionIsExactAndFailClosed(t *testing.T) {
 		capabilities: []string{
 			"GET /api/v1/adk/agent-templates",
 			"GET /api/v1/research/screens/catalog",
+			"GET /api/v1/settings/ui",
 			"GET /api/v1/system/status",
 		},
 	}
-	operations, err := immutableCatalogRehearsalOperations(fixture)
+	operations, err := readOnlyShadowRehearsalOperations(fixture)
 	if err != nil {
-		t.Fatalf("select immutable catalog operations: %v", err)
+		t.Fatalf("select read-only shadow operations: %v", err)
 	}
 	want := []string{
 		"GET /api/v1/adk/agent-templates",
 		"GET /api/v1/research/screens/catalog",
+		"GET /api/v1/settings/ui",
 	}
 	if !slices.Equal(operations, want) {
 		t.Fatalf("operations = %#v, want %#v", operations, want)
 	}
 	fixture.profile = "unexpected"
-	if _, err := immutableCatalogRehearsalOperations(fixture); err == nil {
+	if _, err := readOnlyShadowRehearsalOperations(fixture); err == nil {
 		t.Fatal("unexpected routing profile was accepted")
 	}
 	fixture.profile = "read-only-shadow.v1"
 	fixture.capabilities = fixture.capabilities[:1]
-	if _, err := immutableCatalogRehearsalOperations(fixture); err == nil {
+	if _, err := readOnlyShadowRehearsalOperations(fixture); err == nil {
 		t.Fatal("incomplete capability list was accepted")
 	}
 }

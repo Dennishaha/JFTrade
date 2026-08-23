@@ -1,0 +1,126 @@
+{
+  "version": "stage9.settings-ui-read.v1",
+  "cases": [
+    {
+      "name": "missing-appearance-uses-defaults",
+      "method": "GET",
+      "requestPath": "/api/v1/settings/ui",
+      "requestId": "appearance-read-default",
+      "seedDocument": {
+        "activeMarketDataProvider": "yfinance",
+        "exchangeCalendars": {
+          "autoRefreshEnabled": false
+        }
+      },
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "cacheControl": "",
+        "requestId": "appearance-read-default"
+      },
+      "response": {
+        "ok": true,
+        "data": {
+          "appearance": {
+            "upColor": "#16c784",
+            "downColor": "#ea3943"
+          }
+        },
+        "timestamp": "fixture-time"
+      }
+    },
+    {
+      "name": "persisted-colors-are-normalized",
+      "method": "GET",
+      "requestPath": "/api/v1/settings/ui",
+      "requestId": "appearance-read-normalized",
+      "seedDocument": {
+        "activeMarketDataProvider": "yfinance",
+        "exchangeCalendars": {
+          "autoRefreshEnabled": false
+        },
+        "appearance": {
+          "upColor": " #ABCDEF ",
+          "downColor": "#a0B0c0"
+        }
+      },
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "cacheControl": "",
+        "requestId": "appearance-read-normalized"
+      },
+      "response": {
+        "ok": true,
+        "data": {
+          "appearance": {
+            "upColor": "#abcdef",
+            "downColor": "#a0b0c0"
+          }
+        },
+        "timestamp": "fixture-time"
+      }
+    },
+    {
+      "name": "invalid-colors-fall-back-independently",
+      "method": "GET",
+      "requestPath": "/api/v1/settings/ui",
+      "requestId": "appearance-read-invalid",
+      "seedDocument": {
+        "activeMarketDataProvider": "yfinance",
+        "exchangeCalendars": {
+          "autoRefreshEnabled": false
+        },
+        "appearance": {
+          "upColor": "#12345g",
+          "downColor": "#112233"
+        }
+      },
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "cacheControl": "",
+        "requestId": "appearance-read-invalid"
+      },
+      "response": {
+        "ok": true,
+        "data": {
+          "appearance": {
+            "upColor": "#16c784",
+            "downColor": "#112233"
+          }
+        },
+        "timestamp": "fixture-time"
+      }
+    },
+    {
+      "name": "null-appearance-is-absent",
+      "method": "GET",
+      "requestPath": "/api/v1/settings/ui",
+      "requestId": "appearance-read-null",
+      "seedDocument": {
+        "activeMarketDataProvider": "yfinance",
+        "exchangeCalendars": {
+          "autoRefreshEnabled": false
+        },
+        "appearance": null
+      },
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "cacheControl": "",
+        "requestId": "appearance-read-null"
+      },
+      "response": {
+        "ok": true,
+        "data": {
+          "appearance": {
+            "upColor": "#16c784",
+            "downColor": "#ea3943"
+          }
+        },
+        "timestamp": "fixture-time"
+      }
+    }
+  ]
+}

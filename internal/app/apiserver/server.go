@@ -304,7 +304,7 @@ func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerInte
 	if !ok {
 		return nil, fmt.Errorf("unexpected settings store type %T", store)
 	}
-	rehearsalOperations, err := immutableCatalogRehearsalOperations(rehearsal)
+	rehearsalOperations, err := readOnlyShadowRehearsalOperations(rehearsal)
 	if err != nil {
 		return nil, err
 	}
@@ -315,12 +315,13 @@ func newHandler(store lifecycle.SettingsStore, integration jfsettings.BrokerInte
 	}), nil
 }
 
-var immutableCatalogOperations = []string{
+var readOnlyShadowOperations = []string{
 	"GET /api/v1/adk/agent-templates",
 	"GET /api/v1/research/screens/catalog",
+	"GET /api/v1/settings/ui",
 }
 
-func immutableCatalogRehearsalOperations(rehearsal lifecycle.RehearsalRuntime) ([]string, error) {
+func readOnlyShadowRehearsalOperations(rehearsal lifecycle.RehearsalRuntime) ([]string, error) {
 	if rehearsal == nil {
 		return nil, nil
 	}
@@ -328,12 +329,12 @@ func immutableCatalogRehearsalOperations(rehearsal lifecycle.RehearsalRuntime) (
 		return nil, fmt.Errorf("unsupported Rust rehearsal routing profile %q", rehearsal.Profile())
 	}
 	capabilities := rehearsal.Capabilities()
-	for _, operation := range immutableCatalogOperations {
+	for _, operation := range readOnlyShadowOperations {
 		if !slices.Contains(capabilities, operation) {
-			return nil, fmt.Errorf("rust rehearsal missing immutable catalog capability %q", operation)
+			return nil, fmt.Errorf("rust rehearsal missing read-only shadow capability %q", operation)
 		}
 	}
-	return append([]string(nil), immutableCatalogOperations...), nil
+	return append([]string(nil), readOnlyShadowOperations...), nil
 }
 
 func loadFrontendFS() fs.FS {

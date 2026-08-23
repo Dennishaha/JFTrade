@@ -629,6 +629,9 @@ mod remote_watchlist_tests;
 #[path = "product_system_read_tests.rs"]
 mod system_read_tests;
 
+#[path = "product_appearance_read_tests.rs"]
+mod appearance_read_tests;
+
 #[path = "product_backtests_tests.rs"]
 mod backtests_read_tests;
 

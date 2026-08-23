@@ -559,6 +559,18 @@ fn missing_empty_and_corrupted_documents_have_distinct_behavior() {
 }
 
 #[test]
+fn null_appearance_is_treated_as_an_absent_optional_setting() {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let original = br##"{"appearance":null}"##;
+    fs::write(&path, original).expect("seed null appearance");
+
+    let store = SettingsFileStore::open(&path).expect("open null appearance");
+    assert_eq!(store.load_appearance().expect("load appearance"), None);
+    assert_eq!(fs::read(&path).expect("read settings"), original);
+}
+
+#[test]
 fn read_only_shadow_loads_without_mutating_or_persisting_settings() {
     let directory = tempdir().expect("temporary directory");
     let path = directory.path().join("settings.json");

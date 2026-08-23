@@ -546,11 +546,14 @@ fn decode_field<T: serde::de::DeserializeOwned>(
     document: &Map<String, Value>,
     field: &str,
 ) -> Result<Option<T>, SettingsStoreError> {
-    document
-        .get(field)
-        .cloned()
-        .map(serde_json::from_value)
-        .transpose()
+    let Some(value) = document.get(field) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    serde_json::from_value(value.clone())
+        .map(Some)
         .map_err(|error| SettingsStoreError::new(format!("decode {field}: {error}")))
 }
 
@@ -609,11 +612,13 @@ fn validate_field<T: serde::de::DeserializeOwned>(
     document: &Map<String, Value>,
     field: &str,
 ) -> Result<(), SettingsStoreError> {
-    document
-        .get(field)
-        .cloned()
-        .map(serde_json::from_value::<T>)
-        .transpose()
+    let Some(value) = document.get(field) else {
+        return Ok(());
+    };
+    if value.is_null() {
+        return Ok(());
+    }
+    serde_json::from_value::<T>(value.clone())
         .map(|_| ())
         .map_err(|error| SettingsStoreError::new(format!("decode {field}: {error}")))
 }

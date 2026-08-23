@@ -45,6 +45,20 @@ run("go", [
   "test",
   "./scripts/rust-migration",
   "-run",
+  "^TestStage9SettingsUIReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestAppearanceReadRehearsalPreservesWireAndRequiresRestartForGoRollback$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./scripts/rust-migration",
+  "-run",
   "^TestStage9ProviderDescriptorsMatchCurrentGoOwner$",
   "-count=1",
 ]);
@@ -625,6 +639,29 @@ run("cargo", [
   "--",
   "--exact",
 ]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-store-settings-file",
+  "--test",
+  "settings_file_contracts",
+  "null_appearance_is_treated_as_an_absent_optional_setting",
+  "--",
+  "--exact",
+]);
+for (const testName of [
+  "product::tests::appearance_read_tests::appearance_read_route_matches_go_fixture_for_all_seed_documents",
+  "product::tests::appearance_read_tests::appearance_read_route_requires_the_authenticated_shadow_token",
+]) {
+  run("cargo", [
+    "test",
+    "-p",
+    "jftrade-engine",
+    testName,
+    "--",
+    "--exact",
+  ]);
+}
 for (const testName of [
   "^TestStage9ResearchScreensFixtureMatchesCurrentGoOwner$",
   "^TestStage9ResearchPresetsWriteFixtureMatchesCurrentGoOwner$",
