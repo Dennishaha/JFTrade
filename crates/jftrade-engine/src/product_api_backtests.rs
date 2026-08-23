@@ -127,7 +127,7 @@ fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
         .strip_suffix("/status")
         .or_else(|| suffix.strip_suffix('/'))
         .unwrap_or(suffix);
-    if has_invalid_percent_escape(encoded) {
+    if has_invalid_backtest_percent_escape(encoded) {
         return Err(ApiFailure::new(
             400,
             "BAD_REQUEST",
@@ -148,7 +148,7 @@ fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
     Ok(run_id.to_owned())
 }
 
-fn has_invalid_percent_escape(value: &str) -> bool {
+fn has_invalid_backtest_percent_escape(value: &str) -> bool {
     let bytes = value.as_bytes();
     let mut index = 0;
     while index < bytes.len() {

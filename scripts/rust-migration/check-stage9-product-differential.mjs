@@ -288,6 +288,13 @@ run("go", [
 ]);
 run("go", [
   "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestStrategyDefinitionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$",
+  "-count=1",
+]);
+run("go", [
+  "test",
   "./scripts/rust-migration",
   "-run",
   "^TestStage9WatchlistsReadFixtureMatchesCurrentGoOwner$",
@@ -305,6 +312,13 @@ run("go", [
   "./scripts/rust-migration",
   "-run",
   "^TestStage9BacktestsReadFixtureMatchesCurrentGoOwner$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestBacktestsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$",
   "-count=1",
 ]);
 run("go", [

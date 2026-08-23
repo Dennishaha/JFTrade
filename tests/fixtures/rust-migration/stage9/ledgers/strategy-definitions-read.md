@@ -1,7 +1,7 @@
 # Strategy Definitions Read Group Ledger
 
 - Group: `strategy-definitions-read`
-- Tier: C in the route inventory, with explicit test-cutover only because the projection depends on the Go strategy SQLite store and preview derivation.
+- Tier: C in the route inventory; qualification uses an authenticated Go-sidecar rehearsal while the projection remains explicit test-cutover-only because it depends on the Go strategy SQLite store and preview derivation.
 - Owner: Go remains the production owner. Rust accepts a consumer-owned `StrategyDefinitionSnapshotPort` only in `ProductConfig::test_cutover`; Rust never opens or mutates the strategy store.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategy-definitions.json`
 - Differential: `TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner` plus the parameterized `strategy_definition_routes_match_group_fixture_in_cutover_only` test.
@@ -23,4 +23,11 @@ quirk: The strategy rollback rehearsal initially used `defer jftradeCheckTestErr
 
 quirk: The four read-operation evidence entries previously named `pnpm run test:rust:stage9:strategy-definitions-differential`, but that command is not defined in `package.json` and the shared runner is the executable differential. 三方复核: Go read fixture/reference, Rust `strategy_definition_routes_match_group_fixture_in_cutover_only` replay, and `package.json`/`check-stage9-product-differential.mjs` were compared. 分类: harness. 判定: confirmed. 处置: corrected the ledger evidence to `pnpm run test:rust:stage9:product-differential`; no Go observable behavior or route ownership changed.
 
-Route ownership for all four operations is `cutover-test-only`, `productionOwner=go`, `goRemovalStatus=retained`. The default shadow catalog does not register these routes.
+Route ownership for all four operations is `cutover-qualified`, `productionOwner=go`, `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. The default shadow catalog does not register these routes, and no strategy store or runtime write owner moved to Rust.
+
+## Verification record
+
+- Go observable fixture: `go test ./scripts/rust-migration -run '^TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner$' -count=1`.
+- Rust replay/auth/fail-closed tests: `cargo test -p jftrade-engine 'product::tests::strategy_definition_tests::' --lib --locked`.
+- Go authenticated sidecar rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestStrategyDefinitionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`.
+- Shared differential: `pnpm run test:rust:stage9:product-differential`; Go remains the sole production owner and the strategy SQLite/runtime lifecycle remains outside the cutover slice.
