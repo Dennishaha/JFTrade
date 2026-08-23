@@ -546,7 +546,25 @@ fn research_screen_catalog_failure(error: ScreenCatalogError) -> ApiFailure {
 }
 
 fn alert_snapshot_failure(error: AlertSnapshotError) -> ApiFailure {
-    ApiFailure::new(503, "ALERTS_UNAVAILABLE", error.to_string())
+    match error {
+        AlertSnapshotError::Unavailable(message) => ApiFailure::new(
+            503,
+            "ALERTS_UNAVAILABLE",
+            format!("alert snapshot is unavailable: {message}"),
+        ),
+        AlertSnapshotError::CapabilityUnavailable(message) => {
+            ApiFailure::new(409, "BROKER_CAPABILITY_UNAVAILABLE", message)
+        }
+        AlertSnapshotError::Provider {
+            status: Some(status),
+            message,
+        } if (400..500).contains(&status) => {
+            ApiFailure::new(status, "PROVIDER_REQUEST_FAILED", message)
+        }
+        AlertSnapshotError::Provider { message, .. } => {
+            ApiFailure::new(502, "BROKER_FEATURE_FAILED", message)
+        }
+    }
 }
 
 fn parse_database_overview_query(query: &str) -> OverviewRequest {
@@ -769,15 +787,12 @@ fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure>
     }
     Ok(plugin_id.to_owned())
 }
-
 fn strategy_definition_snapshot_failure(error: StrategyDefinitionSnapshotError) -> ApiFailure {
     ApiFailure::new(500, "STRATEGY_FAILED", error.to_string())
 }
-
 fn plugin_snapshot_failure(error: PluginSnapshotError) -> ApiFailure {
     ApiFailure::new(503, "PLUGINS_UNAVAILABLE", error.to_string())
 }
-
 fn decode_query_component(value: &str) -> String {
     percent_decode_str(&value.replace('+', " "))
         .decode_utf8_lossy()

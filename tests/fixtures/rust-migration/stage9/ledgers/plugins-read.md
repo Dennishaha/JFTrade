@@ -1,8 +1,8 @@
 # Plugins Read Group Ledger
 
 - Group: `plugins-read`
-- Tier: C in the route inventory, with explicit test-cutover only because the catalog and persisted operation status are owned by the Go plugin lifecycle and catalog store.
-- Owner: Go remains the production owner. Rust accepts a consumer-owned `PluginSnapshotPort` only in `ProductConfig::test_cutover`; it never opens the plugin catalog store, scans plugin files, loads plugin code, or starts a runtime/provider.
+- Tier: C in the route inventory. Qualification uses an authenticated Go-sidecar rehearsal; the Rust snapshot port remains explicit test-cutover-only because the catalog and persisted operation status are owned by the Go plugin lifecycle and catalog store.
+- Owner: Go remains the production owner. Rust accepts a consumer-owned `PluginSnapshotPort` only in `ProductConfig::test_cutover`; it never opens the plugin catalog store, scans plugin files, loads plugin code, or starts a runtime/provider. The default shadow profile does not register these routes.
 - Fixture: `tests/fixtures/rust-migration/stage9/plugins-read.json`
 - Differential: `TestStage9PluginsReadFixtureMatchesCurrentGoOwner` plus the parameterized `plugins_read_routes_match_group_fixture_in_cutover_only` test.
 
@@ -13,7 +13,7 @@
 
 Known quirks: the fixture normalizes host build metadata (`jftradeVersion`, Go version, OS, and architecture) to stable fixture values because those fields describe the executing Go host rather than catalog state. The Go wire shape, nullable fields, path handling, and error envelope remain unchanged; no behavior is corrected in this slice.
 
-Route ownership for both operations is `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`. The default shadow catalog does not register these routes. Plugin install/uninstall mutations and the existing uninstall-guidance route remain separately owned and are not expanded by this group.
+Route ownership for both operations is `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/restart rehearsal. The default shadow catalog still does not register these snapshot-port routes. Plugin install/uninstall mutations and the existing uninstall-guidance route remain separately owned and are not expanded by this group.
 
 ## Three-way review and quirks
 
@@ -59,7 +59,7 @@ owner: Rust worker
 
 The Go reference, pinned fixture, Rust replay, and authenticated Go-sidecar wire/error/timeout/crash/restart rehearsal now agree. The sidecar only forwards the two GET operations with the private Bearer, internal proxy protocol, and verified desktop access surface; failed Rust requests do not replay Go, and rollback is a restart-time Go-only composition decision. The Rust snapshot port remains read-only and consumer-owned; no plugin filesystem, runtime, provider, or production catalog store is opened by this slice.
 
-The route group remains `cutover-test-only` until the integration branch applies the shared route-ownership and product-profile evidence update. This worker did not change those shared files.
+The route group is now `cutover-qualified` after the integration branch applied the shared route-ownership and differential evidence update. Go remains the production owner; the explicit snapshot port and default-profile route isolation are unchanged.
 
 ## Verification record
 
@@ -68,4 +68,4 @@ The route group remains `cutover-test-only` until the integration branch applies
 - Rust replay, headers, empty catalog, invalid escape, port failure, and route isolation: `cargo test -p jftrade-engine --lib product::tests::plugin_tests -- --nocapture` (3 passed).
 - Rust production compilation: `cargo check -p jftrade-engine --lib --locked`.
 - Rust formatting: `rustfmt --edition 2024 --check crates/jftrade-engine/src/product_api_plugins.rs crates/jftrade-engine/src/product_plugins_tests.rs`.
-- Route coverage remains integration-owned and currently derives `23 shadow / 252 cutover-test-only / 3 cutover-qualified / 0 remaining / 0 Rust production owner`.
+- Route coverage remains integration-owned and currently derives `23 shadow / 248 cutover-test-only / 7 cutover-qualified / 0 remaining / 0 Rust production owner`.

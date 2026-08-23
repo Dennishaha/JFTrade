@@ -38,6 +38,13 @@ impl ProductApi {
     }
 
     fn plugin_operation(&self, path: &str) -> Result<ApiOutput, ApiFailure> {
+        if plugin_operation_path_has_invalid_escape(path) {
+            return Err(ApiFailure::new(
+                400,
+                "BAD_REQUEST",
+                "operationId is required",
+            ));
+        }
         let operation_id = plugin_operation_id(path)?;
         let port = self.plugin_snapshot_port.as_ref().ok_or_else(|| {
             ApiFailure::new(
@@ -52,4 +59,26 @@ impl ProductApi {
             .ok_or_else(|| ApiFailure::new(404, "NOT_FOUND", "plugin operation not found"))?;
         Ok(ApiOutput::Json(operation))
     }
+}
+
+fn plugin_operation_path_has_invalid_escape(path: &str) -> bool {
+    let Some(encoded) = path.strip_prefix("/api/v1/plugins/operations/") else {
+        return false;
+    };
+    let bytes = encoded.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len()
+                || !bytes[index + 1].is_ascii_hexdigit()
+                || !bytes[index + 2].is_ascii_hexdigit()
+            {
+                return true;
+            }
+            index += 3;
+        } else {
+            index += 1;
+        }
+    }
+    false
 }

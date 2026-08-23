@@ -703,14 +703,17 @@
       "method": "GET",
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_alerts_read_reference_test.go",
+        "crates/jftrade-engine/src/product_alerts_read_tests.rs::alerts_read_routes_replay_go_fixture_and_preserve_read_only_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestAlertsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -718,14 +721,17 @@
       "method": "GET",
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_alerts_read_reference_test.go",
+        "crates/jftrade-engine/src/product_alerts_read_tests.rs::alerts_read_routes_replay_go_fixture_and_preserve_read_only_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestAlertsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1577,14 +1583,17 @@
       "method": "GET",
       "path": "/api/v1/plugins",
       "capability": "plugins",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_plugins_read_reference_test.go",
+        "crates/jftrade-engine/src/product_plugins_tests.rs::plugins_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestPluginsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1592,14 +1601,17 @@
       "method": "GET",
       "path": "/api/v1/plugins/operations/{operationId}",
       "capability": "plugins",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_plugins_read_reference_test.go",
+        "crates/jftrade-engine/src/product_plugins_tests.rs::plugins_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestPluginsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

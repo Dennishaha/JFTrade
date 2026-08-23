@@ -2,6 +2,13 @@
 pub enum AlertSnapshotError {
     #[error("alert snapshot is unavailable: {0}")]
     Unavailable(String),
+    #[error("alert snapshot capability is unavailable: {0}")]
+    CapabilityUnavailable(String),
+    #[error("alert snapshot provider failed: {message}")]
+    Provider {
+        status: Option<u16>,
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, Error)]

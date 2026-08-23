@@ -632,6 +632,9 @@ mod system_read_tests;
 #[path = "product_appearance_read_tests.rs"]
 mod appearance_read_tests;
 
+#[path = "product_alerts_read_tests.rs"]
+mod alerts_read_tests;
+
 #[path = "product_backtests_tests.rs"]
 mod backtests_read_tests;
 
@@ -2020,10 +2023,11 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         route_profile_digest(&shadow_capabilities),
         "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
     );
-    assert_eq!(
-        pairs(shadow.routes()),
-        owned_pairs(&ownership.operations, &["shadow", "cutover-qualified"])
-    );
+    let mut expected_shadow = owned_pairs(&ownership.operations, &["shadow", "cutover-qualified"]);
+    expected_shadow.retain(|(_, path)| {
+        !path.starts_with("/api/v1/alerts/") && !path.starts_with("/api/v1/plugins")
+    });
+    assert_eq!(pairs(shadow.routes()), expected_shadow);
     let appearance_only = product_routes(
         &ProductCapabilities::only(ProductCapability::AppearanceWrite),
         ProductRoutePorts::default(),

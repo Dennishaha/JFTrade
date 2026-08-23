@@ -211,6 +211,20 @@ run("go", [
 ]);
 run("go", [
   "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestAlertsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestPluginsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$",
+  "-count=1",
+]);
+run("go", [
+  "test",
   "./scripts/rust-migration",
   "-run",
   "^TestStage9AlertsWriteFixtureMatchesCurrentGoOwner$",
@@ -1227,6 +1241,20 @@ run("cargo", [
   "--",
   "--exact",
 ]);
+for (const testName of [
+  "product::tests::alerts_read_tests::alerts_read_routes_replay_go_fixture_and_preserve_read_only_state",
+  "product::tests::alerts_read_tests::alerts_read_routes_fail_closed_without_snapshot_port_or_with_unavailable_port",
+  "product::tests::alerts_read_tests::alerts_read_routes_require_the_authenticated_desktop_token",
+]) {
+  run("cargo", [
+    "test",
+    "-p",
+    "jftrade-engine",
+    testName,
+    "--",
+    "--exact",
+  ]);
+}
 run("cargo", [
   "test",
   "-p",
