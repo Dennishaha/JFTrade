@@ -1,0 +1,1487 @@
+{
+  "version": "stage9.research-screens.v1",
+  "timestamp": "2026-08-23T12:00:00Z",
+  "cases": [
+    {
+      "name": "valid-page-result",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "default-page-and-empty-result",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [],
+              "hasMore": false,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "0",
+            "pageSize": 50,
+            "operation": "stock_v2",
+            "pageFrom": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "null-json-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "querySchemaVersion: must be 2"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "empty-json-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid stock-screen request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "trailing-json-value",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}} {}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid stock-screen request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "unknown-json-field",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25},\"unknown\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid stock-screen request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "wrong-json-field-type",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":7,\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid stock-screen request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "unsupported-query-schema",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":1,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "querySchemaVersion: must be 2"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "negative-page-offset",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":-1,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "page.offset must be non-negative"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "page-limit-overflow",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":0,\"limit\":101}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "page.limit must be between 1 and 100"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "unknown-factor-definition",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.unknown\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "columns[1].factor.factorKey: unknown research screen factor \"simple.unknown\""
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 0,
+        "calls": []
+      }
+    },
+    {
+      "name": "query-string-does-not-override-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens?brokerId=other\u0026market=HK",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "rate-limit-error",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 429,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "3"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_SCREEN_RATE_LIMITED",
+              "message": "research stock screen rate limited; retry after 2.5s"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "capability-error",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: fixture broker unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "provider-warming-error",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "1"
+          },
+          "envelope": {
+            "error": {
+              "code": "MARKET_DATA_PROVIDER_WARMING",
+              "message": "行情服务正在预热，请稍后重试"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "provider-busy-error",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "2"
+          },
+          "envelope": {
+            "error": {
+              "code": "MARKET_DATA_PROVIDER_BUSY",
+              "message": "行情服务当前繁忙，请稍后重试"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "broker-failure-error",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "fixture broker failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-result-row",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "broker returned an invalid stock-screen row"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-result-cursor",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "broker returned an invalid stock-screen offset"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "failure-then-recovery",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "fixture broker failed before recovery"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 2,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          },
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "repeated-identical-request",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 1,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          }
+        ]
+      }
+    },
+    {
+      "name": "concurrent-distinct-pages",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":0,\"limit\":25}}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":25,\"limit\":25}}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":50,\"limit\":25}}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens",
+          "body": "{\"brokerId\":\" API-TEST \",\"market\":\"us\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"conditions\":[{\"id\":\" price-filter \",\"factor\":{\"instanceId\":\"price-filter\",\"factorKey\":\" SIMPLE.PRICE \"},\"operator\":\" BETWEEN \",\"value\":{\"min\":10}}],\"columns\":[{\"columnId\":\"code-column\",\"factor\":{\"instanceId\":\"code-column\",\"factorKey\":\"basic.code\"}},{\"columnId\":\"price-column\",\"factor\":{\"instanceId\":\"price-column\",\"factorKey\":\"simple.price\"},\"label\":\"最新价\"}],\"sorts\":[{\"sortId\":\"cap-sort\",\"factor\":{\"instanceId\":\"cap-sort\",\"factorKey\":\"simple.market_cap\"},\"direction\":\" DESC \"}],\"page\":{\"offset\":75,\"limit\":25}}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 1,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 26,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 51,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "asOf": "2026-08-23T12:00:00Z",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "code-column",
+                  "factorKey": "basic.code",
+                  "instanceId": "code-column"
+                },
+                {
+                  "columnId": "price-column",
+                  "factorKey": "simple.price",
+                  "instanceId": "price-column",
+                  "label": "最新价",
+                  "unit": "currency"
+                }
+              ],
+              "entries": [
+                {
+                  "cells": {
+                    "code-column": {
+                      "columnId": "code-column",
+                      "factorKey": "basic.code",
+                      "instanceId": "code-column",
+                      "value": {
+                        "string": "AAPL",
+                        "type": "string"
+                      }
+                    },
+                    "price-column": {
+                      "columnId": "price-column",
+                      "factorKey": "simple.price",
+                      "instanceId": "price-column",
+                      "value": {
+                        "number": 189.25,
+                        "type": "number",
+                        "unit": "currency"
+                      }
+                    }
+                  },
+                  "instrumentId": "US.AAPL",
+                  "market": "US",
+                  "name": "Apple",
+                  "productClass": "equity",
+                  "quoteCurrency": "USD",
+                  "stockId": "AAPL",
+                  "symbol": "AAPL"
+                }
+              ],
+              "hasMore": true,
+              "nextOffset": 76,
+              "provider": {
+                "asOf": "2026-08-23T12:00:00Z",
+                "brokerId": "api-test",
+                "capability": "available",
+                "featureId": "research.screen",
+                "resolvedAt": "2026-08-23T12:00:00Z",
+                "securityFirm": "Fixture",
+                "selectionReason": "explicit_broker"
+              },
+              "total": 7
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T12:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "callCount": 4,
+        "calls": [
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "0",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 0
+          },
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "25",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 25
+          },
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "50",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 50
+          },
+          {
+            "brokerId": "api-test",
+            "market": "US",
+            "cursor": "75",
+            "pageSize": 25,
+            "operation": "stock_v2",
+            "pageFrom": 75
+          }
+        ]
+      },
+      "concurrent": true
+    }
+  ]
+}
