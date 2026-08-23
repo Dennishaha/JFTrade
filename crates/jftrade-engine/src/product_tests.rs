@@ -2003,6 +2003,12 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         pairs
     }
 
+    const DEFAULT_REGISTERED_QUALIFIED_READS: &[&str] = &[
+        "/api/v1/adk/agent-templates",
+        "/api/v1/research/screens/catalog",
+        "/api/v1/settings/ui",
+    ];
+
     let ownership: RouteOwnership = serde_json::from_str(include_str!(
         "../../../tests/fixtures/rust-migration/stage9/route-ownership.json"
     ))
@@ -2023,10 +2029,21 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         route_profile_digest(&shadow_capabilities),
         "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
     );
-    let mut expected_shadow = owned_pairs(&ownership.operations, &["shadow", "cutover-qualified"]);
+    let mut expected_shadow = owned_pairs(&ownership.operations, &["shadow"]);
+    expected_shadow.extend(
+        ownership
+            .operations
+            .iter()
+            .filter(|route| {
+                route.implementation_status == "cutover-qualified"
+                    && DEFAULT_REGISTERED_QUALIFIED_READS.contains(&route.path.as_str())
+            })
+            .map(|route| (route.method.clone(), route.path.clone())),
+    );
     expected_shadow.retain(|(_, path)| {
         !path.starts_with("/api/v1/alerts/") && !path.starts_with("/api/v1/plugins")
     });
+    expected_shadow.sort();
     assert_eq!(pairs(shadow.routes()), expected_shadow);
     let appearance_only = product_routes(
         &ProductCapabilities::only(ProductCapability::AppearanceWrite),
