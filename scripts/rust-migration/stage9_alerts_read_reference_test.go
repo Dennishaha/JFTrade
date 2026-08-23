@@ -3,6 +3,7 @@ package rustmigration
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,8 +34,18 @@ type stage9AlertsReadCase struct {
 }
 
 type stage9AlertsReadFixture struct {
-	Version string                 `json:"version"`
-	Cases   []stage9AlertsReadCase `json:"cases"`
+	Version   string                     `json:"version"`
+	Cases     []stage9AlertsReadCase     `json:"cases"`
+	WireCases []stage9AlertsReadWireCase `json:"wireCases"`
+}
+
+type stage9AlertsReadWireCase struct {
+	Name           string            `json:"name"`
+	Method         string            `json:"method"`
+	RequestPath    string            `json:"requestPath"`
+	ExpectedStatus int               `json:"expectedStatus"`
+	Headers        map[string]string `json:"headers"`
+	Envelope       map[string]any    `json:"envelope"`
 }
 
 // TestStage9AlertsReadFixtureMatchesCurrentGoOwner freezes both read-only
@@ -95,8 +106,9 @@ func TestStage9AlertsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 	}
 
 	want := stage9AlertsReadFixture{
-		Version: stage9AlertsReadFixtureVersion,
-		Cases:   make([]stage9AlertsReadCase, 0, len(cases)),
+		Version:   stage9AlertsReadFixtureVersion,
+		Cases:     make([]stage9AlertsReadCase, 0, len(cases)),
+		WireCases: make([]stage9AlertsReadWireCase, 0, len(stage9AlertsReadWireCases())),
 	}
 	for _, testCase := range cases {
 		adapter.lastQuery = broker.FeatureQuery{}
@@ -132,6 +144,39 @@ func TestStage9AlertsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 			Response:    response,
 		})
 	}
+	for _, testCase := range stage9AlertsReadWireCases() {
+		adapter := &stage9AlertsReadBroker{
+			queryErr: testCase.queryErr,
+			empty:    testCase.empty,
+		}
+		registry := broker.NewRegistry()
+		registry.Register(adapter)
+		service := productfeatures.NewService(registry, adapter.ID(), nil, nil)
+		router := gin.New()
+		productfeaturesapi.RegisterRoutes(router.Group("/api/v1"), service)
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequestWithContext(t.Context(), testCase.method, testCase.path, nil)
+		router.ServeHTTP(recorder, request)
+		var envelope map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
+			t.Fatalf("wire case %s decode response: %v", testCase.name, err)
+		}
+		normalizeAlertEnvelope(envelope)
+		headers := map[string]string{
+			"Content-Type": recorder.Header().Get("Content-Type"),
+		}
+		if retryAfter := recorder.Header().Get("Retry-After"); retryAfter != "" {
+			headers["Retry-After"] = retryAfter
+		}
+		want.WireCases = append(want.WireCases, stage9AlertsReadWireCase{
+			Name:           testCase.name,
+			Method:         testCase.method,
+			RequestPath:    testCase.path,
+			ExpectedStatus: recorder.Code,
+			Headers:        headers,
+			Envelope:       envelope,
+		})
+	}
 
 	if os.Getenv("JFTRADE_UPDATE_RUST_MIGRATION_FIXTURES") == "1" {
 		contents, err := json.MarshalIndent(want, "", "  ")
@@ -164,6 +209,43 @@ func normalizeAlertTimestamps(response map[string]any) {
 	}
 }
 
+func normalizeAlertEnvelope(envelope map[string]any) {
+	envelope["timestamp"] = stage9AlertsReadNow.Format(time.RFC3339Nano)
+	if data, ok := envelope["data"].(map[string]any); ok {
+		normalizeAlertTimestamps(data)
+	}
+}
+
+type stage9AlertsReadWireInput struct {
+	name     string
+	path     string
+	method   string
+	queryErr error
+	empty    bool
+}
+
+func stage9AlertsReadWireCases() []stage9AlertsReadWireInput {
+	return []stage9AlertsReadWireInput{
+		{
+			name:   "price-empty-result",
+			method: http.MethodGet,
+			path:   "/api/v1/alerts/price?brokerId=futu&market=us",
+			empty:  true,
+		},
+		{
+			name:   "option-events-missing-broker",
+			method: http.MethodGet,
+			path:   "/api/v1/alerts/option-events?brokerId=missing&market=us",
+		},
+		{
+			name:     "price-provider-failure",
+			method:   http.MethodGet,
+			path:     "/api/v1/alerts/price?brokerId=futu&market=us&fixture=error",
+			queryErr: errors.New("fixture provider failed"),
+		},
+	}
+}
+
 func jsonObject(value any) (map[string]any, error) {
 	contents, err := json.Marshal(value)
 	if err != nil {
@@ -178,6 +260,8 @@ func jsonObject(value any) (map[string]any, error) {
 
 type stage9AlertsReadBroker struct {
 	lastQuery broker.FeatureQuery
+	queryErr  error
+	empty     bool
 }
 
 func (b *stage9AlertsReadBroker) ID() string { return "futu" }
@@ -211,6 +295,20 @@ func (b *stage9AlertsReadBroker) QueryCustomization(
 	query broker.FeatureQuery,
 ) (*broker.FeatureResult, error) {
 	b.lastQuery = query
+	if b.queryErr != nil {
+		return nil, b.queryErr
+	}
+	if b.empty {
+		hasMore := false
+		total := 0
+		return &broker.FeatureResult{
+			AsOf:     stage9AlertsReadNow,
+			Entries:  []map[string]any{},
+			HasMore:  &hasMore,
+			Total:    &total,
+			Metadata: map[string]any{"source": "fixture"},
+		}, nil
+	}
 	entries := []map[string]any{}
 	switch query.FeatureID {
 	case broker.FeaturePriceAlertList:
