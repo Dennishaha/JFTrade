@@ -238,15 +238,7 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_research_preset_read_path(path) => {
                     self.research_preset_read(path, &request.query)
                 }
-                (method, path) if is_market_data_subscription_mutation_path(method, path) => self
-                    .market_data_subscription_mutation
-                    .dispatch(&request),
-                (method, path)
-                    if is_brokers_write_path(method, path)
-                        && self.stage9_write_ports.brokers.is_some() =>
-                {
-                    self.brokers_write(&request)
-                }
+                (method, path) if self.is_stage9_write_path(method, path) => self.dispatch_stage9_write(&request),
                 (method, path) if is_product_write_path(method, path) => {
                     self.product_write_mutation(&request)
                 }
@@ -790,20 +782,4 @@ fn decode_query_component(value: &str) -> String {
     percent_decode_str(&value.replace('+', " "))
         .decode_utf8_lossy()
         .into_owned()
-}
-
-fn is_managed_account_path(path: &str) -> bool {
-    path.strip_prefix("/api/v1/settings/broker-accounts/")
-        .is_some_and(|id| !id.is_empty() && !id.contains('/'))
-}
-
-fn managed_account_id(path: &str) -> Result<String, ApiFailure> {
-    let encoded = path
-        .strip_prefix("/api/v1/settings/broker-accounts/")
-        .filter(|id| !id.is_empty() && !id.contains('/'))
-        .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid account id"))?;
-    percent_decode_str(encoded)
-        .decode_utf8()
-        .map(|id| id.into_owned())
-        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid account id"))
 }

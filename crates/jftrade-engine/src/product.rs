@@ -116,32 +116,6 @@ use product_strategy_definition_write_port::{
     StrategyDefinitionWritePort, StrategyDefinitionWriteResponse,
     dispatch_strategy_definition_write, strategy_definition_write_routes,
 };
-#[path = "product_market_data_provider_actions_api.rs"]
-mod product_market_data_provider_actions_api;
-#[path = "product_market_data_provider_actions_port.rs"]
-mod product_market_data_provider_actions_port;
-use product_market_data_provider_actions_api::MarketDataProviderActionsApi;
-use product_market_data_provider_actions_port::{
-    MARKET_DATA_PROVIDER_ACTIONS_ROUTES, MarketDataProviderActionsPort,
-    is_market_data_provider_action_path,
-};
-#[path = "product_market_data_subscription_mutation_api.rs"]
-mod product_market_data_subscription_mutation_api;
-#[path = "product_market_data_subscription_mutation_port.rs"]
-mod product_market_data_subscription_mutation_port;
-#[path = "product_market_data_subscription_mutation_routes.rs"]
-mod product_market_data_subscription_mutation_routes;
-use product_market_data_subscription_mutation_api::MarketDataSubscriptionMutationApi;
-use product_market_data_subscription_mutation_port::{
-    MarketDataSubscriptionMutationPort, is_market_data_subscription_mutation_path,
-};
-use product_market_data_subscription_mutation_routes::market_data_subscription_mutation_route_specs;
-#[path = "product_brokers_write_port.rs"]
-mod product_brokers_write_port;
-use product_brokers_write_port::{
-    BrokersWriteContext, BrokersWritePort, BrokersWriteRequest, BrokersWriteResponse,
-    brokers_write_routes, dispatch_brokers_write,
-};
 #[path = "product_adk_chat_stream_port.rs"]
 mod product_adk_chat_stream_port;
 use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
@@ -746,6 +720,7 @@ include!("product_api_research.rs");
 include!("product_api_execution.rs");
 include!("product_api_stage9_writes.rs");
 include!("product_api_brokers_write.rs");
+include!("product_api_stage9_helpers.rs");
 include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");
@@ -770,6 +745,8 @@ include!("product_api_alerts_write.rs");
 include!("product_api_plugins_write.rs");
 include!("product_api_strategy_research_writes.rs");
 include!("product_wire.rs");
+include!("product_wire_stage9.rs");
+include!("product_wire_helpers.rs");
 include!("product_provider_wire.rs");
 include!("product_wire_watchlist.rs");
 include!("product_wire_portfolio.rs");

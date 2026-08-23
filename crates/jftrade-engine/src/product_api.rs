@@ -66,6 +66,8 @@ impl ProductApi {
         optional_ports: ProductOptionalPorts,
         capabilities: ProductCapabilities,
     ) -> Self {
+        let market_data_subscription_mutation =
+            new_market_data_subscription_mutation_api(&optional_ports);
         Self {
             api_port,
             settings,
@@ -106,14 +108,9 @@ impl ProductApi {
             plugin_write_port: optional_ports.plugin_write,
             research_preset_write_port: optional_ports.research_preset_write,
             strategy_definition_write_port: optional_ports.strategy_definition_write,
+            market_data_subscription_mutation,
             market_data_provider_actions: MarketDataProviderActionsApi::new(
                 optional_ports.market_data_provider_actions,
-            ),
-            market_data_subscription_mutation: MarketDataSubscriptionMutationApi::new(
-                optional_ports
-                    .stage9_write_ports
-                    .market_data_subscription_mutation
-                    .clone(),
             ),
             adk_chat_stream_port: optional_ports.adk_chat_stream,
             adk_mutation_port: optional_ports.adk_mutation,
@@ -794,14 +791,4 @@ impl ProductApi {
             .map(|settings| ApiOutput::Json(json!({"exchangeCalendars": settings})))
             .map_err(settings_failure)
     }
-}
-
-fn is_broker_integration_path(path: &str) -> bool {
-    path.strip_prefix("/api/v1/settings/brokers/")
-        .and_then(|value| value.strip_suffix("/integration"))
-        .is_some_and(|id| !id.is_empty() && !id.contains('/'))
-}
-
-fn duration_millis(duration: Duration) -> u64 {
-    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
