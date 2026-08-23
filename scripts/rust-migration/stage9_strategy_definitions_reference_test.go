@@ -2,9 +2,11 @@ package rustmigration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -68,11 +70,17 @@ func TestStage9StrategyDefinitionsFixtureMatchesCurrentGoOwner(t *testing.T) {
 		{name: "list-current-only", path: "/api/v1/strategy-definitions"},
 		{name: "detail-current-default-preview", path: "/api/v1/strategy-definitions/fixture-current"},
 		{name: "detail-current-query-preview", path: "/api/v1/strategy-definitions/fixture-current?interval=1m&symbol=US.MSFT&useExtendedHours=true"},
+		{name: "detail-invalid-query-boolean", path: "/api/v1/strategy-definitions/fixture-current?useExtendedHours=maybe"},
+		{name: "detail-malformed-query-escape-is-ignored", path: "/api/v1/strategy-definitions/fixture-current?useExtendedHours=%ZZ"},
+		{name: "detail-invalid-id-escape", path: "/api/v1/strategy-definitions/%ZZ"},
 		{name: "detail-missing", path: "/api/v1/strategy-definitions/missing-definition"},
 		{name: "versions-current", path: "/api/v1/strategy-definitions/fixture-current/versions"},
+		{name: "versions-invalid-id-escape", path: "/api/v1/strategy-definitions/%ZZ/versions"},
 		{name: "versions-soft-deleted", path: "/api/v1/strategy-definitions/fixture-deleted/versions"},
 		{name: "versions-missing", path: "/api/v1/strategy-definitions/missing-definition/versions"},
 		{name: "version-current-history", path: "/api/v1/strategy-definitions/fixture-current/versions/0.1.0"},
+		{name: "version-invalid-id-escape", path: "/api/v1/strategy-definitions/%ZZ/versions/0.1.0"},
+		{name: "version-invalid-version-escape", path: "/api/v1/strategy-definitions/fixture-current/versions/%ZZ"},
 		{name: "version-missing", path: "/api/v1/strategy-definitions/fixture-current/versions/9.9.9"},
 	}
 	want := stage9StrategyDefinitionsFixture{
@@ -150,7 +158,7 @@ func strategyDefinitionRequest(
 	router := gin.New()
 	strategyapi.RegisterRoutes(router.Group("/api/v1"), service)
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), method, path, nil)
+	request := strategyDefinitionRequestForPath(t.Context(), method, path)
 	router.ServeHTTP(recorder, request)
 	var envelope struct {
 		Data  json.RawMessage `json:"data"`
@@ -169,6 +177,24 @@ func strategyDefinitionRequest(
 			Message string `json:"message"`
 		} `json:"error"`
 	}{Data: envelope.Data, Error: envelope.Error}}
+}
+
+func strategyDefinitionRequestForPath(ctx context.Context, method string, path string) *http.Request {
+	if _, err := url.Parse(path); err == nil {
+		return httptest.NewRequestWithContext(ctx, method, path, nil)
+	}
+	pathPart, queryPart := path, ""
+	if separator := strings.IndexByte(path, '?'); separator >= 0 {
+		pathPart, queryPart = path[:separator], path[separator+1:]
+	}
+	return (&http.Request{
+		Method:     method,
+		URL:        &url.URL{Path: pathPart, RawPath: pathPart, RawQuery: queryPart},
+		RequestURI: path,
+		Header:     make(http.Header),
+		Body:       http.NoBody,
+		Host:       "example.com",
+	}).WithContext(ctx)
 }
 
 func seedStage9StrategyDefinitions(t *testing.T, resource strategystore.Resource) {

@@ -679,9 +679,7 @@ fn strategy_definition_id(path: &str) -> Result<String, ApiFailure> {
         .strip_prefix("/api/v1/strategy-definitions/")
         .filter(|id| !id.is_empty() && !id.contains('/'))
         .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
-    let decoded = percent_decode_str(encoded)
-        .decode_utf8()
-        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let decoded = decode_strategy_path_segment(encoded, "invalid definition id")?;
     let id = decoded.trim();
     if id.is_empty() {
         return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
@@ -701,9 +699,7 @@ fn strategy_definition_versions_id(path: &str) -> Result<String, ApiFailure> {
     if parts.next() != Some("versions") || parts.next().is_some() {
         return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
     }
-    let id = percent_decode_str(encoded_id)
-        .decode_utf8()
-        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"))?;
+    let id = decode_strategy_path_segment(encoded_id, "invalid definition id")?;
     let id = id.trim();
     if id.is_empty() {
         return Err(ApiFailure::new(400, "BAD_REQUEST", "invalid definition id"));
@@ -729,10 +725,8 @@ fn strategy_definition_version_path(path: &str) -> Result<(String, String), ApiF
         .filter(|_| parts.next().is_none())
         .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))?;
     let decode = |encoded: &str| {
-        percent_decode_str(encoded)
-            .decode_utf8()
+        decode_strategy_path_segment(encoded, "invalid definition version")
             .map(|value| value.trim().to_owned())
-            .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid definition version"))
     };
     let id = decode(encoded_id)?;
     let version = decode(encoded_version)?;
@@ -747,9 +741,13 @@ fn parse_strategy_definition_preview(
 ) -> Result<StrategyDefinitionPreview, ApiFailure> {
     let mut preview = StrategyDefinitionPreview::default();
     for pair in query.split('&').filter(|value| !value.is_empty()) {
-        let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
-        let name = decode_query_component(name);
-        let value = decode_query_component(value);
+        let (encoded_name, encoded_value) = pair.split_once('=').unwrap_or((pair, ""));
+        let (Some(name), Some(value)) = (
+            decode_strategy_query_component(encoded_name),
+            decode_strategy_query_component(encoded_value),
+        ) else {
+            continue;
+        };
         match name.as_str() {
             "interval" => preview.interval = Some(value),
             "symbol" => preview.symbol = Some(value),
@@ -770,6 +768,46 @@ fn parse_strategy_definition_preview(
         }
     }
     Ok(preview)
+}
+
+fn decode_strategy_path_segment(encoded: &str, message: &str) -> Result<String, ApiFailure> {
+    if has_invalid_percent_escape(encoded) {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", message));
+    }
+    percent_decode_str(encoded)
+        .decode_utf8()
+        .map(|value| value.into_owned())
+        .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", message))
+}
+
+fn decode_strategy_query_component(value: &str) -> Option<String> {
+    if has_invalid_percent_escape(value) {
+        return None;
+    }
+    Some(
+        percent_decode_str(&value.replace('+', " "))
+            .decode_utf8_lossy()
+            .into_owned(),
+    )
+}
+
+fn has_invalid_percent_escape(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            index += 1;
+            continue;
+        }
+        if index + 2 >= bytes.len()
+            || !bytes[index + 1].is_ascii_hexdigit()
+            || !bytes[index + 2].is_ascii_hexdigit()
+        {
+            return true;
+        }
+        index += 3;
+    }
+    false
 }
 
 fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure> {
