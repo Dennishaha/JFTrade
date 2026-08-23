@@ -8,6 +8,8 @@ import {
   resolveAffectedModules,
   resolveBase,
   resolveFallbackChecks,
+  rustAffectedClippyCommands,
+  rustAffectedTestCommands,
   webAffectedTestCommands,
 } from "./test-affected.mjs";
 
@@ -109,6 +111,20 @@ test("returns no files for a clean checkout without probing a fixture repository
   ]);
 });
 
+test("uses HEAD as the explicit worktree comparison base", () => {
+  const calls = [];
+  const fakeGit = (_root, args) => {
+    calls.push(args);
+    return "";
+  };
+
+  assert.deepEqual(changedFiles("/tmp/repo", "HEAD", { gitCommand: fakeGit }), []);
+  assert.deepEqual(calls, [
+    ["diff", "--name-only", "--diff-filter=ACMRD", "HEAD"],
+    ["ls-files", "--others", "--exclude-standard", "-z"],
+  ]);
+});
+
 test("builds a deterministic affected test plan", () => {
   const plan = planAffected(["workers/pineworker/src/pinetsExecutor.ts"]);
   assert.equal(plan.modules[0].id, "pineworker");
@@ -125,35 +141,77 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
     "pnpm run check:diff",
     "pnpm run check:ai-context",
     "pnpm run check:rust:layout",
-    "pnpm run test:rust",
-    "pnpm run test:rust:differential",
-    "pnpm run test:rust:backtest:differential",
-    "pnpm run test:rust:stage4:differential",
-    "node --test scripts/rust-migration/benchmark-stage4.test.mjs",
-    "pnpm run test:rust:stage5:differential",
-    "node --test scripts/rust-migration/benchmark-stage5.test.mjs",
-    "pnpm run test:rust:stage6:differential",
-    "node --test scripts/rust-migration/benchmark-stage6.test.mjs",
-    "pnpm run test:rust:stage7:differential",
-    "node --test scripts/rust-migration/benchmark-stage7.test.mjs",
-    "pnpm run test:rust:stage8:differential",
-    "node --test scripts/rust-migration/benchmark-stage8.test.mjs",
     "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
     "pnpm run test:rust:stage9:route-coverage",
-    "pnpm run test:rust:stage9:product-differential",
-    "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
-    "node scripts/rust-migration/check-stage9-backtests-write.mjs",
-    "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-    "node scripts/rust-migration/check-stage9-strategies-write.mjs",
-    "node scripts/rust-migration/check-stage9-execution-write.mjs",
-    "node scripts/rust-migration/check-stage9-system-write.mjs",
-    "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
-    "node scripts/rust-migration/check-stage9-brokers-write.mjs",
-    "pnpm run test:tauri-release-runtime",
-    "go test ./scripts/rust-migration -count=1",
+    "pnpm run check:rust:target-health",
+    "cargo test -p jftrade-desktop -p jftrade-engine --all-targets",
     "pnpm run format:rust:check",
-    "pnpm run lint:rust",
+    "cargo clippy -p jftrade-desktop -p jftrade-engine --all-targets --all-features -- -D warnings",
   ]);
+});
+
+test("quick Rust plan selects the changed package and defers the full integration gate", () => {
+  const plan = planAffected(["crates/jftrade-engine/src/lib.rs"], {
+    withChecks: true,
+    profile: "quick",
+  });
+  assert.deepEqual(plan.commands, [
+    "pnpm run check:diff",
+    "pnpm run check:ai-context",
+    "pnpm run check:rust:layout",
+    "pnpm run check:rust:target-health",
+    "cargo test -p jftrade-desktop -p jftrade-engine --all-targets",
+    "pnpm run format:rust:check",
+    "cargo clippy -p jftrade-desktop -p jftrade-engine --all-targets --all-features -- -D warnings",
+  ]);
+  assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);
+});
+
+test("quick Stage 9 ledger plan runs ownership gates without the product differential", () => {
+  const plan = planAffected([
+    "tests/fixtures/rust-migration/stage9/ledgers/research-preset-read.md",
+  ], { profile: "quick" });
+  assert.deepEqual(plan.commands, [
+    "pnpm run check:rust:layout",
+    "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
+    "pnpm run test:rust:stage9:route-coverage",
+  ]);
+  assert.equal(plan.commands.includes("pnpm run test:rust:stage9:product-differential"), false);
+  assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);
+});
+
+test("full Stage 9 product changes replace overlapping group differentials", () => {
+  const plan = planAffected([
+    "scripts/rust-migration/check-stage9-product-differential.mjs",
+    "scripts/rust-migration/check-stage9-watchlist-write.mjs",
+  ], { profile: "full" });
+  assert.equal(
+    plan.commands.filter((command) => command === "pnpm run test:rust:stage9:product-differential").length,
+    1,
+  );
+  assert.equal(plan.commands.includes("node scripts/rust-migration/check-stage9-watchlist-write.mjs"), false);
+  assert.equal(plan.commands.includes("pnpm run check:rust:target-health"), true);
+});
+
+test("Rust affected commands fall back to the workspace for shared manifests", () => {
+  assert.deepEqual(rustAffectedTestCommands(["Cargo.lock"]), ["pnpm run test:rust"]);
+  assert.deepEqual(rustAffectedClippyCommands(["rust-toolchain.toml"]), ["pnpm run lint:rust"]);
+  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-calendar/src/lib.rs"]), [
+    "cargo test -p jftrade-calendar -p jftrade-desktop -p jftrade-engine --all-targets",
+  ]);
+  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-engine/tests/stage9_alerts.rs"]), [
+    "cargo test -p jftrade-engine --all-targets",
+  ]);
+  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-kernel/src/lib.rs"]), [
+    "pnpm run test:rust",
+  ]);
+});
+
+test("rejects an unknown affected-test profile", () => {
+  assert.throws(
+    () => planAffected(["crates/jftrade-engine/src/lib.rs"], { profile: "slow" }),
+    /unknown affected-test profile/,
+  );
 });
 
 test("selects changed Go packages and their production and test dependents", () => {

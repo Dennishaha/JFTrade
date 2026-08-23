@@ -51,32 +51,11 @@
       ],
       "affectedTests": [
         "pnpm run check:rust:layout",
-        "pnpm run test:rust",
-        "pnpm run test:rust:differential",
-        "pnpm run test:rust:backtest:differential",
-        "pnpm run test:rust:stage4:differential",
-        "node --test scripts/rust-migration/benchmark-stage4.test.mjs",
-        "pnpm run test:rust:stage5:differential",
-        "node --test scripts/rust-migration/benchmark-stage5.test.mjs",
-        "pnpm run test:rust:stage6:differential",
-        "node --test scripts/rust-migration/benchmark-stage6.test.mjs",
-        "pnpm run test:rust:stage7:differential",
-        "node --test scripts/rust-migration/benchmark-stage7.test.mjs",
-        "pnpm run test:rust:stage8:differential",
-        "node --test scripts/rust-migration/benchmark-stage8.test.mjs",
         "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
-        "pnpm run test:rust:stage9:route-coverage",
-        "pnpm run test:rust:stage9:product-differential",
-        "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
-        "node scripts/rust-migration/check-stage9-backtests-write.mjs",
-        "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "node scripts/rust-migration/check-stage9-strategies-write.mjs",
-        "node scripts/rust-migration/check-stage9-execution-write.mjs",
-        "node scripts/rust-migration/check-stage9-system-write.mjs",
-        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
-        "node scripts/rust-migration/check-stage9-brokers-write.mjs",
-        "pnpm run test:tauri-release-runtime",
-        "go test ./scripts/rust-migration -count=1"
+        "pnpm run test:rust:stage9:route-coverage"
+      ],
+      "quickTests": [
+        "pnpm run check:rust:layout"
       ],
       "vetPackages": []
     },

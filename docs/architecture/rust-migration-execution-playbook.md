@@ -70,7 +70,7 @@ Tier C：无副作用简单只读 GET 投影，如 settings、system、strategy-
 4. 一个 Rust 测试文件或模块用表驱动覆盖整组。
 5. 一次性更新 route-ownership.json、ledger 和 evidence；按实际运行模式选择 shadow 或 cutover-test-only。
 6. 发现的 quirk 立即写入该组 ledger。
-7. 先跑 affected test，再跑 pnpm run check:quick；Rust 变更另跑 pnpm run check:rust；契约变化另跑 pnpm run check:generated。
+7. worker 先跑本组最窄测试，再跑 `pnpm run check:quick`；完整 `pnpm run check:rust` 由集成分支在合并该波次后运行。契约变化另跑 `pnpm run check:generated`。
 
 ## A/B 档规则
 
@@ -115,7 +115,44 @@ high 或 release-blocker 必须进入 group ledger、切片报告和最终 hard-
 
 ## 验证、提交和交接
 
-每个切片先跑最窄 affected test，再跑 pnpm run check:quick。涉及 Rust 另跑 pnpm run check:rust；契约变化另跑 pnpm run check:generated。不得把未完成门禁写成通过。
+### 门禁分层
+
+| 命令 | 比较范围 | 责任方 | 用途与边界 |
+| --- | --- | --- | --- |
+| `pnpm run check:quick` | 当前工作树相对 `HEAD` | worker | 最快反馈；运行受影响模块、Rust crate 及其反向依赖和迁移静态账本。只报告 deferred integration checks，不代表 PR 或发布资格。 |
+| `pnpm run check:affected` | 当前分支相对 merge-base | 集成分支 | 每波合并后的受影响门禁；共享 manifest、依赖图过大或无法安全缩窄时允许回退到 workspace/full package 测试。它不替代完整 Rust migration gate。 |
+| `pnpm run check:rust:workspace` | 整个 Rust workspace | 门禁编排/故障定位 | target health、layout、route coverage、fmt、Clippy 和 workspace tests；不执行迁移 differential。 |
+| `pnpm run check:rust:differential` | Stage 2–9 全部迁移差分 | 门禁编排/故障定位 | Stage 2–8 最多两路并行，Stage 9 最后串行；不重复 workspace 静态检查。 |
+| `pnpm run check:rust` | 完整 Rust workspace 与迁移差分 | 集成分支 | Rust migration 的最终本地门禁。一次执行中 target health 只检查一次，并依次组合 workspace 与 differential。 |
+
+`check:all` 在 preflight 阶段运行 `check:rust:workspace`，在后续串行阶段运行 `check:rust:differential`，避免在同一主门禁中重复完整 `check:rust`。单独运行分层命令只用于定位失败或对应门禁层；不得把两个分层命令中的任意一个单独写成完整 Rust gate 已通过。
+
+### 执行顺序
+
+worker 切片按以下顺序验证：
+
+1. 本 group 最窄的 fixture、Go reference、Rust unit/integration 和 rehearsal test。
+2. `pnpm run check:quick`。
+3. 在交接中原样记录失败项、未运行项和 deferred integration checks。
+
+集成分支每波合并后按以下顺序验证：
+
+1. `pnpm run check:affected`。
+2. 涉及 Rust migration 时运行一次 `pnpm run check:rust`；不得因 affected 已通过而省略，也不在同一波次为每个 worker 重复运行。
+3. 公开契约变化时运行 `pnpm run check:generated`。
+4. 发布或主分支准入按要求继续运行 `pnpm run check:all`。
+
+### 长时间任务与产物健康
+
+affected runner、Rust 门禁的并行阶段和 Stage 9 runner 每 30 秒输出心跳，并在命令完成后报告耗时；workspace 串行命令直接转发工具自身输出。心跳持续出现且子进程仍存活时，不得仅因测试暂时没有逐条输出就判定挂起或并发启动第二个 Cargo 重任务。Stage 9 product differential 固定为三组 Go package 与三组 Cargo package/target 批次；engine integration target 从 `crates/jftrade-engine/tests/*.rs` 动态发现。每个 Stage 9 批次上限为 300 秒，超时后终止整个子进程树，防止遗留 Cargo、rustc 或测试进程继续占锁。
+
+`check:rust:target-health` 会对 debug/release profile 的 `.rcgu.o` 中间文件做提前终止扫描；任一 profile 达到 50,000 个即失败。该检查只报告问题，绝不自动删除产物。失败时：
+
+1. 先确认没有仍在运行的 Cargo、rustc、Clippy 或 Rust 测试进程；有进程时先定位其所属任务，不得边编译边清理。
+2. 确认无 Rust 构建任务后，显式运行 `pnpm run clean:rust:artifacts`。
+3. 重新运行最窄失败命令；集成分支随后重新完成原门禁。
+
+不得把 quick 通过、持续心跳或 deferred integration checks 写成完整门禁通过，也不得为缩短耗时删除测试、放宽 differential 或自动清空用户构建缓存。
 
 一个 route group 一个提交，不混合不同 tier、能力或 owner 变更。推荐格式：
 
@@ -130,8 +167,9 @@ worker 交接必须包含 group、tier、operation 数和状态变化；修改�
 - [ ] 该组所有 operation 在 route-ownership.json 中状态正确更新。
 - [ ] node scripts/rust-migration/check-stage9-route-coverage.mjs 通过。
 - [ ] 组级 differential 全绿。
-- [ ] pnpm run check:quick 通过。
-- [ ] Rust 变更的 pnpm run check:rust 通过；否则明确记录未完成项且不得宣称完成。
+- [ ] worker 的 pnpm run check:quick 通过，交接记录包含它输出的 deferred integration checks。
+- [ ] 集成分支的 pnpm run check:affected 通过。
+- [ ] Rust migration 变更的完整 pnpm run check:rust 在集成分支通过；未完成前该组不得登记为最终 cutover-qualified。
 - [ ] 契约变化时 pnpm run check:generated 通过。
 - [ ] 没有 Rust production owner 变更、默认 profile 写 route、真实 Provider/OpenD/helper 激活或任何双写。
 - [ ] 架构账本追加 1 至 3 行，包含门禁实际派生的最新 operation 统计。

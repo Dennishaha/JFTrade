@@ -32,6 +32,9 @@ test("main is the complete non-recursive gate and runs actionlint", () => {
   const commands = commandsForLayer("main");
   assert.equal(commands.some(([command, args]) => command === "pnpm" && args.join(" ") === "run test:ci-local"), false);
   assert.ok(commands.some(([command, args]) => command === checkDiff[0] && args.join(" ") === checkDiff[1].join(" ")));
+  assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust"), 0);
   assert.deepEqual(commands.slice(-4), [
     checkActionlint,
     ["pnpm", ["run", "test:go"]],
@@ -76,6 +79,8 @@ test("ci-local checks the working projection before running shared checks inline
     ),
     true,
   );
+  assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
   const frontendBuildIndex = commands.findIndex(
     ([command, args]) => command === "pnpm" && args.join(" ") === "run build:frontend-assets:generated",
   );
@@ -93,6 +98,12 @@ test("ci-local checks the working projection before running shared checks inline
     ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"],
   ]);
 });
+
+function countPnpmScript(commands, script) {
+  return commands.filter(
+    ([command, args]) => command === "pnpm" && args.join(" ") === `run ${script}`,
+  ).length;
+}
 
 test("rejects unknown test layers", () => {
   assert.throws(() => commandsForLayer("unknown"), /unknown test layer/);

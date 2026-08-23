@@ -33,6 +33,8 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 | L3 系统回归 | release assets、嵌入 market-data helper 的启动/双 Provider 健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |
 | L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
+本地开发再按提交范围分为三个入口：`check:quick` 只读取相对 `HEAD` 的当前工作树，运行受影响 crate/package、Rust 反向依赖和迁移静态账本，并列出 deferred integration checks；`check:affected` 按 merge-base 运行完整 affected 集合，但不重复完整 Rust integration gate；`check:rust` 保留全部 Rust workspace 与 Stage 2–9 differential。`check:rust:workspace` 只执行 target health、layout、route coverage、fmt、Clippy 和 workspace tests，`check:rust:differential` 执行全部迁移 differential。target health 对每个 profile 最多扫描 50,000 个中间 `.rcgu.o` 后 fail-fast；该阈值高于一次完整冷门禁的正常产物，并在历史异常目录增长到数十万对象前阻断。独立 Stage 2–8 differential 最多两路并行，Stage 9 product differential 将 Go reference 与 Rust replay 分别按 package/target 批量执行并保持最后串行，避免 Cargo 启动风暴和共享 test-cutover 状态被并发放大。任何 Rust affected 输出中的 `check:rust` deferred 项仍须由集成分支完成。
+
 `.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Go、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 yfinance sidecar job 可立即并行。yfinance lane 在 Python 3.11 和 3.14 上运行禁止外部行情网络的 pytest，只有 3.14 lane 构建并验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 使用 Python 3.14 验证 Linux AMD64、macOS ARM64、Windows AMD64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
 
 每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
@@ -42,7 +44,13 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 ## 本地入口
 
 ```bash
-# 快速的本地提交前检查；test:pr 是兼容别名
+# 当前未提交切片的快速检查；输出尚未执行的集成门禁
+pnpm run check:quick
+
+# 相对 merge-base 的完整 affected 检查
+pnpm run check:affected
+
+# 快速的本地 PR 前检查；test:pr 是兼容别名
 pnpm run test:preflight
 
 # 单机可执行的 Linux CI 核心门禁，不包含 GitHub 三操作系统矩阵
@@ -53,6 +61,15 @@ pnpm run check:all
 
 # test:main 是 check:all 的兼容入口
 pnpm run test:main
+
+# Rust workspace 与迁移 differential 的分层入口；check:rust 组合两者
+pnpm run check:rust:target-health
+pnpm run check:rust:workspace
+pnpm run check:rust:differential
+pnpm run check:rust
+
+# target health 报告大量中断编译遗留对象时，确认没有 Cargo 进程后显式清理
+pnpm run clean:rust:artifacts
 
 # 单独运行三套覆盖率门禁
 pnpm run test:coverage
