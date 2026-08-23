@@ -127,11 +127,18 @@ fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
         .strip_suffix("/status")
         .or_else(|| suffix.strip_suffix('/'))
         .unwrap_or(suffix);
+    if has_invalid_percent_escape(encoded) {
+        return Err(ApiFailure::new(
+            400,
+            "BAD_REQUEST",
+            "backtest run id is invalid",
+        ));
+    }
     let decoded = percent_decode_str(encoded)
         .decode_utf8()
         .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "backtest run id is invalid"))?;
     let run_id = decoded.trim();
-    if run_id.is_empty() || run_id.contains('/') {
+    if run_id.contains('/') {
         return Err(ApiFailure::new(
             400,
             "BAD_REQUEST",
@@ -139,6 +146,25 @@ fn backtest_run_id(path: &str) -> Result<String, ApiFailure> {
         ));
     }
     Ok(run_id.to_owned())
+}
+
+fn has_invalid_percent_escape(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            index += 1;
+            continue;
+        }
+        if index + 2 >= bytes.len()
+            || !bytes[index + 1].is_ascii_hexdigit()
+            || !bytes[index + 2].is_ascii_hexdigit()
+        {
+            return true;
+        }
+        index += 3;
+    }
+    false
 }
 
 fn backtest_sync_task_id(path: &str) -> Result<String, ApiFailure> {

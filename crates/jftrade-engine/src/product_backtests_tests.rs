@@ -28,23 +28,25 @@ struct BacktestsReadCase {
 #[derive(Debug)]
 struct FixtureBacktestReadPort {
     data: BTreeMap<String, Value>,
+    list_case: String,
 }
 
 impl FixtureBacktestReadPort {
-    fn from_fixture(fixture: &BacktestsReadFixture) -> Self {
+    fn from_fixture(fixture: &BacktestsReadFixture, list_case: &str) -> Self {
         Self {
             data: fixture
                 .cases
                 .iter()
                 .filter_map(|case| case.data.clone().map(|data| (case.name.clone(), data)))
                 .collect(),
+            list_case: list_case.to_owned(),
         }
     }
 }
 
 impl BacktestReadSnapshotPort for FixtureBacktestReadPort {
     fn list(&self) -> Result<Value, BacktestReadSnapshotError> {
-        self.data.get("list").cloned().ok_or_else(|| {
+        self.data.get(&self.list_case).cloned().ok_or_else(|| {
             BacktestReadSnapshotError::Unavailable("list fixture is missing".to_owned())
         })
     }
@@ -104,17 +106,27 @@ fn backtests_read_fixture() -> BacktestsReadFixture {
 #[tokio::test]
 async fn backtests_read_routes_match_group_fixture_in_cutover_only() {
     let fixture = backtests_read_fixture();
-    let directory = tempdir().expect("temporary directory");
-    let settings_path = directory.path().join("settings.json");
-    let config =
-        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
-            .expect("config")
-            .with_backtest_read_snapshot_port(Arc::new(FixtureBacktestReadPort::from_fixture(
-                &fixture,
-            )));
-    let handle = start_product(config).await.expect("start product");
-    assert_eq!(handle.startup_record().owned_routes, 51);
     for case in &fixture.cases {
+        let directory = tempdir().expect("temporary directory");
+        let settings_path = directory.path().join("settings.json");
+        let list_case = if case.name == "list-empty" {
+            "list-empty"
+        } else {
+            "list"
+        };
+        let config =
+            ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+                .expect("config")
+                .with_backtest_read_snapshot_port(Arc::new(FixtureBacktestReadPort::from_fixture(
+                    &fixture, list_case,
+                )));
+        let handle = start_product(config).await.expect("start product");
+        assert_eq!(
+            handle.startup_record().owned_routes,
+            51,
+            "case {}",
+            case.name
+        );
         assert_eq!(case.method, "GET", "case {}", case.name);
         let (status, response) = request_json_with_status(
             handle.startup_record().address,
@@ -143,8 +155,8 @@ async fn backtests_read_routes_match_group_fixture_in_cutover_only() {
                 case.name
             );
         }
+        handle.shutdown().await.expect("shutdown product");
     }
-    handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]

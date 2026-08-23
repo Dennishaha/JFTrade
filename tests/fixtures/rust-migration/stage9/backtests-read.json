@@ -40,6 +40,15 @@
       }
     },
     {
+      "name": "list-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests",
+      "expectedStatus": 200,
+      "data": {
+        "runs": null
+      }
+    },
+    {
       "name": "status-existing",
       "method": "GET",
       "requestPath": "/api/v1/backtests/fixture-run/status",
@@ -48,6 +57,14 @@
         "id": "fixture-run",
         "status": "completed"
       }
+    },
+    {
+      "name": "status-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/%20/status",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "backtest run not found"
     },
     {
       "name": "result-existing",
@@ -106,6 +123,14 @@
       }
     },
     {
+      "name": "result-blank",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/%20",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "backtest run not found"
+    },
+    {
       "name": "status-missing",
       "method": "GET",
       "requestPath": "/api/v1/backtests/missing-run/status",
@@ -120,6 +145,14 @@
       "expectedStatus": 404,
       "errorCode": "NOT_FOUND",
       "errorMessage": "backtest run not found"
+    },
+    {
+      "name": "result-invalid-escape",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/%ZZ",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "backtest run id is invalid"
     },
     {
       "name": "result-store-failure",

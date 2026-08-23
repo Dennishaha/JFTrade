@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -53,10 +54,14 @@ func TestStage9BacktestsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 		store *stage9BacktestRunStore
 	}{
 		{name: "list", path: "/api/v1/backtests", store: stage9BacktestStoreWithRun()},
+		{name: "list-empty", path: "/api/v1/backtests", store: &stage9BacktestRunStore{}},
 		{name: "status-existing", path: "/api/v1/backtests/fixture-run/status", store: stage9BacktestStoreWithRun()},
+		{name: "status-blank", path: "/api/v1/backtests/%20/status", store: stage9BacktestStoreWithRun()},
 		{name: "result-existing", path: "/api/v1/backtests/fixture-run", store: stage9BacktestStoreWithRun()},
+		{name: "result-blank", path: "/api/v1/backtests/%20", store: stage9BacktestStoreWithRun()},
 		{name: "status-missing", path: "/api/v1/backtests/missing-run/status", store: stage9BacktestStoreWithRun()},
 		{name: "result-missing", path: "/api/v1/backtests/missing-run", store: stage9BacktestStoreWithRun()},
+		{name: "result-invalid-escape", path: "/api/v1/backtests/%ZZ", store: stage9BacktestStoreWithRun()},
 		{name: "result-store-failure", path: "/api/v1/backtests/store-failure", store: &stage9BacktestRunStore{getFullErr: true}},
 	}
 	want := stage9BacktestsReadFixture{Version: stage9BacktestsReadFixtureVersion, Cases: make([]stage9BacktestsReadCase, 0, len(cases))}
@@ -66,7 +71,7 @@ func TestStage9BacktestsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 		router := gin.New()
 		apibacktest.RegisterRoutes(router.Group("/api/v1"), service)
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, testCase.path, nil)
+		request := stage9BacktestsReadRequest(t.Context(), testCase.path)
 		router.ServeHTTP(recorder, request)
 		entry := stage9BacktestsReadCase{
 			Name: testCase.name, Method: http.MethodGet, RequestPath: testCase.path, ExpectedStatus: recorder.Code,
@@ -112,6 +117,41 @@ func TestStage9BacktestsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("stage 9 backtests read fixture drifted from the Go owner: got=%#v want=%#v", got, want)
 	}
+}
+
+// TestStage9BacktestsReadBlankRunIDsPreserveGoNotFoundBehavior records the
+// historical route behavior in addition to the Rust replay fixture. The Go
+// handler trims a blank path parameter and performs a lookup, yielding 404;
+// the Rust adapter must preserve that observable result.
+func TestStage9BacktestsReadBlankRunIDsPreserveGoNotFoundBehavior(t *testing.T) {
+	for _, path := range []string{
+		"/api/v1/backtests/%20/status",
+		"/api/v1/backtests/%20",
+	} {
+		service := srv.NewService(srv.WithRunStore(stage9BacktestStoreWithRun()))
+		router := gin.New()
+		apibacktest.RegisterRoutes(router.Group("/api/v1"), service)
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, stage9BacktestsReadRequest(t.Context(), path))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("Go blank run ID path %s status = %d, want %d; body=%s", path, recorder.Code, http.StatusNotFound, recorder.Body.String())
+		}
+	}
+}
+
+func stage9BacktestsReadRequest(ctx context.Context, path string) *http.Request {
+	if _, err := url.Parse(path); err == nil {
+		return httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+	}
+	request := &http.Request{
+		Method:     http.MethodGet,
+		URL:        &url.URL{Path: path, RawPath: path},
+		RequestURI: path,
+		Header:     make(http.Header),
+		Body:       http.NoBody,
+		Host:       "example.com",
+	}
+	return request.WithContext(ctx)
 }
 
 func compactBacktestsReadJSON(data json.RawMessage) json.RawMessage {
