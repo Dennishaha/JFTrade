@@ -38,6 +38,7 @@ struct ProductApi {
     research_preset_write_port: Option<Arc<dyn ResearchPresetWritePort>>,
     strategy_definition_write_port: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: MarketDataProviderActionsApi,
+    market_data_subscription_mutation: MarketDataSubscriptionMutationApi,
     adk_chat_stream_port: Option<Arc<dyn AdkChatStreamPort>>,
     adk_mutation_port: Option<Arc<dyn AdkMutationPort>>,
     alert_snapshot_port: Option<Arc<dyn AlertSnapshotPort>>,
@@ -107,6 +108,12 @@ impl ProductApi {
             strategy_definition_write_port: optional_ports.strategy_definition_write,
             market_data_provider_actions: MarketDataProviderActionsApi::new(
                 optional_ports.market_data_provider_actions,
+            ),
+            market_data_subscription_mutation: MarketDataSubscriptionMutationApi::new(
+                optional_ports
+                    .stage9_write_ports
+                    .market_data_subscription_mutation
+                    .clone(),
             ),
             adk_chat_stream_port: optional_ports.adk_chat_stream,
             adk_mutation_port: optional_ports.adk_mutation,

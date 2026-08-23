@@ -238,6 +238,15 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_research_preset_read_path(path) => {
                     self.research_preset_read(path, &request.query)
                 }
+                (method, path) if is_market_data_subscription_mutation_path(method, path) => self
+                    .market_data_subscription_mutation
+                    .dispatch(&request),
+                (method, path)
+                    if is_brokers_write_path(method, path)
+                        && self.stage9_write_ports.brokers.is_some() =>
+                {
+                    self.brokers_write(&request)
+                }
                 (method, path) if is_product_write_path(method, path) => {
                     self.product_write_mutation(&request)
                 }

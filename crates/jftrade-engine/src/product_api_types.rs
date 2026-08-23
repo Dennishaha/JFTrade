@@ -2,6 +2,8 @@
 struct ProductStage9WritePorts {
     execution: Option<Arc<dyn ExecutionWritePort>>,
     system: Option<Arc<dyn SystemWritePort>>,
+    market_data_subscription_mutation: Option<Arc<dyn MarketDataSubscriptionMutationPort>>,
+    brokers: Option<Arc<dyn BrokersWritePort>>,
 }
 
 struct ProductOptionalPorts {

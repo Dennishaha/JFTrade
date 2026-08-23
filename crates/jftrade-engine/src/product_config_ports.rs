@@ -73,6 +73,21 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_market_data_subscription_mutation_port(
+        mut self,
+        port: Arc<dyn MarketDataSubscriptionMutationPort>,
+    ) -> Self {
+        self.stage9_write_ports.market_data_subscription_mutation = Some(port);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_brokers_write_port(mut self, port: Arc<dyn BrokersWritePort>) -> Self {
+        self.stage9_write_ports.brokers = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_market_data_provider_read_snapshot_port(
         mut self,
         port: Arc<dyn MarketDataProviderReadSnapshotPort>,

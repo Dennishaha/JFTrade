@@ -29,6 +29,7 @@ enum ProductCapability {
     ResearchPresetRead,
     ExecutionRead,
     MarketDataProviderRead,
+    MarketDataSubscriptionMutation,
     MarketDataCatalogRead,
     MarketDataDerivativeRead,
     MarketDataOptionsRead,
@@ -39,6 +40,7 @@ enum ProductCapability {
     MarketDataQuoteRead,
     MarketDataPredictionRead,
     BrokerRead,
+    BrokersWrite,
     RemoteWatchlistRead,
     RemoteWatchlistWrite,
     WatchlistWrite,
@@ -95,6 +97,7 @@ impl ProductCapabilities {
             ProductCapability::ResearchPresetRead,
             ProductCapability::ExecutionRead,
             ProductCapability::MarketDataProviderRead,
+            ProductCapability::MarketDataSubscriptionMutation,
             ProductCapability::MarketDataCatalogRead,
             ProductCapability::MarketDataDerivativeRead,
             ProductCapability::MarketDataOptionsRead,
@@ -105,6 +108,7 @@ impl ProductCapabilities {
             ProductCapability::MarketDataQuoteRead,
             ProductCapability::MarketDataPredictionRead,
             ProductCapability::BrokerRead,
+            ProductCapability::BrokersWrite,
             ProductCapability::RemoteWatchlistRead,
             ProductCapability::RemoteWatchlistWrite,
             ProductCapability::WatchlistWrite,
@@ -156,6 +160,7 @@ impl ProductCapabilities {
                     | ProductCapability::ResearchPresetRead
                     | ProductCapability::ExecutionRead
                     | ProductCapability::MarketDataProviderRead
+                    | ProductCapability::MarketDataSubscriptionMutation
                     | ProductCapability::MarketDataCatalogRead
                     | ProductCapability::MarketDataDerivativeRead
                     | ProductCapability::MarketDataOptionsRead
@@ -166,6 +171,7 @@ impl ProductCapabilities {
                     | ProductCapability::MarketDataQuoteRead
                     | ProductCapability::MarketDataPredictionRead
                     | ProductCapability::BrokerRead
+                    | ProductCapability::BrokersWrite
                     | ProductCapability::RemoteWatchlistRead
                     | ProductCapability::RemoteWatchlistWrite
                     | ProductCapability::WatchlistWrite
@@ -211,6 +217,7 @@ struct ProductRoutePorts {
     execution_read: bool,
     execution_write: bool,
     market_data_provider_read: bool,
+    market_data_subscription_mutation: bool,
     market_data_catalog_read: bool,
     market_data_derivative_read: bool,
     market_data_options_read: bool,
@@ -221,6 +228,7 @@ struct ProductRoutePorts {
     market_data_quote_read: bool,
     market_data_prediction_read: bool,
     broker_read: bool,
+    brokers_write: bool,
     remote_watchlist: bool,
     remote_watchlist_write: bool,
     watchlist_write: bool,
@@ -261,6 +269,10 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         market_data_provider_read: config
             .market_data_provider_read_snapshot_port
             .is_some(),
+        market_data_subscription_mutation: config
+            .stage9_write_ports
+            .market_data_subscription_mutation
+            .is_some(),
         market_data_catalog_read: config
             .market_data_catalog_read_snapshot_port
             .is_some(),
@@ -283,6 +295,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .market_data_prediction_read_snapshot_port
             .is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
+        brokers_write: config.stage9_write_ports.brokers.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
         system_write: config.stage9_write_ports.system.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
@@ -339,6 +352,15 @@ fn product_routes(
     routes.extend(product_execution_read_routes(capabilities, ports));
     routes.extend(product_execution_write_routes(capabilities, ports));
     routes.extend(product_market_data_provider_read_routes(capabilities, ports));
+    if ports.market_data_subscription_mutation
+        && capabilities.contains(ProductCapability::MarketDataSubscriptionMutation)
+    {
+        routes.extend(
+            market_data_subscription_mutation_route_specs()
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
     routes.extend(product_market_data_catalog_read_routes(capabilities, ports));
     routes.extend(product_market_data_derivative_read_routes(capabilities, ports));
     routes.extend(product_market_data_options_read_routes(capabilities, ports));
@@ -348,6 +370,13 @@ fn product_routes(
     routes.extend(product_adk_mutation_routes(capabilities, ports));
     routes.extend(product_market_data_quote_read_routes(capabilities, ports));
     routes.extend(product_market_data_prediction_read_routes(capabilities, ports));
+    if ports.brokers_write && capabilities.contains(ProductCapability::BrokersWrite) {
+        routes.extend(
+            brokers_write_routes()
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
     if ports.market_data_provider_actions
         && capabilities.contains(ProductCapability::MarketDataProviderActions)
     {

@@ -166,40 +166,49 @@
       "method": "DELETE",
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
       "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
       "path": "/api/v1/market-data/subscriptions",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "DELETE",
@@ -3077,27 +3086,33 @@
       "method": "POST",
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/brokers/{brokerId}/unlock",
       "capability": "brokers",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3275,14 +3290,17 @@
       "method": "POST",
       "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
@@ -3303,40 +3321,49 @@
       "method": "POST",
       "path": "/api/v1/market-data/subscriptions",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/market-data/subscriptions/heartbeat",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",
       "path": "/api/v1/market-data/subscriptions/release",
       "capability": "market-data",
-      "implementationStatus": "remaining",
+      "implementationStatus": "cutover-test-only",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
-        "rust-implementation",
-        "compatibility-evidence"
+        "go-production-owner",
+        "explicit-test-cutover-profile"
       ],
-      "evidence": []
+      "evidence": [
+        "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+        "pnpm run test:rust:stage9:product-differential"
+      ]
     },
     {
       "method": "POST",

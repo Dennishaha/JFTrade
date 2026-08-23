@@ -48,6 +48,7 @@ impl BrokersWriteOperation {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum BrokersWriteContext {
     #[default]
@@ -80,6 +81,7 @@ pub struct BrokersWriteInput {
     pub context: BrokersWriteContext,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BrokersWritePortError {
     Unavailable(String),
