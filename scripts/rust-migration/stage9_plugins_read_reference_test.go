@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,18 +22,25 @@ import (
 const stage9PluginsReadFixtureVersion = "stage9.plugins-read.v1"
 
 type stage9PluginsReadCase struct {
-	Name           string          `json:"name"`
-	Method         string          `json:"method"`
-	RequestPath    string          `json:"requestPath"`
-	ExpectedStatus int             `json:"expectedStatus"`
-	Data           json.RawMessage `json:"data,omitempty"`
-	ErrorCode      string          `json:"errorCode,omitempty"`
-	ErrorMessage   string          `json:"errorMessage,omitempty"`
+	Name           string            `json:"name"`
+	Method         string            `json:"method"`
+	RequestPath    string            `json:"requestPath"`
+	ExpectedStatus int               `json:"expectedStatus"`
+	Headers        map[string]string `json:"headers,omitempty"`
+	Data           json.RawMessage   `json:"data,omitempty"`
+	ErrorCode      string            `json:"errorCode,omitempty"`
+	ErrorMessage   string            `json:"errorMessage,omitempty"`
 }
 
 type stage9PluginsReadFixture struct {
 	Version string                  `json:"version"`
 	Cases   []stage9PluginsReadCase `json:"cases"`
+}
+
+type stage9PluginsReadCaseSpec struct {
+	name     string
+	path     string
+	snapshot catalog.Snapshot
 }
 
 // TestStage9PluginsReadFixtureMatchesCurrentGoOwner freezes the catalog and
@@ -48,69 +56,29 @@ func TestStage9PluginsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 		filepath.Dir(source),
 		"../../tests/fixtures/rust-migration/stage9/plugins-read.json",
 	)
-	operation := stage9PluginOperation()
-	repository := &stage9PluginsReadRepository{snapshot: catalog.Snapshot{
-		TargetDir: "plugins",
-		Plugins: []catalog.ManagedPlugin{
-			{
-				Descriptor: stratsrv.PluginDescriptor{
-					ID:          "alpha",
-					Type:        "strategy-go-plugin",
-					DisplayName: "Alpha Strategy",
-					Version:     "1.2.3",
-					Description: "fixture strategy plugin",
-					Keywords:    []string{"alpha", "trend"},
-				},
-				Installation: stratsrv.PluginInstallation{
-					Status:        "INSTALLED",
-					Installed:     true,
-					TargetDir:     "plugins",
-					InstallPath:   "plugins/alpha.so",
-					MarkerPath:    "plugins/alpha.json",
-					LastOperation: &operation,
-				},
-			},
-			{
-				Descriptor: stratsrv.PluginDescriptor{ID: "beta"},
-				Installation: stratsrv.PluginInstallation{
-					TargetDir:   "plugins",
-					InstallPath: "plugins/beta.so",
-					MarkerPath:  "plugins/beta.json",
-				},
-			},
-		},
-		Operations: []stratsrv.PluginOperation{operation},
-	}}
-	catalogService, err := catalog.New(repository, nil, "plugins")
-	if err != nil {
-		t.Fatalf("create plugin catalog: %v", err)
-	}
-	service := stratsrv.NewService(nil, catalogService, nil)
-	router := gin.New()
-	strategyapi.RegisterPluginRoutes(router.Group("/api/v1"), service)
-
-	cases := []struct {
-		name string
-		path string
-	}{
-		{name: "catalog", path: "/api/v1/plugins"},
-		{name: "operation", path: "/api/v1/plugins/operations/op-alpha"},
-		{name: "operation-missing", path: "/api/v1/plugins/operations/missing"},
-		{name: "operation-blank-encoded", path: "/api/v1/plugins/operations/%20"},
-	}
 	want := stage9PluginsReadFixture{
 		Version: stage9PluginsReadFixtureVersion,
-		Cases:   make([]stage9PluginsReadCase, 0, len(cases)),
+		Cases:   make([]stage9PluginsReadCase, 0, len(stage9PluginsReadCaseSpecs())),
 	}
-	for _, testCase := range cases {
+	for _, testCase := range stage9PluginsReadCaseSpecs() {
+		repository := &stage9PluginsReadRepository{snapshot: testCase.snapshot}
+		catalogService, err := catalog.New(repository, nil, "plugins")
+		if err != nil {
+			t.Fatalf("create plugin catalog for %s: %v", testCase.name, err)
+		}
+		service := stratsrv.NewService(nil, catalogService, nil)
+		router := gin.New()
+		strategyapi.RegisterPluginRoutes(router.Group("/api/v1"), service)
+
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, testCase.path, nil)
+		request := stage9PluginsReadRequest(t.Context(), testCase.path)
 		router.ServeHTTP(recorder, request)
 		entry := stage9PluginsReadCase{
 			Name:           testCase.name,
 			Method:         http.MethodGet,
 			RequestPath:    testCase.path,
 			ExpectedStatus: recorder.Code,
+			Headers:        pluginReadHeaders(recorder.Header()),
 		}
 		var envelope struct {
 			Data  json.RawMessage `json:"data"`
@@ -157,6 +125,88 @@ func TestStage9PluginsReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 	}
 }
 
+func stage9PluginsReadRequest(ctx context.Context, path string) *http.Request {
+	if _, err := url.Parse(path); err == nil {
+		return httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+	}
+	request := &http.Request{
+		Method:     http.MethodGet,
+		URL:        &url.URL{Path: path, RawPath: path},
+		RequestURI: path,
+		Header:     make(http.Header),
+		Body:       http.NoBody,
+		Host:       "example.com",
+	}
+	return request.WithContext(ctx)
+}
+
+func stage9PluginsReadCaseSpecs() []stage9PluginsReadCaseSpec {
+	return []stage9PluginsReadCaseSpec{
+		{name: "catalog", path: "/api/v1/plugins", snapshot: stage9PluginsReadSnapshot()},
+		{
+			name:     "catalog-empty",
+			path:     "/api/v1/plugins",
+			snapshot: catalog.Snapshot{TargetDir: "plugins", Plugins: []catalog.ManagedPlugin{}},
+		},
+		{
+			name:     "operation",
+			path:     "/api/v1/plugins/operations/op-alpha",
+			snapshot: stage9PluginsReadSnapshot(),
+		},
+		{
+			name:     "operation-missing",
+			path:     "/api/v1/plugins/operations/missing",
+			snapshot: stage9PluginsReadSnapshot(),
+		},
+		{
+			name:     "operation-blank-encoded",
+			path:     "/api/v1/plugins/operations/%20",
+			snapshot: stage9PluginsReadSnapshot(),
+		},
+		{
+			name:     "operation-invalid-escape",
+			path:     "/api/v1/plugins/operations/%ZZ",
+			snapshot: stage9PluginsReadSnapshot(),
+		},
+	}
+}
+
+func stage9PluginsReadSnapshot() catalog.Snapshot {
+	operation := stage9PluginOperation()
+	return catalog.Snapshot{
+		TargetDir: "plugins",
+		Plugins: []catalog.ManagedPlugin{
+			{
+				Descriptor: stratsrv.PluginDescriptor{
+					ID:          "alpha",
+					Type:        "strategy-go-plugin",
+					DisplayName: "Alpha Strategy",
+					Version:     "1.2.3",
+					Description: "fixture strategy plugin",
+					Keywords:    []string{"alpha", "trend"},
+				},
+				Installation: stratsrv.PluginInstallation{
+					Status:        "INSTALLED",
+					Installed:     true,
+					TargetDir:     "plugins",
+					InstallPath:   "plugins/alpha.so",
+					MarkerPath:    "plugins/alpha.json",
+					LastOperation: &operation,
+				},
+			},
+			{
+				Descriptor: stratsrv.PluginDescriptor{ID: "beta"},
+				Installation: stratsrv.PluginInstallation{
+					TargetDir:   "plugins",
+					InstallPath: "plugins/beta.so",
+					MarkerPath:  "plugins/beta.json",
+				},
+			},
+		},
+		Operations: []stratsrv.PluginOperation{operation},
+	}
+}
+
 type stage9PluginsReadRepository struct {
 	snapshot catalog.Snapshot
 }
@@ -185,6 +235,14 @@ func stage9PluginOperation() stratsrv.PluginOperation {
 		UpdatedAt:   "2026-08-21T04:00:02Z",
 		CompletedAt: &completedAt,
 	}
+}
+
+func pluginReadHeaders(header http.Header) map[string]string {
+	contentType := header.Get("Content-Type")
+	if contentType == "" {
+		return nil
+	}
+	return map[string]string{"Content-Type": contentType}
 }
 
 func normalizePluginReadData(path string, data json.RawMessage) json.RawMessage {

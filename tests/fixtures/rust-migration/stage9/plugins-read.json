@@ -6,6 +6,9 @@
       "method": "GET",
       "requestPath": "/api/v1/plugins",
       "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
       "data": {
         "plugins": [
           {
@@ -109,10 +112,26 @@
       }
     },
     {
+      "name": "catalog-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins",
+      "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "data": {
+        "plugins": [],
+        "targetDir": "plugins"
+      }
+    },
+    {
       "name": "operation",
       "method": "GET",
       "requestPath": "/api/v1/plugins/operations/op-alpha",
       "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
       "data": {
         "operationId": "op-alpha",
         "pluginId": "alpha",
@@ -133,6 +152,9 @@
       "method": "GET",
       "requestPath": "/api/v1/plugins/operations/missing",
       "expectedStatus": 404,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
       "errorCode": "NOT_FOUND",
       "errorMessage": "plugin operation not found"
     },
@@ -141,6 +163,20 @@
       "method": "GET",
       "requestPath": "/api/v1/plugins/operations/%20",
       "expectedStatus": 400,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "operationId is required"
+    },
+    {
+      "name": "operation-invalid-escape",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/operations/%ZZ",
+      "expectedStatus": 400,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
       "errorCode": "BAD_REQUEST",
       "errorMessage": "operationId is required"
     }
