@@ -2019,7 +2019,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     );
     assert_eq!(
         pairs(shadow.routes()),
-        owned_pairs(&ownership.operations, &["shadow"])
+        owned_pairs(&ownership.operations, &["shadow", "cutover-qualified"])
     );
     let appearance_only = product_routes(
         &ProductCapabilities::only(ProductCapability::AppearanceWrite),
@@ -2146,7 +2146,10 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     )
     .expect("cutover routes with all ports");
     assert_eq!(cutover.routes().len(), 278);
-    let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
+    let expected_cutover = owned_pairs(
+        &ownership.operations,
+        &["shadow", "cutover-test-only", "cutover-qualified"],
+    );
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
         cutover

@@ -340,7 +340,7 @@
       "method": "GET",
       "path": "/api/v1/adk/agent-templates",
       "capability": "adk",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
@@ -348,6 +348,9 @@
         "authenticated-loopback-shadow"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_agent_templates_reference_test.go",
+        "crates/jftrade-engine/src/product_tests.rs::stage9_assistant_agent_templates_match_current_go_owner",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestImmutableCatalogRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1814,7 +1817,7 @@
       "method": "GET",
       "path": "/api/v1/research/screens/catalog",
       "capability": "research",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
@@ -1822,6 +1825,9 @@
         "authenticated-loopback-shadow"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_screen_catalog_reference_test.go",
+        "crates/jftrade-engine/src/product_tests.rs::research_screen_catalog_route_matches_go_fixture_for_all_variants",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestImmutableCatalogRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
