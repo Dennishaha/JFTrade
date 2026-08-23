@@ -4,6 +4,7 @@ struct ProductStage9WritePorts {
     system: Option<Arc<dyn SystemWritePort>>,
     market_data_subscription_mutation: Option<Arc<dyn MarketDataSubscriptionMutationPort>>,
     brokers: Option<Arc<dyn BrokersWritePort>>,
+    research_screen: Option<Arc<dyn ResearchScreenWritePort>>,
 }
 
 struct ProductOptionalPorts {

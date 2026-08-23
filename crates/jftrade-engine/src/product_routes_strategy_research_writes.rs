@@ -3,6 +3,15 @@ fn product_strategy_research_write_routes(
     ports: ProductRoutePorts,
 ) -> Vec<RouteSpec> {
     let mut routes = Vec::new();
+    if ports.research_screen_write
+        && capabilities.contains(ProductCapability::ResearchScreenWrite)
+    {
+        routes.extend(
+            research_screen_write_routes()
+                .iter()
+                .map(|(method, path)| route(method, path)),
+        );
+    }
     if ports.research_preset_write && capabilities.contains(ProductCapability::ResearchPresetWrite)
     {
         routes.extend(

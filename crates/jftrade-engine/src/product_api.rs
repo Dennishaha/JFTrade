@@ -35,6 +35,7 @@ struct ProductApi {
     plugin_uninstall_guidance_snapshot_port: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
     plugin_snapshot_port: Option<Arc<dyn PluginSnapshotPort>>,
     plugin_write_port: Option<Arc<dyn PluginWritePort>>,
+    research_screen_write_port: Option<Arc<dyn ResearchScreenWritePort>>,
     research_preset_write_port: Option<Arc<dyn ResearchPresetWritePort>>,
     strategy_definition_write_port: Option<Arc<dyn StrategyDefinitionWritePort>>,
     market_data_provider_actions: MarketDataProviderActionsApi,
@@ -66,6 +67,7 @@ impl ProductApi {
         optional_ports: ProductOptionalPorts,
         capabilities: ProductCapabilities,
     ) -> Self {
+        let research_screen_write_port = optional_ports.stage9_write_ports.research_screen.clone();
         let market_data_subscription_mutation =
             new_market_data_subscription_mutation_api(&optional_ports);
         Self {
@@ -106,6 +108,7 @@ impl ProductApi {
                 .plugin_uninstall_guidance_snapshot,
             plugin_snapshot_port: optional_ports.plugin_snapshot,
             plugin_write_port: optional_ports.plugin_write,
+            research_screen_write_port,
             research_preset_write_port: optional_ports.research_preset_write,
             strategy_definition_write_port: optional_ports.strategy_definition_write,
             market_data_subscription_mutation,

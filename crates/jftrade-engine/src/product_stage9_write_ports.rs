@@ -36,3 +36,9 @@ use product_brokers_write_port::{
     BrokersWriteContext, BrokersWritePort, BrokersWriteRequest, BrokersWriteResponse,
     brokers_write_routes, dispatch_brokers_write,
 };
+#[path = "product_research_screen_write_port.rs"]
+mod product_research_screen_write_port;
+use product_research_screen_write_port::{
+    RESEARCH_SCREEN_PATH, ResearchScreenWritePort, ResearchScreenWriteRequest,
+    dispatch_research_screen_write, research_screen_write_routes,
+};

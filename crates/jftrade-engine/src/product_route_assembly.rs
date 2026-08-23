@@ -47,6 +47,7 @@ enum ProductCapability {
     SystemRead,
     Plugins,
     PluginsWrite,
+    ResearchScreenWrite,
     ResearchPresetWrite,
     StrategyDefinitionWrite,
     MarketDataProviderActions,
@@ -116,6 +117,7 @@ impl ProductCapabilities {
             ProductCapability::SystemWrite,
             ProductCapability::Plugins,
             ProductCapability::PluginsWrite,
+            ProductCapability::ResearchScreenWrite,
             ProductCapability::ResearchPresetWrite,
             ProductCapability::StrategyDefinitionWrite,
             ProductCapability::MarketDataProviderActions,
@@ -178,6 +180,7 @@ impl ProductCapabilities {
                     | ProductCapability::SystemRead
                     | ProductCapability::Plugins
                     | ProductCapability::PluginsWrite
+                    | ProductCapability::ResearchScreenWrite
                     | ProductCapability::ResearchPresetWrite
                     | ProductCapability::StrategyDefinitionWrite
                     | ProductCapability::MarketDataProviderActions
@@ -236,6 +239,7 @@ struct ProductRoutePorts {
     system_write: bool,
     plugins: bool,
     plugins_write: bool,
+    research_screen_write: bool,
     research_preset_write: bool,
     strategy_definition_write: bool,
     market_data_provider_actions: bool,
@@ -316,6 +320,7 @@ fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),
+        research_screen_write: config.stage9_write_ports.research_screen.is_some(),
         research_preset_write: config.research_preset_write_port.is_some(),
         strategy_definition_write: config.strategy_definition_write_port.is_some(),
         market_data_provider_actions: config

@@ -1,5 +1,21 @@
 impl ProductApi {
     fn product_write_mutation(&self, request: &ApiRequest) -> Result<ApiOutput, ApiFailure> {
+        if is_research_screen_write_path(&request.method, &request.path) {
+            let response = dispatch_research_screen_write(
+                &ResearchScreenWriteRequest {
+                    method: request.method.clone(),
+                    path: request_path_with_query(&request.path, &request.query),
+                    body: Some(request.body.clone()),
+                },
+                self.research_screen_write_port.as_deref(),
+                &SystemClock.now_rfc3339(),
+            );
+            return write_mutation_output(
+                response.status,
+                response.body,
+                "research screen write failed",
+            );
+        }
         if is_research_preset_write_path(&request.method, &request.path) {
             let response = dispatch_research_preset_write(
                 &ResearchPresetWriteRequest {
@@ -68,7 +84,13 @@ fn write_mutation_output(
 }
 
 fn is_product_write_path(method: &str, path: &str) -> bool {
-    is_research_preset_write_path(method, path) || is_strategy_definition_write_path(method, path)
+    is_research_screen_write_path(method, path)
+        || is_research_preset_write_path(method, path)
+        || is_strategy_definition_write_path(method, path)
+}
+
+fn is_research_screen_write_path(method: &str, path: &str) -> bool {
+    method == "POST" && path == RESEARCH_SCREEN_PATH
 }
 
 fn is_research_preset_write_path(method: &str, path: &str) -> bool {

@@ -543,6 +543,8 @@ mod adk_chat_stream_product_tests;
 #[path = "product_plugins_write_product_tests.rs"]
 mod plugins_write_product_tests;
 
+#[path = "product_research_screen_write_product_tests.rs"]
+mod research_screen_write_product_tests;
 #[path = "product_strategy_research_write_product_tests.rs"]
 mod strategy_research_write_product_tests;
 
@@ -2119,6 +2121,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             market_data_prediction_read: true,
             broker_read: true,
             brokers_write: true,
+            research_screen_write: true,
             remote_watchlist: true,
             remote_watchlist_write: true,
             watchlist_write: true,
@@ -2142,7 +2145,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         },
     )
     .expect("cutover routes with all ports");
-    assert_eq!(cutover.routes().len(), 277);
+    assert_eq!(cutover.routes().len(), 278);
     let expected_cutover = owned_pairs(&ownership.operations, &["shadow", "cutover-test-only"]);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(

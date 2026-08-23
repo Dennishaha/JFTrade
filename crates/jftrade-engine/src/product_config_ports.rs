@@ -88,6 +88,15 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_research_screen_write_port(
+        mut self,
+        port: Arc<dyn ResearchScreenWritePort>,
+    ) -> Self {
+        self.stage9_write_ports.research_screen = Some(port);
+        self
+    }
+
+    #[cfg(test)]
     fn with_market_data_provider_read_snapshot_port(
         mut self,
         port: Arc<dyn MarketDataProviderReadSnapshotPort>,

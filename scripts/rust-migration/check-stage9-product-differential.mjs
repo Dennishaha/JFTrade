@@ -626,6 +626,7 @@ run("cargo", [
   "--exact",
 ]);
 for (const testName of [
+  "^TestStage9ResearchScreensFixtureMatchesCurrentGoOwner$",
   "^TestStage9ResearchPresetsWriteFixtureMatchesCurrentGoOwner$",
   "^TestStage9StrategyDefinitionsWriteFixtureMatchesCurrentGoOwner$",
   "^TestStage9ExecutionWriteFixtureMatchesCurrentGoOwner$",
@@ -639,6 +640,15 @@ for (const testName of [
     "-count=1",
   ]);
 }
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--test",
+  "stage9_research_screens",
+  "--",
+  "--nocapture",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -1390,4 +1400,4 @@ run("cargo", [
 ]);
 run("cargo", ["test", "-p", "jftrade-calendar"]);
 
-console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/research-presets-write/strategy-definitions-write/strategy-definitions-read/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-provider-actions/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/adk-chat-stream/market-data-quote-read/market-data-prediction-read/market-data-subscription-mutation/brokers-write/broker-read/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus, execution/system/market-data/brokers mutation rehearsals.");
+console.log("Go/Rust Stage 9 product-slice differential passed: auth-session, settings/system/alerts/alerts-write/plugins/plugins-write/research-screens-write/research-presets-write/strategy-definitions-write/strategy-definitions-read/strategy-instance/strategy-pine/watchlist/portfolio/research/research-preset/execution/market-data-provider/market-data-provider-actions/market-data-catalog/market-data-derivatives/market-data-options/market-data-news-actions/market-data-news-search/adk/adk-chat-stream/market-data-quote-read/market-data-prediction-read/market-data-subscription-mutation/brokers-write/broker-read/backtests read projections, backtest sync progress, test-cutover snapshots and fail-closed behavior, calendar/watchlist/plugin control-plane slices, data-management rehearsal, and existing product compatibility corpus, execution/system/market-data/brokers mutation rehearsals.");
