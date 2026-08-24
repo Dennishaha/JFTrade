@@ -2352,14 +2352,20 @@
       "method": "GET",
       "path": "/api/v1/system/futu-opend",
       "capability": "system",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/system-read.json",
+        "scripts/rust-migration/stage9_system_read_reference_test.go::TestStage9SystemReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2532,14 +2538,20 @@
       "method": "GET",
       "path": "/api/v1/system/worker/broker-order-updates",
       "capability": "system",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/system-read.json",
+        "scripts/rust-migration/stage9_system_read_reference_test.go::TestStage9SystemReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_system_read_tests.rs::system_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
