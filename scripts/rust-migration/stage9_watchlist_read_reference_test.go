@@ -3,14 +3,19 @@ package rustmigration
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
+	apiwatchlist "github.com/jftrade/jftrade-main/internal/api/watchlist"
 	store "github.com/jftrade/jftrade-main/internal/store/watchlist"
 	domain "github.com/jftrade/jftrade-main/internal/watchlist"
 )
@@ -49,51 +54,48 @@ func TestStage9WatchlistReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 	seedStage9WatchlistRead(t, repository)
 	clock := func() time.Time { return time.Date(2026, 8, 21, 4, 0, 0, 0, time.UTC) }
 	service := domain.NewService(repository, domain.WithClock(clock), domain.WithSourceReader("futu:default", stage9WatchlistReader{}))
+	router := gin.New()
+	apiwatchlist.RegisterRoutes(router.Group("/api/v1"), service)
 
 	cases := []struct {
 		name string
 		path string
-		call func() (any, error)
 	}{
-		{name: "groups", path: "/api/v1/watchlist/groups", call: func() (any, error) {
-			groups, err := service.ListGroups(t.Context())
-			return map[string]any{"groups": groups}, err
-		}},
-		{name: "items", path: "/api/v1/watchlist/items", call: func() (any, error) {
-			page, err := service.ListItems(t.Context(), domain.ListItemsOptions{Limit: domain.DefaultPageLimit})
-			return page, err
-		}},
-		{name: "sources", path: "/api/v1/watchlist/sources", call: func() (any, error) {
-			sources, err := service.ListSources(t.Context())
-			return map[string]any{"sources": sources}, err
-		}},
-		{name: "source-groups", path: "/api/v1/watchlist/sources/futu:default/groups", call: func() (any, error) {
-			groups, err := service.ListSourceGroups(t.Context(), "futu:default")
-			return map[string]any{"groups": groups}, err
-		}},
-		{name: "bindings", path: "/api/v1/watchlist/bindings", call: func() (any, error) {
-			bindings, err := service.ListBindings(t.Context(), "")
-			return map[string]any{"bindings": bindings}, err
-		}},
-		{name: "import-runs", path: "/api/v1/watchlist/import-runs", call: func() (any, error) {
-			page, err := service.ListImportRuns(t.Context(), "", "", domain.DefaultPageLimit)
-			return page, err
-		}},
+		{name: "groups", path: "/api/v1/watchlist/groups"},
+		{name: "items", path: "/api/v1/watchlist/items"},
+		{name: "items-empty", path: "/api/v1/watchlist/items?query=missing"},
+		{name: "items-invalid-limit", path: "/api/v1/watchlist/items?limit=0"},
+		{name: "sources", path: "/api/v1/watchlist/sources"},
+		{name: "source-groups", path: "/api/v1/watchlist/sources/futu:default/groups"},
+		{name: "source-groups-missing", path: "/api/v1/watchlist/sources/missing/groups"},
+		{name: "bindings", path: "/api/v1/watchlist/bindings"},
+		{name: "bindings-empty", path: "/api/v1/watchlist/bindings?sourceId=missing"},
+		{name: "import-runs", path: "/api/v1/watchlist/import-runs"},
+		{name: "import-runs-invalid-limit", path: "/api/v1/watchlist/import-runs?limit=0"},
 	}
 	want := stage9WatchlistReadFixture{Version: stage9WatchlistReadFixtureVersion, Cases: make([]stage9WatchlistReadCase, 0, len(cases))}
 	for _, testCase := range cases {
-		data, callErr := testCase.call()
-		entry := stage9WatchlistReadCase{Name: testCase.name, Method: "GET", RequestPath: testCase.path, ExpectedStatus: 200}
-		if callErr != nil {
-			entry.ExpectedStatus = 503
-			entry.ErrorCode = "WATCHLIST_UNAVAILABLE"
-			if errors.Is(callErr, domain.ErrNotFound) {
-				entry.ExpectedStatus = 404
-				entry.ErrorCode = "WATCHLIST_NOT_FOUND"
-			}
-			entry.ErrorMessage = callErr.Error()
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, stage9WatchlistReadRequest(testCase.path))
+		entry := stage9WatchlistReadCase{
+			Name: testCase.name, Method: http.MethodGet, RequestPath: testCase.path,
+			ExpectedStatus: recorder.Code,
+		}
+		var envelope struct {
+			Data  json.RawMessage `json:"data"`
+			Error *struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
+			t.Fatalf("decode %s response: %v (%s)", testCase.name, err, recorder.Body.String())
+		}
+		if envelope.Error != nil {
+			entry.ErrorCode = envelope.Error.Code
+			entry.ErrorMessage = envelope.Error.Message
 		} else {
-			entry.Data, _ = json.Marshal(data)
+			entry.Data = envelope.Data
 		}
 		want.Cases = append(want.Cases, entry)
 	}
@@ -121,6 +123,14 @@ func TestStage9WatchlistReadFixtureMatchesCurrentGoOwner(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("stage 9 watchlist read fixture drifted from the Go owner")
 	}
+}
+
+func stage9WatchlistReadRequest(requestPath string) *http.Request {
+	path, rawQuery, _ := strings.Cut(requestPath, "?")
+	request := httptest.NewRequest(http.MethodGet, path, nil)
+	request.URL.RawQuery = rawQuery
+	request.RequestURI = requestPath
+	return request
 }
 
 type stage9WatchlistReader struct{}

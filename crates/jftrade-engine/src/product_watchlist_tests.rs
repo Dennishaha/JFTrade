@@ -27,7 +27,15 @@ struct WatchlistReadCase {
 
 #[derive(Debug)]
 struct FixtureWatchlistReadPort {
-    responses: BTreeMap<String, Value>,
+    responses: BTreeMap<String, FixtureWatchlistReadResponse>,
+}
+
+#[derive(Clone, Debug)]
+enum FixtureWatchlistReadResponse {
+    Data(Value),
+    Invalid(String),
+    NotFound,
+    Unavailable(String),
 }
 
 impl FixtureWatchlistReadPort {
@@ -36,10 +44,28 @@ impl FixtureWatchlistReadPort {
             responses: fixture
                 .cases
                 .iter()
-                .filter_map(|case| {
-                    case.data
-                        .clone()
-                        .map(|data| (case.request_path.clone(), data))
+                .map(|case| {
+                    let response = if let Some(data) = &case.data {
+                        FixtureWatchlistReadResponse::Data(data.clone())
+                    } else {
+                        match case.error_code.as_deref() {
+                            Some("BAD_REQUEST") => FixtureWatchlistReadResponse::Invalid(
+                                case.error_message.clone().expect("invalid error message"),
+                            ),
+                            Some("WATCHLIST_NOT_FOUND") => FixtureWatchlistReadResponse::NotFound,
+                            Some("WATCHLIST_UNAVAILABLE") => {
+                                FixtureWatchlistReadResponse::Unavailable(
+                                    case.error_message
+                                        .clone()
+                                        .expect("unavailable error message"),
+                                )
+                            }
+                            other => {
+                                panic!("unsupported fixture error for {}: {other:?}", case.name)
+                            }
+                        }
+                    };
+                    (case.request_path.clone(), response)
                 })
                 .collect(),
         }
@@ -47,11 +73,27 @@ impl FixtureWatchlistReadPort {
 }
 
 impl WatchlistReadSnapshotPort for FixtureWatchlistReadPort {
-    fn read(&self, path: &str, _query: &str) -> Result<Value, WatchlistReadSnapshotError> {
-        self.responses
-            .get(path)
-            .cloned()
-            .ok_or(WatchlistReadSnapshotError::NotFound)
+    fn read(&self, path: &str, query: &str) -> Result<Value, WatchlistReadSnapshotError> {
+        match self.responses.get(&watchlist_read_request_key(path, query)) {
+            Some(FixtureWatchlistReadResponse::Data(data)) => Ok(data.clone()),
+            Some(FixtureWatchlistReadResponse::Invalid(message)) => {
+                Err(WatchlistReadSnapshotError::Invalid(message.clone()))
+            }
+            Some(FixtureWatchlistReadResponse::NotFound) | None => {
+                Err(WatchlistReadSnapshotError::NotFound)
+            }
+            Some(FixtureWatchlistReadResponse::Unavailable(message)) => {
+                Err(WatchlistReadSnapshotError::Unavailable(message.clone()))
+            }
+        }
+    }
+}
+
+fn watchlist_read_request_key(path: &str, query: &str) -> String {
+    if query.is_empty() {
+        path.to_owned()
+    } else {
+        format!("{path}?{query}")
     }
 }
 

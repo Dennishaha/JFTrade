@@ -90,4 +90,4 @@ The route group is now `cutover-qualified` after the integration branch applied 
 - Rust replay, headers, empty catalog, invalid escape, port failure, and route isolation: `cargo test -p jftrade-engine --lib product::tests::plugin_tests -- --nocapture` and `cargo test -p jftrade-engine plugin_uninstall_guidance --lib --locked`.
 - Rust production compilation: `cargo check -p jftrade-engine --lib --locked`.
 - Rust formatting: `rustfmt --edition 2024 --check crates/jftrade-engine/src/product_api_plugins.rs crates/jftrade-engine/src/product_plugins_tests.rs`.
-- Route coverage remains integration-owned and currently derives `23 shadow / 238 cutover-test-only / 17 cutover-qualified / 0 remaining / 0 Rust production owner`.
+- Route coverage remains integration-owned and currently derives `23 shadow / 232 cutover-test-only / 23 cutover-qualified / 0 remaining / 0 Rust production owner`.

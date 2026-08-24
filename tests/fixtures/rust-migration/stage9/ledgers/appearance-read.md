@@ -59,4 +59,4 @@ a write path or changes the global production owner.
 - Go authenticated wire/restart rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestAppearanceReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`.
 - Rust settings-file null compatibility: `cargo test -p jftrade-store-settings-file --test settings_file_contracts null_appearance_is_treated_as_an_absent_optional_setting -- --exact`.
 - Rust authenticated shadow replay and token fence: `cargo test -p jftrade-engine product::tests::appearance_read_tests::appearance_read_route_matches_go_fixture_for_all_seed_documents -- --exact` and `cargo test -p jftrade-engine product::tests::appearance_read_tests::appearance_read_route_requires_the_authenticated_shadow_token -- --exact` (the unified differential invokes both exact tests).
-- Route coverage: 23 shadow / 238 cutover-test-only / 17 cutover-qualified / 0 remaining / 0 Rust production owner.
+- Route coverage: 23 shadow / 232 cutover-test-only / 23 cutover-qualified / 0 remaining / 0 Rust production owner.

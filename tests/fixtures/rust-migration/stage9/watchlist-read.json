@@ -64,6 +64,23 @@
       }
     },
     {
+      "name": "items-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/items?query=missing",
+      "expectedStatus": 200,
+      "data": {
+        "items": []
+      }
+    },
+    {
+      "name": "items-invalid-limit",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/items?limit=0",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "limit must be a positive integer"
+    },
+    {
       "name": "sources",
       "method": "GET",
       "requestPath": "/api/v1/watchlist/sources",
@@ -100,6 +117,14 @@
       }
     },
     {
+      "name": "source-groups-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/sources/missing/groups",
+      "expectedStatus": 404,
+      "errorCode": "WATCHLIST_NOT_FOUND",
+      "errorMessage": "watchlist resource not found"
+    },
+    {
       "name": "bindings",
       "method": "GET",
       "requestPath": "/api/v1/watchlist/bindings",
@@ -119,6 +144,15 @@
       }
     },
     {
+      "name": "bindings-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/bindings?sourceId=missing",
+      "expectedStatus": 200,
+      "data": {
+        "bindings": []
+      }
+    },
+    {
       "name": "import-runs",
       "method": "GET",
       "requestPath": "/api/v1/watchlist/import-runs",
@@ -126,6 +160,14 @@
       "data": {
         "items": []
       }
+    },
+    {
+      "name": "import-runs-invalid-limit",
+      "method": "GET",
+      "requestPath": "/api/v1/watchlist/import-runs?limit=0",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "limit must be a positive integer"
     }
   ]
 }

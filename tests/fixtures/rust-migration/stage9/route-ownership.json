@@ -2488,14 +2488,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/bindings",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2503,14 +2507,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/groups",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2518,14 +2526,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/import-runs",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2548,14 +2560,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/items",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2563,14 +2579,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/sources",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2578,14 +2598,18 @@
       "method": "GET",
       "path": "/api/v1/watchlist/sources/{sourceId}/groups",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-read.json",
+        "scripts/rust-migration/stage9_watchlist_read_reference_test.go::TestStage9WatchlistReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlist_tests.rs::watchlist_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
