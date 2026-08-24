@@ -18,4 +18,4 @@ Known quirks frozen in the fixture:
 - `scope` and filter values are intentionally permissive; Rust does not add validation beyond the Go route.
 - Details use `404` for a missing order, while events use `200` for an unknown ID with `events: []`.
 
-All three operations are `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`. Rust does not activate a provider, acquire the execution writer lease, or mutate the ledger.
+All three operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. Rust does not activate a provider, acquire the execution writer lease, or mutate the ledger; Go remains the sole execution SQLite and order-update owner.
