@@ -31,6 +31,12 @@ is alive, rejects acquisition at the effective Rust transport limit, and
 releases through RAII. `activeInstruments` remains empty because Rust does not
 yet own the live subscription registry.
 
+The effective limit now comes from the Go-compatible
+`interfaces.liveWebSocketConnectionLimit` settings projection. A shared
+Go/Rust corpus covers the exact `WebSocket` acronym spelling, missing/zero/
+negative defaults, a positive override and malformed-type failure. Rust opens
+the settings file read-only and preserves its bytes.
+
 Qualification remains blocked on owner-backed dynamic projections:
 
 - Rust runtime resources currently list only resources actually composed by
@@ -43,7 +49,7 @@ Qualification remains blocked on owner-backed dynamic projections:
 - Broker and strategy descriptors have static parity, but their live runtime
   state must move through typed Rust-owned ports before production cutover.
 
-Verification: `cargo test -p jftrade-api websocket::tests -- --nocapture`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
+Verification: `cargo test -p jftrade-api websocket::tests -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains

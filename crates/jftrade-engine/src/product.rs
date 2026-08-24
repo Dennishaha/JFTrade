@@ -29,12 +29,14 @@ use jftrade_settings::{
     AppearanceService, AssistantRuntimeService, AssistantRuntimeSettings,
     BacktestMarketDataProviderSettingsService, BrokerIntegration, BrokerSettingsError,
     BrokerSettingsService, ExchangeCalendarSettings, ExchangeCalendarSettingsService,
-    ExecutionService, ExecutionSettings, FutuOpenDInstallSettingsService, ManagedBrokerAccount,
-    MarketDataProviderSettingsError, MarketDataProviderSettingsService, McpServerSettingsError,
-    McpServerSettingsService, McpServerSettingsUpdate, OnboardingSettingsService,
-    OnboardingWriteRequest, PineWorkerSettings, PineWorkerSettingsService, SecuritySettingsError,
-    SecuritySettingsService, SecuritySettingsUpdate, SystemNotificationService,
-    SystemNotificationSettings, UiAppearanceSettings, should_forward_system_notification,
+    ExecutionService, ExecutionSettings, FutuOpenDInstallSettingsService,
+    InterfaceSettingsStorePort, ManagedBrokerAccount, MarketDataProviderSettingsError,
+    MarketDataProviderSettingsService, McpServerSettingsError, McpServerSettingsService,
+    McpServerSettingsUpdate, OnboardingSettingsService, OnboardingWriteRequest, PineWorkerSettings,
+    PineWorkerSettingsService, SecuritySettingsError, SecuritySettingsService,
+    SecuritySettingsUpdate, SystemNotificationService, SystemNotificationSettings,
+    UiAppearanceSettings, normalize_live_websocket_connection_limit,
+    should_forward_system_notification,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 #[cfg(test)]
@@ -581,7 +583,12 @@ pub(crate) async fn start_product_with_runtime_state(
         .map_err(ProductError::Settings)?,
     );
     let metrics = Arc::new(TransportMetrics::default());
-    let live_connections = Arc::new(LiveConnectionMetrics::default());
+    let interface_settings = settings_store
+        .load_interface_settings()
+        .map_err(ProductError::Settings)?;
+    let live_connections = Arc::new(LiveConnectionMetrics::new(
+        normalize_live_websocket_connection_limit(interface_settings.as_ref()),
+    ));
     let real_trade_control = RealTradeControlReader::new(config.real_trade_control_path.clone());
     if let Some(manager) = &config.calendar_manager {
         manager.start().map_err(ProductError::Calendar)?;

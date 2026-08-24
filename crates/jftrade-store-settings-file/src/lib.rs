@@ -12,12 +12,13 @@ use jftrade_settings::{
     BrokerSettingsStorePort, ExchangeCalendarManualOverride, ExchangeCalendarSettings,
     ExchangeCalendarSettingsStorePort, ExchangeCalendarSourcePolicy, ExecutionSettings,
     ExecutionSettingsStorePort, FutuIntegrationConfig, FutuOpenDInstallSettings,
-    FutuOpenDInstallSettingsStorePort, ManagedBrokerAccount, MarketDataProviderSettingsStorePort,
-    McpServerSettingsRecord, McpServerSettingsStorePort, OnboardingInputs, OnboardingSettings,
-    OnboardingSettingsStorePort, PineWorkerSettings, PineWorkerSettingsStorePort,
-    SecuritySettingsRecord, SecuritySettingsStorePort, SettingsStoreError, SettingsStorePort,
-    SystemNotificationSettings, SystemNotificationSettingsStorePort, UiAppearanceSettings,
-    build_managed_account_id, same_managed_account_scope,
+    FutuOpenDInstallSettingsStorePort, InterfaceSettings, InterfaceSettingsStorePort,
+    ManagedBrokerAccount, MarketDataProviderSettingsStorePort, McpServerSettingsRecord,
+    McpServerSettingsStorePort, OnboardingInputs, OnboardingSettings, OnboardingSettingsStorePort,
+    PineWorkerSettings, PineWorkerSettingsStorePort, SecuritySettingsRecord,
+    SecuritySettingsStorePort, SettingsStoreError, SettingsStorePort, SystemNotificationSettings,
+    SystemNotificationSettingsStorePort, UiAppearanceSettings, build_managed_account_id,
+    same_managed_account_scope,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -73,6 +74,12 @@ impl SettingsStorePort for SettingsFileStore {
         persist_document(&self.path, &next)?;
         *document = next;
         Ok(())
+    }
+}
+
+impl InterfaceSettingsStorePort for SettingsFileStore {
+    fn load_interface_settings(&self) -> Result<Option<InterfaceSettings>, SettingsStoreError> {
+        self.load_field("interfaces")
     }
 }
 
@@ -594,6 +601,7 @@ fn load_document(
 
 fn validate_supported_fields(document: &Map<String, Value>) -> Result<(), SettingsStoreError> {
     validate_field::<UiAppearanceSettings>(document, "appearance")?;
+    validate_field::<InterfaceSettings>(document, "interfaces")?;
     validate_field::<ExecutionSettings>(document, "execution")?;
     validate_field::<AssistantRuntimeSettings>(document, "adk")?;
     validate_field::<SystemNotificationSettings>(document, "systemNotifications")?;

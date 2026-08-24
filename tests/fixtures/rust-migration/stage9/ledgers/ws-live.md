@@ -104,6 +104,6 @@ Do not mark this group `cutover-qualified`: the current Rust shared transport do
 ## Integration Review
 
 - Product wiring now gates the existing authenticated loopback WebSocket handler on an explicit `WsLiveSnapshotPort`; the default profile remains at 48 routes and does not register `/api/v1/ws/live`.
-- The authenticated Rust transport now owns one shared typed connection counter and RAII permit used by both its upgrade limit and the `system/status` live projection. This covers only Rust transport concurrency; the Go live client/subscription registry remains the production owner.
+- The authenticated Rust transport now owns one shared typed connection counter and RAII permit used by both its upgrade limit and the `system/status` live projection. Its effective limit comes from the read-only Go-compatible interface settings projection. This covers only Rust transport concurrency; the Go live client/subscription registry remains the production owner.
 - The shared differential runs `TestStage9WSLiveFixtureMatchesCurrentGoOwner` and the product route-isolation test. The standalone Go/Rust replay remains the wire evidence; no provider, OpenD, subscription, notification, or SQLite lifecycle crosses into Rust.
 - Three-way review (Go handler/reference, Rust replay, harness): replay matches the captured Go corpus. The plain-text Origin rejection, abnormal close behavior, replay ordering, and missing generated `docs/swagger` webaccess setup remain recorded quirks and block qualification.

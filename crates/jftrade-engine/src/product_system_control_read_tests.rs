@@ -188,7 +188,11 @@ async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
 async fn system_status_matches_go_stable_fields_without_claiming_migration_ownership() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
-    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    fs::write(
+        &settings_path,
+        br#"{"interfaces":{"liveWebSocketConnectionLimit":2}}"#,
+    )
+    .expect("seed settings");
     let before = fs::read(&settings_path).expect("read settings");
     let token = "system-status-token-012345678901234567890123456";
     let config = ProductConfig::desktop_shadow(
@@ -248,7 +252,7 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
         data["observability"]["live"],
         json!({
             "connected": 0,
-            "limit": 20,
+            "limit": 2,
             "atLimit": false,
             "activeInstruments": [],
         })

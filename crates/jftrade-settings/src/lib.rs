@@ -6,6 +6,7 @@ mod broker;
 mod exchange_calendar;
 mod execution;
 mod futu_install;
+mod interfaces;
 mod market_data_provider;
 mod mcp_server;
 mod notifications;
@@ -41,6 +42,10 @@ pub use execution::{
 };
 pub use futu_install::{
     FutuOpenDInstallSettings, FutuOpenDInstallSettingsService, FutuOpenDInstallSettingsStorePort,
+};
+pub use interfaces::{
+    DEFAULT_LIVE_WEBSOCKET_CONNECTION_LIMIT, InterfaceSettings, InterfaceSettingsStorePort,
+    normalize_live_websocket_connection_limit,
 };
 pub use market_data_provider::{
     BacktestMarketDataProviderSettingsService, BacktestMarketDataProviderSettingsStorePort,

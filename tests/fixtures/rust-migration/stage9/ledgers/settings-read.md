@@ -21,15 +21,24 @@ default projections for security, execution, provider, calendars and brokers,
 requires the authenticated shadow token, and proves the settings file bytes
 are unchanged after all reads.
 
+The supporting settings-file boundary also reads the persisted
+`interfaces.liveWebSocketConnectionLimit` for Rust transport composition
+without adding a public route or write owner. The shared Go/Rust corpus covers
+missing and invalid defaults, a positive override, malformed input, and the
+exact `liveWebSocketConnectionLimit` persistence key.
+
 ## Verification
 
 - Rust authenticated/read-only replay:
   `cargo test -p jftrade-engine --lib 'product::tests::settings_read_tests::'`
 - Go authenticated sidecar rehearsal:
   `go test ./internal/app/apiserver/servercoretest -run '^TestSettingsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`
+- Shared interface-settings corpus:
+  `cargo test -p jftrade-store-settings-file --test interface_settings_contracts` and
+  `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`
 - Unified Stage 9 differential:
   `pnpm run test:rust:stage9:product-differential`
-- Current route coverage: 12 shadow / 133 cutover-test-only / 133
+- Current route coverage: 1 shadow / 133 cutover-test-only / 144
   cutover-qualified / 0 remaining / 0 Rust production owner.
 
 The route entries are `cutover-qualified`, `productionOwner=go`, and
