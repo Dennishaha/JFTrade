@@ -24,12 +24,13 @@ The Tauri release launcher also rejects development or zero versions before
 asset preparation, injects one validated version/commit/build-time tuple into
 the Rust compile, and applies the same version as the final bundle config.
 
-Rust now also projects `observability.live.connected`, `limit` and `atLimit`
-from the same typed connection metrics used by its authenticated WebSocket
-transport. The counter includes accepted upgrades while their session permit
-is alive, rejects acquisition at the effective Rust transport limit, and
-releases through RAII. `activeInstruments` remains empty because Rust does not
-yet own the live subscription registry.
+Rust now also projects `observability.live.connected`, `limit`, `atLimit` and
+`activeInstruments` from the same typed connection registry used by its
+authenticated WebSocket transport. Each accepted upgrade owns a client-scoped
+RAII permit; Go-compatible subscribe messages replace that client's normalized
+active instruments, the status snapshot returns a sorted/deduplicated union,
+and disconnect removes the client state. The registry is transport-local and
+does not reconcile Provider/OpenD demand or write Go subscription state.
 
 The effective limit now comes from the Go-compatible
 `interfaces.liveWebSocketConnectionLimit` settings projection. A shared
@@ -49,14 +50,13 @@ Qualification remains blocked on owner-backed dynamic projections:
   Assistant directories/secrets, calendar storage, plugin storage and logical
   strategy sub-resources remain absent until their ownership is composed in
   Rust, so the public route is not yet qualified.
-- Live observability still lacks a Rust-owned active-subscription registry, and
-  market-data observability does not yet expose complete owner-backed counters
+- Market-data observability does not yet expose complete owner-backed counters
   and lifecycle generations. The Rust OpenD recorder entry is ready, but the
   Rust provider must call it when OpenD ownership migrates.
 - Broker and strategy descriptors have static parity, but their live runtime
   state must move through typed Rust-owned ports before production cutover.
 
-Verification: `cargo test -p jftrade-api websocket::tests -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
+Verification: `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains

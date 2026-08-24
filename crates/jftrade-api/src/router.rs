@@ -14,6 +14,7 @@ use axum::http::header::{
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Response, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::routing::get;
+use serde::Deserialize;
 use serde_json::json;
 use tower_http::trace::TraceLayer;
 
@@ -379,20 +380,102 @@ async fn websocket_handler(
     let timestamp = state.clock.now_rfc3339();
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
-        .on_upgrade(move |mut socket| async move {
-            let _connection_permit = connection_permit;
-            let heartbeat = json!({
-                "type": "heartbeat",
-                "source": "system",
-                "payload": {
-                    "at": timestamp,
-                    "intervalMs": 15000,
-                    "stale": false,
-                },
-            });
-            let _ = socket
-                .send(Message::Text(heartbeat.to_string().into()))
-                .await;
-            let _ = socket.send(Message::Close(None)).await;
-        })
+        .on_upgrade(move |socket| websocket_session(socket, connection_permit, timestamp))
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct LiveClientSubscriptions {
+    provider_broker_id: String,
+    active_instruments: Vec<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct LiveClientMessage {
+    #[serde(rename = "type")]
+    event_type: String,
+    subscriptions: LiveClientSubscriptions,
+}
+
+async fn websocket_session(
+    mut socket: axum::extract::ws::WebSocket,
+    connection_permit: crate::LiveConnectionPermit,
+    timestamp: String,
+) {
+    let heartbeat = json!({
+        "type": "heartbeat",
+        "source": "system",
+        "payload": {
+            "at": timestamp,
+            "intervalMs": 15000,
+            "stale": false,
+        },
+    });
+    if socket
+        .send(Message::Text(heartbeat.to_string().into()))
+        .await
+        .is_err()
+    {
+        return;
+    }
+    while let Some(message) = socket.recv().await {
+        let Ok(message) = message else {
+            return;
+        };
+        match live_subscription_update(&message) {
+            Ok(Some(active_instruments)) => {
+                connection_permit.set_active_instruments(&active_instruments);
+            }
+            Ok(None) => {}
+            Err(()) => return,
+        }
+    }
+}
+
+fn live_subscription_update(message: &Message) -> Result<Option<Vec<String>>, ()> {
+    let payload = match message {
+        Message::Text(payload) => payload.as_bytes(),
+        Message::Binary(payload) => payload.as_ref(),
+        Message::Close(_) => return Err(()),
+        _ => return Ok(None),
+    };
+    let Ok(message) = serde_json::from_slice::<LiveClientMessage>(payload) else {
+        return Ok(None);
+    };
+    if message.event_type != "subscribe" {
+        return Ok(None);
+    }
+    if message.subscriptions.provider_broker_id.trim().is_empty() {
+        return Err(());
+    }
+    Ok(Some(message.subscriptions.active_instruments))
+}
+
+#[cfg(test)]
+mod websocket_subscription_tests {
+    use super::*;
+
+    #[test]
+    fn subscription_message_matches_go_ignore_update_and_close_rules() {
+        for payload in ["not-json", r#"{"type":"other"}"#] {
+            assert_eq!(
+                live_subscription_update(&Message::Text(payload.into())),
+                Ok(None)
+            );
+        }
+        assert_eq!(
+            live_subscription_update(&Message::Text(
+                r#"{"type":"subscribe","subscriptions":{"activeInstruments":["US.AAPL"]}}"#.into(),
+            )),
+            Err(())
+        );
+        assert_eq!(
+            live_subscription_update(&Message::Text(
+                r#"{"type":"subscribe","subscriptions":{"providerBrokerId":" futu ","activeInstruments":[" us.aapl ","US.AAPL"]}}"#
+                    .into(),
+            )),
+            Ok(Some(vec![" us.aapl ".to_owned(), "US.AAPL".to_owned()]))
+        );
+    }
 }

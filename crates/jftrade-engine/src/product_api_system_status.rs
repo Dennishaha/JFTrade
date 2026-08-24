@@ -105,7 +105,7 @@ fn live_observability(metrics: &LiveConnectionMetrics) -> Value {
         "connected": snapshot.connected,
         "limit": snapshot.limit,
         "atLimit": snapshot.at_limit,
-        "activeInstruments": [],
+        "activeInstruments": snapshot.active_instruments,
     })
 }
 

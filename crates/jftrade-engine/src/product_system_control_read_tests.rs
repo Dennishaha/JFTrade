@@ -308,26 +308,36 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
 fn system_status_live_projection_uses_shared_transport_metrics() {
     let metrics = Arc::new(LiveConnectionMetrics::new(2));
     let first = metrics.try_acquire().expect("first connection");
+    first.set_active_instruments(&[
+        " us.aapl ".to_owned(),
+        "HK.00700".to_owned(),
+        "US.AAPL".to_owned(),
+    ]);
     assert_eq!(
         live_observability(&metrics),
         json!({
             "connected": 1,
             "limit": 2,
             "atLimit": false,
-            "activeInstruments": [],
+            "activeInstruments": ["HK.00700", "US.AAPL"],
         })
     );
 
     let second = metrics.try_acquire().expect("second connection");
+    second.set_active_instruments(&["CN.600000".to_owned(), "us.aapl".to_owned()]);
     assert_eq!(
         live_observability(&metrics),
         json!({
             "connected": 2,
             "limit": 2,
             "atLimit": true,
-            "activeInstruments": [],
+            "activeInstruments": ["CN.600000", "HK.00700", "US.AAPL"],
         })
     );
     drop(first);
+    assert_eq!(
+        live_observability(&metrics)["activeInstruments"],
+        json!(["CN.600000", "US.AAPL"])
+    );
     drop(second);
 }
