@@ -3,7 +3,12 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { tauriDevelopmentEnvironment, tauriPreparation } from "./lib/tauri-runtime.mjs";
+import {
+  tauriCommandOptions,
+  tauriDevelopmentEnvironment,
+  tauriPreparation,
+  tauriReleaseBuild,
+} from "./lib/tauri-runtime.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const projectRoot = path.join(repositoryRoot, "apps/desktop/src-tauri");
@@ -15,7 +20,13 @@ if (command !== "dev" && command !== "build") {
   process.exit(2);
 }
 
-const defaultOptions = command === "dev" ? ["--config", "tauri.dev.conf.json"] : [];
+let releaseBuild = null;
+try {
+  releaseBuild = command === "build" ? tauriReleaseBuild(process.env) : null;
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 const preparation = tauriPreparation(command);
 if (preparation !== null) {
   const prepared = spawnSync(preparation[0], preparation[1], {
@@ -29,10 +40,10 @@ if (preparation !== null) {
 const environment =
   command === "dev"
     ? tauriDevelopmentEnvironment(repositoryRoot, process.env, process.execPath)
-    : process.env;
+    : releaseBuild.environment;
 const result = spawnSync(
   process.execPath,
-  [cli, command, ...defaultOptions, ...process.argv.slice(3)],
+  [cli, command, ...tauriCommandOptions(command, process.argv.slice(3), releaseBuild)],
   { cwd: projectRoot, env: environment, stdio: "inherit" },
 );
 if (result.error) throw result.error;

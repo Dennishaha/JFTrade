@@ -41,6 +41,17 @@ go tool wails3 package
 
 CI 使用同一个 `JFTRADE_DESKTOP_PREPARED=1` 校验开关，并从共享 artifact 下载前端、Swagger 和 Pine 输入；各平台 runner 独立构建和 smoke-test 自己的 Python helper。Wails build/package 任务不会隐式执行资产准备。
 
+迁移阶段的 Tauri release rehearsal 使用独立入口，并且必须提供同一格式的正式 tag：
+
+```bash
+export JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3
+export JFTRADE_DESKTOP_COMMIT="$(git rev-parse HEAD)"
+export JFTRADE_DESKTOP_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+pnpm run build:desktop:tauri
+```
+
+launcher 会先拒绝 `dev`、`v0.0.0` 或非 `vX.Y.Z` tag，再准备 release runtime；通过后把同一版本注入 Rust build identity 和最终 Tauri bundle config。调用方附加的 `--config` 不能覆盖版本。该入口仍是迁移 rehearsal，签名、安装、升级、卸载、回退和跨平台 runtime smoke 全部通过 closeout gate 前，Wails 仍是唯一生产桌面 owner。
+
 ## 产物布局
 
 所有 Wails 二进制和平台包写入 `bin/`：

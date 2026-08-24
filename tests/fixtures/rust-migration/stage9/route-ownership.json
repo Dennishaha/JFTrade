@@ -3129,6 +3129,7 @@
         "tests/fixtures/rust-migration/stage9/request-observability.json",
         "crates/jftrade-api/src/observability.rs::tests::request_observability_matches_stage9_go_corpus",
         "go test ./pkg/observability -run ^TestRequestObservabilityMatchesRustMigrationCorpus$ -count=1",
+        "scripts/lib/tauri-runtime.test.mjs::tauri release injects one validated version into Rust and bundle metadata",
         "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
         "go test ./internal/app/apiserver/servercoretest -run ^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"

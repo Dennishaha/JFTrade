@@ -20,6 +20,9 @@ Go: newest-first error and slow-request histories, 20-event default bound,
 750ms default threshold, importance filtering and OpenD health/correlation
 fields. A shared Go/Rust corpus covers populated histories and OpenD success
 and failure; the authenticated status test covers the empty runtime shape.
+The Tauri release launcher also rejects development or zero versions before
+asset preparation, injects one validated version/commit/build-time tuple into
+the Rust compile, and applies the same version as the final bundle config.
 
 Qualification remains blocked on owner-backed dynamic projections:
 
@@ -31,10 +34,8 @@ Qualification remains blocked on owner-backed dynamic projections:
   but the Rust provider must call it when OpenD ownership migrates.
 - Broker and strategy descriptors have static parity, but their live runtime
   state must move through typed Rust-owned ports before production cutover.
-- Platform build metadata must be injected into Rust release builds by the
-  release pipeline before cross-platform qualification.
 
-Verification: `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests::system_status_matches_go_stable_fields_without_claiming_migration_ownership -- --exact`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
+Verification: `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests::system_status_matches_go_stable_fields_without_claiming_migration_ownership -- --exact`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains

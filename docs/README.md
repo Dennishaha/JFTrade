@@ -51,7 +51,7 @@ pnpm run check:wails-bindings
 go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
 ```
 
-独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；`dev` 与 `v0.0.0` 禁止进入桌面 release。
+独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；迁移中的 Tauri release launcher 复用同一 tag 规则，把单一版本同时锁入 Rust `/api/v1/system/status` build identity 和 Tauri bundle config。`dev` 与 `v0.0.0` 禁止进入两种桌面 release。
 
 ## 推荐阅读顺序
 

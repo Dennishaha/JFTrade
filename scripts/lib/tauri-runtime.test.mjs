@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { tauriDevelopmentEnvironment, tauriPreparation } from "./tauri-runtime.mjs";
+import {
+  tauriCommandOptions,
+  tauriDevelopmentEnvironment,
+  tauriPreparation,
+  tauriReleaseBuild,
+} from "./tauri-runtime.mjs";
 
 test("tauri dev prepares the retained PineTS asset and exact runtime paths", () => {
   const root = path.resolve("fixture-repository");
@@ -32,4 +37,52 @@ test("tauri dev preserves explicit PineTS overrides", () => {
   assert.equal(environment.JFTRADE_PINEWORKER_BUNDLE, "/custom/worker.mjs");
   assert.equal(environment.JFTRADE_PINEWORKER_RUNTIME, "/custom/node");
   assert.equal(environment.JFTRADE_PINEWORKER_PROTO, "/custom/pineworker.proto");
+});
+
+test("tauri release injects one validated version into Rust and bundle metadata", () => {
+  const release = tauriReleaseBuild(
+    {
+      KEEP: "yes",
+      JFTRADE_DESKTOP_RELEASE_TAG: "v1.2.3",
+      JFTRADE_DESKTOP_COMMIT: "abc123",
+      JFTRADE_DESKTOP_BUILD_TIME: "2026-08-24T00:00:00Z",
+      JFTRADE_BUILD_VERSION: "stale",
+    },
+    new Date("2026-08-24T01:00:00Z"),
+  );
+  assert.equal(release.environment.KEEP, "yes");
+  assert.equal(release.environment.JFTRADE_BUILD_VERSION, "1.2.3");
+  assert.equal(release.environment.JFTRADE_BUILD_COMMIT, "abc123");
+  assert.equal(
+    release.environment.JFTRADE_BUILD_TIME,
+    "2026-08-24T00:00:00.000Z",
+  );
+  assert.deepEqual(release.finalOptions, [
+    "--config",
+    JSON.stringify({ version: "1.2.3" }),
+  ]);
+  assert.deepEqual(
+    tauriCommandOptions(
+      "build",
+      ["--config", JSON.stringify({ version: "9.9.9" })],
+      release,
+    ),
+    [
+      "--config",
+      JSON.stringify({ version: "9.9.9" }),
+      "--config",
+      JSON.stringify({ version: "1.2.3" }),
+    ],
+  );
+});
+
+test("tauri release rejects development and zero versions before preparation", () => {
+  assert.throws(
+    () => tauriReleaseBuild({ JFTRADE_DESKTOP_RELEASE_TAG: "main" }),
+    /vX\.Y\.Z/,
+  );
+  assert.throws(
+    () => tauriReleaseBuild({ JFTRADE_DESKTOP_RELEASE_TAG: "v0.0.0" }),
+    /v0\.0\.0/,
+  );
 });
