@@ -85,6 +85,11 @@ Qualification remains blocked on owner-backed dynamic projections:
   projection. Its success, rejection, unsupported-version and socket paths
   are covered by local framed mock tests; it still does not drive the router
   or default product owner.
+  `market_data_health_from_probe` now provides the explicit composition
+  mapping into broker-neutral `HealthStatus`; a fixture test drives a router
+  from ready to failed after a disconnected probe. This remains opt-in
+  composition evidence only and does not activate a default provider or
+  OpenD connection.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a

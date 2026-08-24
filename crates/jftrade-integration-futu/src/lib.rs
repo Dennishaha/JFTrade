@@ -11,7 +11,9 @@ mod trading;
 mod transport;
 
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
-pub use health::{OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError};
+pub use health::{
+    OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError, market_data_health_from_probe,
+};
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use subscriptions::{

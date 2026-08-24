@@ -8,6 +8,7 @@ use crate::{
     OpenDClient, OpenDProbe, OpenDTcpTransport, PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT,
     WireGlobalState,
 };
+use jftrade_marketdata::{HealthStatus, ProviderReadiness};
 
 const RET_TYPE_SUCCEED: i32 = 0;
 
@@ -54,6 +55,35 @@ pub enum OpenDTcpProbeError {
 }
 
 pub struct OpenDTcpProbe;
+
+/// Converts the protocol-neutral OpenD result into the broker-neutral health
+/// contract consumed by an explicit `ProviderRouter` composition.
+pub fn market_data_health_from_probe(enabled: bool, probe: &OpenDProbe) -> HealthStatus {
+    let mut health = HealthStatus {
+        readiness: ProviderReadiness::Failed,
+        ..HealthStatus::default()
+    };
+    let error = if !enabled {
+        Some("Futu OpenD integration is disabled".to_owned())
+    } else if let Some(error) = &probe.last_error {
+        Some(error.trim().to_owned())
+    } else if probe.connectivity != "connected" || probe.status != "healthy" {
+        Some("Futu OpenD is not connected".to_owned())
+    } else if probe.quote_logged_in.is_none() {
+        Some("Futu OpenD quote session status is unavailable".to_owned())
+    } else if probe.quote_logged_in == Some(false) {
+        Some("Futu OpenD quote session is not logged in".to_owned())
+    } else {
+        None
+    };
+    if let Some(error) = error {
+        health.last_error = (!error.is_empty()).then_some(error);
+    } else {
+        health.connected = true;
+        health.readiness = ProviderReadiness::Ready;
+    }
+    health
+}
 
 impl OpenDTcpProbe {
     pub fn probe(config: OpenDTcpProbeConfig) -> Result<OpenDProbe, OpenDTcpProbeError> {
@@ -436,6 +466,39 @@ mod tests {
             Some("OPEND_VERSION_UNSUPPORTED")
         );
         server.join().expect("server thread");
+    }
+
+    #[test]
+    fn probe_health_projection_drives_an_explicit_router_without_default_owner() {
+        let healthy_probe = OpenDProbe::from_global_state(
+            Some(WireGlobalState {
+                qot_logged_in: Some(true),
+                trade_logged_in: Some(false),
+                server_version: Some("10.9.7000".to_owned()),
+                program_status: Some("Ready".to_owned()),
+                program_timestamp: None,
+                markets: Vec::new(),
+            }),
+            true,
+        );
+        let healthy = market_data_health_from_probe(true, &healthy_probe);
+        assert!(healthy.is_ready());
+
+        let mut router = jftrade_marketdata::ProviderRouter::new(2);
+        router
+            .register(crate::provider_descriptor(), healthy)
+            .expect("Futu descriptor");
+        router
+            .activate("futu", jftrade_marketdata::ActivationMode::Explicit)
+            .expect("activate healthy provider");
+
+        let disconnected = OpenDProbe::disconnected("mock socket closed");
+        let failed = market_data_health_from_probe(true, &disconnected);
+        assert!(!failed.connected);
+        assert_eq!(failed.readiness, ProviderReadiness::Failed);
+        router.update_health("futu", failed).expect("update health");
+        assert!(!router.runtime().connected);
+        assert_eq!(router.runtime().readiness, ProviderReadiness::Failed);
     }
 
     fn read_request(stream: &mut TcpStream) -> Frame {
