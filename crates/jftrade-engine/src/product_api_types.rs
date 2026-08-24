@@ -48,6 +48,7 @@ struct ProductOptionalPorts {
     backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_status: Option<Arc<dyn StrategyRuntimeStatusPort>>,
     strategy_runtime_write: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,

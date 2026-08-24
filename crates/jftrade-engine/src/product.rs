@@ -73,6 +73,12 @@ include!("product_market_data_prediction_read_port.rs");
 mod product_market_data_runtime_status;
 use product_market_data_runtime_status::market_data_runtime_projection;
 pub use product_market_data_runtime_status::{MarketDataRuntimeState, MarketDataRuntimeStatusPort};
+#[path = "product_strategy_runtime_status.rs"]
+mod product_strategy_runtime_status;
+use product_strategy_runtime_status::strategy_runtime_projection;
+pub use product_strategy_runtime_status::{
+    StrategyRuntimeActiveInstance, StrategyRuntimeStatusPort, StrategyRuntimeSummary,
+};
 include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_stage9_write_ports.rs");
@@ -304,6 +310,7 @@ pub struct ProductConfig {
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_status_port: Option<Arc<dyn StrategyRuntimeStatusPort>>,
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
@@ -388,6 +395,7 @@ impl ProductConfig {
             backtest_sync_read_snapshot_port: None,
             backtests_write_port: None,
             strategy_read_snapshot_port: None,
+            strategy_runtime_status_port: None,
             strategy_runtime_write_port: None,
             auth_session_snapshot_port: None,
             auth_session_write_port: None,
@@ -680,6 +688,7 @@ pub(crate) async fn start_product_with_runtime_state(
             backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
             backtests_write: config.backtests_write_port.clone(),
             strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
+            strategy_runtime_status: config.strategy_runtime_status_port.clone(),
             strategy_runtime_write: config.strategy_runtime_write_port.clone(),
             auth_session_snapshot: config.auth_session_snapshot_port.clone(),
             auth_session_write: config.auth_session_write_port.clone(),

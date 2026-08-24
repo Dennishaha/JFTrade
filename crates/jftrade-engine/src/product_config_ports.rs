@@ -113,6 +113,14 @@ impl ProductConfig {
         self
     }
 
+    pub fn with_strategy_runtime_status_port(
+        mut self,
+        port: Arc<dyn StrategyRuntimeStatusPort>,
+    ) -> Self {
+        self.strategy_runtime_status_port = Some(port);
+        self
+    }
+
     #[cfg(test)]
     fn with_market_data_catalog_read_snapshot_port(
         mut self,

@@ -5,6 +5,8 @@ impl ProductApi {
         let live = live_observability(&self.live_connections);
         let market_data =
             market_data_runtime_projection(self.market_data_runtime_status_port.as_deref());
+        let strategy_runtime =
+            strategy_runtime_projection(self.strategy_runtime_status_port.as_deref());
         let runtime = self.runtime.snapshot();
         let real_trade = self.real_trade_control.snapshot();
         let checked_at = SystemClock.now_rfc3339();
@@ -15,12 +17,6 @@ impl ProductApi {
             .map(|resource| resource.path.as_str())
             .unwrap_or_default();
         let broker = json!(jftrade_integration_futu::broker_descriptor());
-        let strategy_runtime = json!({
-            "status": "idle",
-            "activeStrategies": 0,
-            "supportsBacktestParity": true,
-            "activeInstances": [],
-        });
         let exchange_calendars = self
             .calendar_manager
             .as_ref()

@@ -374,6 +374,65 @@ async fn system_status_uses_only_the_typed_market_data_runtime_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
+#[derive(Debug)]
+struct FixtureStrategyRuntimeStatusPort;
+
+impl StrategyRuntimeStatusPort for FixtureStrategyRuntimeStatusPort {
+    fn snapshot(&self) -> StrategyRuntimeSummary {
+        StrategyRuntimeSummary {
+            status: "active".to_owned(),
+            active_strategies: 1,
+            supports_backtest_parity: true,
+            active_instances: vec![StrategyRuntimeActiveInstance {
+                instance_id: "strategy-1".to_owned(),
+                definition_name: "Momentum".to_owned(),
+                actual_status: "running".to_owned(),
+                active_symbols: Some(vec!["US.AAPL".to_owned()]),
+                last_signal_at: Some("2026-08-24T01:03:00Z".to_owned()),
+                ..StrategyRuntimeActiveInstance::default()
+            }],
+        }
+    }
+}
+
+#[tokio::test]
+async fn system_status_uses_only_the_typed_strategy_runtime_port() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_runtime_status_port(Arc::new(FixtureStrategyRuntimeStatusPort));
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    let expected = json!({
+        "status": "active",
+        "activeStrategies": 1,
+        "supportsBacktestParity": true,
+        "activeInstances": [{
+            "instanceId": "strategy-1",
+            "definitionName": "Momentum",
+            "actualStatus": "running",
+            "activeSymbols": ["US.AAPL"],
+            "lastSignalAt": "2026-08-24T01:03:00Z",
+        }],
+    });
+    assert_eq!(response["data"]["strategyRuntime"], expected);
+    assert_eq!(
+        response["data"]["observability"]["strategyRuntime"],
+        expected
+    );
+    handle.shutdown().await.expect("shutdown product");
+}
+
 #[test]
 fn system_status_live_projection_uses_shared_transport_metrics() {
     let metrics = Arc::new(LiveConnectionMetrics::new(2));
