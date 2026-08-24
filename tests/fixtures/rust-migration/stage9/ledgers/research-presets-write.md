@@ -14,6 +14,7 @@
 - Go reference: `scripts/rust-migration/stage9_research_presets_write_reference_test.go`
 - Differential: `scripts/rust-migration/check-stage9-research-presets-write.mjs`
 - Rust behavior test: `crates/jftrade-engine/tests/stage9_research_presets_write.rs`
+- Authenticated composition rehearsal: `internal/app/apiserver/servercoretest/rehearsal_research_preset_write_routes_test.go`
 
 ## Contract ledger
 
@@ -41,7 +42,9 @@ Each case records response status, exact contract headers, normalized envelope, 
 - The Rust port accepts a complete Go-shaped result/error projection; it does not normalize `ScreenDefinitionV2`, open SQLite, or implement a second persistence owner.
 - The Rust test asserts the exact three-route inventory and contains no fourth mutation operation.
 - Failure cases assert the state/observation emitted by the Go repository remains unchanged; retry/recovery cases prove a later operation can proceed after the failed/cancelled attempt.
-- The integration branch re-read the route ledger after registration: `26 shadow / 169 cutover-test-only / 0 cutover-qualified / 83 remaining / 0 Rust production owner`. The independent `POST /api/v1/research/screens` mutation remains `remaining`.
+- The authenticated loopback mutation rehearsal selects only the three exact operations, forwards no public cookie, and proves that success, duplicate conflict, revision-fenced PATCH and DELETE touch only the isolated rehearsal owner. Rust error, timeout and crash responses never replay the Go fallback owner; restart preserves the rehearsal database while a Go-only rollback restarts with its independent database unchanged.
+- The rehearsal boundary deliberately delegates to an isolated temporary Go reference owner. This validates composition-root routing, authenticated transport, durable restart and no-double-write fencing, but it does not fabricate a Rust durable preset repository. The group therefore remains `cutover-test-only`.
+- The current route ledger is `23 shadow / 133 cutover-test-only / 122 cutover-qualified / 0 remaining / 0 Rust production owner`. The independent `POST /api/v1/research/screens` mutation is also `cutover-test-only` and remains outside this group.
 
 ## Quirks and three-way review
 
@@ -87,8 +90,6 @@ owner: 集成分支
 
 ## Verification record
 
-To be filled by the worker after the narrow commands run. Shared gates are intentionally not claimed by this worker:
-
 - `gofmt -w scripts/rust-migration/stage9_research_presets_write_reference_test.go`: passed
 - `cargo fmt --all -- --check`: passed; the check is workspace-wide formatting only and is not the full Rust quality gate
 - Go reference fixture drift test: passed (`go test scripts/rust-migration/stage9_research_presets_write_reference_test.go -run '^TestStage9ResearchPresetsWriteFixtureMatchesCurrentGoOwner$' -count=1`)
@@ -98,8 +99,9 @@ To be filled by the worker after the narrow commands run. Shared gates are inten
 - Go owner regression packages: passed (`go test ./internal/api/research ./internal/research ./internal/store/research -count=1`)
 - differential script syntax: passed (`node --check scripts/rust-migration/check-stage9-research-presets-write.mjs`)
 - Shared product differential: passed after integration registration (`pnpm run test:rust:stage9:product-differential`)
-- `pnpm run check:quick`: shared gate pending final integration workspace review
-- `pnpm run check:rust`: shared gate pending final integration workspace review
+- Authenticated mutation rehearsal: passed (`go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1`)
+- `pnpm run check:quick`: passed after the authenticated mutation rehearsal was integrated.
+- `pnpm run check:rust`: passed in full, including the Go authenticated rehearsal suite and Stage 9 product differential.
 - `pnpm run check:generated`: not applicable; OpenAPI/generated contract was not changed
 
 ## Handoff state
@@ -108,4 +110,4 @@ To be filled by the worker after the narrow commands run. Shared gates are inten
 - Tier: A
 - Operation count: 3 (22 fixture cases)
 - Status: integration-reviewed `cutover-test-only`; no production owner or default profile change
-- Next qualification action: retain the explicit mutation port and complete cancellation/recovery, durable-store, release and hard-cut evidence before any owner change.
+- Next qualification action: implement and differentially verify a Rust durable preset repository in a temporary explicit test profile, then close the accepted cancellation mapping, backup/restore, security, release and hard-cut gates before any owner change.

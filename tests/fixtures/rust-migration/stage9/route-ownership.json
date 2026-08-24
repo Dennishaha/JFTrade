@@ -219,10 +219,12 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3278,10 +3280,12 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4097,10 +4101,12 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
