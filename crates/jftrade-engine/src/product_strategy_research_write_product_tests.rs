@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+use rusqlite::Connection;
 use serde_json::{Value, json};
+use tempfile::tempdir;
 
 use super::super::product_research_preset_write_port::{
     ResearchPresetWriteMutation, ResearchPresetWritePortError,
@@ -145,4 +147,56 @@ async fn strategy_and_research_write_routes_preserve_failure_and_combined_regist
     .await;
     assert_eq!(response["ok"], true);
     handle.shutdown().await.expect("shutdown combined product");
+}
+
+#[tokio::test]
+async fn explicit_sqlite_test_cutover_config_registers_durable_preset_routes() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("research.db");
+    let connection = Connection::open(&database_path).expect("open research database");
+    connection
+        .execute_batch(
+            "CREATE TABLE research_screen_presets (
+                preset_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                name_key TEXT NOT NULL UNIQUE,
+                query_schema_version INTEGER NOT NULL,
+                query_json TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX research_screen_presets_updated_at
+                ON research_screen_presets(updated_at DESC, preset_id);
+            CREATE TABLE jftrade_schema_meta (
+                component_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO jftrade_schema_meta (component_id, version, created_at)
+                VALUES ('research', 1, '2026-08-24T04:00:00Z');",
+        )
+        .expect("seed research database");
+    drop(connection);
+
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_research_preset_sqlite_test_cutover(&database_path)
+            .expect("test-cutover adapter");
+    let handle = start_product(config).await.expect("start product");
+    assert_eq!(handle.startup_record().owned_routes, 51);
+    let response = request_json(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/research/screens/presets",
+        Some(
+            r#"{"name":"Value","definition":{"market":"US","pool":{},"catalogVersion":"futu-stock-screen-v1","querySchemaVersion":2}}"#,
+        ),
+    )
+    .await;
+    assert_eq!(response["ok"], true);
+    assert!(response["data"]["presetId"].as_str().is_some());
+    handle.shutdown().await.expect("shutdown product");
 }

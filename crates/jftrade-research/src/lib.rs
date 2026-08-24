@@ -1,8 +1,10 @@
 #![forbid(unsafe_code)]
 
 mod catalog;
+mod definition;
 
 pub use catalog::{ScreenCatalogError, screen_catalog};
+pub use definition::{DefinitionFieldError, normalize_definition_v2};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -117,10 +119,19 @@ mod tests {
 
     use super::*;
 
+    fn valid_definition() -> Value {
+        json!({
+            "market": "US",
+            "pool": {},
+            "catalogVersion": "futu-stock-screen-v1",
+            "querySchemaVersion": 2
+        })
+    }
+
     #[test]
     fn update_is_revision_guarded_and_preserves_schema_owner() {
-        let preset = create_preset(" preset-1 ", " Momentum ", json!({"conditions": []}))
-            .expect("valid preset");
+        let preset =
+            create_preset(" preset-1 ", " Momentum ", valid_definition()).expect("valid preset");
         let updated = update_preset(
             &preset,
             PresetUpdate {
@@ -138,7 +149,7 @@ mod tests {
                 &updated,
                 PresetUpdate {
                     name: None,
-                    definition: Some(json!({})),
+                    definition: Some(valid_definition()),
                     expected_revision: 1,
                 }
             ),
@@ -148,9 +159,9 @@ mod tests {
 
     #[test]
     fn names_use_character_count_and_definitions_fail_closed() {
-        assert!(create_preset("id", &"界".repeat(80), json!({})).is_ok());
+        assert!(create_preset("id", &"界".repeat(80), valid_definition()).is_ok());
         assert_eq!(
-            create_preset("id", &"界".repeat(81), json!({})),
+            create_preset("id", &"界".repeat(81), valid_definition()),
             Err(ResearchError::NameTooLong)
         );
         assert_eq!(

@@ -235,6 +235,17 @@ impl ProductConfig {
     }
 
     #[cfg(test)]
+    fn with_research_preset_sqlite_test_cutover(
+        mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<Self, ResearchPresetStoreError> {
+        self.research_preset_write_port = Some(Arc::new(
+            ResearchPresetSqliteTestCutoverPort::open(path)?,
+        ));
+        Ok(self)
+    }
+
+    #[cfg(test)]
     fn with_strategy_definition_write_port(
         mut self,
         port: Arc<dyn StrategyDefinitionWritePort>,

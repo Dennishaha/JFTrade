@@ -1,0 +1,1361 @@
+{
+  "version": "stage9.research-definition-normalization.v1",
+  "cases": [
+    {
+      "name": "empty-valid-definition",
+      "sourceTest": "TestNormalizeDefinitionV2FutuContractUnchanged",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "canonical-header-pool-sort-and-second-factor",
+      "sourceTest": "TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors",
+      "input": {
+        "brokerId": " FUTU ",
+        "market": " hk ",
+        "pool": {
+          "watchlistStockIds": [
+            " 123 "
+          ],
+          "plates": [
+            {
+              "parentPlateId": " parent ",
+              "plateIds": [
+                " plate ",
+                "plate",
+                ""
+              ]
+            }
+          ]
+        },
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  10
+                ]
+              }
+            },
+            "operator": " POSITION ",
+            "value": {
+              "position": 1
+            },
+            "secondFactor": {
+              "factorKey": "indicator.ema",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          }
+        ],
+        "sorts": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "HK",
+        "pool": {
+          "watchlistStockIds": [
+            "123"
+          ],
+          "plates": [
+            {
+              "parentPlateId": "parent",
+              "plateIds": [
+                "plate"
+              ]
+            }
+          ]
+        },
+        "conditions": [
+          {
+            "id": "condition-indicator.ma-da0b3f8e23",
+            "factor": {
+              "instanceId": "factor-indicator.ma-da0b3f8e23",
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  10
+                ]
+              }
+            },
+            "operator": "position",
+            "value": {
+              "position": 1
+            },
+            "secondFactor": {
+              "instanceId": "factor-indicator.ema-b2ab64884d",
+              "factorKey": "indicator.ema",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          }
+        ],
+        "sorts": [
+          {
+            "sortId": "sort-1",
+            "factor": {
+              "instanceId": "factor-simple.price-3a55289e88",
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "direction": "desc"
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "parameterized-instance-identities",
+      "sourceTest": "TestNormalizeDefinitionPreservesParameterizedInstances",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "columnId": "ma20-column",
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          },
+          {
+            "columnId": "ma60-column",
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  60
+                ]
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "columnId": "ma20-column",
+            "factor": {
+              "instanceId": "factor-indicator.ma-b8a5f808bb",
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          },
+          {
+            "columnId": "ma60-column",
+            "factor": {
+              "instanceId": "factor-indicator.ma-7a79bb3a07",
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  60
+                ]
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "embedded-catalog",
+      "sourceTest": "TestNormalizeDefinitionV2AcceptsEmbeddedCatalog",
+      "input": {
+        "brokerId": " AKSHARE ",
+        "market": "cn",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.pe_ttm",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 0,
+              "max": 30
+            }
+          }
+        ],
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            }
+          },
+          {
+            "factor": {
+              "factorKey": "basic.name",
+              "params": {}
+            }
+          }
+        ],
+        "sorts": [
+          {
+            "factor": {
+              "factorKey": "simple.change_pct",
+              "params": {}
+            },
+            "direction": "DESC"
+          }
+        ],
+        "catalogVersion": " embedded-stock-screen-v1 ",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "akshare",
+        "market": "CN",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "condition-simple.pe_ttm-d8527d9c9b",
+            "factor": {
+              "instanceId": "factor-simple.pe_ttm-d8527d9c9b",
+              "factorKey": "simple.pe_ttm",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "max": 30,
+              "min": 0
+            }
+          }
+        ],
+        "columns": [
+          {
+            "columnId": "column-1",
+            "factor": {
+              "instanceId": "factor-simple.price-3a55289e88",
+              "factorKey": "simple.price",
+              "params": {}
+            }
+          },
+          {
+            "columnId": "column-2",
+            "factor": {
+              "instanceId": "factor-basic.name-3f75c0bd6b",
+              "factorKey": "basic.name",
+              "params": {}
+            }
+          }
+        ],
+        "sorts": [
+          {
+            "sortId": "sort-1",
+            "factor": {
+              "instanceId": "factor-simple.change_pct-63f5975d67",
+              "factorKey": "simple.change_pct",
+              "params": {}
+            },
+            "direction": "desc"
+          }
+        ],
+        "catalogVersion": " embedded-stock-screen-v1 ",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "catalog-defaults",
+      "sourceTest": "TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "cumulative.price_change",
+              "params": {}
+            }
+          },
+          {
+            "factor": {
+              "factorKey": "financial.net_profit",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "columnId": "column-1",
+            "factor": {
+              "instanceId": "factor-cumulative.price_change-9d07e2935e",
+              "factorKey": "cumulative.price_change",
+              "params": {
+                "days": 1
+              }
+            }
+          },
+          {
+            "columnId": "column-2",
+            "factor": {
+              "instanceId": "factor-financial.net_profit-59cf098fbd",
+              "factorKey": "financial.net_profit",
+              "params": {
+                "term": 10
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "inferred-set-operator",
+      "sourceTest": "TestDefinitionHelperContractsCoverSupportedValueShapes",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "field.market",
+              "params": {}
+            },
+            "value": [
+              2
+            ]
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "condition-field.market-8e52b6c564",
+            "factor": {
+              "instanceId": "factor-field.market-8e52b6c564",
+              "factorKey": "field.market",
+              "params": {}
+            },
+            "operator": "in",
+            "value": [
+              2
+            ]
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "inferred-scalar-operator",
+      "sourceTest": "TestDefinitionHelperContractsCoverSupportedValueShapes",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "field.has_option",
+              "params": {}
+            },
+            "value": 1
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "condition-field.has_option-0fbd9bf810",
+            "factor": {
+              "instanceId": "factor-field.has_option-0fbd9bf810",
+              "factorKey": "field.has_option",
+              "params": {}
+            },
+            "operator": "eq",
+            "value": 1
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "between-intervals",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "intervals": [
+                {
+                  "min": 1,
+                  "max": 2
+                },
+                {
+                  "min": 5
+                }
+              ]
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "condition-simple.price-3a55289e88",
+            "factor": {
+              "instanceId": "factor-simple.price-3a55289e88",
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "intervals": [
+                {
+                  "max": 2,
+                  "min": 1
+                },
+                {
+                  "min": 5
+                }
+              ]
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "pattern-value",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "pattern.ma_long",
+              "params": {}
+            },
+            "operator": "pattern",
+            "value": {
+              "match": true
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "normalized": {
+        "brokerId": "futu",
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "condition-pattern.ma_long-47b9830108",
+            "factor": {
+              "instanceId": "factor-pattern.ma_long-47b9830108",
+              "factorKey": "pattern.ma_long",
+              "params": {}
+            },
+            "operator": "pattern",
+            "value": {
+              "match": true
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      }
+    },
+    {
+      "name": "missing-query-schema",
+      "sourceTest": "TestNormalizeDefinitionRequiresExplicitV2Versions",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "catalogVersion": "futu-stock-screen-v1"
+      },
+      "error": {
+        "path": "querySchemaVersion",
+        "code": "unsupported_schema",
+        "message": "must be 2"
+      }
+    },
+    {
+      "name": "v1-query-schema",
+      "sourceTest": "TestNormalizeDefinitionRequiresExplicitV2Versions",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 1
+      },
+      "error": {
+        "path": "querySchemaVersion",
+        "code": "unsupported_schema",
+        "message": "must be 2"
+      }
+    },
+    {
+      "name": "missing-catalog",
+      "sourceTest": "TestNormalizeDefinitionRequiresExplicitV2Versions",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "catalogVersion",
+        "code": "unsupported_catalog",
+        "message": "catalog \"\" is not executable"
+      }
+    },
+    {
+      "name": "unsupported-catalog",
+      "sourceTest": "TestNormalizeDefinitionV2FutuContractUnchanged",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "catalogVersion": "embedded-stock-screen-v0",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "catalogVersion",
+        "code": "unsupported_catalog",
+        "message": "catalog \"embedded-stock-screen-v0\" is not executable"
+      }
+    },
+    {
+      "name": "unsupported-futu-market",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "SG",
+        "pool": {},
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "market",
+        "code": "unsupported_market",
+        "message": "must be one of HK, US, SH or SZ"
+      }
+    },
+    {
+      "name": "unsupported-embedded-market",
+      "sourceTest": "TestNormalizeDefinitionV2AcceptsEmbeddedCatalog",
+      "input": {
+        "market": "MO",
+        "pool": {},
+        "catalogVersion": "embedded-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "market",
+        "code": "unsupported_market",
+        "message": "must be one of HK, US, SH, SZ or CN"
+      }
+    },
+    {
+      "name": "plate-ids-required",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {
+          "plates": [
+            {
+              "plateIds": []
+            }
+          ]
+        },
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "pool.plates[0].plateIds",
+        "code": "required",
+        "message": "at least one plate id is required"
+      }
+    },
+    {
+      "name": "watchlist-id-required",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {
+          "watchlistStockIds": [
+            ""
+          ]
+        },
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "pool.watchlistStockIds[0]",
+        "code": "required",
+        "message": "stock id is required"
+      }
+    },
+    {
+      "name": "watchlist-id-invalid",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {
+          "watchlistStockIds": [
+            "not-number"
+          ]
+        },
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "pool.watchlistStockIds[0]",
+        "code": "invalid_id",
+        "message": "must be an unsigned integer string"
+      }
+    },
+    {
+      "name": "factor-key-required",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.factorKey",
+        "code": "required",
+        "message": "factor key is required"
+      }
+    },
+    {
+      "name": "factor-unknown",
+      "sourceTest": "TestNormalizeDefinitionV2EmbeddedRejectsOutOfCatalogFactors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "unknown.factor",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.factorKey",
+        "code": "unsupported_factor",
+        "message": "unknown research screen factor \"unknown.factor\""
+      }
+    },
+    {
+      "name": "factor-role-invalid",
+      "sourceTest": "TestEmbeddedCatalogValidationUseFlags",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "basic.name",
+              "params": {}
+            },
+            "operator": "eq",
+            "value": "A"
+          }
+        ],
+        "catalogVersion": "embedded-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].factor.factorKey",
+        "code": "unsupported_factor",
+        "message": "embedded research screen factor \"basic.name\" cannot be filtered"
+      }
+    },
+    {
+      "name": "factor-market-invalid",
+      "sourceTest": "TestNormalizeDefinitionRejectsMarketIncompatibleFactor",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "broker.holdings_ratio",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 1,
+              "max": 2
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].factor.factorKey",
+        "code": "unsupported_factor",
+        "message": "research screen factor \"broker.holdings_ratio\" is unavailable: factor is unavailable in US"
+      }
+    },
+    {
+      "name": "parameter-invalid-enum",
+      "sourceTest": "TestNormalizeDefinitionValidatesParameterTypesEnumsAndUnions",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "indicator.rsi",
+              "params": {
+                "period": 999
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.params.period",
+        "code": "invalid_enum",
+        "message": "must be a valid period value"
+      }
+    },
+    {
+      "name": "parameter-union-member-required",
+      "sourceTest": "TestNormalizeDefinitionValidatesParameterTypesEnumsAndUnions",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "option.stock_iv",
+              "params": {
+                "optionParamType": 2
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.params.optionParam.integer",
+        "code": "required",
+        "message": "integer value is required for union type 2"
+      }
+    },
+    {
+      "name": "parameter-minimum",
+      "sourceTest": "TestParameterValidationRejectsTypeRangeStepAndEnumErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "cumulative.price_change",
+              "params": {
+                "days": -1
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.params.days",
+        "code": "minimum",
+        "message": "must be at least 1"
+      }
+    },
+    {
+      "name": "parameter-maximum",
+      "sourceTest": "TestParameterValidationRejectsTypeRangeStepAndEnumErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "cumulative.price_change",
+              "params": {
+                "days": 3651
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[0].factor.params.days",
+        "code": "maximum",
+        "message": "must be at most 3650"
+      }
+    },
+    {
+      "name": "duplicate-condition-id",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "id": "same",
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 1
+            }
+          },
+          {
+            "id": "same",
+            "factor": {
+              "factorKey": "simple.market_cap",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 1
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[1].id",
+        "code": "duplicate",
+        "message": "condition id must be unique"
+      }
+    },
+    {
+      "name": "duplicate-condition-factor",
+      "sourceTest": "TestNormalizeDefinitionRejectsDuplicateConfigurationWithFieldPath",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 1
+            }
+          },
+          {
+            "factor": {
+              "factorKey": "SIMPLE.PRICE",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "max": 2
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[1].factor",
+        "code": "duplicate_factor",
+        "message": "the same factor and parameters already exist"
+      }
+    },
+    {
+      "name": "duplicate-column-id",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "columnId": "same",
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            }
+          },
+          {
+            "columnId": "same",
+            "factor": {
+              "factorKey": "simple.market_cap",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[1].id",
+        "code": "duplicate",
+        "message": "column id must be unique"
+      }
+    },
+    {
+      "name": "duplicate-column-factor",
+      "sourceTest": "TestNormalizeDefinitionRejectsDuplicateConfigurationWithFieldPath",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "columns": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          },
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11,
+                "indicatorParams": [
+                  20
+                ]
+              }
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "columns[1].factor",
+        "code": "duplicate_factor",
+        "message": "the same factor and parameters already exist"
+      }
+    },
+    {
+      "name": "sort-direction-invalid",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "sorts": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "direction": "sideways"
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "sorts[0].direction",
+        "code": "invalid_operator",
+        "message": "must be asc, desc, abs_asc or abs_desc"
+      }
+    },
+    {
+      "name": "sort-factor-role-invalid",
+      "sourceTest": "TestDefinitionNormalizationRejectsPoolSortAndIdentityErrors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "sorts": [
+          {
+            "factor": {
+              "factorKey": "field.market",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "sorts[0].factor.factorKey",
+        "code": "unsupported_factor",
+        "message": "research screen factor \"field.market\" cannot be sorted"
+      }
+    },
+    {
+      "name": "condition-operator-unknown",
+      "sourceTest": "TestNormalizeDefinitionRejectsWrongOperatorForFactorKind",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "sideways",
+            "value": 1
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].operator",
+        "code": "unsupported_operator",
+        "message": "unsupported condition operator"
+      }
+    },
+    {
+      "name": "condition-operator-wrong-kind",
+      "sourceTest": "TestNormalizeDefinitionRejectsWrongOperatorForFactorKind",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11
+              }
+            },
+            "operator": "between",
+            "value": {
+              "min": 1
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].operator",
+        "code": "unsupported_operator",
+        "message": "indicator factor requires position"
+      }
+    },
+    {
+      "name": "condition-value-required",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between"
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value",
+        "code": "required",
+        "message": "condition value is required"
+      }
+    },
+    {
+      "name": "condition-set-invalid",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "field.market",
+              "params": {}
+            },
+            "operator": "in",
+            "value": []
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value",
+        "code": "invalid_set",
+        "message": "value set must contain at least one integer"
+      }
+    },
+    {
+      "name": "condition-range-invalid",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "min": 3,
+              "max": 2
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value",
+        "code": "invalid_range",
+        "message": "min must not exceed max"
+      }
+    },
+    {
+      "name": "condition-interval-invalid",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "simple.price",
+              "params": {}
+            },
+            "operator": "between",
+            "value": {
+              "intervals": [
+                "bad"
+              ]
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value.intervals[0]",
+        "code": "invalid_range",
+        "message": "interval must be an object"
+      }
+    },
+    {
+      "name": "condition-position-invalid",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11
+              }
+            },
+            "operator": "position",
+            "value": {
+              "position": 5,
+              "secondValue": 1
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value.position",
+        "code": "invalid_position",
+        "message": "position must be an integer from 1 to 4"
+      }
+    },
+    {
+      "name": "condition-position-second-required",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11
+              }
+            },
+            "operator": "position",
+            "value": {
+              "position": 1
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value.secondValue",
+        "code": "required",
+        "message": "secondValue or secondFactor is required"
+      }
+    },
+    {
+      "name": "condition-pattern-invalid",
+      "sourceTest": "TestConditionValueValidationCoversSetRangePositionAndPattern",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "pattern.ma_long",
+              "params": {}
+            },
+            "operator": "pattern",
+            "value": {
+              "match": "yes"
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].value.match",
+        "code": "invalid_pattern",
+        "message": "match must be boolean"
+      }
+    },
+    {
+      "name": "second-factor-must-be-indicator",
+      "sourceTest": "TestDefinitionNormalizationCoversPoolsSortsAndSecondFactors",
+      "input": {
+        "market": "US",
+        "pool": {},
+        "conditions": [
+          {
+            "factor": {
+              "factorKey": "indicator.ma",
+              "params": {
+                "period": 11
+              }
+            },
+            "operator": "position",
+            "value": {
+              "position": 1
+            },
+            "secondFactor": {
+              "factorKey": "simple.price",
+              "params": {}
+            }
+          }
+        ],
+        "catalogVersion": "futu-stock-screen-v1",
+        "querySchemaVersion": 2
+      },
+      "error": {
+        "path": "conditions[0].secondFactor.factorKey",
+        "code": "unsupported_factor",
+        "message": "second factor comparisons require two indicators"
+      }
+    }
+  ]
+}

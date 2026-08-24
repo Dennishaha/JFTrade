@@ -83,6 +83,27 @@ fn catalog_fixture() -> Result<&'static CatalogFixture, ScreenCatalogError> {
         .map_err(|error| ScreenCatalogError::FixtureInvalid(error.clone()))
 }
 
+pub(crate) fn normalization_catalog(
+    catalog_version: &str,
+    market: &str,
+) -> Result<&'static Value, String> {
+    let key = if catalog_version == "futu-stock-screen-v1" {
+        format!("futu|{market}")
+    } else if catalog_version
+        .trim()
+        .eq_ignore_ascii_case("embedded-stock-screen-v1")
+    {
+        format!("akshare|{market}")
+    } else {
+        return Err(format!("unsupported catalog {catalog_version:?}"));
+    };
+    let fixture = catalog_fixture().map_err(|error| error.to_string())?;
+    fixture
+        .catalogs
+        .get(&key)
+        .ok_or_else(|| format!("missing normalization catalog {key}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

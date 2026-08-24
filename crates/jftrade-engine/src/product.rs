@@ -37,6 +37,8 @@ use jftrade_settings::{
     SystemNotificationSettings, UiAppearanceSettings, should_forward_system_notification,
 };
 use jftrade_store_settings_file::SettingsFileStore;
+#[cfg(test)]
+use jftrade_store_sqlite::ResearchPresetStoreError;
 use jftrade_strategy::PluginUninstallGuidance;
 use jftrade_watchlist::{Memberships, WatchlistError, normalize_instrument_id};
 use percent_encoding::percent_decode_str;
@@ -106,6 +108,8 @@ use product_backtests_write_port::{
 };
 #[path = "product_research_preset_write_port.rs"]
 mod product_research_preset_write_port;
+#[cfg(test)]
+use product_research_preset_write_port::ResearchPresetSqliteTestCutoverPort;
 use product_research_preset_write_port::{
     ResearchPresetWritePort, ResearchPresetWriteRequest, ResearchPresetWriteResponse,
     dispatch_research_preset_write, research_preset_write_routes,

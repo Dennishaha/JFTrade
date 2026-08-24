@@ -9,7 +9,7 @@
 - The independent screen mutation operation is outside this group and is not covered here.
 - Current status: integration-reviewed `cutover-test-only`; all three operations are registered only through the explicit mutation test port, with `productionOwner=go` and `goRemovalStatus=retained`.
 - Go owner: `internal/api/research/routes.go`, `internal/research/presets.go`, and `internal/store/research` remain the only production handler, normalization, revision, SQLite, and mutation owner.
-- Rust boundary: `product_research_preset_write_port.rs` remains a consumer-owned mutation port with no direct SQLite, Provider/OpenD, notification, or production route registration. `jftrade-store-sqlite::ResearchPresetTestCutoverStore` now supplies a separate durable adapter boundary that requires the exact `cutover-test-only.v1` profile, opens only an existing schema-validated Go-compatible database, and holds an exclusive cross-process writer lease; it is not wired into the product port or default profile.
+- Rust boundary: `product_research_preset_write_port.rs` remains a consumer-owned mutation port with no Provider/OpenD, notification, or production route registration. `ResearchPresetSqliteTestCutoverPort` is an explicit product test-cutover adapter: it maps payloads through `jftrade-research::normalize_definition_v2` and uses `jftrade-store-sqlite::ResearchPresetTestCutoverStore` for durable CRUD. It is reachable only from `ProductConfig::with_research_preset_sqlite_test_cutover`; the store requires the exact `cutover-test-only.v1` profile, opens only an existing schema-validated Go-compatible database, and holds an exclusive cross-process writer lease.
 - Fixture: `tests/fixtures/rust-migration/stage9/research-presets-write.json`
 - Go reference: `scripts/rust-migration/stage9_research_presets_write_reference_test.go`
 - Differential: `scripts/rust-migration/check-stage9-research-presets-write.mjs`
@@ -40,13 +40,13 @@ Each case records response status, exact contract headers, normalized envelope, 
 ## Owner and fencing evidence
 
 - No production route is registered by this worker, and no default profile behavior changes.
-- The Rust port accepts a complete Go-shaped result/error projection; it does not normalize `ScreenDefinitionV2`, open SQLite, or implement a second persistence owner.
+- `jftrade-research::normalize_definition_v2` and its 42-case Go corpus cover the Go `ScreenDefinitionV2` normalization/error contract, including catalog roles, defaults, stable IDs, union/value shapes and duplicate fencing. The explicit SQLite adapter maps normalized definitions, revision/name semantics, durable timestamps and store conflicts; it remains test-cutover-only and does not change the production owner.
 - The Rust test asserts the exact three-route inventory and contains no fourth mutation operation.
 - Failure cases assert the state/observation emitted by the Go repository remains unchanged; retry/recovery cases prove a later operation can proceed after the failed/cancelled attempt.
 - The authenticated loopback mutation rehearsal selects only the three exact operations, forwards no public cookie, and proves that success, duplicate conflict, revision-fenced PATCH and DELETE touch only the isolated rehearsal owner. Rust error, timeout and crash responses never replay the Go fallback owner; restart preserves the rehearsal database while a Go-only rollback restarts with its independent database unchanged.
 - The rehearsal boundary deliberately delegates to an isolated temporary Go reference owner. This validates composition-root routing, authenticated transport, durable restart and no-double-write fencing, but it does not fabricate a Rust durable preset repository. The group therefore remains `cutover-test-only`.
 - The Rust durable test-cutover store never creates or migrates SQLite. It rejects missing, drifted and corrupted databases, refuses non-test profiles, acquires the existing owner-lock sidecar before opening read-write, maps name/primary-key constraints to conflict, applies revision updates atomically, serializes concurrent mutations, and retains state across close/reopen. One of two concurrent updates against the same revision commits and the other fails closed.
-- The durable store is not yet a complete product adapter: `jftrade-research` currently validates only the generic object/name/revision boundary, while Go still owns complete `ScreenDefinitionV2` normalization, generated ID policy, transport error mapping and schema migration. Wiring it now would create an incomplete second behavior owner, so all three routes remain `cutover-test-only`.
+- The durable adapter is not a production owner: Go still owns the live handler, public route registration, production ID/time policy, transport fallback behavior, SQLite migrations and all release/cutover decisions. The adapter is intentionally reachable only through explicit test-cutover composition, so all three routes remain `cutover-test-only`.
 - The current route ledger is `23 shadow / 133 cutover-test-only / 122 cutover-qualified / 0 remaining / 0 Rust production owner`. The independent `POST /api/v1/research/screens` mutation is also `cutover-test-only` and remains outside this group.
 
 ## Quirks and three-way review
@@ -104,6 +104,10 @@ owner: 集成分支
 - Shared product differential: passed after integration registration (`pnpm run test:rust:stage9:product-differential`)
 - Authenticated mutation rehearsal: passed (`go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1`)
 - Rust durable store contracts: passed, 3 tests (`cargo test -p jftrade-store-sqlite --test research_preset_store_contracts -- --nocapture`)
+- Go definition normalization corpus: passed (`go test ./scripts/rust-migration -run '^TestStage9ResearchDefinitionNormalizationFixtureMatchesCurrentGoOwner$' -count=1`)
+- Rust definition normalization differential: passed (`cargo test -p jftrade-research --test definition_normalization_contracts -- --nocapture`)
+- Rust durable product adapter: passed (`cargo test -p jftrade-engine --test stage9_research_preset_sqlite_adapter -- --nocapture`)
+- ProductConfig test-cutover composition: passed (`cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::explicit_sqlite_test_cutover_config_registers_durable_preset_routes -- --nocapture`)
 - Rust durable store Clippy: passed (`cargo clippy -p jftrade-store-sqlite --all-targets -- -D warnings`)
 - `pnpm run check:quick`: passed after the authenticated mutation rehearsal was integrated.
 - `pnpm run check:rust`: passed in full, including the Go authenticated rehearsal suite and Stage 9 product differential.
@@ -115,4 +119,4 @@ owner: 集成分支
 - Tier: A
 - Operation count: 3 (22 fixture cases)
 - Status: integration-reviewed `cutover-test-only`; no production owner or default profile change
-- Next qualification action: complete Go-compatible `ScreenDefinitionV2` normalization and a Go/Rust durable-store corpus, then inject this store through the explicit product test-cutover port. Cancellation mapping, backup/restore, security, release and hard-cut gates still block any owner change.
+- Next qualification action: extend durable adapter coverage to the full authenticated transport corpus and backup/restore/security/release evidence. Cancellation mapping, production ID/time policy, migration ownership and hard-cut gates still block any owner change.
