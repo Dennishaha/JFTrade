@@ -19,6 +19,12 @@ pub fn overview_service(settings_path: &Path) -> OverviewService {
     overview_service_with_lookup(settings_path, |name| env::var(name).ok())
 }
 
+pub(crate) fn managed_database_runtime_descriptors(
+    settings_path: &Path,
+) -> Vec<jftrade_datamanagement::DatabaseDescriptor> {
+    database_descriptors(settings_path, |name| env::var(name).ok()).0
+}
+
 pub fn cleanup_preview_service(settings_path: &Path) -> Arc<CleanupPreviewService> {
     Arc::new(cleanup_preview_service_with_lookup(settings_path, |name| {
         env::var(name).ok()

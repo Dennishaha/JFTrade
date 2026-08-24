@@ -4,6 +4,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use jftrade_datamanagement::{
+    DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
+    DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
+    DATABASE_WATCHLIST, DatabaseDescriptor,
+};
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
     ProcessState, allocate_loopback_port,
@@ -119,10 +124,10 @@ pub(crate) struct ProductRuntimeState {
 }
 
 impl ProductRuntimeState {
-    pub(crate) fn product_only(settings_path: String) -> Arc<Self> {
+    pub(crate) fn product_only(config: &ProductConfig) -> Arc<Self> {
         Arc::new(Self {
             snapshot: RwLock::new(ProductRuntimeSnapshot {
-                resources: vec![settings_resource(settings_path)],
+                resources: product_resources(config),
                 helper_state: None,
                 last_error: None,
             }),
@@ -130,13 +135,7 @@ impl ProductRuntimeState {
     }
 
     fn configured(config: &ProductRuntimeConfig) -> Arc<Self> {
-        let mut resources = vec![settings_resource(
-            config
-                .product
-                .settings_path()
-                .to_string_lossy()
-                .into_owned(),
-        )];
+        let mut resources = product_resources(&config.product);
         resources.extend(
             config
                 .pine_workers
@@ -422,6 +421,139 @@ fn settings_resource(path: String) -> RuntimeResourceDescriptor {
     }
 }
 
+fn product_resources(config: &ProductConfig) -> Vec<RuntimeResourceDescriptor> {
+    let mut resources = vec![settings_resource(
+        config.settings_path().to_string_lossy().into_owned(),
+    )];
+    resources.extend(
+        crate::product_data_management::managed_database_runtime_descriptors(
+            config.settings_path(),
+        )
+        .iter()
+        .map(database_resource),
+    );
+    resources.push(real_trade_control_resource(
+        config
+            .real_trade_control_path()
+            .to_string_lossy()
+            .into_owned(),
+    ));
+    resources
+}
+
+fn database_resource(database: &DatabaseDescriptor) -> RuntimeResourceDescriptor {
+    let (id, owner, schema_owner, health_provider, environment_override, critical) =
+        match database.id.as_str() {
+            DATABASE_BACKTEST => (
+                "backtest-kline-db",
+                "backtest",
+                "pkg/backtest storage",
+                "data-management/backtest",
+                "JFTRADE_BACKTEST_DB",
+                true,
+            ),
+            DATABASE_BACKTEST_RUNS => (
+                "backtest-run-db",
+                "backtest",
+                "backtest run store",
+                "data-management/backtest-runs",
+                "JFTRADE_BACKTEST_RUN_DB",
+                true,
+            ),
+            DATABASE_STRATEGY => (
+                "strategy-runtime-db",
+                "strategy",
+                "strategy runtime store",
+                "data-management/strategy",
+                "JFTRADE_STRATEGY_RUNTIME_DB",
+                true,
+            ),
+            DATABASE_EXECUTION => (
+                "execution-orders-db",
+                "trading",
+                "execution order store",
+                "data-management/execution",
+                "JFTRADE_EXECUTION_ORDER_DB",
+                true,
+            ),
+            DATABASE_ADK => (
+                "adk-db",
+                "assistant/runtime",
+                "adk store",
+                "system.runtime-dependencies/adk",
+                "JFTRADE_ADK_DB",
+                false,
+            ),
+            DATABASE_ADK_SESSION => (
+                "adk-session-db",
+                "assistant/runtime",
+                "adk session store",
+                "system.runtime-dependencies/adk",
+                "JFTRADE_ADK_SESSION_DB",
+                false,
+            ),
+            DATABASE_ADK_ARTIFACT => (
+                "adk-artifact-db",
+                "assistant/runtime",
+                "adk artifact store",
+                "system.runtime-dependencies/adk",
+                "JFTRADE_ADK_SESSION_DB",
+                false,
+            ),
+            DATABASE_WATCHLIST => (
+                "watchlist-db",
+                "watchlist",
+                "internal/store/watchlist migrations",
+                "data-management/watchlist",
+                "JFTRADE_WATCHLIST_DB",
+                true,
+            ),
+            DATABASE_RESEARCH => (
+                "research-db",
+                "research",
+                "internal/store/research migrations",
+                "data-management/research",
+                "JFTRADE_RESEARCH_DB",
+                true,
+            ),
+            _ => (
+                database.id.as_str(),
+                "data-management",
+                "jftrade-datamanagement",
+                "data-management/databases",
+                "",
+                false,
+            ),
+        };
+    RuntimeResourceDescriptor {
+        id: id.to_owned(),
+        owner: owner.to_owned(),
+        kind: "sqlite".to_owned(),
+        path: database.path.clone(),
+        initialized_by: "jftrade-engine data-management inventory".to_owned(),
+        schema_owner: schema_owner.to_owned(),
+        close_owner: "jftrade-store-sqlite".to_owned(),
+        health_provider: health_provider.to_owned(),
+        environment_override: environment_override.to_owned(),
+        critical,
+    }
+}
+
+fn real_trade_control_resource(path: String) -> RuntimeResourceDescriptor {
+    RuntimeResourceDescriptor {
+        id: "real-trade-control".to_owned(),
+        owner: "trading".to_owned(),
+        kind: "json-file".to_owned(),
+        path,
+        initialized_by: "jftrade-engine".to_owned(),
+        schema_owner: "real-trade control plane".to_owned(),
+        close_owner: "jftrade-engine".to_owned(),
+        health_provider: "system.real-trade-risk".to_owned(),
+        environment_override: "JFTRADE_REAL_TRADE_CONTROL_PATH".to_owned(),
+        critical: true,
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ProductRuntimeError {
     #[error(transparent)]
@@ -465,8 +597,16 @@ mod tests {
         .expect("start runtime");
         assert_eq!(runtime.startup_record().owned_routes, 26);
         let snapshot = runtime.state.snapshot();
-        assert_eq!(snapshot.resources.len(), 1);
+        assert_eq!(snapshot.resources.len(), 11);
         assert_eq!(snapshot.resources[0].id, "settings-file");
+        assert_eq!(snapshot.resources[1].id, "backtest-kline-db");
+        assert_eq!(snapshot.resources[9].id, "research-db");
+        assert_eq!(snapshot.resources[10].id, "real-trade-control");
+        assert!(
+            snapshot.resources[1..10]
+                .iter()
+                .all(|resource| resource.kind == "sqlite")
+        );
         runtime.shutdown().await.expect("shutdown");
     }
 }

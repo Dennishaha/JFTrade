@@ -535,8 +535,7 @@ impl Drop for ProductHandle {
 }
 
 pub async fn start_product(config: ProductConfig) -> Result<ProductHandle, ProductError> {
-    let runtime =
-        ProductRuntimeState::product_only(config.settings_path().to_string_lossy().into_owned());
+    let runtime = ProductRuntimeState::product_only(&config);
     start_product_with_runtime_state(config, runtime).await
 }
 

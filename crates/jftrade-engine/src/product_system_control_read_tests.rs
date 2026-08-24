@@ -276,8 +276,29 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
         data["observability"]["strategyRuntime"],
         data["strategyRuntime"]
     );
-    assert_eq!(data["runtimeResources"]["count"], 1);
-    assert_eq!(data["runtimeResources"]["items"][0]["id"], "settings-file");
+    assert_eq!(data["runtimeResources"]["count"], 11);
+    let resource_ids = data["runtimeResources"]["items"]
+        .as_array()
+        .expect("runtime resource items")
+        .iter()
+        .map(|item| item["id"].as_str().expect("runtime resource id"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        resource_ids,
+        vec![
+            "settings-file",
+            "backtest-kline-db",
+            "backtest-run-db",
+            "strategy-runtime-db",
+            "execution-orders-db",
+            "adk-db",
+            "adk-session-db",
+            "adk-artifact-db",
+            "watchlist-db",
+            "research-db",
+            "real-trade-control",
+        ]
+    );
 
     handle.shutdown().await.expect("shutdown shadow");
     assert_eq!(fs::read(&settings_path).expect("read settings"), before);
