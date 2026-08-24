@@ -1856,14 +1856,18 @@
       "method": "GET",
       "path": "/api/v1/research/screens/presets",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-preset-read.json",
+        "scripts/rust-migration/stage9_research_preset_read_reference_test.go::TestStage9ResearchPresetReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_preset_tests.rs::research_preset_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1871,14 +1875,18 @@
       "method": "GET",
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-preset-read.json",
+        "scripts/rust-migration/stage9_research_preset_read_reference_test.go::TestStage9ResearchPresetReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_preset_tests.rs::research_preset_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

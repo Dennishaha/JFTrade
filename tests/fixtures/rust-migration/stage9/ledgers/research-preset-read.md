@@ -13,4 +13,24 @@
 
 The complete projection is transported through the consumer-owned port so Rust does not approximate `NormalizeDefinitionV2` or duplicate SQLite query semantics. POST/PATCH/DELETE remain unregistered and Go-owned.
 
-Both operations are `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`.
+Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar rehearsal below. The default shadow catalog still does not register these snapshot-port routes; Rust remains test-cutover-only at the composition boundary.
+
+## Three-way review and quirks
+
+quirk: The first restart rehearsal captured the settings baseline before the initial Go sidecar startup. Go's startup initialization then added the default `backtestMarketDataProvider` field, so the otherwise read-only research-preset rehearsal appeared to mutate settings when the restarted Go owner was compared with the pre-start baseline.
+
+范围: `research-preset-read` authenticated restart rollback rehearsal; no research preset response or route behavior changed.
+证据: failed `TestResearchPresetReadRehearsalPreservesWireAndRequiresRestartForGoRollback`; Go `NewSidecarHandlerWithOptions` startup settings initialization; Rust sidecar replay and the before/after settings comparison in `rehearsal_research_preset_read_routes_test.go`.
+三方复核: Go startup baseline behavior, the Rust authenticated wire/error/timeout/crash replay, and the rehearsal's baseline capture order were compared.
+分类: harness
+判定: confirmed and resolved
+处置: capture the settings baseline after the initial Go owner has started and before proxy requests; preserve the restart comparison and do not alter Go initialization or Rust behavior.
+风险: low
+owner: 集成分支
+后续: retain post-start baseline capture for future sidecar rollback rehearsals.
+
+## Qualification status
+
+The Go fixture/reference, Rust group replay, authenticated sidecar wire comparison, explicit Rust error/timeout/crash fail-closed checks, restart-time Go rollback, and settings read-only fencing all pass for both GET operations. The Rust snapshot port remains consumer-owned and opt-in; Go keeps the research preset SQLite/service owner and all POST/PATCH/DELETE routes.
+
+Verification: `go test ./scripts/rust-migration -run '^TestStage9ResearchPresetReadFixtureMatchesCurrentGoOwner$' -count=1`; `go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `cargo test -p jftrade-engine 'product::tests::research_preset_read_tests::' --lib --locked`; `pnpm run test:rust:stage9:product-differential`.
