@@ -2562,14 +2562,20 @@
       "method": "GET",
       "path": "/api/v1/settings/data-management/databases",
       "capability": "settings",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/data-management-read.md",
+        "crates/jftrade-engine/src/product_data_management.rs::stage9_data_management_overview_matches_current_go_owner",
+        "crates/jftrade-engine/src/product_data_management_read_tests.rs::data_management_overview_is_authenticated_and_does_not_create_missing_databases",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestDataManagementReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

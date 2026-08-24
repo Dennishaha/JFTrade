@@ -635,6 +635,9 @@ mod appearance_read_tests;
 #[path = "product_settings_read_tests.rs"]
 mod settings_read_tests;
 
+#[path = "product_data_management_read_tests.rs"]
+mod data_management_read_tests;
+
 #[path = "product_alerts_read_tests.rs"]
 mod alerts_read_tests;
 
@@ -2026,6 +2029,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         "/api/v1/settings/adk/mcp",
         "/api/v1/settings/backtest-market-data-provider",
         "/api/v1/settings/brokers",
+        "/api/v1/settings/data-management/databases",
         "/api/v1/settings/exchange-calendars",
         "/api/v1/settings/execution",
         "/api/v1/settings/market-data-provider",
