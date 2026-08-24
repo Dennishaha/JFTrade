@@ -14,7 +14,9 @@ pub use auth::{
     INTERNAL_PROXY_PROTOCOL_HEADER, canonical_origin,
 };
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
-pub use observability::{TransportMetrics, TransportSnapshot};
+pub use observability::{
+    OpenDHealth, RequestObservabilitySnapshot, TransportEvent, TransportMetrics, TransportSnapshot,
+};
 pub use ports::{ApiOutput, ApiPort, ApiRequest, Asset, AssetBundle, PortFuture};
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
 pub use router::{ApiState, build_router};

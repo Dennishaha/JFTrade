@@ -607,6 +607,7 @@ pub(crate) async fn start_product_with_runtime_state(
             cleanup_preview,
             maintenance,
         },
+        Arc::clone(&metrics),
         runtime,
         real_trade_control,
         ProductOptionalPorts {

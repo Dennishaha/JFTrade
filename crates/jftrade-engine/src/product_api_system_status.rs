@@ -1,6 +1,7 @@
 impl ProductApi {
     fn system_status(&self) -> ApiOutput {
         let uptime = duration_millis(self.started.elapsed());
+        let requests = self.metrics.request_observability_snapshot();
         let runtime = self.runtime.snapshot();
         let real_trade = self.real_trade_control.snapshot();
         let checked_at = SystemClock.now_rfc3339();
@@ -83,13 +84,7 @@ impl ProductApi {
                 "exchangeCalendars": exchange_calendars,
                 "broker": broker,
                 "strategyRuntime": strategy_runtime,
-                "requests": {
-                    "recentErrors": [],
-                    "recentSlowRequests": [],
-                    "openD": { "totalCalls": 0, "failedCalls": 0 },
-                    "slowThresholdMs": 750,
-                    "minimumImportance": "low"
-                }
+                "requests": requests
             },
             "runtimeResources": {
                 "checkedAt": checked_at,

@@ -2,6 +2,7 @@ include!("product_api_types.rs");
 struct ProductApi {
     api_port: u16,
     settings: ProductSettingsServices,
+    metrics: Arc<TransportMetrics>,
     started_at: String,
     started: Instant,
     runtime: Arc<ProductRuntimeState>,
@@ -59,6 +60,7 @@ impl ProductApi {
     fn new(
         api_port: u16,
         settings: ProductSettingsServices,
+        metrics: Arc<TransportMetrics>,
         runtime: Arc<ProductRuntimeState>,
         real_trade_control: RealTradeControlReader,
         optional_ports: ProductOptionalPorts,
@@ -69,6 +71,7 @@ impl ProductApi {
         Self {
             api_port,
             settings,
+            metrics,
             started_at: SystemClock.now_rfc3339(),
             started: Instant::now(),
             runtime,

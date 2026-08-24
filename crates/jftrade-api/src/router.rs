@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::time::Instant;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -82,13 +83,14 @@ async fn transport_middleware(
     next: Next,
 ) -> Response<Body> {
     state.metrics.start();
+    let started_at = Instant::now();
+    let method = request.method().to_string();
+    let path = request.uri().path().to_owned();
     let request_id = request
         .headers()
         .get("x-request-id")
         .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
+        .and_then(normalize_request_id)
         .unwrap_or_else(|| {
             let sequence = state.request_sequence.fetch_add(1, Ordering::Relaxed) + 1;
             format!("rust-{sequence}")
@@ -115,9 +117,25 @@ async fn transport_middleware(
     if let Ok(value) = HeaderValue::from_str(&request_id) {
         response.headers_mut().insert("x-request-id", value);
     }
-    let failed = response.status().is_server_error();
-    state.metrics.finish(failed);
+    state.metrics.finish_request(
+        &method,
+        &path,
+        response.status().as_u16(),
+        started_at.elapsed(),
+        &request_id,
+    );
     response
+}
+
+fn normalize_request_id(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 128 {
+        return None;
+    }
+    value
+        .chars()
+        .all(|char| char.is_ascii_alphanumeric() || matches!(char, '-' | '_' | '.' | ':'))
+        .then(|| value.to_owned())
 }
 
 fn authorize(state: &ApiState, request: &Request) -> Result<(), ApiFailure> {

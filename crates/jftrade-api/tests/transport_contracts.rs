@@ -6,7 +6,7 @@ use http_body_util::BodyExt;
 use jftrade_api::{
     ACCESS_SURFACE_HEADER, AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState,
     Asset, AssetBundle, FixedClock, INTERNAL_PROXY_PROTOCOL_HEADER, PortFuture, RouteCatalog,
-    RouteSpec, build_router,
+    RouteSpec, TransportMetrics, build_router,
 };
 use serde_json::{Value, json};
 use tower::ServiceExt;
@@ -104,7 +104,8 @@ async fn error_envelope_preserves_optional_retry_after_header() {
         path: "/api/v1/settings/ui".into(),
     }])
     .expect("routes");
-    let state = ApiState::new(
+    let metrics = Arc::new(TransportMetrics::default());
+    let mut state = ApiState::new(
         routes,
         AccessPolicy {
             desktop_token: Some("desktop-token".into()),
@@ -115,6 +116,7 @@ async fn error_envelope_preserves_optional_retry_after_header() {
     .with_clock(std::sync::Arc::new(FixedClock(
         "2026-08-22T00:00:00Z".into(),
     )));
+    state.metrics = Arc::clone(&metrics);
     let router = build_router(state);
     let response = router
         .clone()
@@ -130,6 +132,12 @@ async fn error_envelope_preserves_optional_retry_after_header() {
 
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(response.headers()["retry-after"], "2");
+    let observed = metrics.request_observability_snapshot();
+    assert_eq!(observed.recent_errors.len(), 1);
+    assert_eq!(observed.recent_errors[0].method, "GET");
+    assert_eq!(observed.recent_errors[0].path, "/api/v1/settings/ui");
+    assert_eq!(observed.recent_errors[0].status, 503);
+    assert_eq!(observed.recent_errors[0].error.as_deref(), Some("HTTP 503"));
 
     let unknown = router
         .oneshot(
@@ -218,6 +226,31 @@ async fn desktop_token_reaches_port_with_stable_envelope_and_request_id() {
         "request-7"
     );
     assert!(port.requests.lock().expect("requests")[0].desktop_trusted);
+}
+
+#[tokio::test]
+async fn invalid_request_id_is_replaced_before_observation_and_dispatch() {
+    let (router, port) = fixture();
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/settings/ui")
+                .header("authorization", "Bearer desktop-token")
+                .header("x-request-id", "invalid request id")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    let request_id = response.headers()["x-request-id"]
+        .to_str()
+        .expect("request id");
+    assert!(request_id.starts_with("rust-"));
+    assert_eq!(
+        port.requests.lock().expect("requests")[0].request_id,
+        request_id
+    );
 }
 
 #[tokio::test]
