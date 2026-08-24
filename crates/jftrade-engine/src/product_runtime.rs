@@ -17,6 +17,7 @@ use jftrade_integration_pine::{
     GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
     WorkerHealth, WorkerProcessSpec,
 };
+use jftrade_marketdata::MarketDataRuntimeRecorder;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -47,6 +48,7 @@ pub struct ProductRuntimeConfig {
     pub product: ProductConfig,
     pub pine_workers: Vec<PineWorkerRuntimeConfig>,
     pub marketdata_helper: Option<MarketDataHelperRuntimeConfig>,
+    pub market_data_runtime_recorder: Option<Arc<MarketDataRuntimeRecorder>>,
 }
 
 #[derive(Clone, Debug)]
@@ -92,7 +94,22 @@ impl ProductRuntimeConfig {
             product,
             pine_workers,
             marketdata_helper,
+            market_data_runtime_recorder: None,
         })
+    }
+
+    /// Connects a router-owned recorder to the product status projection.
+    ///
+    /// The recorder is optional so the default product remains fail-closed when
+    /// provider/OpenD lifecycle has not been composed yet. A caller that owns a
+    /// `ProviderRouter` should pass `router.runtime_recorder()` here so the
+    /// product and router observe one shared state rather than separate copies.
+    pub fn with_market_data_runtime_recorder(
+        mut self,
+        recorder: Arc<MarketDataRuntimeRecorder>,
+    ) -> Self {
+        self.market_data_runtime_recorder = Some(recorder);
+        self
     }
 }
 
@@ -223,8 +240,13 @@ impl Drop for ProductRuntimeHandle {
 }
 
 pub async fn start_product_runtime(
-    config: ProductRuntimeConfig,
+    mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+    if let Some(recorder) = config.market_data_runtime_recorder.take() {
+        config.product = config
+            .product
+            .with_market_data_runtime_status_port(recorder);
+    }
     let state = ProductRuntimeState::configured(&config);
     let product = start_product_with_runtime_state(config.product, Arc::clone(&state)).await?;
     let mut runtime = ProductRuntimeHandle {
@@ -537,6 +559,7 @@ mod tests {
             product,
             pine_workers: Vec::new(),
             marketdata_helper: None,
+            market_data_runtime_recorder: None,
         };
         let snapshot = ProductRuntimeState::configured(&config).snapshot();
         let runtime = start_product_runtime(config).await.expect("start runtime");

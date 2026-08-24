@@ -365,6 +365,66 @@ async fn system_status_uses_only_the_typed_market_data_runtime_port() {
 }
 
 #[tokio::test]
+async fn product_runtime_uses_the_router_owned_market_data_recorder() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let generation = recorder.reconcile(["US.AAPL".to_owned()]);
+    let now = "2026-08-24T09:00:00+08:00".parse().expect("timestamp");
+    assert!(recorder.record_quote_failure(generation, now, " quote unavailable "));
+    let product =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let config = crate::product_runtime::ProductRuntimeConfig::desktop(
+        product,
+        crate::product_runtime::DesktopRetainedRuntimeConfig::default(),
+    )
+    .expect("runtime config")
+    .with_market_data_runtime_recorder(Arc::clone(&recorder));
+    let runtime = crate::product_runtime::start_product_runtime(config)
+        .await
+        .expect("start product runtime");
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["activeCount"],
+        1
+    );
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["quoteLastError"],
+        "quote unavailable"
+    );
+
+    let next_generation = recorder.reconcile(["HK.00700".to_owned(), "US.AAPL".to_owned()]);
+    assert_eq!(next_generation, generation + 1);
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["activeCount"],
+        2
+    );
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["generation"],
+        generation + 1
+    );
+    runtime.shutdown().await.expect("shutdown product runtime");
+}
+
+#[tokio::test]
 async fn system_status_uses_only_the_typed_strategy_runtime_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

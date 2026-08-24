@@ -63,6 +63,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   idempotent close precedence. It directly implements the product port and the
   authenticated handler test exercises its live state. The Rust provider and
   OpenD adapters must still drive the recorder from production composition.
+  The product composition seam now accepts an optional
+  `Arc<MarketDataRuntimeRecorder>` exported by that router and injects the same
+  instance into `/system/status`; a product-runtime test proves
+  updates after startup are visible without a duplicate recorder. The default
+  desktop composition still leaves this port absent until the real provider/OpenD
+  lifecycle is assembled, so the route remains a Go-owned shadow.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
