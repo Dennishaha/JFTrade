@@ -3,7 +3,9 @@
   "cases": [
     {
       "name": "normal",
+      "method": "GET",
       "requestPath": "/api/v1/plugins/pine-plan/uninstall-guidance",
+      "expectedStatus": 200,
       "response": {
         "pluginId": "pine-plan",
         "path": "plugins/pine-plan.so",
@@ -16,7 +18,9 @@
     },
     {
       "name": "quoted-path",
+      "method": "GET",
       "requestPath": "/api/v1/plugins/quote-plugin/uninstall-guidance",
+      "expectedStatus": 200,
       "response": {
         "pluginId": "quote-plugin",
         "path": "plugins/O'Brien/plugin.so",
@@ -29,18 +33,35 @@
     },
     {
       "name": "unknown",
+      "method": "GET",
       "requestPath": "/api/v1/plugins/missing/uninstall-guidance",
-      "errorCode": "NOT_FOUND"
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "plugin not found"
     },
     {
       "name": "blank-encoded",
+      "method": "GET",
       "requestPath": "/api/v1/plugins/%20/uninstall-guidance",
-      "errorCode": "BAD_REQUEST"
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "pluginId is invalid"
+    },
+    {
+      "name": "invalid-escape",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/%ZZ/uninstall-guidance",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "pluginId is invalid"
     },
     {
       "name": "blank",
+      "method": "GET",
       "requestPath": "/api/v1/plugins//uninstall-guidance",
-      "errorCode": "NOT_FOUND"
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "unknown endpoint /api/v1/plugins//uninstall-guidance"
     }
   ]
 }

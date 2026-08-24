@@ -634,6 +634,13 @@ fn plugin_operation_id(path: &str) -> Result<String, ApiFailure> {
         .strip_prefix("/api/v1/plugins/operations/")
         .filter(|operation_id| !operation_id.is_empty() && !operation_id.contains('/'))
         .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "operationId is required"))?;
+    if percent_encoded_segment_has_invalid_escape(encoded) {
+        return Err(ApiFailure::new(
+            400,
+            "BAD_REQUEST",
+            "operationId is required",
+        ));
+    }
     let decoded = percent_decode_str(encoded)
         .decode_utf8()
         .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "operationId is required"))?;
@@ -654,6 +661,9 @@ fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure>
         .and_then(|suffix| suffix.strip_suffix("/uninstall-guidance"))
         .filter(|plugin_id| !plugin_id.contains('/'))
         .ok_or_else(|| ApiFailure::new(400, "BAD_REQUEST", "pluginId is invalid"))?;
+    if percent_encoded_segment_has_invalid_escape(encoded) {
+        return Err(ApiFailure::new(400, "BAD_REQUEST", "pluginId is invalid"));
+    }
     let decoded = percent_decode_str(encoded)
         .decode_utf8()
         .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "pluginId is invalid"))?;
@@ -662,6 +672,25 @@ fn plugin_uninstall_guidance_plugin_id(path: &str) -> Result<String, ApiFailure>
         return Err(ApiFailure::new(400, "BAD_REQUEST", "pluginId is invalid"));
     }
     Ok(plugin_id.to_owned())
+}
+
+fn percent_encoded_segment_has_invalid_escape(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            index += 1;
+            continue;
+        }
+        if index + 2 >= bytes.len()
+            || !bytes[index + 1].is_ascii_hexdigit()
+            || !bytes[index + 2].is_ascii_hexdigit()
+        {
+            return true;
+        }
+        index += 3;
+    }
+    false
 }
 fn strategy_definition_snapshot_failure(error: StrategyDefinitionSnapshotError) -> ApiFailure {
     ApiFailure::new(500, "STRATEGY_FAILED", error.to_string())

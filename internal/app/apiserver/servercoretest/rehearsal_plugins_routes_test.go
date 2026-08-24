@@ -20,6 +20,7 @@ import (
 var pluginsReadRouteOperations = []string{
 	"GET /api/v1/plugins",
 	"GET /api/v1/plugins/operations/{operationId}",
+	"GET /api/v1/plugins/{pluginId}/uninstall-guidance",
 }
 
 type pluginsReadRehearsalTarget struct {
@@ -144,6 +145,7 @@ func TestPluginsReadRehearsalPreservesWireAndRequiresRestartForGoRollback(t *tes
 	paths := []string{
 		"/api/v1/plugins",
 		"/api/v1/plugins/operations/" + operationID,
+		"/api/v1/plugins/alpha/uninstall-guidance",
 	}
 	for index, path := range paths {
 		requestID := "plugins-read-wire-" + string(rune('1'+index))

@@ -1809,8 +1809,16 @@ async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
     assert_eq!(handle.startup_record().owned_routes, 49);
     let address = handle.startup_record().address;
     for case in fixture["cases"].as_array().expect("plugin guidance cases") {
+        let method = case["method"].as_str().expect("request method");
         let request_path = case["requestPath"].as_str().expect("request path");
-        let response = request_json(address, "GET", request_path, None).await;
+        let (status, response) =
+            request_json_with_status(address, method, request_path, None, &[]).await;
+        assert_eq!(
+            status,
+            case["expectedStatus"].as_u64().expect("expected status") as u16,
+            "case {}",
+            case["name"]
+        );
         if let Some(expected) = case.get("response") {
             assert_eq!(response["ok"], true, "case {}", case["name"]);
             assert_eq!(response["data"], *expected, "case {}", case["name"]);
@@ -1818,6 +1826,11 @@ async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
             assert_eq!(response["ok"], false, "case {}", case["name"]);
             assert_eq!(
                 response["error"]["code"], case["errorCode"],
+                "case {}",
+                case["name"]
+            );
+            assert_eq!(
+                response["error"]["message"], case["errorMessage"],
                 "case {}",
                 case["name"]
             );

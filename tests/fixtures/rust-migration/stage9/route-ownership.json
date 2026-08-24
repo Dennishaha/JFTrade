@@ -1628,14 +1628,18 @@
       "method": "GET",
       "path": "/api/v1/plugins/{pluginId}/uninstall-guidance",
       "capability": "plugins",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/plugin-uninstall-guidance.json",
+        "scripts/rust-migration/stage9_plugin_guidance_reference_test.go::TestStage9PluginUninstallGuidanceFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_tests.rs::plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestPluginsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
