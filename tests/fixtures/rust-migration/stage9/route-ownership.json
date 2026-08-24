@@ -1658,14 +1658,20 @@
       "method": "GET",
       "path": "/api/v1/portfolio/{brokerId}/cash-balances",
       "capability": "portfolio",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-shadow",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/portfolio-read.json",
+        "scripts/rust-migration/stage9_portfolio_read_reference_test.go::TestStage9PortfolioReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestPortfolioReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1673,14 +1679,20 @@
       "method": "GET",
       "path": "/api/v1/portfolio/{brokerId}/positions",
       "capability": "portfolio",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-shadow",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/portfolio-read.json",
+        "scripts/rust-migration/stage9_portfolio_read_reference_test.go::TestStage9PortfolioReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_portfolio_tests.rs::portfolio_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestPortfolioReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

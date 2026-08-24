@@ -13,4 +13,4 @@
 
 Known quirk: the Go no-provider fallback reports a degraded connection and empty arrays; the fixture freezes only the clock-dependent `checkedAt` value to `fixture-time`. This is reproduced without correction.
 
-Both operations remain `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`.
+Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. Go remains the sole portfolio and broker-runtime owner; Rust only replays the explicit snapshot port.
