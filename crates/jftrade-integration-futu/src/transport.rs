@@ -50,25 +50,33 @@ impl OpenDTcpTransport {
     }
 
     pub fn receive_frame(&mut self) -> Result<Frame, TcpTransportError> {
-        let packet = self.read_packet()?;
-        Ok(decode_frame(&packet)?)
+        read_framed_frame(&mut self.stream)
     }
 
     fn read_packet(&mut self) -> Result<Vec<u8>, TcpTransportError> {
-        let mut header = [0_u8; HEADER_LEN];
-        self.stream.read_exact(&mut header)?;
-        let mut body_len = [0_u8; 4];
-        body_len.copy_from_slice(&header[12..16]);
-        let body_len = u32::from_le_bytes(body_len) as usize;
-        if body_len > MAX_BODY_LEN {
-            return Err(TcpTransportError::Frame(FrameError::BodyTooLarge));
-        }
-        let mut response = Vec::with_capacity(HEADER_LEN + body_len);
-        response.extend_from_slice(&header);
-        response.resize(HEADER_LEN + body_len, 0);
-        self.stream.read_exact(&mut response[HEADER_LEN..])?;
-        Ok(response)
+        read_framed_packet(&mut self.stream)
     }
+}
+
+pub(crate) fn read_framed_frame(reader: &mut impl Read) -> Result<Frame, TcpTransportError> {
+    let packet = read_framed_packet(reader)?;
+    Ok(decode_frame(&packet)?)
+}
+
+fn read_framed_packet(reader: &mut impl Read) -> Result<Vec<u8>, TcpTransportError> {
+    let mut header = [0_u8; HEADER_LEN];
+    reader.read_exact(&mut header)?;
+    let mut body_len = [0_u8; 4];
+    body_len.copy_from_slice(&header[12..16]);
+    let body_len = u32::from_le_bytes(body_len) as usize;
+    if body_len > MAX_BODY_LEN {
+        return Err(TcpTransportError::Frame(FrameError::BodyTooLarge));
+    }
+    let mut response = Vec::with_capacity(HEADER_LEN + body_len);
+    response.extend_from_slice(&header);
+    response.resize(HEADER_LEN + body_len, 0);
+    reader.read_exact(&mut response[HEADER_LEN..])?;
+    Ok(response)
 }
 
 impl OpenDTransport for OpenDTcpTransport {

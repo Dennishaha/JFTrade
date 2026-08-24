@@ -101,8 +101,16 @@ Qualification remains blocked on owner-backed dynamic projections:
   frames from the same session and decode BasicQot/KL/OrderBook payloads with
   Go-compatible retType/S2C drop and proto2 required-field semantics;
   lifecycle ingestion records stream recovery only for the active generation
-  and rejects stale frames. Poll worker execution, reconnect orchestration and
-  default product composition remain open.
+  and rejects stale frames. `OpenDManagedSession` now provides the missing
+  single-reader boundary: exact protocol/serial matches wake concurrent pending
+  RPCs, every other frame becomes a generation-tagged unsolicited event, peer
+  EOF fans out to waiters, timed-out requests cannot receive late responses,
+  and local close shuts down and joins the reader exactly once. Local mock TCP
+  tests cover response/push interleaving, same-serial wrong protocols,
+  out-of-order concurrent responses, EOF, late responses and idempotent close.
+  The existing health probe and Qot_Sub executor still use the synchronous
+  transport; managed push consumption, poll execution, reconnect orchestration
+  and default product composition remain open.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
@@ -121,7 +129,7 @@ Qualification remains blocked on owner-backed dynamic projections:
   registry absent until Pine lifecycle reporting is implemented, so this does
   not claim a Rust strategy production owner.
 
-Verification: `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestMarketDataRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_strategy_runtime_status::tests::strategy_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestStrategyRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
+Verification: `cargo test -p jftrade-integration-futu managed_session -- --nocapture`; `cargo clippy -p jftrade-integration-futu --all-targets -- -D warnings`; `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestMarketDataRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_strategy_runtime_status::tests::strategy_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestStrategyRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains

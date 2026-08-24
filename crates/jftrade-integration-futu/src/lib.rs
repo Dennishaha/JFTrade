@@ -4,6 +4,7 @@
 
 mod frame;
 mod health;
+mod managed_session;
 mod probe;
 mod provider;
 mod quote_push;
@@ -15,6 +16,9 @@ mod transport;
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use health::{
     OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError, market_data_health_from_probe,
+};
+pub use managed_session::{
+    OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
