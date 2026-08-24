@@ -325,14 +325,20 @@
       "method": "GET",
       "path": "/api/v1/adk",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -358,14 +364,20 @@
       "method": "GET",
       "path": "/api/v1/adk/agents",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -373,14 +385,20 @@
       "method": "GET",
       "path": "/api/v1/adk/approvals",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -388,14 +406,20 @@
       "method": "GET",
       "path": "/api/v1/adk/audit",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -403,14 +427,20 @@
       "method": "GET",
       "path": "/api/v1/adk/memory",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -418,14 +448,20 @@
       "method": "GET",
       "path": "/api/v1/adk/metrics",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -433,14 +469,20 @@
       "method": "GET",
       "path": "/api/v1/adk/optimization-tasks",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -448,14 +490,20 @@
       "method": "GET",
       "path": "/api/v1/adk/optimization-tasks/{taskId}",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -463,14 +511,20 @@
       "method": "GET",
       "path": "/api/v1/adk/providers",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -478,14 +532,20 @@
       "method": "GET",
       "path": "/api/v1/adk/runs",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -493,14 +553,20 @@
       "method": "GET",
       "path": "/api/v1/adk/runs/{runId}",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -523,14 +589,20 @@
       "method": "GET",
       "path": "/api/v1/adk/sessions",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -538,14 +610,20 @@
       "method": "GET",
       "path": "/api/v1/adk/sessions/{sessionId}",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -553,14 +631,20 @@
       "method": "GET",
       "path": "/api/v1/adk/sessions/{sessionId}/context",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -568,14 +652,20 @@
       "method": "GET",
       "path": "/api/v1/adk/skills",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -598,14 +688,20 @@
       "method": "GET",
       "path": "/api/v1/adk/tasks",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -613,14 +709,20 @@
       "method": "GET",
       "path": "/api/v1/adk/tasks/{taskId}",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -628,14 +730,20 @@
       "method": "GET",
       "path": "/api/v1/adk/tools",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -643,14 +751,20 @@
       "method": "GET",
       "path": "/api/v1/adk/workflow-trigger-logs",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -658,14 +772,20 @@
       "method": "GET",
       "path": "/api/v1/adk/workflows",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -673,14 +793,20 @@
       "method": "GET",
       "path": "/api/v1/adk/workflows/{workflowId}",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -688,14 +814,20 @@
       "method": "GET",
       "path": "/api/v1/adk/workflows/{workflowId}/triggers",
       "capability": "adk",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKJSONReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

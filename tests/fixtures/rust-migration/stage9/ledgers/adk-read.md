@@ -125,7 +125,12 @@ owner: integration
   lacks a successful stream sample. It is release-blocking for SSE
   qualification, but does not block this test-only registration.
 
-All 24 operations remain `cutover-test-only`, `productionOwner=go`, and
-`goRemovalStatus=retained`. No Provider, ADK runtime, SQLite write, session
-mutation, approval/task mutation, notification, or Rust production owner was
-introduced.
+The 22 ordinary JSON operations are now `cutover-qualified`,
+`productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated
+wire/error/timeout/crash/restart rehearsal. It exercises empty and missing
+resource projections without executing runs or mutating Assistant state.
+`GET /api/v1/adk/runs/{runId}/stream` and
+`GET /api/v1/adk/streams/{streamId}` remain `cutover-test-only` because the
+successful SSE header/event corpus is still unresolved. No Provider, ADK
+runtime, SQLite write, session mutation, approval/task mutation, notification,
+or Rust production owner was introduced.
