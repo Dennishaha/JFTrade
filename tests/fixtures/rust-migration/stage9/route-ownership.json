@@ -2183,14 +2183,20 @@
       "method": "GET",
       "path": "/api/v1/strategies",
       "capability": "strategies",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/strategy-instance-read.json",
+        "scripts/rust-migration/stage9_strategy_instance_read_reference_test.go::TestStage9StrategyInstanceReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategyInstanceReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2198,14 +2204,20 @@
       "method": "GET",
       "path": "/api/v1/strategies/{instanceId}/audit",
       "capability": "strategies",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/strategy-instance-read.json",
+        "scripts/rust-migration/stage9_strategy_instance_read_reference_test.go::TestStage9StrategyInstanceReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategyInstanceReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2213,14 +2225,20 @@
       "method": "GET",
       "path": "/api/v1/strategies/{instanceId}/logs",
       "capability": "strategies",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/strategy-instance-read.json",
+        "scripts/rust-migration/stage9_strategy_instance_read_reference_test.go::TestStage9StrategyInstanceReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_strategies_tests.rs::strategy_instance_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategyInstanceReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
