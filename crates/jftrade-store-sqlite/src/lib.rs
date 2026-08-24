@@ -1,13 +1,18 @@
 #![forbid(unsafe_code)]
 
-//! Strict read-only SQLite inspection for staged migration snapshots.
+//! SQLite inspection plus explicitly fenced migration test-cutover stores.
 
 mod data_management;
 mod maintenance;
+mod research_preset;
 mod schema_manifest;
 
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
 pub use maintenance::ManagedDatabaseMaintenanceStore;
+pub use research_preset::{
+    RESEARCH_PRESET_TEST_CUTOVER_PROFILE, ResearchPresetMutation, ResearchPresetStoreError,
+    ResearchPresetTestCutoverStore, StoredResearchPreset,
+};
 
 use std::path::Path;
 use std::time::Duration;

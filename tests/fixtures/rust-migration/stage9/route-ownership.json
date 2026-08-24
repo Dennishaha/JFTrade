@@ -220,11 +220,13 @@
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
-        "authenticated-loopback-mutation-rehearsal"
+        "authenticated-loopback-mutation-rehearsal",
+        "rust-durable-test-cutover-store"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3281,11 +3283,13 @@
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
-        "authenticated-loopback-mutation-rehearsal"
+        "authenticated-loopback-mutation-rehearsal",
+        "rust-durable-test-cutover-store"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4102,11 +4106,13 @@
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
-        "authenticated-loopback-mutation-rehearsal"
+        "authenticated-loopback-mutation-rehearsal",
+        "rust-durable-test-cutover-store"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
