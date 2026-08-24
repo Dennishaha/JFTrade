@@ -90,4 +90,4 @@ owner: integration branch
 
 ## Ownership
 
-The integration branch registers the ten routes as `cutover-test-only` only when the explicit test-cutover profile injects `MarketDataQuoteReadSnapshotPort`. Default shadow and production launchers do not register these routes. Go remains the production owner; no Provider/OpenD connection, subscription mutation, SQLite write, notification, or user-visible event is introduced. Route coverage and the group differential pass with the duplicate-key harness correction above.
+The integration branch registers the ten routes only when the explicit test-cutover profile injects `MarketDataQuoteReadSnapshotPort`. They are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal. That rehearsal explicitly disables Futu on loopback ports `1/2`; default shadow and production launchers do not register these routes. Go remains the production owner, and no Provider/OpenD connection, subscription mutation, SQLite write, notification, or user-visible event is introduced.

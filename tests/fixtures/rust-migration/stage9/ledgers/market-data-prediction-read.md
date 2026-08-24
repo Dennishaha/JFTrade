@@ -92,4 +92,4 @@ owner: integration branch
 
 ## Ownership
 
-The integration branch registered all 12 routes as `cutover-test-only` with evidence `pnpm run test:rust:stage9:product-differential`. `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. No Rust production owner, default route registration, subscription mutation, Provider/OpenD connection, or write path was introduced.
+The integration branch registers all 12 routes only through the explicit test-cutover snapshot port. They are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal. That rehearsal uses missing-broker projections with Futu explicitly disabled on loopback ports `1/2`; no Rust production owner, default route registration, subscription mutation, Provider/OpenD connection, or write path is introduced.
