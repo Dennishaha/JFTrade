@@ -6,6 +6,7 @@ use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
 use serde::{Deserialize, Serialize};
 
 use crate::subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
+use crate::{Frame, QuotePush, QuotePushDecodeError, decode_quote_push};
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -288,6 +289,37 @@ impl OpenDSubscriptionLifecycle {
                     self.reconciler
                         .record_failure(subscription, now_ms, generation);
                 }
+                Err(error)
+            }
+        }
+    }
+
+    /// Accept one unsolicited Qot_Update frame for the active connection.
+    ///
+    /// The Go client drops unknown, rejected and empty pushes. Rust keeps that
+    /// behavior while surfacing malformed protobuf to the recorder as a
+    /// stream failure. A stale or closed generation is rejected before decode
+    /// so old callbacks cannot mutate runtime state.
+    pub fn ingest_quote_push(
+        &self,
+        frame: &Frame,
+        now: WireTimestamp,
+        generation: u64,
+    ) -> Result<Option<QuotePush>, QuotePushDecodeError> {
+        if !self.accepts_generation(generation) {
+            return Ok(None);
+        }
+        match decode_quote_push(frame) {
+            Ok(Some(push)) => {
+                self.recorder.record_stream_connected(generation);
+                self.recorder.record_quote_success(generation);
+                Ok(Some(push))
+            }
+            Ok(None) => Ok(None),
+            Err(error) => {
+                let _ = self
+                    .recorder
+                    .record_stream_failure(generation, now, error.to_string());
                 Err(error)
             }
         }

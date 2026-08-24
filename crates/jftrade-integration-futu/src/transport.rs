@@ -5,12 +5,24 @@ use std::time::Duration;
 use thiserror::Error;
 
 use crate::frame::{HEADER_LEN, MAX_BODY_LEN};
-use crate::{FrameError, decode_frame, encode_frame};
+use crate::{Frame, FrameError, decode_frame, encode_frame};
 
 pub trait OpenDTransport {
     type Error: std::error::Error + Send + Sync + 'static;
 
     fn exchange(&mut self, packet: &[u8]) -> Result<Vec<u8>, Self::Error>;
+}
+
+/// A transport that can read an unsolicited frame from the same session.
+///
+/// OpenD sends Qot_Update* packets without a request serial. Keeping this
+/// capability separate from OpenDTransport preserves the request/response
+/// test doubles while allowing a future managed stream worker to share the
+/// authenticated socket.
+pub trait OpenDFrameReader {
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    fn receive_frame(&mut self) -> Result<Frame, Self::Error>;
 }
 
 /// Synchronous loopback transport for the Futu OpenD framed TCP protocol.
@@ -36,13 +48,13 @@ impl OpenDTcpTransport {
         stream.set_write_timeout(Some(timeout))?;
         Ok(Self { stream })
     }
-}
 
-impl OpenDTransport for OpenDTcpTransport {
-    type Error = TcpTransportError;
+    pub fn receive_frame(&mut self) -> Result<Frame, TcpTransportError> {
+        let packet = self.read_packet()?;
+        Ok(decode_frame(&packet)?)
+    }
 
-    fn exchange(&mut self, packet: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        self.stream.write_all(packet)?;
+    fn read_packet(&mut self) -> Result<Vec<u8>, TcpTransportError> {
         let mut header = [0_u8; HEADER_LEN];
         self.stream.read_exact(&mut header)?;
         let mut body_len = [0_u8; 4];
@@ -55,8 +67,26 @@ impl OpenDTransport for OpenDTcpTransport {
         response.extend_from_slice(&header);
         response.resize(HEADER_LEN + body_len, 0);
         self.stream.read_exact(&mut response[HEADER_LEN..])?;
+        Ok(response)
+    }
+}
+
+impl OpenDTransport for OpenDTcpTransport {
+    type Error = TcpTransportError;
+
+    fn exchange(&mut self, packet: &[u8]) -> Result<Vec<u8>, Self::Error> {
+        self.stream.write_all(packet)?;
+        let response = self.read_packet()?;
         decode_frame(&response)?;
         Ok(response)
+    }
+}
+
+impl OpenDFrameReader for OpenDTcpTransport {
+    type Error = TcpTransportError;
+
+    fn receive_frame(&mut self) -> Result<Frame, Self::Error> {
+        OpenDTcpTransport::receive_frame(self)
     }
 }
 
@@ -122,6 +152,17 @@ impl<T: OpenDTransport> OpenDClient<T> {
     }
 }
 
+impl<T> OpenDClient<T>
+where
+    T: OpenDTransport + OpenDFrameReader,
+{
+    pub fn receive_frame(&mut self) -> Result<Frame, TransportError> {
+        self.transport
+            .receive_frame()
+            .map_err(|error| TransportError::Exchange(error.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::convert::Infallible;
@@ -173,6 +214,26 @@ mod tests {
             .expect("connect mock OpenD");
         let mut client = OpenDClient::new(transport);
         assert_eq!(client.call(1001, b"hello").expect("OpenD call"), b"ok");
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn tcp_transport_reads_unsolicited_push_frame_from_authenticated_session() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("listener address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let push = encode_frame(3005, 0, b"push-body").expect("push");
+            stream.write_all(&push).expect("push response");
+        });
+
+        let transport = OpenDTcpTransport::connect(address, Duration::from_secs(1))
+            .expect("connect mock OpenD");
+        let mut client = OpenDClient::new(transport);
+        let frame = client.receive_frame().expect("push frame");
+        assert_eq!(frame.header.proto_id, 3005);
+        assert_eq!(frame.header.serial_no, 0);
+        assert_eq!(frame.body, b"push-body");
         server.join().expect("server thread");
     }
 }

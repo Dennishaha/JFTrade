@@ -6,6 +6,7 @@ mod frame;
 mod health;
 mod probe;
 mod provider;
+mod quote_push;
 mod subscription_executor;
 mod subscriptions;
 mod trading;
@@ -17,6 +18,10 @@ pub use health::{
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
+pub use quote_push::{
+    BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
+    PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
+};
 pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
 pub use subscriptions::{
     OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
@@ -27,7 +32,8 @@ pub use trading::{
     plan_shadow_protocol,
 };
 pub use transport::{
-    OpenDClient, OpenDTcpTransport, OpenDTransport, TcpTransportError, TransportError,
+    OpenDClient, OpenDFrameReader, OpenDTcpTransport, OpenDTransport, TcpTransportError,
+    TransportError,
 };
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;

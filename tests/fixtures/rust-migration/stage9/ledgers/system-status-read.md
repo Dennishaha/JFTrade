@@ -97,8 +97,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   `OpenDSubscriptionExecutor` now performs the Go-compatible `InitConnect` and
   Qot_Sub subscribe/unsubscribe exchange over one deadline-bound TCP session,
   with local mock coverage for market/security/subtype mapping and retType
-  rejection. Qot_Update push decoding, poll worker execution and default
-  product composition remain open.
+  rejection. `OpenDFrameReader` and `decode_quote_push` now read unsolicited
+  frames from the same session and decode BasicQot/KL/OrderBook payloads with
+  Go-compatible retType/S2C drop and proto2 required-field semantics;
+  lifecycle ingestion records stream recovery only for the active generation
+  and rejects stale frames. Poll worker execution, reconnect orchestration and
+  default product composition remain open.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
