@@ -17,8 +17,8 @@ pub use health::{
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use subscriptions::{
-    PhysicalSubscription, ReconcileAction, SubscriptionKind, SubscriptionPlan,
-    SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
+    OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
+    SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
 };
 pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,

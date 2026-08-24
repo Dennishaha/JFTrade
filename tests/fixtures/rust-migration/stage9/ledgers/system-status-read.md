@@ -90,6 +90,11 @@ Qualification remains blocked on owner-backed dynamic projections:
   from ready to failed after a disconnected probe. This remains opt-in
   composition evidence only and does not activate a default provider or
   OpenD connection.
+  `OpenDSubscriptionLifecycle` now combines normalized demand with physical
+  subscription actions, generation-fenced callbacks, bounded 5/10/20/30-second
+  retries, poll/quote/stream recorder recovery and idempotent close. Local
+  tests cover stale callbacks and old-generation rejection; real socket/push
+  worker execution and default product composition remain open.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a

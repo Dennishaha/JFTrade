@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
-use jftrade_marketdata::InstrumentRef;
+use jftrade_kernel::WireTimestamp;
+use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
@@ -118,8 +120,7 @@ impl SubscriptionReconciler {
         let mut actions = Vec::new();
         for (key, subscription) in &desired_by_key {
             match self.records.get(key) {
-                Some(record) if record.generation == generation && now_ms >= record.retry_at_ms => {
-                }
+                Some(record) if record.generation == generation && now_ms < record.retry_at_ms => {}
                 _ => actions.push(ReconcileAction::Subscribe {
                     subscription: subscription.clone(),
                 }),
@@ -157,22 +158,162 @@ impl SubscriptionReconciler {
         }
     }
 
-    pub fn record_failure(&mut self, subscription: &PhysicalSubscription, now_ms: i64) -> i64 {
+    pub fn record_failure(
+        &mut self,
+        subscription: &PhysicalSubscription,
+        now_ms: i64,
+        generation: u64,
+    ) -> i64 {
         let record = self
             .records
             .entry(subscription.key.clone())
             .or_insert_with(|| ActiveRecord {
                 subscription: subscription.clone(),
                 subscribed_at_ms: 0,
-                generation: 0,
+                generation,
                 failures: 0,
                 retry_at_ms: 0,
             });
+        record.generation = generation;
         let delay = retry_delay_ms(record.failures);
         record.failures = record.failures.saturating_add(1);
         record.retry_at_ms = now_ms.saturating_add(delay);
         delay
     }
+}
+
+/// Explicit OpenD subscription lifecycle seam.
+///
+/// This coordinator owns no socket and performs no external I/O. The future
+/// product composition supplies the physical subscribe/unsubscribe executor;
+/// this type keeps demand, generation fencing, retry timing and recorder
+/// state in one owner so stale callbacks cannot mutate a newer connection.
+#[derive(Debug)]
+pub struct OpenDSubscriptionLifecycle {
+    reconciler: SubscriptionReconciler,
+    recorder: Arc<MarketDataRuntimeRecorder>,
+    desired: Vec<InstrumentRef>,
+    generation: u64,
+    closed: bool,
+}
+
+impl OpenDSubscriptionLifecycle {
+    pub fn new(recorder: Arc<MarketDataRuntimeRecorder>, minimum_subscription_age_ms: i64) -> Self {
+        Self {
+            reconciler: SubscriptionReconciler::new(minimum_subscription_age_ms),
+            recorder,
+            desired: Vec::new(),
+            generation: 0,
+            closed: false,
+        }
+    }
+
+    pub fn reconcile_demand(
+        &mut self,
+        desired: &[InstrumentRef],
+        now_ms: i64,
+    ) -> Vec<ReconcileAction> {
+        if self.closed {
+            return Vec::new();
+        }
+        self.desired = desired.to_vec();
+        self.generation = self.recorder.reconcile(runtime_instruments(&self.desired));
+        self.reconciler
+            .actions(&self.desired, now_ms, self.generation)
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub fn reconfigure(&mut self) -> u64 {
+        if self.closed {
+            return self.generation;
+        }
+        self.generation = self.recorder.reconfigure();
+        self.generation
+    }
+
+    pub fn record_subscription_success(
+        &mut self,
+        action: &ReconcileAction,
+        now_ms: i64,
+        generation: u64,
+    ) -> bool {
+        if self.closed || generation != self.generation {
+            return false;
+        }
+        self.reconciler.record_success(action, now_ms, generation);
+        true
+    }
+
+    pub fn record_subscription_failure(
+        &mut self,
+        subscription: &PhysicalSubscription,
+        now_ms: i64,
+        generation: u64,
+    ) -> Option<i64> {
+        if self.closed || generation != self.generation {
+            return None;
+        }
+        Some(
+            self.reconciler
+                .record_failure(subscription, now_ms, generation),
+        )
+    }
+
+    pub fn poll_started(&self, now: WireTimestamp, generation: u64) -> bool {
+        self.accepts_generation(generation) && self.recorder.record_poll_started(generation, now)
+    }
+
+    pub fn quote_success(&self, generation: u64) -> bool {
+        self.accepts_generation(generation) && self.recorder.record_quote_success(generation)
+    }
+
+    pub fn quote_failure(
+        &self,
+        now: WireTimestamp,
+        error: impl Into<String>,
+        generation: u64,
+    ) -> bool {
+        self.accepts_generation(generation)
+            && self.recorder.record_quote_failure(generation, now, error)
+    }
+
+    pub fn stream_connected(&self, generation: u64) -> bool {
+        self.accepts_generation(generation) && self.recorder.record_stream_connected(generation)
+    }
+
+    pub fn stream_failure(
+        &self,
+        now: WireTimestamp,
+        error: impl Into<String>,
+        generation: u64,
+    ) -> bool {
+        self.accepts_generation(generation)
+            && self.recorder.record_stream_failure(generation, now, error)
+    }
+
+    pub fn close(&mut self) -> bool {
+        if self.closed {
+            return false;
+        }
+        self.closed = true;
+        self.recorder.close();
+        true
+    }
+
+    fn accepts_generation(&self, generation: u64) -> bool {
+        !self.closed && generation == self.generation
+    }
+}
+
+fn runtime_instruments(desired: &[InstrumentRef]) -> Vec<String> {
+    desired
+        .iter()
+        .filter_map(|reference| reference.clone().normalize().ok())
+        .map(|reference| reference.instrument_id())
+        .collect()
 }
 
 pub fn retry_delay_ms(failures: usize) -> i64 {
@@ -208,5 +349,68 @@ mod tests {
         assert!(reconciler.actions(&[], 59_999, 1).is_empty());
         assert_eq!(reconciler.actions(&[], 60_000, 1).len(), 2);
         assert_eq!(reconciler.actions(&desired, 60_000, 2).len(), 2);
+    }
+
+    #[test]
+    fn subscription_failure_retry_is_fenced_to_its_generation() {
+        let desired = [reference("SNAPSHOT", None)];
+        let mut reconciler = SubscriptionReconciler::new(0);
+        let actions = reconciler.actions(&desired, 0, 1);
+        let subscription = match &actions[0] {
+            ReconcileAction::Subscribe { subscription } => subscription,
+            _ => panic!("expected subscribe action"),
+        };
+        assert_eq!(reconciler.record_failure(subscription, 0, 1), 5_000);
+        assert!(reconciler.actions(&desired, 4_999, 1).is_empty());
+        assert_eq!(reconciler.actions(&desired, 5_000, 1).len(), 1);
+        assert_eq!(reconciler.actions(&desired, 0, 2).len(), 1);
+    }
+
+    #[test]
+    fn lifecycle_rejects_stale_callbacks_and_closes_recorder_once() {
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
+        let desired = [reference("KLINE", Some("1m"))];
+        let actions = lifecycle.reconcile_demand(&desired, 0);
+        let generation = lifecycle.generation();
+        assert_eq!(actions.len(), 2);
+        assert!(lifecycle.poll_started(
+            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
+            generation
+        ));
+        assert!(lifecycle.stream_connected(generation));
+        assert!(lifecycle.quote_failure(
+            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
+            "quote timeout",
+            generation,
+        ));
+        assert!(lifecycle.quote_success(generation));
+        assert!(lifecycle.record_subscription_success(&actions[0], 0, generation));
+        assert_eq!(
+            lifecycle.record_subscription_failure(
+                match &actions[1] {
+                    ReconcileAction::Subscribe { subscription } => subscription,
+                    _ => panic!("expected subscribe action"),
+                },
+                0,
+                generation,
+            ),
+            Some(5_000)
+        );
+
+        lifecycle.reconfigure();
+        let next = lifecycle.reconcile_demand(&[reference("SNAPSHOT", None)], 1);
+        let next_generation = lifecycle.generation();
+        assert_ne!(next_generation, generation);
+        assert!(!lifecycle.stream_failure(
+            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
+            "stale stream",
+            generation,
+        ));
+        assert!(!next.is_empty());
+        assert!(lifecycle.close());
+        assert!(!lifecycle.close());
+        assert!(lifecycle.reconcile_demand(&desired, 10).is_empty());
+        assert!(recorder.snapshot().closed);
     }
 }
