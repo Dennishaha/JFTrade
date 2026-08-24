@@ -69,6 +69,11 @@ Qualification remains blocked on owner-backed dynamic projections:
   updates after startup are visible without a duplicate recorder. The default
   desktop composition still leaves this port absent until the real provider/OpenD
   lifecycle is assembled, so the route remains a Go-owned shadow.
+  `ProductRuntimeConfig` now also accepts the `ProviderRouter` itself, retains
+  that router in `ProductRuntimeHandle`, and derives the status port from its
+  recorder; a fixture-provider test proves router demand updates reach the
+  product status projection through the shared instance. This uses no real
+  OpenD socket and does not change the default desktop owner.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a

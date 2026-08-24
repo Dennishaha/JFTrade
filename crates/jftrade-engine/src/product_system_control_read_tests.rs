@@ -425,6 +425,101 @@ async fn product_runtime_uses_the_router_owned_market_data_recorder() {
 }
 
 #[tokio::test]
+async fn product_runtime_keeps_provider_router_and_status_recorder_shared() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let router = Arc::new(std::sync::Mutex::new(
+        jftrade_marketdata::ProviderRouter::new(2),
+    ));
+    {
+        let mut router_guard = router.lock().expect("router lock");
+        router_guard
+            .register(
+                jftrade_integration_futu::provider_descriptor(),
+                jftrade_marketdata::HealthStatus {
+                    connected: true,
+                    readiness: jftrade_marketdata::ProviderReadiness::Ready,
+                    stream_mode: "streaming".to_owned(),
+                    ..jftrade_marketdata::HealthStatus::default()
+                },
+            )
+            .expect("register Futu fixture provider");
+        router_guard
+            .activate("futu", jftrade_marketdata::ActivationMode::Explicit)
+            .expect("activate fixture provider");
+        router_guard
+            .acquire_demand(
+                "system-status-test",
+                [jftrade_marketdata::InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "AAPL".to_owned(),
+                    interval: None,
+                }],
+                false,
+                0,
+            )
+            .expect("acquire fixture demand");
+    }
+    let product =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let config = crate::product_runtime::ProductRuntimeConfig::desktop(
+        product,
+        crate::product_runtime::DesktopRetainedRuntimeConfig::default(),
+    )
+    .expect("runtime config")
+    .with_market_data_router(Arc::clone(&router));
+    let runtime = crate::product_runtime::start_product_runtime(config)
+        .await
+        .expect("start product runtime");
+    assert!(runtime.market_data_router().is_some());
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["activeCount"],
+        1
+    );
+
+    router
+        .lock()
+        .expect("router lock")
+        .acquire_demand(
+            "system-status-test-2",
+            [jftrade_marketdata::InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                interval: None,
+            }],
+            false,
+            1,
+        )
+        .expect("acquire second fixture demand");
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        response["data"]["observability"]["marketdata"]["activeCount"],
+        2
+    );
+    runtime.shutdown().await.expect("shutdown product runtime");
+}
+
+#[tokio::test]
 async fn product_runtime_uses_the_lifecycle_owned_strategy_registry() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

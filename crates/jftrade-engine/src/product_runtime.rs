@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use jftrade_datamanagement::{
@@ -17,7 +17,7 @@ use jftrade_integration_pine::{
     GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
     WorkerHealth, WorkerProcessSpec,
 };
-use jftrade_marketdata::MarketDataRuntimeRecorder;
+use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
 use jftrade_strategy::StrategyRuntimeRegistry;
 use serde::Serialize;
 use thiserror::Error;
@@ -49,6 +49,7 @@ pub struct ProductRuntimeConfig {
     pub product: ProductConfig,
     pub pine_workers: Vec<PineWorkerRuntimeConfig>,
     pub marketdata_helper: Option<MarketDataHelperRuntimeConfig>,
+    pub market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
     pub market_data_runtime_recorder: Option<Arc<MarketDataRuntimeRecorder>>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
@@ -96,6 +97,7 @@ impl ProductRuntimeConfig {
             product,
             pine_workers,
             marketdata_helper,
+            market_data_router: None,
             market_data_runtime_recorder: None,
             strategy_runtime_registry: None,
         })
@@ -112,6 +114,14 @@ impl ProductRuntimeConfig {
         recorder: Arc<MarketDataRuntimeRecorder>,
     ) -> Self {
         self.market_data_runtime_recorder = Some(recorder);
+        self
+    }
+
+    /// Connects the product to the router that owns provider demand and health.
+    /// The router's recorder becomes the sole status projection source.
+    pub fn with_market_data_router(mut self, router: Arc<Mutex<ProviderRouter>>) -> Self {
+        self.market_data_router = Some(router);
+        self.market_data_runtime_recorder = None;
         self
     }
 
@@ -205,6 +215,7 @@ pub struct ProductRuntimeHandle {
     product: Option<ProductHandle>,
     pine_workers: Vec<PineProcess>,
     marketdata_helper: Option<HelperProcess>,
+    market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
 }
 
 impl ProductRuntimeHandle {
@@ -213,6 +224,10 @@ impl ProductRuntimeHandle {
             .as_ref()
             .expect("running product runtime must own its product handle")
             .startup_record()
+    }
+
+    pub fn market_data_router(&self) -> Option<Arc<Mutex<ProviderRouter>>> {
+        self.market_data_router.clone()
     }
 
     pub async fn shutdown(mut self) -> Result<(), ProductRuntimeError> {
@@ -255,7 +270,16 @@ impl Drop for ProductRuntimeHandle {
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
-    if let Some(recorder) = config.market_data_runtime_recorder.take() {
+    let market_data_router = config.market_data_router.take();
+    if let Some(router) = market_data_router.as_ref() {
+        let recorder = router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .runtime_recorder();
+        config.product = config
+            .product
+            .with_market_data_runtime_status_port(recorder);
+    } else if let Some(recorder) = config.market_data_runtime_recorder.take() {
         config.product = config
             .product
             .with_market_data_runtime_status_port(recorder);
@@ -269,6 +293,7 @@ pub async fn start_product_runtime(
         product: Some(product),
         pine_workers: Vec::new(),
         marketdata_helper: None,
+        market_data_router,
     };
 
     for worker in config.pine_workers {
@@ -575,6 +600,7 @@ mod tests {
             product,
             pine_workers: Vec::new(),
             marketdata_helper: None,
+            market_data_router: None,
             market_data_runtime_recorder: None,
             strategy_runtime_registry: None,
         };
