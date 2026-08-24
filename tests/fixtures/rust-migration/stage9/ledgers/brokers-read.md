@@ -10,4 +10,4 @@ The thirteen GET operations preserve the current Go envelopes and degraded/no-pr
 
 Snapshot adapter failures map to `503 BROKER_READ_UNAVAILABLE`; malformed snapshot requests map to `400 BAD_REQUEST`. The Go fixture freezes clock-dependent `checkedAt`, `observedAt`, and `quoteAt` fields to `fixture-time` without changing any other wire field.
 
-All thirteen operations remain `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`. Broker order POST/DELETE/unlock operations remain `remaining` and are intentionally outside this read-only batch.
+All thirteen operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal. It uses the capability catalog and missing-broker projections with Futu explicitly disabled on loopback ports `1/2`. Broker order POST/DELETE/unlock operations remain separate test-only mutations; Go remains the sole broker lifecycle and trading-state owner.

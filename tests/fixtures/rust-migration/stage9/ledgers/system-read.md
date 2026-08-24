@@ -12,3 +12,7 @@
 | GET | `/api/v1/system/worker/broker-order-updates` | Preserves the Go order-update worker snapshot, including subscriptions, invalidations, broker summaries and runtime fields; the default no-worker projection is `{}`. | Snapshot failure is `503 SYSTEM_READ_UNAVAILABLE`; the route is absent without the explicit snapshot port. |
 
 Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. The default read-only shadow catalog does not register either route. OpenD reset (`POST /api/v1/system/futu-opend/manual-retry`) and all real-trade mutations remain outside this read-only slice; Go remains their sole production owner.
+
+## Exchange-calendar reads
+
+`GET /api/v1/system/exchange-calendars/sources` and `GET /api/v1/system/exchange-calendars/status` are also `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`. Their Go projections are frozen by `calendar-sources.json` and `calendar-status.json`, Rust uses the real calendar manager only in explicit test-cutover wiring, and the authenticated rehearsal covers exact wire/error/timeout/crash/restart behavior with auto-refresh disabled. Refresh/probe mutations and snapshot persistence remain exclusively Go-owned.

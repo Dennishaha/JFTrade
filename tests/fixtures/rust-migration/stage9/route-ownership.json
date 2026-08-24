@@ -832,14 +832,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/capabilities",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -847,14 +853,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/cash-flows",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -862,14 +874,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/fills",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -877,14 +895,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/funds",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -892,14 +916,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/klines",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -907,14 +937,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/margin-ratios",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -922,14 +958,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/max-trade-qtys",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -937,14 +979,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/order-fees",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -952,14 +1000,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -967,14 +1021,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/positions",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -982,14 +1042,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/quote",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -997,14 +1063,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/runtime",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1012,14 +1084,20 @@
       "method": "GET",
       "path": "/api/v1/brokers/{brokerId}/securities",
       "capability": "brokers",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/broker-read.json",
+        "scripts/rust-migration/stage9_broker_read_reference_test.go::TestStage9BrokerReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestBrokerReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2610,14 +2688,21 @@
       "method": "GET",
       "path": "/api/v1/system/exchange-calendars/sources",
       "capability": "system",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/calendar-sources.json",
+        "scripts/rust-migration/stage9_calendar_sources_reference_test.go::TestStage9CalendarSourceProjectionFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-calendar/src/sources.rs::calendar_source_projection_matches_go_reference_fixture",
+        "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestCalendarReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2625,14 +2710,20 @@
       "method": "GET",
       "path": "/api/v1/system/exchange-calendars/status",
       "capability": "system",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/calendar-status.json",
+        "scripts/rust-migration/stage9_calendar_status_reference_test.go::TestStage9CalendarStatusFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_tests.rs::calendar_control_plane_routes_share_the_real_manager_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestCalendarReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
