@@ -1922,14 +1922,20 @@
       "method": "GET",
       "path": "/api/v1/research/analyst/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1937,14 +1943,20 @@
       "method": "GET",
       "path": "/api/v1/research/calendars",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1952,14 +1964,20 @@
       "method": "GET",
       "path": "/api/v1/research/corporate-actions/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1967,14 +1985,20 @@
       "method": "GET",
       "path": "/api/v1/research/financials/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1982,14 +2006,20 @@
       "method": "GET",
       "path": "/api/v1/research/industries",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1997,14 +2027,20 @@
       "method": "GET",
       "path": "/api/v1/research/institutions",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2012,14 +2048,20 @@
       "method": "GET",
       "path": "/api/v1/research/instruments/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2027,14 +2069,20 @@
       "method": "GET",
       "path": "/api/v1/research/macro",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2042,14 +2090,20 @@
       "method": "GET",
       "path": "/api/v1/research/ownership/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2057,14 +2111,20 @@
       "method": "GET",
       "path": "/api/v1/research/rankings",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2072,14 +2132,20 @@
       "method": "GET",
       "path": "/api/v1/research/screens",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2143,14 +2209,20 @@
       "method": "GET",
       "path": "/api/v1/research/short-interest/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2158,14 +2230,20 @@
       "method": "GET",
       "path": "/api/v1/research/technical-indicators/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2173,14 +2251,20 @@
       "method": "GET",
       "path": "/api/v1/research/valuation/{instrumentId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/research-read.json",
+        "scripts/rust-migration/stage9_research_read_reference_test.go::TestStage9ResearchReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_research_tests.rs::research_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestResearchReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

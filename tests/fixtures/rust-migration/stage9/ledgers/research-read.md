@@ -25,4 +25,4 @@
 
 Known quirk: provider selection timestamps (`asOf` and `resolvedAt`) are normalized to `fixture-time` for deterministic differential; no observable response field is otherwise changed.
 
-All fourteen operations remain `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`.
+All fourteen operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal. The rehearsal uses missing-broker projections with Futu explicitly disabled on loopback ports `1/2`; Go remains the sole provider runtime and research-state owner.
