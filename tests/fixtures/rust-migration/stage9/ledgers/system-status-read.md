@@ -57,7 +57,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   leaks generic process errors into `quoteLastError`. A shared Go/Rust corpus
   fixes idle/connecting/connected/degraded/closed precedence, timestamps,
   counters and trimmed nullable errors. The Rust OpenD recorder entry is ready,
-  but a real Rust provider/router owner must supply the port before cutover.
+  and `jftrade-marketdata` now owns a concurrent collector recorder with exact
+  normalized demand generations, old-generation rejection, independent
+  5/10/20/30-second quote/stream retry counters, recovery resets and
+  idempotent close precedence. It directly implements the product port and the
+  authenticated handler test exercises its live state. The Rust provider and
+  OpenD adapters must still drive the recorder from production composition.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a

@@ -321,29 +321,19 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
     assert_eq!(fs::read(&settings_path).expect("read settings"), before);
 }
 
-#[derive(Debug)]
-struct FixtureMarketDataRuntimeStatusPort;
-
-impl MarketDataRuntimeStatusPort for FixtureMarketDataRuntimeStatusPort {
-    fn snapshot(&self) -> MarketDataRuntimeState {
-        MarketDataRuntimeState {
-            generation: 8,
-            active_count: 2,
-            quote_failures: 3,
-            quote_last_error: Some(" quote unavailable ".to_owned()),
-            ..MarketDataRuntimeState::default()
-        }
-    }
-}
-
 #[tokio::test]
 async fn system_status_uses_only_the_typed_market_data_runtime_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let generation = recorder.reconcile([" US.AAPL ".to_owned(), "HK.00700".to_owned()]);
+    let now = "2026-08-24T09:00:00+08:00".parse().expect("timestamp");
+    assert!(recorder.record_poll_started(generation, now));
+    assert!(recorder.record_quote_failure(generation, now, " quote unavailable "));
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
             .expect("config")
-            .with_market_data_runtime_status_port(Arc::new(FixtureMarketDataRuntimeStatusPort));
+            .with_market_data_runtime_status_port(recorder);
     let handle = start_product(config).await.expect("start product");
     let (status, response) = request_json_with_status(
         handle.startup_record().address,
@@ -360,11 +350,11 @@ async fn system_status_uses_only_the_typed_market_data_runtime_port() {
             "status": "degraded",
             "connected": false,
             "closed": false,
-            "generation": 8,
+            "generation": 1,
             "activeCount": 2,
-            "lastRefreshAt": null,
-            "quoteRetryAt": null,
-            "quoteFailures": 3,
+            "lastRefreshAt": "2026-08-24T01:00:00Z",
+            "quoteRetryAt": "2026-08-24T01:00:05Z",
+            "quoteFailures": 1,
             "quoteLastError": "quote unavailable",
             "streamRetryAt": null,
             "streamFailures": 0,

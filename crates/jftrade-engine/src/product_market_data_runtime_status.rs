@@ -22,6 +22,25 @@ pub trait MarketDataRuntimeStatusPort: Send + Sync + std::fmt::Debug {
     fn snapshot(&self) -> MarketDataRuntimeState;
 }
 
+impl MarketDataRuntimeStatusPort for jftrade_marketdata::MarketDataRuntimeRecorder {
+    fn snapshot(&self) -> MarketDataRuntimeState {
+        let state = jftrade_marketdata::MarketDataRuntimeRecorder::snapshot(self);
+        MarketDataRuntimeState {
+            connected: state.connected,
+            closed: state.closed,
+            generation: state.generation,
+            active_count: state.active_count,
+            last_refresh_at: state.last_refresh_at,
+            quote_retry_at: state.quote_retry_at,
+            quote_failures: state.quote_failures,
+            quote_last_error: state.quote_last_error,
+            stream_retry_at: state.stream_retry_at,
+            stream_failures: state.stream_failures,
+            stream_last_error: state.stream_last_error,
+        }
+    }
+}
+
 pub(crate) fn market_data_runtime_projection(
     port: Option<&dyn MarketDataRuntimeStatusPort>,
 ) -> Value {

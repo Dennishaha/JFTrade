@@ -6,6 +6,7 @@ mod cache;
 mod demand;
 mod model;
 mod router;
+mod runtime;
 
 pub use cache::{CacheLookup, TickCache};
 pub use demand::{DemandBook, DemandSnapshot};
@@ -14,3 +15,4 @@ pub use model::{
     ProviderDescriptor, ProviderReadiness, Tick,
 };
 pub use router::{ActivationMode, ProviderRouter, ProviderRuntime};
+pub use runtime::{CollectorRuntimeState, MarketDataRuntimeRecorder};
