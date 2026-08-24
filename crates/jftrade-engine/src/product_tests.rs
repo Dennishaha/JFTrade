@@ -2042,6 +2042,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         "/api/v1/settings/system-notifications",
         "/api/v1/settings/ui",
         "/api/v1/system/futu-opend/install-guide",
+        "/api/v1/system/runtime-dependencies",
         "/api/v1/system/real-trade-approvals",
         "/api/v1/system/real-trade-hard-stop-events",
         "/api/v1/system/real-trade-hard-stops",

@@ -3097,14 +3097,19 @@
       "method": "GET",
       "path": "/api/v1/system/runtime-dependencies",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/runtime-dependencies-read.md",
+        "crates/jftrade-engine/src/runtime_dependencies.rs::stage9_node_version_corpus_matches_go",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::runtime_dependencies_use_the_normalized_settings_node_candidate",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestRuntimeDependenciesReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

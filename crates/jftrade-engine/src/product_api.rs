@@ -269,9 +269,7 @@ impl ProductApi {
             .map_err(broker_settings_failure)
     }
     async fn onboarding(&self) -> Result<ApiOutput, ApiFailure> {
-        let dependencies =
-            runtime_dependencies::inspect(SystemClock.now_rfc3339(), self.runtime.node_runtime())
-                .await;
+        let dependencies = self.runtime_dependency_snapshot().await?;
         let readiness = self
             .settings
             .onboarding
@@ -307,15 +305,6 @@ impl ProductApi {
             .save_appearance(&payload.appearance)
             .map(|appearance| ApiOutput::Json(json!({ "appearance": appearance })))
             .map_err(settings_failure)
-    }
-    async fn runtime_dependencies(&self) -> ApiOutput {
-        let dependencies =
-            runtime_dependencies::inspect(SystemClock.now_rfc3339(), self.runtime.node_runtime())
-                .await;
-        ApiOutput::Json(
-            serde_json::to_value(dependencies)
-                .expect("runtime dependency projection must be serializable"),
-        )
     }
     fn futu_open_d_install_guide(&self) -> Result<ApiOutput, ApiFailure> {
         let settings = self

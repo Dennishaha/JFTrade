@@ -714,6 +714,7 @@ include!("product_resource_integrity.rs");
 include!("product_route_assembly.rs");
 include!("product_api.rs");
 include!("product_api_pine_worker.rs");
+include!("product_api_runtime_dependencies.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
 include!("product_api_backtests_write.rs");

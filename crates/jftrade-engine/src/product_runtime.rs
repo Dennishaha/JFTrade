@@ -18,7 +18,6 @@ use thiserror::Error;
 use crate::product::{
     ProductConfig, ProductError, ProductHandle, start_product_with_runtime_state,
 };
-use crate::runtime_dependencies::ManagedNodeRuntime;
 
 #[derive(Clone, Debug)]
 pub struct PineWorkerRuntimeConfig {
@@ -119,7 +118,6 @@ pub(crate) struct ProductRuntimeSnapshot {
 
 pub(crate) struct ProductRuntimeState {
     snapshot: RwLock<ProductRuntimeSnapshot>,
-    node_runtime: Option<ManagedNodeRuntime>,
 }
 
 impl ProductRuntimeState {
@@ -132,7 +130,6 @@ impl ProductRuntimeState {
                 helper_state: None,
                 last_error: None,
             }),
-            node_runtime: None,
         })
     }
 
@@ -175,13 +172,6 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
-        let node_runtime = config
-            .pine_workers
-            .first()
-            .map(|worker| ManagedNodeRuntime {
-                path: worker.process.runtime.clone(),
-                source: "runtime:managed".to_owned(),
-            });
         Arc::new(Self {
             snapshot: RwLock::new(ProductRuntimeSnapshot {
                 resources,
@@ -193,7 +183,6 @@ impl ProductRuntimeState {
                     .map(|_| ProcessState::Stopped),
                 last_error: None,
             }),
-            node_runtime,
         })
     }
 
@@ -208,10 +197,6 @@ impl ProductRuntimeState {
                 helper_state: Some(ProcessState::Failed),
                 last_error: Some("runtime status lock is unavailable".to_owned()),
             })
-    }
-
-    pub(crate) fn node_runtime(&self) -> Option<&ManagedNodeRuntime> {
-        self.node_runtime.as_ref()
     }
 
     fn pine_ready(&self, health: &WorkerHealth) {

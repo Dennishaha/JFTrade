@@ -104,3 +104,82 @@ async fn storage_overview_matches_the_go_empty_projection_behind_authentication(
     );
     handle.shutdown().await.expect("shutdown shadow");
 }
+
+#[tokio::test]
+async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(
+        &settings_path,
+        serde_json::to_vec(&json!({
+            "pineWorker": {
+                "backtestWorkerLimit": 2,
+                "instanceWorkerLimit": 10,
+                "nodeBinaryPath": " ' node ' ",
+            }
+        }))
+        .expect("encode settings"),
+    )
+    .expect("seed settings");
+    let before = fs::read(&settings_path).expect("read settings");
+    let token = "runtime-dependencies-token-0123456789012345678901";
+    let config = ProductConfig::desktop_shadow(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+        token,
+    )
+    .expect("shadow config");
+    let handle = start_product(config).await.expect("start shadow");
+    let address = handle.startup_record().address;
+
+    let (status, response) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/runtime-dependencies",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 401);
+    assert_eq!(response["ok"], false);
+
+    let authorization = format!("Bearer {token}");
+    let (status, response) = request_json_with_status(
+        address,
+        "GET",
+        "/api/v1/system/runtime-dependencies",
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "runtime dependency response: {response}");
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["data"]["allRequiredSatisfied"], true);
+    let node = &response["data"]["dependencies"][0];
+    assert_eq!(node["id"], "node");
+    assert_eq!(node["status"], "ok");
+    assert_eq!(node["minimumVersion"], "22.0.0");
+    assert_eq!(node["configuredPath"], "node");
+    assert_eq!(node["effectivePath"], "node");
+    assert_eq!(node["attemptedPaths"], json!(["node"]));
+    assert_eq!(node["source"], "settings");
+    assert!(
+        node["detectedVersion"].as_str().is_some_and(|version| {
+            version
+                .split('.')
+                .next()
+                .and_then(|major| major.parse::<u64>().ok())
+                .is_some_and(|major| major >= 22)
+        }),
+        "detected Node version: {node}"
+    );
+    assert!(
+        node["resolvedPath"]
+            .as_str()
+            .is_some_and(|path| !path.is_empty()),
+        "resolved Node path: {node}"
+    );
+
+    handle.shutdown().await.expect("shutdown shadow");
+    assert_eq!(fs::read(&settings_path).expect("read settings"), before);
+}

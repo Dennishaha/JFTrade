@@ -97,7 +97,7 @@ impl ApiPort for ProductApi {
                 (method, path) if is_auth_session_write_path(method, path) && self.auth_session_write_port.is_some() => self.auth_session_write(&request),
                 ("GET", "/api/v1/system/status") => Ok(self.system_status()),
                 ("GET", "/api/v1/system/runtime-dependencies") => {
-                    Ok(self.runtime_dependencies().await)
+                    self.runtime_dependencies().await
                 }
                 ("GET", "/api/v1/system/futu-opend") => {
                     self.system_read("/api/v1/system/futu-opend")

@@ -70,12 +70,6 @@ impl DependencyStatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ManagedNodeRuntime {
-    pub path: PathBuf,
-    pub source: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 struct Candidate {
     path: PathBuf,
     source: String,
@@ -91,11 +85,8 @@ struct Resolution {
     last_error: Option<String>,
 }
 
-pub(crate) async fn inspect(
-    checked_at: String,
-    managed: Option<&ManagedNodeRuntime>,
-) -> RuntimeDependencies {
-    let dependency = inspect_node(managed).await;
+pub(crate) async fn inspect(checked_at: String, configured_path: &str) -> RuntimeDependencies {
+    let dependency = inspect_node(configured_path).await;
     RuntimeDependencies {
         checked_at,
         all_required_satisfied: !dependency.required || dependency.status.satisfied(),
@@ -103,8 +94,8 @@ pub(crate) async fn inspect(
     }
 }
 
-async fn inspect_node(managed: Option<&ManagedNodeRuntime>) -> RuntimeDependency {
-    let resolution = resolve_node(managed);
+async fn inspect_node(configured_path: &str) -> RuntimeDependency {
+    let resolution = resolve_node(configured_path);
     let mut dependency = base_node_dependency(&resolution);
     let Some(resolved_path) = resolution.resolved_path else {
         dependency.status = DependencyStatus::Missing;
@@ -119,10 +110,12 @@ async fn inspect_node(managed: Option<&ManagedNodeRuntime>) -> RuntimeDependency
         return dependency;
     };
 
-    let command = Command::new(&resolved_path)
+    let mut command = Command::new(&resolved_path);
+    command
         .arg("--version")
         .stdin(Stdio::null())
-        .output();
+        .kill_on_drop(true);
+    let command = command.output();
     let output = match tokio::time::timeout(NODE_VERSION_TIMEOUT, command).await {
         Err(_) => {
             dependency.status = DependencyStatus::Error;
@@ -194,11 +187,11 @@ fn base_node_dependency(resolution: &Resolution) -> RuntimeDependency {
     }
 }
 
-fn resolve_node(managed: Option<&ManagedNodeRuntime>) -> Resolution {
-    let candidates = node_candidates(managed);
-    let configured_path = managed
-        .map(|runtime| runtime.path.to_string_lossy().into_owned())
+fn resolve_node(configured_path: &str) -> Resolution {
+    let configured_path = normalize_executable_path(OsString::from(configured_path))
+        .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_default();
+    let candidates = node_candidates(&configured_path);
     let mut attempted_paths = Vec::with_capacity(candidates.len());
     let mut last_error = None;
     for candidate in &candidates {
@@ -228,11 +221,11 @@ fn resolve_node(managed: Option<&ManagedNodeRuntime>) -> Resolution {
     }
 }
 
-fn node_candidates(managed: Option<&ManagedNodeRuntime>) -> Vec<Candidate> {
-    if let Some(runtime) = managed.filter(|runtime| !runtime.path.as_os_str().is_empty()) {
+fn node_candidates(configured_path: &str) -> Vec<Candidate> {
+    if !configured_path.is_empty() {
         return vec![Candidate {
-            path: runtime.path.clone(),
-            source: runtime.source.clone(),
+            path: configured_path.into(),
+            source: "settings".to_owned(),
         }];
     }
     for (name, source) in [
@@ -440,6 +433,23 @@ mod tests {
     }
 
     #[test]
+    fn configured_node_candidate_has_go_settings_precedence_and_wire_source() {
+        assert_eq!(
+            node_candidates("/configured/node"),
+            vec![Candidate {
+                path: "/configured/node".into(),
+                source: "settings".to_owned(),
+            }]
+        );
+        let resolution = resolve_node(" '\"/definitely/missing/node\"' ");
+        assert_eq!(resolution.configured_path, "/definitely/missing/node");
+        assert_eq!(resolution.effective_path, "/definitely/missing/node");
+        assert_eq!(resolution.source, "settings");
+        assert_eq!(resolution.attempted_paths, ["/definitely/missing/node"]);
+        assert!(resolution.resolved_path.is_none());
+    }
+
+    #[test]
     fn stage9_node_version_corpus_matches_go() {
         let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/rust-migration/stage9/product-slice-corpus.json");
@@ -481,7 +491,7 @@ mod tests {
 
     #[tokio::test]
     async fn actual_node_probe_reports_the_public_contract() {
-        let dependency = inspect_node(None).await;
+        let dependency = inspect_node("").await;
         assert_eq!(dependency.id, "node");
         assert_eq!(dependency.minimum_version, "22.0.0");
         assert!(!dependency.attempted_paths.is_empty());
