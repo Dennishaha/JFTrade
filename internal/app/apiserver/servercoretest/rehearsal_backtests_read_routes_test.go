@@ -25,6 +25,7 @@ var backtestsReadRouteOperations = []string{
 	"GET /api/v1/backtests",
 	"GET /api/v1/backtests/{runId}/status",
 	"GET /api/v1/backtests/{runId}",
+	"GET /api/v1/backtests/sync/{taskId}",
 }
 
 var backtestsReadWireHeaders = []string{
@@ -177,6 +178,8 @@ func TestBacktestsReadRehearsalPreservesWireAndRequiresRestartForGoRollback(t *t
 		"/api/v1/backtests/fixture-run",
 		"/api/v1/backtests/%20/status",
 		"/api/v1/backtests/%20",
+		"/api/v1/backtests/sync/missing-task",
+		"/api/v1/backtests/sync/%20",
 	}
 	for index, path := range paths {
 		requestID := "backtests-read-wire-" + string(rune('a'+index))
@@ -378,6 +381,8 @@ func backtestsReadOperationPath(operation string) string {
 		return "/api/v1/backtests/fixture-run/status"
 	case "GET /api/v1/backtests/{runId}":
 		return "/api/v1/backtests/fixture-run"
+	case "GET /api/v1/backtests/sync/{taskId}":
+		return "/api/v1/backtests/sync/missing-task"
 	default:
 		panic("unknown backtests read operation: " + operation)
 	}

@@ -5,6 +5,7 @@
 - Owner: Go remains the production owner of the sync worker, task store, Provider/OpenD lifecycle, cancellation, and market-data writes. Rust never starts or cancels a task.
 - Fixture: `tests/fixtures/rust-migration/stage9/backtests-sync-read.json`
 - Differential: `TestStage9BacktestsSyncReadFixtureMatchesCurrentGoOwner` plus parameterized tests in `product_backtests_sync_tests.rs`.
+- Rehearsal: `TestBacktestsReadRehearsalPreservesWireAndRequiresRestartForGoRollback` covers authenticated loopback forwarding, wire/error/timeout/crash behavior, and Go rollback after Rust restart. The real sidecar's task registry is intentionally empty in this rehearsal; queued/running/failed lifecycle snapshots are frozen by the Go fixture and replayed through the explicit Rust snapshot port.
 
 | Method | Path | Request and response contract | Error branches |
 | --- | --- | --- | --- |

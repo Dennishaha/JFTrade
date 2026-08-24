@@ -773,15 +773,20 @@
       "method": "GET",
       "path": "/api/v1/backtests/sync/{taskId}",
       "capability": "backtests",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
+        "go-production-owner",
+        "authenticated-loopback-shadow",
         "rust-implementation",
         "compatibility-evidence"
       ],
       "evidence": [
         "tests/fixtures/rust-migration/stage9/backtests-sync-read.json",
+        "scripts/rust-migration/stage9_backtests_read_reference_test.go::TestStage9BacktestsSyncReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_backtests_sync_tests.rs::backtests_sync_read_route_matches_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
