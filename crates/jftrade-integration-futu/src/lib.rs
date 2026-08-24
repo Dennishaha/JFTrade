@@ -3,6 +3,7 @@
 //! Futu OpenD protocol and subscription adapter boundaries.
 
 mod frame;
+mod health;
 mod probe;
 mod provider;
 mod subscriptions;
@@ -10,6 +11,7 @@ mod trading;
 mod transport;
 
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
+pub use health::{OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError};
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use subscriptions::{

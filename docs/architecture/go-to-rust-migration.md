@@ -341,6 +341,7 @@ jftrade-kernel / jftrade-broker
 - [x] 建立 `jftrade-integration-marketdata-helper`：SHA-256 资产校验、loopback/显式端口、可选强 Bearer、受限 Reqwest、Retry-After/有界退避、进程启动到 ready、提前退出检测和限时停止；Python 仍拥有 yfinance/AKShare 语义。
 - [x] 建立 `jftrade-integration-pine`：SHA-256 bundle 校验、loopback/端口/token 边界、受管 Node 进程、ready probe/兼容退避策略、健康池、round-robin、live session pin、失败回滚和 restart 后 session 失效；Node worker 仍拥有 PineTS 执行。
 - [x] 建立 `jftrade-integration-futu`：OpenD FT frame/SHA-1/长度防护、protocol/serial matching、market-data protocol ID、logical→physical 订阅计划、60 秒最小退订、5/10/20/30 秒失败退避、connection generation 重订阅和 quote-login fail-closed probe。
+- [x] 增加只读 OpenD TCP health adapter：Rust 通过 deadline-bound framed TCP transport 完成 `InitConnect` 与 `GetGlobalState` protobuf decode、retType/version fail-closed、登录状态、四市场状态、程序状态和 UTC 时间映射；仅由本地 mock listener 验证，尚未接入 ProviderRouter 或默认产品 composition。
 - [x] retained Python/Node worker 增加向后兼容的可选 Bearer；当前 Go 启动不设置令牌时行为不变，未来 Rust composition 启动时必须设置每进程强令牌；二者继续拒绝公共监听。
 - [x] 固定 14 个行情操作、9 个 Pine 生命周期操作、3 个 OpenD 订阅和 3 个健康探针；Rust canonical output、三个直接调用现有 Go owner 的行为 harness 与 pinned expected 三方一致。
 - [x] differential、manifest、超时恢复、worker 单测/typecheck、Python 全量测试、release replay 资源基线和 workspace 依赖/目录门禁已接入本地 gate。
@@ -674,6 +675,7 @@ calendar control-plane 的 test-cutover 现在只接受一个真实 `CalendarMan
    | 2026-08-24 | `system-status-read` 接通 recorder composition seam | `ProductRuntimeConfig` 现在可接收 `ProviderRouter::runtime_recorder()` 并在启动时把同一 recorder 注入产品 status port；product-runtime 测试证明启动后 demand generation/error 更新可见且没有 duplicate state。默认 desktop composition 仍不创建伪 provider/OpenD owner，真实 provider lifecycle 尚未接线，route 继续 shadow，Go 仍是唯一 production owner |
    | 2026-08-24 | `system-status-read` 接通 ProviderRouter composition seam | `ProductRuntimeConfig` 现在可直接持有并由 `ProductRuntimeHandle` 保留 `ProviderRouter`，产品 status port 从 router-owned recorder 派生；fixture provider demand test 证明同一 router 更新可见。未连接真实 OpenD socket、未启动生产 Provider，route 继续 shadow，Go 仍是唯一 production owner |
    | 2026-08-24 | OpenD TCP transport 基础设施接入 | `jftrade-integration-futu` 新增带连接/读写 deadline 和完整 frame 长度校验的 `OpenDTcpTransport`，并以本地 mock listener 验证 serial/protocol round-trip；该 adapter 尚未接入 ProviderRouter、登录探针、poll/push worker 或默认产品 composition，route/owner 不变 |
+   | 2026-08-24 | OpenD 只读 health handshake adapter 接入 | `OpenDTcpProbe` 通过同一 TCP/frame client 发送 `InitConnect`、`GetGlobalState`，解码 Rust protobuf、复刻 Go retType/default、OpenD 10.9.6908 版本门禁、登录/市场/程序状态和 UTC 时间投影；成功、retType 拒绝、版本不足和 socket 错误仍只在本地 mock/adapter 层验证，未接入 ProviderRouter、poll/push worker 或默认 owner |
    | 2026-08-24 | `system-status-read` 接通 strategy registry composition seam | `ProductRuntimeConfig` 现在可接收 lifecycle-owned `StrategyRuntimeRegistry` 并把同一 registry 注入 strategy status projections；product-runtime 测试证明启动后实例更新可见。默认 desktop composition 仍不伪造 Pine 实例，Pine lifecycle reporting 与 production owner 尚未接线，route 继续 shadow，Go 仍是唯一 production owner |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。

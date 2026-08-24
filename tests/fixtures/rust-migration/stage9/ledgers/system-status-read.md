@@ -79,6 +79,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   mock-listener round-trip test. It remains an adapter primitive only: no
   login probe, poll/push worker, ProviderRouter wiring or default product
   composition uses a real OpenD socket yet.
+  A read-only `OpenDTcpProbe` now adds the Go-compatible `InitConnect` and
+  `GetGlobalState` protobuf handshake, retType/default handling, minimum
+  version gate, login/market/program-state mapping and UTC timestamp
+  projection. Its success, rejection, unsupported-version and socket paths
+  are covered by local framed mock tests; it still does not drive the router
+  or default product owner.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
