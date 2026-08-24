@@ -14,9 +14,9 @@ use crate::real_trade_control::{
 };
 use crate::runtime_dependencies;
 use jftrade_api::{
-    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock, PortFuture,
-    RouteCatalog, RouteCatalogError, RouteSpec, SseEvent, SystemClock, TransportMetrics,
-    build_router,
+    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock,
+    LiveConnectionMetrics, PortFuture, RouteCatalog, RouteCatalogError, RouteSpec, SseEvent,
+    SystemClock, TransportMetrics, build_router,
 };
 use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{
@@ -581,6 +581,7 @@ pub(crate) async fn start_product_with_runtime_state(
         .map_err(ProductError::Settings)?,
     );
     let metrics = Arc::new(TransportMetrics::default());
+    let live_connections = Arc::new(LiveConnectionMetrics::default());
     let real_trade_control = RealTradeControlReader::new(config.real_trade_control_path.clone());
     if let Some(manager) = &config.calendar_manager {
         manager.start().map_err(ProductError::Calendar)?;
@@ -608,6 +609,7 @@ pub(crate) async fn start_product_with_runtime_state(
             maintenance,
         },
         Arc::clone(&metrics),
+        Arc::clone(&live_connections),
         runtime,
         real_trade_control,
         ProductOptionalPorts {
@@ -673,6 +675,7 @@ pub(crate) async fn start_product_with_runtime_state(
     ));
     let mut state = ApiState::new(routes, config.access, port);
     state.metrics = metrics;
+    state.live_connections = live_connections;
     let router = build_router(state);
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let task = tokio::spawn(async move {
@@ -759,41 +762,7 @@ include!("product_wire_portfolio.rs");
 include!("product_wire_research.rs");
 include!("product_wire_brokers.rs");
 
-#[derive(Debug, Error)]
-pub enum ProductError {
-    #[error("invalid Rust product API bind address")]
-    InvalidBindAddress(#[source] std::net::AddrParseError),
-    #[error("Rust product API may only bind to loopback until Web security ownership moves")]
-    NonLoopbackBind,
-    #[error("Rust product settings path is required")]
-    MissingSettingsPath,
-    #[error("{PRODUCT_DESKTOP_TOKEN_ENV} must contain at least 32 characters")]
-    MissingDesktopToken,
-    #[error("Rust desktop API token must contain at least 32 non-whitespace characters")]
-    WeakDesktopToken,
-    #[error("resolve the Rust product executable for resource integrity")]
-    CurrentExecutable(#[source] std::io::Error),
-    #[error("read Rust product executable {path} for resource integrity")]
-    ReadExecutable {
-        path: PathBuf,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("failed to bind Rust product API")]
-    Bind(#[source] std::io::Error),
-    #[error("failed to inspect Rust product API listener")]
-    LocalAddress(#[source] std::io::Error),
-    #[error("invalid Rust product route catalog")]
-    Routes(#[from] RouteCatalogError),
-    #[error("failed to open Rust product settings")]
-    Settings(#[source] jftrade_settings::SettingsStoreError),
-    #[error("Rust exchange-calendar manager failed")]
-    Calendar(#[source] jftrade_calendar::CalendarManagerError),
-    #[error("Rust product API task failed")]
-    Join(#[source] tokio::task::JoinError),
-    #[error("Rust product API transport failed")]
-    Transport(#[from] std::io::Error),
-}
+include!("product_error.rs");
 
 #[cfg(test)]
 #[path = "product_tests.rs"]

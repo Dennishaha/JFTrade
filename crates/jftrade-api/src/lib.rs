@@ -21,4 +21,7 @@ pub use ports::{ApiOutput, ApiPort, ApiRequest, Asset, AssetBundle, PortFuture};
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
 pub use router::{ApiState, build_router};
 pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};
-pub use websocket::{DEFAULT_WEBSOCKET_LIMIT, websocket_origin_allowed};
+pub use websocket::{
+    DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,
+    websocket_origin_allowed,
+};

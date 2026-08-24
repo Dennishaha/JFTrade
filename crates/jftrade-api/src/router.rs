@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use axum::Router;
@@ -20,8 +20,9 @@ use tower_http::trace::TraceLayer;
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
 use crate::{
-    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock, RouteCatalog,
-    SseEvent, SystemClock, TransportMetrics, encode_event, encode_retry, websocket_origin_allowed,
+    AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock,
+    LiveConnectionMetrics, RouteCatalog, SseEvent, SystemClock, TransportMetrics, encode_event,
+    encode_retry, websocket_origin_allowed,
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -34,9 +35,8 @@ pub struct ApiState {
     pub port: Arc<dyn ApiPort>,
     pub clock: Arc<dyn Clock>,
     pub metrics: Arc<TransportMetrics>,
-    pub websocket_limit: usize,
+    pub live_connections: Arc<LiveConnectionMetrics>,
     request_sequence: Arc<AtomicU64>,
-    websocket_connections: Arc<AtomicUsize>,
 }
 
 impl ApiState {
@@ -48,9 +48,8 @@ impl ApiState {
             port,
             clock: Arc::new(SystemClock),
             metrics: Arc::new(TransportMetrics::default()),
-            websocket_limit: crate::DEFAULT_WEBSOCKET_LIMIT,
+            live_connections: Arc::new(LiveConnectionMetrics::default()),
             request_sequence: Arc::new(AtomicU64::new(0)),
-            websocket_connections: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -366,25 +365,22 @@ async fn websocket_handler(
             ApiFailure::new(403, "ORIGIN_FORBIDDEN", "request origin is not allowed"),
         );
     }
-    if !try_acquire_websocket(&state) {
+    let Some(connection_permit) = state.live_connections.try_acquire() else {
+        let limit = state.live_connections.snapshot().limit;
         return error_response(
             &state.clock,
             ApiFailure::new(
                 503,
                 "LIVE_WS_LIMIT_REACHED",
-                format!(
-                    "live websocket connection limit reached ({})",
-                    state.websocket_limit
-                ),
+                format!("live websocket connection limit reached ({})", limit),
             ),
         );
-    }
-    let connections = Arc::clone(&state.websocket_connections);
+    };
     let timestamp = state.clock.now_rfc3339();
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
         .on_upgrade(move |mut socket| async move {
-            let _guard = WebsocketGuard(connections);
+            let _connection_permit = connection_permit;
             let heartbeat = json!({
                 "type": "heartbeat",
                 "source": "system",
@@ -399,22 +395,4 @@ async fn websocket_handler(
                 .await;
             let _ = socket.send(Message::Close(None)).await;
         })
-}
-
-fn try_acquire_websocket(state: &ApiState) -> bool {
-    let limit = state.websocket_limit.max(1);
-    state
-        .websocket_connections
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
-            (current < limit).then_some(current + 1)
-        })
-        .is_ok()
-}
-
-struct WebsocketGuard(Arc<AtomicUsize>);
-
-impl Drop for WebsocketGuard {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::AcqRel);
-    }
 }

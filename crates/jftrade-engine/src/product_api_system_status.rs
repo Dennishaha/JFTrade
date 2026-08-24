@@ -2,6 +2,7 @@ impl ProductApi {
     fn system_status(&self) -> ApiOutput {
         let uptime = duration_millis(self.started.elapsed());
         let requests = self.metrics.request_observability_snapshot();
+        let live = live_observability(&self.live_connections);
         let runtime = self.runtime.snapshot();
         let real_trade = self.real_trade_control.snapshot();
         let checked_at = SystemClock.now_rfc3339();
@@ -73,7 +74,7 @@ impl ProductApi {
             },
             "observability": {
                 "api": { "startedAt": self.started_at, "uptimeMs": uptime },
-                "live": { "connected": 0, "limit": 100, "atLimit": false, "activeInstruments": [] },
+                "live": live,
                 "marketdata": {
                     "status": if helper_failed { "degraded" } else if helper_ready { "connected" } else { "idle" },
                     "connected": helper_ready, "closed": false,
@@ -96,6 +97,16 @@ impl ProductApi {
             "message": "JFTrade API adapter is running."
         }))
     }
+}
+
+fn live_observability(metrics: &LiveConnectionMetrics) -> Value {
+    let snapshot = metrics.snapshot();
+    json!({
+        "connected": snapshot.connected,
+        "limit": snapshot.limit,
+        "atLimit": snapshot.at_limit,
+        "activeInstruments": [],
+    })
 }
 
 fn go_compatible_os() -> &'static str {
