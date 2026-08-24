@@ -63,8 +63,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
   shared Go/Rust corpus fixes missing-runtime defaults, available zero-value
   behavior, active instance fields, nullable symbol slices, optional fields
-  and owner-provided order. A real Rust strategy manager must still supply the
-  port from composed active instances before production cutover.
+  and owner-provided order. `jftrade-strategy` now owns a concurrent active
+  instance registry that normalizes identity, symbols and errors, derives
+  sorted counts/status, and directly implements the product port; the
+  authenticated handler test proves live registry updates reach both status
+  projections with UTC timestamps. The Pine lifecycle must still populate and
+  remove this registry from the production composition before cutover.
 
 Verification: `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestMarketDataRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_strategy_runtime_status::tests::strategy_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestStrategyRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 

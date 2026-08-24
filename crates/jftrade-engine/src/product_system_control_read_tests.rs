@@ -374,35 +374,29 @@ async fn system_status_uses_only_the_typed_market_data_runtime_port() {
     handle.shutdown().await.expect("shutdown product");
 }
 
-#[derive(Debug)]
-struct FixtureStrategyRuntimeStatusPort;
-
-impl StrategyRuntimeStatusPort for FixtureStrategyRuntimeStatusPort {
-    fn snapshot(&self) -> StrategyRuntimeSummary {
-        StrategyRuntimeSummary {
-            status: "active".to_owned(),
-            active_strategies: 1,
-            supports_backtest_parity: true,
-            active_instances: vec![StrategyRuntimeActiveInstance {
-                instance_id: "strategy-1".to_owned(),
-                definition_name: "Momentum".to_owned(),
-                actual_status: "running".to_owned(),
-                active_symbols: Some(vec!["US.AAPL".to_owned()]),
-                last_signal_at: Some("2026-08-24T01:03:00Z".to_owned()),
-                ..StrategyRuntimeActiveInstance::default()
-            }],
-        }
-    }
-}
-
 #[tokio::test]
 async fn system_status_uses_only_the_typed_strategy_runtime_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
+    let registry = Arc::new(jftrade_strategy::StrategyRuntimeRegistry::default());
+    registry
+        .upsert(jftrade_strategy::RuntimeInstanceSummary {
+            instance_id: " strategy-1 ".to_owned(),
+            definition_name: " Momentum ".to_owned(),
+            actual_state: jftrade_strategy::RuntimeState::Running,
+            active_symbols: vec!["US.TSLA".to_owned(), " US.AAPL ".to_owned()],
+            last_closed_kline_at: None,
+            last_signal_at: Some("2026-08-24T09:03:00+08:00".parse().expect("timestamp")),
+            last_order_at: None,
+            last_error_at: None,
+            last_error: None,
+            updated_at: None,
+        })
+        .expect("runtime instance");
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
             .expect("config")
-            .with_strategy_runtime_status_port(Arc::new(FixtureStrategyRuntimeStatusPort));
+            .with_strategy_runtime_status_port(registry);
     let handle = start_product(config).await.expect("start product");
     let (status, response) = request_json_with_status(
         handle.startup_record().address,
@@ -421,7 +415,7 @@ async fn system_status_uses_only_the_typed_strategy_runtime_port() {
             "instanceId": "strategy-1",
             "definitionName": "Momentum",
             "actualStatus": "running",
-            "activeSymbols": ["US.AAPL"],
+            "activeSymbols": ["US.AAPL", "US.TSLA"],
             "lastSignalAt": "2026-08-24T01:03:00Z",
         }],
     });

@@ -45,6 +45,42 @@ pub trait StrategyRuntimeStatusPort: Send + Sync + std::fmt::Debug {
     fn snapshot(&self) -> StrategyRuntimeSummary;
 }
 
+impl StrategyRuntimeStatusPort for jftrade_strategy::StrategyRuntimeRegistry {
+    fn snapshot(&self) -> StrategyRuntimeSummary {
+        let snapshot = jftrade_strategy::StrategyRuntimeRegistry::snapshot(self);
+        StrategyRuntimeSummary {
+            status: snapshot.status().to_owned(),
+            active_strategies: snapshot.active_strategies(),
+            supports_backtest_parity: true,
+            active_instances: snapshot
+                .active_instances
+                .into_iter()
+                .map(|instance| StrategyRuntimeActiveInstance {
+                    instance_id: instance.instance_id,
+                    definition_name: instance.definition_name,
+                    actual_status: instance.actual_state.as_str().to_owned(),
+                    active_symbols: Some(instance.active_symbols),
+                    last_closed_kline_at: timestamp_text(instance.last_closed_kline_at),
+                    last_signal_at: timestamp_text(instance.last_signal_at),
+                    last_order_at: timestamp_text(instance.last_order_at),
+                    last_error_at: timestamp_text(instance.last_error_at),
+                    last_error: instance.last_error,
+                    updated_at: timestamp_text(instance.updated_at),
+                })
+                .collect(),
+        }
+    }
+}
+
+fn timestamp_text(value: Option<jftrade_kernel::WireTimestamp>) -> Option<String> {
+    value.map(|timestamp| {
+        jftrade_kernel::WireTimestamp::from_offset_datetime(
+            timestamp.into_inner().to_offset(time::UtcOffset::UTC),
+        )
+        .to_string()
+    })
+}
+
 pub(crate) fn strategy_runtime_projection(port: Option<&dyn StrategyRuntimeStatusPort>) -> Value {
     let summary = port.map_or_else(StrategyRuntimeSummary::idle, |port| port.snapshot());
     json!(summary)

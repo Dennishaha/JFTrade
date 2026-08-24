@@ -21,6 +21,19 @@ pub enum RuntimeState {
     Stopping,
 }
 
+impl RuntimeState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stopped => "stopped",
+            Self::Starting => "starting",
+            Self::Running => "running",
+            Self::Paused => "paused",
+            Self::Recovering => "recovering",
+            Self::Stopping => "stopping",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Signal {
