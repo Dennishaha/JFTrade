@@ -257,6 +257,23 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
             "activeInstruments": [],
         })
     );
+    assert_eq!(
+        data["observability"]["marketdata"],
+        json!({
+            "status": "unavailable",
+            "connected": false,
+            "closed": false,
+            "generation": 0,
+            "activeCount": 0,
+            "lastRefreshAt": null,
+            "quoteRetryAt": null,
+            "quoteFailures": 0,
+            "quoteLastError": null,
+            "streamRetryAt": null,
+            "streamFailures": 0,
+            "streamLastError": null,
+        })
+    );
     let broker: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/rust-migration/stage9/broker-descriptor.json"
     ))
@@ -302,6 +319,59 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
 
     handle.shutdown().await.expect("shutdown shadow");
     assert_eq!(fs::read(&settings_path).expect("read settings"), before);
+}
+
+#[derive(Debug)]
+struct FixtureMarketDataRuntimeStatusPort;
+
+impl MarketDataRuntimeStatusPort for FixtureMarketDataRuntimeStatusPort {
+    fn snapshot(&self) -> MarketDataRuntimeState {
+        MarketDataRuntimeState {
+            generation: 8,
+            active_count: 2,
+            quote_failures: 3,
+            quote_last_error: Some(" quote unavailable ".to_owned()),
+            ..MarketDataRuntimeState::default()
+        }
+    }
+}
+
+#[tokio::test]
+async fn system_status_uses_only_the_typed_market_data_runtime_port() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_runtime_status_port(Arc::new(FixtureMarketDataRuntimeStatusPort));
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(
+        response["data"]["observability"]["marketdata"],
+        json!({
+            "status": "degraded",
+            "connected": false,
+            "closed": false,
+            "generation": 8,
+            "activeCount": 2,
+            "lastRefreshAt": null,
+            "quoteRetryAt": null,
+            "quoteFailures": 3,
+            "quoteLastError": "quote unavailable",
+            "streamRetryAt": null,
+            "streamFailures": 0,
+            "streamLastError": null,
+        })
+    );
+    handle.shutdown().await.expect("shutdown product");
 }
 
 #[test]

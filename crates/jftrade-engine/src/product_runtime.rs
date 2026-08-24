@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use jftrade_datamanagement::{
@@ -11,7 +11,7 @@ use jftrade_datamanagement::{
 };
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
-    ProcessState, allocate_loopback_port,
+    allocate_loopback_port,
 };
 use jftrade_integration_pine::{
     GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
@@ -115,22 +115,16 @@ pub struct RuntimeResourceDescriptor {
 #[derive(Clone, Debug)]
 pub(crate) struct ProductRuntimeSnapshot {
     pub resources: Vec<RuntimeResourceDescriptor>,
-    pub helper_state: Option<ProcessState>,
-    pub last_error: Option<String>,
 }
 
 pub(crate) struct ProductRuntimeState {
-    snapshot: RwLock<ProductRuntimeSnapshot>,
+    resources: Vec<RuntimeResourceDescriptor>,
 }
 
 impl ProductRuntimeState {
     pub(crate) fn product_only(config: &ProductConfig) -> Arc<Self> {
         Arc::new(Self {
-            snapshot: RwLock::new(ProductRuntimeSnapshot {
-                resources: product_resources(config),
-                helper_state: None,
-                last_error: None,
-            }),
+            resources: product_resources(config),
         })
     }
 
@@ -167,49 +161,12 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
-        Arc::new(Self {
-            snapshot: RwLock::new(ProductRuntimeSnapshot {
-                resources,
-                helper_state: config
-                    .marketdata_helper
-                    .as_ref()
-                    .map(|_| ProcessState::Stopped),
-                last_error: None,
-            }),
-        })
+        Arc::new(Self { resources })
     }
 
     pub(crate) fn snapshot(&self) -> ProductRuntimeSnapshot {
-        self.snapshot
-            .read()
-            .map(|snapshot| snapshot.clone())
-            .unwrap_or_else(|_| ProductRuntimeSnapshot {
-                resources: Vec::new(),
-                helper_state: Some(ProcessState::Failed),
-                last_error: Some("runtime status lock is unavailable".to_owned()),
-            })
-    }
-
-    fn pine_ready(&self, health: &WorkerHealth) {
-        if let Ok(mut snapshot) = self.snapshot.write()
-            && health.ok
-        {
-            snapshot.last_error = None;
-        }
-    }
-
-    fn helper_state(&self, state: ProcessState) {
-        if let Ok(mut snapshot) = self.snapshot.write() {
-            snapshot.helper_state = Some(state);
-            if state == ProcessState::Ready {
-                snapshot.last_error = None;
-            }
-        }
-    }
-
-    fn failed(&self, error: &impl std::fmt::Display) {
-        if let Ok(mut snapshot) = self.snapshot.write() {
-            snapshot.last_error = Some(error.to_string());
+        ProductRuntimeSnapshot {
+            resources: self.resources.clone(),
         }
     }
 }
@@ -218,7 +175,6 @@ pub struct ProductRuntimeHandle {
     product: Option<ProductHandle>,
     pine_workers: Vec<PineProcess>,
     marketdata_helper: Option<HelperProcess>,
-    state: Arc<ProductRuntimeState>,
 }
 
 impl ProductRuntimeHandle {
@@ -231,19 +187,14 @@ impl ProductRuntimeHandle {
 
     pub async fn shutdown(mut self) -> Result<(), ProductRuntimeError> {
         let mut failures = Vec::new();
-        if let Some(mut helper) = self.marketdata_helper.take() {
-            self.state.helper_state(ProcessState::Stopping);
-            if let Err(error) = helper.stop().await {
-                failures.push(error.to_string());
-                self.state.failed(&error);
-            } else {
-                self.state.helper_state(ProcessState::Stopped);
-            }
+        if let Some(mut helper) = self.marketdata_helper.take()
+            && let Err(error) = helper.stop().await
+        {
+            failures.push(error.to_string());
         }
         while let Some(worker) = self.pine_workers.pop() {
             if let Err(error) = worker.stop().await {
                 failures.push(error.to_string());
-                self.state.failed(&error);
             }
         }
         if let Some(product) = self.product.take()
@@ -280,18 +231,15 @@ pub async fn start_product_runtime(
         product: Some(product),
         pine_workers: Vec::new(),
         marketdata_helper: None,
-        state,
     };
 
     for worker in config.pine_workers {
         let result = start_pine_worker(worker).await;
         match result {
-            Ok((process, health)) => {
-                runtime.state.pine_ready(&health);
+            Ok((process, _health)) => {
                 runtime.pine_workers.push(process);
             }
             Err(error) => {
-                runtime.state.failed(&error);
                 let _ = runtime.shutdown().await;
                 return Err(ProductRuntimeError::Pine(error));
             }
@@ -299,14 +247,11 @@ pub async fn start_product_runtime(
     }
 
     if let Some(helper) = config.marketdata_helper {
-        runtime.state.helper_state(ProcessState::Starting);
         match start_marketdata_helper(helper).await {
             Ok(process) => {
-                runtime.state.helper_state(ProcessState::Ready);
                 runtime.marketdata_helper = Some(process);
             }
             Err(error) => {
-                runtime.state.failed(&error);
                 let _ = runtime.shutdown().await;
                 return Err(error);
             }
@@ -588,15 +533,14 @@ mod tests {
             AccessPolicy::default(),
         )
         .expect("product config");
-        let runtime = start_product_runtime(ProductRuntimeConfig {
+        let config = ProductRuntimeConfig {
             product,
             pine_workers: Vec::new(),
             marketdata_helper: None,
-        })
-        .await
-        .expect("start runtime");
+        };
+        let snapshot = ProductRuntimeState::configured(&config).snapshot();
+        let runtime = start_product_runtime(config).await.expect("start runtime");
         assert_eq!(runtime.startup_record().owned_routes, 26);
-        let snapshot = runtime.state.snapshot();
         assert_eq!(snapshot.resources.len(), 11);
         assert_eq!(snapshot.resources[0].id, "settings-file");
         assert_eq!(snapshot.resources[1].id, "backtest-kline-db");

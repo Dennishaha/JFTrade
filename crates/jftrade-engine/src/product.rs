@@ -69,6 +69,10 @@ include!("product_market_data_news_actions_read_port.rs");
 include!("product_market_data_news_search_read_port.rs");
 include!("product_market_data_quote_read_port.rs");
 include!("product_market_data_prediction_read_port.rs");
+#[path = "product_market_data_runtime_status.rs"]
+mod product_market_data_runtime_status;
+use product_market_data_runtime_status::market_data_runtime_projection;
+pub use product_market_data_runtime_status::{MarketDataRuntimeState, MarketDataRuntimeStatusPort};
 include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
 include!("product_stage9_write_ports.rs");
@@ -277,6 +281,7 @@ pub struct ProductConfig {
     market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     market_data_prediction_read_snapshot_port:
         Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
+    market_data_runtime_status_port: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
     remote_watchlist_snapshot_port: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
@@ -360,6 +365,7 @@ impl ProductConfig {
             adk_read_snapshot_port: None,
             market_data_quote_read_snapshot_port: None,
             market_data_prediction_read_snapshot_port: None,
+            market_data_runtime_status_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
             remote_watchlist_snapshot_port: None,
@@ -650,6 +656,7 @@ pub(crate) async fn start_product_with_runtime_state(
             market_data_prediction_read_snapshot: config
                 .market_data_prediction_read_snapshot_port
                 .clone(),
+            market_data_runtime_status: config.market_data_runtime_status_port.clone(),
             broker_read_snapshot: config.broker_read_snapshot_port.clone(),
             system_read_snapshot: config.system_read_snapshot_port.clone(),
             remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),

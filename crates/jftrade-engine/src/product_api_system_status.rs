@@ -3,6 +3,8 @@ impl ProductApi {
         let uptime = duration_millis(self.started.elapsed());
         let requests = self.metrics.request_observability_snapshot();
         let live = live_observability(&self.live_connections);
+        let market_data =
+            market_data_runtime_projection(self.market_data_runtime_status_port.as_deref());
         let runtime = self.runtime.snapshot();
         let real_trade = self.real_trade_control.snapshot();
         let checked_at = SystemClock.now_rfc3339();
@@ -12,12 +14,6 @@ impl ProductApi {
             .find(|resource| resource.id == "settings-file")
             .map(|resource| resource.path.as_str())
             .unwrap_or_default();
-        let helper_ready = runtime.helper_state
-            == Some(jftrade_integration_marketdata_helper::ProcessState::Ready);
-        let helper_failed = runtime.helper_state
-            == Some(jftrade_integration_marketdata_helper::ProcessState::Failed)
-            || runtime.last_error.is_some();
-        let runtime_error = runtime.last_error.as_deref();
         let broker = json!(jftrade_integration_futu::broker_descriptor());
         let strategy_runtime = json!({
             "status": "idle",
@@ -75,13 +71,7 @@ impl ProductApi {
             "observability": {
                 "api": { "startedAt": self.started_at, "uptimeMs": uptime },
                 "live": live,
-                "marketdata": {
-                    "status": if helper_failed { "degraded" } else if helper_ready { "connected" } else { "idle" },
-                    "connected": helper_ready, "closed": false,
-                    "generation": 0, "activeCount": 0, "lastRefreshAt": null,
-                    "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": runtime_error,
-                    "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
-                },
+                "marketdata": market_data,
                 "exchangeCalendars": exchange_calendars,
                 "broker": broker,
                 "strategyRuntime": strategy_runtime,

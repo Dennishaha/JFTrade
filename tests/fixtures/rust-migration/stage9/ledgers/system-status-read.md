@@ -51,12 +51,17 @@ Qualification remains blocked on owner-backed dynamic projections:
   strategy sub-resources remain absent until their ownership is composed in
   Rust, so the public route is not yet qualified.
 - Market-data observability does not yet expose complete owner-backed counters
-  and lifecycle generations. The Rust OpenD recorder entry is ready, but the
-  Rust provider must call it when OpenD ownership migrates.
+  and lifecycle generations. Rust now fails closed to the Go-compatible
+  `unavailable` projection without a typed `MarketDataRuntimeStatusPort`;
+  Python helper readiness no longer masquerades as quote connectivity or
+  leaks generic process errors into `quoteLastError`. A shared Go/Rust corpus
+  fixes idle/connecting/connected/degraded/closed precedence, timestamps,
+  counters and trimmed nullable errors. The Rust OpenD recorder entry is ready,
+  but a real Rust provider/router owner must supply the port before cutover.
 - Broker and strategy descriptors have static parity, but their live runtime
   state must move through typed Rust-owned ports before production cutover.
 
-Verification: `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
+Verification: `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestMarketDataRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains

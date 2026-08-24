@@ -1,0 +1,99 @@
+{
+  "version": "stage9.market-data-runtime-status.v1",
+  "cases": [
+    {
+      "name": "missing-runtime-is-unavailable",
+      "portAvailable": false,
+      "state": {},
+      "expected": {
+        "status": "unavailable", "connected": false, "closed": false,
+        "generation": 0, "activeCount": 0, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
+        "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
+      }
+    },
+    {
+      "name": "empty-runtime-is-idle",
+      "portAvailable": true,
+      "state": {},
+      "expected": {
+        "status": "idle", "connected": false, "closed": false,
+        "generation": 0, "activeCount": 0, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
+        "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
+      }
+    },
+    {
+      "name": "active-demand-is-connecting",
+      "portAvailable": true,
+      "state": {"generation": 3, "activeCount": 2},
+      "expected": {
+        "status": "connecting", "connected": false, "closed": false,
+        "generation": 3, "activeCount": 2, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
+        "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
+      }
+    },
+    {
+      "name": "connected-precedes-errors",
+      "portAvailable": true,
+      "state": {
+        "connected": true, "generation": 4, "activeCount": 3,
+        "quoteFailures": 1, "quoteLastError": " stale quote error "
+      },
+      "expected": {
+        "status": "connected", "connected": true, "closed": false,
+        "generation": 4, "activeCount": 3, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 1, "quoteLastError": "stale quote error",
+        "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
+      }
+    },
+    {
+      "name": "runtime-error-is-degraded",
+      "portAvailable": true,
+      "state": {
+        "generation": 5, "activeCount": 2,
+        "lastRefreshAt": "2026-08-24T09:02:03.123+08:00",
+        "quoteRetryAt": "2026-08-24T01:03:00Z",
+        "quoteFailures": 2, "quoteLastError": " quote down ",
+        "streamRetryAt": "2026-08-24T01:04:00Z",
+        "streamFailures": 3, "streamLastError": " stream down "
+      },
+      "expected": {
+        "status": "degraded", "connected": false, "closed": false,
+        "generation": 5, "activeCount": 2,
+        "lastRefreshAt": "2026-08-24T01:02:03.123Z",
+        "quoteRetryAt": "2026-08-24T01:03:00Z",
+        "quoteFailures": 2, "quoteLastError": "quote down",
+        "streamRetryAt": "2026-08-24T01:04:00Z",
+        "streamFailures": 3, "streamLastError": "stream down"
+      }
+    },
+    {
+      "name": "whitespace-error-is-degraded-but-null-on-wire",
+      "portAvailable": true,
+      "state": {"quoteLastError": "   "},
+      "expected": {
+        "status": "degraded", "connected": false, "closed": false,
+        "generation": 0, "activeCount": 0, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
+        "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
+      }
+    },
+    {
+      "name": "closed-precedes-connected-and-errors",
+      "portAvailable": true,
+      "state": {
+        "connected": true, "closed": true, "generation": 7,
+        "activeCount": 1, "streamLastError": " closed stream "
+      },
+      "expected": {
+        "status": "closed", "connected": true, "closed": true,
+        "generation": 7, "activeCount": 1, "lastRefreshAt": null,
+        "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
+        "streamRetryAt": null, "streamFailures": 0,
+        "streamLastError": "closed stream"
+      }
+    }
+  ]
+}
