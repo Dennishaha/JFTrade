@@ -18,6 +18,7 @@ use jftrade_integration_pine::{
     WorkerHealth, WorkerProcessSpec,
 };
 use jftrade_marketdata::MarketDataRuntimeRecorder;
+use jftrade_strategy::StrategyRuntimeRegistry;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -49,6 +50,7 @@ pub struct ProductRuntimeConfig {
     pub pine_workers: Vec<PineWorkerRuntimeConfig>,
     pub marketdata_helper: Option<MarketDataHelperRuntimeConfig>,
     pub market_data_runtime_recorder: Option<Arc<MarketDataRuntimeRecorder>>,
+    pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
 
 #[derive(Clone, Debug)]
@@ -95,6 +97,7 @@ impl ProductRuntimeConfig {
             pine_workers,
             marketdata_helper,
             market_data_runtime_recorder: None,
+            strategy_runtime_registry: None,
         })
     }
 
@@ -109,6 +112,16 @@ impl ProductRuntimeConfig {
         recorder: Arc<MarketDataRuntimeRecorder>,
     ) -> Self {
         self.market_data_runtime_recorder = Some(recorder);
+        self
+    }
+
+    /// Connects a lifecycle-owned strategy registry to the product status
+    /// projection without inventing strategy instances in the composition root.
+    pub fn with_strategy_runtime_registry(
+        mut self,
+        registry: Arc<StrategyRuntimeRegistry>,
+    ) -> Self {
+        self.strategy_runtime_registry = Some(registry);
         self
     }
 }
@@ -246,6 +259,9 @@ pub async fn start_product_runtime(
         config.product = config
             .product
             .with_market_data_runtime_status_port(recorder);
+    }
+    if let Some(registry) = config.strategy_runtime_registry.take() {
+        config.product = config.product.with_strategy_runtime_status_port(registry);
     }
     let state = ProductRuntimeState::configured(&config);
     let product = start_product_with_runtime_state(config.product, Arc::clone(&state)).await?;
@@ -560,6 +576,7 @@ mod tests {
             pine_workers: Vec::new(),
             marketdata_helper: None,
             market_data_runtime_recorder: None,
+            strategy_runtime_registry: None,
         };
         let snapshot = ProductRuntimeState::configured(&config).snapshot();
         let runtime = start_product_runtime(config).await.expect("start runtime");

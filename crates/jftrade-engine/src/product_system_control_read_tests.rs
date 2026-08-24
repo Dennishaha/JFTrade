@@ -425,6 +425,86 @@ async fn product_runtime_uses_the_router_owned_market_data_recorder() {
 }
 
 #[tokio::test]
+async fn product_runtime_uses_the_lifecycle_owned_strategy_registry() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let registry = Arc::new(jftrade_strategy::StrategyRuntimeRegistry::default());
+    registry
+        .upsert(jftrade_strategy::RuntimeInstanceSummary {
+            instance_id: " runtime-1 ".to_owned(),
+            definition_name: " Momentum ".to_owned(),
+            actual_state: jftrade_strategy::RuntimeState::Running,
+            active_symbols: vec![" US.TSLA ".to_owned()],
+            last_closed_kline_at: None,
+            last_signal_at: Some("2026-08-24T09:03:00+08:00".parse().expect("timestamp")),
+            last_order_at: None,
+            last_error_at: None,
+            last_error: None,
+            updated_at: None,
+        })
+        .expect("runtime instance");
+    let product =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let config = crate::product_runtime::ProductRuntimeConfig::desktop(
+        product,
+        crate::product_runtime::DesktopRetainedRuntimeConfig::default(),
+    )
+    .expect("runtime config")
+    .with_strategy_runtime_registry(Arc::clone(&registry));
+    let runtime = crate::product_runtime::start_product_runtime(config)
+        .await
+        .expect("start product runtime");
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        response["data"]["observability"]["strategyRuntime"]["activeStrategies"],
+        1
+    );
+    assert_eq!(
+        response["data"]["observability"]["strategyRuntime"]["activeInstances"][0]["instanceId"],
+        "runtime-1"
+    );
+
+    registry
+        .upsert(jftrade_strategy::RuntimeInstanceSummary {
+            instance_id: " runtime-2 ".to_owned(),
+            definition_name: " Mean Reversion ".to_owned(),
+            actual_state: jftrade_strategy::RuntimeState::Recovering,
+            active_symbols: Vec::new(),
+            last_closed_kline_at: None,
+            last_signal_at: None,
+            last_order_at: None,
+            last_error_at: Some("2026-08-24T09:04:00+08:00".parse().expect("timestamp")),
+            last_error: Some(" worker exited ".to_owned()),
+            updated_at: None,
+        })
+        .expect("recovering runtime instance");
+    let response = request_json_with_status(
+        runtime.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(response["data"]["strategyRuntime"]["activeStrategies"], 2);
+    assert_eq!(
+        response["data"]["strategyRuntime"]["activeInstances"][1]["instanceId"],
+        "runtime-2"
+    );
+    runtime.shutdown().await.expect("shutdown product runtime");
+}
+
+#[tokio::test]
 async fn system_status_uses_only_the_typed_strategy_runtime_port() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
