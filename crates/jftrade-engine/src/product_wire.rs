@@ -75,20 +75,6 @@ fn agent_templates_wire() -> serde_json::Value {
         }]
     })
 }
-fn runtime_message(runtime: &ProductRuntimeSnapshot) -> String {
-    if let Some(error) = &runtime.last_error {
-        return format!("Rust retained runtime failed: {error}");
-    }
-    let helper = match runtime.helper_state {
-        Some(jftrade_integration_marketdata_helper::ProcessState::Ready) => "ready",
-        Some(_) => "not-ready",
-        None => "not-configured",
-    };
-    format!(
-        "Rust read-only product shadow reports system status and settings projections; PineTS workers {}/{} ready; market-data helper {helper}",
-        runtime.pine_ready, runtime.pine_total
-    )
-}
 impl ApiPort for ProductApi {
     fn dispatch(&self, request: ApiRequest) -> PortFuture<'_> {
         Box::pin(async move {

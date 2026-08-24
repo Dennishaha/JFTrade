@@ -2,7 +2,6 @@ include!("product_api_types.rs");
 struct ProductApi {
     api_port: u16,
     settings: ProductSettingsServices,
-    metrics: Arc<TransportMetrics>,
     started_at: String,
     started: Instant,
     runtime: Arc<ProductRuntimeState>,
@@ -55,17 +54,14 @@ struct ProductApi {
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     stage9_write_ports: ProductStage9WritePorts,
     notification_sequence: AtomicU64,
-    capabilities: ProductCapabilities,
 }
 impl ProductApi {
     fn new(
         api_port: u16,
         settings: ProductSettingsServices,
-        metrics: Arc<TransportMetrics>,
         runtime: Arc<ProductRuntimeState>,
         real_trade_control: RealTradeControlReader,
         optional_ports: ProductOptionalPorts,
-        capabilities: ProductCapabilities,
     ) -> Self {
         let research_screen_write_port = optional_ports.stage9_write_ports.research_screen.clone();
         let market_data_subscription_mutation =
@@ -73,7 +69,6 @@ impl ProductApi {
         Self {
             api_port,
             settings,
-            metrics,
             started_at: SystemClock.now_rfc3339(),
             started: Instant::now(),
             runtime,
@@ -130,90 +125,7 @@ impl ProductApi {
             auth_session_write_port: optional_ports.auth_session_write,
             stage9_write_ports: optional_ports.stage9_write_ports,
             notification_sequence: AtomicU64::new(0),
-            capabilities,
         }
-    }
-    fn system_status(&self) -> ApiOutput {
-        let requests = self.metrics.snapshot();
-        let uptime = duration_millis(self.started.elapsed());
-        let runtime = self.runtime.snapshot();
-        let real_trade = self.real_trade_control.snapshot();
-        let helper_ready = runtime.helper_state
-            == Some(jftrade_integration_marketdata_helper::ProcessState::Ready);
-        let message = runtime_message(&runtime);
-        let checked_at = SystemClock.now_rfc3339();
-        ApiOutput::Json(json!({
-            "name": "JFTrade",
-            "apiPort": self.api_port,
-            "defaultBroker": "futu",
-            "defaultTradingEnvironment": "SIMULATE",
-            "realTradingEnabled": real_trade.real_trading_enabled,
-            "realTradingKillSwitch": {
-                "active": real_trade.kill_switch_active,
-                "runtimeActive": real_trade.runtime_kill_switch_active,
-                "blockedOperations": real_trade.blocked_operations,
-                "allowsCancel": real_trade.allows_cancel
-            },
-            "realTradingRisk": {
-                "enabled": real_trade.risk_enabled,
-                "maxOrderQuantity": real_trade.effective_max_order_quantity,
-                "maxOrderNotional": real_trade.effective_max_order_notional,
-                "runtimeConfiguredMaxOrderQuantity": real_trade.runtime_configured_max_order_quantity,
-                "runtimeConfiguredMaxOrderNotional": real_trade.runtime_configured_max_order_notional,
-                "runtimeRiskConfigured": real_trade.runtime_risk_configured
-            },
-            "realTradeAccess": {
-                "approverAllowlistEnabled": false,
-                "approverCount": 0,
-                "adminAllowlistEnabled": false,
-                "adminCount": 0
-            },
-            "build": {
-                "version": env!("CARGO_PKG_VERSION"),
-                "commit": option_env!("JFTRADE_BUILD_COMMIT").unwrap_or("rust-development"),
-                "buildTime": option_env!("JFTRADE_BUILD_TIME").unwrap_or("development"),
-                "goos": std::env::consts::OS,
-                "goarch": std::env::consts::ARCH
-            },
-            "persistence": {
-                "engine": "rust-settings-file",
-                "databasePath": "",
-                "status": "partial",
-                "migrated": false,
-                "pendingMigrations": ["remaining capability stores"],
-                "tables": [],
-                "checkedAt": self.started_at
-            },
-            "observability": {
-                "api": { "startedAt": self.started_at, "uptimeMs": uptime },
-                "live": { "connected": 0, "limit": 100, "atLimit": false, "activeInstruments": [] },
-                "marketdata": {
-                    "status": if helper_ready { "helper-ready" } else { "not-owned" },
-                    "connected": helper_ready, "closed": !helper_ready,
-                    "generation": 0, "activeCount": 0, "lastRefreshAt": null,
-                    "quoteRetryAt": null, "quoteFailures": 0, "quoteLastError": null,
-                    "streamRetryAt": null, "streamFailures": 0, "streamLastError": null
-                },
-                "exchangeCalendars": null,
-                "broker": null,
-                "strategyRuntime": null,
-                "requests": {
-                    "started": requests.started,
-                    "completed": requests.completed,
-                    "failures": requests.failures,
-                    "inFlight": requests.in_flight
-                }
-            },
-            "runtimeResources": {
-                "checkedAt": checked_at,
-                "count": runtime.resources.len(),
-                "items": runtime.resources
-            },
-            "broker": null,
-            "strategyRuntime": { "activeStrategies": 0, "activeInstances": [] },
-            "message": message,
-            "migrationOwner": if self.capabilities.is_empty() { "read-only-shadow" } else { "cutover" }
-        }))
     }
     fn appearance(&self) -> Result<ApiOutput, ApiFailure> {
         self.settings

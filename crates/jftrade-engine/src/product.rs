@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::product_data_management;
-use crate::product_runtime::{ProductRuntimeSnapshot, ProductRuntimeState};
+use crate::product_runtime::ProductRuntimeState;
 use crate::real_trade_control::{
     REAL_TRADE_CONTROL_PATH_ENV, RealTradeControlReader, derive_real_trade_control_path,
 };
@@ -607,7 +607,6 @@ pub(crate) async fn start_product_with_runtime_state(
             cleanup_preview,
             maintenance,
         },
-        Arc::clone(&metrics),
         runtime,
         real_trade_control,
         ProductOptionalPorts {
@@ -670,7 +669,6 @@ pub(crate) async fn start_product_with_runtime_state(
             auth_session_write: config.auth_session_write_port.clone(),
             stage9_write_ports: config.stage9_write_ports.clone(),
         },
-        config.capabilities.clone(),
     ));
     let mut state = ApiState::new(routes, config.access, port);
     state.metrics = metrics;
@@ -715,6 +713,7 @@ include!("product_route_assembly.rs");
 include!("product_api.rs");
 include!("product_api_pine_worker.rs");
 include!("product_api_runtime_dependencies.rs");
+include!("product_api_system_status.rs");
 include!("product_api_system_read.rs");
 include!("product_api_backtests.rs");
 include!("product_api_backtests_write.rs");

@@ -3125,6 +3125,9 @@
         "authenticated-loopback-shadow"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-status-read.md",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_status_matches_go_stable_fields_without_claiming_migration_ownership",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

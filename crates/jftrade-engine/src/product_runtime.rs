@@ -110,8 +110,6 @@ pub struct RuntimeResourceDescriptor {
 #[derive(Clone, Debug)]
 pub(crate) struct ProductRuntimeSnapshot {
     pub resources: Vec<RuntimeResourceDescriptor>,
-    pub pine_ready: usize,
-    pub pine_total: usize,
     pub helper_state: Option<ProcessState>,
     pub last_error: Option<String>,
 }
@@ -125,8 +123,6 @@ impl ProductRuntimeState {
         Arc::new(Self {
             snapshot: RwLock::new(ProductRuntimeSnapshot {
                 resources: vec![settings_resource(settings_path)],
-                pine_ready: 0,
-                pine_total: 0,
                 helper_state: None,
                 last_error: None,
             }),
@@ -175,8 +171,6 @@ impl ProductRuntimeState {
         Arc::new(Self {
             snapshot: RwLock::new(ProductRuntimeSnapshot {
                 resources,
-                pine_ready: 0,
-                pine_total: config.pine_workers.len(),
                 helper_state: config
                     .marketdata_helper
                     .as_ref()
@@ -192,8 +186,6 @@ impl ProductRuntimeState {
             .map(|snapshot| snapshot.clone())
             .unwrap_or_else(|_| ProductRuntimeSnapshot {
                 resources: Vec::new(),
-                pine_ready: 0,
-                pine_total: 0,
                 helper_state: Some(ProcessState::Failed),
                 last_error: Some("runtime status lock is unavailable".to_owned()),
             })
@@ -203,7 +195,6 @@ impl ProductRuntimeState {
         if let Ok(mut snapshot) = self.snapshot.write()
             && health.ok
         {
-            snapshot.pine_ready = snapshot.pine_ready.saturating_add(1);
             snapshot.last_error = None;
         }
     }
