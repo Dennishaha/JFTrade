@@ -2640,14 +2640,20 @@
       "method": "GET",
       "path": "/api/v1/watchlists/remote",
       "capability": "watchlists",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-shadow",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlists-read.json",
+        "scripts/rust-migration/stage9_watchlists_read_reference_test.go::TestStage9WatchlistsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_watchlists_tests.rs::remote_watchlist_read_route_matches_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
