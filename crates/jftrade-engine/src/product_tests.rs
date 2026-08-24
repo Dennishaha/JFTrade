@@ -632,6 +632,9 @@ mod system_read_tests;
 #[path = "product_appearance_read_tests.rs"]
 mod appearance_read_tests;
 
+#[path = "product_settings_read_tests.rs"]
+mod settings_read_tests;
+
 #[path = "product_alerts_read_tests.rs"]
 mod alerts_read_tests;
 
@@ -2019,6 +2022,17 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     const DEFAULT_REGISTERED_QUALIFIED_READS: &[&str] = &[
         "/api/v1/adk/agent-templates",
         "/api/v1/research/screens/catalog",
+        "/api/v1/settings/adk",
+        "/api/v1/settings/adk/mcp",
+        "/api/v1/settings/backtest-market-data-provider",
+        "/api/v1/settings/brokers",
+        "/api/v1/settings/exchange-calendars",
+        "/api/v1/settings/execution",
+        "/api/v1/settings/market-data-provider",
+        "/api/v1/settings/onboarding",
+        "/api/v1/settings/pine-worker",
+        "/api/v1/settings/security",
+        "/api/v1/settings/system-notifications",
         "/api/v1/settings/ui",
     ];
 
