@@ -5,6 +5,8 @@ use jftrade_kernel::WireTimestamp;
 use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
 use serde::{Deserialize, Serialize};
 
+use crate::subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
+
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SubscriptionKind {
@@ -260,6 +262,35 @@ impl OpenDSubscriptionLifecycle {
             self.reconciler
                 .record_failure(subscription, now_ms, generation),
         )
+    }
+
+    /// Applies one planned action through the protocol executor and commits
+    /// the result only for the active generation. A failed subscribe remains
+    /// fenced by the reconciler's bounded retry window; stale or closed work
+    /// is ignored without touching OpenD.
+    pub fn execute_action(
+        &mut self,
+        action: &ReconcileAction,
+        now_ms: i64,
+        generation: u64,
+        executor: &mut OpenDSubscriptionExecutor,
+    ) -> Result<bool, SubscriptionExecutorError> {
+        if self.closed || generation != self.generation {
+            return Ok(false);
+        }
+        match executor.execute(action) {
+            Ok(()) => {
+                self.reconciler.record_success(action, now_ms, generation);
+                Ok(true)
+            }
+            Err(error) => {
+                if let ReconcileAction::Subscribe { subscription } = action {
+                    self.reconciler
+                        .record_failure(subscription, now_ms, generation);
+                }
+                Err(error)
+            }
+        }
     }
 
     pub fn poll_started(&self, now: WireTimestamp, generation: u64) -> bool {

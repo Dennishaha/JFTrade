@@ -6,6 +6,7 @@ mod frame;
 mod health;
 mod probe;
 mod provider;
+mod subscription_executor;
 mod subscriptions;
 mod trading;
 mod transport;
@@ -16,6 +17,7 @@ pub use health::{
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
+pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
 pub use subscriptions::{
     OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
     SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,

@@ -89,29 +89,7 @@ impl OpenDTcpProbe {
     pub fn probe(config: OpenDTcpProbeConfig) -> Result<OpenDProbe, OpenDTcpProbeError> {
         let transport = OpenDTcpTransport::connect(config.address, config.timeout)?;
         let mut client = OpenDClient::new(transport);
-        let init_request = InitConnectRequest {
-            c2s: Some(InitConnectC2s {
-                client_ver: 101,
-                client_id: config.client_id,
-                recv_notify: Some(false),
-                programming_language: Some(config.programming_language),
-            }),
-        };
-        let init_body = init_request.encode_to_vec();
-        let init_response = client
-            .call(PROTO_INIT_CONNECT, &init_body)
-            .map_err(OpenDTcpProbeError::Exchange)?;
-        let init_response =
-            InitConnectResponse::decode(init_response.as_slice()).map_err(|source| {
-                OpenDTcpProbeError::Decode {
-                    operation: "InitConnect",
-                    source,
-                }
-            })?;
-        ensure_success("InitConnect", init_response.ret_type, init_response.ret_msg)?;
-        if init_response.s2c.is_none() {
-            return Err(OpenDTcpProbeError::MissingInitState);
-        }
+        initialize_client(&mut client, &config)?;
 
         let global_body = GetGlobalStateRequest {
             c2s: Some(GetGlobalStateC2s { user_id: 0 }),
@@ -167,6 +145,36 @@ impl OpenDTcpProbe {
             version_supported,
         ))
     }
+}
+
+pub(crate) fn initialize_client(
+    client: &mut OpenDClient<OpenDTcpTransport>,
+    config: &OpenDTcpProbeConfig,
+) -> Result<(), OpenDTcpProbeError> {
+    let init_request = InitConnectRequest {
+        c2s: Some(InitConnectC2s {
+            client_ver: 101,
+            client_id: config.client_id.clone(),
+            recv_notify: Some(false),
+            programming_language: Some(config.programming_language.clone()),
+        }),
+    };
+    let init_body = init_request.encode_to_vec();
+    let init_response = client
+        .call(PROTO_INIT_CONNECT, &init_body)
+        .map_err(OpenDTcpProbeError::Exchange)?;
+    let init_response =
+        InitConnectResponse::decode(init_response.as_slice()).map_err(|source| {
+            OpenDTcpProbeError::Decode {
+                operation: "InitConnect",
+                source,
+            }
+        })?;
+    ensure_success("InitConnect", init_response.ret_type, init_response.ret_msg)?;
+    if init_response.s2c.is_none() {
+        return Err(OpenDTcpProbeError::MissingInitState);
+    }
+    Ok(())
 }
 
 fn ensure_success(

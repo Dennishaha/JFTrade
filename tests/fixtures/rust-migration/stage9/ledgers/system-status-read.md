@@ -93,8 +93,12 @@ Qualification remains blocked on owner-backed dynamic projections:
   `OpenDSubscriptionLifecycle` now combines normalized demand with physical
   subscription actions, generation-fenced callbacks, bounded 5/10/20/30-second
   retries, poll/quote/stream recorder recovery and idempotent close. Local
-  tests cover stale callbacks and old-generation rejection; real socket/push
-  worker execution and default product composition remain open.
+  tests cover stale callbacks and old-generation rejection. The explicit
+  `OpenDSubscriptionExecutor` now performs the Go-compatible `InitConnect` and
+  Qot_Sub subscribe/unsubscribe exchange over one deadline-bound TCP session,
+  with local mock coverage for market/security/subtype mapping and retType
+  rejection. Qot_Update push decoding, poll worker execution and default
+  product composition remain open.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
