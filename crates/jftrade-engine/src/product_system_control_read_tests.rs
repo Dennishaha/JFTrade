@@ -1,0 +1,71 @@
+use std::fs;
+
+use tempfile::tempdir;
+
+use super::*;
+
+const SYSTEM_CONTROL_READ_PATHS: &[&str] = &[
+    "/api/v1/system/futu-opend/install-guide",
+    "/api/v1/system/real-trade-approvals",
+    "/api/v1/system/real-trade-hard-stop-events",
+    "/api/v1/system/real-trade-hard-stops",
+    "/api/v1/system/real-trade-kill-switch",
+    "/api/v1/system/real-trade-kill-switch-events",
+    "/api/v1/system/real-trade-risk-events",
+    "/api/v1/system/real-trade-risk-limits",
+];
+
+#[tokio::test]
+async fn system_control_reads_are_authenticated_and_do_not_create_control_state() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let before = fs::read(&settings_path).expect("read settings");
+    let token = "system-control-read-token-012345678901234567890";
+    let config = ProductConfig::desktop_shadow(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+        token,
+    )
+    .expect("shadow config");
+    let handle = start_product(config).await.expect("start shadow");
+    let address = handle.startup_record().address;
+
+    let (status, response) =
+        request_json_with_status(address, "GET", SYSTEM_CONTROL_READ_PATHS[0], None, &[]).await;
+    assert_eq!(status, 401);
+    assert_eq!(response["ok"], false);
+
+    let authorization = format!("Bearer {token}");
+    for path in SYSTEM_CONTROL_READ_PATHS {
+        let (status, response) = request_json_with_status(
+            address,
+            "GET",
+            path,
+            None,
+            &[("Authorization", authorization.as_str())],
+        )
+        .await;
+        assert_eq!(status, 200, "status for {path}: {response}");
+        assert_eq!(response["ok"], true, "envelope for {path}");
+        assert!(
+            response["data"].is_object(),
+            "projection for {path}: {response}"
+        );
+    }
+    let guide = request_json_with_status(
+        address,
+        "GET",
+        SYSTEM_CONTROL_READ_PATHS[0],
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await
+    .1;
+    assert_eq!(guide["data"]["settings"]["host"], "127.0.0.1");
+    assert_eq!(guide["data"]["settings"]["minimumVersion"], "10.9.6908");
+
+    handle.shutdown().await.expect("shutdown shadow");
+    assert_eq!(fs::read(&settings_path).expect("read settings"), before);
+    assert!(!directory.path().join("real-trade-control.json").exists());
+}

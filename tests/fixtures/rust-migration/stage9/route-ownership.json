@@ -2938,14 +2938,18 @@
       "method": "GET",
       "path": "/api/v1/system/futu-opend/install-guide",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2953,14 +2957,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-approvals",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2968,14 +2977,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-hard-stop-events",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2983,14 +2997,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-hard-stops",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -2998,14 +3017,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-kill-switch",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3013,14 +3037,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-kill-switch-events",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3028,14 +3057,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-risk-events",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3043,14 +3077,19 @@
       "method": "GET",
       "path": "/api/v1/system/real-trade-risk-limits",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/system-control-read.md",
+        "crates/jftrade-engine/src/real_trade_control.rs::stage9_real_trade_reads_match_current_go_owner",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::system_control_reads_are_authenticated_and_do_not_create_control_state",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

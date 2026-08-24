@@ -629,6 +629,9 @@ mod remote_watchlist_tests;
 #[path = "product_system_read_tests.rs"]
 mod system_read_tests;
 
+#[path = "product_system_control_read_tests.rs"]
+mod system_control_read_tests;
+
 #[path = "product_appearance_read_tests.rs"]
 mod appearance_read_tests;
 
@@ -2038,6 +2041,14 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         "/api/v1/settings/security",
         "/api/v1/settings/system-notifications",
         "/api/v1/settings/ui",
+        "/api/v1/system/futu-opend/install-guide",
+        "/api/v1/system/real-trade-approvals",
+        "/api/v1/system/real-trade-hard-stop-events",
+        "/api/v1/system/real-trade-hard-stops",
+        "/api/v1/system/real-trade-kill-switch",
+        "/api/v1/system/real-trade-kill-switch-events",
+        "/api/v1/system/real-trade-risk-events",
+        "/api/v1/system/real-trade-risk-limits",
     ];
 
     let ownership: RouteOwnership = serde_json::from_str(include_str!(
