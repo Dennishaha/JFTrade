@@ -1306,14 +1306,20 @@
       "method": "GET",
       "path": "/api/v1/market-data/options/analysis/{instrumentId}",
       "capability": "market-data",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-options-read.json",
+        "scripts/rust-migration/stage9_market_data_options_read_reference_test.go::TestStage9MarketDataOptionsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_market_data_options_read_tests.rs::market_data_options_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataOptionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1321,14 +1327,20 @@
       "method": "GET",
       "path": "/api/v1/market-data/options/chains/{instrumentId}",
       "capability": "market-data",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-options-read.json",
+        "scripts/rust-migration/stage9_market_data_options_read_reference_test.go::TestStage9MarketDataOptionsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_market_data_options_read_tests.rs::market_data_options_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataOptionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1336,14 +1348,20 @@
       "method": "GET",
       "path": "/api/v1/market-data/options/events",
       "capability": "market-data",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-options-read.json",
+        "scripts/rust-migration/stage9_market_data_options_read_reference_test.go::TestStage9MarketDataOptionsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_market_data_options_read_tests.rs::market_data_options_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataOptionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1351,14 +1369,20 @@
       "method": "GET",
       "path": "/api/v1/market-data/options/expirations/{instrumentId}",
       "capability": "market-data",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-options-read.json",
+        "scripts/rust-migration/stage9_market_data_options_read_reference_test.go::TestStage9MarketDataOptionsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_market_data_options_read_tests.rs::market_data_options_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataOptionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -1366,14 +1390,20 @@
       "method": "GET",
       "path": "/api/v1/market-data/options/screens",
       "capability": "market-data",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-options-read.json",
+        "scripts/rust-migration/stage9_market_data_options_read_reference_test.go::TestStage9MarketDataOptionsReadFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_market_data_options_read_tests.rs::market_data_options_read_routes_match_group_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataOptionsReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
