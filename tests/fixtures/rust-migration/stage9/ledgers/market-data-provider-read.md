@@ -12,4 +12,4 @@
 
 The fixture covers ready health (`200`), degraded health with `lastError` and idle stream (`200`), and provider failure (`502`). `checkedAt` is normalized to `fixture-time` only by the reference generator for deterministic replay; runtime zero timestamps and nullable quota fields remain unchanged. The `fixture` query values in the corpus select fake provider behavior in the Go reference harness and are not interpreted as a new public request parameter.
 
-The operation is `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`. Rust does not connect to OpenD, start a helper, acquire subscription leases, mutate provider settings, or register any market-data mutation route.
+The operation is `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`. Authenticated loopback rehearsal covers the real Go owner wire, error/timeout/crash handling, and Go rollback after Rust restart. Rust does not connect to OpenD, start a helper, acquire subscription leases, mutate provider settings, or register any market-data mutation route.

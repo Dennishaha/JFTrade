@@ -13,8 +13,8 @@ test("Stage 9 ownership ledger records every baseline operation and derives all 
   assert.deepEqual(routeOwnershipSnapshot(), {
     baselineOperations: 278,
     shadowRoutes: 23,
-    cutoverTestOnlyRoutes: 231,
-    cutoverQualifiedRoutes: 24,
+    cutoverTestOnlyRoutes: 230,
+    cutoverQualifiedRoutes: 25,
     remainingRoutes: 0,
     goProductionOwnerRoutes: 278,
     rustProductionOwnerRoutes: 0,
