@@ -2049,6 +2049,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         "/api/v1/system/real-trade-kill-switch-events",
         "/api/v1/system/real-trade-risk-events",
         "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/storage/overview",
     ];
 
     let ownership: RouteOwnership = serde_json::from_str(include_str!(

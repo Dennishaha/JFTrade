@@ -69,3 +69,38 @@ async fn system_control_reads_are_authenticated_and_do_not_create_control_state(
     assert_eq!(fs::read(&settings_path).expect("read settings"), before);
     assert!(!directory.path().join("real-trade-control.json").exists());
 }
+
+#[tokio::test]
+async fn storage_overview_matches_the_go_empty_projection_behind_authentication() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let token = "storage-overview-read-token-012345678901234567890";
+    let config = ProductConfig::desktop_shadow(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+        token,
+    )
+    .expect("shadow config");
+    let handle = start_product(config).await.expect("start shadow");
+    let authorization = format!("Bearer {token}");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/storage/overview",
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        response["data"],
+        json!({
+            "pendingOutbox": [],
+            "recentJobs": [],
+            "recentAuditLogs": [],
+            "recentExecutionCommands": [],
+        })
+    );
+    handle.shutdown().await.expect("shutdown shadow");
+}

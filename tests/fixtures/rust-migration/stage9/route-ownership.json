@@ -3127,14 +3127,18 @@
       "method": "GET",
       "path": "/api/v1/system/storage/overview",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "authenticated-loopback-rehearsal",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/ledgers/storage-overview-read.md",
+        "crates/jftrade-engine/src/product_system_control_read_tests.rs::storage_overview_matches_the_go_empty_projection_behind_authentication",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestStorageOverviewReadRehearsalPreservesWireAndRequiresRestartForGoRollback$ -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
