@@ -14,10 +14,11 @@
 | GET | `/api/v1/watchlist/sources/{sourceId}/groups` | Returns `{groups}` for the selected remote source, preserving ambiguity and observed-at fields. | Unknown source remains Go's not-found projection; snapshot failure is `503 WATCHLIST_UNAVAILABLE`. |
 | GET | `/api/v1/watchlist/bindings` | Returns `{bindings}`, optionally filtered by the Go-owned query projection. | Snapshot failure is `503 WATCHLIST_UNAVAILABLE`. |
 | GET | `/api/v1/watchlist/import-runs` | Returns the paginated import-run page. | Snapshot failure is `503 WATCHLIST_UNAVAILABLE`; cursor and limit semantics remain Go-owned. |
+| GET | `/api/v1/watchlist/instruments/{market}/{symbol}/memberships` | Returns the normalized instrument membership revision and ordered group references from the Go-owned watchlist store. | Invalid market aliases preserve `400 WATCHLIST_INVALID`; snapshot failure is `503 WATCHLIST_UNAVAILABLE`. |
 
-The fixture contains 11 cases covering all six operations, seeded and empty projections, source and binding filters, invalid pagination, and unknown source `404`. Timestamps are fixed through the Go service clock so generated output is stable. Port-unavailable and absent-port behavior are covered for every operation in the Rust group tests.
+The primary fixture contains 11 cases covering the original six operations, seeded and empty projections, source and binding filters, invalid pagination, and unknown source `404`. The separate membership fixture adds five existing, unknown, alias, and invalid-instrument cases. Timestamps are fixed through the Go service clock so generated output is stable. Port-unavailable and absent-port behavior are covered for every operation in the Rust tests.
 
-Membership GET/PUT and all group/import/quote mutations remain separate operations. Route ownership for these six operations is now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. The default shadow catalog does not register them.
+Membership PUT and all group/import/quote mutations remain separate operations. Route ownership for these seven operations is now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. The membership read keeps its separate seeded SQLite fixture and Rust snapshot-port replay; the default shadow catalog does not register any of these routes.
 
 ## Three-way review and quirks
 

@@ -25,6 +25,7 @@ var watchlistReadRouteOperations = []string{
 	"GET /api/v1/watchlist/sources/{sourceId}/groups",
 	"GET /api/v1/watchlist/bindings",
 	"GET /api/v1/watchlist/import-runs",
+	"GET /api/v1/watchlist/instruments/{market}/{symbol}/memberships",
 }
 
 var watchlistReadWireHeaders = []string{
@@ -180,6 +181,8 @@ func TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback(t *t
 		"/api/v1/watchlist/sources/missing/groups",
 		"/api/v1/watchlist/bindings?sourceId=missing",
 		"/api/v1/watchlist/import-runs?limit=1",
+		"/api/v1/watchlist/instruments/US/MSFT/memberships",
+		"/api/v1/watchlist/instruments/BAD/AAPL/memberships",
 	}
 	for index, path := range paths {
 		requestID := fmt.Sprintf("watchlist-read-wire-%d", index+1)
@@ -359,6 +362,8 @@ func watchlistReadOperationPath(operation string) string {
 		return "/api/v1/watchlist/bindings"
 	case "GET /api/v1/watchlist/import-runs":
 		return "/api/v1/watchlist/import-runs"
+	case "GET /api/v1/watchlist/instruments/{market}/{symbol}/memberships":
+		return "/api/v1/watchlist/instruments/US/MSFT/memberships"
 	default:
 		panic("unknown watchlist read operation: " + operation)
 	}

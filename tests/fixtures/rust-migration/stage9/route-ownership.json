@@ -2568,14 +2568,20 @@
       "method": "GET",
       "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
       "capability": "watchlist",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "authenticated-loopback-rehearsal",
+        "explicit-test-cutover-profile",
+        "compatibility-evidence"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlist-memberships.json",
+        "scripts/rust-migration/stage9_watchlist_memberships_reference_test.go::TestStage9WatchlistMembershipsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_tests.rs::watchlist_memberships_route_matches_go_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
