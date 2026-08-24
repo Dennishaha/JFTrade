@@ -53,6 +53,35 @@ impl MarketDataRuntimeRecorder {
         state.runtime.generation
     }
 
+    pub fn reconfigure(&self) -> u64 {
+        let mut state = write_state(&self.inner);
+        if state.runtime.closed {
+            return state.runtime.generation;
+        }
+        state.runtime.generation = state.runtime.generation.saturating_add(1);
+        let active_count = state.active_instruments.len();
+        reset_generation(&mut state.runtime, active_count);
+        state.runtime.generation
+    }
+
+    pub fn set_stream_state(
+        &self,
+        generation: u64,
+        connected: bool,
+        error: Option<String>,
+    ) -> bool {
+        update_generation(&self.inner, generation, |state| {
+            state.connected = connected;
+            if connected {
+                state.stream_failures = 0;
+                state.stream_retry_at = None;
+                state.stream_last_error = None;
+            } else {
+                state.stream_last_error = error;
+            }
+        })
+    }
+
     pub fn record_poll_started(&self, generation: u64, now: WireTimestamp) -> bool {
         update_generation(&self.inner, generation, |state| {
             state.last_refresh_at = Some(utc(now));
@@ -235,5 +264,19 @@ mod tests {
                 now.into_inner().unix_timestamp() + expected
             );
         }
+    }
+
+    #[test]
+    fn reconfigure_preserves_demand_and_clears_previous_runtime_state() {
+        let recorder = MarketDataRuntimeRecorder::default();
+        let generation = recorder.reconcile(["US.AAPL".to_owned()]);
+        let now: WireTimestamp = "2026-08-24T00:00:00Z".parse().expect("timestamp");
+        assert!(recorder.record_quote_failure(generation, now, "down"));
+        let next = recorder.reconfigure();
+        assert_eq!(next, generation + 1);
+        let state = recorder.snapshot();
+        assert_eq!(state.active_count, 1);
+        assert_eq!(state.quote_failures, 0);
+        assert_eq!(state.quote_last_error, None);
     }
 }

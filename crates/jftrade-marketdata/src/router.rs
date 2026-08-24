@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DemandBook, DemandSnapshot, HealthStatus, InstrumentRef, MarketDataError, ProviderDescriptor,
-    ProviderReadiness, TickCache,
+    DemandBook, DemandSnapshot, HealthStatus, InstrumentRef, MarketDataError,
+    MarketDataRuntimeRecorder, ProviderDescriptor, ProviderReadiness, TickCache,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -36,6 +37,7 @@ pub struct ProviderRouter {
     generation: u64,
     demand: DemandBook,
     cache: TickCache,
+    runtime_recorder: Arc<MarketDataRuntimeRecorder>,
 }
 
 impl ProviderRouter {
@@ -46,6 +48,7 @@ impl ProviderRouter {
             generation: 0,
             demand: DemandBook::default(),
             cache: TickCache::new(cache_capacity),
+            runtime_recorder: Arc::new(MarketDataRuntimeRecorder::default()),
         }
     }
 
@@ -72,6 +75,16 @@ impl ProviderRouter {
             .get_mut(provider_id)
             .ok_or_else(|| MarketDataError::ProviderNotFound(provider_id.to_owned()))?;
         slot.health = health;
+        if provider_id == self.active {
+            let runtime = self.runtime_recorder.snapshot();
+            let _ = self.runtime_recorder.set_stream_state(
+                runtime.generation,
+                slot.health.connected && runtime.active_count > 0,
+                (runtime.active_count > 0)
+                    .then(|| slot.health.last_error.clone())
+                    .flatten(),
+            );
+        }
         Ok(())
     }
 
@@ -105,6 +118,15 @@ impl ProviderRouter {
             self.cache.clear();
             self.generation = self.generation.saturating_add(1);
             self.active = provider_id.to_owned();
+            let generation = self.runtime_recorder.reconfigure();
+            let active_count = self.runtime_recorder.snapshot().active_count;
+            let _ = self.runtime_recorder.set_stream_state(
+                generation,
+                slot.health.connected && active_count > 0,
+                (active_count > 0)
+                    .then(|| slot.health.last_error.clone())
+                    .flatten(),
+            );
         }
         Ok(self.runtime())
     }
@@ -146,19 +168,41 @@ impl ProviderRouter {
         if managed {
             self.require_streaming()?;
         }
-        self.demand.acquire(consumer_id, refs, managed, now_ms)
+        let snapshot = self.demand.acquire(consumer_id, refs, managed, now_ms)?;
+        self.sync_runtime_demand(&snapshot);
+        Ok(snapshot)
     }
 
     pub fn release_demand(&mut self, consumer_id: &str) -> bool {
-        self.demand.release(consumer_id)
+        let released = self.demand.release(consumer_id);
+        if released {
+            let snapshot = self.demand.snapshot();
+            self.sync_runtime_demand(&snapshot);
+        }
+        released
     }
 
     pub fn expire_demand(&mut self, now_ms: i64, ttl_ms: i64) -> Vec<String> {
-        self.demand.expire(now_ms, ttl_ms)
+        let expired = self.demand.expire(now_ms, ttl_ms);
+        if !expired.is_empty() {
+            let snapshot = self.demand.snapshot();
+            self.sync_runtime_demand(&snapshot);
+        }
+        expired
     }
 
     pub fn demand(&self) -> DemandSnapshot {
         self.demand.snapshot()
+    }
+
+    pub fn runtime_recorder(&self) -> Arc<MarketDataRuntimeRecorder> {
+        Arc::clone(&self.runtime_recorder)
+    }
+
+    fn sync_runtime_demand(&self, snapshot: &DemandSnapshot) {
+        let _ = self
+            .runtime_recorder
+            .reconcile(snapshot.active.iter().map(InstrumentRef::instrument_id));
     }
 
     pub fn cache(&self) -> &TickCache {
@@ -274,5 +318,53 @@ mod tests {
             router.activate("other", ActivationMode::Explicit),
             Err(MarketDataError::ManagedSubscriptionsActive)
         );
+    }
+
+    #[test]
+    fn router_drives_runtime_recorder_from_provider_and_demand_state() {
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate");
+        let snapshot = router
+            .acquire_demand(
+                "chart",
+                [InstrumentRef {
+                    channel: "SNAPSHOT".to_owned(),
+                    market: "US".to_owned(),
+                    symbol: "AAPL".to_owned(),
+                    interval: None,
+                }],
+                false,
+                0,
+            )
+            .expect("demand");
+        let runtime = router.runtime_recorder().snapshot();
+        assert_eq!(snapshot.logical_count, 1);
+        assert_eq!(runtime.active_count, 1);
+        assert!(runtime.generation > 0);
+        assert!(!runtime.connected);
+
+        router
+            .update_health(
+                "futu",
+                HealthStatus {
+                    connected: false,
+                    last_error: Some("provider down".to_owned()),
+                    ..health(ProviderReadiness::Failed, false)
+                },
+            )
+            .expect("health");
+        let runtime = router.runtime_recorder().snapshot();
+        assert!(!runtime.connected);
+        assert_eq!(runtime.stream_last_error.as_deref(), Some("provider down"));
+        assert!(router.release_demand("chart"));
+        assert_eq!(router.runtime_recorder().snapshot().active_count, 0);
     }
 }

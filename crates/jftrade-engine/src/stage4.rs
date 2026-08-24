@@ -2,10 +2,14 @@
 //! later API cutover; this type proves that capability and integration owners
 //! can be assembled without creating reverse dependencies.
 
+use std::sync::Arc;
+
 use jftrade_integration_futu::SubscriptionReconciler;
 use jftrade_integration_marketdata_helper::{HelperClient, HelperClientConfig, HttpAdapterError};
 use jftrade_integration_pine::{PoolError, WorkerPool};
-use jftrade_marketdata::{HealthStatus, MarketDataError, ProviderDescriptor, ProviderRouter};
+use jftrade_marketdata::{
+    HealthStatus, MarketDataError, MarketDataRuntimeRecorder, ProviderDescriptor, ProviderRouter,
+};
 use thiserror::Error;
 
 pub struct Stage4Assembly {
@@ -41,6 +45,10 @@ impl Stage4Assembly {
             pine: WorkerPool::new(pine_workers)?,
             futu_subscriptions: SubscriptionReconciler::new(60_000),
         })
+    }
+
+    pub fn market_data_runtime_recorder(&self) -> Arc<MarketDataRuntimeRecorder> {
+        self.marketdata.runtime_recorder()
     }
 }
 
@@ -94,6 +102,13 @@ mod tests {
         )
         .expect("assembly");
         assert_eq!(assembly.marketdata.runtime().generation, 0);
+        assert_eq!(
+            assembly
+                .market_data_runtime_recorder()
+                .snapshot()
+                .active_count,
+            0
+        );
         assert_eq!(assembly.pine.snapshot().len(), 1);
     }
 }
