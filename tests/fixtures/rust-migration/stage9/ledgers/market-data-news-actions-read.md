@@ -184,3 +184,13 @@ when the worker-owned snapshot error supplies it.
 owner: integration
 后续: Retain the regression and recheck this wire during future B-tier
 cutover qualification.
+
+## Qualification
+
+Both operations are now `cutover-qualified`, `productionOwner=go`, and
+`goRemovalStatus=retained`, based on the authenticated
+wire/error/timeout/crash/restart rehearsal. Its concrete Go requests are
+validation-boundary cases and the Futu integration is explicitly disabled on
+loopback ports `1/2`; provider success/error/retry behavior remains frozen by
+the Go fixture and Rust snapshot-port replay. Go remains the sole Provider,
+OpenD, cache, subscription, and market-data owner.

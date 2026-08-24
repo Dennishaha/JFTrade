@@ -13,4 +13,4 @@
 
 The fixture uses query values named `fixture` only to select isolated fake-provider failures in the Go reference harness; they are not new public parameters. No known Go observable quirk was found after comparing the Go baseline, fixture and Rust replay; no unresolved quirk is carried by this group.
 
-Both operations are `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`. Rust does not open market-data storage, start a helper, connect OpenD, create subscriptions, or register derivative catalog, snapshot, streaming, or mutation routes.
+Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated sidecar wire/error/timeout/crash/restart rehearsal. Its Futu integration is explicitly disabled and pinned to loopback ports `1/2`; Rust does not open market-data storage, start a helper, connect OpenD, create subscriptions, or register derivative catalog, snapshot, streaming, or mutation routes.

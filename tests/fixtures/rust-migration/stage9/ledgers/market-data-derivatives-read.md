@@ -9,7 +9,7 @@ Tier B; group-level ledger for the two read-only derivative catalog routes.
 
 ## Ownership and boundary
 
-Go `internal/api/productfeatures` and `internal/productfeatures.Service` remain the production owner of broker resolution, Provider/OpenD lifecycle, capability normalization, caching and all market-data writes. Rust receives a complete JSON snapshot only through `MarketDataDerivativeReadSnapshotPort` in explicit `cutover-test-only.v1` wiring; the default authenticated read-only shadow does not register these routes.
+Go `internal/api/productfeatures` and `internal/productfeatures.Service` remain the production owner of broker resolution, Provider/OpenD lifecycle, capability normalization, caching and all market-data writes. Rust receives a complete JSON snapshot only through `MarketDataDerivativeReadSnapshotPort` in explicit test-cutover wiring; the default authenticated read-only shadow does not register these routes. Both operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal with Futu explicitly disabled on loopback ports `1/2`.
 
 ## Evidence
 

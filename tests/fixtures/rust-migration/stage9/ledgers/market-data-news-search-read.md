@@ -141,8 +141,10 @@ imports. The focused group replay and complete Stage 9 differential are green.
   deviated; retain the integration regression.
 
 The complete group replay is green for all 16 cases plus unavailable and
-unregistered-route isolation. The group remains `cutover-test-only`; no
-cutover-qualified evidence or production owner change is implied.
+unregistered-route isolation. The route is now `cutover-qualified`,
+`productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated
+wire/error/timeout/crash/restart rehearsal with Futu explicitly disabled on
+loopback ports `1/2`; no production owner change is implied.
 
 ## Integration Completion
 
