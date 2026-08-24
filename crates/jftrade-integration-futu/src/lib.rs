@@ -20,7 +20,9 @@ pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
     plan_shadow_protocol,
 };
-pub use transport::{OpenDClient, OpenDTransport, TransportError};
+pub use transport::{
+    OpenDClient, OpenDTcpTransport, OpenDTransport, TcpTransportError, TransportError,
+};
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;
 pub const PROTO_GET_GLOBAL_STATE: u32 = 1002;

@@ -74,6 +74,11 @@ Qualification remains blocked on owner-backed dynamic projections:
   recorder; a fixture-provider test proves router demand updates reach the
   product status projection through the shared instance. This uses no real
   OpenD socket and does not change the default desktop owner.
+  `jftrade-integration-futu` now also provides a deadline-bound
+  `OpenDTcpTransport` with complete frame-length/hash validation and a local
+  mock-listener round-trip test. It remains an adapter primitive only: no
+  login probe, poll/push worker, ProviderRouter wiring or default product
+  composition uses a real OpenD socket yet.
 - Broker descriptors still have only static parity. Strategy runtime status no
   longer comes from a fabricated idle JSON object: a public typed
   `StrategyRuntimeStatusPort` now supplies the exact Go summary shape, and a
