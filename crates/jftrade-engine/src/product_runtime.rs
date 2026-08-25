@@ -10,7 +10,8 @@ use jftrade_datamanagement::{
     DATABASE_WATCHLIST, DatabaseDescriptor,
 };
 use jftrade_integration_futu::{
-    OpenDSessionCoordinator, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
+    OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDSessionCoordinator, OpenDSessionRuntime,
+    OpenDSessionRuntimeConfig,
 };
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
@@ -59,6 +60,9 @@ pub struct ProductRuntimeConfig {
     /// the session during shutdown.
     pub market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     pub market_data_opend_task: Option<OpenDSessionRuntimeConfig>,
+    /// Explicit Futu/OpenD provider bridge. This owns the router, health
+    /// activation and runtime task as one composition unit.
+    pub market_data_opend_provider: Option<OpenDProviderRuntimeConfig>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
 
@@ -109,6 +113,7 @@ impl ProductRuntimeConfig {
             market_data_runtime_recorder: None,
             market_data_opend: None,
             market_data_opend_task: None,
+            market_data_opend_provider: None,
             strategy_runtime_registry: None,
         })
     }
@@ -161,6 +166,13 @@ impl ProductRuntimeConfig {
     ) -> Self {
         self = self.with_opend_session_coordinator(coordinator);
         self.market_data_opend_task = Some(task);
+        self
+    }
+
+    /// Installs the explicit single-owner Futu/OpenD bridge. The bridge is
+    /// opt-in and therefore cannot change the default desktop composition.
+    pub fn with_opend_provider_runtime(mut self, provider: OpenDProviderRuntimeConfig) -> Self {
+        self.market_data_opend_provider = Some(provider);
         self
     }
 
@@ -268,6 +280,20 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
+        if config.market_data_opend_provider.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-provider-runtime".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "provider-router-opend-bridge".to_owned(),
+                path: "loopback OpenD API socket".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD provider runtime".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDProviderRuntime".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
         Arc::new(Self { resources })
     }
 
@@ -285,6 +311,7 @@ pub struct ProductRuntimeHandle {
     market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
     market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     market_data_opend_runtime: Option<OpenDSessionRuntime>,
+    market_data_opend_provider: Option<OpenDProviderRuntime>,
 }
 
 impl ProductRuntimeHandle {
@@ -296,15 +323,27 @@ impl ProductRuntimeHandle {
     }
 
     pub fn market_data_router(&self) -> Option<Arc<Mutex<ProviderRouter>>> {
-        self.market_data_router.clone()
+        self.market_data_router.clone().or_else(|| {
+            self.market_data_opend_provider
+                .as_ref()
+                .map(OpenDProviderRuntime::router)
+        })
     }
 
     pub fn market_data_opend(&self) -> Option<Arc<Mutex<OpenDSessionCoordinator>>> {
-        self.market_data_opend.clone()
+        self.market_data_opend.clone().or_else(|| {
+            self.market_data_opend_provider
+                .as_ref()
+                .map(OpenDProviderRuntime::coordinator)
+        })
     }
 
     pub fn market_data_opend_runtime(&self) -> Option<&OpenDSessionRuntime> {
-        self.market_data_opend_runtime.as_ref()
+        self.market_data_opend_runtime.as_ref().or_else(|| {
+            self.market_data_opend_provider
+                .as_ref()
+                .map(OpenDProviderRuntime::runtime)
+        })
     }
 
     pub fn set_market_data_opend_demand(
@@ -329,6 +368,11 @@ impl ProductRuntimeHandle {
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
                 .close()
+        {
+            failures.push(error.to_string());
+        }
+        if let Some(provider) = self.market_data_opend_provider.take()
+            && let Err(error) = provider.shutdown()
         {
             failures.push(error.to_string());
         }
@@ -364,6 +408,7 @@ impl Drop for ProductRuntimeHandle {
             worker.terminate();
         }
         drop(self.market_data_opend_runtime.take());
+        drop(self.market_data_opend_provider.take());
         drop(self.product.take());
     }
 }
@@ -371,7 +416,12 @@ impl Drop for ProductRuntimeHandle {
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
-    if config.market_data_router.is_some() && config.market_data_opend.is_some() {
+    if config.market_data_opend_provider.is_some()
+        && (config.market_data_router.is_some()
+            || config.market_data_runtime_recorder.is_some()
+            || config.market_data_opend.is_some()
+            || config.market_data_opend_task.is_some())
+    {
         return Err(ProductRuntimeError::ConflictingMarketDataOwners);
     }
     if config.market_data_opend_task.is_some() && config.market_data_opend.is_none() {
@@ -380,7 +430,22 @@ pub async fn start_product_runtime(
     let market_data_router = config.market_data_router.take();
     let market_data_opend = config.market_data_opend.take();
     let market_data_opend_task = config.market_data_opend_task.take();
-    if let Some(router) = market_data_router.as_ref() {
+    let market_data_opend_provider =
+        if let Some(provider) = config.market_data_opend_provider.clone() {
+            Some(OpenDProviderRuntime::start(provider)?)
+        } else {
+            None
+        };
+    if let Some(provider) = market_data_opend_provider.as_ref() {
+        let recorder = provider
+            .router()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .runtime_recorder();
+        config.product = config
+            .product
+            .with_market_data_runtime_status_port(recorder);
+    } else if let Some(router) = market_data_router.as_ref() {
         let recorder = router
             .lock()
             .unwrap_or_else(|error| error.into_inner())
@@ -414,6 +479,7 @@ pub async fn start_product_runtime(
         market_data_router,
         market_data_opend,
         market_data_opend_runtime: None,
+        market_data_opend_provider,
     };
 
     if let (Some(coordinator), Some(task_config)) =
@@ -712,76 +778,12 @@ pub enum ProductRuntimeError {
     MissingOpenDSession,
     #[error("manage OpenD runtime task: {0}")]
     OpenDTask(#[from] jftrade_integration_futu::OpenDSessionRuntimeError),
+    #[error("compose OpenD provider runtime: {0}")]
+    OpenDProvider(#[from] jftrade_integration_futu::OpenDProviderRuntimeError),
     #[error("stop Rust product runtime: {0}")]
     Shutdown(String),
 }
 
 #[cfg(test)]
-mod tests {
-    use std::net::{Ipv4Addr, SocketAddr};
-
-    use jftrade_api::AccessPolicy;
-    use tempfile::tempdir;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
-        let directory = tempdir().expect("temporary directory");
-        let product = ProductConfig::new(
-            SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0),
-            directory.path().join("settings.json"),
-            AccessPolicy::default(),
-        )
-        .expect("product config");
-        let config = ProductRuntimeConfig {
-            product,
-            pine_workers: Vec::new(),
-            marketdata_helper: None,
-            market_data_router: None,
-            market_data_runtime_recorder: None,
-            market_data_opend: None,
-            market_data_opend_task: None,
-            strategy_runtime_registry: None,
-        };
-        let snapshot = ProductRuntimeState::configured(&config).snapshot();
-        let runtime = start_product_runtime(config).await.expect("start runtime");
-        assert_eq!(runtime.startup_record().owned_routes, 26);
-        assert_eq!(snapshot.resources.len(), 11);
-        assert_eq!(snapshot.resources[0].id, "settings-file");
-        assert_eq!(snapshot.resources[1].id, "backtest-kline-db");
-        assert_eq!(snapshot.resources[9].id, "research-db");
-        assert_eq!(snapshot.resources[10].id, "real-trade-control");
-        assert!(
-            snapshot.resources[1..10]
-                .iter()
-                .all(|resource| resource.kind == "sqlite")
-        );
-        runtime.shutdown().await.expect("shutdown");
-    }
-
-    #[tokio::test]
-    async fn opend_runtime_task_requires_explicit_session_composition() {
-        let directory = tempdir().expect("temporary directory");
-        let product = ProductConfig::new(
-            SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0),
-            directory.path().join("settings.json"),
-            AccessPolicy::default(),
-        )
-        .expect("product config");
-        let config = ProductRuntimeConfig {
-            product,
-            pine_workers: Vec::new(),
-            marketdata_helper: None,
-            market_data_router: None,
-            market_data_runtime_recorder: None,
-            market_data_opend: None,
-            market_data_opend_task: Some(OpenDSessionRuntimeConfig::default()),
-            strategy_runtime_registry: None,
-        };
-        assert!(matches!(
-            start_product_runtime(config).await,
-            Err(ProductRuntimeError::MissingOpenDSession)
-        ));
-    }
-}
+#[path = "product_runtime_tests.rs"]
+mod product_runtime_tests;

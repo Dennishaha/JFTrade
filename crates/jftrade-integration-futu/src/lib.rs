@@ -9,6 +9,7 @@ mod health;
 mod managed_session;
 mod probe;
 mod provider;
+mod provider_runtime;
 mod quote_push;
 mod runtime_task;
 mod session_coordinator;
@@ -30,6 +31,9 @@ pub use managed_session::{
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
+pub use provider_runtime::{
+    OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDProviderRuntimeError,
+};
 pub use quote_push::{
     BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,

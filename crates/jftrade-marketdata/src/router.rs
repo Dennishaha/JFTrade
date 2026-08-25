@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ pub struct ProviderRouter {
     active: String,
     generation: u64,
     demand: DemandBook,
-    cache: TickCache,
+    cache: Arc<Mutex<TickCache>>,
     runtime_recorder: Arc<MarketDataRuntimeRecorder>,
 }
 
@@ -47,7 +47,7 @@ impl ProviderRouter {
             active: String::new(),
             generation: 0,
             demand: DemandBook::default(),
-            cache: TickCache::new(cache_capacity),
+            cache: Arc::new(Mutex::new(TickCache::new(cache_capacity))),
             runtime_recorder: Arc::new(MarketDataRuntimeRecorder::default()),
         }
     }
@@ -62,6 +62,30 @@ impl ProviderRouter {
             descriptor.selection_id.clone(),
             ProviderSlot { descriptor, health },
         );
+        Ok(())
+    }
+
+    /// Deactivates a provider without deleting its static descriptor. This is
+    /// used by explicit composition rollback when session startup fails after
+    /// registration; it never coexists with managed demand.
+    pub fn deactivate(&mut self, provider_id: &str) -> Result<(), MarketDataError> {
+        if self.demand.has_managed_consumers() {
+            return Err(MarketDataError::ManagedSubscriptionsActive);
+        }
+        if !self.providers.contains_key(provider_id) {
+            return Err(MarketDataError::ProviderNotFound(provider_id.to_owned()));
+        }
+        if self.active == provider_id {
+            self.active.clear();
+            self.cache
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .clear();
+            let generation = self.runtime_recorder.reconfigure();
+            let _ = self
+                .runtime_recorder
+                .set_stream_state(generation, false, None);
+        }
         Ok(())
     }
 
@@ -115,7 +139,10 @@ impl ProviderRouter {
             });
         }
         if self.active != provider_id {
-            self.cache.clear();
+            self.cache
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .clear();
             self.generation = self.generation.saturating_add(1);
             self.active = provider_id.to_owned();
             let generation = self.runtime_recorder.reconfigure();
@@ -199,18 +226,26 @@ impl ProviderRouter {
         Arc::clone(&self.runtime_recorder)
     }
 
+    /// Returns the cache owned by this router so an explicitly composed
+    /// provider task can update the same generation-fenced samples. The
+    /// default product does not create a provider task, so this remains a
+    /// composition seam rather than a second runtime owner.
+    pub fn cache_handle(&self) -> Arc<Mutex<TickCache>> {
+        Arc::clone(&self.cache)
+    }
+
     fn sync_runtime_demand(&self, snapshot: &DemandSnapshot) {
         let _ = self
             .runtime_recorder
             .reconcile(snapshot.active.iter().map(InstrumentRef::instrument_id));
     }
 
-    pub fn cache(&self) -> &TickCache {
-        &self.cache
+    pub fn cache(&self) -> MutexGuard<'_, TickCache> {
+        self.cache.lock().unwrap_or_else(|error| error.into_inner())
     }
 
-    pub fn cache_mut(&mut self) -> &mut TickCache {
-        &mut self.cache
+    pub fn cache_mut(&self) -> MutexGuard<'_, TickCache> {
+        self.cache.lock().unwrap_or_else(|error| error.into_inner())
     }
 }
 
@@ -318,6 +353,25 @@ mod tests {
             router.activate("other", ActivationMode::Explicit),
             Err(MarketDataError::ManagedSubscriptionsActive)
         );
+    }
+
+    #[test]
+    fn deactivation_fences_cache_and_marks_router_inactive() {
+        let mut router = ProviderRouter::new(2);
+        router
+            .register(
+                descriptor("futu", true),
+                health(ProviderReadiness::Ready, true),
+            )
+            .expect("register");
+        router
+            .activate("futu", ActivationMode::Explicit)
+            .expect("activate");
+        let generation = router.runtime_recorder().reconcile(["US.AAPL".to_owned()]);
+        assert!(router.deactivate("futu").is_ok());
+        assert!(router.runtime().active_provider.is_empty());
+        assert!(router.cache().instrument_count() == 0);
+        assert!(router.runtime_recorder().snapshot().generation > generation);
     }
 
     #[test]

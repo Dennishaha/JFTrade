@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use jftrade_kernel::WireTimestamp;
-use jftrade_marketdata::{InstrumentRef, TickCache};
+use jftrade_marketdata::{InstrumentRef, ProviderRouter, TickCache};
 use thiserror::Error;
 
 use crate::{
@@ -51,6 +51,8 @@ pub enum OpenDSessionRuntimeError {
     WorkerStart(#[source] io::Error),
     #[error("OpenD runtime coordinator failed: {0}")]
     Coordinator(#[from] OpenDSessionCoordinatorError),
+    #[error("OpenD runtime and ProviderRouter must share one MarketDataRuntimeRecorder")]
+    SharedRecorderMismatch,
 }
 
 /// Explicit owner for OpenD cadence, dynamic demand and snapshot cache.
@@ -63,6 +65,7 @@ pub struct OpenDSessionRuntime {
     coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
     demand: Arc<RwLock<Vec<InstrumentRef>>>,
     cache: Arc<Mutex<TickCache>>,
+    router: Option<Arc<Mutex<ProviderRouter>>>,
     status: Arc<Mutex<OpenDSessionRuntimeStatus>>,
     stop_tx: Option<mpsc::Sender<()>>,
     worker: Option<JoinHandle<()>>,
@@ -84,20 +87,58 @@ impl OpenDSessionRuntime {
         coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
         config: OpenDSessionRuntimeConfig,
     ) -> Result<Self, OpenDSessionRuntimeError> {
+        let cache = Arc::new(Mutex::new(TickCache::new(
+            config.cache_capacity_per_instrument,
+        )));
+        Self::start_inner(coordinator, cache, None, config)
+    }
+
+    /// Starts the task with a ProviderRouter as the sole demand owner and its
+    /// cache as the sole quote-snapshot owner. The task only consumes the
+    /// router's normalized demand; callers must continue to mutate demand via
+    /// `ProviderRouter::acquire_demand`/`release_demand`.
+    pub fn start_with_provider_router(
+        coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+        router: Arc<Mutex<ProviderRouter>>,
+        config: OpenDSessionRuntimeConfig,
+    ) -> Result<Self, OpenDSessionRuntimeError> {
+        let coordinator_recorder = coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .lifecycle()
+            .recorder();
+        let router_recorder = router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .runtime_recorder();
+        if !Arc::ptr_eq(&coordinator_recorder, &router_recorder) {
+            return Err(OpenDSessionRuntimeError::SharedRecorderMismatch);
+        }
+        let cache = router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .cache_handle();
+        Self::start_inner(coordinator, cache, Some(router), config)
+    }
+
+    fn start_inner(
+        coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+        cache: Arc<Mutex<TickCache>>,
+        router: Option<Arc<Mutex<ProviderRouter>>>,
+        config: OpenDSessionRuntimeConfig,
+    ) -> Result<Self, OpenDSessionRuntimeError> {
         let initial_demand = coordinator
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .desired();
         let demand = Arc::new(RwLock::new(initial_demand));
-        let cache = Arc::new(Mutex::new(TickCache::new(
-            config.cache_capacity_per_instrument,
-        )));
         let status = Arc::new(Mutex::new(OpenDSessionRuntimeStatus::default()));
         let (stop_tx, stop_rx) = mpsc::channel();
         let worker_demand = Arc::clone(&demand);
         let worker_cache = Arc::clone(&cache);
         let worker_status = Arc::clone(&status);
         let worker_coordinator = Arc::clone(&coordinator);
+        let worker_router = router.clone();
         let worker = thread::Builder::new()
             .name("jftrade-opend-runtime".to_owned())
             .spawn(move || {
@@ -106,6 +147,7 @@ impl OpenDSessionRuntime {
                     worker_demand,
                     worker_cache,
                     worker_status,
+                    worker_router,
                     stop_rx,
                     config,
                 )
@@ -115,6 +157,7 @@ impl OpenDSessionRuntime {
             coordinator,
             demand,
             cache,
+            router,
             status,
             stop_tx: Some(stop_tx),
             worker: Some(worker),
@@ -126,6 +169,13 @@ impl OpenDSessionRuntime {
     }
 
     pub fn demand(&self) -> Vec<InstrumentRef> {
+        if let Some(router) = self.router.as_ref() {
+            return router
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .demand()
+                .active;
+        }
         self.demand
             .read()
             .unwrap_or_else(|error| error.into_inner())
@@ -133,6 +183,9 @@ impl OpenDSessionRuntime {
     }
 
     pub fn set_demand(&self, demand: Vec<InstrumentRef>) {
+        if self.router.is_some() {
+            return;
+        }
         *self
             .demand
             .write()
@@ -141,6 +194,10 @@ impl OpenDSessionRuntime {
 
     pub fn cache(&self) -> Arc<Mutex<TickCache>> {
         Arc::clone(&self.cache)
+    }
+
+    pub fn uses_provider_router(&self) -> bool {
+        self.router.is_some()
     }
 
     pub fn status(&self) -> OpenDSessionRuntimeStatus {
@@ -191,6 +248,7 @@ fn run_task(
     demand: Arc<RwLock<Vec<InstrumentRef>>>,
     cache: Arc<Mutex<TickCache>>,
     status: Arc<Mutex<OpenDSessionRuntimeStatus>>,
+    router: Option<Arc<Mutex<ProviderRouter>>>,
     stop_rx: mpsc::Receiver<()>,
     config: OpenDSessionRuntimeConfig,
 ) {
@@ -198,10 +256,21 @@ fn run_task(
     let event_timeout = positive_duration(config.event_timeout, Duration::from_millis(10));
     while stop_rx.recv_timeout(poll_interval).is_err() {
         let now = WireTimestamp::from_offset_datetime(time::OffsetDateTime::now_utc());
-        let desired = demand
-            .read()
-            .unwrap_or_else(|error| error.into_inner())
-            .clone();
+        let desired = router
+            .as_ref()
+            .map(|router| {
+                router
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .demand()
+                    .active
+            })
+            .unwrap_or_else(|| {
+                demand
+                    .read()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .clone()
+            });
         let mut coordinator = coordinator
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -327,6 +396,69 @@ mod tests {
                 .close()
                 .expect("idempotent close")
         );
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn provider_router_task_uses_router_demand_and_cache_without_a_second_owner() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = crate::transport::read_framed_frame(&mut stream).expect("init");
+            let body = InitResponse {
+                ret_type: Some(0),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 1,
+                }),
+            }
+            .encode_to_vec();
+            stream
+                .write_all(
+                    &crate::encode_frame(PROTO_INIT_CONNECT, init.header.serial_no, &body)
+                        .expect("response frame"),
+                )
+                .expect("write response");
+            std::thread::sleep(Duration::from_millis(50));
+        });
+        let router = Arc::new(Mutex::new(jftrade_marketdata::ProviderRouter::new(2)));
+        let recorder = router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .runtime_recorder();
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                recorder,
+                vec![],
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        let mut runtime = OpenDSessionRuntime::start_with_provider_router(
+            Arc::clone(&coordinator),
+            Arc::clone(&router),
+            OpenDSessionRuntimeConfig {
+                poll_interval: Duration::from_millis(5),
+                event_timeout: Duration::from_millis(1),
+                ..OpenDSessionRuntimeConfig::default()
+            },
+        )
+        .expect("router task");
+        assert!(runtime.uses_provider_router());
+        assert!(Arc::ptr_eq(
+            &runtime.cache(),
+            &router.lock().unwrap().cache_handle()
+        ));
+        runtime.set_demand(vec![InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        }]);
+        assert!(runtime.demand().is_empty());
+        runtime.shutdown().expect("shutdown");
         server.join().expect("server");
     }
 }

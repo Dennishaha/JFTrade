@@ -375,3 +375,31 @@ Verification: `cargo test -p jftrade-marketdata --lib -- --nocapture`; `cargo te
 Current route coverage remains 1 shadow / 133 cutover-test-only / 144
 cutover-qualified / 0 remaining / 0 Rust production owner. The ledger retains
 `productionOwner=go` and `goRemovalStatus=retained`.
+
+## Explicit OpenD provider bridge (2026-08-25)
+
+Rust now has an opt-in `OpenDProviderRuntime` composition boundary. It probes
+OpenD, maps the probe to broker-neutral `HealthStatus`, registers and explicitly
+activates one Futu descriptor in a supplied `ProviderRouter`, acquires the
+initial demand, and starts `OpenDSessionRuntime` against the router's exact
+recorder, demand snapshot and `TickCache` handles. The runtime task rejects a
+recorder mismatch and ignores direct `set_demand` when the router is its demand
+owner, preventing a second demand/cache lifecycle. Startup failure deactivates
+the provider and releases the bridge demand. Product runtime exposes this only
+through `with_opend_provider_runtime`; default desktop composition still leaves
+the field absent, does not probe/connect OpenD, and does not activate a
+ProviderRouter. No route ownership or production owner changed.
+
+quirk: The explicit provider bridge performs a short health probe before opening
+the long-lived push session, preserving the existing Go-compatible probe/data
+connection role split while avoiding duplicate ProviderRouter or recorder state.
+范围: `system-status-read` / Futu OpenD provider composition
+证据: `OpenDProviderRuntime`, `OpenDSessionRuntime::start_with_provider_router`,
+`ProviderRouter::cache_handle`, and router/runtime task unit tests.
+分类: rust-implementation
+判定: intended
+处置: retain as explicit composition; do not call from the default profile.
+风险: high
+owner: Rust integration / engine composition
+后续: connect real provider lifecycle only after live OpenD differential,
+reconnect/backoff, release recovery and owner qualification are complete.

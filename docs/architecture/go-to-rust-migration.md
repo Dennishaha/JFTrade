@@ -692,3 +692,13 @@ calendar control-plane 的 test-cutover 现在只接受一个真实 `CalendarMan
    | 2026-08-25 | OpenD runtime-owned task 与动态 demand seam 接入 | `OpenDSessionRuntime` 仅在显式 `with_opend_session_runtime` composition 下启动 bounded 独立 task，统一驱动 `poll_once`、generation-fenced snapshot poll、共享 `TickCache` 与 demand topology reconcile；`set_market_data_opend_demand` 提供受控动态 demand source，task status 记录 iteration/snapshot/reconnect/error，shutdown join 后关闭唯一 coordinator。默认 profile 不启动该 task、不连接真实 OpenD、不激活 ProviderRouter，Go 仍是 production owner；真实 OpenD reconnect/backoff、ProviderRouter activation、live differential、发布恢复与正式 owner gate 仍未完成 |
 
 完成每个阶段时在本表追加最终决策；大量一次性测试日志留在 CI artifact/提交，不复制进长期文档。
+
+2026-08-25：Stage 9 增加显式 `OpenDProviderRuntime` bridge。该 composition
+先执行 OpenD health probe，再在调用方提供的 `ProviderRouter` 中注册/激活
+Futu descriptor，复用同一 `MarketDataRuntimeRecorder`、demand snapshot 与
+`TickCache` 启动 `OpenDSessionRuntime`；recorder 不一致、session 启动失败和
+shutdown 均 fail closed/回滚 demand。默认 desktop composition 不调用该
+bridge，不连接真实 OpenD，不启动 ProviderRouter，Go 仍是唯一 production
+owner。真实 OpenD live differential、reconnect/backoff、发布恢复和 owner
+qualification 仍未完成，route 统计保持 1 shadow / 133 cutover-test-only /
+144 cutover-qualified / 0 remaining / 0 Rust production owner。

@@ -203,6 +203,13 @@ impl OpenDSessionCoordinator {
         &self.lifecycle
     }
 
+    /// Returns the recorder shared by the lifecycle and an explicitly
+    /// composed ProviderRouter. Composition roots use pointer identity to
+    /// reject a second runtime status owner before starting a task.
+    pub fn recorder(&self) -> Arc<MarketDataRuntimeRecorder> {
+        Arc::clone(&self.recorder)
+    }
+
     pub fn generation(&self) -> u64 {
         self.lifecycle.generation()
     }
