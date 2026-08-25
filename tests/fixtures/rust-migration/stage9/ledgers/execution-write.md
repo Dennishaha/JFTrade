@@ -241,21 +241,24 @@ agree on the exercised boundary; durable store evidence is explicitly absent.
   authenticated explicit `ExecutionWritePort`; default and read-only profiles
   remain unchanged. `route-ownership.json` records them as
   `cutover-test-only`, with Go still the production owner.
-- The dynamic gate after integration is `278 baseline / 26 shadow / 242
-  cutover-test-only / 0 cutover-qualified / 10 remaining / 0 Rust production
+- The current dynamic gate is `278 baseline / 1 shadow / 120
+  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
   owner`.
 - No default profile, production owner, broker/OpenD connection, SQLite write,
   notification/task side effect, Wails binding, OpenAPI asset, or Go deletion
-  changed in this worker commit.
+  changed in this wave.
 
 ## Verification handoff
 
 - Go fixture reference: `go test scripts/rust-migration/stage9_execution_write_reference_test.go -run '^TestStage9ExecutionWriteFixtureMatchesCurrentGoOwner$' -count=1`.
 - Rust replay: `cargo test -p jftrade-engine --test stage9_execution_write -- --nocapture`.
 - Differential: `node scripts/rust-migration/check-stage9-execution-write.mjs`.
+- Authenticated Go loopback rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestExecutionWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1` passed, covering private bearer/internal protocol, browser context forwarding, success/error/timeout/cancellation, crash fail-closed behavior, Go rollback, restart recovery, and unchanged settings bytes.
+- Authenticated Rust product replay: `cargo test -p jftrade-engine --lib product::tests::execution_write_product_tests -- --nocapture` passed, covering explicit registration, browser auth/CSRF fencing, unavailable/error/recovery, all seven route projections, repeated order forwarding, restart, and unchanged settings bytes.
 - Integration verification: dedicated differential, Rust leaf replay, product
   route-isolation test, route coverage, layout, focused Clippy, `node --check`,
-  and `git diff --check` all pass.
+  `git diff --check`, `check:quick`, and full `check:rust` pass after this
+  wave's final composition.
 - This is a rehearsal only; A-tier unique-owner switch, production ledger
   fencing, broker/OpenD live, durable recovery, four-platform signed release,
   security/SBOM, backup/restore, and hard-cut gates remain open.
