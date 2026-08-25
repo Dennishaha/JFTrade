@@ -702,3 +702,10 @@ bridge，不连接真实 OpenD，不启动 ProviderRouter，Go 仍是唯一 prod
 owner。真实 OpenD live differential、reconnect/backoff、发布恢复和 owner
 qualification 仍未完成，route 统计保持 1 shadow / 133 cutover-test-only /
 144 cutover-qualified / 0 remaining / 0 Rust production owner。
+
+2026-08-25：OpenD runtime task 增加 provider-health feedback。显式
+`ProviderRouter` composition 现在从同一 recorder 的 active generation、连接、
+quote/stream error 和 close 状态同步 provider readiness；断线进入 failed，
+恢复回到 ready，空 demand 不伪造失败状态。该同步只在显式 provider bridge
+启动时启用，不改变默认 profile、route ownership 或 Go production owner；真实
+OpenD live/reconnect differential 与 release recovery 仍是正式 qualification 前置条件。

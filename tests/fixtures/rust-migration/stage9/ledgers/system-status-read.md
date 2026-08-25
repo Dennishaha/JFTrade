@@ -403,3 +403,28 @@ connection role split while avoiding duplicate ProviderRouter or recorder state.
 owner: Rust integration / engine composition
 后续: connect real provider lifecycle only after live OpenD differential,
 reconnect/backoff, release recovery and owner qualification are complete.
+
+## Provider health feedback (2026-08-25)
+
+`OpenDSessionRuntime` now feeds the active provider slot from the same recorder
+used by the product status port. For active demand, stream/quote errors or a
+closed session map to `ProviderReadiness::Failed`; an active connected
+generation maps back to `Ready`; a connected-but-not-yet-ready generation maps
+to `Warming`. Empty demand leaves the initial provider health unchanged, so the
+bridge does not manufacture a failure while idle. The feedback is only wired
+by `start_with_provider_router` and remains absent from the default desktop
+profile. Router/runtime tests cover failure and recovery without a real OpenD.
+
+quirk: Provider health is derived from the recorder rather than independently
+probing or writing a second lifecycle state, preserving one generation/error
+source and avoiding provider/router double ownership.
+范围: `system-status-read` / OpenD provider health feedback
+证据: `sync_provider_health` and
+`runtime_task::tests::provider_health_sync_replays_recorder_failure_and_recovery`.
+分类: rust-implementation
+判定: intended
+处置: retain explicit feedback; qualify only after real OpenD reconnect/live
+differential and release recovery evidence.
+风险: high
+owner: Rust integration / engine composition
+后续: keep Go production owner and route shadow until all closeout gates pass.

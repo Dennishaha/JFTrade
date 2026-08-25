@@ -4,7 +4,9 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use jftrade_kernel::WireTimestamp;
-use jftrade_marketdata::{InstrumentRef, ProviderRouter, TickCache};
+use jftrade_marketdata::{
+    HealthStatus, InstrumentRef, ProviderReadiness, ProviderRouter, TickCache,
+};
 use thiserror::Error;
 
 use crate::{
@@ -139,18 +141,33 @@ impl OpenDSessionRuntime {
         let worker_status = Arc::clone(&status);
         let worker_coordinator = Arc::clone(&coordinator);
         let worker_router = router.clone();
+        let provider_id = router.as_ref().and_then(|router| {
+            let provider_id = router
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .runtime()
+                .active_provider;
+            (!provider_id.is_empty()).then_some(provider_id)
+        });
+        let recorder = coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .recorder();
+        let worker_provider_id = provider_id.clone();
         let worker = thread::Builder::new()
             .name("jftrade-opend-runtime".to_owned())
             .spawn(move || {
-                run_task(
-                    worker_coordinator,
-                    worker_demand,
-                    worker_cache,
-                    worker_status,
-                    worker_router,
+                run_task(RuntimeTaskContext {
+                    coordinator: worker_coordinator,
+                    demand: worker_demand,
+                    cache: worker_cache,
+                    status: worker_status,
+                    router: worker_router,
+                    provider_id: worker_provider_id,
+                    recorder,
                     stop_rx,
                     config,
-                )
+                })
             })
             .map_err(OpenDSessionRuntimeError::WorkerStart)?;
         Ok(Self {
@@ -243,15 +260,30 @@ impl Drop for OpenDSessionRuntime {
     }
 }
 
-fn run_task(
+struct RuntimeTaskContext {
     coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
     demand: Arc<RwLock<Vec<InstrumentRef>>>,
     cache: Arc<Mutex<TickCache>>,
     status: Arc<Mutex<OpenDSessionRuntimeStatus>>,
     router: Option<Arc<Mutex<ProviderRouter>>>,
+    provider_id: Option<String>,
+    recorder: Arc<jftrade_marketdata::MarketDataRuntimeRecorder>,
     stop_rx: mpsc::Receiver<()>,
     config: OpenDSessionRuntimeConfig,
-) {
+}
+
+fn run_task(context: RuntimeTaskContext) {
+    let RuntimeTaskContext {
+        coordinator,
+        demand,
+        cache,
+        status,
+        router,
+        provider_id,
+        recorder,
+        stop_rx,
+        config,
+    } = context;
     let poll_interval = positive_duration(config.poll_interval, Duration::from_millis(100));
     let event_timeout = positive_duration(config.event_timeout, Duration::from_millis(10));
     while stop_rx.recv_timeout(poll_interval).is_err() {
@@ -300,10 +332,50 @@ fn run_task(
                 state.snapshot_polls = state.snapshot_polls.saturating_add(1);
             }
         }
+        drop(coordinator);
+        if let (Some(router), Some(provider_id)) = (router.as_ref(), provider_id.as_deref()) {
+            sync_provider_health(router, provider_id, &recorder);
+        }
         let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
         state.iterations = state.iterations.saturating_add(1);
         state.last_error = iteration_error;
     }
+}
+
+fn sync_provider_health(
+    router: &Arc<Mutex<ProviderRouter>>,
+    provider_id: &str,
+    recorder: &jftrade_marketdata::MarketDataRuntimeRecorder,
+) {
+    let state = recorder.snapshot();
+    if state.active_count == 0 && !state.closed {
+        return;
+    }
+    let error = state
+        .stream_last_error
+        .clone()
+        .or(state.quote_last_error.clone())
+        .or_else(|| state.closed.then(|| "OpenD session closed".to_owned()));
+    let readiness = if state.closed || error.is_some() {
+        ProviderReadiness::Failed
+    } else if state.connected {
+        ProviderReadiness::Ready
+    } else {
+        ProviderReadiness::Warming
+    };
+    let _ = router
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .update_health(
+            provider_id,
+            HealthStatus {
+                connected: state.connected && !state.closed,
+                readiness,
+                stream_mode: "streaming".to_owned(),
+                active_count: state.active_count,
+                last_error: error,
+            },
+        );
 }
 
 fn positive_duration(value: Duration, fallback: Duration) -> Duration {
@@ -460,5 +532,59 @@ mod tests {
         assert!(runtime.demand().is_empty());
         runtime.shutdown().expect("shutdown");
         server.join().expect("server");
+    }
+
+    #[test]
+    fn provider_health_sync_replays_recorder_failure_and_recovery() {
+        let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+        let router = Arc::new(Mutex::new(jftrade_marketdata::ProviderRouter::new(2)));
+        let descriptor = jftrade_marketdata::ProviderDescriptor {
+            selection_id: "futu".to_owned(),
+            provider_id: "futu".to_owned(),
+            display_name: "Futu OpenD".to_owned(),
+            broker_id: Some("futu".to_owned()),
+            source: "futu".to_owned(),
+            default_market: "US".to_owned(),
+            supported_markets: vec!["US".to_owned()],
+            transports: vec!["stream".to_owned()],
+            capabilities: jftrade_marketdata::ProviderCapabilities {
+                snapshots: true,
+                streaming_quotes: true,
+                ..Default::default()
+            },
+            constraints: jftrade_marketdata::ProviderConstraints::default(),
+            notes: Vec::new(),
+        };
+        {
+            let mut router_guard = router.lock().expect("router");
+            router_guard
+                .register(
+                    descriptor,
+                    jftrade_marketdata::HealthStatus {
+                        connected: true,
+                        readiness: ProviderReadiness::Ready,
+                        stream_mode: "streaming".to_owned(),
+                        ..Default::default()
+                    },
+                )
+                .expect("register");
+            router_guard
+                .activate("futu", jftrade_marketdata::ActivationMode::Explicit)
+                .expect("activate");
+        }
+        let generation = recorder.reconcile(["US.AAPL".to_owned()]);
+        let now: WireTimestamp = "2026-08-25T00:00:00Z".parse().expect("timestamp");
+        recorder.record_stream_failure(generation, now, "socket closed");
+        sync_provider_health(&router, "futu", &recorder);
+        assert_eq!(
+            router.lock().expect("router").runtime().readiness,
+            ProviderReadiness::Failed
+        );
+        recorder.record_stream_connected(generation);
+        sync_provider_health(&router, "futu", &recorder);
+        assert_eq!(
+            router.lock().expect("router").runtime().readiness,
+            ProviderReadiness::Ready
+        );
     }
 }
