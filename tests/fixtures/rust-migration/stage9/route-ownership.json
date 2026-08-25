@@ -3788,14 +3788,21 @@
       "method": "POST",
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/alerts-write.json",
+        "scripts/rust-migration/stage9_alerts_write_reference_test.go::TestStage9AlertsWriteFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/product_alerts_write_tests.rs::alerts_write_routes_match_go_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestAlertsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "node scripts/rust-migration/check-stage9-alerts-write.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3803,14 +3810,21 @@
       "method": "POST",
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/alerts-write.json",
+        "scripts/rust-migration/stage9_alerts_write_reference_test.go::TestStage9AlertsWriteFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/product_alerts_write_tests.rs::alerts_write_routes_match_go_fixture_in_cutover_only",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestAlertsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "node scripts/rust-migration/check-stage9-alerts-write.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

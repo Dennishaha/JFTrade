@@ -26,27 +26,33 @@ const stage9AlertsWriteFixtureVersion = "stage9.alerts-write.v1"
 var stage9AlertsWriteNow = time.Date(2026, 8, 22, 4, 0, 0, 0, time.UTC)
 
 type stage9AlertsWriteCase struct {
-	Name        string                     `json:"name"`
-	Method      string                     `json:"method"`
-	RequestPath string                     `json:"requestPath"`
-	Body        *string                    `json:"body,omitempty"`
-	FeatureID   broker.FeatureID           `json:"featureId"`
-	Action      string                     `json:"action"`
-	PortMode    string                     `json:"portMode"`
-	Expected    stage9AlertsWriteExpected  `json:"expected"`
-	Calls       stage9AlertsWriteCallTrace `json:"calls"`
+	Name      string                            `json:"name"`
+	Requests  []stage9AlertsWriteFixtureRequest `json:"requests"`
+	FeatureID broker.FeatureID                  `json:"featureId"`
+	Action    string                            `json:"action"`
+	PortMode  string                            `json:"portMode"`
+	Expected  []stage9AlertsWriteExpected       `json:"expected"`
+	Calls     stage9AlertsWriteCallTrace        `json:"calls"`
+}
+
+type stage9AlertsWriteFixtureRequest struct {
+	Method      string  `json:"method"`
+	RequestPath string  `json:"requestPath"`
+	Body        *string `json:"body,omitempty"`
+	Context     string  `json:"context,omitempty"`
 }
 
 type stage9AlertsWriteExpected struct {
 	Status   int               `json:"status"`
 	Headers  map[string]string `json:"headers,omitempty"`
+	PortCall bool              `json:"portCall"`
 	Envelope map[string]any    `json:"envelope"`
 }
 
 type stage9AlertsWriteCallTrace struct {
-	Apply        int            `json:"apply"`
-	Action       map[string]any `json:"action,omitempty"`
-	PayloadState string         `json:"payloadState,omitempty"`
+	Apply        int              `json:"apply"`
+	Actions      []map[string]any `json:"actions,omitempty"`
+	PayloadState []string         `json:"payloadState,omitempty"`
 }
 
 type stage9AlertsWriteFixture struct {
@@ -80,44 +86,70 @@ func TestStage9AlertsWriteFixtureMatchesCurrentGoOwner(t *testing.T) {
 		router := gin.New()
 		productfeaturesapi.RegisterRoutes(router.Group("/api/v1"), service)
 
-		response := stage9AlertsWriteRequest(t, router, testCase.Method, testCase.RequestPath, testCase.Body)
-		if response.Code == 0 {
-			t.Fatalf("case %s did not produce a response", testCase.Name)
+		requests := testCase.Requests
+		if len(requests) == 0 {
+			requests = []stage9AlertsWriteFixtureRequest{{
+				Method:      testCase.Method,
+				RequestPath: testCase.RequestPath,
+				Body:        testCase.Body,
+			}}
 		}
-		var envelope map[string]any
-		if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
-			t.Fatalf("case %s decode response: %v", testCase.Name, err)
+		expected := make([]stage9AlertsWriteExpected, 0, len(requests))
+		for _, request := range requests {
+			beforeApply := 0
+			if registryBroker != nil {
+				beforeApply = registryBroker.applyCalls
+			}
+			response := stage9AlertsWriteRequest(t, router, request)
+			if response.Code == 0 {
+				t.Fatalf("case %s did not produce a response", testCase.Name)
+			}
+			var envelope map[string]any
+			if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+				t.Fatalf("case %s decode response: %v", testCase.Name, err)
+			}
+			stage9NormalizeAlertsWriteEnvelope(t, testCase.Name, envelope)
+			afterApply := beforeApply
+			if registryBroker != nil {
+				afterApply = registryBroker.applyCalls
+			}
+			headers := map[string]string{
+				"Content-Type": "application/json; charset=utf-8",
+			}
+			if retryAfter := response.Header().Values("Retry-After"); len(retryAfter) > 0 {
+				headers["Retry-After"] = retryAfter[0]
+			}
+			expected = append(expected, stage9AlertsWriteExpected{
+				Status:   response.Code,
+				Headers:  headers,
+				PortCall: afterApply > beforeApply,
+				Envelope: envelope,
+			})
 		}
-		stage9NormalizeAlertsWriteEnvelope(t, testCase.Name, envelope)
 
 		callTrace := stage9AlertsWriteCallTrace{}
 		if registryBroker != nil {
 			callTrace.Apply = registryBroker.applyCalls
-			if registryBroker.lastAction != nil {
-				callTrace.Action, _ = stage9AlertsWriteJSONMap(registryBroker.lastAction)
-				callTrace.PayloadState = stage9AlertsWritePayloadState(*registryBroker.lastAction)
+			for _, action := range registryBroker.actions {
+				mapped, err := stage9AlertsWriteJSONMap(action)
+				if err != nil {
+					t.Fatalf("case %s encode action: %v", testCase.Name, err)
+				}
+				callTrace.Actions = append(callTrace.Actions, mapped)
+				callTrace.PayloadState = append(
+					callTrace.PayloadState,
+					stage9AlertsWritePayloadState(action),
+				)
 			}
 		}
-		headers := map[string]string{
-			"Content-Type": response.Header().Get("Content-Type"),
-		}
-		if retryAfter := response.Header().Get("Retry-After"); retryAfter != "" {
-			headers["Retry-After"] = retryAfter
-		}
 		want.Cases = append(want.Cases, stage9AlertsWriteCase{
-			Name:        testCase.Name,
-			Method:      testCase.Method,
-			RequestPath: testCase.RequestPath,
-			Body:        testCase.Body,
-			FeatureID:   testCase.FeatureID,
-			Action:      testCase.Action,
-			PortMode:    testCase.PortMode,
-			Expected: stage9AlertsWriteExpected{
-				Status:   response.Code,
-				Headers:  headers,
-				Envelope: envelope,
-			},
-			Calls: callTrace,
+			Name:      testCase.Name,
+			Requests:  requests,
+			FeatureID: testCase.FeatureID,
+			Action:    testCase.Action,
+			PortMode:  testCase.PortMode,
+			Expected:  expected,
+			Calls:     callTrace,
 		})
 	}
 
@@ -145,6 +177,7 @@ func TestStage9AlertsWriteFixtureMatchesCurrentGoOwner(t *testing.T) {
 
 type stage9AlertsWriteInput struct {
 	Name        string
+	Requests    []stage9AlertsWriteFixtureRequest
 	Method      string
 	RequestPath string
 	Body        *string
@@ -155,6 +188,18 @@ type stage9AlertsWriteInput struct {
 
 func stage9AlertsWriteCases() []stage9AlertsWriteInput {
 	body := func(value string) *string { return &value }
+	request := func(path string, value *string) stage9AlertsWriteFixtureRequest {
+		return stage9AlertsWriteFixtureRequest{
+			Method:      http.MethodPost,
+			RequestPath: path,
+			Body:        value,
+		}
+	}
+	requestWithContext := func(path string, value *string, contextMode string) stage9AlertsWriteFixtureRequest {
+		result := request(path, value)
+		result.Context = contextMode
+		return result
+	}
 	return []stage9AlertsWriteInput{
 		{
 			Name:        "price-success",
@@ -281,24 +326,80 @@ func stage9AlertsWriteCases() []stage9AlertsWriteInput {
 			Action:      "set",
 			PortMode:    "rate-limit",
 		},
+		{
+			Name: "price-repeated-write-is-forwarded-twice",
+			Requests: []stage9AlertsWriteFixtureRequest{
+				request("/api/v1/alerts/price?brokerId=futu&accountId=acct-3", body(`{"symbol":"US.AAPL","price":100}`)),
+				request("/api/v1/alerts/price?brokerId=futu&accountId=acct-3", body(`{"symbol":"US.AAPL","price":100}`)),
+			},
+			FeatureID: broker.FeaturePriceAlertSet,
+			Action:    "set",
+			PortMode:  "success",
+		},
+		{
+			Name: "option-events-failed-write-recovers-on-next-request",
+			Requests: []stage9AlertsWriteFixtureRequest{
+				request("/api/v1/alerts/option-events?brokerId=futu", body(`{"operation":"modify","key":202}`)),
+				request("/api/v1/alerts/option-events?brokerId=futu", body(`{"operation":"modify","key":202}`)),
+			},
+			FeatureID: broker.FeatureOptionEventAlertSet,
+			Action:    "set",
+			PortMode:  "failure-then-success",
+		},
+		{
+			Name: "price-cancelled-request-defaults-to-broker-failure",
+			Requests: []stage9AlertsWriteFixtureRequest{
+				requestWithContext(
+					"/api/v1/alerts/price?brokerId=futu",
+					body(`{"symbol":"US.AAPL","price":100}`),
+					"canceled",
+				),
+			},
+			FeatureID: broker.FeaturePriceAlertSet,
+			Action:    "set",
+			PortMode:  "context-error",
+		},
+		{
+			Name: "option-events-deadline-request-defaults-to-broker-failure",
+			Requests: []stage9AlertsWriteFixtureRequest{
+				requestWithContext(
+					"/api/v1/alerts/option-events?brokerId=futu",
+					body(`{"operation":"modify","key":202}`),
+					"deadline",
+				),
+			},
+			FeatureID: broker.FeatureOptionEventAlertSet,
+			Action:    "set",
+			PortMode:  "context-error",
+		},
 	}
 }
 
 func stage9AlertsWriteRequest(
 	t *testing.T,
 	router http.Handler,
-	method string,
-	path string,
-	body *string,
+	fixtureRequest stage9AlertsWriteFixtureRequest,
 ) *httptest.ResponseRecorder {
 	t.Helper()
 	var reader *strings.Reader
-	if body == nil {
+	if fixtureRequest.Body == nil {
 		reader = strings.NewReader("")
 	} else {
-		reader = strings.NewReader(*body)
+		reader = strings.NewReader(*fixtureRequest.Body)
 	}
-	request := httptest.NewRequestWithContext(t.Context(), method, path, reader)
+	requestContext := t.Context()
+	var cancel context.CancelFunc
+	switch fixtureRequest.Context {
+	case "canceled":
+		requestContext, cancel = context.WithCancel(requestContext)
+		cancel()
+	case "deadline":
+		requestContext, cancel = context.WithDeadline(requestContext, time.Unix(1, 0))
+		defer cancel()
+	}
+	request := httptest.NewRequestWithContext(
+		requestContext, fixtureRequest.Method, fixtureRequest.RequestPath, reader,
+	)
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
@@ -364,7 +465,7 @@ type stage9AlertsWriteBroker struct {
 	mode       string
 	state      broker.CapabilityState
 	applyCalls int
-	lastAction *broker.CustomizationAction
+	actions    []broker.CustomizationAction
 }
 
 func (b *stage9AlertsWriteBroker) ID() string { return "futu" }
@@ -388,11 +489,11 @@ func (*stage9AlertsWriteBroker) QueryCustomization(
 }
 
 func (b *stage9AlertsWriteBroker) ApplyCustomization(
-	_ context.Context,
+	ctx context.Context,
 	action broker.CustomizationAction,
 ) (*broker.CustomizationResult, error) {
 	b.applyCalls++
-	b.lastAction = &action
+	b.actions = append(b.actions, action)
 	switch b.mode {
 	case "provider-http-403":
 		return nil, &stage9AlertsWriteHTTPError{status: http.StatusForbidden, message: "provider denied alert write"}
@@ -402,17 +503,25 @@ func (b *stage9AlertsWriteBroker) ApplyCustomization(
 		return nil, errors.New("write failed")
 	case "rate-limit":
 		return nil, broker.NewSnapshotRateLimitError(2500*time.Millisecond, nil)
+	case "context-error":
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return nil, errors.New("context canceled")
+	case "failure-then-success":
+		if b.applyCalls == 1 {
+			return nil, errors.New("write failed")
+		}
 	case "nil-result":
 		return nil, nil
 	case "empty-result":
 		return &broker.CustomizationResult{Entries: []map[string]any{}}, nil
-	default:
-		return &broker.CustomizationResult{Entries: []map[string]any{{
-			"accepted":  true,
-			"featureId": action.FeatureID,
-			"operation": action.Action,
-		}}}, nil
 	}
+	return &broker.CustomizationResult{Entries: []map[string]any{{
+		"accepted":  true,
+		"featureId": action.FeatureID,
+		"operation": action.Action,
+	}}}, nil
 }
 
 type stage9AlertsWriteBareBroker struct{}

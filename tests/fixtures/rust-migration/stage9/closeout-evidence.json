@@ -31,6 +31,13 @@
       "scope": "local-only Rust explicit test-cutover profile",
       "command": "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
       "evidence": "Authenticated Rust product replay passed for the three research-preset mutations, including auth and validation precedence, duplicate and revision conflicts, DELETE body compatibility, durable restart recovery, and no default-profile registration. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust production route was enabled."
+    },
+    {
+      "id": "stage9-alerts-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit mutation test-cutover profile",
+      "command": "node scripts/rust-migration/check-stage9-alerts-write.mjs",
+      "evidence": "The 18-case Go reference fixture, Rust leaf replay, authenticated product rehearsal, and product differential passed for both alerts POST routes. Evidence covers duplicate writes forwarded twice, failure-to-recovery, cancellation/deadline mapping, provider/error precedence, crash/timeout fail-closed behavior, Go-only fallback after restart, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner, with no Rust SQLite, notification, task, Provider/OpenD, or production state side effect."
     }
   ],
   "gates": {

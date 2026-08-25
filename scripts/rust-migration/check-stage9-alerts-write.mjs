@@ -31,6 +31,13 @@ run("go", [
   "^TestStage9AlertsWriteFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestAlertsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
+  "-count=1",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -40,4 +47,13 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
-console.log("Stage 9 alerts-write differential passed: Go fixture and Rust leaf replay agree.");
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--lib",
+  "alerts_write",
+  "--",
+  "--nocapture",
+]);
+console.log("Stage 9 alerts-write differential passed: Go fixture, authenticated rehearsal, Rust leaf, and Rust product replay agree.");
