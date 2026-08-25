@@ -247,6 +247,8 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
     let origin_provided = origin_provided(request.headers());
     let origin_allowed = !origin_provided || state.access.origin_allowed(request.headers());
     let browser_authenticated = state.access.browser_authenticated(request.headers());
+    let csrf_valid = state.access.csrf_valid(request.headers());
+    let session_cookie = state.access.session_cookie(request.headers());
     let body = match to_bytes(request.into_body(), MAX_BODY_BYTES).await {
         Ok(body) => body.to_vec(),
         Err(_) => {
@@ -266,6 +268,8 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
         origin_provided,
         origin_allowed,
         browser_authenticated,
+        csrf_valid,
+        session_cookie,
     };
     let is_auth_session = input.path == "/api/v1/auth/session";
     let mut response = match state.port.dispatch(input).await {

@@ -66,6 +66,13 @@
       "scope": "local-only Rust explicit mutation test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-watchlists-remote-write.mjs",
       "evidence": "The 19-case Go reference fixture, authenticated owner-fencing rehearsal, Rust leaf replay, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/watchlists/remote. Evidence covers exact query/body and private bearer/access-surface forwarding, browser Cookie/Origin/Referer/CSRF forwarding, duplicate mutations forwarded twice, provider/error/timeout/cancellation/crash fail-closed behavior, failure recovery, Go-only fallback and restart recovery, explicit test-cutover registration, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust OpenD/provider, SQLite, remote registry, notification, or production external mutation was enabled."
+    },
+    {
+      "id": "stage9-auth-session-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-auth-session-write.mjs",
+      "evidence": "The Go reference fixture, Rust leaf replay, authenticated product rehearsal, and full Stage 9 product differential passed for POST /api/v1/auth/login and POST /api/v1/auth/logout. Evidence covers login/logout contract and error precedence, private bearer plus browser Cookie/Origin/Referer/CSRF context, session-cookie and Retry-After forwarding, duplicate requests, timeout/cancellation/crash fail-closed behavior, Go-only fallback and restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; the Rust boundary has no production password verification, session persistence, CSRF store, cookie-generation owner, or user-visible production side effect, and Go remains the production owner."
     }
   ],
   "gates": {

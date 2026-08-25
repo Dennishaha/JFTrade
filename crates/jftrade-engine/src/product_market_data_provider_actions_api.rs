@@ -139,6 +139,8 @@ mod tests {
             origin_provided: false,
             origin_allowed: false,
             browser_authenticated: false,
+            csrf_valid: false,
+            session_cookie: None,
         }
     }
 

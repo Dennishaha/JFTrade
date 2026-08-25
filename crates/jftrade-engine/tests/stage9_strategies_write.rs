@@ -113,6 +113,8 @@ fn request(case: &FixtureCase, index: usize) -> ApiRequest {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     }
 }
 
@@ -313,6 +315,8 @@ fn strategies_runtime_write_leaf_has_exact_route_inventory_and_isolates_reads() 
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     };
     let response = dispatch_strategy_runtime_write(&read, None, FIXTURE_TIMESTAMP);
     assert_eq!(response.status, 404);
@@ -331,6 +335,8 @@ fn strategies_runtime_write_leaf_fails_closed_without_test_port() {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     };
     let response = dispatch_strategy_runtime_write(&request, None, FIXTURE_TIMESTAMP);
     assert_eq!(response.status, 503);

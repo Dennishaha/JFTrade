@@ -3832,7 +3832,7 @@
       "method": "POST",
       "path": "/api/v1/auth/login",
       "capability": "auth",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
@@ -3840,14 +3840,19 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:product-differential"
+        "node scripts/rust-migration/check-stage9-auth-session-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestAuthSessionWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib auth_session_write -- --nocapture",
+        "pnpm run test:rust:stage9:product-differential",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {
       "method": "POST",
       "path": "/api/v1/auth/logout",
       "capability": "auth",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
@@ -3855,7 +3860,12 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:product-differential"
+        "node scripts/rust-migration/check-stage9-auth-session-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestAuthSessionWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib auth_session_write -- --nocapture",
+        "pnpm run test:rust:stage9:product-differential",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {

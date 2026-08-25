@@ -402,6 +402,8 @@ mod tests {
             origin_provided: false,
             origin_allowed: true,
             browser_authenticated: true,
+            csrf_valid: false,
+            session_cookie: None,
         }
     }
 

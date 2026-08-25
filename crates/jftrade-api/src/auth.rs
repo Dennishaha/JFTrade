@@ -71,8 +71,13 @@ impl AccessPolicy {
         let Some(expected) = self.session_token.as_deref() else {
             return false;
         };
-        cookie_value(headers, SESSION_COOKIE)
+        self.session_cookie(headers)
+            .as_deref()
             .is_some_and(|actual| constant_time_equal(actual, expected))
+    }
+
+    pub(crate) fn session_cookie(&self, headers: &HeaderMap) -> Option<String> {
+        cookie_value(headers, SESSION_COOKIE).map(ToOwned::to_owned)
     }
 
     pub(crate) fn csrf_valid(&self, headers: &HeaderMap) -> bool {

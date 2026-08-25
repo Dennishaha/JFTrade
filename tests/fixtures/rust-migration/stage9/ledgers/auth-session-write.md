@@ -4,7 +4,7 @@
 - Tier: A, mutation operations
 - Operations: `POST /api/v1/auth/login`; `POST /api/v1/auth/logout`
 - Current production owner: Go Web access middleware and session service; Rust has no production owner.
-- Current route ownership: `remaining` until integration wiring and evidence are complete. The intended test-cutover state registers these routes only when an explicit `AuthSessionWritePort` is supplied; the default profile remains unchanged.
+- Current route ownership: `cutover-qualified` rehearsal; both routes register only when an explicit `AuthSessionWritePort` is supplied. Go remains the production owner and `goRemovalStatus=retained`; the default profile remains unchanged.
 - Fixture: `tests/fixtures/rust-migration/stage9/auth-session-write.json`
 - Go reference: `internal/app/apiserver/webaccess/auth_session_write_reference_test.go`
 - Rust leaf/test: `crates/jftrade-engine/src/product_auth_session_write_port.rs`; `crates/jftrade-engine/tests/stage9_auth_session_write.rs`
@@ -79,6 +79,18 @@ quirk: Logout middleware failures omit `Cache-Control`, while successful handler
 owner: Go until cutover
 后续: Preserve middleware/handler header boundaries and body-ignore behavior exactly.
 
-## Test-cutover status
+## Verification record
 
-The leaf is fenced behind an injected state port and has no password, session-store, CSRF-store, or cookie-generation implementation. Go remains the only production owner. Tier A evidence remains outstanding for duplicate-request policy, cancellation/timeout fencing, session persistence/restart recovery, security review, four-platform release/signing, backup/restore, and final unique-owner approval.
+- Go reference fixture, Rust leaf replay, and the dedicated differential: passed (`node scripts/rust-migration/check-stage9-auth-session-write.mjs`).
+- Authenticated Go loopback rehearsal: passed (`go test ./internal/app/apiserver/servercoretest -run '^TestAuthSessionWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1`). It covers duplicate login/logout requests, private bearer and browser Cookie/Origin/Referer/CSRF context, body forwarding/ignore behavior, error/429/timeout/cancel/crash fencing, Go-only fallback, restart recovery, and unchanged settings bytes.
+- Rust product replay: passed (`cargo test -p jftrade-engine --lib auth_session_write -- --nocapture`). Browser context, CSRF rejection, session-cookie forwarding, cancellation recovery, explicit-port registration, and default-profile isolation are covered.
+- Rust leaf replay: passed (`cargo test -p jftrade-engine --test stage9_auth_session_write -- --nocapture`).
+- Full Stage 9 product differential: passed (`pnpm run test:rust:stage9:product-differential`).
+- Quick and full Rust repository gates: passed (`pnpm run check:quick`; `pnpm run check:rust`).
+- Route coverage and closeout/ownership tests: passed (`node scripts/rust-migration/check-stage9-route-coverage.mjs`; `node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs`).
+
+## Cutover-qualified status
+
+The Go reference fixture, Rust leaf replay, authenticated product rehearsal, and explicit product test-cutover adapter are green for both auth-session write routes. Evidence covers contract and error precedence, browser authentication context, CSRF/session-cookie propagation, duplicate requests, cancellation/timeout/crash fail-closed behavior, failure recovery, Go-only rollback after sidecar failure, restart recovery, default-profile isolation, and no local settings side effects. This group is `cutover-qualified`, not a production migration: the Rust boundary has no production password verification, session persistence, CSRF store, or cookie-generation owner, and Go remains the only production owner.
+
+Production credential/session-store integration, live security review, four-platform signed release/updater, SBOM, backup/restore, and final unique-owner/hard-cut approval remain open in the Stage 9 closeout manifest.

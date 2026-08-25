@@ -201,6 +201,8 @@ fn request_for(case: &FixtureCase) -> ApiRequest {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     }
 }
 
@@ -336,6 +338,8 @@ fn subscription_mutation_fails_closed_without_port_and_rejects_unknown_routes() 
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     };
     let error = api
         .dispatch(&unknown)
@@ -377,6 +381,8 @@ fn subscription_mutation_rejects_malformed_post_bodies_at_the_leaf_boundary() {
             origin_provided: false,
             origin_allowed: true,
             browser_authenticated: true,
+            csrf_valid: false,
+            session_cookie: None,
         };
         let error = api.dispatch(&request).expect_err("malformed body");
         assert_eq!(error.status, 400, "path {path}");

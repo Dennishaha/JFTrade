@@ -193,6 +193,8 @@ fn request_for(case: &FixtureCase) -> ApiRequest {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     }
 }
 
@@ -309,6 +311,8 @@ fn provider_actions_fail_closed_without_port_and_reject_unknown_routes() {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     };
     let error = api
         .dispatch(&unknown)

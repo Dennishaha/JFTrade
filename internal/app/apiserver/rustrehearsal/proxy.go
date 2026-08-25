@@ -26,7 +26,8 @@ const (
 
 var rehearsalResponseHeaders = []string{
 	"Cache-Control", "Content-Language", "Content-Type", "ETag",
-	"Expires", "Last-Modified", "Vary", "X-Content-Type-Options",
+	"Expires", "Last-Modified", "Retry-After", "Set-Cookie", "Vary",
+	"X-Content-Type-Options",
 }
 
 // These request headers carry browser authentication and origin context. The

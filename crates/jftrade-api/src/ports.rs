@@ -23,6 +23,10 @@ pub struct ApiRequest {
     pub origin_allowed: bool,
     #[serde(default)]
     pub browser_authenticated: bool,
+    #[serde(default)]
+    pub csrf_valid: bool,
+    #[serde(default)]
+    pub session_cookie: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

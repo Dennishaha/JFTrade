@@ -114,6 +114,8 @@ fn request_for(request_path: &str, method: &str) -> ApiRequest {
         origin_provided: false,
         origin_allowed: true,
         browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
     }
 }
 
