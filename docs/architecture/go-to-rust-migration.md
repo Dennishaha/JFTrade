@@ -723,3 +723,9 @@ runtime join/close、释放自身 demand、停用 active provider 的顺序退�
 也执行同样的 fail-closed 清理，避免 provider router 在 runtime 已退出后残留 active
 状态。若仍有其他 managed consumer，router 的既有 fencing 会拒绝错误停用；默认
 profile、Provider activation、route ownership 与 Go production owner 均不变。
+
+2026-08-25：OpenD provider bridge 的 register/activate/demand 配置改为事务式
+composition。若 demand consumer、instrument normalization 或 managed-stream
+校验失败，已激活的 provider 会立即回滚，避免显式启动失败留下 active router
+状态；未完成 activate 的既有 provider 不会被误停用。该修复仍只影响 opt-in
+composition，不改变默认 profile、公开契约或 Go production owner。

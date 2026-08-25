@@ -476,3 +476,24 @@ cross-process owner evidence before production activation.
 风险: high
 owner: Rust integration / engine composition
 后续: exercise shutdown/restart against authenticated live and release traces.
+
+## Provider bridge startup rollback (2026-08-25)
+
+Provider bridge registration, activation and initial demand acquisition now run
+as one rollback-aware composition step. A failed demand consumer or instrument
+validation releases the bridge demand (if any) and deactivates only the provider
+activated by this bridge; an activation failure before ownership is established
+does not touch an existing active provider. The regression uses a ready router
+and an empty consumer id to prove the active provider and demand are cleared.
+
+quirk: static provider registration remains in the router catalog after rollback;
+only the failed bridge's active runtime state is fenced.
+范围: `system-status-read` / explicit OpenD provider bridge startup
+证据: `provider_runtime::tests::provider_configuration_rolls_back_activation_when_demand_validation_fails`.
+分类: rust-implementation
+判定: intended
+处置: retain rollback fencing; require live OpenD and cross-process owner evidence
+before production activation.
+风险: high
+owner: Rust integration / engine composition
+后续: exercise provider start failure/retry against authenticated release traces.

@@ -91,22 +91,16 @@ impl OpenDProviderRuntime {
         let health: HealthStatus = market_data_health_from_probe(true, &probe);
         let provider_id = config.descriptor.selection_id.clone();
         let demand_consumer_id = config.demand_consumer_id.trim().to_owned();
-        {
-            let mut router = config
-                .router
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-            router.register(config.descriptor, health)?;
-            router.activate(&provider_id, ActivationMode::Explicit)?;
-            if !config.desired.is_empty() {
-                router.acquire_demand(
-                    &demand_consumer_id,
-                    config.desired.clone(),
-                    config.demand_managed,
-                    config.now_ms,
-                )?;
-            }
-        }
+        configure_provider(ProviderConfiguration {
+            router: &config.router,
+            descriptor: config.descriptor,
+            health,
+            provider_id: &provider_id,
+            demand_consumer_id: &demand_consumer_id,
+            desired: &config.desired,
+            demand_managed: config.demand_managed,
+            now_ms: config.now_ms,
+        })?;
         let recorder = config
             .router
             .lock()
@@ -199,6 +193,55 @@ fn release_demand(router: &Arc<Mutex<ProviderRouter>>, consumer_id: &str) {
     }
 }
 
+struct ProviderConfiguration<'a> {
+    router: &'a Arc<Mutex<ProviderRouter>>,
+    descriptor: ProviderDescriptor,
+    health: HealthStatus,
+    provider_id: &'a str,
+    demand_consumer_id: &'a str,
+    desired: &'a [InstrumentRef],
+    demand_managed: bool,
+    now_ms: i64,
+}
+
+fn configure_provider(
+    configuration: ProviderConfiguration<'_>,
+) -> Result<(), jftrade_marketdata::MarketDataError> {
+    let ProviderConfiguration {
+        router,
+        descriptor,
+        health,
+        provider_id,
+        demand_consumer_id,
+        desired,
+        demand_managed,
+        now_ms,
+    } = configuration;
+    let mut activated = false;
+    let result = (|| {
+        let mut router = router.lock().unwrap_or_else(|error| error.into_inner());
+        router.register(descriptor, health)?;
+        router.activate(provider_id, ActivationMode::Explicit)?;
+        activated = true;
+        if !desired.is_empty() {
+            router.acquire_demand(
+                demand_consumer_id,
+                desired.iter().cloned(),
+                demand_managed,
+                now_ms,
+            )?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        if activated {
+            release_and_deactivate(router, demand_consumer_id, provider_id);
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
 fn release_and_deactivate(
     router: &Arc<Mutex<ProviderRouter>>,
     consumer_id: &str,
@@ -277,6 +320,40 @@ mod tests {
 
         release_and_deactivate(&router, "futu-opend-runtime", "futu");
 
+        let guard = router.lock().expect("router");
+        assert!(guard.runtime().active_provider.is_empty());
+        assert!(guard.demand().active.is_empty());
+    }
+
+    #[test]
+    fn provider_configuration_rolls_back_activation_when_demand_validation_fails() {
+        let router = Arc::new(Mutex::new(ProviderRouter::new(2)));
+        let desired = [InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        }];
+        let error = configure_provider(ProviderConfiguration {
+            router: &router,
+            descriptor: descriptor(),
+            health: HealthStatus {
+                connected: true,
+                readiness: ProviderReadiness::Ready,
+                stream_mode: "streaming".to_owned(),
+                ..Default::default()
+            },
+            provider_id: "futu",
+            demand_consumer_id: "",
+            desired: &desired,
+            demand_managed: false,
+            now_ms: 0,
+        })
+        .expect_err("missing consumer should fail");
+        assert!(matches!(
+            error,
+            jftrade_marketdata::MarketDataError::MissingConsumer
+        ));
         let guard = router.lock().expect("router");
         assert!(guard.runtime().active_provider.is_empty());
         assert!(guard.demand().active.is_empty());
