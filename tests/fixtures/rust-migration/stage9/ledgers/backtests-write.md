@@ -32,7 +32,15 @@ The fixture contains 38 cases and 40 requests. It records response status, conte
 - The Rust leaf fails closed with `503 BACKTESTS_WRITE_UNAVAILABLE` when no explicit mutation port is supplied; structural body/URI errors still win before the missing-port response.
 - Start and sync mutations are delegated once per structurally valid request. Repeated POSTs are recorded as independent calls; no idempotency key is invented.
 - Delete performs no store work for blank/invalid IDs, performs the status guard before delete, and preserves the Go delete-failure-then-retry behavior in the restart fixture. No notification or second persistent owner is introduced.
-- Durable SQLite transaction rollback, worker recovery against a real run store, external provider lifecycle, cancellation fencing across processes, and production owner switching are not exercised by this worker and remain qualification gates.
+- A `cfg(test)`-only isolated SQLite adapter now proves transaction rollback
+  when the event append fails, durable run/task/event persistence, repeated
+  start/sync allocation, one-winner concurrent cancellation, terminal-only
+  deletion, no event on fenced repeats, close/reopen recovery, and a durable
+  allocator that rolls back and resumes without ID reuse. It does not use the
+  real Go run/task schema or start a worker.
+- Compatibility with the real Go run/task store, PineTS/market-data worker
+  recovery, external Provider lifecycle, cancellation fencing across processes,
+  and production owner switching remain qualification gates.
 
 ## Quirks and three-way review
 
@@ -114,10 +122,25 @@ owner: Go / integration branch
 - Authenticated Rust product rehearsal: passed (2 tests, `CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture`), covering explicit test-cutover registration, unavailable-port fencing, browser auth/CSRF precedence, failure recovery, repeated delete behavior, restart, and unchanged settings bytes.
 - Go reference fixture drift test: passed (`GIN_MODE=release go test scripts/rust-migration/stage9_backtests_write_reference_test.go -run '^TestStage9BacktestsWriteFixtureMatchesCurrentGoOwner$' -count=1`).
 - Rust leaf/parameterized replay: passed, 5 tests (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo test -p jftrade-engine --test stage9_backtests_write -- --nocapture`).
+- Isolated SQLite durability replay: passed, 6 tests
+  (`cargo test -p jftrade-engine --test stage9_backtests_write -- --nocapture`),
+  including event-trigger rollback, repeated start/sync allocation, concurrent
+  cancellation fencing, terminal delete rules, close/reopen persistence, and
+  durable allocator recovery.
+- Product SQLite restart replay: passed
+  (`cargo test -p jftrade-engine --lib backtests_sqlite_test_cutover_replays_transport_and_restart -- --nocapture`),
+  exercising all four product routes against a temporary database and a
+  post-restart start mutation without changing settings bytes.
 - Rust targeted Clippy: passed (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo clippy -p jftrade-engine --test stage9_backtests_write -- -D warnings`).
 - Rust formatting and differential script syntax: passed (`rustfmt --edition 2024 --check ...`; `node --check scripts/rust-migration/check-stage9-backtests-write.mjs`).
 - Dedicated differential: passed (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target node scripts/rust-migration/check-stage9-backtests-write.mjs`).
 - Full Stage 9 product differential: passed (`pnpm run test:rust:stage9:product-differential`), including the authenticated rehearsal and Rust product replay.
+- `pnpm run check:quick` passed with 222 engine library tests after the
+  repository-directed Rust artifact cleanup restored target health.
+- `pnpm run check:rust` passed, including workspace fmt/Clippy/all-target tests,
+  Stage 4-8 differentials, the full Stage 9 Go references and authenticated
+  rehearsals, 222 Rust product tests, Stage 9 integration replay, and supporting
+  package contracts.
 - Affected Go owner regression: passed (`go test ./internal/api/backtest ./internal/backtest ./internal/store/backtest -count=1`).
 - Route coverage after integration: passed at `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`.
 - This wave changed only the backtests rehearsal tests and migration evidence; default profile, Go production owner, real SQLite/run store, PineTS, market-data worker, provider lifecycle, public contracts and Go/Wails deletion state remain unchanged.
@@ -128,4 +151,8 @@ owner: Go / integration branch
 - Tier: A
 - Operation count: 4 (38 fixture cases / 40 requests)
 - Status: cutover-test-only leaf/replay and authenticated product rehearsal complete; Go owner remains unchanged and no Rust production route is enabled.
-- Qualification blockers: durable transaction/restart evidence against the real run/task owner, cancellation/timeout and worker recovery, duplicate/idempotency policy, cross-process fencing, notifications/task isolation, four-platform release/signing/security/SBOM, backup/restore, and hard-cut owner evidence.
+- Qualification blockers: compatibility and recovery against the real Go
+  run/task owner, PineTS/market-data worker cancellation/timeout recovery,
+  duplicate/idempotency policy, cross-process fencing, Provider lifecycle,
+  notifications/task isolation, four-platform release/signing/security/SBOM,
+  production backup/restore, and hard-cut owner evidence.

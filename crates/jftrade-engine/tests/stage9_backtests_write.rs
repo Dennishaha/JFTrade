@@ -1,8 +1,10 @@
 #[path = "../src/product_backtests_write_port.rs"]
 mod product_backtests_write_port;
+#[path = "../src/product_backtests_write_test_cutover.rs"]
+mod product_backtests_write_test_cutover;
 
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use product_backtests_write_port::{
     BACKTEST_DELETE_PATH, BACKTEST_START_PATH, BACKTEST_SYNC_CANCEL_PATH, BACKTEST_SYNC_START_PATH,
@@ -10,6 +12,7 @@ use product_backtests_write_port::{
     BacktestsWritePortResult, BacktestsWriteRequest, backtests_write_routes,
     dispatch_backtests_write,
 };
+use product_backtests_write_test_cutover::BacktestsSqliteTestCutoverPort;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -292,6 +295,112 @@ fn backtests_write_leaf_preserves_trailing_json_and_error_precedence() {
         response.body["error"]["message"],
         "invalid backtest request"
     );
+}
+
+#[test]
+fn sqlite_test_cutover_preserves_rollback_duplicate_fencing_and_restart() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("backtests-test-cutover.db");
+    let port = Arc::new(
+        BacktestsSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
+    );
+    let start = BacktestsWriteInput::Start {
+        payload: json!({"definitionId":"definition-1"}),
+    };
+    port.reject_start_event().expect("install rejection");
+    assert!(matches!(
+        port.mutate(&start),
+        Err(BacktestsWritePortError::Failed(_))
+    ));
+    assert_eq!(port.run_count().expect("runs after rollback"), 0);
+    assert_eq!(port.event_count("start").expect("events after rollback"), 0);
+    port.clear_rejection().expect("clear rejection");
+
+    let first = port.mutate(&start).expect("first start");
+    let second = port.mutate(&start).expect("duplicate start");
+    assert_eq!(data_id(&first, "id"), "run-test-1");
+    assert_eq!(data_id(&second, "id"), "run-test-2");
+    assert_eq!(port.run_count().expect("duplicate runs"), 2);
+
+    let sync = BacktestsWriteInput::Sync {
+        payload: json!({"market":"US","symbol":"AAPL"}),
+    };
+    let first_task = port.mutate(&sync).expect("first sync");
+    let second_task = port.mutate(&sync).expect("duplicate sync");
+    assert_eq!(data_id(&first_task, "taskId"), "task-test-3");
+    assert_eq!(data_id(&second_task, "taskId"), "task-test-4");
+
+    let cancel = BacktestsWriteInput::CancelSync {
+        task_id: "task-test-3".to_owned(),
+    };
+    let attempts = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let cancel = cancel.clone();
+            std::thread::spawn(move || port.mutate(&cancel))
+        })
+        .collect::<Vec<_>>();
+    let mut cancelled = 0;
+    let mut fenced = 0;
+    for attempt in attempts {
+        match attempt
+            .join()
+            .expect("join cancellation")
+            .expect("cancel result")
+        {
+            BacktestsWritePortResult::SyncCancelled(true) => cancelled += 1,
+            BacktestsWritePortResult::SyncCancelled(false) => fenced += 1,
+            result => panic!("unexpected cancel result: {result:?}"),
+        }
+    }
+    assert_eq!((cancelled, fenced), (1, 1));
+    assert_eq!(
+        port.task_status("task-test-3").expect("task status"),
+        Some("cancelled".to_owned())
+    );
+    assert_eq!(port.event_count("cancel-sync").expect("cancel events"), 1);
+
+    port.seed_run("terminal-run", "completed")
+        .expect("seed terminal run");
+    port.seed_run("active-run", "running")
+        .expect("seed active run");
+    let delete_terminal = BacktestsWriteInput::Delete {
+        run_id: "terminal-run".to_owned(),
+    };
+    assert_eq!(
+        port.mutate(&delete_terminal).expect("delete terminal"),
+        BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Deleted)
+    );
+    assert_eq!(
+        port.mutate(&delete_terminal).expect("repeat delete"),
+        BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Missing)
+    );
+    assert_eq!(
+        port.mutate(&BacktestsWriteInput::Delete {
+            run_id: "active-run".to_owned(),
+        })
+        .expect("active delete"),
+        BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::NotTerminal)
+    );
+    assert_eq!(port.event_count("delete").expect("delete events"), 1);
+
+    drop(port);
+    let reopened = BacktestsSqliteTestCutoverPort::open(&database_path).expect("reopen adapter");
+    assert_eq!(
+        reopened.task_status("task-test-3").expect("reopened task"),
+        Some("cancelled".to_owned())
+    );
+    assert!(!reopened.run_exists("terminal-run").expect("deleted run"));
+    assert!(reopened.run_exists("active-run").expect("active run"));
+    let restarted = reopened.mutate(&start).expect("post-restart start");
+    assert_eq!(data_id(&restarted, "id"), "run-test-5");
+}
+
+fn data_id<'a>(result: &'a BacktestsWritePortResult, key: &str) -> &'a str {
+    let BacktestsWritePortResult::Data(data) = result else {
+        panic!("expected data result: {result:?}");
+    };
+    data[key].as_str().expect("result id")
 }
 
 fn fixture() -> Fixture {

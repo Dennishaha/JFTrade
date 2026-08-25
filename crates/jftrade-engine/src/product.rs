@@ -117,6 +117,9 @@ use product_watchlist_write_port::{
 };
 #[path = "product_backtests_write_port.rs"]
 mod product_backtests_write_port;
+#[cfg(test)]
+#[path = "product_backtests_write_test_cutover.rs"]
+mod product_backtests_write_test_cutover;
 use product_backtests_write_port::{
     BacktestsWritePort, BacktestsWriteRequest, BacktestsWriteResponse, backtests_write_routes,
     dispatch_backtests_write,
@@ -240,7 +243,6 @@ pub trait AlertSnapshotPort: Send + Sync + std::fmt::Debug {
 /// opens or mutates the strategy SQLite database.
 pub trait StrategyDefinitionSnapshotPort: Send + Sync + std::fmt::Debug {
     fn list(&self) -> Result<Vec<Value>, StrategyDefinitionSnapshotError>;
-
     fn get(
         &self,
         definition_id: &str,
@@ -792,9 +794,7 @@ include!("product_wire_watchlist.rs");
 include!("product_wire_portfolio.rs");
 include!("product_wire_research.rs");
 include!("product_wire_brokers.rs");
-
 include!("product_error.rs");
-
 #[cfg(test)]
 #[path = "product_tests.rs"]
 mod tests;

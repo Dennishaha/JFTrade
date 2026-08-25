@@ -8,6 +8,7 @@ use super::super::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
     BacktestsWritePortResult,
 };
+use super::super::product_backtests_write_test_cutover::BacktestsSqliteTestCutoverPort;
 use super::*;
 
 #[derive(Debug)]
@@ -323,6 +324,100 @@ async fn backtests_write_product_replays_browser_boundary_failure_recovery_and_r
         .expect("shutdown restarted backtests product");
     assert_eq!(
         std::fs::read(&settings_path).expect("read settings after restart"),
+        settings_before
+    );
+}
+
+#[tokio::test]
+async fn backtests_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("backtests-test-cutover.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"backtests-durable\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("settings");
+    let port = Arc::new(
+        BacktestsSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
+    );
+    port.seed_run("terminal-run", "completed")
+        .expect("seed terminal run");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_backtests_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    let start = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/backtests",
+        Some(r#"{"definitionId":"definition-1"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(start.0, 200);
+    assert_eq!(start.1["data"]["id"], "run-test-1");
+    let sync = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/backtests/sync",
+        Some(r#"{"market":"US","symbol":"AAPL"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(sync.0, 200);
+    assert_eq!(sync.1["data"]["taskId"], "task-test-2");
+    let cancel = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/backtests/sync/task-test-2",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(cancel.0, 200);
+    let delete = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/backtests/terminal-run",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(delete.0, 200);
+    handle.shutdown().await.expect("shutdown product");
+    drop(port);
+
+    let reopened = Arc::new(
+        BacktestsSqliteTestCutoverPort::open(&database_path).expect("reopen durable adapter"),
+    );
+    assert_eq!(
+        reopened.task_status("task-test-2").expect("task status"),
+        Some("cancelled".to_owned())
+    );
+    assert!(!reopened.run_exists("terminal-run").expect("deleted run"));
+    let restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restart address"),
+        &settings_path,
+    )
+    .expect("restart config")
+    .with_backtests_write_port(reopened);
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart product");
+    let response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/backtests",
+        Some(r#"{"definitionId":"definition-2"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["id"], "run-test-3");
+    restarted.shutdown().await.expect("shutdown restart");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after restart"),
         settings_before
     );
 }
