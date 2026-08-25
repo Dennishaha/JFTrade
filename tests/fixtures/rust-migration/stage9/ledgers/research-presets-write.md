@@ -7,7 +7,7 @@
   - `PATCH /api/v1/research/screens/presets/{presetId}`
   - `DELETE /api/v1/research/screens/presets/{presetId}`
 - The independent screen mutation operation is outside this group and is not covered here.
-- Current status: integration-reviewed `cutover-test-only`; all three operations are registered only through the explicit mutation test port, with `productionOwner=go` and `goRemovalStatus=retained`.
+- Current status: integration-reviewed `cutover-qualified`; all three operations are registered only through the explicit mutation test port, with `productionOwner=go` and `goRemovalStatus=retained`.
 - Go owner: `internal/api/research/routes.go`, `internal/research/presets.go`, and `internal/store/research` remain the only production handler, normalization, revision, SQLite, and mutation owner.
 - Rust boundary: `product_research_preset_write_port.rs` remains a consumer-owned mutation port with no Provider/OpenD, notification, or production route registration. `ResearchPresetSqliteTestCutoverPort` is an explicit product test-cutover adapter: it maps payloads through `jftrade-research::normalize_definition_v2` and uses `jftrade-store-sqlite::ResearchPresetTestCutoverStore` for durable CRUD. It is reachable only from `ProductConfig::with_research_preset_sqlite_test_cutover`; the store requires the exact `cutover-test-only.v1` profile, opens only an existing schema-validated Go-compatible database, and holds an exclusive cross-process writer lease.
 - Fixture: `tests/fixtures/rust-migration/stage9/research-presets-write.json`
@@ -44,10 +44,10 @@ Each case records response status, exact contract headers, normalized envelope, 
 - The Rust test asserts the exact three-route inventory and contains no fourth mutation operation.
 - Failure cases assert the state/observation emitted by the Go repository remains unchanged; retry/recovery cases prove a later operation can proceed after the failed/cancelled attempt.
 - The authenticated loopback mutation rehearsal selects only the three exact operations, forwards no public cookie, and proves that success, duplicate conflict, revision-fenced PATCH and DELETE touch only the isolated rehearsal owner. Rust error, timeout and crash responses never replay the Go fallback owner; restart preserves the rehearsal database while a Go-only rollback restarts with its independent database unchanged.
-- The rehearsal boundary deliberately delegates to an isolated temporary Go reference owner. This validates composition-root routing, authenticated transport, durable restart and no-double-write fencing, but it does not fabricate a Rust durable preset repository. The group therefore remains `cutover-test-only`.
+- The rehearsal boundary deliberately delegates to an isolated temporary Go reference owner. The authenticated Rust product replay now exercises the actual Rust durable adapter behind the same explicit test-cutover profile, while the Go rehearsal continues to validate composition-root routing, fallback isolation, crash behavior and no-double-write fencing. This closes the group's cutover-qualified evidence without changing the production owner.
 - The Rust durable test-cutover store never creates or migrates SQLite. It rejects missing, drifted and corrupted databases, refuses non-test profiles, acquires the existing owner-lock sidecar before opening read-write, maps name/primary-key constraints to conflict, applies revision updates atomically, serializes concurrent mutations, and retains state across close/reopen. One of two concurrent updates against the same revision commits and the other fails closed.
-- The durable adapter is not a production owner: Go still owns the live handler, public route registration, production ID/time policy, transport fallback behavior, SQLite migrations and all release/cutover decisions. The adapter is intentionally reachable only through explicit test-cutover composition, so all three routes remain `cutover-test-only`.
-- The current route ledger is `23 shadow / 133 cutover-test-only / 122 cutover-qualified / 0 remaining / 0 Rust production owner`. The independent `POST /api/v1/research/screens` mutation is also `cutover-test-only` and remains outside this group.
+- The durable adapter is not a production owner: Go still owns the live handler, public route registration, production ID/time policy, transport fallback behavior, SQLite migrations and all release/cutover decisions. The adapter is intentionally reachable only through explicit test-cutover composition, so all three routes are `cutover-qualified` but remain rehearsal-only.
+- The current route ledger is `1 shadow / 130 cutover-test-only / 147 cutover-qualified / 0 remaining / 0 Rust production owner`. The independent `POST /api/v1/research/screens` mutation is also `cutover-test-only` and remains outside this group.
 
 ## Quirks and three-way review
 
@@ -108,6 +108,7 @@ owner: 集成分支
 - Rust definition normalization differential: passed (`cargo test -p jftrade-research --test definition_normalization_contracts -- --nocapture`)
 - Rust durable product adapter: passed (`cargo test -p jftrade-engine --test stage9_research_preset_sqlite_adapter -- --nocapture`)
 - ProductConfig test-cutover composition: passed (`cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::explicit_sqlite_test_cutover_config_registers_durable_preset_routes -- --nocapture`)
+- Authenticated Rust durable product replay: passed (`cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture`)
 - Rust durable store Clippy: passed (`cargo clippy -p jftrade-store-sqlite --all-targets -- -D warnings`)
 - `pnpm run check:quick`: passed after the authenticated mutation rehearsal was integrated.
 - `pnpm run check:rust`: passed in full, including the Go authenticated rehearsal suite and Stage 9 product differential.
@@ -118,5 +119,5 @@ owner: 集成分支
 - Group: `research-presets-write`
 - Tier: A
 - Operation count: 3 (22 fixture cases)
-- Status: integration-reviewed `cutover-test-only`; no production owner or default profile change
-- Next qualification action: extend durable adapter coverage to the full authenticated transport corpus and backup/restore/security/release evidence. Cancellation mapping, production ID/time policy, migration ownership and hard-cut gates still block any owner change.
+- Status: integration-reviewed `cutover-qualified`; no production owner or default profile change
+- Next production-owner action: separately qualify production ID/time policy, cancellation/timeout policy, migration ownership, backup/restore, security and release gates before any composition-root owner switch. This group remains Go-owned in production.

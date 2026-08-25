@@ -214,19 +214,21 @@
       "method": "DELETE",
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
         "authenticated-loopback-mutation-rehearsal",
-        "rust-durable-test-cutover-store"
+        "rust-durable-test-cutover-store",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
+        "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3382,19 +3384,21 @@
       "method": "PATCH",
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
         "authenticated-loopback-mutation-rehearsal",
-        "rust-durable-test-cutover-store"
+        "rust-durable-test-cutover-store",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
+        "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4205,19 +4209,21 @@
       "method": "POST",
       "path": "/api/v1/research/screens/presets",
       "capability": "research",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
         "explicit-test-cutover-profile",
         "authenticated-loopback-mutation-rehearsal",
-        "rust-durable-test-cutover-store"
+        "rust-durable-test-cutover-store",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-research-presets-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestResearchPresetWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-store-sqlite --test research_preset_store_contracts",
+        "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

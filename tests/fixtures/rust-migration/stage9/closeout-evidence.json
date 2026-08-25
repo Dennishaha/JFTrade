@@ -24,6 +24,13 @@
       "scope": "local-only repository checks",
       "command": "pnpm run test:scripts -- desktop",
       "evidence": "32 script tests passed on 2026-08-20; these are structural/unit checks and do not qualify signed artifacts or native installers."
+    },
+    {
+      "id": "stage9-research-presets-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile",
+      "command": "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
+      "evidence": "Authenticated Rust product replay passed for the three research-preset mutations, including auth and validation precedence, duplicate and revision conflicts, DELETE body compatibility, durable restart recovery, and no default-profile registration. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust production route was enabled."
     }
   ],
   "gates": {
