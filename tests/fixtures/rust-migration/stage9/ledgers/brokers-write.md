@@ -6,18 +6,20 @@
 - Operations: 3: `DELETE /api/v1/brokers/{brokerId}/orders`,
   `POST /api/v1/brokers/{brokerId}/orders`, and
   `POST /api/v1/brokers/{brokerId}/unlock`.
-- Dynamic baseline at worker start: `278 baseline / 26 shadow / 242
+- Historical worker-start baseline: `278 baseline / 26 shadow / 242
   cutover-test-only / 0 cutover-qualified / 10 remaining / 0 Rust production
   owner`.
 - Handoff-time shared gate observed after the concurrent market-data group:
   `26 shadow / 248 cutover-test-only / 0 cutover-qualified / 4 remaining / 0
   Rust production owner`; the three broker mutation routes in this ledger are
   still among the remaining operations.
-- Current ownership: these three routes remain `remaining` in the shared
-  `route-ownership.json`; this worker deliberately did not edit that shared
-  catalog. Go remains the sole production owner. The Rust code is a leaf and
-  replay boundary only; integration must register it as explicit
-  authenticated `test-cutover` before any status change.
+- Current ownership: these three routes are `cutover-test-only` in the shared
+  `route-ownership.json`, with `productionOwner=go` and
+  `goRemovalStatus=retained`. The current dynamic snapshot is
+  `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0
+  Rust production owner`. Go remains the sole production owner. The Rust code
+  is a leaf and replay boundary only; the product route is registered only in
+  the explicit authenticated test-cutover profile.
 - Fixture: `tests/fixtures/rust-migration/stage9/brokers-write.json`.
 - Go reference: `scripts/rust-migration/stage9_brokers_write_reference_test.go`.
 - Rust leaf/replay: `crates/jftrade-engine/src/product_brokers_write_port.rs` and
@@ -218,11 +220,21 @@ fence and must not double-dispatch.
   fixture. The dedicated differential
   `node scripts/rust-migration/check-stage9-brokers-write.mjs` also passed both
   the Go reference drift check and the workspace Rust replay.
+- The authenticated Go loopback rehearsal
+  `TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart` passed after
+  removing duplicate unauthenticated/CSRF negative cases already covered by
+  the Rust product boundary test. It verifies private Bearer/internal
+  protocol, browser context forwarding, success/error/timeout/cancellation,
+  crash fail-closed behavior, Go rollback, restart recovery, and unchanged
+  settings bytes.
+- The authenticated Rust product replay passed all 3 product tests, including
+  explicit test-cutover registration, private protocol/CSRF fencing,
+  unavailable/error/recovery, repeated mutations, restart, and unchanged
+  settings bytes.
 - The current workspace already contains unrelated market-data integration
   edits in shared `crates/jftrade-engine/src/product*.rs`; this worker did not
   modify, stage, or revert them. They are outside this handoff.
-- Shared `route-ownership.json`, product route assembly, product differential,
-  module map, architecture docs, generated code, and default profile are
-  intentionally untouched. The integration branch must add the three route
-  entries, authenticated test-cutover wiring/route-isolation evidence, and
-  its dynamic ledger update.
+- The shared route catalog already records the three routes as
+  `cutover-test-only`; this wave added only their focused rehearsal/product
+  evidence. No default profile, production owner, module map, architecture
+  docs, generated code, or public contract changed.

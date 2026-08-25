@@ -108,6 +108,13 @@
       "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-backtests-write.mjs",
       "evidence": "The 38-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/backtests, POST /api/v1/backtests/sync, DELETE /api/v1/backtests/sync/{taskId}, and DELETE /api/v1/backtests/{runId}. Evidence covers private bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, auth and structural error precedence, unavailable-port and failure-to-recovery behavior, timeout, cancellation, Rust crash fail-closed behavior, Go-only rollback and restart recovery, repeated delete semantics, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. The Rust boundary uses only an injected mutation port; it does not open the production SQLite/run store, start PineTS or market-data workers, connect Provider/OpenD, create notifications or tasks, or produce user-visible production side effects. The group remains cutover-test-only with Go as the sole production owner; durable run/task transactions, worker recovery, cancellation fencing, idempotency, release and hard-cut evidence remain open."
+    },
+    {
+      "id": "stage9-brokers-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+      "evidence": "The 65-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, and Rust product replay passed for DELETE /api/v1/brokers/{brokerId}/orders, POST /api/v1/brokers/{brokerId}/orders, and POST /api/v1/brokers/{brokerId}/unlock. Evidence covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, success/error/timeout/cancellation, crash fail-closed behavior, repeated mutation forwarding, Go-only rollback, restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. Rust uses only an injected BrokersWritePort; it does not connect OpenD, write trading state or SQLite, publish notifications, or dispatch a second Go/Rust mutation. The group remains cutover-test-only with Go as the sole production owner; durable broker idempotency/transaction boundaries, real broker/OpenD qualification, release, recovery and hard-cut evidence remain open."
     }
   ],
   "gates": {

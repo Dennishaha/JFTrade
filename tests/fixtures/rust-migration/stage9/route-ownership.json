@@ -179,6 +179,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3965,6 +3967,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3981,6 +3985,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
