@@ -323,7 +323,32 @@ reconnect. The degraded projection exposes the stream failure, and the next
 generation clears the failure after another fenced poll. This is a product
 composition rehearsal only: the coordinator has no socket, timer, retry task,
 ProviderRouter activation, default desktop registration, or production owner;
-the actual OpenD coordinator still remains a crate-test-only seam.
+the default product composition still leaves the explicit OpenD seam unused.
+
+Composition seam evidence: `OpenDSessionCoordinator` is now a public,
+explicitly injectable integration boundary rather than a `cfg(test)`-only
+module. It exposes topology-authorized reconcile, bounded push polling,
+generation-fenced BasicQot snapshot polling into a caller-owned `TickCache`,
+and idempotent close. `ProductRuntimeConfig::with_opend_session_coordinator`
+can retain that authenticated session, derive the same recorder for
+`/api/v1/system/status`, expose it through `ProductRuntimeHandle`, and close it
+without allowing a ProviderRouter to be composed at the same time. The default
+desktop profile still leaves the field absent: no timer/thread, ProviderRouter
+activation, real OpenD dial, or production owner is introduced.
+
+quirk: Promoting the coordinator API without adding a default timer preserves
+the single-owner boundary; callers must explicitly drive `poll_once` and
+`poll_snapshot`, while the runtime owns shutdown after injection.
+范围: `system-status-read` / OpenD coordinator composition
+证据: Rust `OpenDSessionCoordinator::public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache`,
+`ProductRuntimeConfig::with_opend_session_coordinator`, and
+`ProductRuntimeError::ConflictingMarketDataOwners`.
+分类: rust-implementation
+判定: intended
+处置: 保留显式 composition seam；在 production cutover 前补 timer/task、dynamic demand source、ProviderRouter activation、reconnect backoff and release recovery evidence.
+风险: high
+owner: Rust integration / engine composition
+后续: hard cut 前完成 runtime task ownership and end-to-end OpenD fixture/live differential; until then keep Go owner and default field absent.
 
 Verification: `cargo test -p jftrade-marketdata --lib -- --nocapture`; `cargo test -p jftrade-integration-futu --lib -- --nocapture`; `cargo clippy -p jftrade-integration-futu --all-targets -- -D warnings`; `go test ./pkg/futu -run '^(TestWithClientReplayPolicyForRecoverableErrors|TestQuoteSnapshotNonFinitePriceCorpusRecordsGoFailureBoundary)$' -count=1`; `cargo test -p jftrade-api websocket -- --nocapture`; `cargo test -p jftrade-store-settings-file --test interface_settings_contracts`; `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-api observability::tests::request_observability_matches_stage9_go_corpus -- --exact`; `go test ./pkg/observability -run '^TestRequestObservabilityMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_market_data_runtime_status::tests::market_data_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestMarketDataRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `cargo test -p jftrade-engine --lib product::product_strategy_runtime_status::tests::strategy_runtime_projection_matches_go_status_corpus -- --exact`; `go test ./internal/app/apiserver/status -run '^TestStrategyRuntimeStatusMatchesRustMigrationCorpus$' -count=1`; `node --test scripts/lib/tauri-runtime.test.mjs scripts/lib/desktop-release-metadata.test.mjs`; `cargo test -p jftrade-engine --lib product_runtime::tests::product_runtime_without_optional_workers_starts_and_stops_cleanly -- --exact`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests -- --nocapture`; `go test ./internal/app/apiserver/servercoretest -run '^TestSystemStatusReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `pnpm run check:rust`.
 

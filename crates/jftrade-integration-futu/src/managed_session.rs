@@ -68,7 +68,7 @@ struct SessionState {
     close_reason: Mutex<Option<OpenDSessionCloseReason>>,
 }
 
-/// Test-composition OpenD session with one socket reader.
+/// Explicit-composition OpenD session with one socket reader.
 ///
 /// The reader routes exact protocol/serial responses to pending RPC calls and
 /// emits every other frame as a generation-tagged unsolicited event. It owns

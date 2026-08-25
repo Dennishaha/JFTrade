@@ -10,7 +10,6 @@ mod managed_session;
 mod probe;
 mod provider;
 mod quote_push;
-#[cfg(test)]
 mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
@@ -33,6 +32,9 @@ pub use provider::{broker_descriptor, provider_descriptor};
 pub use quote_push::{
     BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
+};
+pub use session_coordinator::{
+    OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
 };
 pub use session_event_pump::{
     OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,

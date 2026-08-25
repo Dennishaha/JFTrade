@@ -9,6 +9,7 @@ use jftrade_datamanagement::{
     DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
     DATABASE_WATCHLIST, DatabaseDescriptor,
 };
+use jftrade_integration_futu::OpenDSessionCoordinator;
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
     allocate_loopback_port,
@@ -51,6 +52,10 @@ pub struct ProductRuntimeConfig {
     pub marketdata_helper: Option<MarketDataHelperRuntimeConfig>,
     pub market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
     pub market_data_runtime_recorder: Option<Arc<MarketDataRuntimeRecorder>>,
+    /// Explicitly composed OpenD session. The caller owns demand/timer
+    /// driving; the runtime only exposes the shared status recorder and closes
+    /// the session during shutdown.
+    pub market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
 
@@ -99,6 +104,7 @@ impl ProductRuntimeConfig {
             marketdata_helper,
             market_data_router: None,
             market_data_runtime_recorder: None,
+            market_data_opend: None,
             strategy_runtime_registry: None,
         })
     }
@@ -122,6 +128,22 @@ impl ProductRuntimeConfig {
     pub fn with_market_data_router(mut self, router: Arc<Mutex<ProviderRouter>>) -> Self {
         self.market_data_router = Some(router);
         self.market_data_runtime_recorder = None;
+        self
+    }
+
+    /// Connects an explicitly authenticated OpenD session to product status
+    /// and shutdown ownership. No default desktop profile calls this method.
+    pub fn with_opend_session_coordinator(
+        mut self,
+        coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+    ) -> Self {
+        let recorder = coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .lifecycle()
+            .recorder();
+        self.market_data_opend = Some(coordinator);
+        self.market_data_runtime_recorder = Some(recorder);
         self
     }
 
@@ -201,6 +223,20 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
+        if config.market_data_opend.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-session".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "managed-opend-session".to_owned(),
+                path: "loopback OpenD API socket".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD protocol".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDSessionCoordinator".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
         Arc::new(Self { resources })
     }
 
@@ -216,6 +252,7 @@ pub struct ProductRuntimeHandle {
     pine_workers: Vec<PineProcess>,
     marketdata_helper: Option<HelperProcess>,
     market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
+    market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
 }
 
 impl ProductRuntimeHandle {
@@ -230,8 +267,20 @@ impl ProductRuntimeHandle {
         self.market_data_router.clone()
     }
 
+    pub fn market_data_opend(&self) -> Option<Arc<Mutex<OpenDSessionCoordinator>>> {
+        self.market_data_opend.clone()
+    }
+
     pub async fn shutdown(mut self) -> Result<(), ProductRuntimeError> {
         let mut failures = Vec::new();
+        if let Some(coordinator) = self.market_data_opend.take()
+            && let Err(error) = coordinator
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .close()
+        {
+            failures.push(error.to_string());
+        }
         if let Some(mut helper) = self.marketdata_helper.take()
             && let Err(error) = helper.stop().await
         {
@@ -270,12 +319,25 @@ impl Drop for ProductRuntimeHandle {
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+    if config.market_data_router.is_some() && config.market_data_opend.is_some() {
+        return Err(ProductRuntimeError::ConflictingMarketDataOwners);
+    }
     let market_data_router = config.market_data_router.take();
+    let market_data_opend = config.market_data_opend.take();
     if let Some(router) = market_data_router.as_ref() {
         let recorder = router
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .runtime_recorder();
+        config.product = config
+            .product
+            .with_market_data_runtime_status_port(recorder);
+    } else if let Some(coordinator) = market_data_opend.as_ref() {
+        let recorder = coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .lifecycle()
+            .recorder();
         config.product = config
             .product
             .with_market_data_runtime_status_port(recorder);
@@ -294,6 +356,7 @@ pub async fn start_product_runtime(
         pine_workers: Vec::new(),
         marketdata_helper: None,
         market_data_router,
+        market_data_opend,
     };
 
     for worker in config.pine_workers {
@@ -574,6 +637,8 @@ pub enum ProductRuntimeError {
     HelperProcess(#[from] ProcessError),
     #[error("desktop PineTS worker count must be greater than zero")]
     InvalidWorkerCount,
+    #[error("market-data router and OpenD session cannot share one runtime owner")]
+    ConflictingMarketDataOwners,
     #[error("stop Rust product runtime: {0}")]
     Shutdown(String),
 }
@@ -602,6 +667,7 @@ mod tests {
             marketdata_helper: None,
             market_data_router: None,
             market_data_runtime_recorder: None,
+            market_data_opend: None,
             strategy_runtime_registry: None,
         };
         let snapshot = ProductRuntimeState::configured(&config).snapshot();

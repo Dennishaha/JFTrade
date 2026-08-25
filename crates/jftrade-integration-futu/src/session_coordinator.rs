@@ -2,7 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use jftrade_kernel::WireTimestamp;
-use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
+use jftrade_marketdata::{
+    InstrumentRef, MarketDataRuntimeRecorder, SnapshotPollExecutor, SnapshotPollOutcome, TickCache,
+};
 use thiserror::Error;
 
 use crate::{
@@ -13,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Error)]
-pub(crate) enum OpenDSessionCoordinatorError {
+pub enum OpenDSessionCoordinatorError {
     #[error("OpenD session coordinator is closed")]
     Closed,
     #[error("OpenD InitConnect handshake failed: {0}")]
@@ -31,7 +33,7 @@ pub(crate) enum OpenDSessionCoordinatorError {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum OpenDSessionCoordinatorOutcome {
+pub enum OpenDSessionCoordinatorOutcome {
     Idle,
     Push(crate::QuotePush),
     Dropped,
@@ -48,13 +50,15 @@ struct PendingReconnect {
     actions: Vec<ReconcileAction>,
 }
 
-/// Synchronous qualification harness for the managed OpenD session boundary.
+/// Synchronous composition seam for the managed OpenD session boundary.
 ///
-/// This module is compiled only for crate tests. It deliberately stops at the
-/// session, subscription, and push seams; ProviderRouter, product composition,
-/// reconnect workers, and production ownership remain outside this harness.
-pub(crate) struct OpenDSessionCoordinator {
+/// The coordinator owns one authenticated session, lifecycle generation and
+/// replay fencing. It deliberately does not own a timer, thread, ProviderRouter
+/// activation or default product registration; a composition root must inject
+/// it explicitly and drive `poll_once`/`poll_snapshot` from its own lifecycle.
+pub struct OpenDSessionCoordinator {
     config: OpenDTcpProbeConfig,
+    recorder: Arc<MarketDataRuntimeRecorder>,
     lifecycle: OpenDSubscriptionLifecycle,
     desired: Vec<InstrumentRef>,
     session: Option<OpenDInitializedSession>,
@@ -62,14 +66,28 @@ pub(crate) struct OpenDSessionCoordinator {
     closed: bool,
 }
 
+impl std::fmt::Debug for OpenDSessionCoordinator {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OpenDSessionCoordinator")
+            .field("desired_count", &self.desired.len())
+            .field("generation", &self.generation())
+            .field("has_session", &self.session.is_some())
+            .field("pending_reconnect", &self.pending_reconnect.is_some())
+            .field("closed", &self.closed)
+            .finish()
+    }
+}
+
 impl OpenDSessionCoordinator {
-    pub(crate) fn connect(
+    pub fn connect(
         config: OpenDTcpProbeConfig,
         recorder: Arc<MarketDataRuntimeRecorder>,
         desired: Vec<InstrumentRef>,
         now_ms: i64,
     ) -> Result<Self, OpenDSessionCoordinatorError> {
         let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 60_000);
+        let recorder = lifecycle.recorder();
         let actions = lifecycle.reconcile_demand(&desired, now_ms);
         let generation = lifecycle.generation();
         let session =
@@ -82,6 +100,7 @@ impl OpenDSessionCoordinator {
             };
         let mut coordinator = Self {
             config,
+            recorder,
             lifecycle,
             desired,
             session: Some(session),
@@ -98,7 +117,7 @@ impl OpenDSessionCoordinator {
         Ok(coordinator)
     }
 
-    pub(crate) fn reconcile(
+    pub fn reconcile(
         &mut self,
         desired: &[InstrumentRef],
         now_ms: i64,
@@ -108,12 +127,24 @@ impl OpenDSessionCoordinator {
         {
             return Err(OpenDSessionCoordinatorError::TopologyChangeUnsupported);
         }
+        self.reconcile_topology(desired, now_ms)
+    }
+
+    /// Reconciles a changed physical subscription topology. The caller must
+    /// be the composition-owned epoch coordinator; this method performs only
+    /// the generation-fenced Qot_Sub actions and never activates a provider.
+    pub fn reconcile_topology(
+        &mut self,
+        desired: &[InstrumentRef],
+        now_ms: i64,
+    ) -> Result<(), OpenDSessionCoordinatorError> {
+        self.ensure_open()?;
         self.desired = desired.to_vec();
         let actions = self.lifecycle.reconcile_demand(desired, now_ms);
         self.execute_actions(&actions, now_ms)
     }
 
-    pub(crate) fn poll_once(
+    pub fn poll_once(
         &mut self,
         now: WireTimestamp,
         timeout: Duration,
@@ -161,22 +192,22 @@ impl OpenDSessionCoordinator {
         }
     }
 
-    pub(crate) fn session(&self) -> Result<&OpenDInitializedSession, OpenDSessionCoordinatorError> {
+    pub fn session(&self) -> Result<&OpenDInitializedSession, OpenDSessionCoordinatorError> {
         self.ensure_open()?;
         self.session
             .as_ref()
             .ok_or(OpenDSessionCoordinatorError::Closed)
     }
 
-    pub(crate) fn lifecycle(&self) -> &OpenDSubscriptionLifecycle {
+    pub fn lifecycle(&self) -> &OpenDSubscriptionLifecycle {
         &self.lifecycle
     }
 
-    pub(crate) fn generation(&self) -> u64 {
+    pub fn generation(&self) -> u64 {
         self.lifecycle.generation()
     }
 
-    pub(crate) fn close(&mut self) -> Result<bool, OpenDSessionCoordinatorError> {
+    pub fn close(&mut self) -> Result<bool, OpenDSessionCoordinatorError> {
         if self.closed {
             return Ok(false);
         }
@@ -187,6 +218,41 @@ impl OpenDSessionCoordinator {
             session.managed_session().close()?;
         }
         Ok(true)
+    }
+
+    /// Polls BasicQot into a caller-owned generation-fenced cache.
+    ///
+    /// The caller remains responsible for cadence and invoking `poll_once` to
+    /// consume push/close events. This method only composes the already
+    /// authenticated session, lifecycle-owned BASIC subscriptions and the
+    /// broker-neutral snapshot poll executor.
+    pub fn poll_snapshot(
+        &mut self,
+        cache: &mut TickCache,
+        now: WireTimestamp,
+    ) -> Result<SnapshotPollOutcome, OpenDSessionCoordinatorError> {
+        self.ensure_open()?;
+        let demand = basic_snapshot_demand(&self.lifecycle.active_basic_instruments());
+        let generation = self.generation();
+        let session = self
+            .session
+            .as_ref()
+            .ok_or(OpenDSessionCoordinatorError::Closed)?
+            .clone();
+        let lifecycle = &self.lifecycle;
+        let observed_at_ms = now_unix_millis(now)?;
+        Ok(SnapshotPollExecutor::default().execute(
+            &self.recorder,
+            cache,
+            &demand,
+            generation,
+            now,
+            |instruments| {
+                crate::OpenDBasicQuoteExecutor::new(session)
+                    .query_ticks(lifecycle, instruments, observed_at_ms)
+                    .map_err(|error| error.to_string())
+            },
+        ))
     }
 
     fn begin_reconnect(
@@ -264,6 +330,21 @@ impl OpenDSessionCoordinator {
 
 fn now_unix_millis(now: WireTimestamp) -> Result<i64, OpenDSessionCoordinatorError> {
     Ok(now.unix_millis()?)
+}
+
+fn basic_snapshot_demand(instruments: &[String]) -> Vec<InstrumentRef> {
+    instruments
+        .iter()
+        .filter_map(|instrument| {
+            let (market, symbol) = instrument.split_once('.')?;
+            Some(InstrumentRef {
+                channel: "SNAPSHOT".to_owned(),
+                market: market.to_owned(),
+                symbol: symbol.to_owned(),
+                interval: None,
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -605,5 +686,72 @@ mod tests {
         assert!(cleared.is_empty());
         assert_eq!(lifecycle.generation(), generation + 2);
         assert_eq!(recorder.snapshot().active_count, 0);
+    }
+
+    #[test]
+    fn public_coordinator_polls_basic_quotes_into_a_generation_fenced_cache() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+            write_response(
+                &mut stream,
+                PROTO_INIT_CONNECT,
+                init.header.serial_no,
+                InitResponse {
+                    ret_type: Some(0),
+                    s2c: Some(InitState {
+                        server_ver: 1009,
+                        conn_id: 1,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let subscribe = read_framed_frame(&mut stream).expect("subscribe request");
+            assert_eq!(subscribe.header.proto_id, PROTO_QOT_SUB);
+            write_response(
+                &mut stream,
+                PROTO_QOT_SUB,
+                subscribe.header.serial_no,
+                SubResponse { ret_type: Some(0) }.encode_to_vec(),
+            );
+            let quote = read_framed_frame(&mut stream).expect("basic quote request");
+            assert_eq!(quote.header.proto_id, crate::PROTO_GET_BASIC_QOT);
+            write_response(
+                &mut stream,
+                crate::PROTO_GET_BASIC_QOT,
+                quote.header.serial_no,
+                basic_quote_push(),
+            );
+        });
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let mut coordinator = OpenDSessionCoordinator::connect(
+            config,
+            Arc::clone(&recorder),
+            vec![reference("SNAPSHOT", None)],
+            0,
+        )
+        .expect("coordinator");
+        let mut cache = TickCache::new(2);
+        let now: WireTimestamp = "2026-08-24T00:00:00Z".parse().expect("timestamp");
+        assert!(matches!(
+            coordinator
+                .poll_snapshot(&mut cache, now)
+                .expect("snapshot poll"),
+            SnapshotPollOutcome::Applied {
+                requested: 1,
+                inserted: 1
+            }
+        ));
+        assert!(matches!(
+            cache.lookup_for_generation("US.AAPL", now.unix_millis().expect("millis"), 1_500, 1),
+            jftrade_marketdata::CacheLookup::Fresh(_)
+        ));
+        coordinator.close().expect("close coordinator");
+        server.join().expect("server");
     }
 }

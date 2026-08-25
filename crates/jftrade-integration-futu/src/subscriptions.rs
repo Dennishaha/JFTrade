@@ -215,8 +215,7 @@ impl SubscriptionReconciler {
         delay
     }
 
-    #[cfg(test)]
-    pub(crate) fn replay_actions(
+    pub fn replay_actions(
         &mut self,
         desired: &[InstrumentRef],
         generation: u64,
@@ -297,6 +296,10 @@ impl OpenDSubscriptionLifecycle {
         self.generation
     }
 
+    pub fn recorder(&self) -> Arc<MarketDataRuntimeRecorder> {
+        Arc::clone(&self.recorder)
+    }
+
     pub fn active_basic_instruments(&self) -> Vec<String> {
         if self.closed {
             return Vec::new();
@@ -313,11 +316,7 @@ impl OpenDSubscriptionLifecycle {
         self.generation
     }
 
-    #[cfg(test)]
-    pub(crate) fn reconfigure_for_reconnect(
-        &mut self,
-        desired: &[InstrumentRef],
-    ) -> Vec<ReconcileAction> {
+    pub fn reconfigure_for_reconnect(&mut self, desired: &[InstrumentRef]) -> Vec<ReconcileAction> {
         if self.closed {
             return Vec::new();
         }
