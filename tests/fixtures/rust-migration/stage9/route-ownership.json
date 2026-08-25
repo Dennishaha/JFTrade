@@ -11,11 +11,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -27,11 +37,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -43,11 +63,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -59,11 +89,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -75,11 +115,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -91,11 +141,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -107,11 +167,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -123,11 +193,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {
@@ -3405,11 +3485,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3421,11 +3511,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {
@@ -3479,11 +3579,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3495,11 +3605,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3511,11 +3631,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {
@@ -3575,11 +3705,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3591,11 +3731,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3607,11 +3757,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3623,11 +3783,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3639,11 +3809,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3655,11 +3835,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3671,11 +3861,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3687,11 +3887,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3703,11 +3913,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3719,11 +3939,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3735,11 +3965,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3751,11 +3991,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3767,11 +4017,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3783,11 +4043,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3799,11 +4069,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3815,11 +4095,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3831,11 +4121,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -3847,11 +4147,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {
@@ -4991,11 +5301,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -5007,11 +5327,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -5023,11 +5353,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -5039,11 +5379,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -5055,11 +5405,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
   {
@@ -5071,11 +5431,21 @@
      "goRemovalStatus": "retained",
      "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
-        "pnpm run test:rust:stage9:product-differential"
+        "pnpm run test:rust:stage9:product-differential",
+        "tests/fixtures/rust-migration/stage9/adk-mutations.json",
+        "scripts/rust-migration/stage9_adk_mutations_reference_test.go::TestStage9ADKMutationsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_mutations.rs::adk_mutation_fixture_replays_go_wire_for_all_remaining_operations",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s",
+        "crates/jftrade-engine/src/product_adk_mutation_product_tests.rs::adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write",
+        "cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {

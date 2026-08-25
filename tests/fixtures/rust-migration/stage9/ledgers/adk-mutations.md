@@ -12,8 +12,9 @@
   notifications, and all production writes. Rust has no production owner.
 - Route ownership after integration: all 37 operations are `cutover-test-only`
   only when the explicit `AdkMutationPort` is supplied; Go remains the
-  production owner. Current coverage is `26 shadow / 228 cutover-test-only /
-  0 qualified / 24 remaining / 0 Rust production owner`.
+  production owner. Current dynamic coverage is `1 shadow / 120
+  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
+  owner`.
 - Fixture: `tests/fixtures/rust-migration/stage9/adk-mutations.json`
   (`stage9.adk-mutations.v1`, 40 cases: 37 valid route cases and 3 shape/
   identifier error cases).
@@ -24,6 +25,12 @@
   `crates/jftrade-engine/tests/stage9_adk_mutations.rs`.
 - Differential:
   `node scripts/rust-migration/check-stage9-adk-mutations.mjs`.
+- Authenticated owner-fencing rehearsal:
+  `go test ./internal/app/apiserver/servercoretest -run
+  '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$'
+  -count=1 -timeout=300s`.
+- Rust product recovery evidence:
+  `cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture`.
 
 ## Route inventory
 
@@ -57,6 +64,25 @@ provider, install a skill, publish a notification, or execute a workflow.
   `503 ADK_MUTATIONS_UNAVAILABLE`.
 - No default profile registration, authenticated production switch,
   Go/Wails removal, or production owner change is part of this rehearsal.
+
+## Authenticated owner-fencing rehearsal
+
+- The new servercoretest drives all 40 frozen fixture cases through the
+  explicit Go loopback rehearsal proxy. The Rust boundary verifies the private
+  Bearer credential, internal proxy protocol, web access surface, browser
+  Cookie, Origin, Referer, and CSRF headers; the public Bearer credential is
+  never forwarded.
+- The rehearsal compares every fixture status, content type, and complete
+  envelope, including malformed/empty/blank-identifier precedence, repeated
+  mutation forwarding, trailing JSON transport, timeout, caller cancellation,
+  Rust crash/unavailable fail-closed behavior, Go-only malformed-input
+  rollback, restart recovery, and byte-identical settings.
+- The Rust product test verifies malformed input precedes an unavailable port,
+  unavailable-port failure does not fall back to Go, an explicitly injected
+  fixture port recovers after restart, and settings bytes remain unchanged.
+- The rehearsal uses only httptest and injected ports. It does not start the
+  Assistant runtime, Provider/OpenD, notification or task delivery, or a
+  production SQLite writer.
 
 ## Quirks and three-way review
 
@@ -191,15 +217,15 @@ owner: Go Assistant workflow runtime until cutover
 
 ## Qualification status and gates
 
-The group is `cutover-test-only` rehearsal evidence, not cutover-qualified.
-The C leaf and B differential are complete for the 37 routes. A qualification
-still requires integration-owned authenticated loopback test-cutover wiring,
-unique-owner proof, no-double-write fencing, real side-effect and SQLite
-transaction/recovery evidence, session/task/approval/notification isolation,
-provider/runtime cancellation and restart recovery, four-platform release and
+The group remains `cutover-test-only` rehearsal evidence, not
+cutover-qualified. The C leaf, B differential, and authenticated integration
+rehearsal are complete for the 37 routes. Qualification is still blocked on
+durable Assistant state/transaction ownership, unique-owner and no-double-write
+proof for sessions/tasks/approvals/workflows/skills, real side-effect and
+Provider/runtime cancellation and restart evidence, four-platform release and
 signing, security/SBOM review, backup/restore/crash recovery, and the final
-hard-cut gates. Go remains the only production owner until every gate passes;
-this worker does not permit Go/Wails deletion.
+hard-cut gates. Go remains the only production owner; this worker does not
+permit Go/Wails deletion.
 
 Integration evidence: the explicit product test-cutover wiring, shared route
 ledger, unified product differential, and route-isolation test all pass with
@@ -213,6 +239,11 @@ the 37 operations registered only when the mutation port is injected.
 - `node --check scripts/rust-migration/check-stage9-adk-mutations.mjs`
 - `rustfmt --edition 2024 --check crates/jftrade-engine/src/product_adk_mutation_port.rs crates/jftrade-engine/tests/stage9_adk_mutations.rs`
 - `cargo clippy -p jftrade-engine --test stage9_adk_mutations -- -D warnings`
+- `go test ./internal/app/apiserver/servercoretest -run '^TestADKMutationRehearsalPreservesAuthenticatedOwnerFencingAcrossRecovery$' -count=1 -timeout=300s`
+- `cargo test -p jftrade-engine --lib adk_mutation_product -- --nocapture`
+- `pnpm run test:rust:stage9:product-differential`
+- `pnpm run check:quick`
+- `pnpm run check:rust`
 - `git diff --check`
 
 The shared product differential, shared route ownership ledger, default
