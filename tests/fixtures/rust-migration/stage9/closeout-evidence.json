@@ -73,6 +73,13 @@
       "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-auth-session-write.mjs",
       "evidence": "The Go reference fixture, Rust leaf replay, authenticated product rehearsal, and full Stage 9 product differential passed for POST /api/v1/auth/login and POST /api/v1/auth/logout. Evidence covers login/logout contract and error precedence, private bearer plus browser Cookie/Origin/Referer/CSRF context, session-cookie and Retry-After forwarding, duplicate requests, timeout/cancellation/crash fail-closed behavior, Go-only fallback and restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; the Rust boundary has no production password verification, session persistence, CSRF store, cookie-generation owner, or user-visible production side effect, and Go remains the production owner."
+    },
+    {
+      "id": "stage9-auth-session-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit read test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-auth-session.mjs",
+      "evidence": "The Go auth-session fixture, authenticated read rehearsal, Rust product replay, and jftrade-api transport contract passed for GET /api/v1/auth/session. Evidence covers browser session and desktop-trusted projections, allowed/forbidden Origin and CORS header presence/absence, no-store success/error headers, explicit snapshot-port registration, unavailable-port fail-closed behavior, timeout/crash forwarding, restart recovery to the Go owner, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Rust has no production session/password/cookie/CSRF owner, and Go remains the production owner."
     }
   ],
   "gates": {

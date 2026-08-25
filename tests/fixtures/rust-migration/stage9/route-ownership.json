@@ -877,7 +877,7 @@
       "method": "GET",
       "path": "/api/v1/auth/session",
       "capability": "auth",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
@@ -885,7 +885,10 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
-        "pnpm run test:rust:stage9:product-differential"
+        "node scripts/rust-migration/check-stage9-auth-session.mjs",
+        "pnpm run test:rust:stage9:product-differential",
+        "pnpm run check:quick",
+        "pnpm run check:rust"
       ]
     },
     {

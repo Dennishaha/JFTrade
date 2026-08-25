@@ -1,3 +1,6 @@
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -101,6 +104,42 @@ impl AuthSessionSnapshotPort for FailingAuthSessionSnapshotPort {
         Err(AuthSessionSnapshotError::Unavailable(
             "Go auth-session fixture unavailable".to_owned(),
         ))
+    }
+}
+
+#[derive(Debug)]
+struct RecordingAuthSessionSnapshotPort {
+    responses: Mutex<VecDeque<Result<Value, AuthSessionSnapshotError>>>,
+    calls: Mutex<Vec<AuthSessionSnapshotRequest>>,
+}
+
+impl RecordingAuthSessionSnapshotPort {
+    fn new(responses: impl IntoIterator<Item = Result<Value, AuthSessionSnapshotError>>) -> Self {
+        Self {
+            responses: Mutex::new(responses.into_iter().collect()),
+            calls: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn calls(&self) -> Vec<AuthSessionSnapshotRequest> {
+        self.calls.lock().expect("auth-session calls lock").clone()
+    }
+}
+
+impl AuthSessionSnapshotPort for RecordingAuthSessionSnapshotPort {
+    fn session(
+        &self,
+        request: AuthSessionSnapshotRequest,
+    ) -> Result<Value, AuthSessionSnapshotError> {
+        self.calls
+            .lock()
+            .expect("auth-session calls lock")
+            .push(request);
+        self.responses
+            .lock()
+            .expect("auth-session responses lock")
+            .pop_front()
+            .expect("auth-session product response")
     }
 }
 
@@ -237,6 +276,108 @@ async fn auth_session_route_is_not_registered_without_snapshot_port() {
     );
     assert_eq!(response["error"]["code"], "NOT_FOUND");
     handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn auth_session_product_recovers_after_snapshot_failure_and_restart_without_side_effects() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}\n").expect("seed settings");
+    let initial_settings = std::fs::read(&settings_path).expect("read initial settings");
+    let port = Arc::new(RecordingAuthSessionSnapshotPort::new([
+        Err(AuthSessionSnapshotError::Unavailable(
+            "fixture snapshot failure".to_owned(),
+        )),
+        Ok(json!({
+            "authenticated": true,
+            "csrfToken": "fixture-csrf",
+            "expiresAt": "fixture-time"
+        })),
+    ]));
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_auth_session_snapshot_port(port.clone());
+    config.access = AccessPolicy {
+        session_token: Some("fixture-session".to_owned()),
+        enforce_access: true,
+        desktop_mode: false,
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://fixture.jftrade.local".to_owned()]);
+    let headers = [
+        ("Cookie", "jftrade_web_session=fixture-session"),
+        ("Origin", "https://fixture.jftrade.local"),
+    ];
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let (status, _, response) =
+        request_json_response(address, "GET", "/api/v1/auth/session", &headers).await;
+    assert_eq!(status, 503);
+    assert_eq!(response["error"]["code"], "AUTH_SESSION_UNAVAILABLE");
+    let (status, _, response) =
+        request_json_response(address, "GET", "/api/v1/auth/session", &headers).await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["authenticated"], true);
+    assert_eq!(
+        port.calls(),
+        vec![
+            AuthSessionSnapshotRequest {
+                desktop_trusted: false,
+                browser_authenticated: true,
+                origin_provided: true,
+                origin_allowed: true,
+            },
+            AuthSessionSnapshotRequest {
+                desktop_trusted: false,
+                browser_authenticated: true,
+                origin_provided: true,
+                origin_allowed: true,
+            },
+        ]
+    );
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after recovery"),
+        initial_settings
+    );
+
+    let restarted_port = Arc::new(RecordingAuthSessionSnapshotPort::new([Ok(json!({
+        "authenticated": false
+    }))]));
+    let mut restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restarted address"),
+        &settings_path,
+    )
+    .expect("restarted config")
+    .with_auth_session_snapshot_port(restarted_port);
+    restarted_config.access = AccessPolicy {
+        session_token: Some("fixture-session".to_owned()),
+        enforce_access: true,
+        desktop_mode: false,
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://fixture.jftrade.local".to_owned()]);
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart product");
+    let (status, _, response) = request_json_response(
+        restarted.startup_record().address,
+        "GET",
+        "/api/v1/auth/session",
+        &headers,
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["authenticated"], false);
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after restart"),
+        initial_settings
+    );
 }
 
 fn auth_session_headers(context: &AuthSessionRequestContext) -> Vec<(&'static str, &'static str)> {

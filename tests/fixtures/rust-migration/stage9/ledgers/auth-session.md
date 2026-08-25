@@ -4,7 +4,7 @@
 - Tier: B (session/auth context, CSRF/origin/trusted-desktop behavior and transport headers require differential evidence)
 - Operation: `GET /api/v1/auth/session`
 - Production owner: Go (`internal/app/apiserver/webaccess.Auth.Status`); Rust remains explicit test-cutover or shadow only.
-- Route ownership: `cutover-test-only`; the integration branch applied the ownership change. `node scripts/rust-migration/check-stage9-route-coverage.mjs` reports 26 read-only shadow, 99 cutover-test-only, 0 cutover-qualified, 153 remaining, and 0 Rust production owner.
+- Route ownership: `cutover-qualified` rehearsal; the route is registered only with the explicit snapshot port. Go remains the production owner and `goRemovalStatus=retained`; the default profile remains unchanged.
 - Fixture: `tests/fixtures/rust-migration/stage9/auth-session.json`
 
 ## Three-Way Reviewed Quirks
@@ -61,7 +61,7 @@ quirk: `Cache-Control: no-store` is required on both successful auth-session pro
 处置: Preserve the shared transport behavior through the dedicated regression without modifying the shared router in this slice.
 风险: low
 owner: integration for shared transport, Go for production owner
-后续: Keep the route cutover-test-only until the remaining Tier B qualification evidence is complete.
+后续: Keep the route behind the explicit snapshot port until production-owner and release evidence is complete.
 三方复核结论: Go owner, frozen fixture, and Rust engine/API transport replay all agree on `Cache-Control: no-store`.
 
 quirk: Test-cutover distinguishes an injected unavailable snapshot port (`503 AUTH_SESSION_UNAVAILABLE`) from an absent snapshot port (route not registered, `404 NOT_FOUND`).
@@ -72,7 +72,7 @@ quirk: Test-cutover distinguishes an injected unavailable snapshot port (`503 AU
 处置: Keep the port optional and fail closed; do not create a Go-like session store, browser cookie owner, or production route registration in this slice.
 风险: medium
 owner: Rust test-cutover wiring
-后续: Keep the explicit consumer-owned snapshot port while the route remains cutover-test-only.
+后续: Keep the explicit consumer-owned snapshot port throughout test-cutover qualification.
 三方复核结论: Go remains the live session owner, the Go fixture supplies only observable session projections, and Rust demonstrates that its test-only adapter cannot silently replace or fall back to the Go-owned route.
 
 quirk: Review reported a duplicate `t.Cleanup(browserServer.Close)`, but the current reference test has exactly one browser-server cleanup at line 85 and a distinct desktop-server cleanup at line 101.
@@ -98,3 +98,17 @@ the original quick-gate failure is retained as historical evidence.
 owner: integration
 后续: Preserve the split and rerun the broad gate; no auth-session behavior change is required.
 三方复核结论: The historical Go reference and Rust route/API tests are green, the fixture is current, the extracted files satisfy layout inspection, and the former blocker is no longer present in the current worktree.
+
+## Verification record
+
+- Go reference fixture and Rust product/transport replay: passed (`node scripts/rust-migration/check-stage9-auth-session.mjs`). This runs the Go owner fixture, authenticated loopback rehearsal, Rust product auth-session tests, and the `jftrade-api` auth-session transport contract.
+- The authenticated rehearsal covers exact read wire/header forwarding, Rust private bearer fencing, error/timeout/crash fail-closed behavior, restart recovery to the Go owner, and no settings mutation. Go fixture cases separately cover browser session, allowed/forbidden Origin, desktop-trusted access, CORS header presence/absence, and normalized CSRF/session expiry projections.
+- Full Stage 9 product differential: passed (`pnpm run test:rust:stage9:product-differential`).
+- Quick and full Rust repository gates: passed (`pnpm run check:quick`; `pnpm run check:rust`).
+- Route coverage and closeout/ownership tests: passed (`node scripts/rust-migration/check-stage9-route-coverage.mjs`; `node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs`).
+
+## Cutover-qualified status
+
+The Go reference fixture, Rust leaf/product replay, authenticated read rehearsal, and transport contract are green for `GET /api/v1/auth/session`. The route is cutover-qualified only under the explicit snapshot port; it has no Rust password, browser-session, CSRF-store, cookie, SQLite, Provider/OpenD, or user-visible production side-effect owner. This is `cutover-qualified`, not a production migration; Go remains the unique production owner.
+
+Production session-store integration, credential/security review, four-platform signed release/updater, SBOM, backup/restore, and final unique-owner/hard-cut approval remain open in the Stage 9 closeout manifest.

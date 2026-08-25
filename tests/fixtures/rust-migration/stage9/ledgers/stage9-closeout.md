@@ -40,4 +40,4 @@ owner: 集成分支
 
 ## Current boundary
 
-The current dynamically derived snapshot is `1 shadow / 121 cutover-test-only / 156 cutover-qualified / 0 remaining / 0 Rust production owner`. The `auth-session-write` login/logout mutations and `watchlists-remote-write` mutation are cutover-qualified only under their explicit authenticated test-cutover ports; Go remains the only production owner, all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.
+The current dynamically derived snapshot is `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`. The `auth-session` route, `auth-session-write` login/logout mutations, and `watchlists-remote-write` mutation are cutover-qualified only under their explicit authenticated test-cutover ports; Go remains the only production owner, all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.
