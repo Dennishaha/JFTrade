@@ -29,6 +29,15 @@ var rehearsalResponseHeaders = []string{
 	"Expires", "Last-Modified", "Vary", "X-Content-Type-Options",
 }
 
+// These request headers carry browser authentication and origin context. The
+// public Authorization header is intentionally excluded: the verified private
+// Rust bearer below is the only credential accepted by the sidecar. Cookies,
+// origin, referer, and CSRF values still need to reach Rust so a rehearsal can
+// exercise the same browser-session and CORS decisions as the Go owner.
+var rehearsalRequestHeaders = []string{
+	"Accept", "Content-Type", "Cookie", "Origin", "Referer", "X-CSRF-Token",
+}
+
 type rehearsalOperation struct {
 	method   string
 	template string
@@ -166,8 +175,9 @@ func (p *rehearsalProxy) forward(c *gin.Context) {
 		return
 	}
 	forwarded.ContentLength = request.ContentLength
-	copyRequestHeader(forwarded.Header, request.Header, "Accept")
-	copyRequestHeader(forwarded.Header, request.Header, "Content-Type")
+	for _, name := range rehearsalRequestHeaders {
+		copyRequestHeader(forwarded.Header, request.Header, name)
+	}
 	forwarded.Header.Set("Authorization", "Bearer "+p.bearer)
 	forwarded.Header.Set(InternalProxyHeader, InternalProxyProtocol)
 	forwarded.Header.Set(AccessSurfaceHeader, surface)

@@ -56,8 +56,20 @@ func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) 
 		if got := r.Header.Get(requestIDHeader); got != "stable-request-7" {
 			t.Errorf("request ID = %q", got)
 		}
-		if got := r.Header.Get("Cookie"); got != "" {
-			t.Errorf("public cookie leaked to Rust: %q", got)
+		if got := r.Header.Get("Cookie"); got != "jftrade_web_session=browser-session" {
+			t.Errorf("browser session cookie = %q", got)
+		}
+		if got := r.Header.Get("Origin"); got != "https://console.example" {
+			t.Errorf("browser origin = %q", got)
+		}
+		if got := r.Header.Get("Referer"); got != "https://console.example/settings" {
+			t.Errorf("browser referer = %q", got)
+		}
+		if got := r.Header.Get("X-CSRF-Token"); got != "browser-csrf" {
+			t.Errorf("browser CSRF token = %q", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer private-rust-bearer" {
+			t.Errorf("public authorization replaced private bearer = %q", got)
 		}
 		body, err := io.ReadAll(r.Body)
 		if err != nil || string(body) != `{"enabled":true}` {
@@ -75,7 +87,10 @@ func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) 
 	router := rehearsalProxyTestRouter(rehearsalProxyTargetFixture{rust.URL, []string{operation}}, []string{operation}, time.Second, &goCalls)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/widgets/alpha?view=full", strings.NewReader(`{"enabled":true}`))
 	request.Header.Set("Authorization", "Bearer public-desktop-token")
-	request.Header.Set("Cookie", "jftrade_web_session=must-not-forward")
+	request.Header.Set("Cookie", "jftrade_web_session=browser-session")
+	request.Header.Set("Origin", "https://console.example")
+	request.Header.Set("Referer", "https://console.example/settings")
+	request.Header.Set("X-CSRF-Token", "browser-csrf")
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
 	request.Header.Set(requestIDHeader, "stable-request-7")
 	response := httptest.NewRecorder()
