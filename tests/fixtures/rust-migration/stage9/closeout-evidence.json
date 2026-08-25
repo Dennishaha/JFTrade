@@ -38,6 +38,13 @@
       "scope": "local-only Rust explicit mutation test-cutover profile",
       "command": "node scripts/rust-migration/check-stage9-alerts-write.mjs",
       "evidence": "The 18-case Go reference fixture, Rust leaf replay, authenticated product rehearsal, and product differential passed for both alerts POST routes. Evidence covers duplicate writes forwarded twice, failure-to-recovery, cancellation/deadline mapping, provider/error precedence, crash/timeout fail-closed behavior, Go-only fallback after restart, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner, with no Rust SQLite, notification, task, Provider/OpenD, or production state side effect."
+    },
+    {
+      "id": "stage9-strategy-pine-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-strategy-pine.mjs",
+      "evidence": "The 12-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/strategy-pine/analyze. Evidence covers input/error precedence, opaque analysis projections, worker unavailable/timeout/cancel/crash projections, sidecar error/timeout/client-cancellation/crash fail-closed behavior, Go-only rollback and restart recovery, private bearer plus browser/CORS/CSRF context forwarding, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust PineTS worker, Provider/OpenD, SQLite, strategy state, notification, or production side effect was enabled."
     }
   ],
   "gates": {

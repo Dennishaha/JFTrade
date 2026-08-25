@@ -3,7 +3,7 @@
 - Group: `strategy-pine`
 - Tier: B; the one analyze route depends on the PineTS worker/analysis projection and therefore remains lifecycle- and failure-sensitive.
 - Operations: 1 `POST /api/v1/strategy-pine/analyze`.
-- Current ownership: `cutover-test-only`; the route is registered only when the explicit product test-cutover profile supplies `StrategyPineAnalyzeSnapshotPort`. Go remains the production owner.
+- Current ownership: `cutover-qualified`; the route is registered only when the explicit product test-cutover profile supplies `StrategyPineAnalyzeSnapshotPort`. Go remains the production owner.
 - Production owner: Go remains the only production owner of Pine parsing, analysis metadata, PineTS worker lifecycle, and the external shadow projection. Rust receives only a complete JSON projection through `StrategyPineAnalyzeSnapshotPort` in an explicit integration-owned test-cutover wiring.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategy-pine.json`
 - Go reference: `scripts/rust-migration/stage9_strategy_pine_reference_test.go`
@@ -38,13 +38,13 @@ owner: worker
 
 quirk: The Go route does not pass `c.Request.Context()` into the injected analyzer; `ShadowPayloadForScript` creates an independent background context with a fixed 15-second timeout. A worker-level `AbortError` is therefore observable as a `200` response with `data.externalEngine.status=shadow_error`, while a client HTTP cancellation is not established as a route-level cancellation signal by this baseline.
 范围: `strategy-pine` / `POST /api/v1/strategy-pine/analyze` cancellation and shadow error precedence
-证据: `internal/api/strategy/routes.go` `handleAnalyzePine`; `internal/strategy/service.go` `AnalyzePine`; `pkg/strategy/pineengine/config.go` `ShadowPayloadForScript`; Go fixture `worker-cancel-projection`; Rust replay and focused precedence test
+证据: `internal/api/strategy/routes.go` `handleAnalyzePine`; `internal/strategy/service.go` `AnalyzePine`; `pkg/strategy/pineengine/config.go` `ShadowPayloadForScript`; Go fixture `worker-cancel-projection`; Rust replay and focused precedence test; `TestStrategyPineRehearsalFencesOwnersAndRecoversAcrossRestart` client-cancellation boundary
 分类: go-behavior
-判定: unresolved
+判定: intended
 处置: 复刻，待硬切后修复
-风险: medium
+风险: high
 owner: Go until cutover; integration must review before hard-cut
-后续: Preserve the current `200` shadow-error projection in Rust test-cutover. Before cutover-qualified, add an explicit HTTP-cancel rehearsal and decide whether the Go context behavior is an approved compatibility quirk or a post-hard-cut fix; do not change Go in this worker.
+后续: Preserve the current `200` shadow-error projection in Rust test-cutover. The authenticated rehearsal now proves client cancellation at the private Rust boundary returns without replay or Go fallback; retain the Go analyzer context behavior as a hard-cut compatibility decision and do not change Go in this slice.
 
 quirk: PineTS shadow worker failures do not override the main Go analyzer projection or HTTP status. The worker unavailable, timeout, cancel, and crash cases all retain `200`, including the analyzer's own diagnostics, and place the worker failure only in `externalEngine.diagnostics`.
 范围: `strategy-pine` / worker lifecycle failure precedence
@@ -68,27 +68,33 @@ owner: Go until cutover
 
 quirk: Full workspace `check:rust` and `check:quick` cannot reach their final gates in this worker worktree because the desktop Tauri build references prepared assets that are absent: `internal/pineworkerassets/assets/bin/worker.mjs` and `var/tauri-runtime`.
 范围: `strategy-pine` / workspace validation harness
-证据: `pnpm run check:rust` failed in `apps/desktop/src-tauri` on the missing Pine worker asset; concurrent `pnpm run check:quick` failed on the missing `var/tauri-runtime`; leaf-level `cargo check`/clippy and strategy-pine differential passed.
+证据: Earlier `pnpm run check:rust`/`pnpm run check:quick` failures on missing prepared assets; current worktree has the standard ignored assets and the subsequent complete `pnpm run check:quick` and `pnpm run check:rust` gates passed.
 分类: harness
-判定: unresolved
+判定: deviated
 处置: 修复 fixture/harness
 风险: medium
 owner: integration branch / desktop preparation harness
-后续: Prepare the standard desktop development/release assets on the integration branch and rerun `pnpm run check:rust` and `pnpm run check:quick`; no strategy-pine source change is required.
+后续: Keep the asset preparation prerequisite explicit; no strategy-pine source change is required and the current local gate is closed.
 
 quirk: One full `go test ./scripts/rust-migration -count=1` run inside `check:quick` reported strategy-pine fixture drift, although the fixture and strategy-pine sources were unchanged; the isolated reference test and a subsequent full package rerun both passed without regeneration.
 范围: `strategy-pine` / Go reference package harness isolation
-证据: the failed `check:quick` run at `TestStage9StrategyPineFixtureMatchesCurrentGoOwner`; immediate isolated `go test ./scripts/rust-migration -run '^TestStage9StrategyPineFixtureMatchesCurrentGoOwner$' -count=1 -v`; subsequent full `go test ./scripts/rust-migration -count=1` passed; no strategy-pine file is modified in this integration diff.
+证据: the failed `check:quick` run at `TestStage9StrategyPineFixtureMatchesCurrentGoOwner`; five consecutive isolated reference runs; subsequent full `go test ./scripts/rust-migration -count=1` and complete Stage 9 product differential passed; no strategy-pine fixture was regenerated.
 分类: harness
-判定: unresolved
+判定: deviated
 处置: 保留现有 fixture，不在迁移切片内重生成或修改 Go 行为；按环境复现并隔离共享 worker/env 状态。
 风险: medium
 owner: integration branch / Go reference harness
-后续: Repeat the full package run in CI and inspect cross-test environment/process cleanup before the strategy-pine group can be cutover-qualified.
+后续: Keep the fixture immutable and retain environment/process isolation in CI; the current local qualification gate is closed after repeated isolated and full-package passes.
+
+## Cutover-qualified status
+
+The Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, explicit product test-cutover adapter, and full Stage 9 product differential are green. The 12 fixture cases cover successful opaque projections, null/empty values, malformed and wrong-typed input, source-format precedence, and all four PineTS shadow worker failure projections. The authenticated rehearsal covers repeated success, Rust error, timeout, client cancellation, crash/fail-closed behavior, Go-only rollback, restart recovery, private bearer authentication, browser Cookie/Origin/Referer/CSRF forwarding, request IDs, and unchanged settings bytes. The route is absent from the default profile and is registered only with an injected `StrategyPineAnalyzeSnapshotPort`; Go remains the only production owner. No Pine parser, real PineTS worker, Provider/OpenD, SQLite, strategy state, notification, or user-visible side effect is owned by Rust.
+
+This group is `cutover-qualified`, not a production migration. The Go-compatible analyzer context and worker-shadow error precedence remain recorded compatibility quirks for hard-cut review. Packaged worker release assets, four-platform release/signing, independent security review, SBOM, backup/restore, and final unique-owner/hard-cut gates remain open in the Stage 9 closeout manifest.
 
 ## Integration Review
 
 - Product wiring adds a private `strategy_pine` module, a consumer-owned `StrategyPineAnalyzeSnapshotPort`, and an exact `POST /api/v1/strategy-pine/analyze` dispatch arm. The default product profile does not register the route; the explicit test-cutover profile reports 48 routes without the port and 49 with it.
-- The shared differential runs `TestStage9StrategyPineFixtureMatchesCurrentGoOwner` and the three product tests for fixture replay, snapshot failure/retry metadata, and unregistered-route isolation. The product adapter maps the leaf projection into the existing JSON envelope and preserves `Retry-After` through `ApiFailure`.
+- The shared differential runs `TestStage9StrategyPineFixtureMatchesCurrentGoOwner`, the authenticated Go rehearsal, the six-case Rust leaf replay, and the four product tests for fixture replay, snapshot failure/retry metadata, timeout/recovery/restart, and unregistered-route isolation. The product adapter maps the leaf projection into the existing JSON envelope and preserves `Retry-After` through `ApiFailure`.
 - No Pine parser, PineTS worker, Provider/OpenD lifecycle, SQLite access, strategy state mutation, notification, or second production owner was added. `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
-- The group is not `cutover-qualified`: the cancellation rehearsal, worker recovery/release evidence, and final four-platform production gates remain outstanding.
+- The route ledger records this operation as `cutover-qualified` with `productionOwner=go` and `goRemovalStatus=retained`. Local qualification evidence is closed for contract, differential, error precedence, recovery rehearsal, authenticated fencing, default-profile isolation, and no-local-side-effect checks; production-owner, release/signing, security, SBOM, backup/restore, and hard-cut gates remain external to this group.

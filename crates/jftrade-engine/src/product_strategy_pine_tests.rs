@@ -3,7 +3,8 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::tempdir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -106,6 +107,29 @@ impl StrategyPineAnalyzeSnapshotPort for RetryStrategyPinePort {
             message: "strategy-pine owner is busy".to_owned(),
             retry_after_seconds: Some(7),
         })
+    }
+}
+
+#[derive(Debug)]
+struct SequencedStrategyPinePort {
+    attempts: AtomicUsize,
+    projection: Value,
+}
+
+impl StrategyPineAnalyzeSnapshotPort for SequencedStrategyPinePort {
+    fn analyze(
+        &self,
+        _input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        if self.attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+            return Err(StrategyPineAnalyzeSnapshotError::Failed {
+                status: 504,
+                code: "STRATEGY_PINE_ANALYZE_TIMEOUT".to_owned(),
+                message: "analysis snapshot timed out".to_owned(),
+                retry_after_seconds: None,
+            });
+        }
+        Ok(self.projection.clone())
     }
 }
 
@@ -237,6 +261,67 @@ async fn strategy_pine_routes_preserve_snapshot_failures_and_retry_after() {
     assert_eq!(retry.body["error"]["code"], "STRATEGY_PINE_BUSY");
     assert_eq!(header_value(&retry.headers, "Retry-After"), Some("7"));
     handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn strategy_pine_product_recovers_after_timeout_and_restart_without_local_state_side_effects()
+{
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{\"seed\":\"strategy-pine\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("read seeded settings");
+    let projection = json!({
+        "analysis": "recovered",
+        "externalEngine": {"status": "shadow_error"}
+    });
+    let port = Arc::new(SequencedStrategyPinePort {
+        attempts: AtomicUsize::new(0),
+        projection: projection.clone(),
+    });
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_pine_analyze_snapshot_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let path = "/api/v1/strategy-pine/analyze";
+    let body = Some(r#"{"script":"//@version=6\nstrategy(\"fixture\")"}"#);
+
+    let (status, response) =
+        request_json_with_status(handle.startup_record().address, "POST", path, body, &[]).await;
+    assert_eq!(status, 504);
+    assert_eq!(response["error"]["code"], "STRATEGY_PINE_ANALYZE_TIMEOUT");
+
+    let (status, response) =
+        request_json_with_status(handle.startup_record().address, "POST", path, body, &[]).await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"], projection);
+    assert_eq!(port.attempts.load(Ordering::SeqCst), 2);
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after recovery"),
+        settings_before
+    );
+
+    let restarted_port = Arc::new(SequencedStrategyPinePort {
+        attempts: AtomicUsize::new(1),
+        projection: projection.clone(),
+    });
+    let restarted = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restarted address"),
+        &settings_path,
+    )
+    .expect("restarted config")
+    .with_strategy_pine_analyze_snapshot_port(restarted_port);
+    let handle = start_product(restarted).await.expect("restart product");
+    let (status, response) =
+        request_json_with_status(handle.startup_record().address, "POST", path, body, &[]).await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"], projection);
+    handle.shutdown().await.expect("shutdown restarted product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read restarted settings"),
+        settings_before
+    );
 }
 
 #[tokio::test]

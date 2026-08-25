@@ -31,6 +31,13 @@ run("go", [
   "^TestStage9StrategyPineFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestStrategyPineRehearsalFencesOwnersAndRecoversAcrossRestart$",
+  "-count=1",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -40,4 +47,13 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
-console.log("Stage 9 strategy-pine differential passed: Go fixture and Rust leaf replay agree.");
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--lib",
+  "product::tests::strategy_pine_tests",
+  "--",
+  "--nocapture",
+]);
+console.log("Stage 9 strategy-pine differential passed: Go fixture, authenticated rehearsal, Rust leaf, and Rust product replay agree.");

@@ -4477,14 +4477,22 @@
       "method": "POST",
       "path": "/api/v1/strategy-pine/analyze",
       "capability": "strategy-pine",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/strategy-pine.json",
+        "scripts/rust-migration/stage9_strategy_pine_reference_test.go::TestStage9StrategyPineFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_strategy_pine.rs::strategy_pine_replays_go_fixture_projection_status_and_headers",
+        "crates/jftrade-engine/src/product_strategy_pine_tests.rs::strategy_pine_product_recovers_after_timeout_and_restart_without_local_state_side_effects",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategyPineRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "node scripts/rust-migration/check-stage9-strategy-pine.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
