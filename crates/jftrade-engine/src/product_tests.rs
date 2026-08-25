@@ -572,6 +572,8 @@ mod execution_write_product_tests;
 #[path = "product_system_write_product_tests.rs"]
 mod system_write_product_tests;
 
+#[path = "product_market_data_provider_actions_product_tests.rs"]
+mod market_data_provider_actions_product_tests;
 #[path = "product_market_data_subscription_mutation_product_tests.rs"]
 mod market_data_subscription_mutation_product_tests;
 

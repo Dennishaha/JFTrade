@@ -4097,9 +4097,19 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay",
+        "provider-opend-lifecycle",
+        "recovery-and-release-gates"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-provider-actions.json",
+        "scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go::TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs::provider_actions_replay_matches_go_fixture_and_forwards_raw_requests",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_provider_actions_product_tests.rs::market_data_provider_actions_replay_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4112,9 +4122,19 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay",
+        "provider-opend-lifecycle",
+        "recovery-and-release-gates"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-provider-actions.json",
+        "scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go::TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs::provider_actions_replay_matches_go_fixture_and_forwards_raw_requests",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_provider_actions_product_tests.rs::market_data_provider_actions_replay_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4127,9 +4147,19 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay",
+        "provider-opend-lifecycle",
+        "recovery-and-release-gates"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-provider-actions.json",
+        "scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go::TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs::provider_actions_replay_matches_go_fixture_and_forwards_raw_requests",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_provider_actions_product_tests.rs::market_data_provider_actions_replay_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4142,9 +4172,20 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay",
+        "provider-opend-lifecycle",
+        "durable-quote-write-owner",
+        "recovery-and-release-gates"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-provider-actions.json",
+        "scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go::TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs::provider_actions_replay_matches_go_fixture_and_forwards_raw_requests",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_provider_actions_product_tests.rs::market_data_provider_actions_replay_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4180,9 +4221,19 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay",
+        "provider-opend-lifecycle",
+        "recovery-and-release-gates"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-provider-actions.json",
+        "scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go::TestStage9MarketDataProviderActionsFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs::provider_actions_replay_matches_go_fixture_and_forwards_raw_requests",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_provider_actions_product_tests.rs::market_data_provider_actions_replay_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

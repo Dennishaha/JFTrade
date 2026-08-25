@@ -3,12 +3,13 @@
 - Group: `market-data-provider-actions`
 - Tier: B; provider-backed action and snapshot rehearsal only.
 - Operations: 5 unique POST operations. The duplicated baseline entry for option analysis is represented once; prediction subscription lease mutations are excluded.
-- Production owner: Go. Rust is limited to an explicitly injected snapshot port and replay API; it must not start Provider/OpenD, open SQLite, create subscriptions, or mutate provider state.
+- Production owner: Go. Rust is limited to an explicitly injected `MarketDataProviderActionsPort` and replay API; it must not start Provider/OpenD, open SQLite, create subscriptions, or mutate provider state.
 - Fixture: `tests/fixtures/rust-migration/stage9/market-data-provider-actions.json` (50 cases)
 - Go reference: `scripts/rust-migration/stage9_market_data_provider_actions_reference_test.go`
 - Rust replay: `crates/jftrade-engine/tests/stage9_market_data_provider_actions.rs`
 - Differential: `node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs`
 - Status: `cutover-test-only`; `productionOwner=go`; `goRemovalStatus=retained`
+- Product evidence: authenticated Rust product replay and Go loopback rehearsal cover browser/private-boundary forwarding, unavailable/rate-limit/error responses, timeout, cancellation, crash fail-closed behavior, Go rollback/restart recovery, default-profile isolation, and unchanged settings bytes.
 
 ## Operation Set
 
@@ -90,11 +91,12 @@ owner: worker
 - Go remains the sole production owner and no Rust default route registration is present in this worker commit.
 - The combo quote persistence side effect is not Rust-qualified; a real store adapter, ownership transfer, recovery behavior, and no-double-write evidence are required before qualification.
 - Provider lifecycle, capability selection, decimal/normalization semantics, four-platform packaging, signing, security, recovery, hard-cut, and serial Go/Wails deletion remain integration/release gates.
-- Integration must wire the three exclusive files into product assembly and test-cutover injection, update ownership evidence, and run the shared product differential. Those shared files are intentionally untouched here.
+- The authenticated product composition is test-cutover-only: it accepts an injected fixture port and leaves default route registration unchanged. No Provider/OpenD, durable quote store, subscription registry, SQLite, notification, or user-visible side effect is enabled.
 
-## Integration Handoff
+## Completed Evidence
 
-- Include the port/API/routes files in the product composition only behind the explicit test-cutover capability; keep default route registration unchanged.
-- Supply the Go-owned snapshot adapter and preserve `ApiFailure` retry headers through shared transport.
-- Keep `/api/v1/market-data/prediction/contracts/{code}/subscriptions` and its DELETE lease route under the existing Go owner.
-- Re-run this worker differential plus product route coverage after serial assembly changes; do not claim `check:quick` or `check:rust` from this worker commit.
+- `go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataProviderActionsRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1` passed.
+- `cargo test -p jftrade-engine --lib market_data_provider_actions -- --nocapture` passed.
+- `node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs` passed for the 50-case Go fixture and Rust leaf replay.
+- `pnpm run test:rust:stage9:product-differential`, `pnpm run check:quick`, and `pnpm run check:rust` passed; these gates do not change the `cutover-test-only` status or Go production ownership.
+- Keep `/api/v1/market-data/prediction/contracts/{code}/subscriptions` and its DELETE lease route under the existing Go owner; preserve `ApiFailure` retry headers through shared transport.

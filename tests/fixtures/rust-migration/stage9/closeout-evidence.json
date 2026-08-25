@@ -94,6 +94,13 @@
       "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
       "evidence": "The 55-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, route/transport differential, and unchanged-settings checks passed for all six market-data subscription mutation routes. Evidence covers private bearer and browser Cookie/Origin/Referer/CSRF forwarding, auth and CSRF fencing, 503 unavailable and 502 provider-failure mapping, success/error/recovery paths, timeout, cancellation, Rust crash fail-closed behavior, Go rollback, Go restart recovery, explicit test-cutover registration, and request path/query forwarding. The injected Rust boundary has no Provider/OpenD, durable lease, SQLite, subscription registry, or user-visible side effect; the group remains cutover-test-only with Go as the sole production owner until durable owner, idempotency, cancellation fencing, live-provider lifecycle, and crash/restart recovery evidence closes."
+    },
+    {
+      "id": "stage9-market-data-provider-actions-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, authenticated Go loopback rehearsal, full Stage 9 differential and local gates",
+      "command": "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
+      "evidence": "The 50-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, route/transport differential, full Stage 9 product differential, check:quick and check:rust passed for all five market-data provider-action POST routes. Evidence covers Rust 401 unauthenticated and 403 CSRF fencing, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, raw path/query/body preservation, unavailable and provider rate-limit mappings including Retry-After, timeout, cancellation, crash fail-closed behavior, Go rollback and restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. The Rust boundary uses only an injected fixture port; it does not start Provider/OpenD, persist the combo quote, open SQLite, create subscriptions, or produce user-visible side effects. The group remains cutover-test-only with Go as the sole production owner; combo quote durable ownership, Provider/OpenD lifecycle, release, recovery and hard-cut evidence remain open."
     }
   ],
   "gates": {
