@@ -423,9 +423,10 @@ fn reconnect_delay(initial: Duration, maximum: Duration, failures: u32) -> Durat
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::{Read, Write};
     use std::net::TcpListener;
-    use std::sync::Arc;
+    use std::sync::{Arc, mpsc};
+    use std::time::Instant;
 
     use super::*;
     use crate::{OpenDTcpProbeConfig, PROTO_INIT_CONNECT};
@@ -645,5 +646,108 @@ mod tests {
             reconnect_delay(Duration::from_secs(10), Duration::from_secs(1), 1),
             Duration::from_secs(1)
         );
+    }
+
+    #[test]
+    fn runtime_task_backoff_replays_after_a_failed_reconnect_attempt() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let (release_initial_tx, release_initial_rx) = mpsc::channel();
+        let (accept_tx, accept_rx) = mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (mut initial, _) = listener.accept().expect("initial accept");
+            accept_tx.send(Instant::now()).expect("initial timestamp");
+            let init = crate::transport::read_framed_frame(&mut initial).expect("initial init");
+            initial
+                .write_all(
+                    &crate::encode_frame(
+                        PROTO_INIT_CONNECT,
+                        init.header.serial_no,
+                        &InitResponse {
+                            ret_type: Some(0),
+                            s2c: Some(InitState {
+                                server_ver: 1009,
+                                conn_id: 1,
+                            }),
+                        }
+                        .encode_to_vec(),
+                    )
+                    .expect("initial response"),
+                )
+                .expect("write initial response");
+            release_initial_rx.recv().expect("release initial");
+            drop(initial);
+
+            let (mut failed, _) = listener.accept().expect("failed reconnect accept");
+            accept_tx.send(Instant::now()).expect("failed timestamp");
+            let _ = crate::transport::read_framed_frame(&mut failed);
+            drop(failed);
+
+            let (mut recovered, _) = listener.accept().expect("recovery accept");
+            accept_tx.send(Instant::now()).expect("recovery timestamp");
+            let init = crate::transport::read_framed_frame(&mut recovered).expect("recovery init");
+            recovered
+                .write_all(
+                    &crate::encode_frame(
+                        PROTO_INIT_CONNECT,
+                        init.header.serial_no,
+                        &InitResponse {
+                            ret_type: Some(0),
+                            s2c: Some(InitState {
+                                server_ver: 1009,
+                                conn_id: 2,
+                            }),
+                        }
+                        .encode_to_vec(),
+                    )
+                    .expect("recovery response"),
+                )
+                .expect("write recovery response");
+            let mut byte = [0_u8; 1];
+            let _ = recovered.read(&mut byte);
+        });
+
+        let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::clone(&recorder),
+                vec![],
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        let initial_accept = accept_rx.recv().expect("initial accepted");
+        let mut runtime = OpenDSessionRuntime::start(
+            Arc::clone(&coordinator),
+            OpenDSessionRuntimeConfig {
+                poll_interval: Duration::from_millis(5),
+                event_timeout: Duration::from_millis(1),
+                reconnect_initial_delay: Duration::from_millis(40),
+                reconnect_max_delay: Duration::from_millis(40),
+                ..OpenDSessionRuntimeConfig::default()
+            },
+        )
+        .expect("runtime task");
+        release_initial_tx.send(()).expect("release initial");
+
+        let failed_accept = accept_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("failed reconnect accepted");
+        let recovered_accept = accept_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("recovery accepted");
+        assert!(failed_accept.duration_since(initial_accept) < Duration::from_secs(1));
+        assert!(recovered_accept.duration_since(failed_accept) >= Duration::from_millis(30));
+
+        for _ in 0..100 {
+            if runtime.status().reconnects > 0 {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(runtime.status().reconnects, 1);
+        runtime.shutdown().expect("shutdown");
+        server.join().expect("server");
     }
 }

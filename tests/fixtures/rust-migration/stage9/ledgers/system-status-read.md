@@ -436,14 +436,17 @@ delays. The runtime task applies a bounded exponential delay after a coordinator
 error, resets the failure streak after a successful reconnect or healthy
 iteration, and never spins on a closed or unreachable session. Zero durations
 use safe defaults and a maximum below the initial delay is normalized upward.
-The pure delay boundary test covers cap and overflow behavior; no real OpenD is
-dialed by this slice.
+The pure delay boundary test covers cap and overflow behavior, while an
+authenticated mock TCP trace covers peer close, one failed reconnect handshake,
+the minimum backoff interval, successful replay and the runtime reconnect count;
+no real OpenD is dialed by this slice.
 
 quirk: backoff is task-local scheduling state rather than a second recorder or
 provider lifecycle. The coordinator remains the sole generation/reconnect owner.
 范围: `system-status-read` / OpenD runtime reconnect scheduling
-证据: `reconnect_delay_is_bounded_and_recovers_from_zero_or_overflowing_inputs`
-and the explicit runtime task config.
+证据: `reconnect_delay_is_bounded_and_recovers_from_zero_or_overflowing_inputs`,
+`runtime_task_backoff_replays_after_a_failed_reconnect_attempt` and the explicit
+runtime task config.
 分类: rust-implementation
 判定: intended
 处置: retain opt-in backoff; qualify only with live OpenD reconnect, release

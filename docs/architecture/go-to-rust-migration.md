@@ -710,9 +710,10 @@ quote/stream error 和 close 状态同步 provider readiness；断线进入 fail
 启动时启用，不改变默认 profile、route ownership 或 Go production owner；真实
 OpenD live/reconnect differential 与 release recovery 仍是正式 qualification 前置条件。
 
-2026-08-25：OpenD runtime task 增加有界 reconnect backoff。显式 runtime
- 对 coordinator error 使用可配置的初始/最大退避，按失败次数指数增长并在成功
- reconnect 或健康迭代后清零；零值、反向上限和溢出输入均回落到安全默认/上限。
- 该调度仍只属于 opt-in task，不改变默认 desktop、Provider activation、公开
- API 或 Go production owner；真实 OpenD live/reconnect differential、释放恢复
- 与正式 owner qualification 仍未完成。
+2026-08-25：OpenD runtime task 增加有界 reconnect backoff，并补充端到端
+ mock recovery trace：初始 session 被 peer close 后，第一次重连 handshake 失败，
+ runtime 等待退避窗口，再接受第二次 handshake 并恢复；失败次数在成功恢复后清零。
+ 显式 runtime 对 iteration error 使用可配置的初始/最大退避，零值、反向上限和
+ 溢出输入均回落到安全默认/上限。该调度仍只属于 opt-in task，不改变默认 desktop、
+ Provider activation、公开 API 或 Go production owner；真实 OpenD live/reconnect
+ differential、释放恢复与正式 owner qualification 仍未完成。
