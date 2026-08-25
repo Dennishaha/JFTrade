@@ -99,13 +99,44 @@ owner: Go watchlist service
 
 ## Ownership and gate status
 
-- The integration branch registers all eight operations as `cutover-test-only` only when the explicit `WatchlistWritePort` is supplied; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. Current route coverage is `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
+- The integration branch registers all eight operations as `cutover-test-only`
+  only when the explicit `WatchlistWritePort` is supplied;
+  `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
+  Current route coverage is `1 shadow / 120 cutover-test-only / 157
+  cutover-qualified / 0 remaining / 0 Rust production owner`.
 - No default profile, shared product wiring, unified differential, OpenAPI, SQLite schema, Wails binding, provider/OpenD lifecycle, or production owner changed.
-- A-tier gates still not proven by this rehearsal: production unique-owner switch, authenticated test-cutover fencing in composition root, real transaction/SQLite rollback and restart recovery, notification/task side-effect isolation, four-platform signed release, security/SBOM review, backup/restore/crash recovery, and final hard-cut checklist.
+- The authenticated Go loopback rehearsal now proves private Bearer/internal
+  protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, all eight
+  operations, duplicate forwarding, error, timeout, cancellation, Rust crash
+  fail-closed behavior, Go rollback, restart recovery, and unchanged settings
+  bytes. The Rust product replay proves explicit registration, no-port route
+  isolation, browser auth/CSRF fencing, unavailable/error recovery, all eight
+  route projections, duplicate forwarding, restart, and no settings mutation.
+- A-tier gates still not proven by this rehearsal: production unique-owner
+  switch, real SQLite transaction/revision and import-preview durability,
+  concurrent commit/revision recovery, provider quote lifecycle,
+  notification/task side-effect isolation, four-platform signed release,
+  security/SBOM review, backup/restore/crash recovery, and final hard-cut
+  checklist. These blockers keep the group `cutover-test-only`.
 
 ## Verification handoff
 
-- Passed: Go fixture reference test, `node scripts/rust-migration/check-stage9-watchlist-write.mjs`, Rust Stage 9 replay (6 tests), Rust Clippy with `-D warnings`, rustfmt check for the group, `node --check`, `git diff --check`, and `node scripts/rust-migration/check-stage9-route-coverage.mjs`.
-- `pnpm run check:quick` started and passed its diff, AI-context, Rust-layout, and substantial workspace test targets, including the watchlist-write replay. It was manually interrupted after roughly ten minutes while the workspace all-target test sequence was still progressing through later targets; it is recorded as incomplete and is not claimed as a full pass.
-- The current checkout includes the separately committed backtests-write worker commits; this group did not modify or stage those files.
-- Integration product wiring and unified differential evidence: passed after the group was registered in the explicit test-cutover profile; no default route or production owner changed.
+- Go fixture/reference and Rust leaf differential:
+  `node scripts/rust-migration/check-stage9-watchlist-write.mjs` passed for all
+  eight routes.
+- Authenticated Go loopback rehearsal:
+  `go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s`
+  passed.
+- Authenticated Rust product replay:
+  `cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture`
+  passed, including route isolation, recovery, restart, and unchanged settings.
+- `pnpm run check:quick` passed after the Rust target-health cache was safely
+  cleaned with no Cargo process active.
+- `pnpm run check:rust` passed, including workspace fmt/Clippy/all-target tests,
+  Stage 9 Go references and authenticated rehearsals, Rust product and
+  integration replay, and supporting package contracts.
+- Final route coverage passed at `1 shadow / 120 cutover-test-only / 157
+  cutover-qualified / 0 remaining / 0 Rust production owner`; both changed JSON
+  files parsed successfully, and `git diff --check` passed.
+- No default route, production owner, OpenAPI/Wails contract, SQLite schema, or
+  Go/Wails deletion changed.
