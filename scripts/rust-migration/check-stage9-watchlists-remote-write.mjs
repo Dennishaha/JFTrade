@@ -30,6 +30,13 @@ run("go", [
   "^TestStage9WatchlistsRemoteWriteFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestWatchlistsRemoteWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
+  "-count=1",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -39,6 +46,15 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--lib",
+  "watchlist_remote_write",
+  "--",
+  "--nocapture",
+]);
 console.log(
-  "Stage 9 watchlists-remote-write differential passed: Go fixture and Rust leaf replay agree for POST /api/v1/watchlists/remote.",
+  "Stage 9 watchlists-remote-write differential passed: Go fixture, authenticated rehearsal, Rust leaf, and Rust product replay agree.",
 );

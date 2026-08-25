@@ -4732,14 +4732,22 @@
       "method": "POST",
       "path": "/api/v1/watchlists/remote",
       "capability": "watchlists",
-      "implementationStatus": "cutover-test-only",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/watchlists-remote-write.json",
+        "scripts/rust-migration/stage9_watchlists_remote_write_reference_test.go::TestStage9WatchlistsRemoteWriteFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_watchlists_remote_write.rs::remote_watchlist_write_fixture_matches_go_owner_for_the_single_route",
+        "crates/jftrade-engine/src/product_watchlist_remote_write_product_tests.rs::remote_watchlist_write_product_replays_failure_recovery_restart_without_local_state",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistsRemoteWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+        "node scripts/rust-migration/check-stage9-watchlists-remote-write.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
