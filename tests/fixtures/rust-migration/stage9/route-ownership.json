@@ -187,9 +187,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -203,9 +210,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4143,9 +4157,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4174,9 +4195,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4190,9 +4218,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4206,9 +4241,16 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/market-data-subscription-mutation.json",
+        "scripts/rust-migration/stage9_market_data_subscription_mutation_reference_test.go::TestStage9MarketDataSubscriptionMutationFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs::subscription_mutation_replay_matches_go_fixture_data_errors_and_retry_metadata",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1",
+        "crates/jftrade-engine/src/product_market_data_subscription_mutation_product_tests.rs::market_data_subscription_mutations_replay_browser_boundary_failure_recovery_and_restart",
         "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]

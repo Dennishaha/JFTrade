@@ -155,13 +155,19 @@ owner: integration plus Go owner
 
 ## Qualification Blockers
 
-- This worker does not change the shared ownership ledger. Integration must update the six target records to `cutover-test-only` with the dedicated differential command while retaining `productionOwner=go` and `goRemovalStatus=retained`.
-- The Rust leaf is not in the default product profile and has no production owner. Integration must wire it only behind an authenticated explicit test-cutover port; no default route registration is allowed.
+- The six target records are now recorded as `cutover-test-only` with the fixture, Go reference, Rust replay, authenticated loopback rehearsal, Rust product replay, dedicated differential, and shared product differential evidence. They retain `productionOwner=go` and `goRemovalStatus=retained`.
+- The Rust leaf is wired only behind an authenticated explicit test-cutover port and remains absent from the default product profile; no Rust production owner was added.
 - Provider/OpenD lifecycle, subscription demand reconciliation, prediction eligibility, SQLite/durable lease state, duplicate-request semantics, cancellation fencing, restart recovery, four-platform release/signing/security/SBOM, and hard-cut remain release gates.
+
+## Authenticated Product Rehearsal
+
+- Go loopback rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestMarketDataSubscriptionMutationRehearsalPreservesBrowserBoundaryAndRecoversAcrossRestart$' -count=1` passed for all six routes. It verified private bearer and internal-proxy fencing, browser Cookie/Origin/Referer/CSRF forwarding, success and provider-error mapping, timeout, request cancellation, Rust crash fail-closed behavior, Go rollback, Go restart recovery, and unchanged settings bytes.
+- Rust product replay: `cargo test -p jftrade-engine --lib market_data_subscription_mutations -- --nocapture` passed with unauthorized/CSRF-failure fencing, unavailable/provider-failure mapping, all six route projections, request path/query forwarding, explicit test-cutover registration, restart, and unchanged settings bytes. The injected port is a fixture boundary and does not create a provider, lease registry, SQLite write, or user-visible side effect.
+- The rehearsal proves transport and test-cutover isolation only. It does not prove durable lease persistence, authoritative demand reconciliation, idempotency/transaction semantics, cancellation fencing in the live owner, or crash recovery of Provider/OpenD and subscription state.
 
 ## Integration Handoff
 
 - Add the three Rust source files to the product composition only behind the explicit `MarketDataSubscriptionMutationPort` test-cutover capability; do not alter the default profile.
 - Supply a Go-owned adapter that returns the complete wire projection for the raw request and preserves `500/502/403/409` error precedence. It must not duplicate subscription state or call a second provider owner.
-- Add six `cutover-test-only` ownership records and the dedicated differential evidence on the integration branch, then rerun route coverage, this group differential, product route isolation, and the shared product differential.
+- Before any qualification or owner switch, add durable owner, idempotency, cancellation fencing, Provider/OpenD lifecycle, and crash/restart recovery evidence; this group remains `cutover-test-only` until those gates close.
 - Keep `GET /api/v1/market-data/subscriptions` in its existing read group; this mutation worker intentionally rejects GET.
