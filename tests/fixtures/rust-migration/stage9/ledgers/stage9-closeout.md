@@ -40,4 +40,4 @@ owner: 集成分支
 
 ## Current boundary
 
-The current dynamically derived snapshot is `1 shadow / 126 cutover-test-only / 151 cutover-qualified / 0 remaining / 0 Rust production owner`. Go remains the only production owner; all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.
+The current dynamically derived snapshot is `1 shadow / 124 cutover-test-only / 153 cutover-qualified / 0 remaining / 0 Rust production owner`. Go remains the only production owner; all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.

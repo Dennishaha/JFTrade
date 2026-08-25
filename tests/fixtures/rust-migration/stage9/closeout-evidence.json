@@ -52,6 +52,13 @@
       "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-research-screens.mjs",
       "evidence": "The 22-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/research/screens. Evidence covers strict JSON/error precedence, page and definition validation, provider/capability/rate-limit retry mappings, repeated requests, failure recovery, cancellation/deadline mapping, crash fail-closed behavior, Go-only rollback and restart recovery, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust Provider/OpenD, SQLite, network, or user-visible production side effect was enabled."
+    },
+    {
+      "id": "stage9-plugins-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit mutation test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-plugins-write.mjs",
+      "evidence": "The 12-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/plugins/{pluginId}/install and /uninstall. Evidence covers arbitrary-body forwarding, missing/internal/unavailable errors, duplicate and concurrent requests, failure recovery, timeout/cancellation/crash fail-closed behavior, Go-only fallback and restart recovery, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, default-profile isolation, and unchanged settings bytes. This is cutover-qualified rehearsal evidence only; Go remains the production owner and no Rust plugin filesystem, process, event, SQLite, or production side effect was enabled."
     }
   ],
   "gates": {

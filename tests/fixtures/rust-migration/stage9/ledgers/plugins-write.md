@@ -4,12 +4,12 @@
 - Tier: A, mutation operations
 - Operations: `POST /api/v1/plugins/{pluginId}/install`; `POST /api/v1/plugins/{pluginId}/uninstall`
 - Current production owner: Go plugin catalog/service/repository; Rust has no production owner.
-- Current route ownership: `cutover-test-only`; both operations register only when the explicit product test-cutover profile supplies `PluginWritePort`. Go remains the production owner and `goRemovalStatus=retained`.
+- Current route ownership: `cutover-qualified`; both operations register only when the explicit product test-cutover profile supplies `PluginWritePort`. Go remains the production owner and `goRemovalStatus=retained`.
 - Fixture: `tests/fixtures/rust-migration/stage9/plugins-write.json`
 - Go reference: `scripts/rust-migration/stage9_plugins_write_reference_test.go`
 - Rust leaf/test: `crates/jftrade-engine/src/product_plugins_write_port.rs`; `crates/jftrade-engine/tests/product_plugins_write_tests.rs`
 - Differential: `node scripts/rust-migration/check-stage9-plugins-write.mjs`
-- Integration status: `cutover-test-only`; no Rust production owner, plugin lifecycle, SQLite write, or resource event ownership was added.
+- Integration status: `cutover-qualified`; no Rust production owner, plugin lifecycle, SQLite write, or resource event ownership was added.
 - Rust boundary: the leaf accepts only a consumer-owned injected `PluginWritePort`; tests use an in-memory mock and never open SQLite, install a real plugin, start a process/helper, or publish an event.
 
 | Method | Path | Request and success projection | Error branches covered |
@@ -71,18 +71,22 @@ owner: Go/integration branch
 
 ## Validation and remaining gates
 
-Passed on the worker branch:
+Passed on the integration branch:
 
 - `go test scripts/rust-migration/stage9_plugins_write_reference_test.go -run '^TestStage9PluginsWriteFixtureMatchesCurrentGoOwner$' -count=1`
 - `cargo test -p jftrade-engine --test product_plugins_write_tests -- --nocapture` (`4 passed`)
 - `cargo check -p jftrade-engine --test product_plugins_write_tests`
+- `go test ./internal/app/apiserver/servercoretest -run '^TestPluginsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1`
+- `cargo test -p jftrade-engine --lib plugins_write -- --nocapture`
 - `node scripts/rust-migration/check-stage9-plugins-write.mjs`
 - direct `rustfmt --edition 2024` on the two plugins-write Rust files
 
-The shared integration gates now include route coverage, product assembly wiring, test-cutover registration, and the unified product differential. `pnpm run check:quick`, full `pnpm run check:rust`, generated-contract checks, unique-owner proof, four-platform release/signing/security/recovery gates, and hard-cut Go/Wails removal remain outstanding. Go remains the only production owner.
+The Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, explicit product test-cutover adapter, and full Stage 9 product differential are green. Evidence covers arbitrary-body forwarding, duplicate and concurrent requests, internal/unavailable errors, timeout/cancellation/crash fail-closed behavior, Go-only fallback after restart, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, default-profile isolation, and unchanged settings bytes. This group is `cutover-qualified`, not a production migration: Go remains the only production owner, and the Rust port still has no plugin filesystem/process/event/SQLite side effect.
+
+The formal production-owner, durable transaction, plugin lifecycle, release/signing, security, SBOM, backup/restore, and final unique-owner gates remain outstanding.
 
 ## Integration Review
 
 - Product wiring adds a private `PluginWritePort: Send + Sync`, `PluginsWrite` capability, and exact POST dispatch through the existing product envelope. The default profile reports 48 routes; the explicit plugin-write test port reports 50.
-- The unified product differential runs the Go reference and both product integration cases, while the group checker replays leaf fixture success, body-ignore, missing-catalog, persistence-failure, repeat, and concurrency evidence. `route-ownership.json` records both operations as `cutover-test-only` with `productionOwner=go` and `goRemovalStatus=retained`.
-- The plugin port deliberately has no filesystem, dynamic-library, process, event, or persistence method. Tier A evidence remains outstanding for idempotency policy, cancellation/timeout fencing, restart recovery, transaction boundaries, four-platform release/signing, security, backup/restore, and final unique-owner/hard-cut approval.
+- The unified product differential runs the Go reference, authenticated servercore rehearsal, and product integration cases, while the group checker replays leaf fixture success, body-ignore, missing-catalog, persistence-failure, repeat, concurrency, timeout/cancel and restart evidence. `route-ownership.json` records both operations as `cutover-qualified` with `productionOwner=go` and `goRemovalStatus=retained`.
+- The plugin port deliberately has no filesystem, dynamic-library, process, event, or persistence method. The high-risk Go persist-failure memory/durable divergence and non-idempotent repeated-write behavior remain recorded compatibility quirks; formal production transaction/lifecycle ownership, release/signing, security, backup/restore, and final unique-owner/hard-cut approval remain open.
