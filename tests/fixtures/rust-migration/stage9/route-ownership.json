@@ -280,6 +280,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4575,6 +4577,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4591,6 +4595,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4607,6 +4613,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4623,6 +4631,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5268,6 +5278,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5284,6 +5296,8 @@
      ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

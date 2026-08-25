@@ -5,8 +5,9 @@
 - Operations: 7: `PUT /api/v1/strategies/{instanceId}`, `PUT /api/v1/strategies/{instanceId}/runtime-risk`, `POST /api/v1/strategies/{instanceId}/pause`, `POST /api/v1/strategies/{instanceId}/stop`, `POST /api/v1/strategies/{instanceId}/start`, `POST /api/v1/strategies/{instanceId}/refresh-definition`, and `DELETE /api/v1/strategies/{instanceId}`.
 - Current route-ownership status after integration: all seven are
   `cutover-test-only` only when the explicit `StrategyRuntimeWritePort` is
-  injected; Go remains the production owner. Coverage is `26 shadow / 228
-  cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
+  injected; Go remains the production owner. Current coverage is `1 shadow /
+  120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust
+  production owner`.
 - Production owner: Go remains the only owner of the strategy catalog, runtime manager, PineTS lifecycle, subscriptions, activity/notification side effects, and SQLite writes. Rust is a leaf replay boundary only.
 - Rust boundary: `product_strategy_runtime_write_port.rs` accepts a complete consumer-owned mutation port. It has no SQLite, broker/OpenD, PineTS, notification, strategy runtime, default-profile, listener, or production-owner behavior.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategies-write.json` (35 cases / 36 requests; success, malformed/null/trailing JSON, 400/404/500/502, repeated pause, cancellation, timeout, compensation, and all seven routes).
@@ -70,11 +71,33 @@ owner: Go/integration branch
 
 ## Verification and handoff
 
+The authenticated Go loopback rehearsal now proves private Bearer/internal
+protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, all seven
+operations, duplicate pause forwarding, 502 runtime failure, timeout,
+cancellation, Rust crash fail-closed behavior, safe Go rollback/restart through
+malformed-input validation before the real catalog owner, and unchanged
+settings bytes. The Rust product replay proves default/no-port isolation,
+browser 401/403 fencing, unavailable/error recovery, all seven route
+projections, duplicate pause forwarding, restart, and no settings mutation.
+Both use injected ports and temporary settings; neither opens the production
+strategy store, starts PineTS, connects Provider/OpenD, changes subscriptions,
+or emits activity/notification/task side effects.
+
 - Go fixture/reference: fixture generation passed with `JFTRADE_UPDATE_RUST_MIGRATION_FIXTURES=1`, followed by a no-update drift replay.
 - Rust leaf: 7 tests passed, including all 35 fixture cases, exact seven-route inventory, malformed-input precedence, JSON binder compatibility, read isolation, and unavailable-port fencing.
 - Dedicated differential: passed with `node scripts/rust-migration/check-stage9-strategies-write.mjs`.
-- Shared route fixture, product assembly, unified product differential, module map, root docs, and shared ownership tests were intentionally not modified.
-- Integration product wiring, route ledger, and unified differential now cover
-  the seven routes in the explicit test-cutover profile; no default profile or
-  production owner changed.
-- This group is not `cutover-qualified`: durable catalog/runtime owner fencing, repeated-request semantics, cancellation/timeout joins, restart recovery, real PineTS/subscription isolation, security/release gates, and parent integration wiring remain outstanding.
+- `go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s` — passed.
+- `cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture` — passed; both explicit-registration and authenticated failure/recovery/restart product tests passed.
+- The full Stage 9 product differential passed with 212 Rust product library tests plus the integration and supporting-package batches.
+- `pnpm run check:quick` — passed for the five affected files, including the
+  full `servercoretest`, all-target Rust tests, Clippy, architecture checks,
+  and generated-contract drift check.
+- `pnpm run check:rust` — passed, including target health, layout, rustfmt,
+  workspace Clippy/tests, Stage 2-9 differential, and supporting packages.
+- Final route coverage, both migration JSON validations, and `git diff --check`
+  — passed.
+
+The group remains `cutover-test-only`. Durable catalog/runtime owner fencing,
+repeated-request policy, cancellation/timeout joins, real PineTS and
+subscription recovery, activity/notification/task isolation, four-platform
+release/signing, security/SBOM, backup/restore, and hard-cut gates remain open.
