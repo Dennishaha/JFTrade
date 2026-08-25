@@ -7,7 +7,7 @@
   - `POST /api/v1/backtests/sync`
   - `DELETE /api/v1/backtests/sync/{taskId}`
   - `DELETE /api/v1/backtests/{runId}`
-- Current status: `remaining`; this worker does not register a Rust product route or change `route-ownership.json`.
+- Current status: `cutover-test-only`; the explicit product test-cutover registers these routes only with an injected mutation port. Go remains the production owner and `route-ownership.json` records no Rust production owner.
 - Go owner: `internal/api/backtest/routes.go`, `internal/backtest`, `internal/store/backtest`, PineTS/market-data lifecycle, and all run/task persistence remain the only production owner.
 - Rust boundary: `crates/jftrade-engine/src/product_backtests_write_port.rs` is a consumer-owned test-only mutation port. It has no SQLite, run store, PineTS, market-data worker, provider, notification, or default-profile registration.
 - Fixture: `tests/fixtures/rust-migration/stage9/backtests-write.json`.
@@ -28,7 +28,7 @@ The fixture contains 38 cases and 40 requests. It records response status, conte
 
 ## A-tier owner and fencing evidence
 
-- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
+- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`.
 - The Rust leaf fails closed with `503 BACKTESTS_WRITE_UNAVAILABLE` when no explicit mutation port is supplied; structural body/URI errors still win before the missing-port response.
 - Start and sync mutations are delegated once per structurally valid request. Repeated POSTs are recorded as independent calls; no idempotency key is invented.
 - Delete performs no store work for blank/invalid IDs, performs the status guard before delete, and preserves the Go delete-failure-then-retry behavior in the restart fixture. No notification or second persistent owner is introduced.
@@ -110,19 +110,22 @@ owner: Go / integration branch
 
 - Go reference fixture generation and drift test: passed after final `%20` and dynamic-date canonicalization.
 - Rust leaf replay: passed (5 tests), including exact route inventory, unavailable-port fencing, malformed percent escapes, trailing JSON, blank-task route isolation, and all 38 fixture cases.
+- Authenticated Go owner rehearsal: passed (`go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsWriteRehearsalPreservesAuthenticatedBoundaryAndRecoversAcrossRestart$' -count=1`), covering private bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, success/error/timeout/cancellation/crash, Go rollback, restart recovery, and unchanged settings bytes.
+- Authenticated Rust product rehearsal: passed (2 tests, `CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture`), covering explicit test-cutover registration, unavailable-port fencing, browser auth/CSRF precedence, failure recovery, repeated delete behavior, restart, and unchanged settings bytes.
 - Go reference fixture drift test: passed (`GIN_MODE=release go test scripts/rust-migration/stage9_backtests_write_reference_test.go -run '^TestStage9BacktestsWriteFixtureMatchesCurrentGoOwner$' -count=1`).
 - Rust leaf/parameterized replay: passed, 5 tests (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo test -p jftrade-engine --test stage9_backtests_write -- --nocapture`).
 - Rust targeted Clippy: passed (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target cargo clippy -p jftrade-engine --test stage9_backtests_write -- -D warnings`).
 - Rust formatting and differential script syntax: passed (`rustfmt --edition 2024 --check ...`; `node --check scripts/rust-migration/check-stage9-backtests-write.mjs`).
 - Dedicated differential: passed (`CARGO_TARGET_DIR=/tmp/jftrade-stage9-backtests-write-target node scripts/rust-migration/check-stage9-backtests-write.mjs`).
+- Full Stage 9 product differential: passed (`pnpm run test:rust:stage9:product-differential`), including the authenticated rehearsal and Rust product replay.
 - Affected Go owner regression: passed (`go test ./internal/api/backtest ./internal/backtest ./internal/store/backtest -count=1`).
-- Route coverage after integration: passed at `26 shadow / 228 cutover-test-only / 0 qualified / 24 remaining / 0 Rust production owner`.
-- Shared `product*.rs`, `route-ownership.json`, unified product differential, `package.json`, architecture docs, default profile, real SQLite/run store, PineTS, market-data worker and provider lifecycle are intentionally untouched.
+- Route coverage after integration: passed at `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`.
+- This wave changed only the backtests rehearsal tests and migration evidence; default profile, Go production owner, real SQLite/run store, PineTS, market-data worker, provider lifecycle, public contracts and Go/Wails deletion state remain unchanged.
 
 ## Handoff state
 
 - Group: `backtests-write`
 - Tier: A
 - Operation count: 4 (38 fixture cases / 40 requests)
-- Status: test-only leaf/replay complete; Go owner and route ownership remain unchanged.
+- Status: cutover-test-only leaf/replay and authenticated product rehearsal complete; Go owner remains unchanged and no Rust production route is enabled.
 - Qualification blockers: durable transaction/restart evidence against the real run/task owner, cancellation/timeout and worker recovery, duplicate/idempotency policy, cross-process fencing, notifications/task isolation, four-platform release/signing/security/SBOM, backup/restore, and hard-cut owner evidence.

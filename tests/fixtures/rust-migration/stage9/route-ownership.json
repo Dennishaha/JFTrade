@@ -143,6 +143,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsWriteRehearsalPreservesAuthenticatedBoundaryAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -159,6 +161,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsWriteRehearsalPreservesAuthenticatedBoundaryAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3925,6 +3929,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsWriteRehearsalPreservesAuthenticatedBoundaryAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3941,6 +3947,8 @@
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestBacktestsWriteRehearsalPreservesAuthenticatedBoundaryAndRecoversAcrossRestart$' -count=1",
+        "cargo test -p jftrade-engine --lib backtests_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
