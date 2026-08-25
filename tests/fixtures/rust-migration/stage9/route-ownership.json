@@ -434,6 +434,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -454,6 +456,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3590,6 +3594,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5244,6 +5250,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5264,6 +5272,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5284,6 +5294,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5304,6 +5316,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5778,6 +5792,8 @@
         "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestWatchlistWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
         "cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     }

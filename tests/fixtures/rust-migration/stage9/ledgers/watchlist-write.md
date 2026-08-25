@@ -112,12 +112,18 @@ owner: Go watchlist service
   bytes. The Rust product replay proves explicit registration, no-port route
   isolation, browser auth/CSRF fencing, unavailable/error recovery, all eight
   route projections, duplicate forwarding, restart, and no settings mutation.
+- An isolated SQLite test-cutover adapter now proves concurrent revision
+  fencing, transaction rollback on a trigger failure, durable import preview
+  and one-shot commit fencing, group/revision/event persistence across close
+  and reopen, and allocator recovery from the durable event sequence. The
+  authenticated Rust product route replay also reopens that temporary database
+  and verifies a post-restart mutation without touching the settings file.
 - A-tier gates still not proven by this rehearsal: production unique-owner
-  switch, real SQLite transaction/revision and import-preview durability,
-  concurrent commit/revision recovery, provider quote lifecycle,
-  notification/task side-effect isolation, four-platform signed release,
-  security/SBOM review, backup/restore/crash recovery, and final hard-cut
-  checklist. These blockers keep the group `cutover-test-only`.
+  switch, compatibility with the real Go watchlist schema and production
+  store, cross-process writer fencing, provider quote lifecycle,
+  notification/task side-effect isolation, production backup/restore and crash
+  recovery, four-platform signed release, security/SBOM review, and final
+  hard-cut checklist. These blockers keep the group `cutover-test-only`.
 
 ## Verification handoff
 
@@ -130,11 +136,21 @@ owner: Go watchlist service
 - Authenticated Rust product replay:
   `cargo test -p jftrade-engine --lib watchlist_write_product -- --nocapture`
   passed, including route isolation, recovery, restart, and unchanged settings.
+- Isolated SQLite durability replay:
+  `cargo test -p jftrade-engine --test stage9_watchlist_write -- --nocapture`
+  passed all seven tests, including concurrent revision fencing, trigger
+  rollback, one-shot import commit, close/reopen persistence, and durable ID
+  allocator recovery.
+- Product SQLite restart replay:
+  `cargo test -p jftrade-engine --lib watchlist_sqlite_test_cutover_replays_transport_and_restart -- --nocapture`
+  passed with all eight product routes exercised across the initial process and
+  a successful post-restart mutation against the reopened temporary database.
 - `pnpm run check:quick` passed after the Rust target-health cache was safely
   cleaned with no Cargo process active.
 - `pnpm run check:rust` passed, including workspace fmt/Clippy/all-target tests,
   Stage 9 Go references and authenticated rehearsals, Rust product and
-  integration replay, and supporting package contracts.
+  integration replay, all 221 engine library tests, and supporting package
+  contracts. The complete Stage 9 product differential passed in this gate.
 - Final route coverage passed at `1 shadow / 120 cutover-test-only / 157
   cutover-qualified / 0 remaining / 0 Rust production owner`; both changed JSON
   files parsed successfully, and `git diff --check` passed.

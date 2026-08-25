@@ -7,6 +7,7 @@ use tempfile::tempdir;
 use super::super::product_watchlist_write_port::{
     WatchlistWriteMutation, WatchlistWritePort, WatchlistWritePortError,
 };
+use super::super::product_watchlist_write_test_cutover::WatchlistSqliteTestCutoverPort;
 use super::*;
 
 #[derive(Debug)]
@@ -311,6 +312,104 @@ async fn watchlist_write_product_replays_browser_boundary_failure_recovery_and_r
         .expect("shutdown restarted watchlist product");
     assert_eq!(
         std::fs::read(&settings_path).expect("read restarted settings"),
+        settings_before
+    );
+}
+
+#[tokio::test]
+async fn watchlist_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("watchlist-test-cutover.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"watchlist-durable\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("settings");
+    let port =
+        Arc::new(WatchlistSqliteTestCutoverPort::open(&database_path).expect("open adapter"));
+    port.seed_group("group-1", "Growth", 1).expect("seed group");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_watchlist_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    for (method, path, body, route) in [
+        (
+            "POST",
+            "/api/v1/watchlist/groups",
+            Some(r#"{"name":"Value"}"#),
+            "create-group",
+        ),
+        (
+            "PATCH",
+            "/api/v1/watchlist/groups/group-1",
+            Some(r#"{"name":"Growth 2","expectedRevision":1}"#),
+            "update-group",
+        ),
+        (
+            "POST",
+            "/api/v1/watchlist/imports/preview",
+            Some(r#"{"sourceId":"source-1","remoteGroupId":"remote-1"}"#),
+            "preview-import",
+        ),
+        (
+            "POST",
+            "/api/v1/watchlist/quotes/batch",
+            Some(r#"{"instrumentIds":["US:AAPL"]}"#),
+            "batch-quotes",
+        ),
+        (
+            "PUT",
+            "/api/v1/watchlist/instruments/US/AAPL/memberships",
+            Some(r#"{"groupIds":["group-1"],"expectedRevision":0}"#),
+            "replace-memberships",
+        ),
+        (
+            "DELETE",
+            "/api/v1/watchlist/bindings?bindingId=binding-1",
+            None,
+            "delete-binding",
+        ),
+        (
+            "DELETE",
+            "/api/v1/watchlist/groups/group-1",
+            None,
+            "delete-group",
+        ),
+    ] {
+        let response = request_json_with_status(address, method, path, body, &[]).await;
+        assert_eq!(response.0, 200, "{method} {path}");
+        assert_eq!(
+            response.1["data"]["route"],
+            Value::String(route.to_owned()),
+            "{method} {path}"
+        );
+    }
+    handle.shutdown().await.expect("shutdown product");
+    drop(port);
+    let reopened =
+        Arc::new(WatchlistSqliteTestCutoverPort::open(&database_path).expect("reopen adapter"));
+    let restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restart address"),
+        &settings_path,
+    )
+    .expect("restart config")
+    .with_watchlist_write_port(reopened.clone());
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart product");
+    let response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/watchlist/groups",
+        Some(r#"{"name":"Restarted"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["route"], "create-group");
+    restarted.shutdown().await.expect("shutdown restart");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after restart"),
         settings_before
     );
 }

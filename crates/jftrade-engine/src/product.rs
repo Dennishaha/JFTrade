@@ -108,6 +108,9 @@ use product_watchlist_remote_write_port::{
 };
 #[path = "product_watchlist_write_port.rs"]
 mod product_watchlist_write_port;
+#[cfg(test)]
+#[path = "product_watchlist_write_test_cutover.rs"]
+mod product_watchlist_write_test_cutover;
 use product_watchlist_write_port::{
     WatchlistWritePort, WatchlistWriteRequest, WatchlistWriteResponse, dispatch_watchlist_write,
     watchlist_write_routes,
