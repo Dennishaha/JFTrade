@@ -5,7 +5,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tempfile::tempdir;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
 use super::*;
@@ -27,6 +27,24 @@ struct AdkReadFixtureCase {
     data: Option<Value>,
     error_code: Option<String>,
     error_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdkReadSseFixture {
+    version: String,
+    cases: Vec<AdkReadSseFixtureCase>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdkReadSseFixtureCase {
+    name: String,
+    method: String,
+    request_path: String,
+    expected_status: u16,
+    headers: BTreeMap<String, String>,
+    body: String,
 }
 
 #[derive(Debug)]
@@ -105,12 +123,83 @@ impl AdkReadSnapshotPort for StreamAdkReadPort {
     }
 }
 
+#[derive(Debug)]
+struct FixtureAdkReadSsePort {
+    responses: BTreeMap<String, Result<AdkReadSnapshot, AdkReadSnapshotError>>,
+}
+
+impl FixtureAdkReadSsePort {
+    fn from_fixture(fixture: &AdkReadSseFixture) -> Self {
+        let responses = fixture
+            .cases
+            .iter()
+            .map(|case| {
+                let path = case
+                    .request_path
+                    .split('?')
+                    .next()
+                    .unwrap_or(&case.request_path);
+                let query = case
+                    .request_path
+                    .split_once('?')
+                    .map_or("", |(_, query)| query);
+                let key = if query.is_empty() {
+                    path.to_owned()
+                } else {
+                    format!("{path}?{query}")
+                };
+                let headers = case
+                    .headers
+                    .iter()
+                    .filter(|(name, _)| {
+                        !matches!(
+                            name.as_str(),
+                            "content-type" | "cache-control" | "connection"
+                        )
+                    })
+                    .map(|(name, value)| (name.clone(), value.clone()))
+                    .collect();
+                let events = parse_sse_events(&case.body);
+                (
+                    key,
+                    Ok(AdkReadSnapshot::Stream(AdkReadStream { headers, events })),
+                )
+            })
+            .collect();
+        Self { responses }
+    }
+}
+
+impl AdkReadSnapshotPort for FixtureAdkReadSsePort {
+    fn read(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        let key = if query.is_empty() {
+            path.to_owned()
+        } else {
+            format!("{path}?{query}")
+        };
+        self.responses.get(&key).cloned().unwrap_or_else(|| {
+            Err(AdkReadSnapshotError::Unavailable(
+                "fixture SSE response missing".to_owned(),
+            ))
+        })
+    }
+}
+
 fn adk_read_fixture() -> AdkReadFixture {
     let fixture: AdkReadFixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/rust-migration/stage9/adk-read.json"
     ))
     .expect("ADK read fixture");
     assert_eq!(fixture.version, "stage9.adk-read.v1");
+    fixture
+}
+
+fn adk_read_sse_fixture() -> AdkReadSseFixture {
+    let fixture: AdkReadSseFixture = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/adk-read-sse.json"
+    ))
+    .expect("ADK read SSE fixture");
+    assert_eq!(fixture.version, "stage9.adk-read-sse.v1");
     fixture
 }
 
@@ -213,22 +302,61 @@ fn adk_read_streams_preserve_event_ids_and_payloads() {
         "after=0",
     )
     .expect("stream snapshot");
-    let ApiOutput::Sse(events) = adk_read_output(output) else {
-        panic!("ADK stream did not convert to SSE output");
+    let ApiOutput::Raw {
+        status,
+        content_type,
+        body,
+        headers,
+    } = adk_read_output(output)
+    else {
+        panic!("ADK stream did not convert to raw SSE output");
     };
+    assert_eq!(status, 200);
+    assert_eq!(content_type, "text/event-stream");
+    assert_eq!(headers["cache-control"], "no-cache");
+    assert_eq!(headers["connection"], "keep-alive");
+    assert_eq!(headers["X-ADK-Stream-ID"], "stream-fixture");
     assert_eq!(
-        events,
-        vec![
-            SseEvent {
-                id: Some("7".to_owned()),
-                data: json!({"type": "progress"}),
-            },
-            SseEvent {
-                id: None,
-                data: json!({"type": "done"}),
-            },
-        ]
+        String::from_utf8(body).expect("SSE body"),
+        "retry: 3000\n\nid: 7\ndata: {\"type\":\"progress\"}\n\ndata: {\"type\":\"done\"}\n\n"
     );
+}
+
+#[tokio::test]
+async fn adk_read_success_sse_fixture_matches_go_wire_in_cutover_only() {
+    let fixture = adk_read_sse_fixture();
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_read_snapshot_port(Arc::new(FixtureAdkReadSsePort::from_fixture(&fixture)));
+    let handle = start_product(config).await.expect("start product");
+    for case in &fixture.cases {
+        let response = request_adk_raw_response(
+            handle.startup_record().address,
+            &case.method,
+            &case.request_path,
+        )
+        .await;
+        assert_eq!(response.status, case.expected_status, "case {}", case.name);
+        assert_eq!(
+            response.body,
+            case.body.as_bytes(),
+            "case {} body",
+            case.name
+        );
+        for (name, expected) in &case.headers {
+            assert_eq!(
+                response.headers.get(name),
+                Some(expected),
+                "case {} header {}",
+                case.name,
+                name
+            );
+        }
+    }
+    handle.shutdown().await.expect("shutdown product");
 }
 
 async fn request_adk_json_response(address: SocketAddr, method: &str, path: &str) -> (u16, Value) {
@@ -256,4 +384,86 @@ async fn request_adk_json_response(address: SocketAddr, method: &str, path: &str
         .and_then(|value| value.parse().ok())
         .expect("HTTP status");
     (status, serde_json::from_str(body).expect("JSON response"))
+}
+
+#[derive(Debug)]
+struct AdkRawResponse {
+    status: u16,
+    headers: BTreeMap<String, String>,
+    body: Vec<u8>,
+}
+
+async fn request_adk_raw_response(address: SocketAddr, method: &str, path: &str) -> AdkRawResponse {
+    let stream = TcpStream::connect(address)
+        .await
+        .expect("connect product API");
+    let (mut reader, mut writer) = tokio::io::split(stream);
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nX-Request-ID: fixture-adk-read-sse\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n"
+    );
+    writer
+        .write_all(request.as_bytes())
+        .await
+        .expect("write request");
+    let mut buffered = BufReader::new(&mut reader);
+    let mut head = Vec::new();
+    buffered
+        .read_until(b'\n', &mut head)
+        .await
+        .expect("read response status");
+    let status_line = String::from_utf8(head).expect("UTF-8 status");
+    let status = status_line
+        .split_whitespace()
+        .next()
+        .and_then(|_| status_line.split_whitespace().nth(1))
+        .and_then(|value| value.parse().ok())
+        .expect("HTTP status");
+    let mut headers = BTreeMap::new();
+    let mut content_length = None;
+    loop {
+        let mut line = Vec::new();
+        buffered
+            .read_until(b'\n', &mut line)
+            .await
+            .expect("read response header");
+        if line == b"\r\n" || line == b"\n" {
+            break;
+        }
+        let line = String::from_utf8(line).expect("UTF-8 header");
+        if let Some((name, value)) = line.trim_end().split_once(": ") {
+            let name = name.to_ascii_lowercase();
+            let value = value.to_owned();
+            if name == "content-length" {
+                content_length = value.parse::<usize>().ok();
+            }
+            headers.insert(name, value);
+        }
+    }
+    let mut body = vec![0; content_length.expect("content length")];
+    buffered
+        .read_exact(&mut body)
+        .await
+        .expect("read response body");
+    AdkRawResponse {
+        status,
+        headers,
+        body,
+    }
+}
+
+fn parse_sse_events(body: &str) -> Vec<AdkReadEvent> {
+    body.split("\n\n")
+        .filter_map(|block| {
+            let mut id = None;
+            let mut data = None;
+            for line in block.lines() {
+                if let Some(value) = line.strip_prefix("id: ") {
+                    id = Some(value.to_owned());
+                } else if let Some(value) = line.strip_prefix("data: ") {
+                    data = Some(serde_json::from_str(value).expect("SSE event JSON"));
+                }
+            }
+            data.map(|data| AdkReadEvent { id, data })
+        })
+        .collect()
 }

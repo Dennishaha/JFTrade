@@ -9,9 +9,11 @@
   SQLite store, start an ADK/Provider runtime, execute a run, acquire a
   session service, or write Assistant state.
 - Fixture: `tests/fixtures/rust-migration/stage9/adk-read.json` (45 cases).
+- Successful SSE fixture: `tests/fixtures/rust-migration/stage9/adk-read-sse.json`
+  (four stream/reconnect cases with normalized headers and event bodies).
 - Go reference: `scripts/rust-migration/stage9_adk_read_reference_test.go`.
-- Rust differential: `product::tests::adk_read_tests` plus the Stage 9 product
-  differential runner.
+- Rust differential: `product::tests::adk_read_tests` plus
+  `node scripts/rust-migration/check-stage9-adk-read.mjs`.
 
 ## Contract Matrix
 
@@ -91,24 +93,25 @@ without changing default route registration.
 owner: integration
 后续: keep the focused compile/test gate in the product differential runner.
 
-quirk: A successful Go ADK stream fixture with response headers, event order,
-heartbeats, close behavior, and `X-ADK-Stream-ID` is not present in this corpus.
-The Rust raw port can carry source headers and event IDs, but the existing
-`ApiOutput::Sse` transport currently emits only standard SSE framing and has no
-custom response-header channel, so `X-ADK-Stream-ID` is not proven compatible.
+quirk: The successful Go ADK stream corpus is produced through a real local
+Assistant test runtime and contains dynamic stream/run/session/event IDs.
+The fixture normalizes those identifiers and timestamps, while preserving
+headers, retry directive, event IDs/order, event JSON and `after` filtering.
 范围: `adk-read` / `GET /api/v1/adk/runs/{runId}/stream` and
 `GET /api/v1/adk/streams/{streamId}`
-证据: Go fixture has only missing/blank stream cases; Rust
-`adk_read_streams_preserve_event_ids_and_payloads` checks event IDs/payloads,
-while the source header is intentionally not emitted.
+证据: Go `TestStage9ADKReadSSEFixtureMatchesCurrentGoOwner`, fixture
+`adk-read-sse.json`, Rust
+`adk_read_success_sse_fixture_matches_go_wire_in_cutover_only`, and the raw
+product response replay.
 分类: unknown
-判定: unresolved
-处置: Preserve Go wire behavior when a successful stream corpus and transport
-header decision are available; do not expand the public transport API in this
-slice and do not mark stream capability qualified.
-风险: high
+判定: resolved for local wire compatibility
+处置: Keep the port consumer-owned and use `ApiOutput::Raw` only inside the
+existing product boundary so source headers are emitted without changing the
+public HTTP/OpenAPI contract. Do not connect the production Assistant runtime.
+风险: medium
 owner: integration
-后续: resolve before any ADK SSE cutover qualification and before Go deletion.
+后续: Add the authenticated Go sidecar GET-stream rehearsal, timeout/cancellation
+and restart evidence before qualification; Go remains the production owner.
 
 ## Three-Way Review
 
@@ -121,16 +124,28 @@ owner: integration
 - The Go reference, fixture, and Rust focused tests agree that a missing
   snapshot port is not enough to register ADK routes in the default profile;
   registration requires explicit test-cutover capability plus the port.
-- The stream header/event finding remains unresolved because the Go baseline
-  lacks a successful stream sample. It is release-blocking for SSE
-  qualification, but does not block this test-only registration.
+- The new Go success corpus, Rust leaf replay and raw product replay agree on
+  SSE headers, retry framing, event IDs/order/body, run/stream reconnect paths
+  and `after` filtering. The dedicated authenticated GET-sidecar rehearsal,
+  production owner and release gates remain open.
 
 The 22 ordinary JSON operations are now `cutover-qualified`,
 `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated
 wire/error/timeout/crash/restart rehearsal. It exercises empty and missing
 resource projections without executing runs or mutating Assistant state.
 `GET /api/v1/adk/runs/{runId}/stream` and
-`GET /api/v1/adk/streams/{streamId}` remain `cutover-test-only` because the
-successful SSE header/event corpus is still unresolved. No Provider, ADK
+`GET /api/v1/adk/streams/{streamId}` remain `cutover-test-only` because
+authenticated GET-sidecar/recovery evidence is still pending. No Provider, ADK
 runtime, SQLite write, session mutation, approval/task mutation, notification,
 or Rust production owner was introduced.
+
+## 2026-08-26 verification
+
+- `go test ./scripts/rust-migration -run '^TestStage9ADKRead(SSE)?FixtureMatchesCurrentGoOwner$' -count=1 -timeout=300s`
+- `cargo test -p jftrade-engine --lib 'product::tests::adk_read_tests::' -- --nocapture`
+- `node scripts/rust-migration/check-stage9-adk-read.mjs`
+- `cargo fmt --all -- --check`
+
+These checks prove local Go JSON/SSE fixture parity and explicit Rust
+test-cutover transport replay. They do not change the two stream routes to
+`cutover-qualified` or change the Go production owner.

@@ -1,4 +1,7 @@
+use std::collections::BTreeMap;
 use std::fmt;
+
+use jftrade_api::{encode_event, encode_retry};
 
 
 #[derive(Clone, Debug, PartialEq)]
@@ -78,18 +81,34 @@ fn adk_read_output(output: AdkReadOutput) -> ApiOutput {
     match output {
         AdkReadOutput::Json(value) => ApiOutput::Json(value),
         AdkReadOutput::Stream(stream) => {
-            // The product transport owns the standard SSE headers and framing.
-            // The raw snapshot port still carries source headers as evidence.
-            ApiOutput::Sse(
-                stream
-                    .events
-                    .into_iter()
-                    .map(|event| SseEvent {
-                        id: event.id,
-                        data: event.data,
-                    })
-                    .collect(),
-            )
+            let mut body = encode_retry(3000);
+            for event in stream.events {
+                let Ok(frame) = encode_event(&SseEvent {
+                    id: event.id,
+                    data: event.data,
+                }) else {
+                    return ApiOutput::Raw {
+                        status: 500,
+                        content_type: "application/json".to_owned(),
+                        body: br#"{"ok":false,"error":{"code":"ADK_READ_INVALID_SNAPSHOT","message":"ADK read stream event cannot be serialized"}}"#.to_vec(),
+                        headers: BTreeMap::new(),
+                    };
+                };
+                body.push_str(&frame);
+            }
+            let mut headers: BTreeMap<String, String> = stream.headers.into_iter().collect();
+            headers
+                .entry("cache-control".to_owned())
+                .or_insert_with(|| "no-cache".to_owned());
+            headers
+                .entry("connection".to_owned())
+                .or_insert_with(|| "keep-alive".to_owned());
+            ApiOutput::Raw {
+                status: 200,
+                content_type: "text/event-stream".to_owned(),
+                body: body.into_bytes(),
+                headers,
+            }
         }
     }
 }

@@ -716,6 +716,10 @@
         "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read-sse.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadSSEFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_success_sse_fixture_matches_go_wire_in_cutover_only",
+        "node scripts/rust-migration/check-stage9-adk-read.mjs",
         "tests/fixtures/rust-migration/stage9/adk-chat-stream.json",
         "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go::TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner",
         "crates/jftrade-engine/tests/stage9_adk_chat_stream.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
@@ -823,6 +827,10 @@
         "explicit-test-cutover-profile"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-read-sse.json",
+        "scripts/rust-migration/stage9_adk_read_reference_test.go::TestStage9ADKReadSSEFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/src/product_adk_read_tests.rs::adk_read_success_sse_fixture_matches_go_wire_in_cutover_only",
+        "node scripts/rust-migration/check-stage9-adk-read.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
