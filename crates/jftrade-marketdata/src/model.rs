@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use jftrade_kernel::Fixed8;
-use serde::{Deserialize, Serialize};
+use jftrade_kernel::{DecimalText, Fixed8};
+use serde::{Deserialize, Serialize, Serializer};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -167,9 +167,17 @@ impl InstrumentRef {
 pub struct Tick {
     pub instrument_id: String,
     pub price: Fixed8,
-    pub volume: i64,
+    #[serde(serialize_with = "serialize_decimal_number")]
+    pub volume: DecimalText,
     pub observed_at_ms: i64,
     pub provider_generation: u64,
+}
+
+fn serialize_decimal_number<S>(value: &DecimalText, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    value.serialize_number(serializer)
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]

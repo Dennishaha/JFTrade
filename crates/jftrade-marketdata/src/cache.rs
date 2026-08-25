@@ -64,6 +64,29 @@ impl TickCache {
         }
     }
 
+    /// Looks up a sample only when it belongs to the active provider
+    /// generation. A sample from another generation is treated as missing so
+    /// callers fail closed instead of displaying or reusing a fresh value
+    /// from a previous provider/session.
+    pub fn lookup_for_generation(
+        &self,
+        instrument_id: &str,
+        now_ms: i64,
+        max_age_ms: i64,
+        active_generation: u64,
+    ) -> CacheLookup {
+        match self.lookup(instrument_id, now_ms, max_age_ms) {
+            CacheLookup::Fresh(tick) if tick.provider_generation == active_generation => {
+                CacheLookup::Fresh(tick)
+            }
+            CacheLookup::Stale(tick) if tick.provider_generation == active_generation => {
+                CacheLookup::Stale(tick)
+            }
+            CacheLookup::Fresh(_) | CacheLookup::Stale(_) => CacheLookup::Missing,
+            CacheLookup::Missing => CacheLookup::Missing,
+        }
+    }
+
     pub fn require_fresh(
         &self,
         instrument_id: &str,
@@ -71,6 +94,21 @@ impl TickCache {
         max_age_ms: i64,
     ) -> Result<Tick, MarketDataError> {
         match self.lookup(instrument_id, now_ms, max_age_ms) {
+            CacheLookup::Fresh(tick) => Ok(tick),
+            CacheLookup::Stale(_) => Err(MarketDataError::CacheStale(instrument_id.to_owned())),
+            CacheLookup::Missing => Err(MarketDataError::CacheMiss(instrument_id.to_owned())),
+        }
+    }
+
+    /// Requires a fresh sample from the active provider generation.
+    pub fn require_fresh_for_generation(
+        &self,
+        instrument_id: &str,
+        now_ms: i64,
+        max_age_ms: i64,
+        active_generation: u64,
+    ) -> Result<Tick, MarketDataError> {
+        match self.lookup_for_generation(instrument_id, now_ms, max_age_ms, active_generation) {
             CacheLookup::Fresh(tick) => Ok(tick),
             CacheLookup::Stale(_) => Err(MarketDataError::CacheStale(instrument_id.to_owned())),
             CacheLookup::Missing => Err(MarketDataError::CacheMiss(instrument_id.to_owned())),
@@ -98,7 +136,7 @@ mod tests {
         let tick = Tick {
             instrument_id: "US.AAPL".to_owned(),
             price: Fixed8::from_scaled(18_850_000_000),
-            volume: 10,
+            volume: "10".parse().expect("volume"),
             observed_at_ms: 100,
             provider_generation: 2,
         };
@@ -115,5 +153,17 @@ mod tests {
             cache.lookup("US.AAPL", 111, 10),
             CacheLookup::Stale(_)
         ));
+        assert!(matches!(
+            cache.lookup_for_generation("US.AAPL", 110, 10, 2),
+            CacheLookup::Fresh(_)
+        ));
+        assert_eq!(
+            cache.lookup_for_generation("US.AAPL", 110, 10, 1),
+            CacheLookup::Missing
+        );
+        assert_eq!(
+            cache.require_fresh_for_generation("US.AAPL", 110, 10, 1),
+            Err(MarketDataError::CacheMiss("US.AAPL".to_owned()))
+        );
     }
 }

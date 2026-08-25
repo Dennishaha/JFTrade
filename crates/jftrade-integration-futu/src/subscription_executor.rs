@@ -5,8 +5,8 @@ use prost::Message;
 use thiserror::Error;
 
 use crate::{
-    OpenDClient, OpenDTcpProbeConfig, OpenDTcpTransport, ReconcileAction, SubscriptionKind,
-    TcpTransportError, TransportError, health::initialize_client,
+    OpenDInitializedSession, OpenDManagedSessionError, OpenDTcpProbeConfig, ReconcileAction,
+    SubscriptionKind, TcpTransportError, TransportError,
 };
 
 const RET_TYPE_SUCCEED: i32 = 0;
@@ -15,7 +15,7 @@ const RET_TYPE_SUCCEED: i32 = 0;
 /// OpenD TCP session. The executor owns only protocol I/O; demand ownership,
 /// generation fencing and retry policy remain in `OpenDSubscriptionLifecycle`.
 pub struct OpenDSubscriptionExecutor {
-    client: OpenDClient<OpenDTcpTransport>,
+    session: OpenDInitializedSession,
 }
 
 impl OpenDSubscriptionExecutor {
@@ -23,9 +23,17 @@ impl OpenDSubscriptionExecutor {
         address: SocketAddr,
         timeout: Duration,
     ) -> Result<Self, SubscriptionExecutorError> {
-        let mut client = OpenDClient::new(OpenDTcpTransport::connect(address, timeout)?);
-        initialize_client(&mut client, &OpenDTcpProbeConfig::new(address, timeout))?;
-        Ok(Self { client })
+        let config = OpenDTcpProbeConfig::new(address, timeout);
+        let session = OpenDInitializedSession::connect_with_push_notifications(&config, 1)?;
+        Ok(Self { session })
+    }
+
+    pub fn from_session(session: OpenDInitializedSession) -> Self {
+        Self { session }
+    }
+
+    pub fn session(&self) -> &OpenDInitializedSession {
+        &self.session
     }
 
     pub fn execute(&mut self, action: &ReconcileAction) -> Result<(), SubscriptionExecutorError> {
@@ -33,9 +41,9 @@ impl OpenDSubscriptionExecutor {
             c2s: Some(qot_sub_request(action)?),
         };
         let response = self
-            .client
-            .call(crate::PROTO_QOT_SUB, &request.encode_to_vec())
-            .map_err(SubscriptionExecutorError::Exchange)?;
+            .session
+            .managed_session()
+            .call(crate::PROTO_QOT_SUB, &request.encode_to_vec())?;
         let response = QotSubResponse::decode(response.as_slice())
             .map_err(SubscriptionExecutorError::Decode)?;
         let ret_type = response.ret_type.unwrap_or(-400);
@@ -54,12 +62,16 @@ impl OpenDSubscriptionExecutor {
 
 #[derive(Debug, Error)]
 pub enum SubscriptionExecutorError {
+    /// Retained for source compatibility with the pre-managed-session API.
     #[error("connect to OpenD: {0}")]
     Connect(#[from] TcpTransportError),
     #[error("OpenD InitConnect handshake: {0}")]
     Handshake(#[from] crate::OpenDTcpProbeError),
+    /// Retained for source compatibility with the pre-managed-session API.
     #[error("OpenD Qot_Sub exchange: {0}")]
     Exchange(#[from] TransportError),
+    #[error("OpenD managed session: {0}")]
+    Session(#[from] OpenDManagedSessionError),
     #[error("decode OpenD Qot_Sub response: {0}")]
     Decode(#[from] prost::DecodeError),
     #[error("OpenD Qot_Sub returned retType={ret_type} errCode={error_code}: {message}")]
@@ -99,7 +111,7 @@ fn qot_sub_request(action: &ReconcileAction) -> Result<QotSubC2s, SubscriptionEx
     })
 }
 
-fn split_instrument(value: &str) -> Result<(i32, String), SubscriptionExecutorError> {
+pub(crate) fn split_instrument(value: &str) -> Result<(i32, String), SubscriptionExecutorError> {
     let (market, code) = value
         .trim()
         .split_once('.')
@@ -121,7 +133,7 @@ fn split_instrument(value: &str) -> Result<(i32, String), SubscriptionExecutorEr
         }
     };
     let code = code.trim();
-    if code.is_empty() {
+    if code.is_empty() || code.contains('.') {
         return Err(SubscriptionExecutorError::InvalidInstrument(
             value.to_owned(),
         ));
@@ -192,10 +204,27 @@ struct QotSubResponse {
 mod tests {
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::sync::Arc;
     use std::thread;
 
     use super::*;
-    use crate::{PhysicalSubscription, decode_frame, encode_frame};
+    use crate::{
+        OpenDSessionEvent, OpenDSubscriptionLifecycle, PROTO_UPDATE_BASIC_QOT,
+        PhysicalSubscription, decode_frame, encode_frame,
+    };
+    use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
+
+    #[derive(Clone, PartialEq, Message)]
+    struct InitRequest {
+        #[prost(message, optional, tag = "1")]
+        c2s: Option<InitRequestState>,
+    }
+
+    #[derive(Clone, PartialEq, Message)]
+    struct InitRequestState {
+        #[prost(bool, optional, tag = "3")]
+        recv_notify: Option<bool>,
+    }
 
     #[derive(Clone, PartialEq, Message)]
     struct InitResponse {
@@ -266,6 +295,12 @@ mod tests {
                     decode_frame(&[header.as_slice(), body.as_slice()].concat()).expect("frame");
                 let response = if exchange == 0 {
                     assert_eq!(frame.header.proto_id, crate::PROTO_INIT_CONNECT);
+                    let init = InitRequest::decode(frame.body.as_slice()).expect("init request");
+                    assert_eq!(
+                        init.c2s.and_then(|state| state.recv_notify),
+                        Some(true),
+                        "the subscription data session must receive pushes"
+                    );
                     InitResponse {
                         ret_type: Some(0),
                         s2c: Some(InitState {
@@ -281,6 +316,11 @@ mod tests {
                         request.c2s.as_ref().expect("c2s").is_sub_or_un_sub,
                         Some(exchange == 1)
                     );
+                    if exchange == 1 {
+                        let push =
+                            encode_frame(PROTO_UPDATE_BASIC_QOT, 0, b"push").expect("push frame");
+                        stream.write_all(&push).expect("write push");
+                    }
                     QotSubResponse {
                         ret_type: Some(0),
                         ret_msg: None,
@@ -299,6 +339,16 @@ mod tests {
         executor
             .execute(&action(SubscriptionKind::Basic, "US.AAPL", None))
             .expect("subscribe");
+        let push = executor
+            .session()
+            .managed_session()
+            .receive_event_timeout(Duration::from_secs(1))
+            .expect("push event");
+        assert!(matches!(
+            push,
+            OpenDSessionEvent::UnsolicitedFrame { generation: 1, frame }
+                if frame.header.proto_id == PROTO_UPDATE_BASIC_QOT && frame.body == b"push"
+        ));
         executor
             .execute(&ReconcileAction::Unsubscribe {
                 subscription: PhysicalSubscription {
@@ -368,9 +418,87 @@ mod tests {
     }
 
     #[test]
+    fn lifecycle_rejects_stale_executor_before_qot_sub_io() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut header = [0_u8; crate::frame::HEADER_LEN];
+            stream.read_exact(&mut header).expect("init header");
+            let body_len = u32::from_le_bytes(header[12..16].try_into().expect("length")) as usize;
+            let mut body = vec![0_u8; body_len];
+            stream.read_exact(&mut body).expect("init body");
+            let frame =
+                decode_frame(&[header.as_slice(), body.as_slice()].concat()).expect("init frame");
+            assert_eq!(frame.header.proto_id, crate::PROTO_INIT_CONNECT);
+            let response = InitResponse {
+                ret_type: Some(0),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 3,
+                }),
+            }
+            .encode_to_vec();
+            let packet = encode_frame(frame.header.proto_id, frame.header.serial_no, &response)
+                .expect("init response");
+            stream.write_all(&packet).expect("write init response");
+
+            stream
+                .set_read_timeout(Some(Duration::from_millis(200)))
+                .expect("read timeout");
+            let mut unexpected = [0_u8; 1];
+            match stream.read(&mut unexpected) {
+                Ok(0) => false,
+                Ok(_) => true,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    false
+                }
+                Err(error) => panic!("read after init: {error}"),
+            }
+        });
+
+        let mut executor =
+            OpenDSubscriptionExecutor::connect(address, Duration::from_secs(1)).expect("executor");
+        assert_eq!(executor.session().managed_session().generation(), 1);
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut lifecycle = OpenDSubscriptionLifecycle::new(recorder, 0);
+        let desired = [InstrumentRef {
+            channel: "SNAPSHOT".to_owned(),
+            market: "US".to_owned(),
+            symbol: "AAPL".to_owned(),
+            interval: None,
+        }];
+        lifecycle.reconcile_demand(&desired, 0);
+        let replay = lifecycle.reconfigure_for_reconnect(&desired);
+        let generation = lifecycle.generation();
+        assert_eq!(generation, 2);
+        assert_eq!(replay.len(), 1);
+
+        assert!(
+            !lifecycle
+                .execute_action(&replay[0], 0, generation, &mut executor)
+                .expect("stale executor is ignored")
+        );
+        assert!(
+            !server.join().expect("server"),
+            "stale executor sent Qot_Sub"
+        );
+    }
+
+    #[test]
     fn executor_rejects_invalid_instrument_and_unsupported_interval() {
         assert!(matches!(
             qot_sub_request(&action(SubscriptionKind::Basic, "AAPL", None)),
+            Err(SubscriptionExecutorError::InvalidInstrument(_))
+        ));
+        assert!(matches!(
+            qot_sub_request(&action(SubscriptionKind::Basic, "US.AAPL.EXTRA", None)),
             Err(SubscriptionExecutorError::InvalidInstrument(_))
         ));
         assert!(matches!(

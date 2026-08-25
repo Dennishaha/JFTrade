@@ -137,36 +137,59 @@ pub enum QuotePushDecodeError {
     },
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DecodedBasicQuoteResponse {
+    pub ret_type: i32,
+    pub ret_msg: Option<String>,
+    pub err_code: i32,
+    pub s2c_present: bool,
+    pub quotes: Option<Vec<BasicQuote>>,
+}
+
+pub(crate) fn decode_basic_quote_response(
+    protocol: u32,
+    body: &[u8],
+) -> Result<DecodedBasicQuoteResponse, QuotePushDecodeError> {
+    let response = BasicQuoteResponse::decode(body)
+        .map_err(|source| QuotePushDecodeError::Decode { protocol, source })?;
+    let s2c_present = response.s2c.is_some();
+    let quotes = response.s2c.and_then(|s2c| {
+        s2c.is_complete().then(|| {
+            s2c.basic_quotes
+                .into_iter()
+                .map(BasicQuote::from_wire)
+                .collect()
+        })
+    });
+    Ok(DecodedBasicQuoteResponse {
+        ret_type: response.ret_type.unwrap_or(-400),
+        ret_msg: response._ret_msg,
+        err_code: response._err_code.unwrap_or_default(),
+        s2c_present,
+        quotes,
+    })
+}
+
 /// Decode one unsolicited OpenD frame.
 ///
 /// Unknown protocols and Go-compatible rejected/empty responses return
-/// Ok(None). Malformed protobuf is returned as an error so the lifecycle can
-/// record a stream failure and trigger its existing recovery fence.
+/// Ok(None). Malformed protobuf remains visible to direct decoder callers;
+/// the subscription lifecycle deliberately drops it like the Go stream
+/// handler instead of turning external payload damage into a reconnect loop.
 pub fn decode_quote_push(frame: &Frame) -> Result<Option<QuotePush>, QuotePushDecodeError> {
     match frame.header.proto_id {
         PROTO_UPDATE_BASIC_QOT => {
-            let response = BasicQuoteResponse::decode(frame.body.as_slice()).map_err(|source| {
-                QuotePushDecodeError::Decode {
-                    protocol: PROTO_UPDATE_BASIC_QOT,
-                    source,
-                }
-            })?;
-            if !response.is_success() {
+            let response = decode_basic_quote_response(PROTO_UPDATE_BASIC_QOT, &frame.body)?;
+            if response.ret_type != 0 {
                 return Ok(None);
             }
-            let Some(s2c) = response.s2c else {
+            let Some(quotes) = response.quotes else {
                 return Ok(None);
             };
-            if !s2c.is_complete() {
+            if quotes.is_empty() {
                 return Ok(None);
             }
-            Ok(Some(QuotePush::Basic(BasicQuotePush {
-                quotes: s2c
-                    .basic_quotes
-                    .into_iter()
-                    .map(BasicQuote::from_wire)
-                    .collect(),
-            })))
+            Ok(Some(QuotePush::Basic(BasicQuotePush { quotes })))
         }
         PROTO_UPDATE_KL => {
             let response = KlineResponse::decode(frame.body.as_slice()).map_err(|source| {

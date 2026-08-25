@@ -30,7 +30,7 @@
     "allRouteGroups": {
       "status": "open",
       "owner": "Go/Gin",
-      "next": "Implement and qualify all remaining OpenAPI operations, including long-lived streams and production assets.",
+      "next": "Qualify the remaining test-only and shadow operations, including long-lived streams, durable mutations, and production assets.",
       "evidence": [
         "The route ownership fixture is not fully cutover-qualified; the checker derives the current counts from the operation ledger, and no production route-group cutover is approved."
       ]

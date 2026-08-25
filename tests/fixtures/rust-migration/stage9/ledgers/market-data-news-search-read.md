@@ -10,10 +10,11 @@
   OpenD, sidecar, cache, subscription, SQLite, or mutation path.
 - Fixture: `tests/fixtures/rust-migration/stage9/market-data-news-search-read.json`
 - Go reference: `scripts/rust-migration/stage9_market_data_news_search_read_reference_test.go`
-- Current route status: `cutover-test-only` in `route-ownership.json`, with
-  `productionOwner=go` and `goRemovalStatus=retained`. The default shadow
-  catalog does not register this route; registration requires the explicit
-  test-cutover capability and snapshot port.
+- Current route status: `cutover-qualified` in `route-ownership.json`, with
+  `productionOwner=go` and `goRemovalStatus=retained`. The route remains
+  available only through explicit test-cutover snapshot-port wiring; the
+  default shadow catalog does not register it and must not activate a Provider,
+  OpenD, sidecar, cache, subscription, SQLite, or mutation path.
 
 ## Contract Matrix
 

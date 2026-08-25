@@ -2,20 +2,28 @@
 
 //! Futu OpenD protocol and subscription adapter boundaries.
 
+mod basic_quote_query;
+mod basic_quote_tick;
 mod frame;
 mod health;
 mod managed_session;
 mod probe;
 mod provider;
 mod quote_push;
+#[cfg(test)]
+mod session_coordinator;
+mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
 mod trading;
 mod transport;
 
+pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
+pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use health::{
-    OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError, market_data_health_from_probe,
+    OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
+    market_data_health_from_probe,
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
@@ -25,6 +33,9 @@ pub use provider::{broker_descriptor, provider_descriptor};
 pub use quote_push::{
     BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
+};
+pub use session_event_pump::{
+    OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
 };
 pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
 pub use subscriptions::{

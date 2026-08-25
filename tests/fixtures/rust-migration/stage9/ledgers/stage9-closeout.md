@@ -4,6 +4,17 @@
 
 ## Three-way review and quirks
 
+quirk: The closeout ledger's hand-written "current dynamic snapshot" remained at `23 shadow / 232 cutover-test-only / 23 cutover-qualified` after the operation ledger had advanced to `1 / 133 / 144`.
+
+范围: Stage 9 closeout documentation / dynamic route ownership snapshot
+证据: `tests/fixtures/rust-migration/stage9/route-ownership.json`; `node scripts/rust-migration/check-stage9-route-coverage.mjs`; this ledger's former Current boundary line.
+分类: fixture
+判定: deviated; executable ownership checks were current, but the narrative snapshot was stale.
+处置: 修复 fixture/harness；replace the stale snapshot and keep the route checker as the counting authority.
+风险: low
+owner: 集成分支
+后续: update this short integration ledger line only with the dynamically derived count when a qualification wave changes it.
+
 quirk: The open-state closeout test matched only the old `remaining operation` blocker. Once the dynamic ownership ledger reached `0 remaining` while still having `252 cutover-test-only` operations, the checker correctly emitted `operation(s) not cutover-qualified` and `check:quick` failed in the test harness.
 
 范围: Stage 9 closeout checker, route ownership snapshot, and closeout evidence manifest
@@ -29,4 +40,4 @@ owner: 集成分支
 
 ## Current boundary
 
-The current dynamic snapshot is `23 shadow / 232 cutover-test-only / 23 cutover-qualified / 0 remaining / 0 Rust production owner`. Go remains the only production owner; all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.
+The current dynamically derived snapshot is `1 shadow / 133 cutover-test-only / 144 cutover-qualified / 0 remaining / 0 Rust production owner`. Go remains the only production owner; all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.

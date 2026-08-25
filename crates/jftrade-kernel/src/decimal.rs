@@ -21,6 +21,16 @@ impl DecimalText {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Serializes this arbitrary-precision value as a JSON number when the
+    /// boundary contract requires numeric rather than string representation.
+    pub fn serialize_number<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let number = serde_json::Number::from_str(&self.0).map_err(serde::ser::Error::custom)?;
+        number.serialize(serializer)
+    }
 }
 
 impl fmt::Display for DecimalText {
@@ -167,7 +177,31 @@ fn canonical_decimal(input: &str) -> Result<String, CodecError> {
 
 #[cfg(test)]
 mod tests {
+    use serde::Serialize;
+
     use super::DecimalText;
+
+    struct NumericDecimal<'a>(&'a DecimalText);
+
+    impl Serialize for NumericDecimal<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.0.serialize_number(serializer)
+        }
+    }
+
+    #[test]
+    fn serializes_arbitrary_precision_as_a_json_number_when_requested() {
+        let decimal = "123456789012345678901234567890.123456789"
+            .parse::<DecimalText>()
+            .expect("decimal");
+        assert_eq!(
+            serde_json::to_string(&NumericDecimal(&decimal)).expect("json"),
+            "123456789012345678901234567890.123456789"
+        );
+    }
 
     #[test]
     fn rejects_ambiguous_or_unbounded_decimal_inputs() {

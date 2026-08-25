@@ -151,6 +151,15 @@ impl OpenDManagedSession {
         protocol: u32,
         protobuf_body: &[u8],
     ) -> Result<Vec<u8>, OpenDManagedSessionError> {
+        self.call_with_timeout(protocol, protobuf_body, self.request_timeout)
+    }
+
+    pub fn call_with_timeout(
+        &self,
+        protocol: u32,
+        protobuf_body: &[u8],
+        timeout: Duration,
+    ) -> Result<Vec<u8>, OpenDManagedSessionError> {
         let serial = self.next_serial();
         let packet = encode_frame(protocol, serial, protobuf_body)?;
         let (sender, receiver) = mpsc::sync_channel(1);
@@ -170,7 +179,7 @@ impl OpenDManagedSession {
             self.join_worker()?;
             return Err(error);
         }
-        match receiver.recv_timeout(self.request_timeout) {
+        match receiver.recv_timeout(timeout) {
             Ok(Ok(frame)) => Ok(frame.body),
             Ok(Err(reason)) => Err(OpenDManagedSessionError::Closed(reason)),
             Err(RecvTimeoutError::Timeout) => {

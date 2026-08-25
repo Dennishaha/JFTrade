@@ -15,6 +15,80 @@ const SYSTEM_CONTROL_READ_PATHS: &[&str] = &[
     "/api/v1/system/real-trade-risk-limits",
 ];
 
+/// Fixture-only stand-in for the OpenD session coordinator. It owns the same
+/// generation/stream boundary that the real coordinator feeds into the
+/// market-data recorder, while leaving socket ownership outside this product
+/// test. Snapshot polling remains an injected, synchronous operation.
+#[derive(Debug)]
+struct FixtureOpenDSessionCoordinator {
+    recorder: Arc<jftrade_marketdata::MarketDataRuntimeRecorder>,
+    generation: u64,
+}
+
+impl FixtureOpenDSessionCoordinator {
+    fn connect(
+        recorder: Arc<jftrade_marketdata::MarketDataRuntimeRecorder>,
+        demand: &[jftrade_marketdata::InstrumentRef],
+    ) -> Self {
+        let instruments = demand.iter().cloned().map(|instrument| {
+            instrument
+                .normalize()
+                .expect("fixture instrument")
+                .instrument_id()
+        });
+        let generation = recorder.reconcile(instruments);
+        assert!(recorder.record_stream_connected(generation));
+        Self {
+            recorder,
+            generation,
+        }
+    }
+
+    fn poll_snapshot(
+        &self,
+        cache: &mut jftrade_marketdata::TickCache,
+        demand: &[jftrade_marketdata::InstrumentRef],
+        now: jftrade_kernel::WireTimestamp,
+        query: impl FnOnce(&[String]) -> Result<Vec<jftrade_marketdata::Tick>, String>,
+    ) -> jftrade_marketdata::SnapshotPollOutcome {
+        jftrade_marketdata::SnapshotPollExecutor::default().execute(
+            &self.recorder,
+            cache,
+            demand,
+            self.generation,
+            now,
+            query,
+        )
+    }
+
+    fn fail_stream(&self, now: jftrade_kernel::WireTimestamp, reason: &str) {
+        assert!(
+            self.recorder
+                .record_stream_failure(self.generation, now, reason)
+        );
+    }
+
+    fn reconnect(&mut self) {
+        self.generation = self.recorder.reconfigure();
+        assert!(self.recorder.record_stream_connected(self.generation));
+    }
+}
+
+fn fixture_tick(
+    instrument_id: &str,
+    price: &str,
+    observed_at_ms: i64,
+    provider_generation: u64,
+) -> jftrade_marketdata::Tick {
+    jftrade_marketdata::Tick {
+        instrument_id: instrument_id.to_owned(),
+        price: price.parse().expect("fixture price"),
+        volume: "10.5".parse().expect("fixture volume"),
+        observed_at_ms,
+        provider_generation,
+    }
+}
+
 #[tokio::test]
 async fn system_control_reads_are_authenticated_and_do_not_create_control_state() {
     let directory = tempdir().expect("temporary directory");
@@ -517,6 +591,161 @@ async fn product_runtime_keeps_provider_router_and_status_recorder_shared() {
         2
     );
     runtime.shutdown().await.expect("shutdown product runtime");
+}
+
+#[tokio::test]
+async fn system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let recorder = Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default());
+    let demand = vec![jftrade_marketdata::InstrumentRef {
+        channel: "SNAPSHOT".to_owned(),
+        market: "US".to_owned(),
+        symbol: "AAPL".to_owned(),
+        interval: None,
+    }];
+    let mut coordinator = FixtureOpenDSessionCoordinator::connect(Arc::clone(&recorder), &demand);
+    let mut cache = jftrade_marketdata::TickCache::new(2);
+    let first_now: jftrade_kernel::WireTimestamp = "2026-08-25T09:00:00+08:00"
+        .parse()
+        .expect("first poll timestamp");
+    let first_tick = fixture_tick(
+        "US.AAPL",
+        "189.12345678",
+        first_now.unix_millis().expect("first timestamp millis"),
+        coordinator.generation,
+    );
+    assert_eq!(
+        coordinator.poll_snapshot(&mut cache, &demand, first_now, move |requested| {
+            assert_eq!(requested, &["US.AAPL"]);
+            Ok(vec![first_tick])
+        }),
+        jftrade_marketdata::SnapshotPollOutcome::Applied {
+            requested: 1,
+            inserted: 1,
+        }
+    );
+    assert!(matches!(
+        cache.lookup_for_generation(
+            "US.AAPL",
+            first_now.unix_millis().expect("first timestamp millis"),
+            1_500,
+            coordinator.generation,
+        ),
+        jftrade_marketdata::CacheLookup::Fresh(_)
+    ));
+
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_runtime_status_port(recorder.clone());
+    let handle = start_product(config).await.expect("start product");
+    let status = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        status["data"]["observability"]["marketdata"],
+        json!({
+            "status": "connected",
+            "connected": true,
+            "closed": false,
+            "generation": 1,
+            "activeCount": 1,
+            "lastRefreshAt": "2026-08-25T01:00:00Z",
+            "quoteRetryAt": null,
+            "quoteFailures": 0,
+            "quoteLastError": null,
+            "streamRetryAt": null,
+            "streamFailures": 0,
+            "streamLastError": null,
+        })
+    );
+
+    coordinator.fail_stream(first_now, "peer EOF");
+    let degraded = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        degraded["data"]["observability"]["marketdata"]["status"],
+        "degraded"
+    );
+    assert_eq!(
+        degraded["data"]["observability"]["marketdata"]["streamFailures"],
+        1
+    );
+    assert_eq!(
+        degraded["data"]["observability"]["marketdata"]["streamLastError"],
+        "peer EOF"
+    );
+
+    coordinator.reconnect();
+    let second_now: jftrade_kernel::WireTimestamp = "2026-08-25T09:00:02+08:00"
+        .parse()
+        .expect("second poll timestamp");
+    let second_tick = fixture_tick(
+        "US.AAPL",
+        "190.00",
+        second_now.unix_millis().expect("second timestamp millis"),
+        coordinator.generation,
+    );
+    assert_eq!(
+        coordinator.poll_snapshot(&mut cache, &demand, second_now, move |_| Ok(vec![
+            second_tick
+        ])),
+        jftrade_marketdata::SnapshotPollOutcome::Applied {
+            requested: 1,
+            inserted: 1,
+        }
+    );
+    assert!(matches!(
+        cache.lookup_for_generation(
+            "US.AAPL",
+            second_now.unix_millis().expect("second timestamp millis"),
+            1_500,
+            coordinator.generation,
+        ),
+        jftrade_marketdata::CacheLookup::Fresh(_)
+    ));
+
+    let recovered = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[],
+    )
+    .await
+    .1;
+    assert_eq!(
+        recovered["data"]["observability"]["marketdata"],
+        json!({
+            "status": "connected",
+            "connected": true,
+            "closed": false,
+            "generation": 2,
+            "activeCount": 1,
+            "lastRefreshAt": "2026-08-25T01:00:02Z",
+            "quoteRetryAt": null,
+            "quoteFailures": 0,
+            "quoteLastError": null,
+            "streamRetryAt": null,
+            "streamFailures": 0,
+            "streamLastError": null,
+        })
+    );
+    handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]

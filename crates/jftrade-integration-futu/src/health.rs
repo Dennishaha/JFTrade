@@ -1,12 +1,13 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use prost::Message;
 use thiserror::Error;
 
 use crate::{
-    OpenDClient, OpenDProbe, OpenDTcpTransport, PROTO_GET_GLOBAL_STATE, PROTO_INIT_CONNECT,
-    WireGlobalState,
+    OpenDManagedSession, OpenDManagedSessionError, OpenDProbe, PROTO_GET_GLOBAL_STATE,
+    PROTO_INIT_CONNECT, TcpTransportError, TransportError, WireGlobalState,
 };
 use jftrade_marketdata::{HealthStatus, ProviderReadiness};
 
@@ -33,10 +34,14 @@ impl OpenDTcpProbeConfig {
 
 #[derive(Debug, Error)]
 pub enum OpenDTcpProbeError {
+    /// Retained for source compatibility with the pre-managed-session API.
     #[error("connect to OpenD: {0}")]
-    Connect(#[from] crate::TcpTransportError),
+    Connect(#[from] TcpTransportError),
+    /// Retained for source compatibility with the pre-managed-session API.
     #[error("OpenD protocol exchange: {0}")]
-    Exchange(#[from] crate::TransportError),
+    Exchange(#[from] TransportError),
+    #[error("OpenD managed session: {0}")]
+    Session(#[from] OpenDManagedSessionError),
     #[error("decode OpenD {operation} response: {source}")]
     Decode {
         operation: &'static str,
@@ -55,6 +60,49 @@ pub enum OpenDTcpProbeError {
 }
 
 pub struct OpenDTcpProbe;
+
+/// An authenticated OpenD session whose single reader can be shared by health,
+/// subscription RPC and push consumers without competing socket reads.
+#[derive(Clone)]
+pub struct OpenDInitializedSession {
+    session: Arc<OpenDManagedSession>,
+}
+
+impl OpenDInitializedSession {
+    pub fn connect(
+        config: &OpenDTcpProbeConfig,
+        generation: u64,
+    ) -> Result<Self, OpenDTcpProbeError> {
+        let session = Arc::new(OpenDManagedSession::connect(
+            config.address,
+            config.timeout,
+            generation,
+        )?);
+        initialize_session(&session, config, false)?;
+        Ok(Self { session })
+    }
+
+    /// Connects the long-lived market-data role with unsolicited quote
+    /// notifications enabled. The health-probe config remains source
+    /// compatible; role-specific InitConnect behavior is selected by this
+    /// constructor rather than by adding a public config field.
+    pub fn connect_with_push_notifications(
+        config: &OpenDTcpProbeConfig,
+        generation: u64,
+    ) -> Result<Self, OpenDTcpProbeError> {
+        let session = Arc::new(OpenDManagedSession::connect(
+            config.address,
+            config.timeout,
+            generation,
+        )?);
+        initialize_session(&session, config, true)?;
+        Ok(Self { session })
+    }
+
+    pub fn managed_session(&self) -> &OpenDManagedSession {
+        &self.session
+    }
+}
 
 /// Converts the protocol-neutral OpenD result into the broker-neutral health
 /// contract consumed by an explicit `ProviderRouter` composition.
@@ -87,17 +135,20 @@ pub fn market_data_health_from_probe(enabled: bool, probe: &OpenDProbe) -> Healt
 
 impl OpenDTcpProbe {
     pub fn probe(config: OpenDTcpProbeConfig) -> Result<OpenDProbe, OpenDTcpProbeError> {
-        let transport = OpenDTcpTransport::connect(config.address, config.timeout)?;
-        let mut client = OpenDClient::new(transport);
-        initialize_client(&mut client, &config)?;
+        let session = OpenDInitializedSession::connect(&config, 1)?;
+        Self::probe_initialized(&session)
+    }
 
+    pub fn probe_initialized(
+        session: &OpenDInitializedSession,
+    ) -> Result<OpenDProbe, OpenDTcpProbeError> {
         let global_body = GetGlobalStateRequest {
             c2s: Some(GetGlobalStateC2s { user_id: 0 }),
         }
         .encode_to_vec();
-        let global_response = client
-            .call(PROTO_GET_GLOBAL_STATE, &global_body)
-            .map_err(OpenDTcpProbeError::Exchange)?;
+        let global_response = session
+            .managed_session()
+            .call(PROTO_GET_GLOBAL_STATE, &global_body)?;
         let global_response =
             GetGlobalStateResponse::decode(global_response.as_slice()).map_err(|source| {
                 OpenDTcpProbeError::Decode {
@@ -147,22 +198,21 @@ impl OpenDTcpProbe {
     }
 }
 
-pub(crate) fn initialize_client(
-    client: &mut OpenDClient<OpenDTcpTransport>,
+fn initialize_session(
+    session: &OpenDManagedSession,
     config: &OpenDTcpProbeConfig,
+    recv_notify: bool,
 ) -> Result<(), OpenDTcpProbeError> {
     let init_request = InitConnectRequest {
         c2s: Some(InitConnectC2s {
             client_ver: 101,
             client_id: config.client_id.clone(),
-            recv_notify: Some(false),
+            recv_notify: Some(recv_notify),
             programming_language: Some(config.programming_language.clone()),
         }),
     };
     let init_body = init_request.encode_to_vec();
-    let init_response = client
-        .call(PROTO_INIT_CONNECT, &init_body)
-        .map_err(OpenDTcpProbeError::Exchange)?;
+    let init_response = session.call(PROTO_INIT_CONNECT, &init_body)?;
     let init_response =
         InitConnectResponse::decode(init_response.as_slice()).map_err(|source| {
             OpenDTcpProbeError::Decode {
@@ -350,6 +400,13 @@ mod tests {
             let (mut stream, _) = listener.accept().expect("accept");
             let init_request = read_request(&mut stream);
             assert_eq!(init_request.header.proto_id, PROTO_INIT_CONNECT);
+            let init =
+                InitConnectRequest::decode(init_request.body.as_slice()).expect("init request");
+            assert_eq!(
+                init.c2s.and_then(|state| state.recv_notify),
+                Some(false),
+                "the short-lived Go-compatible health probe does not receive pushes"
+            );
             let init_response = InitConnectResponse {
                 ret_type: Some(RET_TYPE_SUCCEED),
                 ret_msg: None,
@@ -397,6 +454,93 @@ mod tests {
         assert_eq!(probe.quote_logged_in, Some(true));
         assert!(probe.market_data_ready());
         assert_eq!(probe.markets.len(), 4);
+        server.join().expect("server thread");
+    }
+
+    #[test]
+    fn initialized_probe_and_subscription_rpc_share_one_managed_reader() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init_request = read_request(&mut stream);
+            let init =
+                InitConnectRequest::decode(init_request.body.as_slice()).expect("init request");
+            assert_eq!(
+                init.c2s.and_then(|state| state.recv_notify),
+                Some(true),
+                "the long-lived data session must receive pushes"
+            );
+            write_response(
+                &mut stream,
+                &init_request,
+                InitConnectResponse {
+                    ret_type: Some(RET_TYPE_SUCCEED),
+                    ret_msg: None,
+                    s2c: Some(InitConnectS2c {
+                        server_ver: 1009,
+                        conn_id: 17,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let global_request = read_request(&mut stream);
+            let push = encode_frame(crate::PROTO_UPDATE_BASIC_QOT, 0, b"push").expect("push frame");
+            stream.write_all(&push).expect("write push");
+            write_response(
+                &mut stream,
+                &global_request,
+                GetGlobalStateResponse {
+                    ret_type: Some(RET_TYPE_SUCCEED),
+                    ret_msg: None,
+                    s2c: Some(GetGlobalStateS2c {
+                        market_hk: 3,
+                        market_us: 4,
+                        market_sh: 5,
+                        market_sz: 6,
+                        qot_logined: true,
+                        trd_logined: false,
+                        server_ver: 1009,
+                        server_build_no: 7000,
+                        time: 1_754_000_000,
+                        program_status: Some(ProgramStatus {
+                            r#type: 10,
+                            str_ext_desc: None,
+                        }),
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let subscription_request = read_request(&mut stream);
+            assert_eq!(subscription_request.header.proto_id, crate::PROTO_QOT_SUB);
+            write_response(&mut stream, &subscription_request, vec![0x08, 0x00]);
+        });
+
+        let config = OpenDTcpProbeConfig::new(address, Duration::from_secs(1));
+        let session = OpenDInitializedSession::connect_with_push_notifications(&config, 7)
+            .expect("initialized session");
+        let probe = OpenDTcpProbe::probe_initialized(&session).expect("probe");
+        assert!(probe.market_data_ready());
+        assert!(matches!(
+            session
+                .managed_session()
+                .receive_event_timeout(Duration::from_secs(1))
+                .expect("push event"),
+            crate::OpenDSessionEvent::UnsolicitedFrame { generation: 7, frame }
+                if frame.header.proto_id == crate::PROTO_UPDATE_BASIC_QOT
+                    && frame.body == b"push"
+        ));
+        let mut executor = crate::OpenDSubscriptionExecutor::from_session(session.clone());
+        executor
+            .execute(&crate::ReconcileAction::Subscribe {
+                subscription: crate::PhysicalSubscription {
+                    key: "BASIC:US.AAPL".to_owned(),
+                    kind: crate::SubscriptionKind::Basic,
+                    instrument_id: "US.AAPL".to_owned(),
+                    interval: None,
+                },
+            })
+            .expect("subscription RPC");
         server.join().expect("server thread");
     }
 

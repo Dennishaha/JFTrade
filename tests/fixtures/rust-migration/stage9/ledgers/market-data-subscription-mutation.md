@@ -10,7 +10,11 @@
 - Rust leaf: `crates/jftrade-engine/src/product_market_data_subscription_mutation_{port,api,routes}.rs`.
 - Rust replay: `crates/jftrade-engine/tests/stage9_market_data_subscription_mutation.rs`.
 - Differential: `node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs`.
-- Current ownership record remains `implementationStatus=remaining` until the integration branch applies the shared six-record update; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged in this worker commit.
+- Current ownership records are `cutover-test-only` for all six routes;
+  `productionOwner=go` and `goRemovalStatus=retained` remain unchanged. This
+  group is not registered in the default shadow profile and still requires the
+  explicit mutation test port plus durable-owner/recovery evidence before any
+  qualification or production-owner discussion.
 
 ## Operation Contract
 

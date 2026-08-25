@@ -196,8 +196,8 @@ func assertResearchPresetWritePrivateBoundary(t *testing.T, request *http.Reques
 		request.Header.Get(rustrehearsal.AccessSurfaceHeader) != "desktop" {
 		t.Errorf("Rust mutation boundary headers were not verified: %#v", request.Header)
 	}
-	if request.Header.Get("Cookie") != "" {
-		t.Errorf("public cookie leaked to Rust mutation boundary: %q", request.Header.Get("Cookie"))
+	if got := request.Header.Get("Cookie"); got != "jftrade_web_session=browser-rehearsal" {
+		t.Errorf("browser session cookie at Rust mutation boundary = %q", got)
 	}
 }
 
@@ -309,7 +309,7 @@ func researchPresetWriteRequest(t *testing.T, target, method, body, requestID st
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Request-ID", requestID)
-	request.Header.Set("Cookie", "jftrade_web_session=must-not-forward")
+	request.Header.Set("Cookie", "jftrade_web_session=browser-rehearsal")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatalf("call research preset write route: %v", err)
