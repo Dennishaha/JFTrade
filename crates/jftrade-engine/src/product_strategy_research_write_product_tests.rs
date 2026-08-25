@@ -11,6 +11,7 @@ use super::super::product_research_preset_write_port::{
 use super::super::product_strategy_definition_write_port::{
     StrategyDefinitionWriteInput, StrategyDefinitionWritePortError,
 };
+use super::super::product_strategy_definition_write_test_cutover::StrategyDefinitionSqliteTestCutoverPort;
 use super::*;
 
 #[derive(Debug)]
@@ -414,6 +415,75 @@ async fn strategy_definition_write_product_replays_browser_failure_recovery_and_
         std::fs::read(&settings_path).expect("read settings after restart"),
         settings_before
     );
+}
+
+#[tokio::test]
+async fn strategy_definition_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("strategy-definitions.db");
+    let port = Arc::new(
+        StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+            .expect("open strategy definition test-cutover port"),
+    );
+    port.seed_definition(
+        "fixture-product",
+        json!({"id":"fixture-product","name":"Before"}),
+        &[],
+    )
+    .expect("seed product definition");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_definition_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let response = request_json(
+        handle.startup_record().address,
+        "PUT",
+        "/api/v1/strategy-definitions/fixture-product",
+        Some(r#"{"id":"body-id","name":"After"}"#),
+    )
+    .await;
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["data"]["version"], "0.1.1");
+    handle.shutdown().await.expect("shutdown product");
+
+    let reopened = Arc::new(
+        StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+            .expect("reopen strategy definition test-cutover port"),
+    );
+    assert_eq!(
+        reopened
+            .current("fixture-product")
+            .expect("current product definition")
+            .expect("persisted product definition")
+            .1["name"],
+        "After"
+    );
+    let restarted = start_product(
+        ProductConfig::test_cutover(
+            "127.0.0.1:0".parse().expect("restarted address"),
+            &settings_path,
+        )
+        .expect("restarted config")
+        .with_strategy_definition_write_port(reopened),
+    )
+    .await
+    .expect("restart product");
+    let missing = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/strategy-definitions/missing/instantiate",
+        Some("{"),
+        &[],
+    )
+    .await;
+    assert_eq!(missing.0, 404);
+    assert_eq!(missing.1["error"]["message"], "strategy resource not found");
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted product");
 }
 
 #[tokio::test]

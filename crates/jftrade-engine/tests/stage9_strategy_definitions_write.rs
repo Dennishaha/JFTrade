@@ -1,16 +1,20 @@
 #[path = "../src/product_strategy_definition_write_port.rs"]
 mod product_strategy_definition_write_port;
+#[path = "../src/product_strategy_definition_write_test_cutover.rs"]
+mod product_strategy_definition_write_test_cutover;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use jftrade_api::ApiRequest;
 use product_strategy_definition_write_port::{
-    StrategyDefinitionWriteInput, StrategyDefinitionWritePort, StrategyDefinitionWritePortError,
-    dispatch_strategy_definition_write, strategy_definition_write_routes,
+    StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
+    StrategyDefinitionWritePortError, dispatch_strategy_definition_write,
+    strategy_definition_write_routes,
 };
+use product_strategy_definition_write_test_cutover::StrategyDefinitionSqliteTestCutoverPort;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const FIXTURE_TIMESTAMP: &str = "2026-08-22T06:00:00Z";
 
@@ -103,6 +107,22 @@ fn request(case: &FixtureCase, index: usize) -> ApiRequest {
         query: String::new(),
         body: case.request_bodies[index].as_bytes().to_vec(),
         request_id: "stage9-strategy-definitions-write".to_owned(),
+        desktop_trusted: true,
+        origin_provided: false,
+        origin_allowed: true,
+        browser_authenticated: true,
+        csrf_valid: false,
+        session_cookie: None,
+    }
+}
+
+fn raw_request(method: &str, path: &str, body: &[u8]) -> ApiRequest {
+    ApiRequest {
+        method: method.to_owned(),
+        path: path.to_owned(),
+        query: String::new(),
+        body: body.to_vec(),
+        request_id: "strategy-definition-write-durable".to_owned(),
         desktop_trusted: true,
         origin_provided: false,
         origin_allowed: true,
@@ -234,6 +254,140 @@ fn strategy_definition_write_leaf_fails_closed_without_test_port() {
     assert_eq!(
         response.body["error"]["code"],
         "STRATEGY_DEFINITIONS_UNAVAILABLE"
+    );
+}
+
+#[test]
+fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("strategy-definitions.db");
+    let port = Arc::new(
+        StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+            .expect("open strategy definition test-cutover port"),
+    );
+    port.seed_definition(
+        "fixture-concurrent",
+        json!({"id":"fixture-concurrent","name":"Before"}),
+        &[],
+    )
+    .expect("seed concurrent definition");
+
+    let mut updates = Vec::new();
+    for _ in 0..8 {
+        let port = Arc::clone(&port);
+        updates.push(std::thread::spawn(move || {
+            port.mutate(&StrategyDefinitionWriteInput {
+                operation: StrategyDefinitionWriteOperation::Update,
+                definition_id: Some("fixture-concurrent".to_owned()),
+                definition: Some(json!({"id":"body-id","name":"Same update"})),
+                binding: None,
+                binding_error: None,
+            })
+        }));
+    }
+    for update in updates {
+        let result = update.join().expect("join concurrent strategy update");
+        assert_eq!(result.expect("concurrent update")["version"], "0.1.1");
+    }
+    assert_eq!(
+        port.version_count("fixture-concurrent")
+            .expect("version count"),
+        2
+    );
+    assert_eq!(
+        port.current("fixture-concurrent")
+            .expect("current concurrent definition")
+            .expect("concurrent definition")
+            .0,
+        "0.1.1"
+    );
+
+    port.seed_definition(
+        "fixture-rollback",
+        json!({"id":"fixture-rollback","name":"Before rollback"}),
+        &[],
+    )
+    .expect("seed rollback definition");
+    port.reject_version("0.1.1")
+        .expect("install rollback trigger");
+    let rollback = port.mutate(&StrategyDefinitionWriteInput {
+        operation: StrategyDefinitionWriteOperation::Update,
+        definition_id: Some("fixture-rollback".to_owned()),
+        definition: Some(json!({"name":"Rejected update"})),
+        binding: None,
+        binding_error: None,
+    });
+    assert!(matches!(
+        rollback,
+        Err(StrategyDefinitionWritePortError::Failed { status: 500, .. })
+    ));
+    assert_eq!(
+        port.current("fixture-rollback")
+            .expect("current rollback definition")
+            .expect("rollback definition")
+            .1["name"],
+        "Before rollback"
+    );
+
+    port.seed_definition(
+        "fixture-delete",
+        json!({"id":"fixture-delete","name":"Delete"}),
+        &["inst-1"],
+    )
+    .expect("seed linked definition");
+    let delete = StrategyDefinitionWriteInput {
+        operation: StrategyDefinitionWriteOperation::Delete,
+        definition_id: Some("fixture-delete".to_owned()),
+        definition: None,
+        binding: None,
+        binding_error: None,
+    };
+    assert!(matches!(
+        port.mutate(&delete),
+        Err(StrategyDefinitionWritePortError::Failed { status: 400, .. })
+    ));
+    port.set_linked_ids("fixture-delete", &[])
+        .expect("clear linked definition instances");
+    port.mutate(&delete).expect("soft delete definition");
+    assert!(
+        port.current("fixture-delete")
+            .expect("current deleted definition")
+            .expect("deleted definition")
+            .2
+    );
+
+    let missing_instantiate = dispatch_strategy_definition_write(
+        &raw_request(
+            "POST",
+            "/api/v1/strategy-definitions/missing/instantiate",
+            b"{",
+        ),
+        Some(port.as_ref()),
+        FIXTURE_TIMESTAMP,
+    );
+    assert_eq!(missing_instantiate.status, 404);
+    assert_eq!(
+        missing_instantiate.body["error"]["message"],
+        "strategy resource not found"
+    );
+
+    drop(port);
+    let reopened = StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+        .expect("reopen strategy definition test-cutover port");
+    assert_eq!(
+        reopened
+            .current("fixture-concurrent")
+            .expect("reopened concurrent definition")
+            .expect("persisted concurrent definition")
+            .0,
+        "0.1.1"
+    );
+    assert!(
+        reopened
+            .current("fixture-delete")
+            .expect("reopened deleted definition")
+            .expect("persisted deleted definition")
+            .2
     );
 }
 

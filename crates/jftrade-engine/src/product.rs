@@ -128,6 +128,9 @@ use product_research_preset_write_port::{
 };
 #[path = "product_strategy_definition_write_port.rs"]
 mod product_strategy_definition_write_port;
+#[cfg(test)]
+#[path = "product_strategy_definition_write_test_cutover.rs"]
+mod product_strategy_definition_write_test_cutover;
 use product_strategy_definition_write_port::{
     StrategyDefinitionWritePort, StrategyDefinitionWriteResponse,
     dispatch_strategy_definition_write, strategy_definition_write_routes,
