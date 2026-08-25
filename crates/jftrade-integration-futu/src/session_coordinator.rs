@@ -207,6 +207,10 @@ impl OpenDSessionCoordinator {
         self.lifecycle.generation()
     }
 
+    pub fn desired(&self) -> Vec<InstrumentRef> {
+        self.desired.clone()
+    }
+
     pub fn close(&mut self) -> Result<bool, OpenDSessionCoordinatorError> {
         if self.closed {
             return Ok(false);

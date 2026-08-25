@@ -9,7 +9,9 @@ use jftrade_datamanagement::{
     DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
     DATABASE_WATCHLIST, DatabaseDescriptor,
 };
-use jftrade_integration_futu::OpenDSessionCoordinator;
+use jftrade_integration_futu::{
+    OpenDSessionCoordinator, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
+};
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
     allocate_loopback_port,
@@ -56,6 +58,7 @@ pub struct ProductRuntimeConfig {
     /// driving; the runtime only exposes the shared status recorder and closes
     /// the session during shutdown.
     pub market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
+    pub market_data_opend_task: Option<OpenDSessionRuntimeConfig>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
 
@@ -105,6 +108,7 @@ impl ProductRuntimeConfig {
             market_data_router: None,
             market_data_runtime_recorder: None,
             market_data_opend: None,
+            market_data_opend_task: None,
             strategy_runtime_registry: None,
         })
     }
@@ -143,7 +147,20 @@ impl ProductRuntimeConfig {
             .lifecycle()
             .recorder();
         self.market_data_opend = Some(coordinator);
+        self.market_data_opend_task = None;
         self.market_data_runtime_recorder = Some(recorder);
+        self
+    }
+
+    /// Connects an explicitly authenticated OpenD session and opts into the
+    /// runtime-owned polling task. The default profile never calls this.
+    pub fn with_opend_session_runtime(
+        mut self,
+        coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+        task: OpenDSessionRuntimeConfig,
+    ) -> Self {
+        self = self.with_opend_session_coordinator(coordinator);
+        self.market_data_opend_task = Some(task);
         self
     }
 
@@ -237,6 +254,20 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
+        if config.market_data_opend_task.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-runtime-task".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "managed-marketdata-task".to_owned(),
+                path: "OpenD poll/reconnect/demand task".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD runtime lifecycle".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDSessionRuntime".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
         Arc::new(Self { resources })
     }
 
@@ -253,6 +284,7 @@ pub struct ProductRuntimeHandle {
     marketdata_helper: Option<HelperProcess>,
     market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
     market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
+    market_data_opend_runtime: Option<OpenDSessionRuntime>,
 }
 
 impl ProductRuntimeHandle {
@@ -271,9 +303,28 @@ impl ProductRuntimeHandle {
         self.market_data_opend.clone()
     }
 
+    pub fn market_data_opend_runtime(&self) -> Option<&OpenDSessionRuntime> {
+        self.market_data_opend_runtime.as_ref()
+    }
+
+    pub fn set_market_data_opend_demand(
+        &self,
+        demand: Vec<jftrade_marketdata::InstrumentRef>,
+    ) -> bool {
+        let Some(runtime) = self.market_data_opend_runtime.as_ref() else {
+            return false;
+        };
+        runtime.set_demand(demand);
+        true
+    }
+
     pub async fn shutdown(mut self) -> Result<(), ProductRuntimeError> {
         let mut failures = Vec::new();
-        if let Some(coordinator) = self.market_data_opend.take()
+        if let Some(mut task) = self.market_data_opend_runtime.take()
+            && let Err(error) = task.shutdown()
+        {
+            failures.push(error.to_string());
+        } else if let Some(coordinator) = self.market_data_opend.take()
             && let Err(error) = coordinator
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -312,6 +363,7 @@ impl Drop for ProductRuntimeHandle {
         for worker in self.pine_workers.iter_mut().rev() {
             worker.terminate();
         }
+        drop(self.market_data_opend_runtime.take());
         drop(self.product.take());
     }
 }
@@ -322,8 +374,12 @@ pub async fn start_product_runtime(
     if config.market_data_router.is_some() && config.market_data_opend.is_some() {
         return Err(ProductRuntimeError::ConflictingMarketDataOwners);
     }
+    if config.market_data_opend_task.is_some() && config.market_data_opend.is_none() {
+        return Err(ProductRuntimeError::MissingOpenDSession);
+    }
     let market_data_router = config.market_data_router.take();
     let market_data_opend = config.market_data_opend.take();
+    let market_data_opend_task = config.market_data_opend_task.take();
     if let Some(router) = market_data_router.as_ref() {
         let recorder = router
             .lock()
@@ -357,7 +413,20 @@ pub async fn start_product_runtime(
         marketdata_helper: None,
         market_data_router,
         market_data_opend,
+        market_data_opend_runtime: None,
     };
+
+    if let (Some(coordinator), Some(task_config)) =
+        (runtime.market_data_opend.as_ref(), market_data_opend_task)
+    {
+        match OpenDSessionRuntime::start(Arc::clone(coordinator), task_config) {
+            Ok(task) => runtime.market_data_opend_runtime = Some(task),
+            Err(error) => {
+                let _ = runtime.shutdown().await;
+                return Err(error.into());
+            }
+        }
+    }
 
     for worker in config.pine_workers {
         let result = start_pine_worker(worker).await;
@@ -639,6 +708,10 @@ pub enum ProductRuntimeError {
     InvalidWorkerCount,
     #[error("market-data router and OpenD session cannot share one runtime owner")]
     ConflictingMarketDataOwners,
+    #[error("OpenD runtime task requires an explicitly composed OpenD session")]
+    MissingOpenDSession,
+    #[error("manage OpenD runtime task: {0}")]
+    OpenDTask(#[from] jftrade_integration_futu::OpenDSessionRuntimeError),
     #[error("stop Rust product runtime: {0}")]
     Shutdown(String),
 }
@@ -668,6 +741,7 @@ mod tests {
             market_data_router: None,
             market_data_runtime_recorder: None,
             market_data_opend: None,
+            market_data_opend_task: None,
             strategy_runtime_registry: None,
         };
         let snapshot = ProductRuntimeState::configured(&config).snapshot();
@@ -684,5 +758,30 @@ mod tests {
                 .all(|resource| resource.kind == "sqlite")
         );
         runtime.shutdown().await.expect("shutdown");
+    }
+
+    #[tokio::test]
+    async fn opend_runtime_task_requires_explicit_session_composition() {
+        let directory = tempdir().expect("temporary directory");
+        let product = ProductConfig::new(
+            SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0),
+            directory.path().join("settings.json"),
+            AccessPolicy::default(),
+        )
+        .expect("product config");
+        let config = ProductRuntimeConfig {
+            product,
+            pine_workers: Vec::new(),
+            marketdata_helper: None,
+            market_data_router: None,
+            market_data_runtime_recorder: None,
+            market_data_opend: None,
+            market_data_opend_task: Some(OpenDSessionRuntimeConfig::default()),
+            strategy_runtime_registry: None,
+        };
+        assert!(matches!(
+            start_product_runtime(config).await,
+            Err(ProductRuntimeError::MissingOpenDSession)
+        ));
     }
 }
