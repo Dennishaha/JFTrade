@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
 use serde_json::{Value, json};
@@ -59,6 +60,47 @@ impl StrategyDefinitionWritePort for FailingStrategyDefinitionWritePort {
             code: "STRATEGY_FAILED".to_owned(),
             message: "fixture mutation failed".to_owned(),
         })
+    }
+}
+
+#[derive(Debug)]
+struct SequencedStrategyDefinitionWritePort {
+    responses: Mutex<VecDeque<Result<Value, StrategyDefinitionWritePortError>>>,
+    calls: Mutex<Vec<StrategyDefinitionWriteInput>>,
+}
+
+impl SequencedStrategyDefinitionWritePort {
+    fn new(
+        responses: impl IntoIterator<Item = Result<Value, StrategyDefinitionWritePortError>>,
+    ) -> Self {
+        Self {
+            responses: Mutex::new(responses.into_iter().collect()),
+            calls: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn calls(&self) -> Vec<StrategyDefinitionWriteInput> {
+        self.calls
+            .lock()
+            .expect("strategy definition write calls lock")
+            .clone()
+    }
+}
+
+impl StrategyDefinitionWritePort for SequencedStrategyDefinitionWritePort {
+    fn mutate(
+        &self,
+        input: &StrategyDefinitionWriteInput,
+    ) -> Result<Value, StrategyDefinitionWritePortError> {
+        self.calls
+            .lock()
+            .expect("strategy definition write calls lock")
+            .push(input.clone());
+        self.responses
+            .lock()
+            .expect("strategy definition write responses lock")
+            .pop_front()
+            .expect("strategy definition write rehearsal response")
     }
 }
 
@@ -147,6 +189,231 @@ async fn strategy_and_research_write_routes_preserve_failure_and_combined_regist
     .await;
     assert_eq!(response["ok"], true);
     handle.shutdown().await.expect("shutdown combined product");
+}
+
+#[tokio::test]
+async fn strategy_definition_write_product_replays_browser_failure_recovery_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(
+        &settings_path,
+        b"{\"seed\":\"strategy-definitions-write\"}\n",
+    )
+    .expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("read settings before replay");
+    let success = |operation: &str| {
+        Ok(json!({
+            "accepted": true,
+            "source": "rust-product",
+            "operation": operation,
+        }))
+    };
+    let port = Arc::new(SequencedStrategyDefinitionWritePort::new([
+        Err(StrategyDefinitionWritePortError::Unavailable(
+            "fixture strategy definition owner unavailable".to_owned(),
+        )),
+        success("create"),
+        Err(StrategyDefinitionWritePortError::Failed {
+            status: 500,
+            code: "STRATEGY_FAILED".to_owned(),
+            message: "fixture definition update failure".to_owned(),
+        }),
+        success("update"),
+        success("delete"),
+        success("apply-linked-instances"),
+        success("instantiate"),
+        success("update"),
+        success("instantiate"),
+    ]));
+    let mut config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_definition_write_port(port.clone());
+    config.access = AccessPolicy {
+        session_token: Some("fixture-browser-session".to_owned()),
+        csrf_token: Some("fixture-csrf".to_owned()),
+        enforce_access: true,
+        desktop_mode: false,
+        ..AccessPolicy::default()
+    }
+    .with_allowed_origins(["https://fixture.jftrade.local".to_owned()]);
+    let handle = start_product(config)
+        .await
+        .expect("start strategy definition write product");
+    assert_eq!(handle.startup_record().owned_routes, 53);
+    let address = handle.startup_record().address;
+    let browser_headers = [
+        ("Cookie", "jftrade_web_session=fixture-browser-session"),
+        ("Origin", "https://fixture.jftrade.local"),
+        (
+            "Referer",
+            "https://fixture.jftrade.local/strategy-definitions",
+        ),
+        ("X-CSRF-Token", "fixture-csrf"),
+        ("X-Request-ID", "strategy-definitions-write-product"),
+    ];
+    let create_path = "/api/v1/strategy-definitions";
+    let create_body = r#"{"name":"Draft"}"#;
+
+    let unauthorized =
+        request_json_with_status(address, "POST", create_path, Some(create_body), &[]).await;
+    assert_eq!(unauthorized.0, 401);
+    let csrf_missing = request_json_with_status(
+        address,
+        "POST",
+        create_path,
+        Some(create_body),
+        &[
+            ("Cookie", "jftrade_web_session=fixture-browser-session"),
+            ("Origin", "https://fixture.jftrade.local"),
+            (
+                "Referer",
+                "https://fixture.jftrade.local/strategy-definitions",
+            ),
+        ],
+    )
+    .await;
+    assert_eq!(csrf_missing.0, 403);
+    assert_eq!(csrf_missing.1["error"]["code"], "CSRF_FAILED");
+
+    let unavailable = request_json_with_status(
+        address,
+        "POST",
+        create_path,
+        Some(create_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(unavailable.0, 503);
+    assert_eq!(
+        unavailable.1["error"]["code"],
+        "STRATEGY_DEFINITIONS_UNAVAILABLE"
+    );
+    let recovered = request_json_with_status(
+        address,
+        "POST",
+        create_path,
+        Some(create_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(recovered.0, 200);
+    assert_eq!(recovered.1["data"]["operation"], "create");
+
+    let update_path = "/api/v1/strategy-definitions/definition-1";
+    let update_body = r#"{"id":"body-id","name":"Updated"}"#;
+    let failed = request_json_with_status(
+        address,
+        "PUT",
+        update_path,
+        Some(update_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(failed.0, 500);
+    assert_eq!(failed.1["error"]["code"], "STRATEGY_FAILED");
+    let recovered = request_json_with_status(
+        address,
+        "PUT",
+        update_path,
+        Some(update_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(recovered.0, 200);
+    assert_eq!(recovered.1["data"]["operation"], "update");
+
+    for (method, path, body, operation) in [
+        ("DELETE", update_path, None, "delete"),
+        (
+            "POST",
+            "/api/v1/strategy-definitions/definition-1/apply-linked-instances",
+            Some("not-json"),
+            "apply-linked-instances",
+        ),
+        (
+            "POST",
+            "/api/v1/strategy-definitions/definition-1/instantiate",
+            Some(r#"{"symbols":["AAPL"]}"#),
+            "instantiate",
+        ),
+    ] {
+        let (status, response) =
+            request_json_with_status(address, method, path, body, &browser_headers).await;
+        assert_eq!(status, 200, "{method} {path}");
+        assert_eq!(response["data"]["operation"], operation, "{method} {path}");
+    }
+    let duplicate_update = request_json_with_status(
+        address,
+        "PUT",
+        update_path,
+        Some(update_body),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(duplicate_update.0, 200);
+    let duplicate_instantiate = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/strategy-definitions/definition-1/instantiate",
+        Some(r#"{"symbols":["AAPL"]}"#),
+        &browser_headers,
+    )
+    .await;
+    assert_eq!(duplicate_instantiate.0, 200);
+
+    let calls = port.calls();
+    assert_eq!(calls.len(), 9);
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|call| call.operation.name() == "update")
+            .count(),
+        3
+    );
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|call| call.operation.name() == "instantiate")
+            .count(),
+        2
+    );
+    handle
+        .shutdown()
+        .await
+        .expect("shutdown strategy definition write product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after shutdown"),
+        settings_before
+    );
+
+    let restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restarted address"),
+        &settings_path,
+    )
+    .expect("restarted config")
+    .with_strategy_definition_write_port(Arc::new(FixtureStrategyDefinitionWritePort));
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart strategy definition write product");
+    let restarted_response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/strategy-definitions/definition-1/instantiate",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(restarted_response.0, 200);
+    assert_eq!(restarted_response.1["data"]["operation"], "instantiate");
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted strategy definition write product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after restart"),
+        settings_before
+    );
 }
 
 #[tokio::test]

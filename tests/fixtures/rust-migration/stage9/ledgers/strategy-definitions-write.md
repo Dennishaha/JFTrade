@@ -4,6 +4,7 @@
 - Tier: A mutation/state change; this slice is test-cutover-only.
 - Operations: 5: create, update, delete, apply-linked-instances, and instantiate under `/api/v1/strategy-definitions`.
 - Go remains the production owner of the strategy definition store, version history, soft-delete guard, catalog instances, Pine compilation, runtime lifecycle, and all SQLite writes.
+- Current route coverage is `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`; all five operations remain `cutover-test-only`.
 - Rust boundary: `product_strategy_definition_write_port.rs` accepts a complete consumer-owned mutation projection. It has no SQLite, PineTS, Provider/OpenD, runtime, notification, or production route registration.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategy-definitions-write.json` (20 cases).
 - Go reference: `scripts/rust-migration/stage9_strategy_definitions_write_reference_test.go`.
@@ -83,6 +84,9 @@ quirk: The standalone strategy fixture harness used a `match` equivalent to `mat
 - Go reference fixture test: passed.
 - Rust standalone fixture replay, exact route inventory, unavailable-port and read-isolation tests: passed.
 - Dedicated differential: passed (`node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs`).
-- Shared product differential: passed after integration registration (`pnpm run test:rust:stage9:product-differential`).
+- Authenticated Go loopback rehearsal: passed (`go test ./internal/app/apiserver/servercoretest -run '^TestStrategyDefinitionsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s`). It covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, all five operations and raw bodies, duplicate update, owner failure, timeout, cancellation, Rust crash fail-closed behavior, safe Go rollback/restart before real store mutation, and unchanged settings bytes.
+- Rust product rehearsal: passed (`cargo test -p jftrade-engine --lib strategy_definition_write_product -- --nocapture`). It covers browser 401/403, unavailable and owner-error recovery, all five operations, duplicate update and instantiate forwarding, restart recovery, explicit test-cutover registration, and unchanged settings bytes.
+- Shared product differential: passed after integration registration (`pnpm run test:rust:stage9:product-differential`, 213/213 Rust product library tests).
 - `route-ownership.json` records all five operations as `cutover-test-only`; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
-- `pnpm run check:quick`, `pnpm run check:rust`, generated-contract checks, production owner changes, real SQLite/Pine/runtime activation, and qualification/release gates are not claimed here.
+- `pnpm run check:quick` passed (affected quick checks, including the full `servercoretest` package, Rust all-target tests, architecture checks, clippy, and generated-contract check). `pnpm run check:rust` passed (workspace fmt, clippy, all-target tests, Stage 3–8 differentials, full Stage 9 product differential, and supporting package replay). Generated-contract checks passed without modifying the worktree; no public contract changed.
+- Remaining blockers: durable definition version/transaction ownership; atomic linked-delete and instantiate/catalog recovery; cancellation/restart fencing; Pine/runtime/activity/notification/task isolation; production unique-writer switching; four-platform signed Tauri release/updater; security/SBOM; backup/restore and hard-cut gates.
