@@ -10,6 +10,21 @@
 - Rust replay: `crates/jftrade-engine/src/product_ws_live.rs` and `crates/jftrade-engine/tests/stage9_ws_live.rs`.
 - Differential: `scripts/rust-migration/check-stage9-ws-live.mjs`.
 
+## Product transport evidence
+
+- The Axum WebSocket boundary preserves the Go upgrader's plain-text
+  `404 page not found` and `Forbidden` responses for an unavailable route and
+  rejected Origin. Generic API routes retain their JSON Origin error mapping;
+  only `/api/v1/ws/live` defers Origin rejection to the WebSocket handler.
+- Product tests cover explicit-port registration, default-profile isolation,
+  101 handshake, subscription normalization and permit release, connection
+  limit `503 LIVE_WS_LIMIT_REACHED`, rejected Origin, and unavailable-route
+  plain-text behavior. The route remains test-cutover-only and no
+  Provider/OpenD or durable backend is connected.
+- The Go fixture/reference, Rust leaf replay, API transport tests, Rust
+  product tests, and full Stage 9 product differential all pass. No production
+  owner or default profile changes.
+
 ## Contract Corpus
 
 | Scenario | Handshake / lifecycle | Events and wire points | Failure / recovery |
@@ -90,20 +105,21 @@ quirk: the worker differential script had a blank line at EOF, which made the re
 owner: 集成分支
 后续: fixed by removing the trailing blank line; rerun `check:quick` before commit.
 
-## Integration Wiring Patch Plan
+## Integration wiring and qualification state
 
-The worker intentionally does not touch shared wiring. The integration branch should apply the smallest patch after cherry-picking this commit:
-
-1. Add a private `WsLiveSnapshotPort`/live replay adapter to the product composition root only when an explicit test-cutover profile supplies a fixture backend; keep the default capability set and production route catalog unchanged.
-2. Add one `WsLive` capability/port bit and the single `GET /api/v1/ws/live` route to `crates/jftrade-engine/src/product*.rs`, reusing the existing authenticated loopback WebSocket transport. The adapter must delegate all backend/provider/runtime lifecycle behavior through a narrow consumer-owned port and must not start OpenD, subscribe, publish notifications or write SQLite.
-3. Update `tests/fixtures/rust-migration/stage9/route-ownership.json` for this one operation from `remaining` to `cutover-test-only`, add evidence `scripts/rust-migration/check-stage9-ws-live.mjs`, and derive the new total `26 shadow / 149 cutover-test-only / 0 qualified / 103 remaining / 0 Rust production owner`.
-4. Extend the shared product differential and route-isolation tests only on the integration branch; preserve Go fallback/owner and add an explicit test proving the route is absent without the injected port.
-
-Do not mark this group `cutover-qualified`: the current Rust shared transport does not yet expose the Go live backend, and the high-risk close/origin quirks remain unresolved.
+The explicit `WsLiveSnapshotPort` product wiring and route isolation are now
+present. The default profile remains at 48 routes and does not register
+`/api/v1/ws/live`; the test-cutover profile adds only this route. The group
+must remain `cutover-test-only`: Rust still has no live backend, Provider/OpenD
+demand reconciliation, notification bridge, market tick/depth source, or
+durable subscription owner. The plain-text Origin and abnormal-close quirks
+remain recorded Go compatibility behavior, and the generated swagger setup,
+real-provider recovery, release, security, backup/restore, and hard-cut gates
+remain open.
 
 ## Integration Review
 
 - Product wiring now gates the existing authenticated loopback WebSocket handler on an explicit `WsLiveSnapshotPort`; the default profile remains at 48 routes and does not register `/api/v1/ws/live`.
 - The authenticated Rust transport now owns one shared typed connection registry and client-scoped RAII permit used by both its upgrade limit and the `system/status` live projection. Its effective limit comes from the read-only Go-compatible interface settings projection. The actual handler consumes Go-compatible subscribe messages, projects a sorted/deduplicated active-instrument union and removes it on disconnect. This is ephemeral test-cutover transport state only; Go remains the production owner and Rust does not reconcile Provider/OpenD demand.
-- The shared differential runs `TestStage9WSLiveFixtureMatchesCurrentGoOwner`, route isolation and a real loopback 101/subscribe/status/disconnect test. The standalone Go/Rust replay remains the full event-wire evidence; no Provider/OpenD demand reconciliation, notification bridge, market tick/depth source or SQLite lifecycle crosses into Rust.
+- The shared differential runs `TestStage9WSLiveFixtureMatchesCurrentGoOwner`, authenticated Go rehearsals, route isolation, and a real loopback 101/subscribe/status/disconnect test. The standalone Go/Rust replay remains the full event-wire evidence; no Provider/OpenD demand reconciliation, notification bridge, market tick/depth source or SQLite lifecycle crosses into Rust.
 - Three-way review (Go handler/reference, Rust replay, harness): replay matches the captured Go corpus. The plain-text Origin rejection, abnormal close behavior, replay ordering, and missing generated `docs/swagger` webaccess setup remain recorded quirks and block qualification.

@@ -341,9 +341,19 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "scripts/rust-migration/stage9_ws_live_reference_test.go::TestStage9WSLiveFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_ws_live.rs::ws_live_replays_complete_go_corpus",
+        "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_route_is_registered_only_with_explicit_snapshot_port",
+        "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_subscription_registry_drives_status_and_releases_on_disconnect",
+        "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_transport_rejects_origin_and_limit_without_leaking_permits",
+        "crates/jftrade-engine/src/product_ws_live_tests.rs::ws_live_route_unavailable_is_plain_text_and_does_not_register_without_port",
+        "cargo test -p jftrade-api --lib --tests -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_ws_live -- --nocapture",
+        "node scripts/rust-migration/check-stage9-ws-live.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

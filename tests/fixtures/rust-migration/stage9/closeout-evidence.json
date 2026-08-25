@@ -157,6 +157,13 @@
       "scope": "local-only Rust explicit test-cutover profile, authenticated Go loopback rehearsal, and full local Rust gates",
       "command": "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
       "evidence": "The 40-case Go reference fixture, Rust leaf replay, authenticated owner-fencing rehearsal, Rust product replay, full Stage 9 product differential, check:quick, and check:rust passed for all 37 ADK mutation/control routes. Evidence covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, complete success/error projections, malformed/empty/blank-identifier precedence, repeated forwarding, trailing JSON transport, timeout, caller cancellation, Rust crash/unavailable fail-closed behavior, Go-only rollback, restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. The rehearsal uses only httptest and injected ports: it does not start the Assistant runtime, Provider/OpenD, notification or task delivery, or a production SQLite writer. The group remains cutover-test-only with Go as the sole production owner; durable Assistant state/transaction ownership, session/task/approval/workflow side-effect fencing, real Provider/runtime recovery, release, security, backup/restore, and hard-cut evidence remain open."
+    },
+    {
+      "id": "stage9-ws-live-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, Go/Rust fixture replay, WebSocket product transport replay, and full Stage 9 product differential",
+      "command": "node scripts/rust-migration/check-stage9-ws-live.mjs",
+      "evidence": "The complete Go WebSocket corpus, Rust leaf replay, API transport contract, explicit product test-cutover route, and full Stage 9 product differential passed for GET /api/v1/ws/live. Evidence covers 101 handshake, event ordering/normalization, Origin plain-text rejection, connection-limit 503, unavailable-route plain-text response, subscription permit release, disconnect/reconnect, authenticated Go rehearsal, default-profile isolation, and unchanged settings bytes. Rust still uses only ephemeral connection metrics and an injected test-cutover gate; it does not own Provider/OpenD demand, notification replay, market ticks/depth, durable subscriptions, production WebSocket clients, or user-visible state. The group remains cutover-test-only with Go as the sole production owner; generated swagger setup, real-provider recovery, release, security, backup/restore, and hard-cut evidence remain open."
     }
   ],
   "gates": {

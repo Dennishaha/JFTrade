@@ -73,12 +73,102 @@ async fn ws_live_subscription_registry_drives_status_and_releases_on_disconnect(
     handle.shutdown().await.expect("shutdown product");
 }
 
+#[tokio::test]
+async fn ws_live_transport_rejects_origin_and_limit_without_leaking_permits() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(
+        &settings_path,
+        br#"{"interfaces":{"liveWebSocketConnectionLimit":1}}
+"#,
+    )
+    .expect("seed websocket settings");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_ws_live_snapshot_port(Arc::new(EnabledWsLiveSnapshotPort));
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let first = websocket_upgrade(address).await;
+
+    let limited = websocket_handshake(address, &[]).await;
+    assert_eq!(limited.status, 503);
+    assert_eq!(
+        limited.content_type(),
+        Some("application/json; charset=utf-8")
+    );
+    assert!(limited.body.contains("LIVE_WS_LIMIT_REACHED"));
+
+    drop(first);
+    wait_for_live_projection(address, 0, &[]).await;
+    let recovered = websocket_upgrade(address).await;
+    drop(recovered);
+
+    let forbidden = websocket_handshake(address, &[("Origin", "http://evil.example")]).await;
+    assert_eq!(forbidden.status, 403);
+    assert_eq!(forbidden.content_type(), Some("text/plain; charset=utf-8"));
+    assert_eq!(forbidden.body, "Forbidden\n");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn ws_live_route_unavailable_is_plain_text_and_does_not_register_without_port() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config");
+    let handle = start_product(config).await.expect("start product");
+    assert!(
+        !handle
+            .startup_record()
+            .capabilities
+            .iter()
+            .any(|route| route == "GET /api/v1/ws/live")
+    );
+    let response = websocket_handshake(handle.startup_record().address, &[]).await;
+    assert_eq!(response.status, 404);
+    assert_eq!(response.content_type(), Some("text/plain; charset=utf-8"));
+    assert_eq!(response.body, "404 page not found\n");
+    handle.shutdown().await.expect("shutdown product");
+}
+
 async fn websocket_upgrade(address: std::net::SocketAddr) -> TcpStream {
+    let response = websocket_handshake(address, &[]).await;
+    assert_eq!(response.status, 101, "websocket handshake: {response:?}");
+    response.upgraded_stream.expect("upgraded websocket stream")
+}
+
+#[derive(Debug)]
+struct WebsocketHandshakeResponse {
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: String,
+    upgraded_stream: Option<TcpStream>,
+}
+
+impl WebsocketHandshakeResponse {
+    fn content_type(&self) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.as_str())
+    }
+}
+
+async fn websocket_handshake(
+    address: std::net::SocketAddr,
+    headers: &[(&str, &str)],
+) -> WebsocketHandshakeResponse {
     let mut stream = TcpStream::connect(address)
         .await
         .expect("connect websocket");
+    let extra_headers = headers
+        .iter()
+        .map(|(name, value)| format!("{name}: {value}\r\n"))
+        .collect::<String>();
     let request = format!(
-        "GET /api/v1/ws/live HTTP/1.1\r\nHost: {address}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+        "GET /api/v1/ws/live HTTP/1.1\r\nHost: {address}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n{extra_headers}\r\n"
     );
     stream
         .write_all(request.as_bytes())
@@ -94,12 +184,45 @@ async fn websocket_upgrade(address: std::net::SocketAddr) -> TcpStream {
         response.push(byte[0]);
         assert!(response.len() < 16 * 1024, "websocket handshake too large");
     }
-    let response = String::from_utf8(response).expect("handshake response utf8");
-    assert!(
-        response.starts_with("HTTP/1.1 101 "),
-        "websocket handshake: {response}"
-    );
-    stream
+    let header_text =
+        String::from_utf8(response[..response.len() - 4].to_vec()).expect("handshake headers utf8");
+    let mut lines = header_text.lines();
+    let status = lines
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|value| value.parse().ok())
+        .expect("HTTP handshake status");
+    let headers: Vec<(String, String)> = lines
+        .filter_map(|line| line.split_once(':'))
+        .map(|(name, value)| (name.to_owned(), value.trim().to_owned()))
+        .collect();
+    let body = if status == 101 {
+        String::new()
+    } else if let Some(length) = headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, value)| value.parse::<usize>().ok())
+    {
+        let mut body = vec![0_u8; length];
+        stream
+            .read_exact(&mut body)
+            .await
+            .expect("read handshake rejection body");
+        String::from_utf8(body).expect("handshake body utf8")
+    } else {
+        let mut body = Vec::new();
+        stream
+            .read_to_end(&mut body)
+            .await
+            .expect("read handshake rejection body");
+        String::from_utf8(body).expect("handshake body utf8")
+    };
+    WebsocketHandshakeResponse {
+        status,
+        headers,
+        body,
+        upgraded_stream: (status == 101).then_some(stream),
+    }
 }
 
 fn masked_text_frame(payload: &[u8]) -> Vec<u8> {

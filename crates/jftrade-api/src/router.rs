@@ -150,7 +150,10 @@ fn authorize(state: &ApiState, request: &Request) -> Result<(), ApiFailure> {
             "authenticated internal proxy access is required",
         ));
     }
-    if origin_provided(headers) && !state.access.origin_allowed(headers) {
+    if origin_provided(headers)
+        && !state.access.origin_allowed(headers)
+        && request.uri().path() != "/api/v1/ws/live"
+    {
         return Err(ApiFailure::new(
             403,
             "ORIGIN_FORBIDDEN",
@@ -359,15 +362,17 @@ async fn websocket_handler(
     upgrade: WebSocketUpgrade,
 ) -> Response<Body> {
     if !state.routes.allows("GET", "/api/v1/ws/live") {
-        return error_response(
-            &state.clock,
-            ApiFailure::new(404, "NOT_FOUND", "unknown endpoint /api/v1/ws/live"),
+        return body_response(
+            StatusCode::NOT_FOUND,
+            "text/plain; charset=utf-8",
+            "404 page not found\n",
         );
     }
     if !websocket_origin_allowed(&headers, &state.access) {
-        return error_response(
-            &state.clock,
-            ApiFailure::new(403, "ORIGIN_FORBIDDEN", "request origin is not allowed"),
+        return body_response(
+            StatusCode::FORBIDDEN,
+            "text/plain; charset=utf-8",
+            "Forbidden\n",
         );
     }
     let Some(connection_permit) = state.live_connections.try_acquire() else {
