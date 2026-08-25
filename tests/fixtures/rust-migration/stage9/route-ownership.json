@@ -241,9 +241,18 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-chat-stream.json",
+        "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go::TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_chat_stream.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+        "go test ./internal/app/apiserver/rustrehearsal -run ^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$ -count=1",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$ -count=1",
+        "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-adk-chat-stream.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -585,9 +594,18 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-chat-stream.json",
+        "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go::TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_chat_stream.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+        "go test ./internal/app/apiserver/rustrehearsal -run ^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$ -count=1",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$ -count=1",
+        "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-adk-chat-stream.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3478,9 +3496,18 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-chat-stream.json",
+        "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go::TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_chat_stream.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+        "go test ./internal/app/apiserver/rustrehearsal -run ^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$ -count=1",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$ -count=1",
+        "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-adk-chat-stream.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -3493,9 +3520,18 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
+        "tests/fixtures/rust-migration/stage9/adk-chat-stream.json",
+        "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go::TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner",
+        "crates/jftrade-engine/tests/stage9_adk_chat_stream.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
+        "go test ./internal/app/apiserver/rustrehearsal -run ^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$ -count=1",
+        "go test ./internal/app/apiserver/servercoretest -run ^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$ -count=1",
+        "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart",
+        "node scripts/rust-migration/check-stage9-adk-chat-stream.mjs",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

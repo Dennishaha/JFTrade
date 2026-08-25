@@ -107,6 +107,69 @@ func TestRehearsalProxyForwardsExactOperationAfterVerifiedSurface(t *testing.T) 
 	}
 }
 
+func TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders(t *testing.T) {
+	t.Parallel()
+	const operation = "POST /api/v1/adk/chat/stream"
+	const sseBody = "retry: 3000\n\nid: 1\ndata: {\"type\":\"final\"}\n\n"
+	var rustCalls atomic.Int32
+	rust := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rustCalls.Add(1)
+		if got := r.Header.Get("Accept"); got != "text/event-stream" {
+			t.Errorf("SSE Accept = %q", got)
+		}
+		if got := r.Header.Get("Cookie"); got != "jftrade_web_session=browser-session" {
+			t.Errorf("SSE cookie = %q", got)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil || string(body) != `{"message":"hello"}` {
+			t.Errorf("SSE body = %q, err = %v", body, err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-ADK-Stream-ID", "stream-fixture")
+		w.Header().Set("X-ADK-Stream-Idle-Timeout-Ms", "420000")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, sseBody)
+	}))
+	defer rust.Close()
+
+	var goCalls atomic.Int32
+	router := rehearsalProxyTestRouter(
+		rehearsalProxyTargetFixture{rust.URL, []string{operation}},
+		[]string{operation},
+		time.Second,
+		&goCalls,
+	)
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/adk/chat/stream",
+		strings.NewReader(`{"message":"hello"}`),
+	)
+	request.Header.Set("Accept", "text/event-stream")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Cookie", "jftrade_web_session=browser-session")
+	request.Header.Set("X-Request-ID", "sse-request-1")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("SSE response status = %d; body=%s", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Content-Type") != "text/event-stream" ||
+		response.Header().Get("Connection") != "keep-alive" ||
+		response.Header().Get("X-ADK-Stream-ID") != "stream-fixture" ||
+		response.Header().Get("X-ADK-Stream-Idle-Timeout-Ms") != "420000" {
+		t.Fatalf("SSE response headers = %#v", response.Header())
+	}
+	if response.Body.String() != sseBody {
+		t.Fatalf("SSE response body = %q", response.Body.String())
+	}
+	if rustCalls.Load() != 1 || goCalls.Load() != 0 {
+		t.Fatalf("calls: Rust=%d Go=%d", rustCalls.Load(), goCalls.Load())
+	}
+}
+
 func TestRehearsalProxyDoesNotSelectMethodPathOrStreamingNearMisses(t *testing.T) {
 	t.Parallel()
 	if matchesPathTemplate("/api/v1//details", "/api/v1/{id}/details") {

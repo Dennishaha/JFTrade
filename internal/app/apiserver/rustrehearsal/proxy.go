@@ -26,8 +26,8 @@ const (
 
 var rehearsalResponseHeaders = []string{
 	"Cache-Control", "Content-Language", "Content-Type", "ETag",
-	"Expires", "Last-Modified", "Retry-After", "Set-Cookie", "Vary",
-	"X-Content-Type-Options",
+	"Connection", "Expires", "Last-Modified", "Retry-After", "Set-Cookie", "Vary",
+	"X-ADK-Stream-ID", "X-ADK-Stream-Idle-Timeout-Ms", "X-Content-Type-Options",
 }
 
 // These request headers carry browser authentication and origin context. The
@@ -121,19 +121,35 @@ func parseRehearsalOperation(value string) (rehearsalOperation, bool) {
 }
 
 func (p *rehearsalProxy) selects(request *http.Request) bool {
-	if request == nil || request.URL == nil || !isOrdinaryJSONRequest(request) {
+	if request == nil || request.URL == nil {
 		return false
 	}
 	return slices.ContainsFunc(p.operations, func(operation rehearsalOperation) bool {
-		return request.Method == operation.method && matchesPathTemplate(request.URL.Path, operation.template)
+		if request.Method != operation.method || !matchesPathTemplate(request.URL.Path, operation.template) {
+			return false
+		}
+		return isRehearsalRequest(request, operation)
 	})
 }
 
-func isOrdinaryJSONRequest(request *http.Request) bool {
-	if strings.EqualFold(strings.TrimSpace(request.Header.Get("Upgrade")), "websocket") ||
-		strings.Contains(strings.ToLower(request.Header.Get("Accept")), "text/event-stream") {
+func isRehearsalRequest(request *http.Request, operation rehearsalOperation) bool {
+	if strings.EqualFold(strings.TrimSpace(request.Header.Get("Upgrade")), "websocket") {
 		return false
 	}
+	if strings.Contains(strings.ToLower(request.Header.Get("Accept")), "text/event-stream") {
+		return strings.HasSuffix(operation.template, "/stream") && isJSONContentType(request)
+	}
+	return isOrdinaryJSONRequest(request)
+}
+
+func isOrdinaryJSONRequest(request *http.Request) bool {
+	if strings.EqualFold(strings.TrimSpace(request.Header.Get("Upgrade")), "websocket") {
+		return false
+	}
+	return isJSONContentType(request)
+}
+
+func isJSONContentType(request *http.Request) bool {
 	contentType, _, _ := strings.Cut(request.Header.Get("Content-Type"), ";")
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	return request.Body == nil || request.ContentLength == 0 || contentType == "application/json"
@@ -203,6 +219,12 @@ func (p *rehearsalProxy) forward(c *gin.Context) {
 	for _, name := range rehearsalResponseHeaders {
 		copyResponseHeader(c.Writer.Header(), response.Header, name)
 	}
+	if isRehearsalSSEResponse(request, response) {
+		// net/http removes hop-by-hop response headers from the client view. The
+		// Go owner explicitly advertises keep-alive for every SSE response, so
+		// restore that observable header at the public transport boundary.
+		c.Writer.Header().Set("Connection", "keep-alive")
+	}
 	c.Writer.Header().Set("X-Request-ID", c.GetString("requestID"))
 	c.Status(response.StatusCode)
 	if request.Method != http.MethodHead {
@@ -231,6 +253,15 @@ func copyResponseHeader(destination http.Header, source http.Header, name string
 	for _, value := range source.Values(name) {
 		destination.Add(name, value)
 	}
+}
+
+func isRehearsalSSEResponse(request *http.Request, response *http.Response) bool {
+	if request == nil || response == nil ||
+		!strings.Contains(strings.ToLower(request.Header.Get("Accept")), "text/event-stream") {
+		return false
+	}
+	contentType, _, _ := strings.Cut(response.Header.Get("Content-Type"), ";")
+	return strings.EqualFold(strings.TrimSpace(contentType), "text/event-stream")
 }
 
 func isLoopbackHost(host string) bool {

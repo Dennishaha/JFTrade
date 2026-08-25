@@ -31,6 +31,20 @@ run("go", [
   "^TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/rustrehearsal",
+  "-run",
+  "^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$",
+  "-count=1",
+]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$",
+  "-count=1",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -40,4 +54,15 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
-console.log("Stage 9 adk-chat-stream differential passed: Go fixture and Rust leaf replay agree.");
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--lib",
+  "product::tests::adk_chat_stream_product_tests",
+  "--",
+  "--nocapture",
+]);
+console.log(
+  "Stage 9 adk-chat-stream differential passed: Go fixture/rehearsal and Rust leaf/product replay agree.",
+);

@@ -62,34 +62,34 @@ owner: integration composition and Go until cutover
 后续: Product wiring must preserve middleware ordering; do not move availability checks into the Rust leaf without a contract review.
 三方复核结论: Go middleware/reference, fixture header matrix, and Rust focused replay agree for the leaf-visible split; full product wiring remains pending.
 
-quirk: A client disconnect can make the initial SSE response body empty after the retry write fails, while the detached Go execution continues, reaches a terminal event, and remains replayable by stream ID.
+quirk: A client disconnect can make the initial SSE response body empty after the retry write fails, while the detached Go execution continues, reaches a terminal event, and remains replayable by stream ID. The 2026-08-25 product rehearsal proves cancellation propagation, crash fail-closed behavior, Go rollback, restart recovery, and settings isolation, but it does not yet compose the POST stream route with the retained replay GET route.
 范围: `/api/v1/adk/chat/stream` / failed writer, background execution, reconnect replay
-证据: `runStage9ClientDisconnect`, `stage9FailingSSEWriter`, fixture `observation.replay`, and Go transport disconnect tests
+证据: `runStage9ClientDisconnect`, `stage9FailingSSEWriter`, fixture `observation.replay`, Go transport disconnect tests, `TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart`, and `adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart`
 分类: go-behavior
 判定: unresolved
-处置: Preserve the quirk and do not cancel the Go-owned background run. The Rust leaf test verifies terminal snapshot semantics but cannot emulate an HTTP writer failure without the integration transport adapter.
+处置: Preserve the quirk and do not cancel the Go-owned background run. The current Rust leaf and product adapter verify terminal snapshot semantics and transport cancellation, but cannot claim retained replay until the explicit composition also covers the reconnect route owned by `adk-read`.
 风险: blocking for qualification
-owner: Go transport until integration cutover
-后续: Integration must add a test-cutover HTTP disconnect/reconnect rehearsal and prove replay retention, terminal close, cancellation, and recovery before qualification.
+owner: integration cross-group owner (`adk-chat-stream` + `adk-read`)
+后续: Add one authenticated test-cutover composition for POST stream plus GET stream/run replay, then prove failed writer, retained terminal event, `after` ordering, terminal close, cancellation, and restart recovery before qualification.
 三方复核结论: Go reference and fixture agree; Rust leaf replay covers the available snapshot boundary; end-to-end transport evidence is outstanding.
 
 quirk: Authentication and CSRF errors are produced by shared middleware before the ADK handler and are included in the Go corpus, but this worker's leaf has no access-policy or CSRF state and does not replay those two cases.
 范围: `/api/v1/adk/chat` / `401 WEB_AUTH_REQUIRED`, `403 CSRF_FAILED`
 证据: Go `middleware.Auth`, fixture cases `chat-auth-required` and `chat-csrf-forbidden`, explicit skip count in `stage9_adk_chat_stream.rs`
 分类: boundary
-判定: unresolved
-处置: Keep the cases in the frozen corpus; leave enforcement to the shared integration router and do not duplicate auth state in Rust.
-风险: blocking for qualification
-owner: integration shared transport
-后续: Inject the ADK port only behind the existing authenticated loopback/test-cutover assembly and run the two cases through the product differential.
-三方复核结论: Go middleware and fixture are frozen; Rust confirms the boundary cases are intentionally outside the leaf, so product-level evidence is required.
+判定: resolved at product transport boundary; production auth remains Go-owned
+处置: Keep the cases in the frozen corpus; leave enforcement to the shared integration router and do not duplicate auth state in Rust. The authenticated product rehearsal now exercises both 401 and 403 before the injected port.
+风险: medium
+owner: shared integration transport; Go until production cutover
+后续: Retain the shared middleware ordering and rerun the product differential when the reconnect composition is added.
+三方复核结论: Go middleware and fixture, Rust leaf skip accounting, and the authenticated Go/Rust product rehearsal agree; no Rust auth or CSRF state was introduced.
 
 ## Integration Checklist
 
 - Add the private module/adapter and route dispatch only in the integration branch; do not alter this worker commit's leaf contract by default registration.
 - Inject `AdkChatStreamPort` only in explicit test-cutover; keep Go Assistant runtime, Provider/session lifecycle, SQLite, background execution, reconnect hub, and all writes as the sole production owner.
-- Add the two operations to the integration-owned route catalog/ownership ledger and run the product differential with authenticated desktop/browser cases.
-- Resolve the disconnect/reconnect qualification blocker, then complete four-platform release, signing, security, recovery, hard-cut, and only then Go/Wails removal gates.
+- Add the two operations to the integration-owned route catalog/ownership ledger and run the product differential with authenticated desktop/browser cases. This evidence is now present; both routes remain test-only because replay is cross-group.
+- Resolve the disconnect/reconnect qualification blocker by composing the `adk-read` replay routes with this group, then complete four-platform release, signing, security, recovery, hard-cut, and only then Go/Wails removal gates.
 
 ## Verification
 
@@ -102,4 +102,4 @@ node scripts/rust-migration/check-stage9-adk-chat-stream.mjs
 git diff --check
 ```
 
-`check:quick`, `check:rust`, the unified Stage 9 product differential, ownership changes, product assembly wiring, and release/hard-cut gates are intentionally not claimed by this worker. The group remains `cutover-test-only`, not cutover-qualified.
+2026-08-25 evidence also passed `go test ./internal/app/apiserver/rustrehearsal -run '^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$' -count=1`, the authenticated `servercoretest` rehearsal, `cargo test -p jftrade-engine --lib 'product::tests::adk_chat_stream_product_tests' -- --nocapture`, `pnpm run check:quick`, `pnpm run check:rust`, and the unified Stage 9 product differential. The group remains `cutover-test-only`, not cutover-qualified, solely because the cross-group disconnect/reconnect replay evidence is still open.
