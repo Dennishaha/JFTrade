@@ -23,6 +23,8 @@ pub struct OpenDSessionRuntimeConfig {
     pub poll_interval: Duration,
     pub event_timeout: Duration,
     pub cache_capacity_per_instrument: usize,
+    pub reconnect_initial_delay: Duration,
+    pub reconnect_max_delay: Duration,
 }
 
 impl Default for OpenDSessionRuntimeConfig {
@@ -31,6 +33,8 @@ impl Default for OpenDSessionRuntimeConfig {
             poll_interval: Duration::from_millis(100),
             event_timeout: Duration::from_millis(10),
             cache_capacity_per_instrument: 2,
+            reconnect_initial_delay: Duration::from_millis(250),
+            reconnect_max_delay: Duration::from_secs(5),
         }
     }
 }
@@ -286,7 +290,19 @@ fn run_task(context: RuntimeTaskContext) {
     } = context;
     let poll_interval = positive_duration(config.poll_interval, Duration::from_millis(100));
     let event_timeout = positive_duration(config.event_timeout, Duration::from_millis(10));
+    let reconnect_initial_delay =
+        positive_duration(config.reconnect_initial_delay, Duration::from_millis(250));
+    let reconnect_max_delay = positive_duration(config.reconnect_max_delay, Duration::from_secs(5));
+    let reconnect_max_delay = reconnect_max_delay.max(reconnect_initial_delay);
+    let mut reconnect_failures = 0u32;
+    let mut reconnect_not_before = None;
     while stop_rx.recv_timeout(poll_interval).is_err() {
+        if let Some(not_before) = reconnect_not_before
+            && std::time::Instant::now() < not_before
+        {
+            continue;
+        }
+        reconnect_not_before = None;
         let now = WireTimestamp::from_offset_datetime(time::OffsetDateTime::now_utc());
         let desired = router
             .as_ref()
@@ -318,6 +334,7 @@ fn run_task(context: RuntimeTaskContext) {
                 Ok(OpenDSessionCoordinatorOutcome::Reconnected { .. }) => {
                     let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
                     state.reconnects = state.reconnects.saturating_add(1);
+                    reconnect_failures = 0;
                 }
                 Ok(_) => {}
                 Err(error) => iteration_error = Some(error.to_string()),
@@ -339,6 +356,20 @@ fn run_task(context: RuntimeTaskContext) {
         let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
         state.iterations = state.iterations.saturating_add(1);
         state.last_error = iteration_error;
+        if state.last_error.is_some() {
+            reconnect_failures = reconnect_failures.saturating_add(1);
+            reconnect_not_before = Some(
+                std::time::Instant::now()
+                    .checked_add(reconnect_delay(
+                        reconnect_initial_delay,
+                        reconnect_max_delay,
+                        reconnect_failures,
+                    ))
+                    .unwrap_or_else(std::time::Instant::now),
+            );
+        } else {
+            reconnect_failures = 0;
+        }
     }
 }
 
@@ -380,6 +411,14 @@ fn sync_provider_health(
 
 fn positive_duration(value: Duration, fallback: Duration) -> Duration {
     if value.is_zero() { fallback } else { value }
+}
+
+fn reconnect_delay(initial: Duration, maximum: Duration, failures: u32) -> Duration {
+    let shift = failures.saturating_sub(1).min(31);
+    initial
+        .checked_mul(1u32 << shift)
+        .unwrap_or(maximum)
+        .min(maximum)
 }
 
 #[cfg(test)]
@@ -585,6 +624,26 @@ mod tests {
         assert_eq!(
             router.lock().expect("router").runtime().readiness,
             ProviderReadiness::Ready
+        );
+    }
+
+    #[test]
+    fn reconnect_delay_is_bounded_and_recovers_from_zero_or_overflowing_inputs() {
+        assert_eq!(
+            reconnect_delay(Duration::from_millis(100), Duration::from_secs(1), 1),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            reconnect_delay(Duration::from_millis(100), Duration::from_secs(1), 4),
+            Duration::from_millis(800)
+        );
+        assert_eq!(
+            reconnect_delay(Duration::from_millis(100), Duration::from_secs(1), 5),
+            Duration::from_secs(1)
+        );
+        assert_eq!(
+            reconnect_delay(Duration::from_secs(10), Duration::from_secs(1), 1),
+            Duration::from_secs(1)
         );
     }
 }

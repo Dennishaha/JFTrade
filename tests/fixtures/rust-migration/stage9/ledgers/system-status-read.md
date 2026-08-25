@@ -428,3 +428,27 @@ differential and release recovery evidence.
 风险: high
 owner: Rust integration / engine composition
 后续: keep Go production owner and route shadow until all closeout gates pass.
+
+## Bounded reconnect backoff (2026-08-25)
+
+`OpenDSessionRuntimeConfig` now carries positive initial and maximum reconnect
+delays. The runtime task applies a bounded exponential delay after a coordinator
+error, resets the failure streak after a successful reconnect or healthy
+iteration, and never spins on a closed or unreachable session. Zero durations
+use safe defaults and a maximum below the initial delay is normalized upward.
+The pure delay boundary test covers cap and overflow behavior; no real OpenD is
+dialed by this slice.
+
+quirk: backoff is task-local scheduling state rather than a second recorder or
+provider lifecycle. The coordinator remains the sole generation/reconnect owner.
+范围: `system-status-read` / OpenD runtime reconnect scheduling
+证据: `reconnect_delay_is_bounded_and_recovers_from_zero_or_overflowing_inputs`
+and the explicit runtime task config.
+分类: rust-implementation
+判定: intended
+处置: retain opt-in backoff; qualify only with live OpenD reconnect, release
+recovery, and owner-gate evidence.
+风险: high
+owner: Rust integration / engine composition
+后续: exercise bounded recovery against authenticated live/mocked reconnect
+traces before any ProviderRouter production activation or Go owner switch.

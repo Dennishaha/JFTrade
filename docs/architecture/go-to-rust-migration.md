@@ -709,3 +709,10 @@ quote/stream error 和 close 状态同步 provider readiness；断线进入 fail
 恢复回到 ready，空 demand 不伪造失败状态。该同步只在显式 provider bridge
 启动时启用，不改变默认 profile、route ownership 或 Go production owner；真实
 OpenD live/reconnect differential 与 release recovery 仍是正式 qualification 前置条件。
+
+2026-08-25：OpenD runtime task 增加有界 reconnect backoff。显式 runtime
+ 对 coordinator error 使用可配置的初始/最大退避，按失败次数指数增长并在成功
+ reconnect 或健康迭代后清零；零值、反向上限和溢出输入均回落到安全默认/上限。
+ 该调度仍只属于 opt-in task，不改变默认 desktop、Provider activation、公开
+ API 或 Go production owner；真实 OpenD live/reconnect differential、释放恢复
+ 与正式 owner qualification 仍未完成。
