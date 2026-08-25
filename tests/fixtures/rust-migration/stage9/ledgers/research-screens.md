@@ -1,8 +1,17 @@
 # Research screens POST
 
-状态：worker C → B → A rehearsal 已完成；当前 production owner 仍为 Go。共享
-`route-ownership.json`、product assembly、ProductOptionalPorts、ProductApi wire
-和 capability wiring 留给集成分支应用。
+- Group: `research-screens`
+- Tier: B; the route is a provider-backed query with retry/error mapping and concurrent request semantics, but it has no durable mutation, notification, task, or transaction owner.
+- Operations: 1 `POST /api/v1/research/screens`.
+- Current status: integration-reviewed `cutover-qualified`; the route is registered only through the explicit product test-cutover profile with `ResearchScreenWritePort`. Go remains the production owner and `goRemovalStatus=retained`.
+- Go owner: the Go research-screen handler, service, provider capability checks, query cache, and external broker/OpenD integration remain the only production owners.
+- Rust boundary: `product_research_screen_write_port.rs` accepts only a complete consumer-owned query port. It has no Provider/OpenD, SQLite, network, durable-state, notification, or task dependency; the default product profile does not register the route.
+- Fixture: `tests/fixtures/rust-migration/stage9/research-screens.json`
+- Go reference: `scripts/rust-migration/stage9_research_screens_reference_test.go`
+- Rust replay: `crates/jftrade-engine/tests/stage9_research_screens.rs` and `crates/jftrade-engine/src/product_research_screen_write_port.rs`
+- Product tests: `crates/jftrade-engine/src/product_research_screen_write_product_tests.rs`
+- Authenticated composition rehearsal: `internal/app/apiserver/servercoretest/rehearsal_research_screens_write_routes_test.go`
+- Differential: `node scripts/rust-migration/check-stage9-research-screens.mjs`
 
 ## Contract
 
@@ -31,6 +40,24 @@ catalog version and definition-derived result columns after the service returns.
   query-string handling, rate-limit/provider retry headers, capability and
   broker errors, invalid provider projections, failure recovery, repeated
   requests, and distinct-page concurrency.
+
+## Cutover-qualified status
+
+The Go reference fixture, Rust leaf replay, authenticated loopback rehearsal,
+explicit product test-cutover adapter, and full Stage 9 product differential are
+green. The authenticated rehearsal covers repeated success, Rust error,
+timeout, client cancellation, crash/fail-closed behavior, Go-only rollback,
+restart recovery, private bearer authentication, browser Cookie/Origin/Referer/
+CSRF forwarding, request IDs, and unchanged settings bytes. The product replay
+also covers port failure recovery, restart recovery, cancellation/deadline error
+mapping, and route isolation without a supplied port. The route is
+`cutover-qualified`, not a production migration: Go remains the only production
+owner, and no Rust Provider/OpenD, SQLite, network, durable state, notification,
+task, or user-visible production side effect was enabled.
+
+Production-owner, provider/OpenD, release/signing, security, SBOM,
+backup/restore, and final unique-owner/hard-cut gates remain open in the Stage 9
+closeout manifest.
 
 ## Quirks
 

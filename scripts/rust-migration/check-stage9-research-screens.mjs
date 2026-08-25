@@ -30,6 +30,13 @@ run("go", [
   "^TestStage9ResearchScreensFixtureMatchesCurrentGoOwner$",
   "-count=1",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestResearchScreensWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
+  "-count=1",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -39,6 +46,15 @@ run("cargo", [
   "--",
   "--nocapture",
 ]);
+run("cargo", [
+  "test",
+  "-p",
+  "jftrade-engine",
+  "--lib",
+  "product::tests::research_screen_write_product_tests",
+  "--",
+  "--nocapture",
+]);
 console.log(
-  "Stage 9 research-screens differential passed: Go fixture and Rust leaf replay agree for 1 route and 22 cases.",
+  "Stage 9 research-screens differential passed: Go fixture, Rust leaf/product replay, and authenticated rehearsal agree for 1 route and 22 cases.",
 );

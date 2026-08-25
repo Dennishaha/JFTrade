@@ -4203,21 +4203,29 @@
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
-    {
-      "method": "POST",
-      "path": "/api/v1/research/screens",
-      "capability": "research",
-      "implementationStatus": "cutover-test-only",
-      "productionOwner": "go",
-      "goRemovalStatus": "retained",
-      "dependencies": [
-        "go-production-owner",
-        "explicit-test-cutover-profile"
-      ],
-      "evidence": [
-        "node scripts/rust-migration/check-stage9-research-screens.mjs",
-        "pnpm run test:rust:stage9:product-differential"
-      ]
+  {
+    "method": "POST",
+    "path": "/api/v1/research/screens",
+    "capability": "research",
+    "implementationStatus": "cutover-qualified",
+    "productionOwner": "go",
+    "goRemovalStatus": "retained",
+    "dependencies": [
+      "go-production-owner",
+      "explicit-test-cutover-profile",
+      "authenticated-loopback-mutation-rehearsal",
+      "authenticated-rust-product-replay"
+    ],
+    "evidence": [
+      "tests/fixtures/rust-migration/stage9/research-screens.json",
+      "scripts/rust-migration/stage9_research_screens_reference_test.go::TestStage9ResearchScreensFixtureMatchesCurrentGoOwner",
+      "crates/jftrade-engine/tests/stage9_research_screens.rs::research_screen_fixture_replays_go_wire_for_the_post_route",
+      "crates/jftrade-engine/src/product_research_screen_write_product_tests.rs::research_screen_product_recovers_after_port_failure_and_restart_without_local_state_side_effects",
+      "crates/jftrade-engine/src/product_research_screen_write_product_tests.rs::research_screen_product_maps_cancel_and_deadline_failures_without_fallback",
+      "go test ./internal/app/apiserver/servercoretest -run '^TestResearchScreensWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
+      "node scripts/rust-migration/check-stage9-research-screens.mjs",
+      "pnpm run test:rust:stage9:product-differential"
+    ]
     },
     {
       "method": "POST",
