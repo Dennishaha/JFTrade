@@ -308,10 +308,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4766,10 +4770,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4782,10 +4790,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4798,10 +4810,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4814,10 +4830,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4830,10 +4850,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -5288,10 +5312,14 @@
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "explicit-test-cutover-profile"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "node scripts/rust-migration/check-stage9-system-write.mjs",
+        "go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --lib system_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

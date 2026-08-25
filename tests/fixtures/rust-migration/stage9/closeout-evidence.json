@@ -129,6 +129,13 @@
       "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
       "command": "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
       "evidence": "The Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, and local quick gate passed for the eight local watchlist mutation routes. Evidence covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, all route projections, unavailable/error recovery, timeout, cancellation, Rust crash fail-closed behavior, duplicate forwarding, Go rollback, restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. Rust uses only an injected WatchlistWritePort; it does not open production SQLite, persist groups/bindings/import previews or revision state, connect Provider/OpenD, publish notifications/tasks, or dispatch a second Go/Rust mutation. The group remains cutover-test-only with Go as the sole production owner; durable SQLite transaction/revision fencing, concurrent commit recovery, quote Provider lifecycle, release, security, backup/restore and hard-cut evidence remain open."
+    },
+    {
+      "id": "stage9-system-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-system-write.mjs",
+      "evidence": "The 47-case/68-request Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for all seven system control mutations. Evidence covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, exact method/path/body projection, validation precedence, unavailable and 409 owner-failure recovery, timeout, cancellation, Rust crash fail-closed behavior, repeated mutation forwarding, safe Go rollback and restart through validation before the real owner, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. Rust uses only an injected SystemWritePort; the rehearsal does not connect OpenD, invoke a real-trade control, persist risk or broker state, publish notifications/tasks, or dispatch a second Go/Rust mutation. The group remains cutover-test-only with Go as the sole production owner; durable real-trade control-plane transactions, idempotency, cancellation/restart recovery, real OpenD qualification, release, security, backup/restore and hard-cut evidence remain open."
     }
   ],
   "gates": {

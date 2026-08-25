@@ -2,7 +2,9 @@
 
 - Group: `system-write`
 - Tier: A: real-trade safety controls and OpenD runtime reset are state-changing operations. The Rust side is a test-only rehearsal leaf; it is not a production owner.
-- Dynamic baseline before this worker: `278 baseline / 26 shadow / 228 cutover-test-only / 0 cutover-qualified / 24 remaining / 0 Rust production owner`.
+- Current dynamic route gate: `278 baseline / 1 shadow / 120
+  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
+  owner`.
 - Routes in this group: 7 system mutations. The integration branch now registers
   them only behind the explicit `SystemWritePort`; ownership is
   `cutover-test-only`, while Go remains the production owner.
@@ -133,15 +135,34 @@ The shared integration applied the smallest patch to:
 The shared files are now integrated on the parent branch; generated contracts and
 the default production profile remain unchanged.
 
+The authenticated Go loopback rehearsal now proves private Bearer/internal
+protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, all seven
+operations, duplicate forwarding, 409 owner failure, timeout, cancellation,
+Rust crash fail-closed behavior, safe Go rollback/restart through validation
+before the real control owner, and unchanged settings bytes. The Rust product
+replay proves explicit registration, no-port/default isolation, browser 401/403
+fencing, unavailable/error recovery, all seven route projections, duplicate
+forwarding, restart, and no settings mutation. Both use only temporary settings
+and injected ports; neither connects OpenD nor invokes a real trading control.
+
 ## Verification
 
 - `go test scripts/rust-migration/stage9_system_write_reference_test.go -run '^TestStage9SystemWriteFixtureMatchesCurrentGoOwner$' -count=1` — passed.
 - `cargo test -p jftrade-engine --test stage9_system_write -- --nocapture` — passed; 9 tests, including 47-case/68-request fixture replay.
 - `node scripts/rust-migration/check-stage9-system-write.mjs` — passed.
-- Product route isolation, Rust layout, focused Clippy, rustfmt, and the unified
-  Stage 9 product differential — passed.
-- `git diff --check` — passed.
+- `go test ./internal/app/apiserver/servercoretest -run '^TestSystemWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s`
+  — passed.
+- `cargo test -p jftrade-engine --lib system_write_product -- --nocapture` —
+  passed; both explicit registration and authenticated failure/recovery/restart
+  product tests passed.
+- `pnpm run check:quick` — passed.
+- `pnpm run check:rust` — passed, including target health, rustfmt, Clippy,
+  workspace tests, Stage 4-9 differential, and supporting-package checks.
+- The full Stage 9 product differential — passed.
+- Final route coverage, both migration JSON validations, and `git diff --check`
+  — passed.
 
-The current dynamic route gate is `26 shadow / 242 cutover-test-only / 0
-qualified / 10 remaining / 0 Rust production owner`; unique owner, recovery,
-release, security, and hard-cut gates remain open.
+The group remains `cutover-test-only`. Real-trade/OpenD production unique-owner
+switching, durable control-plane transaction/idempotency and restart recovery,
+notification/task side-effect isolation, four-platform release/signing,
+security/SBOM, backup/restore, and hard-cut gates remain open.
