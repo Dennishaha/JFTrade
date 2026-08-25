@@ -62,16 +62,16 @@ owner: integration composition and Go until cutover
 后续: Product wiring must preserve middleware ordering; do not move availability checks into the Rust leaf without a contract review.
 三方复核结论: Go middleware/reference, fixture header matrix, and Rust focused replay agree for the leaf-visible split; full product wiring remains pending.
 
-quirk: A client disconnect can make the initial SSE response body empty after the retry write fails, while the detached Go execution continues, reaches a terminal event, and remains replayable by stream ID. The 2026-08-25 product rehearsal proves cancellation propagation, crash fail-closed behavior, Go rollback, restart recovery, and settings isolation, but it does not yet compose the POST stream route with the retained replay GET route.
+quirk: A client disconnect can make the initial SSE response body empty after the retry write fails, while the detached Go execution continues, reaches a terminal event, and remains replayable by stream ID. The 2026-08-26 Rust product composition now exercises the POST stream and retained GET replay ports together: the client disconnects before consuming the response, the retained terminal events are replayed with `after` ordering, and the replay remains available after product restart. The product test still cannot observe the internal write error or prove the Go detached-runtime implementation itself.
 范围: `/api/v1/adk/chat/stream` / failed writer, background execution, reconnect replay
-证据: `runStage9ClientDisconnect`, `stage9FailingSSEWriter`, fixture `observation.replay`, Go transport disconnect tests, `TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart`, and `adk_chat_stream_product_replays_browser_boundary_failure_recovery_and_restart`
+证据: `runStage9ClientDisconnect`, `stage9FailingSSEWriter`, fixture `observation.replay`, Go transport disconnect tests, `TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart`, and `adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart`
 分类: go-behavior
-判定: unresolved
-处置: Preserve the quirk and do not cancel the Go-owned background run. The current Rust leaf and product adapter verify terminal snapshot semantics and transport cancellation, but cannot claim retained replay until the explicit composition also covers the reconnect route owned by `adk-read`.
+判定: local-composition evidence added; production qualification unresolved
+处置: Preserve the quirk and do not cancel the Go-owned background run. The explicit test-cutover composition now covers the reconnect route owned by `adk-read`, retained terminal events, `after` filtering, and restart recovery. Keep the group test-only because Rust cannot observe the internal write error, the Go detached-runtime owner remains active, and the successful `adk-read` SSE header corpus is still open.
 风险: blocking for qualification
 owner: integration cross-group owner (`adk-chat-stream` + `adk-read`)
-后续: Add one authenticated test-cutover composition for POST stream plus GET stream/run replay, then prove failed writer, retained terminal event, `after` ordering, terminal close, cancellation, and restart recovery before qualification.
-三方复核结论: Go reference and fixture agree; Rust leaf replay covers the available snapshot boundary; end-to-end transport evidence is outstanding.
+后续: Add an observable failed-writer assertion or a Go-owned proxy evidence hook, and resolve the successful `adk-read` SSE header corpus before qualification.
+三方复核结论: Go reference and fixture agree; Rust leaf replay and the new explicit cross-group product composition cover the available snapshot boundary; internal failed-writer observation and successful `adk-read` SSE header evidence remain outstanding.
 
 quirk: Authentication and CSRF errors are produced by shared middleware before the ADK handler and are included in the Go corpus, but this worker's leaf has no access-policy or CSRF state and does not replay those two cases.
 范围: `/api/v1/adk/chat` / `401 WEB_AUTH_REQUIRED`, `403 CSRF_FAILED`
@@ -89,7 +89,7 @@ owner: shared integration transport; Go until production cutover
 - Add the private module/adapter and route dispatch only in the integration branch; do not alter this worker commit's leaf contract by default registration.
 - Inject `AdkChatStreamPort` only in explicit test-cutover; keep Go Assistant runtime, Provider/session lifecycle, SQLite, background execution, reconnect hub, and all writes as the sole production owner.
 - Add the two operations to the integration-owned route catalog/ownership ledger and run the product differential with authenticated desktop/browser cases. This evidence is now present; both routes remain test-only because replay is cross-group.
-- Resolve the disconnect/reconnect qualification blocker by composing the `adk-read` replay routes with this group, then complete four-platform release, signing, security, recovery, hard-cut, and only then Go/Wails removal gates.
+- The explicit test-cutover composition now composes the `adk-read` replay route with this group and proves retained terminal events, `after` ordering, client disconnect boundary, and restart recovery. Qualification still requires observable failed-writer evidence, the successful `adk-read` SSE header corpus, four-platform release, signing, security, recovery, hard-cut, and only then Go/Wails removal gates.
 
 ## Verification
 
@@ -102,4 +102,4 @@ node scripts/rust-migration/check-stage9-adk-chat-stream.mjs
 git diff --check
 ```
 
-2026-08-25 evidence also passed `go test ./internal/app/apiserver/rustrehearsal -run '^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$' -count=1`, the authenticated `servercoretest` rehearsal, `cargo test -p jftrade-engine --lib 'product::tests::adk_chat_stream_product_tests' -- --nocapture`, `pnpm run check:quick`, `pnpm run check:rust`, and the unified Stage 9 product differential. The group remains `cutover-test-only`, not cutover-qualified, solely because the cross-group disconnect/reconnect replay evidence is still open.
+2026-08-26 evidence also passed `go test ./internal/app/apiserver/rustrehearsal -run '^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$' -count=1`, the authenticated `servercoretest` rehearsal, `cargo test -p jftrade-engine --lib 'product::tests::adk_chat_stream_product_tests' -- --nocapture`, `cargo test -p jftrade-engine --test stage9_adk_chat_stream -- --nocapture`, `node scripts/rust-migration/check-stage9-adk-chat-stream.mjs`, `pnpm run test:rust:stage9:product-differential`, `pnpm run check:quick`, and `pnpm run check:rust`. The explicit product composition now proves client-disconnect boundary, retained terminal replay through `adk-read`, `after` ordering, and restart recovery. The group remains `cutover-test-only`, not cutover-qualified, because the Rust harness cannot observe the internal failed-writer error, the Go detached runtime remains the production owner, and the successful `adk-read` SSE header corpus is still unresolved.

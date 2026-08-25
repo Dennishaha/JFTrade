@@ -69,6 +69,107 @@ impl AdkChatStreamPort for SequencedAdkChatPort {
     }
 }
 
+#[derive(Debug)]
+struct RetainedAdkReplayPort {
+    events: Mutex<Vec<AdkReadEvent>>,
+}
+
+impl RetainedAdkReplayPort {
+    fn new() -> Self {
+        Self {
+            events: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn terminal_events(&self) -> Vec<AdkReadEvent> {
+        vec![
+            AdkReadEvent {
+                id: Some("stream-fixture:1".to_owned()),
+                data: json!({"type": "run", "status": "RUNNING"}),
+            },
+            AdkReadEvent {
+                id: Some("stream-fixture:2".to_owned()),
+                data: json!({"type": "timeline", "text": "ok"}),
+            },
+            AdkReadEvent {
+                id: Some("stream-fixture:3".to_owned()),
+                data: json!({"type": "final", "status": "COMPLETED"}),
+            },
+        ]
+    }
+
+    fn retained_event_count(&self) -> usize {
+        self.events.lock().expect("ADK replay event lock").len()
+    }
+}
+
+impl AdkChatStreamPort for RetainedAdkReplayPort {
+    fn dispatch(
+        &self,
+        route: AdkChatRoute,
+        _input: &AdkChatInput,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        match route {
+            AdkChatRoute::Chat => Ok(AdkChatPortOutput::Json(json!({
+                "run": {"id": "run-fixture"},
+                "message": "fixture response"
+            }))),
+            AdkChatRoute::Stream => {
+                let events = self.terminal_events();
+                *self.events.lock().expect("ADK replay event lock") = events.clone();
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                Ok(AdkChatPortOutput::Stream(AdkChatStreamSnapshot {
+                    headers: BTreeMap::from([(
+                        "X-ADK-Stream-ID".to_owned(),
+                        "stream-fixture".to_owned(),
+                    )]),
+                    frames: events
+                        .into_iter()
+                        .map(|event| AdkChatStreamFrame::Event {
+                            id: event.id,
+                            data: event.data,
+                        })
+                        .collect(),
+                    terminal: true,
+                }))
+            }
+        }
+    }
+}
+
+impl AdkReadSnapshotPort for RetainedAdkReplayPort {
+    fn read(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+        if path != "/api/v1/adk/streams/stream-fixture" {
+            return Err(AdkReadSnapshotError::Unavailable(
+                "retained replay route mismatch".to_owned(),
+            ));
+        }
+        let after = query
+            .strip_prefix("after=")
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or_default();
+        let events = self
+            .events
+            .lock()
+            .expect("ADK replay event lock")
+            .iter()
+            .filter(|event| {
+                event
+                    .id
+                    .as_deref()
+                    .and_then(|id| id.rsplit_once(':'))
+                    .and_then(|(_, sequence)| sequence.parse::<u64>().ok())
+                    .is_some_and(|sequence| sequence > after)
+            })
+            .cloned()
+            .collect();
+        Ok(AdkReadSnapshot::Stream(AdkReadStream {
+            headers: vec![("X-ADK-Stream-ID".to_owned(), "stream-fixture".to_owned())],
+            events,
+        }))
+    }
+}
+
 #[tokio::test]
 async fn adk_chat_stream_routes_register_only_with_explicit_test_port() {
     let directory = tempdir().expect("temporary directory");
@@ -144,6 +245,105 @@ async fn adk_chat_stream_routes_are_isolated_without_port() {
     .await;
     assert_eq!(response.status, 404);
     handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
+async fn adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{\"seed\":\"adk-replay\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("read settings");
+    let replay_port = Arc::new(RetainedAdkReplayPort::new());
+    let chat_port: Arc<dyn AdkChatStreamPort> = replay_port.clone();
+    let read_port: Arc<dyn AdkReadSnapshotPort> = replay_port.clone();
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_chat_stream_port(Arc::clone(&chat_port))
+            .with_adk_read_snapshot_port(Arc::clone(&read_port));
+    let handle = start_product(config).await.expect("start product");
+    assert!(
+        handle
+            .startup_record()
+            .capabilities
+            .iter()
+            .any(|route| { route == "POST /api/v1/adk/chat/stream" })
+    );
+    assert!(
+        handle
+            .startup_record()
+            .capabilities
+            .iter()
+            .any(|route| { route == "GET /api/v1/adk/streams/{streamId}" })
+    );
+
+    let disconnected_client = send_request_without_reading(
+        handle.startup_record().address,
+        "POST",
+        ADK_CHAT_STREAM_PATH,
+        br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","message":"disconnect"}"#,
+    )
+    .await;
+    for _ in 0..50 {
+        if replay_port.retained_event_count() == 3 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(replay_port.retained_event_count(), 3);
+    drop(disconnected_client);
+
+    let replay = request_raw(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/adk/streams/stream-fixture?after=1",
+        &[],
+    )
+    .await;
+    assert_eq!(replay.status, 200);
+    assert_eq!(replay.headers["content-type"], "text/event-stream");
+    let replay_body = String::from_utf8(replay.body).expect("replay body");
+    assert!(!replay_body.contains("id: stream-fixture:1\n"));
+    assert!(replay_body.contains("id: stream-fixture:2\n"));
+    assert!(replay_body.contains("id: stream-fixture:3\n"));
+
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after shutdown"),
+        settings_before
+    );
+
+    let restarted = start_product(
+        ProductConfig::test_cutover(
+            "127.0.0.1:0".parse().expect("restarted address"),
+            &settings_path,
+        )
+        .expect("restarted config")
+        .with_adk_chat_stream_port(chat_port)
+        .with_adk_read_snapshot_port(read_port),
+    )
+    .await
+    .expect("restart product");
+    let replay_after_restart = request_raw(
+        restarted.startup_record().address,
+        "GET",
+        "/api/v1/adk/streams/stream-fixture?after=2",
+        &[],
+    )
+    .await;
+    assert_eq!(replay_after_restart.status, 200);
+    let replay_after_restart_body =
+        String::from_utf8(replay_after_restart.body).expect("replay after restart body");
+    assert!(!replay_after_restart_body.contains("id: stream-fixture:2\n"));
+    assert!(replay_after_restart_body.contains("id: stream-fixture:3\n"));
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after restart"),
+        settings_before
+    );
 }
 
 #[tokio::test]
@@ -400,4 +600,32 @@ async fn request_raw_with_headers(
         headers,
         body: response[body_start..body_end].to_vec(),
     }
+}
+
+async fn send_request_without_reading(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    body: &[u8],
+) -> TcpStream {
+    let mut stream = TcpStream::connect(address)
+        .await
+        .expect("connect ADK product API");
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len(),
+    );
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("write disconnected ADK request headers");
+    stream
+        .write_all(body)
+        .await
+        .expect("write disconnected ADK request body");
+    stream
+        .flush()
+        .await
+        .expect("flush disconnected ADK request");
+    stream
 }
