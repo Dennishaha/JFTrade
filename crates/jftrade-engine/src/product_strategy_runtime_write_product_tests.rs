@@ -7,6 +7,7 @@ use tempfile::tempdir;
 use super::super::product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWritePort, StrategyRuntimeWritePortError,
 };
+use super::super::product_strategy_runtime_write_test_cutover::StrategyRuntimeSqliteTestCutoverPort;
 use super::*;
 
 #[derive(Debug)]
@@ -302,6 +303,99 @@ async fn strategy_runtime_write_product_replays_browser_failure_recovery_and_res
         .shutdown()
         .await
         .expect("shutdown restarted strategy runtime write product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("read settings after restart"),
+        settings_before
+    );
+}
+
+#[tokio::test]
+async fn strategy_runtime_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("strategy-runtime-test-cutover.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"strategy-runtime-durable\"}\n")
+        .expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("read settings");
+    let port = Arc::new(
+        StrategyRuntimeSqliteTestCutoverPort::open(&database_path).expect("open fixture adapter"),
+    );
+    port.seed_instance("durable-instance", "STOPPED")
+        .expect("seed instance");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_strategy_runtime_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+
+    for (method, path, body, status) in [
+        (
+            "PUT",
+            "/api/v1/strategies/durable-instance",
+            Some(r#"{"symbols":["AAPL"],"interval":"1m"}"#),
+            "STOPPED",
+        ),
+        (
+            "PUT",
+            "/api/v1/strategies/durable-instance/runtime-risk",
+            Some(r#"{"mode":"paper","closeOnly":true}"#),
+            "STOPPED",
+        ),
+        (
+            "POST",
+            "/api/v1/strategies/durable-instance/start",
+            None,
+            "RUNNING",
+        ),
+        (
+            "POST",
+            "/api/v1/strategies/durable-instance/pause",
+            None,
+            "PAUSED",
+        ),
+        (
+            "POST",
+            "/api/v1/strategies/durable-instance/refresh-definition",
+            None,
+            "PAUSED",
+        ),
+    ] {
+        let response = request_json_with_status(address, method, path, body, &[]).await;
+        assert_eq!(response.0, 200, "{method} {path}");
+        assert_eq!(response.1["data"]["status"], status, "{method} {path}");
+    }
+    assert_eq!(
+        port.event_count("durable-instance", "pause")
+            .expect("pause count"),
+        1
+    );
+    handle.shutdown().await.expect("shutdown product");
+    drop(port);
+
+    let reopened = Arc::new(
+        StrategyRuntimeSqliteTestCutoverPort::open(&database_path).expect("reopen adapter"),
+    );
+    let restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restart address"),
+        &settings_path,
+    )
+    .expect("restart config")
+    .with_strategy_runtime_write_port(reopened.clone());
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart product");
+    let stopped = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/strategies/durable-instance/stop",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(stopped.0, 200);
+    assert_eq!(stopped.1["data"]["status"], "STOPPED");
+    restarted.shutdown().await.expect("shutdown restart");
     assert_eq!(
         std::fs::read(&settings_path).expect("read settings after restart"),
         settings_before

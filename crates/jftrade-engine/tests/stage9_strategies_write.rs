@@ -1,5 +1,7 @@
 #[path = "../src/product_strategy_runtime_write_port.rs"]
 mod product_strategy_runtime_write_port;
+#[path = "../src/product_strategy_runtime_write_test_cutover.rs"]
+mod product_strategy_runtime_write_test_cutover;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -9,6 +11,7 @@ use product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWriteOperation, StrategyRuntimeWritePort,
     StrategyRuntimeWritePortError, dispatch_strategy_runtime_write, strategy_runtime_write_routes,
 };
+use product_strategy_runtime_write_test_cutover::StrategyRuntimeSqliteTestCutoverPort;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -341,4 +344,94 @@ fn strategies_runtime_write_leaf_fails_closed_without_test_port() {
     let response = dispatch_strategy_runtime_write(&request, None, FIXTURE_TIMESTAMP);
     assert_eq!(response.status, 503);
     assert_eq!(response.body["error"]["code"], "STRATEGY_UNAVAILABLE");
+}
+
+#[test]
+fn sqlite_test_cutover_preserves_repeated_transitions_rollback_and_restart() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("strategy-runtime-test-cutover.db");
+    let port = Arc::new(
+        StrategyRuntimeSqliteTestCutoverPort::open(&database_path).expect("open fixture adapter"),
+    );
+    port.seed_instance("durable-instance", "STOPPED")
+        .expect("seed instance");
+
+    let pause = StrategyRuntimeWriteInput {
+        operation: StrategyRuntimeWriteOperation::Pause,
+        instance_id: "durable-instance".to_owned(),
+        binding: None,
+        runtime_risk: None,
+    };
+    let threads = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let pause = pause.clone();
+            std::thread::spawn(move || port.mutate(&pause).expect("pause transition"))
+        })
+        .collect::<Vec<_>>();
+    for thread in threads {
+        assert_eq!(thread.join().expect("join pause")["status"], "PAUSED");
+    }
+    assert_eq!(
+        port.event_count("durable-instance", "pause")
+            .expect("pause count"),
+        2
+    );
+
+    port.reject_status("RUNNING").expect("install rejection");
+    let start = StrategyRuntimeWriteInput {
+        operation: StrategyRuntimeWriteOperation::Start,
+        instance_id: "durable-instance".to_owned(),
+        binding: None,
+        runtime_risk: None,
+    };
+    let error = port.mutate(&start).expect_err("start rollback");
+    assert!(matches!(
+        error,
+        StrategyRuntimeWritePortError::Failed {
+            status: 502,
+            ref code,
+            ..
+        } if code == "STRATEGY_RUNTIME_START_FAILED"
+    ));
+    let snapshot = port
+        .snapshot("durable-instance")
+        .expect("snapshot")
+        .expect("instance");
+    assert_eq!(snapshot["status"], "PAUSED");
+    assert_eq!(snapshot["runtimeActive"], false);
+    assert_eq!(
+        port.event_count("durable-instance", "start")
+            .expect("start count"),
+        0
+    );
+    port.clear_rejection().expect("clear rejection");
+    assert_eq!(port.mutate(&start).expect("start")["status"], "RUNNING");
+
+    drop(port);
+    let reopened =
+        StrategyRuntimeSqliteTestCutoverPort::open(&database_path).expect("reopen fixture adapter");
+    let snapshot = reopened
+        .snapshot("durable-instance")
+        .expect("reopened snapshot")
+        .expect("reopened instance");
+    assert_eq!(snapshot["status"], "RUNNING");
+    assert_eq!(snapshot["runtimeActive"], true);
+
+    let delete = StrategyRuntimeWriteInput {
+        operation: StrategyRuntimeWriteOperation::Delete,
+        instance_id: "durable-instance".to_owned(),
+        binding: None,
+        runtime_risk: None,
+    };
+    assert!(matches!(
+        reopened.mutate(&delete),
+        Err(StrategyRuntimeWritePortError::Failed { status: 400, .. })
+    ));
+    let stop = StrategyRuntimeWriteInput {
+        operation: StrategyRuntimeWriteOperation::Stop,
+        ..start
+    };
+    reopened.mutate(&stop).expect("stop before delete");
+    assert_eq!(reopened.mutate(&delete).expect("delete")["deleted"], true);
 }

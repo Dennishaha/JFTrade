@@ -9,7 +9,7 @@
   120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust
   production owner`.
 - Production owner: Go remains the only owner of the strategy catalog, runtime manager, PineTS lifecycle, subscriptions, activity/notification side effects, and SQLite writes. Rust is a leaf replay boundary only.
-- Rust boundary: `product_strategy_runtime_write_port.rs` accepts a complete consumer-owned mutation port. It has no SQLite, broker/OpenD, PineTS, notification, strategy runtime, default-profile, listener, or production-owner behavior.
+- Rust boundary: `product_strategy_runtime_write_port.rs` accepts a complete consumer-owned mutation port. The isolated adapter in `product_strategy_runtime_write_test_cutover.rs` is compiled only for tests and persists fixture catalog/runtime projections; it does not open the Go strategy database or register a default-profile, broker/OpenD, PineTS, notification, task, listener, or production-owner path.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategies-write.json` (35 cases / 36 requests; success, malformed/null/trailing JSON, 400/404/500/502, repeated pause, cancellation, timeout, compensation, and all seven routes).
 - Go reference: `scripts/rust-migration/stage9_strategies_write_reference_test.go` uses only temporary Gin handlers and recording fakes; it does not open production stores or start a runtime.
 - Rust leaf test: `crates/jftrade-engine/tests/stage9_strategies_write.rs`.
@@ -84,11 +84,11 @@ strategy store, starts PineTS, connects Provider/OpenD, changes subscriptions,
 or emits activity/notification/task side effects.
 
 - Go fixture/reference: fixture generation passed with `JFTRADE_UPDATE_RUST_MIGRATION_FIXTURES=1`, followed by a no-update drift replay.
-- Rust leaf: 7 tests passed, including all 35 fixture cases, exact seven-route inventory, malformed-input precedence, JSON binder compatibility, read isolation, and unavailable-port fencing.
+- Rust leaf and durable test-cutover replay: 8 tests passed, including all 35 fixture cases, exact seven-route inventory, malformed-input precedence, JSON binder compatibility, read isolation, unavailable-port fencing, concurrent repeated pause transitions, start-transaction rollback, running-delete guard, and close/reopen persistence.
 - Dedicated differential: passed with `node scripts/rust-migration/check-stage9-strategies-write.mjs`.
 - `go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s` — passed.
-- `cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture` — passed; both explicit-registration and authenticated failure/recovery/restart product tests passed.
-- The full Stage 9 product differential passed with 212 Rust product library tests plus the integration and supporting-package batches.
+- `cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture` — passed; explicit-registration, authenticated failure/recovery/restart, and isolated SQLite product restart tests passed.
+- The full Stage 9 product differential passed with 220 Rust product library tests plus the integration and supporting-package batches.
 - `pnpm run check:quick` — passed for the five affected files, including the
   full `servercoretest`, all-target Rust tests, Clippy, architecture checks,
   and generated-contract drift check.
@@ -97,7 +97,7 @@ or emits activity/notification/task side effects.
 - Final route coverage, both migration JSON validations, and `git diff --check`
   — passed.
 
-The group remains `cutover-test-only`. Durable catalog/runtime owner fencing,
-repeated-request policy, cancellation/timeout joins, real PineTS and
+The group remains `cutover-test-only`. Production catalog/runtime owner fencing,
+cross-process repeated-request policy, cancellation/timeout joins, real PineTS and
 subscription recovery, activity/notification/task isolation, four-platform
 release/signing, security/SBOM, backup/restore, and hard-cut gates remain open.

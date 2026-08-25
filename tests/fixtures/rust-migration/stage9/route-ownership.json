@@ -371,6 +371,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4912,6 +4914,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4930,6 +4934,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4948,6 +4954,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -4966,6 +4974,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -5685,6 +5695,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
@@ -5703,6 +5715,8 @@
       "evidence": [
         "node scripts/rust-migration/check-stage9-strategies-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestStrategiesWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1 -timeout=300s",
+        "cargo test -p jftrade-engine --test stage9_strategies_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib strategy_runtime_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "cargo test -p jftrade-engine --lib strategy_runtime_write_product -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]

@@ -146,6 +146,9 @@ use product_adk_mutation_port::{
 };
 #[path = "product_strategy_runtime_write_port.rs"]
 mod product_strategy_runtime_write_port;
+#[cfg(test)]
+#[path = "product_strategy_runtime_write_test_cutover.rs"]
+mod product_strategy_runtime_write_test_cutover;
 use product_strategy_runtime_write_port::{
     StrategyRuntimeWritePort, StrategyRuntimeWriteResponse, dispatch_strategy_runtime_write,
     strategy_runtime_write_routes,
