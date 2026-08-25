@@ -717,3 +717,9 @@ OpenD live/reconnect differential 与 release recovery 仍是正式 qualificatio
  溢出输入均回落到安全默认/上限。该调度仍只属于 opt-in task，不改变默认 desktop、
  Provider activation、公开 API 或 Go production owner；真实 OpenD live/reconnect
  differential、释放恢复与正式 owner qualification 仍未完成。
+
+2026-08-25：补齐 `OpenDProviderRuntime` 的关闭 ownership。显式 bridge 现在按
+runtime join/close、释放自身 demand、停用 active provider 的顺序退出；Drop 路径
+也执行同样的 fail-closed 清理，避免 provider router 在 runtime 已退出后残留 active
+状态。若仍有其他 managed consumer，router 的既有 fencing 会拒绝错误停用；默认
+profile、Provider activation、route ownership 与 Go production owner 均不变。

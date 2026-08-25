@@ -455,3 +455,24 @@ recovery, and owner-gate evidence.
 owner: Rust integration / engine composition
 后续: exercise bounded recovery against authenticated live/mocked reconnect
 traces before any ProviderRouter production activation or Go owner switch.
+
+## Provider bridge shutdown fencing (2026-08-25)
+
+`OpenDProviderRuntime::shutdown` and its Drop path now join/close the runtime
+first, release the bridge-owned demand consumer, and then deactivate the active
+provider. A router regression proves the active provider and bridge demand are
+both cleared; the router's managed-consumer guard remains authoritative when
+other owners are present. This closes an in-process state-leak path but does not
+qualify real OpenD or change the production owner.
+
+quirk: provider descriptors remain registered as static catalog entries after
+deactivation; only active runtime state and demand are fenced away.
+范围: `system-status-read` / explicit OpenD provider bridge shutdown
+证据: `provider_runtime::tests::release_and_deactivate_clears_bridge_owned_router_state`.
+分类: rust-implementation
+判定: intended
+处置: retain shutdown fencing; require live OpenD, release recovery and
+cross-process owner evidence before production activation.
+风险: high
+owner: Rust integration / engine composition
+后续: exercise shutdown/restart against authenticated live and release traces.

@@ -178,14 +178,15 @@ impl OpenDProviderRuntime {
             .runtime
             .shutdown()
             .map_err(OpenDProviderRuntimeError::from);
-        release_demand(&self.router, &self.demand_consumer_id);
+        release_and_deactivate(&self.router, &self.demand_consumer_id, &self.provider_id);
         result
     }
 }
 
 impl Drop for OpenDProviderRuntime {
     fn drop(&mut self) {
-        release_demand(&self.router, &self.demand_consumer_id);
+        let _ = self.runtime.shutdown();
+        release_and_deactivate(&self.router, &self.demand_consumer_id, &self.provider_id);
     }
 }
 
@@ -195,5 +196,89 @@ fn release_demand(router: &Arc<Mutex<ProviderRouter>>, consumer_id: &str) {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .release_demand(consumer_id);
+    }
+}
+
+fn release_and_deactivate(
+    router: &Arc<Mutex<ProviderRouter>>,
+    consumer_id: &str,
+    provider_id: &str,
+) {
+    release_demand(router, consumer_id);
+    if provider_id.is_empty() {
+        return;
+    }
+    let _ = router
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .deactivate(provider_id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_marketdata::{
+        HealthStatus, ProviderCapabilities, ProviderConstraints, ProviderReadiness,
+    };
+
+    fn descriptor() -> ProviderDescriptor {
+        ProviderDescriptor {
+            selection_id: "futu".to_owned(),
+            provider_id: "futu".to_owned(),
+            display_name: "Futu OpenD".to_owned(),
+            broker_id: Some("futu".to_owned()),
+            source: "futu".to_owned(),
+            default_market: "US".to_owned(),
+            supported_markets: vec!["US".to_owned()],
+            transports: vec!["stream".to_owned()],
+            capabilities: ProviderCapabilities {
+                snapshots: true,
+                streaming_quotes: true,
+                ..Default::default()
+            },
+            constraints: ProviderConstraints::default(),
+            notes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn release_and_deactivate_clears_bridge_owned_router_state() {
+        let router = Arc::new(Mutex::new(ProviderRouter::new(2)));
+        {
+            let mut guard = router.lock().expect("router");
+            guard
+                .register(
+                    descriptor(),
+                    HealthStatus {
+                        connected: true,
+                        readiness: ProviderReadiness::Ready,
+                        stream_mode: "streaming".to_owned(),
+                        ..Default::default()
+                    },
+                )
+                .expect("register");
+            guard
+                .activate("futu", ActivationMode::Explicit)
+                .expect("activate");
+            guard
+                .acquire_demand(
+                    "futu-opend-runtime",
+                    [InstrumentRef {
+                        channel: "SNAPSHOT".to_owned(),
+                        market: "US".to_owned(),
+                        symbol: "AAPL".to_owned(),
+                        interval: None,
+                    }],
+                    false,
+                    0,
+                )
+                .expect("demand");
+        }
+
+        release_and_deactivate(&router, "futu-opend-runtime", "futu");
+
+        let guard = router.lock().expect("router");
+        assert!(guard.runtime().active_provider.is_empty());
+        assert!(guard.demand().active.is_empty());
     }
 }
