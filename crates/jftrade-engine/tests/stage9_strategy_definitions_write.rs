@@ -302,6 +302,59 @@ fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
         "0.1.1"
     );
 
+    let instantiate = StrategyDefinitionWriteInput {
+        operation: StrategyDefinitionWriteOperation::Instantiate,
+        definition_id: Some("fixture-concurrent".to_owned()),
+        definition: None,
+        binding: Some(json!({"symbols":["US.AAPL"]})),
+        binding_error: None,
+    };
+    port.reject_instance_create()
+        .expect("install instance rollback trigger");
+    assert!(matches!(
+        port.mutate(&instantiate),
+        Err(StrategyDefinitionWritePortError::Failed { status: 500, .. })
+    ));
+    assert_eq!(
+        port.instance_count("fixture-concurrent")
+            .expect("instance count after rollback"),
+        0
+    );
+    assert!(
+        port.linked_ids("fixture-concurrent")
+            .expect("linked IDs after rollback")
+            .is_empty()
+    );
+    port.clear_instance_rejection()
+        .expect("clear instance rollback trigger");
+    let first_instance = port
+        .mutate(&instantiate)
+        .expect("persist linked strategy instance");
+    let first_instance_id = first_instance["id"]
+        .as_str()
+        .expect("instance ID")
+        .to_owned();
+    assert_eq!(
+        port.instance_ids("fixture-concurrent")
+            .expect("linked instance IDs"),
+        vec![first_instance_id.clone()]
+    );
+    assert_eq!(
+        port.linked_ids("fixture-concurrent")
+            .expect("stored linked instance IDs"),
+        vec![first_instance_id.clone()]
+    );
+    assert!(matches!(
+        port.mutate(&StrategyDefinitionWriteInput {
+            operation: StrategyDefinitionWriteOperation::Delete,
+            definition_id: Some("fixture-concurrent".to_owned()),
+            definition: None,
+            binding: None,
+            binding_error: None,
+        }),
+        Err(StrategyDefinitionWritePortError::Failed { status: 400, .. })
+    ));
+
     port.seed_definition(
         "fixture-rollback",
         json!({"id":"fixture-rollback","name":"Before rollback"}),
@@ -328,6 +381,8 @@ fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
             .1["name"],
         "Before rollback"
     );
+    port.clear_version_rejection()
+        .expect("clear version rollback trigger");
 
     port.seed_definition(
         "fixture-delete",
@@ -382,6 +437,22 @@ fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
             .0,
         "0.1.1"
     );
+    assert_eq!(
+        reopened
+            .instance_ids("fixture-concurrent")
+            .expect("reopened linked instances"),
+        vec![first_instance_id.clone()]
+    );
+    let second_instance = reopened
+        .mutate(&instantiate)
+        .expect("persist instance after restart");
+    assert_ne!(second_instance["id"], first_instance_id);
+    assert_eq!(
+        reopened
+            .instance_count("fixture-concurrent")
+            .expect("reopened instance count"),
+        2
+    );
     assert!(
         reopened
             .current("fixture-delete")
@@ -389,6 +460,23 @@ fn sqlite_test_cutover_preserves_versions_rollback_linked_delete_and_restart() {
             .expect("persisted deleted definition")
             .2
     );
+}
+
+#[test]
+fn sqlite_test_cutover_writer_lease_rejects_a_second_owner() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("strategy-definitions-lease.db");
+    let first = StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+        .expect("open first strategy definition owner");
+    let second = StrategyDefinitionSqliteTestCutoverPort::open(&database_path);
+    assert!(
+        second
+            .expect_err("second strategy definition owner must be fenced")
+            .contains("writer lease is already held")
+    );
+    drop(first);
+    StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
+        .expect("writer lease becomes available after owner close");
 }
 
 fn case_port_call_count(case: &FixtureCase) -> usize {

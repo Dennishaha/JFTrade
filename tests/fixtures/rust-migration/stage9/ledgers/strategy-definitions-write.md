@@ -91,3 +91,25 @@ quirk: The standalone strategy fixture harness used a `match` equivalent to `mat
 - `route-ownership.json` records all five operations as `cutover-test-only`; `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
 - `pnpm run check:quick` passed (affected quick checks, including the full `servercoretest` package, Rust all-target tests, architecture checks, clippy, and generated-contract check). `pnpm run check:rust` passed (workspace fmt, clippy, all-target tests, Stage 3–8 differentials, full Stage 9 product differential, and supporting package replay). Generated-contract checks passed without modifying the worktree; no public contract changed.
 - Remaining blockers: durable definition version/transaction ownership; atomic linked-delete and instantiate/catalog recovery; cancellation/restart fencing; Pine/runtime/activity/notification/task isolation; production unique-writer switching; four-platform signed Tauri release/updater; security/SBOM; backup/restore and hard-cut gates.
+
+## Isolated durability extension (2026-08-26)
+
+The test-cutover adapter now persists generated definition and instance IDs in
+the isolated SQLite fixture instead of an in-memory counter. Instantiation is
+one `BEGIN IMMEDIATE` transaction that writes the instance projection and the
+definition's linked-instance index; linked delete and apply read that same
+durable instance set. Triggered instance-write failures prove allocator,
+instance-row and linked-index rollback together, while close/reopen tests prove
+instance identity and linkage survive restart. The adapter also holds a
+test-only file writer lease, so a second owner of the same fixture is rejected
+before opening SQLite. This is an isolated test profile and does not claim
+compatibility with the Go strategy database or a Rust production writer.
+
+The focused replay now passes 9 tests, including instance transaction rollback,
+persisted linked-instance delete fencing, persistent ID allocation across
+restart, and second-owner lease rejection. The authenticated product replay
+also instantiates through transport, closes, reopens, and instantiates again
+without reusing the persisted ID. Go remains the sole production owner and the
+route entries remain `cutover-test-only`; production catalog/runtime ownership,
+Pine/runtime side-effect fencing, release/signing, security, backup/restore and
+hard-cut evidence are still open.

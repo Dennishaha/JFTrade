@@ -446,7 +446,21 @@ async fn strategy_definition_sqlite_test_cutover_replays_transport_and_restart()
     .await;
     assert_eq!(response["ok"], true);
     assert_eq!(response["data"]["version"], "0.1.1");
+    let instantiated = request_json(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/strategy-definitions/fixture-product/instantiate",
+        Some(r#"{"symbols":["US.AAPL"]}"#),
+    )
+    .await;
+    assert_eq!(instantiated["ok"], true);
+    assert_eq!(instantiated["data"]["definitionVersion"], "0.1.1");
+    let first_instance_id = instantiated["data"]["id"]
+        .as_str()
+        .expect("first durable instance ID")
+        .to_owned();
     handle.shutdown().await.expect("shutdown product");
+    drop(port);
 
     let reopened = Arc::new(
         StrategyDefinitionSqliteTestCutoverPort::open(&database_path)
@@ -460,6 +474,18 @@ async fn strategy_definition_sqlite_test_cutover_replays_transport_and_restart()
             .1["name"],
         "After"
     );
+    assert_eq!(
+        reopened
+            .instance_count("fixture-product")
+            .expect("instance count"),
+        1
+    );
+    assert_eq!(
+        reopened
+            .instance_ids("fixture-product")
+            .expect("persisted instance IDs"),
+        vec![first_instance_id.clone()]
+    );
     let restarted = start_product(
         ProductConfig::test_cutover(
             "127.0.0.1:0".parse().expect("restarted address"),
@@ -470,6 +496,15 @@ async fn strategy_definition_sqlite_test_cutover_replays_transport_and_restart()
     )
     .await
     .expect("restart product");
+    let second_instance = request_json(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/strategy-definitions/fixture-product/instantiate",
+        None,
+    )
+    .await;
+    assert_eq!(second_instance["ok"], true);
+    assert_ne!(second_instance["data"]["id"], first_instance_id);
     let missing = request_json_with_status(
         restarted.startup_record().address,
         "POST",
