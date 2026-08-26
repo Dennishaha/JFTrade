@@ -23,4 +23,4 @@ linters:
       rules:
         - name: filename-format
           arguments:
-            - '^(?:[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+){0,2}\.go|[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+){0,3}_test\.go)$'
+            - '^(?:[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+){0,2}\.go|[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+)*_test\.go)$'

@@ -309,7 +309,7 @@ func (b *stage9AlertsReadBroker) QueryCustomization(
 			Metadata: map[string]any{"source": "fixture"},
 		}, nil
 	}
-	entries := []map[string]any{}
+	var entries []map[string]any
 	switch query.FeatureID {
 	case broker.FeaturePriceAlertList:
 		entries = []map[string]any{{

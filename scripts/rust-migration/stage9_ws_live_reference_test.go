@@ -758,21 +758,4 @@ func normalizeStage9WSLiveWire(payload []byte) string {
 	return stage9WSLiveTimePattern.ReplaceAllString(string(payload), "fixture-time")
 }
 
-func toLiveSubscriptions(input *stage9WSLiveSubscriptions) livecore.Subscriptions {
-	if input == nil {
-		return livecore.Subscriptions{}
-	}
-	result := livecore.Subscriptions{
-		ProviderBrokerID: input.ProviderBrokerID, ConsoleRefresh: input.ConsoleRefresh,
-		ActiveInstruments: append([]string(nil), input.ActiveInstruments...),
-	}
-	for _, item := range input.SecurityDetails {
-		result.SecurityDetails = append(result.SecurityDetails, livecore.SecurityDetailsSubscription{Market: item.Market, Symbol: item.Symbol, InstrumentID: item.InstrumentID})
-	}
-	for _, item := range input.Depth {
-		result.Depth = append(result.Depth, livecore.DepthSubscription{Market: item.Market, Symbol: item.Symbol, InstrumentID: item.InstrumentID, Num: item.Num})
-	}
-	return result
-}
-
 var _ apilive.Backend = (*stage9WSLiveBackend)(nil)

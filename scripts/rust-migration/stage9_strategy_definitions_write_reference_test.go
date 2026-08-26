@@ -494,17 +494,6 @@ func stage9DefinitionCall(definition stratsrv.Definition) map[string]any {
 	}
 }
 
-func stage9ActualDefinitionSpec(name, method, path, body string) stage9StrategyDefinitionsWriteCaseSpec {
-	return stage9StrategyDefinitionsWriteCaseSpec{
-		Name:   name,
-		Method: method,
-		Paths:  []string{path},
-		Bodies: []string{body},
-		Setup: func(t *testing.T) *stage9StrategyDefinitionsWriteHarness {
-			return stage9ActualStrategyDefinitionsWriteHarness(t)
-		},
-	}
-}
 
 func stage9StrategyDefinitionsWriteCaseSpecs() []stage9StrategyDefinitionsWriteCaseSpec {
 	valid := stage9DefaultScript("Fixture")

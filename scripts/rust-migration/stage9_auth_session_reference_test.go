@@ -272,7 +272,9 @@ func stage9AuthSessionLogin(t *testing.T, client *http.Client, baseURL, password
 	if err != nil {
 		t.Fatalf("perform auth-session login: %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("auth-session login status = %d", response.StatusCode)
 	}

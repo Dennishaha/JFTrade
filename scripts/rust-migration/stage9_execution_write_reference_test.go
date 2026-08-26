@@ -611,10 +611,7 @@ func stage9ExecutionWriteRequest(
 	if request.Body != nil {
 		body = strings.NewReader(*request.Body)
 	}
-	target := request.RequestPath
-	if strings.Contains(target, "%zz") {
-		target = strings.Replace(target, "%zz", "placeholder", 1)
-	}
+	target := strings.Replace(request.RequestPath, "%zz", "placeholder", 1)
 	httpRequest := httptest.NewRequestWithContext(ctx, request.Method, target, body)
 	if target != request.RequestPath {
 		httpRequest.URL.Path = request.RequestPath
