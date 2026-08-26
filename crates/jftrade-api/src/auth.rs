@@ -18,6 +18,25 @@ pub struct AccessPolicy {
     pub internal_proxy_protocol: Option<String>,
 }
 
+pub fn desktop_trusted_origins() -> impl IntoIterator<Item = String> {
+    [
+        "http://127.0.0.1:3003".to_owned(),
+        "http://localhost:3003".to_owned(),
+        "http://127.0.0.1:3000".to_owned(),
+        "http://localhost:3000".to_owned(),
+        "http://127.0.0.1:3008".to_owned(),
+        "http://localhost:3008".to_owned(),
+        "http://127.0.0.1:6699".to_owned(),
+        "http://localhost:6699".to_owned(),
+        "tauri://localhost".to_owned(),
+        "http://tauri.localhost".to_owned(),
+        "https://tauri.localhost".to_owned(),
+        "wails://localhost".to_owned(),
+        "http://wails.localhost".to_owned(),
+        "https://wails.localhost".to_owned(),
+    ]
+}
+
 impl Default for AccessPolicy {
     fn default() -> Self {
         Self {
@@ -33,6 +52,16 @@ impl Default for AccessPolicy {
 }
 
 impl AccessPolicy {
+    pub fn desktop(desktop_token: Option<String>) -> Self {
+        Self {
+            desktop_token,
+            desktop_mode: true,
+            enforce_access: true,
+            ..Self::default()
+        }
+        .with_allowed_origins(desktop_trusted_origins())
+    }
+
     pub fn with_allowed_origins(mut self, origins: impl IntoIterator<Item = String>) -> Self {
         self.allowed_origins = origins
             .into_iter()

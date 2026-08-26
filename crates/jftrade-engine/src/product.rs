@@ -425,16 +425,8 @@ impl ProductConfig {
             settings_path,
             AccessPolicy {
                 enforce_access: false,
-                desktop_mode: true,
-                ..AccessPolicy::default()
-            }
-            .with_allowed_origins([
-                "http://127.0.0.1:3003".to_owned(),
-                "http://localhost:3003".to_owned(),
-                "tauri://localhost".to_owned(),
-                "http://tauri.localhost".to_owned(),
-                "https://tauri.localhost".to_owned(),
-            ]),
+                ..AccessPolicy::desktop(None)
+            },
         )?;
         config.capabilities = ProductCapabilities::test_cutover();
         Ok(config)
@@ -452,12 +444,7 @@ impl ProductConfig {
         Self::new(
             bind_address,
             settings_path,
-            AccessPolicy {
-                desktop_token: Some(desktop_token),
-                enforce_access: true,
-                desktop_mode: true,
-                ..AccessPolicy::default()
-            },
+            AccessPolicy::desktop(Some(desktop_token)),
         )
     }
 
@@ -474,13 +461,10 @@ impl ProductConfig {
             .filter(|value| value.trim().len() >= 32)
             .ok_or(ProductError::MissingDesktopToken)?;
         let access = AccessPolicy {
-            enforce_access: true,
-            desktop_mode: true,
-            desktop_token: Some(desktop_token),
             internal_proxy_protocol: env::var(PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV)
                 .ok()
                 .filter(|value| !value.trim().is_empty()),
-            ..AccessPolicy::default()
+            ..AccessPolicy::desktop(Some(desktop_token))
         };
         Self::new(bind_address, settings_path, access)
     }

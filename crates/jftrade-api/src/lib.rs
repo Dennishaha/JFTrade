@@ -11,7 +11,7 @@ mod websocket;
 
 pub use auth::{
     ACCESS_SURFACE_HEADER, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,
-    INTERNAL_PROXY_PROTOCOL_HEADER, canonical_origin,
+    INTERNAL_PROXY_PROTOCOL_HEADER, canonical_origin, desktop_trusted_origins,
 };
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
 pub use observability::{
