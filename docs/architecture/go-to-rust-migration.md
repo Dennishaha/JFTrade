@@ -736,3 +736,11 @@ demand 更新通过 bridge 自有 consumer 写入唯一 ProviderRouter，支持�
 和非法 instrument 的 fail-closed 保留旧值；standalone runtime 与默认 profile
 不变。当前 route ledger 动态统计为 1 shadow / 118 cutover-test-only /
 159 cutover-qualified / 0 remaining / 0 Rust production owner。
+
+2026-08-26：修复 OpenD runtime 在 pending reconnect 期间接收新 demand 时的
+generation/replay fencing 缺陷。旧实现会在 session 已释放后立即执行新拓扑并返回
+`Closed`，但继续保留旧 generation 的 pending actions；下一次 handshake 成功后可能
+触发 stale replay invariant panic，且不会订阅最新 demand。现在 coordinator 在
+pending reconnect 内原子重建最新 generation 和完整 replay plan。mock TCP recovery
+测试固定 AAPL 断线、首次重连失败、退避期切换到 MSFT、恢复后仅重放 MSFT；默认
+desktop、真实 OpenD、route ownership 与 Go production owner 均不变。

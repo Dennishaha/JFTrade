@@ -140,6 +140,12 @@ impl OpenDSessionCoordinator {
     ) -> Result<(), OpenDSessionCoordinatorError> {
         self.ensure_open()?;
         self.desired = desired.to_vec();
+        if let Some(pending) = self.pending_reconnect.as_mut() {
+            let actions = self.lifecycle.reconfigure_for_reconnect(desired);
+            pending.generation = self.lifecycle.generation();
+            pending.actions = actions;
+            return Ok(());
+        }
         let actions = self.lifecycle.reconcile_demand(desired, now_ms);
         self.execute_actions(&actions, now_ms)
     }
