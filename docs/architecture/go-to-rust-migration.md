@@ -744,3 +744,11 @@ generation/replay fencing 缺陷。旧实现会在 session 已释放后立即执
 pending reconnect 内原子重建最新 generation 和完整 replay plan。mock TCP recovery
 测试固定 AAPL 断线、首次重连失败、退避期切换到 MSFT、恢复后仅重放 MSFT；默认
 desktop、真实 OpenD、route ownership 与 Go production owner 均不变。
+
+2026-08-26：补齐 Rust OpenD 显式 live qualification 入口。手动
+`futu-live.yml` 在同一带 `futu`/`opend` 标签的 self-hosted runner 上先运行既有
+Go live contracts，再以 `JFTRADE_FUTU_LIVE_TEST=1` 显式执行默认 ignored 的 Rust
+ProviderRouter/OpenD runtime 测试；Rust 路径验证 health probe、managed demand、
+generation-fenced `HK.00700` quote cache 和 shutdown release。普通 PR/main 与本地
+`check:rust` 不连接 OpenD；当前只完成可执行 workflow wiring，尚未取得一次真实 runner
+成功记录，因此 live differential、版本/权限矩阵和 owner qualification 仍保持开放。
