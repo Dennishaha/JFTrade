@@ -2,6 +2,9 @@
 
 //! SQLite inspection plus explicitly fenced migration test-cutover stores.
 
+mod adk;
+mod adk_artifact;
+mod adk_session;
 mod backtest_run;
 mod data_management;
 mod execution_order;
@@ -12,6 +15,19 @@ mod strategy_definition;
 mod strategy_runtime;
 mod watchlist;
 
+pub use adk::{
+    ADK_TEST_CUTOVER_PROFILE, AdkStoreError, AdkTestCutoverStore, CreateAdkRunParams,
+    StoredAdkApproval, StoredAdkEntity, StoredAdkMemory, StoredAdkRun, StoredAdkTask,
+    StoredAdkWorkflow, StoredAdkWorkflowTrigger,
+};
+pub use adk_artifact::{
+    ADK_ARTIFACT_TEST_CUTOVER_PROFILE, AdkArtifactStoreError, AdkArtifactTestCutoverStore,
+    PutAdkArtifactParams, StoredAdkArtifact,
+};
+pub use adk_session::{
+    ADK_SESSION_TEST_CUTOVER_PROFILE, AdkSessionStoreError, AdkSessionTestCutoverStore,
+    RecordAdkEventParams, StoredAdkEvent, StoredAdkSessionState,
+};
 pub use backtest_run::{
     BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStoreError, BacktestRunTestCutoverStore,
     StoredBacktestRun,
