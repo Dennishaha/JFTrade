@@ -2082,6 +2082,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             .iter()
             .filter(|route| {
                 route.implementation_status == "cutover-qualified"
+                    && route.method == "GET"
                     && DEFAULT_REGISTERED_QUALIFIED_READS.contains(&route.path.as_str())
             })
             .map(|route| (route.method.clone(), route.path.clone())),
