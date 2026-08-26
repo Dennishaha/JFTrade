@@ -1,10 +1,19 @@
-//! Durable strategy-runtime test-cutover adapter.
+//! Durable strategy-runtime test-cutover adapter backed by `jftrade-store-sqlite`.
 //!
-//! This module is compiled only for Rust tests. It owns an isolated fixture
-//! schema and is never constructed by the default product profile.
+//! This module is compiled only for Rust tests. It connects to the real
+//! strategy SQLite schema with schema validation and single-writer lease,
+//! and is never constructed by the default product profile.
 
-use rusqlite::OptionalExtension;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use jftrade_store_sqlite::{
+    STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE, StoredRuntimeInstance, StrategyRuntimeStoreError,
+    StrategyRuntimeTestCutoverStore,
+};
+use rusqlite::params;
 use serde_json::{Value, json};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWriteOperation, StrategyRuntimeWritePort,
@@ -12,8 +21,8 @@ use super::product_strategy_runtime_write_port::{
 };
 
 pub struct StrategyRuntimeSqliteTestCutoverPort {
-    path: std::path::PathBuf,
-    connection: std::sync::Mutex<rusqlite::Connection>,
+    path: PathBuf,
+    store: Arc<StrategyRuntimeTestCutoverStore>,
 }
 
 impl std::fmt::Debug for StrategyRuntimeSqliteTestCutoverPort {
@@ -27,142 +36,82 @@ impl std::fmt::Debug for StrategyRuntimeSqliteTestCutoverPort {
 
 #[allow(dead_code)]
 impl StrategyRuntimeSqliteTestCutoverPort {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, String> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref().to_owned();
-        let connection = rusqlite::Connection::open(&path).map_err(|error| error.to_string())?;
-        connection
-            .execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 CREATE TABLE IF NOT EXISTS strategy_runtime_test_instances (
-                    id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    binding TEXT NOT NULL,
-                    runtime_risk TEXT NOT NULL,
-                    definition_revision INTEGER NOT NULL DEFAULT 0,
-                    runtime_active INTEGER NOT NULL DEFAULT 0,
-                    deleted INTEGER NOT NULL DEFAULT 0
-                 );
-                 CREATE TABLE IF NOT EXISTS strategy_runtime_test_events (
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    instance_id TEXT NOT NULL,
-                    operation TEXT NOT NULL,
-                    FOREIGN KEY (instance_id)
-                        REFERENCES strategy_runtime_test_instances(id)
-                 );",
-            )
-            .map_err(|error| error.to_string())?;
+        let store = StrategyRuntimeTestCutoverStore::open_existing(
+            &path,
+            STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE,
+        )
+        .map_err(|err| err.to_string())?;
         Ok(Self {
             path,
-            connection: std::sync::Mutex::new(connection),
+            store: Arc::new(store),
         })
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn store(&self) -> &StrategyRuntimeTestCutoverStore {
+        &self.store
+    }
+
     pub fn seed_instance(&self, instance_id: &str, status: &str) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy runtime fixture lock poisoned".to_owned())?;
-        connection
-            .execute(
-                "INSERT OR REPLACE INTO strategy_runtime_test_instances
-                    (id, status, binding, runtime_risk, definition_revision,
-                     runtime_active, deleted)
-                 VALUES (?1, ?2, '{}', '{}', 0, ?3, 0)",
-                rusqlite::params![instance_id, status, i64::from(status == "RUNNING")],
-            )
-            .map_err(|error| error.to_string())?;
-        Ok(())
+        self.store
+            .seed_instance(instance_id, status, &now_rfc3339())
+            .map_err(|e| e.to_string())
     }
 
     pub fn snapshot(&self, instance_id: &str) -> Result<Option<Value>, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy runtime fixture lock poisoned".to_owned())?;
-        load_projection(&connection, instance_id).map_err(|error| error.to_string())
+        let instance = self
+            .store
+            .get_instance(instance_id)
+            .map_err(|e| e.to_string())?;
+        Ok(instance.map(|inst| projection_from_instance(&inst)))
     }
 
     pub fn event_count(&self, instance_id: &str, operation: &str) -> Result<u64, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy runtime fixture lock poisoned".to_owned())?;
-        let count = connection
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
+        let kind = match operation {
+            "start" => "STARTED",
+            "stop" => "STOPPED",
+            "pause" => "PAUSED",
+            _ => operation,
+        };
+        let count: i64 = connection
             .query_row(
-                "SELECT COUNT(*) FROM strategy_runtime_test_events
-                 WHERE instance_id = ?1 AND operation = ?2",
-                rusqlite::params![instance_id, operation],
-                |row| row.get::<_, i64>(0),
+                "SELECT COUNT(*) FROM strategy_audit_events WHERE instance_id = ?1 AND kind = ?2",
+                params![instance_id, kind],
+                |row| row.get(0),
             )
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative strategy runtime event count".to_owned())
+            .map_err(|e| e.to_string())?;
+        Ok(count as u64)
     }
 
     pub fn reject_status(&self, status: &str) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy runtime fixture lock poisoned".to_owned())?;
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
             .execute_batch("DROP TRIGGER IF EXISTS strategy_runtime_test_reject_status")
-            .map_err(|error| error.to_string())?;
-        let statement = format!(
+            .map_err(|e| e.to_string())?;
+        let stmt = format!(
             "CREATE TRIGGER strategy_runtime_test_reject_status
-             BEFORE UPDATE OF status ON strategy_runtime_test_instances
+             BEFORE UPDATE OF status ON strategy_catalog_operations
              WHEN NEW.status = '{}' BEGIN
                  SELECT RAISE(ABORT, 'test-cutover status rejection');
-             END",
+             END;",
             status.replace('\'', "''")
         );
-        connection
-            .execute_batch(&statement)
-            .map_err(|error| error.to_string())?;
+        connection.execute_batch(&stmt).map_err(|e| e.to_string())?;
         Ok(())
     }
 
     pub fn clear_rejection(&self) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy runtime fixture lock poisoned".to_owned())?;
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
             .execute_batch("DROP TRIGGER IF EXISTS strategy_runtime_test_reject_status")
-            .map_err(|error| error.to_string())?;
+            .map_err(|e| e.to_string())?;
         Ok(())
-    }
-
-    fn mutate_transaction(
-        &self,
-        input: &StrategyRuntimeWriteInput,
-    ) -> Result<Value, StrategyRuntimeWritePortError> {
-        let connection = self.connection.lock().map_err(|_| {
-            strategy_failure(input.operation, "strategy runtime fixture lock poisoned")
-        })?;
-        let transaction = connection.unchecked_transaction().map_err(|_| {
-            strategy_failure(input.operation, "strategy runtime transaction failed")
-        })?;
-        let current = load_projection(&transaction, &input.instance_id)
-            .map_err(|_| strategy_failure(input.operation, "strategy instance load failed"))?
-            .ok_or_else(strategy_not_found)?;
-        if current["deleted"] == true {
-            return Err(strategy_not_found());
-        }
-
-        apply_operation(&transaction, input, &current)?;
-        transaction
-            .execute(
-                "INSERT INTO strategy_runtime_test_events (instance_id, operation)
-                 VALUES (?1, ?2)",
-                rusqlite::params![input.instance_id, input.operation.name()],
-            )
-            .map_err(|_| strategy_failure(input.operation, "strategy runtime event failed"))?;
-        let projection = load_projection(&transaction, &input.instance_id)
-            .map_err(|_| strategy_failure(input.operation, "strategy instance reload failed"))?
-            .ok_or_else(strategy_not_found)?;
-        transaction
-            .commit()
-            .map_err(|_| strategy_failure(input.operation, "strategy runtime commit failed"))?;
-        Ok(projection)
     }
 }
 
@@ -171,134 +120,92 @@ impl StrategyRuntimeWritePort for StrategyRuntimeSqliteTestCutoverPort {
         &self,
         input: &StrategyRuntimeWriteInput,
     ) -> Result<Value, StrategyRuntimeWritePortError> {
-        self.mutate_transaction(input)
+        let timestamp = now_rfc3339();
+        let result = match input.operation {
+            StrategyRuntimeWriteOperation::Start => {
+                self.store
+                    .update_status(&input.instance_id, "RUNNING", &timestamp)
+            }
+            StrategyRuntimeWriteOperation::Stop => {
+                self.store
+                    .update_status(&input.instance_id, "STOPPED", &timestamp)
+            }
+            StrategyRuntimeWriteOperation::Pause => {
+                self.store
+                    .update_status(&input.instance_id, "PAUSED", &timestamp)
+            }
+            StrategyRuntimeWriteOperation::Delete => {
+                let current = self
+                    .store
+                    .get_instance(&input.instance_id)
+                    .map_err(|err| map_store_error(input.operation, err))?
+                    .ok_or_else(strategy_not_found)?;
+                if current.runtime_active || current.status == "RUNNING" {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "strategy instance is busy".to_owned(),
+                    });
+                }
+                self.store.delete_instance(&input.instance_id, &timestamp)
+            }
+            StrategyRuntimeWriteOperation::Update => {
+                let binding = input.binding.clone().unwrap_or(Value::Null);
+                self.store
+                    .update_binding(&input.instance_id, binding, &timestamp)
+            }
+            StrategyRuntimeWriteOperation::UpdateRuntimeRisk => {
+                let risk = input.runtime_risk.clone().unwrap_or(Value::Null);
+                self.store.update_risk(&input.instance_id, risk, &timestamp)
+            }
+            StrategyRuntimeWriteOperation::RefreshDefinition => self
+                .store
+                .refresh_definition(&input.instance_id, &timestamp),
+        };
+
+        match result {
+            Ok(inst) => Ok(projection_from_instance(&inst)),
+            Err(err) => Err(map_store_error(input.operation, err)),
+        }
     }
 }
 
-fn apply_operation(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &StrategyRuntimeWriteInput,
-    current: &Value,
-) -> Result<(), StrategyRuntimeWritePortError> {
-    let statement = match input.operation {
-        StrategyRuntimeWriteOperation::Update => {
-            let payload = serde_json::to_string(input.binding.as_ref().unwrap_or(&Value::Null))
-                .map_err(|_| strategy_failure(input.operation, "invalid strategy binding"))?;
-            transaction
-                .execute(
-                    "UPDATE strategy_runtime_test_instances SET binding = ?2 WHERE id = ?1",
-                    rusqlite::params![input.instance_id, payload],
-                )
-                .map(|_| ())
-        }
-        StrategyRuntimeWriteOperation::UpdateRuntimeRisk => {
-            let payload =
-                serde_json::to_string(input.runtime_risk.as_ref().unwrap_or(&Value::Null))
-                    .map_err(|_| strategy_failure(input.operation, "invalid runtime risk"))?;
-            transaction
-                .execute(
-                    "UPDATE strategy_runtime_test_instances SET runtime_risk = ?2 WHERE id = ?1",
-                    rusqlite::params![input.instance_id, payload],
-                )
-                .map(|_| ())
-        }
-        StrategyRuntimeWriteOperation::Delete => {
-            if current["runtimeActive"] == true || current["status"] == "RUNNING" {
-                return Err(StrategyRuntimeWritePortError::Failed {
-                    status: 400,
-                    code: "BAD_REQUEST".to_owned(),
-                    message: "strategy instance is busy".to_owned(),
-                });
-            }
-            transaction
-                .execute(
-                    "UPDATE strategy_runtime_test_instances SET deleted = 1 WHERE id = ?1",
-                    rusqlite::params![input.instance_id],
-                )
-                .map(|_| ())
-        }
-        StrategyRuntimeWriteOperation::Pause => set_status(transaction, input, "PAUSED", false),
-        StrategyRuntimeWriteOperation::Stop => set_status(transaction, input, "STOPPED", false),
-        StrategyRuntimeWriteOperation::Start => set_status(transaction, input, "RUNNING", true),
-        StrategyRuntimeWriteOperation::RefreshDefinition => transaction
-            .execute(
-                "UPDATE strategy_runtime_test_instances
-                 SET definition_revision = definition_revision + 1 WHERE id = ?1",
-                rusqlite::params![input.instance_id],
-            )
-            .map(|_| ()),
-    };
-    statement.map_err(|_| strategy_failure(input.operation, "strategy runtime mutation failed"))
+fn projection_from_instance(inst: &StoredRuntimeInstance) -> Value {
+    json!({
+        "id": inst.id,
+        "status": inst.status,
+        "binding": inst.binding,
+        "runtimeRisk": inst.runtime_risk,
+        "definitionRevision": inst.definition_revision,
+        "runtimeActive": inst.runtime_active,
+        "deleted": inst.deleted,
+    })
 }
 
-fn set_status(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &StrategyRuntimeWriteInput,
-    status: &str,
-    active: bool,
-) -> rusqlite::Result<()> {
-    transaction
-        .execute(
-            "UPDATE strategy_runtime_test_instances
-             SET status = ?2, runtime_active = ?3 WHERE id = ?1",
-            rusqlite::params![input.instance_id, status, i64::from(active)],
-        )
-        .map(|_| ())
-}
-
-fn load_projection(
-    connection: &rusqlite::Connection,
-    instance_id: &str,
-) -> rusqlite::Result<Option<Value>> {
-    connection
-        .query_row(
-            "SELECT status, binding, runtime_risk, definition_revision,
-                    runtime_active, deleted
-             FROM strategy_runtime_test_instances WHERE id = ?1",
-            rusqlite::params![instance_id],
-            |row| {
-                let status: String = row.get(0)?;
-                let binding: String = row.get(1)?;
-                let runtime_risk: String = row.get(2)?;
-                let definition_revision: i64 = row.get(3)?;
-                let runtime_active: i64 = row.get(4)?;
-                let deleted: i64 = row.get(5)?;
-                Ok((
-                    status,
-                    binding,
-                    runtime_risk,
-                    definition_revision,
-                    runtime_active,
-                    deleted,
-                ))
-            },
-        )
-        .optional()
-        .map(|row| {
-            row.map(
-                |(status, binding, runtime_risk, revision, active, deleted)| {
-                    json!({
-                        "id": instance_id,
-                        "status": status,
-                        "binding": serde_json::from_str::<Value>(&binding).unwrap_or(Value::Null),
-                        "runtimeRisk": serde_json::from_str::<Value>(&runtime_risk).unwrap_or(Value::Null),
-                        "definitionVersion": format!("0.1.{revision}"),
-                        "runtimeActive": active != 0,
-                        "deleted": deleted != 0,
-                    })
-                },
-            )
-        })
+fn map_store_error(
+    operation: StrategyRuntimeWriteOperation,
+    error: StrategyRuntimeStoreError,
+) -> StrategyRuntimeWritePortError {
+    match error {
+        StrategyRuntimeStoreError::NotFound => strategy_not_found(),
+        StrategyRuntimeStoreError::Validation(message) => StrategyRuntimeWritePortError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message,
+        },
+        _ => strategy_failure(operation, &error.to_string()),
+    }
 }
 
 fn strategy_failure(
     operation: StrategyRuntimeWriteOperation,
     message: &str,
 ) -> StrategyRuntimeWritePortError {
-    let (status, code) = if operation == StrategyRuntimeWriteOperation::Start {
-        (502, "STRATEGY_RUNTIME_START_FAILED")
-    } else {
-        (500, "STRATEGY_FAILED")
+    let (status, code) = match operation {
+        StrategyRuntimeWriteOperation::Start => (502, "STRATEGY_RUNTIME_START_FAILED"),
+        StrategyRuntimeWriteOperation::Stop => (502, "STRATEGY_RUNTIME_STOP_FAILED"),
+        StrategyRuntimeWriteOperation::Pause => (502, "STRATEGY_RUNTIME_PAUSE_FAILED"),
+        _ => (500, "STRATEGY_FAILED"),
     };
     StrategyRuntimeWritePortError::Failed {
         status,
@@ -311,6 +218,12 @@ fn strategy_not_found() -> StrategyRuntimeWritePortError {
     StrategyRuntimeWritePortError::Failed {
         status: 404,
         code: "NOT_FOUND".to_owned(),
-        message: "strategy instance not found".to_owned(),
+        message: "strategy resource not found".to_owned(),
     }
+}
+
+fn now_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "2026-08-26T00:00:00Z".to_owned())
 }
