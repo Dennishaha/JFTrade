@@ -6,6 +6,7 @@ mod data_management;
 mod maintenance;
 mod research_preset;
 mod schema_manifest;
+mod strategy_definition;
 mod watchlist;
 
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
@@ -13,6 +14,10 @@ pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{
     RESEARCH_PRESET_TEST_CUTOVER_PROFILE, ResearchPresetMutation, ResearchPresetStoreError,
     ResearchPresetTestCutoverStore, StoredResearchPreset,
+};
+pub use strategy_definition::{
+    STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StoredStrategyDefinition, StoredStrategyInstance,
+    StoredStrategyVersion, StrategyDefinitionStoreError, StrategyDefinitionTestCutoverStore,
 };
 pub use watchlist::{
     StoredBinding, StoredGroup, StoredImportPreview, StoredImportRun, StoredRemoteGroup,

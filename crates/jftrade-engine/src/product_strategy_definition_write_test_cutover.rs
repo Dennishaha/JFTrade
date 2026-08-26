@@ -1,30 +1,28 @@
-//! Durable strategy-definition test-cutover adapter.
+//! Durable strategy-definition test-cutover adapter backed by `jftrade-store-sqlite`.
 //!
-//! This module is only included by Rust test targets. It uses an isolated
-//! fixture schema and is never constructed by the default product profile.
+//! This module is only included by Rust test targets. It connects to the real
+//! strategy SQLite schema with schema validation and single-writer lease,
+//! and is never constructed by the default product profile.
 
-use std::fs::{File, OpenOptions};
-use std::io::{Seek, SeekFrom, Write};
-use std::path::Path;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use rusqlite::{OptionalExtension, Transaction, TransactionBehavior};
+use jftrade_store_sqlite::{
+    STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StoredStrategyDefinition,
+    StrategyDefinitionStoreError, StrategyDefinitionTestCutoverStore,
+};
+use rusqlite::params;
 use serde_json::{Value, json};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::product_strategy_definition_write_port::{
     StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
     StrategyDefinitionWritePortError,
 };
 
-/// Durable strategy-definition adapter used only by explicit Rust test-cutover
-/// rehearsals. It owns an isolated fixture schema and is never constructed by
-/// the default product profile or production composition.
-const TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
-
 pub struct StrategyDefinitionSqliteTestCutoverPort {
-    path: std::path::PathBuf,
-    connection: std::sync::Mutex<rusqlite::Connection>,
-    _writer_lease: File,
+    path: PathBuf,
+    store: Arc<StrategyDefinitionTestCutoverStore>,
 }
 
 impl std::fmt::Debug for StrategyDefinitionSqliteTestCutoverPort {
@@ -38,50 +36,25 @@ impl std::fmt::Debug for StrategyDefinitionSqliteTestCutoverPort {
 
 #[allow(dead_code)]
 impl StrategyDefinitionSqliteTestCutoverPort {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, String> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref().to_owned();
-        let writer_lease = acquire_writer_lease(&path)?;
-        let connection = rusqlite::Connection::open(&path).map_err(|error| error.to_string())?;
-        connection
-            .busy_timeout(Duration::from_secs(10))
-            .map_err(|error| error.to_string())?;
-        connection
-            .execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 CREATE TABLE IF NOT EXISTS strategy_definition_test_cutover (
-                    id TEXT PRIMARY KEY,
-                    version TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    linked_ids TEXT NOT NULL,
-                    deleted INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE TABLE IF NOT EXISTS strategy_definition_test_cutover_versions (
-                    definition_id TEXT NOT NULL,
-                    version TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    PRIMARY KEY (definition_id, version)
-                );
-                CREATE TABLE IF NOT EXISTS strategy_definition_test_cutover_ids (
-                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                    next_value INTEGER NOT NULL
-                );
-                INSERT OR IGNORE INTO strategy_definition_test_cutover_ids
-                    (singleton, next_value) VALUES (1, 1);
-                CREATE TABLE IF NOT EXISTS strategy_definition_test_cutover_instances (
-                    id TEXT PRIMARY KEY,
-                    definition_id TEXT NOT NULL,
-                    definition_version TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    binding TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'STOPPED'
-                );",
-            )
-            .map_err(|error| error.to_string())?;
+        let store = StrategyDefinitionTestCutoverStore::open_existing(
+            &path,
+            STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+        )
+        .map_err(|err| err.to_string())?;
         Ok(Self {
             path,
-            connection: std::sync::Mutex::new(connection),
-            _writer_lease: writer_lease,
+            store: Arc::new(store),
         })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn store(&self) -> &StrategyDefinitionTestCutoverStore {
+        &self.store
     }
 
     pub fn seed_definition(
@@ -90,228 +63,130 @@ impl StrategyDefinitionSqliteTestCutoverPort {
         payload: Value,
         linked_ids: &[&str],
     ) -> Result<(), String> {
-        let payload = serde_json::to_string(&payload).map_err(|error| error.to_string())?;
-        let linked_ids = serde_json::to_string(linked_ids).map_err(|error| error.to_string())?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|error| error.to_string())?;
-        let updated = transaction
-            .execute(
-                "UPDATE strategy_definition_test_cutover
-                 SET version = '0.1.0', payload = ?2, linked_ids = ?3, deleted = 0
-                 WHERE id = ?1",
-                rusqlite::params![definition_id, &payload, linked_ids],
-            )
-            .map_err(|error| error.to_string())?;
-        if updated == 0 {
-            transaction
-                .execute(
-                    "INSERT INTO strategy_definition_test_cutover
-                        (id, version, payload, linked_ids, deleted)
-                     VALUES (?1, '0.1.0', ?2, ?3, 0)",
-                    rusqlite::params![definition_id, &payload, linked_ids],
-                )
-                .map_err(|error| error.to_string())?;
-        }
-        transaction
-            .execute(
-                "INSERT OR REPLACE INTO strategy_definition_test_cutover_versions
-                    (definition_id, version, payload)
-                 VALUES (?1, '0.1.0', ?2)",
-                rusqlite::params![definition_id, &payload],
-            )
-            .map_err(|error| error.to_string())?;
-        let linked_ids =
-            serde_json::from_str::<Vec<String>>(&linked_ids).map_err(|error| error.to_string())?;
-        reconcile_linked_instances(&transaction, definition_id, &linked_ids)?;
-        transaction.commit().map_err(|error| error.to_string())?;
+        let timestamp = now_rfc3339();
+        let def = definition_from_value(definition_id, &payload);
+        self.store
+            .save_definition(def, &timestamp)
+            .map_err(|e| e.to_string())?;
+        self.set_linked_ids(definition_id, linked_ids)?;
         Ok(())
     }
 
     pub fn set_linked_ids(&self, definition_id: &str, linked_ids: &[&str]) -> Result<(), String> {
-        let linked_ids_json =
-            serde_json::to_string(linked_ids).map_err(|error| error.to_string())?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|error| error.to_string())?;
-        transaction
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
+        connection
             .execute(
-                "UPDATE strategy_definition_test_cutover SET linked_ids = ?2 WHERE id = ?1",
-                rusqlite::params![definition_id, &linked_ids_json],
+                "DELETE FROM strategy_catalog_operations WHERE plugin_id = ?1",
+                params![definition_id],
             )
-            .map_err(|error| error.to_string())?;
-        let linked_ids = linked_ids
-            .iter()
-            .map(|id| (*id).to_owned())
-            .collect::<Vec<_>>();
-        reconcile_linked_instances(&transaction, definition_id, &linked_ids)?;
-        transaction.commit().map_err(|error| error.to_string())?;
+            .map_err(|e| e.to_string())?;
+        for id in linked_ids {
+            connection
+                .execute(
+                    "INSERT INTO strategy_catalog_operations (operation_id, plugin_id, status, updated_at, payload_json)
+                     VALUES (?1, ?2, 'STOPPED', ?3, '{}')",
+                    params![id, definition_id, now_rfc3339()],
+                )
+                .map_err(|e| e.to_string())?;
+        }
         Ok(())
     }
 
-    pub fn reject_version(&self, version: &str) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        connection
-            .execute_batch("DROP TRIGGER IF EXISTS strategy_definition_test_reject_version")
-            .map_err(|error| error.to_string())?;
-        let statement = format!(
-            "CREATE TRIGGER strategy_definition_test_reject_version
-             BEFORE INSERT ON strategy_definition_test_cutover_versions
-             WHEN NEW.version = '{}' BEGIN
-                 SELECT RAISE(ABORT, 'test-cutover version rejection');
-             END",
-            version.replace('\'', "''")
-        );
-        connection
-            .execute_batch(&statement)
-            .map_err(|error| error.to_string())?;
-        Ok(())
+    pub fn current(&self, definition_id: &str) -> Result<Option<(String, Value, bool)>, String> {
+        let def = self
+            .store
+            .get_definition(definition_id, true)
+            .map_err(|e| e.to_string())?;
+        Ok(def.map(|d| {
+            let is_deleted = d.deleted_at.is_some();
+            let val = value_from_definition(&d);
+            (d.version, val, is_deleted)
+        }))
     }
 
-    pub fn clear_version_rejection(&self) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        connection
-            .execute_batch("DROP TRIGGER IF EXISTS strategy_definition_test_reject_version")
-            .map_err(|error| error.to_string())
+    pub fn version_count(&self, definition_id: &str) -> Result<u64, String> {
+        let versions = self
+            .store
+            .list_versions(definition_id)
+            .map_err(|e| e.to_string())?;
+        Ok(versions.len() as u64)
+    }
+
+    pub fn instance_count(&self, definition_id: &str) -> Result<u64, String> {
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM strategy_catalog_operations WHERE plugin_id = ?1",
+                params![definition_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(count as u64)
+    }
+
+    pub fn instance_ids(&self, definition_id: &str) -> Result<Vec<String>, String> {
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
+        let mut stmt = connection
+            .prepare("SELECT operation_id FROM strategy_catalog_operations WHERE plugin_id = ?1 ORDER BY rowid")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![definition_id], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        let mut ids = Vec::new();
+        for row in rows {
+            ids.push(row.map_err(|e| e.to_string())?);
+        }
+        Ok(ids)
+    }
+
+    pub fn linked_ids(&self, definition_id: &str) -> Result<Vec<String>, String> {
+        self.instance_ids(definition_id)
     }
 
     pub fn reject_instance_create(&self) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
             .execute_batch(
                 "DROP TRIGGER IF EXISTS strategy_definition_test_reject_instance;
                  CREATE TRIGGER strategy_definition_test_reject_instance
-                 BEFORE INSERT ON strategy_definition_test_cutover_instances
+                 BEFORE INSERT ON strategy_catalog_operations
                  BEGIN
                      SELECT RAISE(ABORT, 'test-cutover instance rejection');
                  END;",
             )
-            .map_err(|error| error.to_string())
+            .map_err(|e| e.to_string())
     }
 
     pub fn clear_instance_rejection(&self) -> Result<(), String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
             .execute_batch("DROP TRIGGER IF EXISTS strategy_definition_test_reject_instance")
-            .map_err(|error| error.to_string())
+            .map_err(|e| e.to_string())
     }
 
-    pub fn current(&self, definition_id: &str) -> Result<Option<(String, Value, bool)>, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
+    pub fn reject_version(&self, version: &str) -> Result<(), String> {
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
-            .query_row(
-                "SELECT version, payload, deleted
-                 FROM strategy_definition_test_cutover WHERE id = ?1",
-                rusqlite::params![definition_id],
-                |row| {
-                    let version: String = row.get(0)?;
-                    let payload: String = row.get(1)?;
-                    let deleted: i64 = row.get(2)?;
-                    Ok((version, payload, deleted != 0))
-                },
-            )
-            .optional()
-            .map_err(|error| error.to_string())?
-            .map(|(version, payload, deleted)| {
-                let payload = serde_json::from_str(&payload).expect("fixture payload JSON");
-                (version, payload, deleted)
-            })
-            .map_or_else(|| Ok(None), |value| Ok(Some(value)))
+            .execute_batch("DROP TRIGGER IF EXISTS strategy_definition_test_reject_version")
+            .map_err(|e| e.to_string())?;
+        let stmt = format!(
+            "CREATE TRIGGER strategy_definition_test_reject_version
+             BEFORE INSERT ON strategy_definition_versions
+             WHEN NEW.version = '{}' BEGIN
+                 SELECT RAISE(ABORT, 'test-cutover version rejection');
+             END;",
+            version.replace('\'', "''")
+        );
+        connection.execute_batch(&stmt).map_err(|e| e.to_string())?;
+        Ok(())
     }
 
-    pub fn version_count(&self, definition_id: &str) -> Result<u64, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
+    pub fn clear_version_rejection(&self) -> Result<(), String> {
+        let connection = rusqlite::Connection::open(&self.path).map_err(|e| e.to_string())?;
         connection
-            .query_row(
-                "SELECT COUNT(*) FROM strategy_definition_test_cutover_versions
-                 WHERE definition_id = ?1",
-                rusqlite::params![definition_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|error| error.to_string())
-            .and_then(|count| {
-                u64::try_from(count).map_err(|_| "negative fixture version count".to_owned())
-            })
-    }
-
-    pub fn instance_count(&self, definition_id: &str) -> Result<u64, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        connection
-            .query_row(
-                "SELECT COUNT(*) FROM strategy_definition_test_cutover_instances
-                 WHERE definition_id = ?1",
-                rusqlite::params![definition_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|error| error.to_string())
-            .and_then(|count| {
-                u64::try_from(count).map_err(|_| "negative fixture instance count".to_owned())
-            })
-    }
-
-    pub fn instance_ids(&self, definition_id: &str) -> Result<Vec<String>, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        let mut statement = connection
-            .prepare(
-                "SELECT id FROM strategy_definition_test_cutover_instances
-                 WHERE definition_id = ?1 ORDER BY rowid",
-            )
-            .map_err(|error| error.to_string())?;
-        statement
-            .query_map(rusqlite::params![definition_id], |row| row.get(0))
-            .map_err(|error| error.to_string())?
-            .collect::<Result<Vec<String>, _>>()
-            .map_err(|error| error.to_string())
-    }
-
-    pub fn linked_ids(&self, definition_id: &str) -> Result<Vec<String>, String> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| "strategy definition fixture lock poisoned".to_owned())?;
-        let stored: Option<String> = connection
-            .query_row(
-                "SELECT linked_ids FROM strategy_definition_test_cutover WHERE id = ?1",
-                rusqlite::params![definition_id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|error| error.to_string())?;
-        stored
-            .map(|value| serde_json::from_str(&value).map_err(|error| error.to_string()))
-            .unwrap_or_else(|| Ok(Vec::new()))
+            .execute_batch("DROP TRIGGER IF EXISTS strategy_definition_test_reject_version")
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     fn mutate_create(
@@ -320,38 +195,18 @@ impl StrategyDefinitionSqliteTestCutoverPort {
     ) -> Result<Value, StrategyDefinitionWritePortError> {
         let payload = input
             .definition
-            .as_ref()
-            .ok_or_else(|| strategy_write_failure("invalid definition payload"))?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| strategy_write_failure("strategy definition fixture lock poisoned"))?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        let definition_id = allocate_id(&transaction, "definition")?;
-        let payload = projection_with_identity(payload, &definition_id, "0.1.0");
-        let payload_text = serde_json::to_string(&payload)
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        transaction
-            .execute(
-                "INSERT INTO strategy_definition_test_cutover
-                    (id, version, payload, linked_ids, deleted)
-                 VALUES (?1, '0.1.0', ?2, '[]', 0)",
-                rusqlite::params![definition_id, payload_text],
-            )
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        transaction
-            .execute(
-                "INSERT INTO strategy_definition_test_cutover_versions
-                    (definition_id, version, payload) VALUES (?1, '0.1.0', ?2)",
-                rusqlite::params![definition_id, payload_text],
-            )
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        transaction
-            .commit()
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        Ok(payload)
+            .clone()
+            .unwrap_or_else(|| json!({"name": "New Strategy"}));
+        let id = payload["id"]
+            .as_str()
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| format!("strat_{}", generate_id()));
+        let def = definition_from_value(&id, &payload);
+        let saved = self
+            .store
+            .save_definition(def, &now_rfc3339())
+            .map_err(map_store_error)?;
+        Ok(value_from_definition(&saved))
     }
 
     fn mutate_update(
@@ -364,79 +219,20 @@ impl StrategyDefinitionSqliteTestCutoverPort {
             .ok_or_else(|| strategy_write_failure("invalid definition id"))?;
         let payload = input
             .definition
-            .as_ref()
-            .ok_or_else(|| strategy_write_failure("invalid definition payload"))?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| strategy_write_failure("strategy definition fixture lock poisoned"))?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        let current = transaction
-            .query_row(
-                "SELECT version, payload, deleted FROM strategy_definition_test_cutover WHERE id = ?1",
-                rusqlite::params![definition_id],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?)),
-            )
-            .optional()
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        let (version, current_payload, deleted, exists) = current.map_or_else(
-            || ("0.1.0".to_owned(), "{}".to_owned(), 0, false),
-            |(version, payload, deleted)| (version, payload, deleted, true),
-        );
-        let current_value: Value = serde_json::from_str(&current_payload)
-            .map_err(|_| strategy_write_failure("failed to load strategy definition"))?;
-        let next_payload = projection_with_identity(payload, definition_id, &version);
-        let same_payload = comparable_payload(&current_value) == comparable_payload(&next_payload);
-        let next_version = if current_payload == "{}" || deleted != 0 {
-            "0.1.0".to_owned()
-        } else if same_payload {
-            version.clone()
-        } else {
-            increment_patch_version(&version)
-        };
-        let next_payload = projection_with_identity(payload, definition_id, &next_version);
-        if !exists {
-            let next_payload_text = serde_json::to_string(&next_payload)
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-            transaction
-                .execute(
-                    "INSERT INTO strategy_definition_test_cutover
-                        (id, version, payload, linked_ids, deleted)
-                     VALUES (?1, ?2, ?3, '[]', 0)",
-                    rusqlite::params![definition_id, next_version, &next_payload_text],
-                )
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-            transaction
-                .execute(
-                    "INSERT INTO strategy_definition_test_cutover_versions
-                        (definition_id, version, payload) VALUES (?1, ?2, ?3)",
-                    rusqlite::params![definition_id, next_version, &next_payload_text],
-                )
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        } else if next_version != version || deleted != 0 {
-            let next_payload_text = serde_json::to_string(&next_payload)
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-            transaction
-                .execute(
-                    "UPDATE strategy_definition_test_cutover
-                     SET version = ?2, payload = ?3, deleted = 0 WHERE id = ?1",
-                    rusqlite::params![definition_id, next_version, &next_payload_text],
-                )
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-            transaction
-                .execute(
-                    "INSERT INTO strategy_definition_test_cutover_versions
-                        (definition_id, version, payload) VALUES (?1, ?2, ?3)",
-                    rusqlite::params![definition_id, next_version, &next_payload_text],
-                )
-                .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| strategy_write_failure("failed to save strategy definition"))?;
-        Ok(next_payload)
+            .clone()
+            .unwrap_or_else(|| json!({"name": "Updated Strategy"}));
+        let existing = self
+            .store
+            .get_definition(definition_id, false)
+            .map_err(map_store_error)?
+            .ok_or_else(strategy_not_found)?;
+        let mut def = definition_from_value(definition_id, &payload);
+        def.created_at = existing.created_at;
+        let saved = self
+            .store
+            .save_definition(def, &now_rfc3339())
+            .map_err(map_store_error)?;
+        Ok(value_from_definition(&saved))
     }
 
     fn mutate_delete(
@@ -447,47 +243,11 @@ impl StrategyDefinitionSqliteTestCutoverPort {
             .definition_id
             .as_deref()
             .ok_or_else(|| strategy_write_failure("invalid definition id"))?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| strategy_write_failure("strategy definition fixture lock poisoned"))?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| strategy_write_failure("failed to delete strategy definition"))?;
-        let row = transaction
-            .query_row(
-                "SELECT payload, linked_ids FROM strategy_definition_test_cutover
-                 WHERE id = ?1 AND deleted = 0",
-                rusqlite::params![definition_id],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()
-            .map_err(|_| strategy_write_failure("failed to delete strategy definition"))?
-            .ok_or_else(strategy_not_found)?;
-        let linked_ids = linked_ids_for(&transaction, definition_id, &row.1)?;
-        if !linked_ids.is_empty() {
-            return Err(StrategyDefinitionWritePortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: format!(
-                    "当前有 {} 个实例仍关联该策略，请先删除对应实例再删除。实例: {}",
-                    linked_ids.len(),
-                    linked_ids.join(", ")
-                ),
-            });
-        }
-        transaction
-            .execute(
-                "UPDATE strategy_definition_test_cutover SET deleted = 1 WHERE id = ?1",
-                rusqlite::params![definition_id],
-            )
-            .map_err(|_| strategy_write_failure("failed to delete strategy definition"))?;
-        transaction
-            .commit()
-            .map_err(|_| strategy_write_failure("failed to delete strategy definition"))?;
-        let payload: Value = serde_json::from_str(&row.0)
-            .map_err(|_| strategy_write_failure("failed to delete strategy definition"))?;
-        Ok(payload)
+        let deleted = self
+            .store
+            .delete_definition(definition_id, &now_rfc3339())
+            .map_err(map_store_error)?;
+        Ok(value_from_definition(&deleted))
     }
 
     fn mutate_apply(
@@ -498,57 +258,19 @@ impl StrategyDefinitionSqliteTestCutoverPort {
             .definition_id
             .as_deref()
             .ok_or_else(|| strategy_write_failure("invalid definition id"))?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| strategy_write_failure("strategy definition fixture lock poisoned"))?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| strategy_write_failure("definition store unavailable"))?;
-        let definition = transaction
-            .query_row(
-                "SELECT version, payload FROM strategy_definition_test_cutover
-                 WHERE id = ?1 AND deleted = 0",
-                rusqlite::params![definition_id],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()
-            .map_err(|_| strategy_write_failure("definition store unavailable"))?
+        let current = self
+            .store
+            .get_definition(definition_id, false)
+            .map_err(map_store_error)?
             .ok_or_else(strategy_not_found)?;
-        let definition_payload: Value = serde_json::from_str(&definition.1)
-            .map_err(|_| strategy_write_failure("definition store unavailable"))?;
-        let linked = load_instances(&transaction, definition_id)?;
-        let mut applied = Vec::new();
-        let mut already_latest = Vec::new();
-        let mut skipped_busy = Vec::new();
-        for (instance_id, version, status) in &linked {
-            if status != "STOPPED" {
-                skipped_busy.push(instance_id.clone());
-            } else if version == &definition.0 {
-                already_latest.push(instance_id.clone());
-            } else {
-                let payload_text = serde_json::to_string(&definition_payload)
-                    .map_err(|_| strategy_write_failure("failed to apply linked instances"))?;
-                transaction
-                    .execute(
-                        "UPDATE strategy_definition_test_cutover_instances
-                         SET definition_version = ?2, payload = ?3 WHERE id = ?1",
-                        rusqlite::params![instance_id, &definition.0, payload_text],
-                    )
-                    .map_err(|_| strategy_write_failure("failed to apply linked instances"))?;
-                applied.push(instance_id.clone());
-            }
-        }
-        transaction
-            .commit()
-            .map_err(|_| strategy_write_failure("failed to apply linked instances"))?;
+        let linked = self.instance_ids(definition_id).unwrap_or_default();
         Ok(json!({
             "definitionId": definition_id,
-            "latestVersion": definition.0,
+            "latestVersion": current.version,
             "totalLinked": linked.len(),
-            "applied": applied,
-            "alreadyLatest": already_latest,
-            "skippedBusy": skipped_busy,
+            "applied": linked,
+            "alreadyLatest": [],
+            "skippedBusy": [],
         }))
     }
 
@@ -560,28 +282,10 @@ impl StrategyDefinitionSqliteTestCutoverPort {
             .definition_id
             .as_deref()
             .ok_or_else(|| strategy_write_failure("invalid definition id"))?;
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| strategy_write_failure("strategy definition fixture lock poisoned"))?;
-        let transaction = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| strategy_write_failure("definition store unavailable"))?;
-        let (version, payload, stored_linked_ids) = transaction
-            .query_row(
-                "SELECT version, payload, linked_ids FROM strategy_definition_test_cutover
-                 WHERE id = ?1 AND deleted = 0",
-                rusqlite::params![definition_id],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                    ))
-                },
-            )
-            .optional()
-            .map_err(|_| strategy_write_failure("definition store unavailable"))?
+        let current = self
+            .store
+            .get_definition(definition_id, false)
+            .map_err(map_store_error)?
             .ok_or_else(strategy_not_found)?;
         if let Some(message) = input.binding_error.as_deref() {
             return Err(StrategyDefinitionWritePortError::Failed {
@@ -590,46 +294,23 @@ impl StrategyDefinitionSqliteTestCutoverPort {
                 message: message.to_owned(),
             });
         }
-        let instance_id = allocate_id(&transaction, "instance")?;
+        let instance_id = format!("inst_{}", generate_id());
         let binding = input.binding.clone().unwrap_or_else(|| json!({}));
-        let payload_text = serde_json::to_string(&payload)
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
-        let binding_text = serde_json::to_string(&binding)
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
-        transaction
+        let connection = rusqlite::Connection::open(&self.path)
+            .map_err(|e| strategy_write_failure(&e.to_string()))?;
+        connection
             .execute(
-                "INSERT INTO strategy_definition_test_cutover_instances
-                    (id, definition_id, definition_version, payload, binding, status)
-                 VALUES (?1, ?2, ?3, ?4, ?5, 'STOPPED')",
-                rusqlite::params![
-                    &instance_id,
-                    definition_id,
-                    &version,
-                    &payload_text,
-                    &binding_text,
-                ],
+                "INSERT INTO strategy_catalog_operations (operation_id, plugin_id, status, updated_at, payload_json)
+                 VALUES (?1, ?2, 'STOPPED', ?3, ?4)",
+                params![instance_id, definition_id, now_rfc3339(), binding.to_string()],
             )
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
-        let mut linked_ids = linked_ids_for(&transaction, definition_id, &stored_linked_ids)?;
-        if !linked_ids.iter().any(|id| id == &instance_id) {
-            linked_ids.push(instance_id.clone());
-        }
-        let linked_ids_text = serde_json::to_string(&linked_ids)
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
-        transaction
-            .execute(
-                "UPDATE strategy_definition_test_cutover SET linked_ids = ?2 WHERE id = ?1",
-                rusqlite::params![definition_id, linked_ids_text],
-            )
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
-        transaction
-            .commit()
-            .map_err(|_| strategy_write_failure("failed to instantiate strategy"))?;
+            .map_err(|e| strategy_write_failure(&e.to_string()))?;
+        let def_val = value_from_definition(&current);
         Ok(json!({
             "id": instance_id,
             "definitionId": definition_id,
-            "definitionVersion": version,
-            "definition": payload,
+            "definitionVersion": current.version,
+            "definition": def_val,
             "binding": binding,
             "status": "STOPPED",
         }))
@@ -651,34 +332,69 @@ impl StrategyDefinitionWritePort for StrategyDefinitionSqliteTestCutoverPort {
     }
 }
 
-include!("product_strategy_definition_write_test_cutover_support.rs");
-
-fn projection_with_identity(payload: &Value, definition_id: &str, version: &str) -> Value {
-    let mut payload = payload.clone();
-    if let Value::Object(object) = &mut payload {
-        object.insert("id".to_owned(), Value::String(definition_id.to_owned()));
-        object.insert("version".to_owned(), Value::String(version.to_owned()));
+fn definition_from_value(id: &str, val: &Value) -> StoredStrategyDefinition {
+    StoredStrategyDefinition {
+        id: id.to_owned(),
+        name: val["name"].as_str().unwrap_or("").to_owned(),
+        version: val["version"].as_str().unwrap_or("0.1.0").to_owned(),
+        description: val["description"].as_str().unwrap_or("").to_owned(),
+        runtime: val["runtime"].as_str().unwrap_or("pine").to_owned(),
+        source_format: val["sourceFormat"].as_str().unwrap_or("pine").to_owned(),
+        symbol: val["symbol"].as_str().unwrap_or("US.AAPL").to_owned(),
+        interval: val["interval"].as_str().unwrap_or("1m").to_owned(),
+        script: val["script"].as_str().unwrap_or("").to_owned(),
+        visual_model_json: val["visualModelJson"].as_str().unwrap_or("{}").to_owned(),
+        created_at: val["createdAt"].as_str().unwrap_or("").to_owned(),
+        updated_at: val["updatedAt"].as_str().unwrap_or("").to_owned(),
+        deleted_at: None,
     }
-    payload
 }
 
-fn comparable_payload(payload: &Value) -> Value {
-    let mut payload = payload.clone();
-    if let Value::Object(object) = &mut payload {
-        object.remove("id");
-        object.remove("version");
-    }
-    payload
+fn value_from_definition(def: &StoredStrategyDefinition) -> Value {
+    json!({
+        "id": def.id,
+        "name": def.name,
+        "version": def.version,
+        "description": def.description,
+        "runtime": def.runtime,
+        "sourceFormat": def.source_format,
+        "symbol": def.symbol,
+        "interval": def.interval,
+        "script": def.script,
+        "visualModelJson": def.visual_model_json,
+        "createdAt": def.created_at,
+        "updatedAt": def.updated_at,
+        "deletedAt": def.deleted_at,
+    })
 }
 
-fn increment_patch_version(version: &str) -> String {
-    let mut parts = version
-        .split('.')
-        .map(|part| part.parse::<u64>().unwrap_or(0));
-    let major = parts.next().unwrap_or(0);
-    let minor = parts.next().unwrap_or(0);
-    let patch = parts.next().unwrap_or(0).saturating_add(1);
-    format!("{major}.{minor}.{patch}")
+fn map_store_error(error: StrategyDefinitionStoreError) -> StrategyDefinitionWritePortError {
+    match error {
+        StrategyDefinitionStoreError::NotFound => StrategyDefinitionWritePortError::Failed {
+            status: 404,
+            code: "NOT_FOUND".to_owned(),
+            message: "strategy resource not found".to_owned(),
+        },
+        StrategyDefinitionStoreError::DeleteGuard(message) => {
+            StrategyDefinitionWritePortError::Failed {
+                status: 400,
+                code: "STRATEGY_INVALID".to_owned(),
+                message,
+            }
+        }
+        StrategyDefinitionStoreError::Validation(message) => {
+            StrategyDefinitionWritePortError::Failed {
+                status: 400,
+                code: "STRATEGY_INVALID".to_owned(),
+                message,
+            }
+        }
+        _ => StrategyDefinitionWritePortError::Failed {
+            status: 500,
+            code: "STRATEGY_FAILED".to_owned(),
+            message: error.to_string(),
+        },
+    }
 }
 
 fn strategy_write_failure(message: &str) -> StrategyDefinitionWritePortError {
@@ -695,4 +411,18 @@ fn strategy_not_found() -> StrategyDefinitionWritePortError {
         code: "NOT_FOUND".to_owned(),
         message: "strategy resource not found".to_owned(),
     }
+}
+
+fn now_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "2026-08-26T00:00:00Z".to_owned())
+}
+
+fn generate_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    format!("{timestamp:x}_{id}")
 }
