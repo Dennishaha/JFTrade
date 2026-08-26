@@ -252,8 +252,8 @@ func (tx *Tx) Rollback() error {
 func (tx *Tx) release() error {
 	var releaseErr error
 	tx.once.Do(func() {
-		tx.ticket.finish()
 		releaseErr = tx.lease.Close()
+		tx.ticket.finish()
 	})
 	return releaseErr
 }

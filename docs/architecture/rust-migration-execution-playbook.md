@@ -64,7 +64,7 @@ Tier C：无副作用简单只读 GET 投影，如 settings、system、strategy-
 
 一次处理一个完整 route group，不逐 operation 建工作包：
 
-1. 从 tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json 和现有 Stage 9 fixture 提取整组 route，写入 tests/fixtures/rust-migration/stage9/ledgers/<group>.md。逐 operation 记录 method、path、请求/响应要点、header、空值语义和错误分支。
+1. 从 tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json 和现有 Stage 9 fixture 提取整组 route，写入 `tests/fixtures/rust-migration/stage9/ledgers/<group>.md`。逐 operation 记录 method、path、请求/响应要点、header、空值语义和错误分支。
 2. 优先扩展现有 scripts/rust-migration/stage9_*_reference_test.go 和 generator，为整组生成 golden；禁止为单个 operation 手写独立 fixture。
 3. 一个 differential 脚本覆盖整组，至少覆盖成功、空结果、404/400/401/403/409/5xx、port unavailable 及适用的 timeout/cancel。
 4. 一个 Rust 测试文件或模块用表驱动覆盖整组。
@@ -109,7 +109,7 @@ worker 默认只修改本 group 独占的 Rust crate、ledger、fixture、refere
     owner: <Go/Rust/集成分支或待指定>
     后续: <硬切前、硬切后或发布前处理条件>
 
-在分类和判定完成前必须为 unresolved，先用最小复现 fixture、Go baseline 和 Rust replay 三方复核。Go 疑似 bug 必须照抄并记录：quirk: <现象> | 判定: intended/deviated | 处置: 复刻，待硬切后修复。不得在迁移切片内修复 Go observable bug，不得删除 quirk 记录来让 differential 变绿。确认是测试错误时保留原记录并追加复核结论。
+在分类和判定完成前必须为 unresolved，先用最小复现 fixture、Go baseline 和 Rust replay 三方复核。Go 疑似 bug 必须照抄并记录：`quirk: <现象> | 判定: intended/deviated | 处置: 复刻，待硬切后修复`。不得在迁移切片内修复 Go observable bug，不得删除 quirk 记录来让 differential 变绿。确认是测试错误时保留原记录并追加复核结论。
 
 high 或 release-blocker 必须进入 group ledger、切片报告和最终 hard-cut checklist；未解决的高风险问题不得进入 cutover-qualified。所有未修复 quirk 必须在 Go 删除前明确硬切前修复、硬切后修复或接受现状。
 
