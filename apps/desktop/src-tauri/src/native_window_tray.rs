@@ -44,11 +44,11 @@ fn configure_system_tray(
         .separator()
         .text(QUIT, "退出")
         .build()?;
-    let icon = tauri::include_image!("../../../internal/desktop/icons/jftrade-tray-template.png");
+    let icon = tauri::include_image!("../../../internal/desktop/icons/jftrade-tray-light.png");
     TrayIconBuilder::with_id("jftrade-main")
         .menu(&menu)
         .icon(icon)
-        .icon_as_template(cfg!(target_os = "macos"))
+        .icon_as_template(false)
         .tooltip(application_name)
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| match event.id().as_ref() {
