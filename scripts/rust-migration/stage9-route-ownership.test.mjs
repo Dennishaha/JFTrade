@@ -18,7 +18,7 @@ test("Stage 9 ownership ledger records every baseline operation and derives all 
     remainingRoutes: 0,
     goProductionOwnerRoutes: 0,
     rustProductionOwnerRoutes: 278,
-    removedGoRoutes: 0,
+    removedGoRoutes: 278,
     remainingByCapability: {},
   });
 });

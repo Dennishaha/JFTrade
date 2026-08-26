@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-25。当前阶段：**阶段 9 生产 owner 接管与删除准入正在执行；Rust/Tauri release candidate 已能以受鉴权 loopback 只读 shadow 启动真实 GET handler。当前 144 个 operation 已通过对应 Go fixture、Rust replay、authenticated loopback wire/error/timeout/crash rehearsal 和 restart-time Go rollback 达到 cutover-qualified；`GET /api/v1/system/status` 因 owner-backed runtime inventory、OpenD/provider、broker/strategy lifecycle 仍不完整而保留 read-only shadow。133 个 cutover-test-only operation 包含全部 129 个 POST/PUT/PATCH/DELETE mutation，以及仍缺少完整专用 transport/owner 资格的 4 个 GET：ADK run/stream SSE、auth session browser transport 和 live WebSocket。research-presets-write 已完成 42-case `ScreenDefinitionV2` Go/Rust normalization corpus，并将 durable SQLite 通过显式 `ProductConfig::with_research_preset_sqlite_test_cutover` adapter 接入 test-cutover composition；该 adapter 仍强制 test-only profile、既有 schema 和唯一 writer lease，不改变默认/生产 owner。自动 route ownership 门禁当前为 278 个 operation、1 个 shadow、133 个 cutover-test-only、144 个 cutover-qualified、0 个 remaining、0 个 Rust production owner。Go/Wails 仍是全部产品写入与正式发布入口的唯一 owner。在所有 Tier A 写路径的唯一 owner、幂等、事务、恢复与副作用隔离，以及 SSE/WS/browser auth、四平台 RC、签名 updater、SBOM、安全审查和恢复演练通过前不得删除 Go/Wails**。
+状态：执行中。更新时间：2026-08-26。当前阶段：**Stage 9 的 route rehearsal 与账本收口已完成到当前提交的登记状态，但正式产品切流和 Go/Wails 删除准入仍未关闭。`route-ownership.json` 当前登记 278 个 `cutover-qualified` operation，并将 `productionOwner` 字段写为 Rust；同时 278 个 operation 的 `goRemovalStatus` 仍为 `retained`。该字段变更是迁移账本声明，不单独证明 composition root、公开入口或生产副作用已经切换。Rust product 默认 process profile 仍以 read-only shadow 运行，写 route、SQLite、Provider/OpenD、交易、Assistant、SSE/WS 和桌面生命周期只有在显式 test-cutover/fixture 或隔离 RC composition 中存在。Stage 9 closeout manifest 仍为 `in_progress`：route-group、unique-write-owner 和 hard-cut readiness 的账本证据已登记，但四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke、签名 updater artifact、security review、SBOM、rollback artifact、backup/restore、post-release smoke 与 Go/Wails owner deletion 仍开放。只有实际 composition root、唯一副作用 owner、回退、发布和删除证据全部闭合后，才能把 Rust 写成正式生产 owner或删除 Go/Wails**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -473,7 +473,15 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 ### 阶段 9：Go 删除与 Rust 大版本发布
 
+> **当前状态覆盖（2026-08-26）**：以 `node scripts/rust-migration/check-stage9-route-coverage.mjs`、`route-ownership.json`、`closeout-evidence.json` 和实际 `ProductConfig` composition 为准。当前 route ledger 为 278 个 `cutover-qualified`、0 个 `remaining`，且 278 条记录的 `productionOwner` 字段为 Rust；但 278 条记录的 `goRemovalStatus` 仍为 `retained`，默认 Rust product profile 仍是 read-only shadow，写 route 和外部副作用只在显式 test-cutover/fixture 或隔离 RC composition 中启用。closeout manifest 仍为 `in_progress`；平台发布、签名 updater、security review、SBOM、rollback artifact、backup/restore、post-release smoke 和 Go/Wails owner deletion 未全部通过。因此，“ledger productionOwner=rust”只能表示当前迁移账本登记，不能写成“Rust 已完成正式生产切流”或“Go/Wails 已可删除”。
+
+下文紧接的长段落和 Stage 9 表格保留了 2026-08-25 之前的阶段快照；其中的 144/133、1 shadow/133 cutover-test-only/144 cutover-qualified 等数字是历史证据，不是当前统计。新的切片必须使用动态门禁输出，并同时核对 active composition 与 closeout，不得复制历史计数。
+
+#### 历史快照（截至 2026-08-25）
+
 当前准入状态：执行中，尚未进入删除步骤。`jftrade-engine` 已增加受鉴权的独立 read-only product shadow：真实启动 loopback Axum，当前登记 26 个 GET handler，其中 immutable-catalog-read 的 `GET /api/v1/adk/agent-templates`、`GET /api/v1/research/screens/catalog` 与 appearance-read 的 `GET /api/v1/settings/ui` 已达到 C 档 cutover-qualified；alerts-read 的两个 GET、plugins-read 的三个 GET、strategy-definitions-read 的四个 GET、backtests-run-read 的三个 GET、research-preset-read 的两个 GET 与 watchlist-read 的六个 GET 通过 Go owner fixture、Rust replay、authenticated sidecar wire/error/timeout/crash/restart rehearsal 达到 cutover-qualified，但仍由 Go 保持 production owner，默认 shadow 不注册任何写入或通知副作用 route。auth-session 一个浏览器会话投影、market-data-news-actions 两个 provider-backed GET、market-data-quote-read 十个行情/订阅状态 GET、market-data-prediction-read 十二个 prediction-market GET、watchlists remote-list 一个 GET、portfolio 两个 broker-backed GET、research provider-read 十四个 GET、execution-read 三个订单/详情/事件 GET、market-data-provider-read 一个 provider status GET、market-data-catalog-read 两个 markets/instruments GET、market-data-derivatives-read 两个 warrants/futures GET、market-data-options-read 五个 option GET、brokers-read 十三个 GET、system-read 两个生命周期 GET、backtests-sync-read 一个 mutable progress GET 与 strategy-instance-read 三个策略实例/活动 GET 仅在显式 test-cutover 注入各自 consumer-owned snapshot port 时登记；adk-chat-stream 的两个 POST 与 market-data-provider-actions 的五个 provider-backed POST 仅在显式 test-cutover port 下登记，alerts-write 的两个 POST、plugins-write 的两个 POST、research-screens-write 的一个 POST、research-presets-write 的三个 POST/PATCH/DELETE、strategy-definitions-write 的五个 POST/PUT/DELETE、auth-session-write 的两个 POST、watchlist-write 的八个 POST/PATCH/PUT/DELETE、watchlists-remote-write 的一个 POST 与 adk-mutations 的 37 个 mutation/control、strategies-write 的 7 个 mutation/control、execution-write 的 7 个 POST、system-write 的 7 个 mutation、market-data-subscription-mutation 的 6 个 mutation、backtests-write 的两个 POST/两个 DELETE 仅在显式 mutation test port 下登记，Go SQLite、浏览器 session/cookie/CSRF/password 校验、OpenD、plugin catalog/runtime、plugin lifecycle、strategy store、runtime activity store、backtest run store、sync worker、broker runtime、research provider/runtime preset store、order-update worker、execution ledger/refresh worker、market-data provider lifecycle、Assistant runtime、provider quote persistence 和正式 lifecycle 仍由 Go 唯一拥有；各组均通过组级 fixture、参数化 Rust 测试与统一 product differential，默认 shadow 不注册。UI appearance、onboarding、execution、ADK timeout、security password、MCP 配置/token、system notification、Pine worker、exchange calendar、market-data/backtest Provider 选择与 broker integration/account 的兼容写实现只在临时目录 cutover 测试中启用；`route-ownership.json` v2 逐 operation 记录 method、path、capability、implementation status、production owner、Go removal status、依赖和证据，门禁当前派生为 278 个 operation、1 个 read-only shadow、133 个 cutover-test-only、144 个 cutover-qualified、0 个 remaining、0 个 Rust production owner。Go/Wails 正式入口、所有生产写入、Web/MCP listener、SQLite 写入、Provider、交易、Assistant、WebSocket 和发布入口继续保持唯一生产 owner。
+
+#### 历史切片表（截至 2026-08-25）
 
 首个切片账本：
 
@@ -734,8 +742,10 @@ composition，不改变默认 profile、公开契约或 Go production owner。
 ProviderRouter-backed OpenD runtime 下静默 no-op 的 composition 缺陷。现在
 demand 更新通过 bridge 自有 consumer 写入唯一 ProviderRouter，支持替换、清空
 和非法 instrument 的 fail-closed 保留旧值；standalone runtime 与默认 profile
-不变。当前 route ledger 动态统计为 1 shadow / 118 cutover-test-only /
-159 cutover-qualified / 0 remaining / 0 Rust production owner。
+不变。当前 route ledger 动态统计为 0 shadow / 0 cutover-test-only /
+278 cutover-qualified / 0 remaining / 278 Rust production-owner entries；这只是
+ledger snapshot。默认 profile、公开入口、Go removal、发布与 closeout 状态仍需
+另行核对，不能由该统计单独推出正式生产切流。
 
 2026-08-26：修复 OpenD runtime 在 pending reconnect 期间接收新 demand 时的
 generation/replay fencing 缺陷。旧实现会在 session 已释放后立即执行新拓扑并返回

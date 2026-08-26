@@ -24,14 +24,14 @@
 
 持续推进迁移，直到 Go 后端、Wails 桌面壳和所有 Go production owner 满足最终删除准入，由 Rust/Tauri 完整接管产品运行时。Vue 3 控制台、Node PineTS worker 和 Python market-data helper 按现有架构保留。PineTS 只产生信号、图形和 order intents；撮合、成交、资金曲线、风控和下单仍属于后端 owner。
 
-当前允许 Go/Rust 共存，但同一业务状态任何时刻只能有一个权威 owner。Rust 新实现默认不是 production owner。开始工作前必须动态读取统计，不能假设仍为 278 operation、26 shadow、80 cutover-test-only、172 remaining、0 Rust production owner。
+当前允许 Go/Rust 共存，但同一业务状态任何时刻只能有一个权威 owner。开始工作前必须动态读取 route ledger、closeout manifest 和实际 composition root；不能把 ledger 的 `productionOwner` 字段单独当作已经切流。当前 ledger 可登记 278 个 `cutover-qualified` 和 Rust owner，但只要 `goRemovalStatus` 仍为 `retained`、默认 profile 仍为 shadow/test-cutover，或 closeout/发布门禁未关闭，正式产品 owner 仍未完成切换。
 
 ## 不可退让的硬约束
 
 1. 遵守根目录及局部 AGENTS.md 全部边界：领域 crate 禁止依赖 HTTP transport、DB driver、SQLite 具体实现、Futu protobuf 和具体外部协议；internal/api/* 不得直接访问 store、integration、SQLite 或 Futu；生成代码不得手工修改；不回退用户已有改动。
 2. 禁止双写。SQLite、订单、策略运行状态、审批、任务、订阅、通知、Provider/OpenD 生命周期和用户可见事件任何时候只能有一个 owner。
 3. owner 切换只能在 composition root 发生。Rust 默认只读；领域 crate、handler 和测试 adapter 不得自行切换生产 owner。
-4. 不新增 Rust production owner。新增 route 只能登记为 shadow、cutover-test-only 或 cutover-qualified；写实现只能在临时目录、fixture、mock port 和显式 test-cutover profile 中启用。
+4. 不在缺少 composition-root 与 closeout 证据时新增或宣称 Rust production owner。新增 route 只能从 shadow、cutover-test-only 或 cutover-qualified 开始；写实现只能在临时目录、fixture、mock port 和显式 test-cutover profile 中启用。ledger owner 字段的变更必须与唯一副作用 owner、公开入口、回退和删除证据同一提交或同一可审计交接中闭环。
 5. 默认 profile 不得注册 test-cutover route，不得激活 Provider、连接真实 OpenD、启动生产 helper、写生产 SQLite、发单、写通知或发布用户可见事件。
 6. 不改变公开 HTTP/OpenAPI、SSE、WebSocket、Wails bindings、SQLite schema、公开 pkg/* API、worker wire contract 和桌面公开行为，除非需求明确要求。
 7. wire 契约逐字节兼容：path、method、status、header、JSON 字段及顺序、null/omitted、空数组、数字精度、时间格式、错误 envelope、错误优先级、取消和超时语义均以 Go baseline 为准。
@@ -171,7 +171,7 @@ worker 交接必须包含 group、tier、operation 数和状态变化；修改�
 - [ ] 集成分支的 pnpm run check:affected 通过。
 - [ ] Rust migration 变更的完整 pnpm run check:rust 在集成分支通过；未完成前该组不得登记为最终 cutover-qualified。
 - [ ] 契约变化时 pnpm run check:generated 通过。
-- [ ] 没有 Rust production owner 变更、默认 profile 写 route、真实 Provider/OpenD/helper 激活或任何双写。
+- [ ] 没有未经 composition-root、closeout 和 owner-deletion 证据批准的 Rust production-owner 变更、默认 profile 写 route、真实 Provider/OpenD/helper 激活或任何双写。
 - [ ] 架构账本追加 1 至 3 行，包含门禁实际派生的最新 operation 统计。
 - [ ] 所有 quirk 已记录；high/release-blocker 已进入总账和后续 gate。
 - [ ] 切片报告包含组名、operation 数、tier、修改文件、src/test/fixture/docs 行数、验证命令、问题、未完成项和下一波 group。

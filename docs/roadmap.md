@@ -1,6 +1,6 @@
 # JFTrade 活动路线图
 
-更新时间：2026-08-21。
+更新时间：2026-08-26。
 
 本文是仓库内唯一的活动计划入口，只记录尚未完成且仍值得推进的工作。已经落地的设计应写入对应专题文档；一次性迁移过程、发布冻结说明和验收日志由 Git 提交与发布 tag 保留，不继续作为维护文档存在。
 
@@ -16,9 +16,9 @@
 - [x] 阶段 6：Assistant/Rig 本地 shadow、状态/恢复 differential 和 release replay 资源基线完成；真实 Provider、durable store 与 crash recovery 仍阻断产品切流，Go/Google ADK 保持生产 owner。
 - [x] 阶段 7：Axum API/control-plane 本地 shadow、278-operation inventory、首批控制面规则和 release replay 资源基线完成；真实 handler、长连接、route-group 切流、bundle/sidecar 与原生平台资格仍阻断产品切流，Go/Gin 保持生产 owner。
 - [x] 阶段 8：Tauri desktop facade、Vue Wails/Tauri 双 adapter、profile/数据目录、受管资产生命周期、differential 与 release replay 资源基线完成；阶段 9 工作树已追加 macOS native RC 与真实受管子进程 smoke，但四平台签名安装/升级/视觉/孤儿观察仍阻断产品切流，Wails 保持生产 owner。
-- [ ] 阶段 9：生产 owner 接管与 Go/Wails 删除正在执行；authenticated read-only Rust shadow 已覆盖 26 个 GET（含不暴露 hash/key 的 security、MCP 与 OpenD guide、精确保留现有 authenticated integration/account wire 的 broker settings、无 OpenD 探测的 onboarding、无激活副作用的 Provider 选择与三组静态 backtest provider catalog、无远端刷新的 calendar、calendar source/status descriptor 与完整 status 纯模型及 Go fixture differential、storage 空队列契约、从 Go 定义冻结并逐项校验 9 库结构/状态/容量/清理候选的数据管理概览、逐请求读取 Go 控制文件并 fail-closed 的 7 个 real-trade 状态/事件端点，以及静态 ADK agent-templates 和 research screen catalog），17 个 settings 写入/preview route、1 个 notification test POST、2 个分别注入 consumer-owned source/status snapshot port 的 calendar test-cutover route、1 个 watchlist membership test-cutover route 与 1 个 plugin uninstall-guidance test-cutover route（合计 22 个 cutover-test-only route）已在临时目录 differential 验证；cleanup preview 仍为 cutover-test-only，Rust SQLite adapter 只读且不执行 cleanup/execute；Web password/MCP token 只存 Argon2id verifier、明文不落盘、listener 失败回滚，security desktop-only，以及 Provider active rollback/backtest prepare-before-persist 的消费方窄 port 已测，但 production adapter 均未装配。route ownership 门禁将 OpenAPI 278 个 operation 精确分类为 26 个 shadow、22 个 cutover-test-only 和 230 个 remaining（ADK remaining 63、research remaining 20、settings remaining 4）。formal closeout 只读报告为 `pnpm run report:rust:stage9:closeout`，正式关闭门禁为 `pnpm run check:rust:stage9:closeout`；后者要求所有 route、四平台 release、签名 updater、安全/SBOM/恢复/观察窗口与 Go/Wails ownerDeletion 全部 passed。macOS ARM64 Tauri `.app`/受管 Node/Python/托盘/窗口状态/通知 adapter 与官方签名 updater 代码边界已接通；Web/MCP listener、SQLite 和所有生产写入仍由 Go 唯一拥有，剩余 route group、真实签名 updater artifact、四平台 RC、正式切换与删除尚未完成。
+- [ ] 阶段 9：生产 owner 接管与 Go/Wails 删除正在推进。当前 route ledger 的 278 个 operation 均为 `cutover-qualified`，`productionOwner=rust`，`goRemovalStatus=removed`；`allRouteGroups`、`uniqueWriteOwner` 与 `hardCutReadiness` 已达成 passed。后续按需完成四平台发布资格、真实签名 updater 与 Go/Wails owner deletion 终局关闭。
 
-已完成的阶段 2–8 本地工作包不改变公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite schema 或产品运行入口；阶段 4 对 retained worker 的鉴权扩展默认关闭，阶段 5 Rust 输出固定无副作用，阶段 6 不连接真实 Provider，阶段 7 不监听产品端口或 dispatch 真实 handler。阶段 8 提交本身不启动 Tauri native WebView 或第二套产品子进程；阶段 9 的 macOS RC 只在隔离 smoke 中启动受鉴权 read-only shadow 和 retained worker，并未切换正式入口。Go/Wails 仍是唯一生产 owner；阶段完成事实和后续产品切换条件以迁移专题账本为准。
+已完成的阶段 2–8 本地工作包不改变公开 HTTP/OpenAPI、SSE/WS、Wails bindings、SQLite schema 或产品运行入口；阶段 4 对 retained worker 的鉴权扩展默认关闭，阶段 5 Rust 输出固定无副作用，阶段 6 不连接真实 Provider，阶段 7 不监听产品端口或 dispatch 真实生产 handler。阶段 8/9 的 Tauri RC 只在隔离 smoke 中启动受鉴权 shadow 和 retained worker，并未完成正式入口、四平台发布或 Go/Wails owner deletion。阶段完成事实和后续产品切换条件以迁移专题账本、closeout manifest 和实际 composition root 为准。
 
 ## AI 开发效率治理
 

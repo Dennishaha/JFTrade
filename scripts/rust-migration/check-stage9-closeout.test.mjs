@@ -66,7 +66,7 @@ test("Stage 9 closeout fixture is structurally valid but remains open", () => {
   });
   assert.equal(result.valid, true);
   assert.equal(result.complete, false);
-  assert.match(result.blockers.join("\n"), /production ownership remains Go|Go implementation removal remains incomplete/);
+  assert.match(result.blockers.join("\n"), /gate platformRelease is open/);
   assert.match(result.blockers.join("\n"), /platform macos-arm64 package is open/);
 });
 
