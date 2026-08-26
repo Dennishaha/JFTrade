@@ -533,16 +533,18 @@ func runStage9ClientDisconnect(
 	observation := map[string]any{
 		"replay":                 stage9NormalizeADKChatResponse(t, replay),
 		"writesBeforeDisconnect": float64(writer.writes),
+		"writeError":             writer.writeError,
 		"closedAfterTerminal":    true,
 	}
 	return expected, observation
 }
 
 type stage9FailingSSEWriter struct {
-	header http.Header
-	status int
-	writes int
-	body   bytes.Buffer
+	header     http.Header
+	status     int
+	writes     int
+	body       bytes.Buffer
+	writeError string
 }
 
 func newStage9FailingSSEWriter() *stage9FailingSSEWriter {
@@ -556,7 +558,9 @@ func (w *stage9FailingSSEWriter) WriteHeader(status int) { w.status = status }
 func (w *stage9FailingSSEWriter) Write(value []byte) (int, error) {
 	w.writes++
 	if w.writes == 1 {
-		return 0, errors.New("stream client disconnected")
+		err := errors.New("stream client disconnected")
+		w.writeError = err.Error()
+		return 0, err
 	}
 	return w.body.Write(value)
 }

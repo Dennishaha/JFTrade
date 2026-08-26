@@ -1,12 +1,3 @@
-use std::env;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
-
 use crate::product_data_management;
 use crate::product_runtime::ProductRuntimeState;
 use crate::real_trade_control::{
@@ -47,6 +38,14 @@ use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::env;
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -59,7 +58,11 @@ pub const PRODUCT_READ_ONLY_ROUTE_PROFILE: &str = "read-only-shadow.v1";
 pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
-include!("product_research_preset_port.rs");
+#[path = "product_research_preset_port.rs"]
+mod product_research_preset_port;
+use product_research_preset_port::{
+    ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort,
+};
 include!("product_execution_read_port.rs");
 include!("product_market_data_provider_read_port.rs");
 include!("product_market_data_catalog_read_port.rs");
@@ -248,12 +251,10 @@ pub trait StrategyDefinitionSnapshotPort: Send + Sync + std::fmt::Debug {
         definition_id: &str,
         preview: &StrategyDefinitionPreview,
     ) -> Result<Option<Value>, StrategyDefinitionSnapshotError>;
-
     fn versions(
         &self,
         definition_id: &str,
     ) -> Result<Option<Vec<Value>>, StrategyDefinitionSnapshotError>;
-
     fn version(
         &self,
         definition_id: &str,
@@ -414,7 +415,6 @@ impl ProductConfig {
             capabilities: ProductCapabilities::default(),
         })
     }
-
     #[cfg(test)]
     fn test_cutover(
         bind_address: SocketAddr,

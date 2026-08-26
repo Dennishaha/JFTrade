@@ -29,6 +29,8 @@ struct FixtureCase {
     #[serde(rename = "portMode")]
     port_mode: String,
     expected: Expected,
+    #[serde(default)]
+    observation: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,6 +127,15 @@ fn adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases() {
                 response,
                 product_adk_chat_stream_port::AdkChatWireResponse::Sse { terminal: true, .. }
             ));
+            assert_eq!(
+                case.observation
+                    .as_ref()
+                    .and_then(|observation| observation.get("writeError"))
+                    .and_then(Value::as_str),
+                Some("stream client disconnected"),
+                "case {} must retain the Go-owned failed-writer error observation",
+                case.name
+            );
             continue;
         }
 

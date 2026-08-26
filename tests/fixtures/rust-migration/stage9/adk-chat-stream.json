@@ -1302,6 +1302,7 @@
             }
           ]
         },
+        "writeError": "stream client disconnected",
         "writesBeforeDisconnect": 1
       }
     }
