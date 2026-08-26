@@ -323,9 +323,9 @@ async fn watchlist_sqlite_test_cutover_replays_transport_and_restart() {
     let database_path = directory.path().join("watchlist-test-cutover.db");
     std::fs::write(&settings_path, b"{\"seed\":\"watchlist-durable\"}\n").expect("seed settings");
     let settings_before = std::fs::read(&settings_path).expect("settings");
+    seed_go_watchlist_schema(&database_path);
     let port =
         Arc::new(WatchlistSqliteTestCutoverPort::open(&database_path).expect("open adapter"));
-    port.seed_group("group-1", "Growth", 1).expect("seed group");
     let config =
         ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
             .expect("config")
@@ -412,4 +412,145 @@ async fn watchlist_sqlite_test_cutover_replays_transport_and_restart() {
         std::fs::read(&settings_path).expect("settings after restart"),
         settings_before
     );
+}
+
+fn seed_go_watchlist_schema(path: &std::path::Path) {
+    let connection = rusqlite::Connection::open(path).expect("create watchlist fixture");
+    connection
+        .execute_batch(
+            "CREATE TABLE watchlist_groups (
+                group_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                name_key TEXT NOT NULL UNIQUE,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                protected INTEGER NOT NULL DEFAULT 0,
+                revision INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX watchlist_groups_one_default
+                ON watchlist_groups(is_default) WHERE is_default = 1;
+            CREATE TABLE watchlist_instruments (
+                instrument_id TEXT PRIMARY KEY,
+                market TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                instrument_type TEXT NOT NULL DEFAULT '',
+                membership_revision INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE watchlist_memberships (
+                group_id TEXT NOT NULL,
+                instrument_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (group_id, instrument_id)
+            );
+            CREATE INDEX watchlist_memberships_instrument
+                ON watchlist_memberships(instrument_id, group_id);
+            CREATE TABLE watchlist_sources (
+                source_id TEXT PRIMARY KEY,
+                broker TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                last_error TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE watchlist_remote_groups (
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                group_type TEXT NOT NULL,
+                ambiguous INTEGER NOT NULL DEFAULT 0,
+                member_count INTEGER NOT NULL DEFAULT 0,
+                remote_hash TEXT NOT NULL DEFAULT '',
+                observed_at TEXT NOT NULL,
+                PRIMARY KEY (source_id, remote_group_id)
+            );
+            CREATE TABLE watchlist_bindings (
+                binding_id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                remote_name TEXT NOT NULL,
+                local_group_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (source_id, remote_group_id)
+            );
+            CREATE INDEX watchlist_bindings_local_group
+                ON watchlist_bindings(local_group_id);
+            CREATE TABLE watchlist_remote_memberships (
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                instrument_id TEXT NOT NULL,
+                remote_hash TEXT NOT NULL,
+                observed_at TEXT NOT NULL,
+                PRIMARY KEY (source_id, remote_group_id, instrument_id)
+            );
+            CREATE TABLE watchlist_membership_origins (
+                group_id TEXT NOT NULL,
+                instrument_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                last_imported_at TEXT NOT NULL,
+                PRIMARY KEY (group_id, instrument_id, source_id, remote_group_id)
+            );
+            CREATE INDEX watchlist_membership_origins_instrument
+                ON watchlist_membership_origins(instrument_id, group_id);
+            CREATE TABLE watchlist_instrument_aliases (
+                source_id TEXT NOT NULL,
+                alias_kind TEXT NOT NULL,
+                alias_value TEXT NOT NULL,
+                instrument_id TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (source_id, alias_kind, alias_value)
+            );
+            CREATE TABLE watchlist_import_previews (
+                preview_id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                remote_group_name TEXT NOT NULL,
+                local_group_id TEXT NOT NULL DEFAULT '',
+                new_group_name TEXT NOT NULL DEFAULT '',
+                remote_hash TEXT NOT NULL,
+                local_group_revision INTEGER NOT NULL,
+                added_json TEXT NOT NULL,
+                unchanged_json TEXT NOT NULL,
+                local_only_json TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            CREATE INDEX watchlist_import_previews_expiry
+                ON watchlist_import_previews(status, expires_at);
+            CREATE TABLE watchlist_import_runs (
+                run_id TEXT PRIMARY KEY,
+                preview_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                remote_group_id TEXT NOT NULL,
+                remote_group_name TEXT NOT NULL,
+                local_group_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                added_count INTEGER NOT NULL,
+                removed_count INTEGER NOT NULL,
+                unchanged_count INTEGER NOT NULL,
+                remote_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                completed_at TEXT NOT NULL
+            );
+            CREATE INDEX watchlist_import_runs_source
+                ON watchlist_import_runs(source_id, run_id DESC);
+            CREATE TABLE jftrade_schema_meta (
+                component_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO jftrade_schema_meta (component_id, version, created_at)
+                VALUES ('watchlist', 1, '2026-08-24T04:00:00Z');
+            INSERT INTO watchlist_groups (group_id, name, name_key, is_default, protected, revision, created_at, updated_at)
+                VALUES ('default', '自选股', '自选股', 1, 1, 1, '2026-08-24T04:00:00Z', '2026-08-24T04:00:00Z');
+            INSERT INTO watchlist_groups (group_id, name, name_key, is_default, protected, revision, created_at, updated_at)
+                VALUES ('group-1', 'Growth', 'growth', 0, 0, 1, '2026-08-24T04:00:00Z', '2026-08-24T04:00:00Z');",
+        )
+        .expect("seed Go-compatible watchlist schema");
 }
