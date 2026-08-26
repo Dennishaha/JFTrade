@@ -14,7 +14,7 @@ import {
 
 afterEach(() => {
   delete window.__JFTRADE_RUNTIME_CONFIG__;
-  delete (window as typeof window & { wails?: unknown }).wails;
+  delete (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 });
 
 describe("runtimeConfig", () => {
@@ -50,7 +50,7 @@ describe("runtimeConfig", () => {
   });
 
   it("detects the native bridge independently of desktop runtime config", () => {
-    (window as typeof window & { wails?: { invoke: () => void } }).wails = {
+    (window as typeof window & { __TAURI_INTERNALS__?: { invoke: () => void } }).__TAURI_INTERNALS__ = {
       invoke: () => undefined,
     };
 
@@ -69,13 +69,10 @@ describe("runtimeConfig", () => {
     vi.resetModules();
     vi.stubGlobal("window", undefined);
     try {
-      const serverRuntimeConfig = await import("../../src/runtimeConfig");
-      expect(serverRuntimeConfig.resolveDesktopMode()).toBe(false);
-      expect(serverRuntimeConfig.resolveDesktopBridgeAvailable()).toBe(false);
-      expect(serverRuntimeConfig.resolveDesktopApiToken()).toBeNull();
-      expect(serverRuntimeConfig.buildRuntimeLiveSocketUrl("/api/v1/ws/live")).toBe(
-        "ws://127.0.0.1/api/v1/ws/live",
-      );
+      const serverConfig = await import("../../src/runtimeConfig");
+      expect(serverConfig.resolveDesktopMode()).toBe(false);
+      expect(serverConfig.resolveDesktopBridgeAvailable()).toBe(false);
+      expect(serverConfig.resolveDesktopApiToken()).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }

@@ -62,9 +62,6 @@ importers:
       '@vue-flow/minimap':
         specifier: ^1.5.4
         version: 1.5.4(@vue-flow/core@1.48.2(vue@3.5.41(typescript@7.0.2)))(vue@3.5.41(typescript@7.0.2))
-      '@wailsio/runtime':
-        specifier: 3.0.0-beta.8
-        version: 3.0.0-beta.8
       lightweight-charts:
         specifier: ^5.2.1
         version: 5.2.1
@@ -1421,9 +1418,6 @@ packages:
     resolution: {integrity: sha512-bZpge9eSXwa4ToSiqJ7j6KRwhAsneMFoSz3LMWKQDkqimm3D/tbFlrklrs/IOqC8tEcYmXQZJ6N0UrjhBirVCg==}
     peerDependencies:
       vue: 3.5.41
-
-  '@wailsio/runtime@3.0.0-beta.8':
-    resolution: {integrity: sha512-c9PZJcOR9z1a6cxtBS2q5cygNajlxDE8Oxv/vvcTFYRbZSoOGBszq4uzlkPTOd0Bot1xkM81jnpaBgKWRpBh2g==}
 
   abbrev@5.0.0:
     resolution: {integrity: sha512-/XrFJgzQQQHpti1raDJC6m4ws6aNktmjBlhk8Fdlk7LwCEuDoieEJJY9OFHjfiFJFFRM2tK+Ky/IsfbbmlMu1w==}
@@ -4074,8 +4068,6 @@ snapshots:
   '@vueuse/shared@14.3.0(vue@3.5.41(typescript@7.0.2))':
     dependencies:
       vue: 3.5.41(typescript@7.0.2)
-
-  '@wailsio/runtime@3.0.0-beta.8': {}
 
   abbrev@5.0.0: {}
 

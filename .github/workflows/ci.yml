@@ -267,11 +267,8 @@ jobs:
       - name: Test command packages
         run: go test ./cmd/... -count=1 -timeout 300s
 
-      - name: Wails bindings are current
-        run: pnpm run check:wails-bindings
-
-      - name: Wails doctor
-        run: go tool wails3 doctor
+      - name: Check Tauri release runtime
+        run: pnpm run check:tauri-release-runtime
 
       - name: Go vulnerability check
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
@@ -669,6 +666,9 @@ jobs:
       - name: Setup Go
         uses: ./.github/actions/setup-go
 
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
       - name: Setup Python
         uses: ./.github/actions/setup-python
 
@@ -685,19 +685,16 @@ jobs:
         run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Test desktop release profile
-        run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build Linux desktop application
-        run: go tool wails3 build
-
-      - name: Verify Linux desktop binary
-        uses: ./.github/actions/verify-linux-desktop-binary
+        run: pnpm run build:desktop:tauri
 
       - name: Upload Linux desktop smoke artifact
         uses: actions/upload-artifact@v7
         with:
           name: ci-desktop-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: bin/JFTrade
+          path: apps/desktop/src-tauri/target/release/jftrade-desktop
           if-no-files-found: error
           retention-days: 1
 
@@ -712,24 +709,21 @@ jobs:
           - label: Linux x64
             runner: ubuntu-24.04
             platform: linux
-            test_tags: production,release_assets,gtk3
-            build_command: go tool wails3 build
+            build_command: pnpm run build:desktop:tauri
             artifact_id: linux-x64
-            artifact_path: bin/JFTrade
+            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop
           - label: macOS ARM64
             runner: macos-15
             platform: macos
-            test_tags: production,release_assets
-            build_command: go tool wails3 build
+            build_command: pnpm run build:desktop:tauri
             artifact_id: macos-arm64
-            artifact_path: bin/JFTrade.app
+            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop
           - label: Windows x64
             runner: windows-latest
             platform: windows
-            test_tags: production,release_assets
-            build_command: go tool wails3 build
+            build_command: pnpm run build:desktop:tauri
             artifact_id: windows-x64
-            artifact_path: bin/JFTrade.exe
+            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop.exe
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
@@ -743,6 +737,9 @@ jobs:
 
       - name: Setup Go
         uses: ./.github/actions/setup-go
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Setup Python
         uses: ./.github/actions/setup-python
@@ -773,38 +770,31 @@ jobs:
           }
 
       - name: Test desktop release profile
-        run: go test -tags "${{ matrix.test_tags }}" ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build desktop application
         run: ${{ matrix.build_command }}
 
       - name: Verify Linux desktop binary
         if: ${{ matrix.platform == 'linux' }}
-        uses: ./.github/actions/verify-linux-desktop-binary
+        run: |
+          binary="apps/desktop/src-tauri/target/release/jftrade-desktop"
+          test -x "$binary"
+          file "$binary" | grep -q 'ELF 64-bit'
 
       - name: Verify macOS desktop application
         if: ${{ matrix.platform == 'macos' }}
         run: |
-          bundle="bin/JFTrade.app"
-          binary="$bundle/Contents/MacOS/JFTrade"
-          plist="$bundle/Contents/Info.plist"
-          test -d "$bundle"
+          binary="apps/desktop/src-tauri/target/release/jftrade-desktop"
           test -x "$binary"
-          plutil -lint "$plist"
           file "$binary" | grep -q 'Mach-O 64-bit executable arm64'
           test "$(lipo -archs "$binary")" = "arm64"
-          go version -m "$binary" | tee /tmp/jftrade-macos-buildinfo.txt
-          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-macos-buildinfo.txt
-          grep -q 'GOARCH=arm64' /tmp/jftrade-macos-buildinfo.txt
-          strings "$binary" > /tmp/jftrade-macos-strings.txt
-          grep -q '"Debug":false' /tmp/jftrade-macos-strings.txt
-          codesign --verify --deep --strict --verbose=2 "$bundle"
 
       - name: Verify Windows desktop executable
         if: ${{ matrix.platform == 'windows' }}
         shell: pwsh
         run: |
-          $artifact = (Resolve-Path "bin/JFTrade.exe").Path
+          $artifact = (Resolve-Path "apps/desktop/src-tauri/target/release/jftrade-desktop.exe").Path
           if ((Get-Item $artifact).Length -le 0) {
             throw "Windows desktop executable is empty"
           }

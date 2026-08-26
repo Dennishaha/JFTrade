@@ -46,7 +46,7 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "check:rust:differential"]],
   ["go", ["build", "./..."]],
   ["go", ["test", "./cmd/...", "-count=1", "-timeout=300s"]],
-  ["pnpm", ["run", "check:wails-bindings"]],
+  ["pnpm", ["run", "check:tauri-release-runtime"]],
   ["pnpm", ["run", "test:scripts", "--", "desktop"]],
   ["pnpm", ["run", "build:frontend-assets:generated"]],
   ["node", ["scripts/report-web-bundle.mjs"]],

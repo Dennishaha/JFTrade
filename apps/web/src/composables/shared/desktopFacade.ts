@@ -1,6 +1,6 @@
 import { resolveDesktopMode } from "@/runtimeConfig";
 
-export type DesktopBackend = "browser" | "tauri" | "wails";
+export type DesktopBackend = "browser" | "tauri";
 export type DesktopUnlisten = () => void;
 
 export interface DesktopStartupSnapshot {
@@ -52,15 +52,7 @@ export function resolveDesktopBackend(): DesktopBackend {
   const runtimeWindow = window as typeof window & {
     __TAURI_INTERNALS__?: unknown;
   };
-  if (runtimeWindow.__TAURI_INTERNALS__ != null) return "tauri";
-  const { protocol, hostname } = window.location;
-  if (
-    resolveDesktopMode() ||
-    protocol === "wails:" ||
-    hostname === "wails.localhost"
-  ) {
-    return "wails";
-  }
+  if (runtimeWindow.__TAURI_INTERNALS__ != null || resolveDesktopMode()) return "tauri";
   return "browser";
 }
 
@@ -77,18 +69,11 @@ async function listenDesktopEvent<T>(
   eventName: string,
   listener: (payload: T) => void,
 ): Promise<DesktopUnlisten> {
-  switch (resolveDesktopBackend()) {
-    case "tauri": {
-      const { listen } = await import("@tauri-apps/api/event");
-      return listen<T>(eventName, (event) => listener(event.payload));
-    }
-    case "wails": {
-      const { Events } = await import("@wailsio/runtime");
-      return Events.On(eventName, (event) => listener(event.data as T));
-    }
-    case "browser":
-      return () => undefined;
+  if (resolveDesktopBackend() === "tauri") {
+    const { listen } = await import("@tauri-apps/api/event");
+    return listen<T>(eventName, (event) => listener(event.payload));
   }
+  return () => undefined;
 }
 
 export const desktopFacade = {
@@ -98,23 +83,11 @@ export const desktopFacade = {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_startup_snapshot");
       }
-      if (resolveDesktopBackend() === "wails") {
-        const { Snapshot } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktopstartupservice"
-        );
-        return Snapshot();
-      }
       throw unavailable("startup snapshot");
     },
     async quit(): Promise<void> {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_startup_quit");
-      }
-      if (resolveDesktopBackend() === "wails") {
-        const { Quit } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktopstartupservice"
-        );
-        return Quit();
       }
       throw unavailable("quit");
     },
@@ -124,12 +97,6 @@ export const desktopFacade = {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_open_link", { link });
       }
-      if (resolveDesktopBackend() === "wails") {
-        const { OpenLink } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplinkservice"
-        );
-        return OpenLink(link);
-      }
       throw unavailable("open link");
     },
   },
@@ -137,12 +104,6 @@ export const desktopFacade = {
     async listDays(): Promise<DesktopLogDay[] | null> {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_log_list_days");
-      }
-      if (resolveDesktopBackend() === "wails") {
-        const { ListDays } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice"
-        );
-        return ListDays();
       }
       throw unavailable("list log days");
     },
@@ -162,23 +123,11 @@ export const desktopFacade = {
           limit,
         });
       }
-      if (resolveDesktopBackend() === "wails") {
-        const { ReadPage } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice"
-        );
-        return ReadPage(day, level, query, offset, limit);
-      }
       throw unavailable("read logs");
     },
     async openFolder(): Promise<void> {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_log_open_folder");
-      }
-      if (resolveDesktopBackend() === "wails") {
-        const { OpenFolder } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice"
-        );
-        return OpenFolder();
       }
       throw unavailable("open log folder");
     },
@@ -190,12 +139,6 @@ export const desktopFacade = {
     async check(): Promise<DesktopUpdateResult> {
       if (resolveDesktopBackend() === "tauri") {
         return tauriInvoke("desktop_update_check");
-      }
-      if (resolveDesktopBackend() === "wails") {
-        const { Check } = await import(
-          "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktopupdateservice"
-        );
-        return Check();
       }
       throw unavailable("check updates");
     },

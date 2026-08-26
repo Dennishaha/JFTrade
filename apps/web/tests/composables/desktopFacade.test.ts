@@ -5,39 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   listen: vi.fn(),
-  wailsCheck: vi.fn(),
-  wailsListDays: vi.fn(),
-  wailsOpen: vi.fn(),
-  wailsOpenFolder: vi.fn(),
-  wailsQuit: vi.fn(),
-  wailsReadPage: vi.fn(),
-  wailsSnapshot: vi.fn(),
-  wailsEventsOn: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
-vi.mock("@wailsio/runtime", () => ({ Events: { On: mocks.wailsEventsOn } }));
-vi.mock(
-  "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplinkservice",
-  () => ({ OpenLink: mocks.wailsOpen }),
-);
-vi.mock(
-  "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktopstartupservice",
-  () => ({ Snapshot: mocks.wailsSnapshot, Quit: mocks.wailsQuit }),
-);
-vi.mock(
-  "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice",
-  () => ({
-    ListDays: mocks.wailsListDays,
-    OpenFolder: mocks.wailsOpenFolder,
-    ReadPage: mocks.wailsReadPage,
-  }),
-);
-vi.mock(
-  "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktopupdateservice",
-  () => ({ Check: mocks.wailsCheck }),
-);
 
 import {
   desktopFacade,
@@ -48,27 +19,27 @@ afterEach(() => {
   delete window.__JFTRADE_RUNTIME_CONFIG__;
   delete (window as typeof window & { __TAURI_INTERNALS__?: unknown })
     .__TAURI_INTERNALS__;
-  for (const mock of Object.values(mocks)) mock.mockReset();
+  mocks.invoke.mockReset();
+  mocks.listen.mockReset();
 });
 
 describe("desktopFacade", () => {
-  it("resolves server, Tauri, Wails protocol, Wails host, and browser runtimes", () => {
+  it("resolves server, Tauri, and browser runtimes", () => {
     const browserWindow = window;
 
     vi.stubGlobal("window", undefined);
     expect(resolveDesktopBackend()).toBe("browser");
 
     vi.stubGlobal("window", {
-      __JFTRADE_RUNTIME_CONFIG__: { desktopMode: false },
-      location: { hostname: "example.com", protocol: "wails:" },
+      __JFTRADE_RUNTIME_CONFIG__: { desktopMode: true },
     });
-    expect(resolveDesktopBackend()).toBe("wails");
+    expect(resolveDesktopBackend()).toBe("tauri");
 
     vi.stubGlobal("window", {
       __JFTRADE_RUNTIME_CONFIG__: { desktopMode: false },
-      location: { hostname: "wails.localhost", protocol: "https:" },
+      __TAURI_INTERNALS__: {},
     });
-    expect(resolveDesktopBackend()).toBe("wails");
+    expect(resolveDesktopBackend()).toBe("tauri");
 
     vi.stubGlobal("window", browserWindow);
     expect(resolveDesktopBackend()).toBe("browser");
@@ -146,72 +117,6 @@ describe("desktopFacade", () => {
     expect(unlisten).toHaveBeenCalledTimes(4);
   });
 
-  it("keeps every Wails command and event adapter active until the native cutover", async () => {
-    window.__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
-    mocks.wailsSnapshot.mockResolvedValue({ state: "starting" });
-    mocks.wailsQuit.mockResolvedValue(undefined);
-    mocks.wailsOpen.mockResolvedValue(undefined);
-    mocks.wailsListDays.mockResolvedValue([{ day: "2026-08-19" }]);
-    mocks.wailsReadPage.mockResolvedValue({ day: "2026-08-19", items: [] });
-    mocks.wailsOpenFolder.mockResolvedValue(undefined);
-    mocks.wailsCheck.mockResolvedValue({ available: false, currentVersion: "1.0.0" });
-    const cancel = vi.fn();
-    mocks.wailsEventsOn.mockImplementation(
-      (eventName: string, listener: (event: { data: unknown }) => void) => {
-        listener({ data: { eventName } });
-        return cancel;
-      },
-    );
-
-    expect(resolveDesktopBackend()).toBe("wails");
-    await desktopFacade.startup.snapshot();
-    await desktopFacade.startup.quit();
-    await desktopFacade.links.open("https://example.com");
-    await desktopFacade.logs.listDays();
-    await desktopFacade.logs.readPage("2026-08-19", "ALL", "", 0, 200);
-    await desktopFacade.logs.openFolder();
-    await desktopFacade.updates.check();
-    await expect(desktopFacade.updates.install()).rejects.toThrow(
-      "desktop facade is unavailable for install updates",
-    );
-    expect(mocks.wailsSnapshot).toHaveBeenCalledOnce();
-    expect(mocks.wailsQuit).toHaveBeenCalledOnce();
-    expect(mocks.wailsOpen).toHaveBeenCalledWith("https://example.com");
-    expect(mocks.wailsListDays).toHaveBeenCalledOnce();
-    expect(mocks.wailsReadPage).toHaveBeenCalledWith(
-      "2026-08-19",
-      "ALL",
-      "",
-      0,
-      200,
-    );
-    expect(mocks.wailsOpenFolder).toHaveBeenCalledOnce();
-    expect(mocks.wailsCheck).toHaveBeenCalledOnce();
-
-    const payloads: unknown[] = [];
-    const listeners = [
-      await desktopFacade.logs.onAppend((event) => payloads.push(event)),
-      await desktopFacade.updates.onAvailable((event) => payloads.push(event)),
-      await desktopFacade.windows.onSecondInstance(() => payloads.push("second-instance")),
-      await desktopFacade.menu.onOpenSettings(() => payloads.push("settings")),
-    ];
-    expect(mocks.wailsEventsOn.mock.calls.map(([eventName]) => eventName)).toEqual([
-      "jftrade:desktop-log:append",
-      "jftrade:desktop-update:available",
-      "jftrade:desktop-second-instance",
-      "jftrade:desktop-menu:settings",
-    ]);
-    expect(payloads).toEqual([
-      { eventName: "jftrade:desktop-log:append" },
-      { eventName: "jftrade:desktop-update:available" },
-      "second-instance",
-      "settings",
-    ]);
-    for (const stop of listeners) stop();
-    expect(cancel).toHaveBeenCalledTimes(4);
-    expect(mocks.invoke).not.toHaveBeenCalled();
-  });
-
   it("fails every desktop-only command closed and makes browser listeners inert", async () => {
     expect(resolveDesktopBackend()).toBe("browser");
     const commands = [
@@ -239,6 +144,5 @@ describe("desktopFacade", () => {
     ]);
     for (const cancel of listeners) expect(cancel()).toBeUndefined();
     expect(mocks.listen).not.toHaveBeenCalled();
-    expect(mocks.wailsEventsOn).not.toHaveBeenCalled();
   });
 });

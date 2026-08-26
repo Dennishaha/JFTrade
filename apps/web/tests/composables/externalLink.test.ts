@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openLinkBinding = vi.hoisted(() => vi.fn(async () => undefined));
+let currentBackend = "browser";
 
 vi.mock("@/composables/shared/desktopFacade", () => ({
-  desktopFacade: { links: { open: openLinkBinding } },
+  desktopFacade: {
+    links: { open: openLinkBinding },
+    backend: () => currentBackend,
+  },
 }));
 
 import {
@@ -15,6 +19,10 @@ import {
 } from "@/composables/shared/externalLink";
 import { useDocsLink } from "@/composables/shared/useDocsLink";
 
+beforeEach(() => {
+  currentBackend = "browser";
+});
+
 afterEach(() => {
   delete window.__JFTRADE_RUNTIME_CONFIG__;
   openLinkBinding.mockReset();
@@ -23,7 +31,8 @@ afterEach(() => {
 });
 
 describe("externalLink", () => {
-  it("uses the Wails desktop binding when available", async () => {
+  it("uses the desktop binding when available", async () => {
+    currentBackend = "tauri";
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     window.__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
 
@@ -34,6 +43,7 @@ describe("externalLink", () => {
   });
 
   it("falls back to window.open when the desktop binding fails", async () => {
+    currentBackend = "tauri";
     openLinkBinding.mockRejectedValue(new Error("desktop unavailable"));
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     window.__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
@@ -49,11 +59,12 @@ describe("externalLink", () => {
   });
 
   it("keeps bundled documentation reachable when a desktop popup is blocked", async () => {
+    currentBackend = "tauri";
     openLinkBinding.mockRejectedValue(new Error("desktop binding unavailable"));
     const open = vi.fn(() => null);
     const desktopWindow = {
       __JFTRADE_RUNTIME_CONFIG__: { desktopMode: true },
-      location: { protocol: "wails:", hostname: "wails.localhost", href: "" },
+      location: { protocol: "http:", hostname: "localhost", href: "" },
       open,
     };
     vi.resetModules();

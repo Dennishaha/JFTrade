@@ -66,7 +66,7 @@ export function assertStage8Configuration(config, facadeSource, expected) {
 
 export function runGoStage8Reference(root = repositoryRoot) {
   runStage8Process("go", [
-    "test", "./cmd/jftrade-desktop", "./internal/desktop", "-count=1",
+    "test", "./internal/desktop", "-count=1",
     "-run", "^(TestDevelopmentDesktopBuildProfile|TestDesktopBuildChannelsCanCoexist|TestNormalizeDesktopDocsURL|TestNormalizeDesktopDocsURLRejectsUnsafePaths|TestSanitizeDesktopExternalURL|TestDesktopShutdownCancelsStartupAndReclaimsLateResources|TestProductDataDirByPlatform)$",
   ], { cwd: root });
 }

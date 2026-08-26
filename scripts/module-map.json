@@ -67,8 +67,7 @@
         "internal/api"
       ],
       "entrypoints": [
-        "cmd/jftrade-api",
-        "cmd/jftrade-desktop"
+        "cmd/jftrade-api"
       ],
       "affectedTests": [],
       "generatedPaths": [
@@ -229,18 +228,16 @@
     {
       "id": "desktop-assets",
       "paths": [
-        "cmd/jftrade-desktop",
         "internal/desktop",
         "internal/frontendassets",
         "internal/marketdataassets",
         "internal/pineworkerassets"
       ],
       "entrypoints": [
-        "cmd/jftrade-desktop"
+        "apps/desktop/src-tauri"
       ],
       "affectedTests": [],
       "vetPackages": [
-        "./cmd/jftrade-desktop",
         "./internal/desktop/..."
       ]
     },

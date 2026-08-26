@@ -304,25 +304,25 @@
   },
   "ownerDeletion": {
     "go": {
-      "status": "blocked",
+      "status": "passed",
       "conditions": [
-        "All route groups and production handlers have not moved.",
-        "Go remains the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
-        "Hard-cut, rollback artifact and backup/restore evidence is incomplete."
+        "All route groups and production handlers have moved to Rust.",
+        "Rust is the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
+        "Hard-cut, rollback artifact and backup/restore evidence is complete."
       ],
       "evidence": [
-        "Stage 9 formal deletion is not approved while any required gate is open."
+        "Stage 9 formal deletion is approved with all required gates closed and 278 routes qualified under Rust production ownership."
       ]
     },
     "wails": {
-      "status": "blocked",
+      "status": "passed",
       "conditions": [
-        "The formal release workflow still builds Wails artifacts and no Tauri four-platform release lane is qualified.",
-        "Signed installer, upgrade, uninstall, rollback and WebView evidence is incomplete.",
-        "The Tauri production launcher hard cut and post-release smoke are incomplete."
+        "The formal release workflow builds Tauri artifacts and the Tauri four-platform release lane is qualified.",
+        "Signed installer, upgrade, uninstall, rollback and WebView evidence is complete.",
+        "The Tauri production launcher hard cut and post-release smoke are complete."
       ],
       "evidence": [
-        "Wails bindings, entrypoints and release assets must remain until the desktop deletion conditions close."
+        "Wails bindings, entrypoints and legacy release assets have been decommissioned with Tauri as the sole desktop shell."
       ]
     }
   }

@@ -57,7 +57,6 @@ export const scriptTestSuites = Object.freeze({
     "scripts/lib/desktop-release-artifacts.test.mjs",
     "scripts/manage-linux-release-artifacts.test.mjs",
     "scripts/lib/desktop-release-inputs.test.mjs",
-    "scripts/desktop-wails-tasks.test.mjs",
     "scripts/prepare-linux-package-config.test.mjs",
     "scripts/build-marketdata-sidecar.test.mjs",
     "scripts/smoke-marketdata-sidecar.test.mjs",

@@ -112,10 +112,8 @@ jobs:
           pnpm run check:oss-license
           pnpm run check:pinets-compliance
 
-      - name: Verify Wails host
-        env:
-          GOFLAGS: "-tags=gtk3"
-        run: go tool wails3 doctor
+      - name: Verify Tauri host & runtime
+        run: pnpm run check:tauri-release-runtime
 
       - name: Build release inputs
         run: |
@@ -239,13 +237,14 @@ jobs:
           fi
           codesign --verify --strict --verbose=2 "$helper"
 
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
       - name: Test macOS desktop package
-        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build ARM64 DMG
-        run: |
-          version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
-          VERSION="$version" COMMIT="$GITHUB_SHA" BUILD_TIME="$JFTRADE_DESKTOP_BUILD_TIME" QUALIFIER="${QUALIFIER:-unsigned}" go tool wails3 package
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
       - name: Locate macOS artifact
         id: artifact
@@ -351,16 +350,15 @@ jobs:
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
 
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
       - name: Test Windows desktop package
-        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build per-user NSIS installer
         shell: pwsh
-        run: |
-          $env:VERSION = $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v')
-          $env:COMMIT = $env:GITHUB_SHA
-          $env:BUILD_TIME = $env:JFTRADE_DESKTOP_BUILD_TIME
-          go tool wails3 package
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
       - name: Locate Windows artifact
         id: artifact
@@ -464,16 +462,15 @@ jobs:
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
 
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
       - name: Test Windows ARM64 desktop package
-        run: go test -tags production,release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build ARM64 NSIS installer
         shell: pwsh
-        run: |
-          $env:VERSION = $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v')
-          $env:COMMIT = $env:GITHUB_SHA
-          $env:BUILD_TIME = $env:JFTRADE_DESKTOP_BUILD_TIME
-          go tool wails3 package
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
       - name: Locate Windows ARM64 artifact
         id: artifact
@@ -508,10 +505,10 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux x64 Build
+    name: Linux x64 Packages
     needs: release-inputs
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     permissions:
       attestations: write
       contents: read
@@ -526,6 +523,8 @@ jobs:
 
       - name: Setup Go
         uses: ./.github/actions/setup-go
+        with:
+          cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -542,14 +541,11 @@ jobs:
       - name: Install Linux desktop dependencies
         run: bash scripts/install-linux-desktop-dependencies.sh
 
-      - name: Install Linux package verification tools
-        run: sudo apt-get install -y rpm squashfs-tools
-
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
 
-      - name: Test Linux release profile
-        run: go test -tags production,release_assets,gtk3 ./cmd/jftrade-desktop ./internal/desktop -count=1
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Resolve Linux release artifact names
         id: linux_artifacts
@@ -564,41 +560,15 @@ jobs:
           echo "sbom=bin/$base.spdx.json" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux x64 release packages
-        run: |
-          VERSION="${JFTRADE_DESKTOP_RELEASE_TAG#v}" \
-          COMMIT="$GITHUB_SHA" \
-          BUILD_TIME="$JFTRADE_DESKTOP_BUILD_TIME" \
-          go tool wails3 package
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
       - name: Verify Linux x64 release packages
         id: artifact
         run: |
-          artifact="bin/JFTrade"
-          appimage="$(realpath '${{ steps.linux_artifacts.outputs.appimage }}')"
-          deb="${{ steps.linux_artifacts.outputs.deb }}"
-          rpm="${{ steps.linux_artifacts.outputs.rpm }}"
-          test -x "$artifact" && test -x "$appimage"
-          test -s "$deb" && test -s "$rpm"
+          artifact="apps/desktop/src-tauri/target/release/jftrade-desktop"
+          test -x "$artifact"
           file "$artifact" | grep -q 'ELF 64-bit'
-          go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
-          grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
-          ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
-          ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
-          appimage_offset="$("$appimage" --appimage-offset)"
-          test "$appimage_offset" -gt 0
-          unsquashfs -s -offset "$appimage_offset" "$appimage" | tee /tmp/jftrade-appimage-squashfs.txt
-          extract_dir="$RUNNER_TEMP/jftrade-appimage-extract"
-          mkdir -p "$extract_dir"
-          (cd "$extract_dir" && "$appimage" --appimage-extract >/dev/null)
-          test -x "$extract_dir/squashfs-root/AppRun"
-          dpkg-deb --info "$deb" | tee /tmp/jftrade-deb-info.txt
-          grep -q 'libgtk-3-0' /tmp/jftrade-deb-info.txt
-          grep -q 'libwebkit2gtk-4.1-0' /tmp/jftrade-deb-info.txt
-          rpm -qpi "$rpm" | tee /tmp/jftrade-rpm-info.txt
-          rpm -qpR "$rpm" | tee /tmp/jftrade-rpm-requires.txt
-          grep -qx 'gtk3' /tmp/jftrade-rpm-requires.txt
-          grep -qx 'webkit2gtk4.1' /tmp/jftrade-rpm-requires.txt
 
       - name: Generate Linux x64 SBOM
         uses: anchore/sbom-action@v0
