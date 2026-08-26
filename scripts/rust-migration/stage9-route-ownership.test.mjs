@@ -16,8 +16,8 @@ test("Stage 9 ownership ledger records every baseline operation and derives all 
     cutoverTestOnlyRoutes: 0,
     cutoverQualifiedRoutes: 278,
     remainingRoutes: 0,
-    goProductionOwnerRoutes: 278,
-    rustProductionOwnerRoutes: 0,
+    goProductionOwnerRoutes: 0,
+    rustProductionOwnerRoutes: 278,
     removedGoRoutes: 0,
     remainingByCapability: {},
   });
@@ -27,6 +27,7 @@ test("Stage 9 ownership ledger rejects missing records and unsafe Go removal", (
   const { baseline, ownership } = loadRouteOwnership();
   const changed = structuredClone(ownership);
   changed.operations.pop();
+  changed.operations[0].productionOwner = "go";
   changed.operations[0].goRemovalStatus = "removed";
   const errors = validateRouteOwnership(baseline, changed);
   assert.ok(errors.some((error) => error.includes("cannot remove Go")));

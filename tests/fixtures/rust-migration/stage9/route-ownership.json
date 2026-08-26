@@ -7,7 +7,7 @@
       "path": "/api/v1/adk/agents/{agentId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -29,7 +29,7 @@
       "path": "/api/v1/adk/memory/{memoryId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -51,7 +51,7 @@
       "path": "/api/v1/adk/providers/{providerId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -73,7 +73,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -95,7 +95,7 @@
       "path": "/api/v1/adk/skills/{skillId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -117,7 +117,7 @@
       "path": "/api/v1/adk/tasks/{taskId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -139,7 +139,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -161,7 +161,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -183,7 +183,7 @@
       "path": "/api/v1/backtests/sync/{taskId}",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -205,7 +205,7 @@
       "path": "/api/v1/backtests/{runId}",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -227,7 +227,7 @@
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -249,7 +249,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -270,7 +270,7 @@
       "path": "/api/v1/market-data/subscriptions",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -291,7 +291,7 @@
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -313,7 +313,7 @@
       "path": "/api/v1/settings/broker-accounts/{accountRecordId}",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -334,7 +334,7 @@
       "path": "/api/v1/strategies/{instanceId}",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -356,7 +356,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -378,7 +378,7 @@
       "path": "/api/v1/system/real-trade-risk-limits",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -399,7 +399,7 @@
       "path": "/api/v1/watchlist/bindings",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -421,7 +421,7 @@
       "path": "/api/v1/watchlist/groups/{groupId}",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -443,7 +443,7 @@
       "path": "/api/v1/adk",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -464,7 +464,7 @@
       "path": "/api/v1/adk/agent-templates",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -482,7 +482,7 @@
       "path": "/api/v1/adk/agents",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -503,7 +503,7 @@
       "path": "/api/v1/adk/approvals",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -524,7 +524,7 @@
       "path": "/api/v1/adk/audit",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -545,7 +545,7 @@
       "path": "/api/v1/adk/memory",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -566,7 +566,7 @@
       "path": "/api/v1/adk/metrics",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -587,7 +587,7 @@
       "path": "/api/v1/adk/optimization-tasks",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -608,7 +608,7 @@
       "path": "/api/v1/adk/optimization-tasks/{taskId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -629,7 +629,7 @@
       "path": "/api/v1/adk/providers",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -650,7 +650,7 @@
       "path": "/api/v1/adk/runs",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -671,7 +671,7 @@
       "path": "/api/v1/adk/runs/{runId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -692,7 +692,7 @@
       "path": "/api/v1/adk/runs/{runId}/stream",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -725,7 +725,7 @@
       "path": "/api/v1/adk/sessions",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -746,7 +746,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -767,7 +767,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}/context",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -788,7 +788,7 @@
       "path": "/api/v1/adk/skills",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -809,7 +809,7 @@
       "path": "/api/v1/adk/streams/{streamId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -832,7 +832,7 @@
       "path": "/api/v1/adk/tasks",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -853,7 +853,7 @@
       "path": "/api/v1/adk/tasks/{taskId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -874,7 +874,7 @@
       "path": "/api/v1/adk/tools",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -895,7 +895,7 @@
       "path": "/api/v1/adk/workflow-trigger-logs",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -916,7 +916,7 @@
       "path": "/api/v1/adk/workflows",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -937,7 +937,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -958,7 +958,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}/triggers",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -979,7 +979,7 @@
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -997,7 +997,7 @@
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1015,7 +1015,7 @@
       "path": "/api/v1/auth/session",
       "capability": "auth",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1033,7 +1033,7 @@
       "path": "/api/v1/backtests",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1052,7 +1052,7 @@
       "path": "/api/v1/backtests/sync/{taskId}",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1073,7 +1073,7 @@
       "path": "/api/v1/backtests/{runId}",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1092,7 +1092,7 @@
       "path": "/api/v1/backtests/{runId}/status",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1111,7 +1111,7 @@
       "path": "/api/v1/brokers/capabilities",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1132,7 +1132,7 @@
       "path": "/api/v1/brokers/{brokerId}/cash-flows",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1153,7 +1153,7 @@
       "path": "/api/v1/brokers/{brokerId}/fills",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1174,7 +1174,7 @@
       "path": "/api/v1/brokers/{brokerId}/funds",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1195,7 +1195,7 @@
       "path": "/api/v1/brokers/{brokerId}/klines",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1216,7 +1216,7 @@
       "path": "/api/v1/brokers/{brokerId}/margin-ratios",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1237,7 +1237,7 @@
       "path": "/api/v1/brokers/{brokerId}/max-trade-qtys",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1258,7 +1258,7 @@
       "path": "/api/v1/brokers/{brokerId}/order-fees",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1279,7 +1279,7 @@
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1300,7 +1300,7 @@
       "path": "/api/v1/brokers/{brokerId}/positions",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1321,7 +1321,7 @@
       "path": "/api/v1/brokers/{brokerId}/quote",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1342,7 +1342,7 @@
       "path": "/api/v1/brokers/{brokerId}/runtime",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1363,7 +1363,7 @@
       "path": "/api/v1/brokers/{brokerId}/securities",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1384,7 +1384,7 @@
       "path": "/api/v1/execution/orders",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1405,7 +1405,7 @@
       "path": "/api/v1/execution/orders/{internalOrderId}",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1426,7 +1426,7 @@
       "path": "/api/v1/execution/orders/{internalOrderId}/events",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1447,7 +1447,7 @@
       "path": "/api/v1/market-data/broker-queue/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1468,7 +1468,7 @@
       "path": "/api/v1/market-data/candles/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1489,7 +1489,7 @@
       "path": "/api/v1/market-data/capital-flow/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1510,7 +1510,7 @@
       "path": "/api/v1/market-data/corporate-actions/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1531,7 +1531,7 @@
       "path": "/api/v1/market-data/depth/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1552,7 +1552,7 @@
       "path": "/api/v1/market-data/futures",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1573,7 +1573,7 @@
       "path": "/api/v1/market-data/instruments",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1594,7 +1594,7 @@
       "path": "/api/v1/market-data/instruments/{instrumentId}/profile",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1615,7 +1615,7 @@
       "path": "/api/v1/market-data/intraday/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1636,7 +1636,7 @@
       "path": "/api/v1/market-data/markets",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1657,7 +1657,7 @@
       "path": "/api/v1/market-data/news",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1678,7 +1678,7 @@
       "path": "/api/v1/market-data/news/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1699,7 +1699,7 @@
       "path": "/api/v1/market-data/options/analysis/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1720,7 +1720,7 @@
       "path": "/api/v1/market-data/options/chains/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1741,7 +1741,7 @@
       "path": "/api/v1/market-data/options/events",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1762,7 +1762,7 @@
       "path": "/api/v1/market-data/options/expirations/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1783,7 +1783,7 @@
       "path": "/api/v1/market-data/options/screens",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1804,7 +1804,7 @@
       "path": "/api/v1/market-data/prediction/categories",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1825,7 +1825,7 @@
       "path": "/api/v1/market-data/prediction/combos/eligible-events",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1846,7 +1846,7 @@
       "path": "/api/v1/market-data/prediction/competitions",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1867,7 +1867,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/candles",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1888,7 +1888,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/candles/history",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1909,7 +1909,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/milestones",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1930,7 +1930,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/order-book",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1951,7 +1951,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/snapshot",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1972,7 +1972,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/ticks",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -1993,7 +1993,7 @@
       "path": "/api/v1/market-data/prediction/events",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2014,7 +2014,7 @@
       "path": "/api/v1/market-data/prediction/events/{eventId}/contracts",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2035,7 +2035,7 @@
       "path": "/api/v1/market-data/prediction/series",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2056,7 +2056,7 @@
       "path": "/api/v1/market-data/provider",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2077,7 +2077,7 @@
       "path": "/api/v1/market-data/securities/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2098,7 +2098,7 @@
       "path": "/api/v1/market-data/snapshots/{market}/{symbol}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2119,7 +2119,7 @@
       "path": "/api/v1/market-data/subscriptions",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2140,7 +2140,7 @@
       "path": "/api/v1/market-data/ticks/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2161,7 +2161,7 @@
       "path": "/api/v1/market-data/warrants",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2182,7 +2182,7 @@
       "path": "/api/v1/plugins",
       "capability": "plugins",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2200,7 +2200,7 @@
       "path": "/api/v1/plugins/operations/{operationId}",
       "capability": "plugins",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2218,7 +2218,7 @@
       "path": "/api/v1/plugins/{pluginId}/uninstall-guidance",
       "capability": "plugins",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2237,7 +2237,7 @@
       "path": "/api/v1/portfolio/{brokerId}/cash-balances",
       "capability": "portfolio",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2258,7 +2258,7 @@
       "path": "/api/v1/portfolio/{brokerId}/positions",
       "capability": "portfolio",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2279,7 +2279,7 @@
       "path": "/api/v1/research/analyst/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2300,7 +2300,7 @@
       "path": "/api/v1/research/calendars",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2321,7 +2321,7 @@
       "path": "/api/v1/research/corporate-actions/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2342,7 +2342,7 @@
       "path": "/api/v1/research/financials/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2363,7 +2363,7 @@
       "path": "/api/v1/research/industries",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2384,7 +2384,7 @@
       "path": "/api/v1/research/institutions",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2405,7 +2405,7 @@
       "path": "/api/v1/research/instruments/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2426,7 +2426,7 @@
       "path": "/api/v1/research/macro",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2447,7 +2447,7 @@
       "path": "/api/v1/research/ownership/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2468,7 +2468,7 @@
       "path": "/api/v1/research/rankings",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2489,7 +2489,7 @@
       "path": "/api/v1/research/screens",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2510,7 +2510,7 @@
       "path": "/api/v1/research/screens/catalog",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2528,7 +2528,7 @@
       "path": "/api/v1/research/screens/presets",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2547,7 +2547,7 @@
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2566,7 +2566,7 @@
       "path": "/api/v1/research/short-interest/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2587,7 +2587,7 @@
       "path": "/api/v1/research/technical-indicators/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2608,7 +2608,7 @@
       "path": "/api/v1/research/valuation/{instrumentId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2629,7 +2629,7 @@
       "path": "/api/v1/settings/adk",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2648,7 +2648,7 @@
       "path": "/api/v1/settings/adk/mcp",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2667,7 +2667,7 @@
       "path": "/api/v1/settings/backtest-market-data-provider",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2686,7 +2686,7 @@
       "path": "/api/v1/settings/brokers",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2705,7 +2705,7 @@
       "path": "/api/v1/settings/data-management/databases",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2726,7 +2726,7 @@
       "path": "/api/v1/settings/exchange-calendars",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2745,7 +2745,7 @@
       "path": "/api/v1/settings/execution",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2764,7 +2764,7 @@
       "path": "/api/v1/settings/market-data-provider",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2783,7 +2783,7 @@
       "path": "/api/v1/settings/onboarding",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2802,7 +2802,7 @@
       "path": "/api/v1/settings/pine-worker",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2821,7 +2821,7 @@
       "path": "/api/v1/settings/security",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2840,7 +2840,7 @@
       "path": "/api/v1/settings/system-notifications",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2859,7 +2859,7 @@
       "path": "/api/v1/settings/ui",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2878,7 +2878,7 @@
       "path": "/api/v1/strategies",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2899,7 +2899,7 @@
       "path": "/api/v1/strategies/{instanceId}/audit",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2920,7 +2920,7 @@
       "path": "/api/v1/strategies/{instanceId}/logs",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2941,7 +2941,7 @@
       "path": "/api/v1/strategy-definitions",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2960,7 +2960,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2979,7 +2979,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}/versions",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -2998,7 +2998,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}/versions/{version}",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3017,7 +3017,7 @@
       "path": "/api/v1/system/exchange-calendars/sources",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3039,7 +3039,7 @@
       "path": "/api/v1/system/exchange-calendars/status",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3060,7 +3060,7 @@
       "path": "/api/v1/system/futu-opend",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3081,7 +3081,7 @@
       "path": "/api/v1/system/futu-opend/install-guide",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3100,7 +3100,7 @@
       "path": "/api/v1/system/real-trade-approvals",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3120,7 +3120,7 @@
       "path": "/api/v1/system/real-trade-hard-stop-events",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3140,7 +3140,7 @@
       "path": "/api/v1/system/real-trade-hard-stops",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3160,7 +3160,7 @@
       "path": "/api/v1/system/real-trade-kill-switch",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3180,7 +3180,7 @@
       "path": "/api/v1/system/real-trade-kill-switch-events",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3200,7 +3200,7 @@
       "path": "/api/v1/system/real-trade-risk-events",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3220,7 +3220,7 @@
       "path": "/api/v1/system/real-trade-risk-limits",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3240,7 +3240,7 @@
       "path": "/api/v1/system/runtime-dependencies",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3260,7 +3260,7 @@
       "path": "/api/v1/system/status",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3285,7 +3285,7 @@
       "path": "/api/v1/system/storage/overview",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3304,7 +3304,7 @@
       "path": "/api/v1/system/worker/broker-order-updates",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3325,7 +3325,7 @@
       "path": "/api/v1/watchlist/bindings",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3344,7 +3344,7 @@
       "path": "/api/v1/watchlist/groups",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3363,7 +3363,7 @@
       "path": "/api/v1/watchlist/import-runs",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3382,7 +3382,7 @@
       "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3403,7 +3403,7 @@
       "path": "/api/v1/watchlist/items",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3422,7 +3422,7 @@
       "path": "/api/v1/watchlist/sources",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3441,7 +3441,7 @@
       "path": "/api/v1/watchlist/sources/{sourceId}/groups",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3460,7 +3460,7 @@
       "path": "/api/v1/watchlists/remote",
       "capability": "watchlists",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3481,7 +3481,7 @@
       "path": "/api/v1/ws/live",
       "capability": "ws",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3501,7 +3501,7 @@
       "path": "/api/v1/adk/runs/{runId}/objective",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3523,7 +3523,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}/composer-state",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3545,7 +3545,7 @@
       "path": "/api/v1/research/screens/presets/{presetId}",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3567,7 +3567,7 @@
       "path": "/api/v1/watchlist/groups/{groupId}",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3589,7 +3589,7 @@
       "path": "/api/v1/adk/agents",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3611,7 +3611,7 @@
       "path": "/api/v1/adk/approvals/{approvalId}/approve",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3633,7 +3633,7 @@
       "path": "/api/v1/adk/approvals/{approvalId}/deny",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3655,7 +3655,7 @@
       "path": "/api/v1/adk/chat",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3677,7 +3677,7 @@
       "path": "/api/v1/adk/chat/stream",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3699,7 +3699,7 @@
       "path": "/api/v1/adk/memory",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3721,7 +3721,7 @@
       "path": "/api/v1/adk/optimization-tasks/{taskId}/cancel",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3743,7 +3743,7 @@
       "path": "/api/v1/adk/providers",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3765,7 +3765,7 @@
       "path": "/api/v1/adk/providers/{providerId}/default",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3787,7 +3787,7 @@
       "path": "/api/v1/adk/providers/{providerId}/test",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3809,7 +3809,7 @@
       "path": "/api/v1/adk/runs/{runId}/cancel",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3831,7 +3831,7 @@
       "path": "/api/v1/adk/runs/{runId}/input-response",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3853,7 +3853,7 @@
       "path": "/api/v1/adk/runs/{runId}/pause",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3875,7 +3875,7 @@
       "path": "/api/v1/adk/runs/{runId}/resume",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3897,7 +3897,7 @@
       "path": "/api/v1/adk/sessions",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3919,7 +3919,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}/context/compact",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3941,7 +3941,7 @@
       "path": "/api/v1/adk/skills",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3963,7 +3963,7 @@
       "path": "/api/v1/adk/tasks",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -3985,7 +3985,7 @@
       "path": "/api/v1/adk/workflow-triggers/{triggerId}/run",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4007,7 +4007,7 @@
       "path": "/api/v1/adk/workflow-webhooks/{triggerId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4029,7 +4029,7 @@
       "path": "/api/v1/adk/workflows",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4051,7 +4051,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}/run",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4073,7 +4073,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}/triggers",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4095,7 +4095,7 @@
       "path": "/api/v1/alerts/option-events",
       "capability": "alerts",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4117,7 +4117,7 @@
       "path": "/api/v1/alerts/price",
       "capability": "alerts",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4139,7 +4139,7 @@
       "path": "/api/v1/auth/login",
       "capability": "auth",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4159,7 +4159,7 @@
       "path": "/api/v1/auth/logout",
       "capability": "auth",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4179,7 +4179,7 @@
       "path": "/api/v1/backtests",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4201,7 +4201,7 @@
       "path": "/api/v1/backtests/sync",
       "capability": "backtests",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4223,7 +4223,7 @@
       "path": "/api/v1/brokers/{brokerId}/orders",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4245,7 +4245,7 @@
       "path": "/api/v1/brokers/{brokerId}/unlock",
       "capability": "brokers",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4267,7 +4267,7 @@
       "path": "/api/v1/execution/buying-power",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4289,7 +4289,7 @@
       "path": "/api/v1/execution/combos",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4311,7 +4311,7 @@
       "path": "/api/v1/execution/combos/previews",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4333,7 +4333,7 @@
       "path": "/api/v1/execution/combos/{internalOrderId}/cancel",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4355,7 +4355,7 @@
       "path": "/api/v1/execution/orders",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4377,7 +4377,7 @@
       "path": "/api/v1/execution/orders/{internalOrderId}/cancel",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4399,7 +4399,7 @@
       "path": "/api/v1/execution/previews",
       "capability": "execution",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4421,7 +4421,7 @@
       "path": "/api/v1/market-data/instruments/normalize",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4441,7 +4441,7 @@
       "path": "/api/v1/market-data/options/analysis/{instrumentId}",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4461,7 +4461,7 @@
       "path": "/api/v1/market-data/options/events/zero-dte-contracts",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4481,7 +4481,7 @@
       "path": "/api/v1/market-data/prediction/combos/quotes",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4501,7 +4501,7 @@
       "path": "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4522,7 +4522,7 @@
       "path": "/api/v1/market-data/snapshots",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4542,7 +4542,7 @@
       "path": "/api/v1/market-data/subscriptions",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4563,7 +4563,7 @@
       "path": "/api/v1/market-data/subscriptions/heartbeat",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4584,7 +4584,7 @@
       "path": "/api/v1/market-data/subscriptions/release",
       "capability": "market-data",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4605,7 +4605,7 @@
       "path": "/api/v1/plugins/{pluginId}/install",
       "capability": "plugins",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4628,7 +4628,7 @@
       "path": "/api/v1/plugins/{pluginId}/uninstall",
       "capability": "plugins",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4651,7 +4651,7 @@
       "path": "/api/v1/research/screens",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4675,7 +4675,7 @@
       "path": "/api/v1/research/screens/presets",
       "capability": "research",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4697,7 +4697,7 @@
       "path": "/api/v1/settings/adk/mcp/token/reset",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4718,7 +4718,7 @@
       "path": "/api/v1/settings/broker-accounts",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4739,7 +4739,7 @@
       "path": "/api/v1/settings/data-management/cleanup/execute",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4760,7 +4760,7 @@
       "path": "/api/v1/settings/data-management/cleanup/preview",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4781,7 +4781,7 @@
       "path": "/api/v1/settings/data-management/databases/rebuild",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4802,7 +4802,7 @@
       "path": "/api/v1/settings/data-management/databases/{databaseId}/backup",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4823,7 +4823,7 @@
       "path": "/api/v1/settings/data-management/databases/{databaseId}/compact",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4844,7 +4844,7 @@
       "path": "/api/v1/settings/system-notifications/test",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4865,7 +4865,7 @@
       "path": "/api/v1/strategies/{instanceId}/pause",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4887,7 +4887,7 @@
       "path": "/api/v1/strategies/{instanceId}/refresh-definition",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4909,7 +4909,7 @@
       "path": "/api/v1/strategies/{instanceId}/start",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4931,7 +4931,7 @@
       "path": "/api/v1/strategies/{instanceId}/stop",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4953,7 +4953,7 @@
       "path": "/api/v1/strategy-definitions",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4975,7 +4975,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}/apply-linked-instances",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -4997,7 +4997,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}/instantiate",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5019,7 +5019,7 @@
       "path": "/api/v1/strategy-pine/analyze",
       "capability": "strategy-pine",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5042,7 +5042,7 @@
       "path": "/api/v1/system/exchange-calendars/probe",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5063,7 +5063,7 @@
       "path": "/api/v1/system/exchange-calendars/probe/{market}",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5084,7 +5084,7 @@
       "path": "/api/v1/system/exchange-calendars/refresh",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5105,7 +5105,7 @@
       "path": "/api/v1/system/exchange-calendars/refresh/{market}",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5126,7 +5126,7 @@
       "path": "/api/v1/system/futu-opend/manual-retry",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5147,7 +5147,7 @@
       "path": "/api/v1/system/real-trade-hard-stops",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5168,7 +5168,7 @@
       "path": "/api/v1/system/real-trade-hard-stops/{hardStopId}/release",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5189,7 +5189,7 @@
       "path": "/api/v1/system/real-trade-kill-switch/activate",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5210,7 +5210,7 @@
       "path": "/api/v1/system/real-trade-kill-switch/release",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5231,7 +5231,7 @@
       "path": "/api/v1/watchlist/groups",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5253,7 +5253,7 @@
       "path": "/api/v1/watchlist/imports/preview",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5275,7 +5275,7 @@
       "path": "/api/v1/watchlist/imports/{previewId}/commit",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5297,7 +5297,7 @@
       "path": "/api/v1/watchlist/quotes/batch",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5319,7 +5319,7 @@
       "path": "/api/v1/watchlists/remote",
       "capability": "watchlists",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5342,7 +5342,7 @@
       "path": "/api/v1/adk/agents/{agentId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5364,7 +5364,7 @@
       "path": "/api/v1/adk/providers/{providerId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5386,7 +5386,7 @@
       "path": "/api/v1/adk/sessions/{sessionId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5408,7 +5408,7 @@
       "path": "/api/v1/adk/tasks/{taskId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5430,7 +5430,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5452,7 +5452,7 @@
       "path": "/api/v1/adk/workflows/{workflowId}/triggers/{triggerId}",
       "capability": "adk",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5474,7 +5474,7 @@
       "path": "/api/v1/settings/adk",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5495,7 +5495,7 @@
       "path": "/api/v1/settings/adk/mcp",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5516,7 +5516,7 @@
       "path": "/api/v1/settings/backtest-market-data-provider",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5537,7 +5537,7 @@
       "path": "/api/v1/settings/broker-accounts/{accountRecordId}",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5558,7 +5558,7 @@
       "path": "/api/v1/settings/brokers/{brokerId}/integration",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5579,7 +5579,7 @@
       "path": "/api/v1/settings/exchange-calendars",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5600,7 +5600,7 @@
       "path": "/api/v1/settings/execution",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5621,7 +5621,7 @@
       "path": "/api/v1/settings/market-data-provider",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5642,7 +5642,7 @@
       "path": "/api/v1/settings/onboarding",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5663,7 +5663,7 @@
       "path": "/api/v1/settings/pine-worker",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5684,7 +5684,7 @@
       "path": "/api/v1/settings/security",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5705,7 +5705,7 @@
       "path": "/api/v1/settings/system-notifications",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5726,7 +5726,7 @@
       "path": "/api/v1/settings/ui",
       "capability": "settings",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5747,7 +5747,7 @@
       "path": "/api/v1/strategies/{instanceId}",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5769,7 +5769,7 @@
       "path": "/api/v1/strategies/{instanceId}/runtime-risk",
       "capability": "strategies",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5791,7 +5791,7 @@
       "path": "/api/v1/strategy-definitions/{definitionId}",
       "capability": "strategy-definitions",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5813,7 +5813,7 @@
       "path": "/api/v1/system/real-trade-risk-limits",
       "capability": "system",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
@@ -5834,7 +5834,7 @@
       "path": "/api/v1/watchlist/instruments/{market}/{symbol}/memberships",
       "capability": "watchlist",
       "implementationStatus": "cutover-qualified",
-      "productionOwner": "go",
+      "productionOwner": "rust",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",

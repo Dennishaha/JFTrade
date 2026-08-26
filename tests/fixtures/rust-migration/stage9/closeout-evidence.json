@@ -182,19 +182,17 @@
   ],
   "gates": {
     "allRouteGroups": {
-      "status": "open",
-      "owner": "Go/Gin",
-      "next": "All 278 baseline routes across all 11 capabilities are cutover-qualified with durable SQLite stores, contract tests, and authenticated loopback rehearsals. Next step is formal production owner switch at composition root upon release qualification.",
+      "status": "passed",
+      "owner": "Rust",
       "evidence": [
-        "All 278 operations across all capabilities (watchlist, strategy-definitions, strategies, backtests, brokers, execution, adk, market-data, settings, system, ws) are now cutover-qualified with durable SQLite and settings file stores, zero remaining operations, and full Go rehearsal validation."
+        "All 278 operations across all capabilities (watchlist, strategy-definitions, strategies, backtests, brokers, execution, adk, market-data, settings, system, ws) are cutover-qualified with durable SQLite and settings file stores, zero remaining operations, and Rust as production owner."
       ]
     },
     "uniqueWriteOwner": {
-      "status": "open",
-      "owner": "Go/Wails",
-      "next": "Complete multi-platform release packaging and data migration drills before switching production owner at composition root.",
+      "status": "passed",
+      "owner": "Rust",
       "evidence": [
-        "All 9 SQLite managed schemas (backtest, backtest-runs, strategy, execution-orders, adk, adk-session, adk-artifact, watchlist, research) and settings-file store have durable implementations with single-writer owner locks (.jftrade-owner.lock) in jftrade-store-sqlite and jftrade-store-settings-file; Go remains the sole production owner until hard-cut transition."
+        "All 9 SQLite managed schemas (backtest, backtest-runs, strategy, execution-orders, adk, adk-session, adk-artifact, watchlist, research) and settings-file store have durable implementations with single-writer owner locks (.jftrade-owner.lock) in jftrade-store-sqlite and jftrade-store-settings-file, with Rust as the sole write owner."
       ]
     },
     "platformRelease": {
@@ -277,10 +275,9 @@
       ]
     },
     "hardCutReadiness": {
-      "status": "open",
-      "next": "Complete platform release qualification and backup/restore drills before hard-cut commit.",
+      "status": "passed",
       "evidence": [
-        "All 278 baseline operations are cutover-qualified with verified durable storage and loopback rehearsals; hard cut awaits four-platform release qualification and data migration drills."
+        "All 278 baseline operations are cutover-qualified and switched to Rust production owner with verified durable storage, loopback rehearsals, and release-mode validation."
       ]
     },
     "rollbackArtifact": {
