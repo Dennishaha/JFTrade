@@ -4,6 +4,7 @@
 
 mod backtest_run;
 mod data_management;
+mod execution_order;
 mod maintenance;
 mod research_preset;
 mod schema_manifest;
@@ -16,6 +17,10 @@ pub use backtest_run::{
     StoredBacktestRun,
 };
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
+pub use execution_order::{
+    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderStoreError,
+    ExecutionOrderTestCutoverStore, StoredExecutionOrder, StoredExecutionOrderEvent,
+};
 pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{
     RESEARCH_PRESET_TEST_CUTOVER_PROFILE, ResearchPresetMutation, ResearchPresetStoreError,

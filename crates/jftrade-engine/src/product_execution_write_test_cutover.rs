@@ -1,11 +1,17 @@
-// Durable execution test-cutover adapter.
+// Durable execution test-cutover adapter backed by `jftrade-store-sqlite`.
 //
-// This code is included only by Rust tests. Its SQLite schema is isolated
-// from the Go execution ledger and it never connects to a broker/OpenD,
-// starts an order-update worker, or emits a production side effect.
+// This code is included only by Rust tests. Its SQLite schema connects to
+// the real `execution-orders` component with schema validation and single-writer lease.
 
-use rusqlite::OptionalExtension;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+use jftrade_store_sqlite::{
+    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderTestCutoverStore, StoredExecutionOrder,
+    StoredExecutionOrderEvent,
+};
 use serde_json::{Value, json};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::{
     ExecutionWriteContext, ExecutionWriteInput, ExecutionWriteOperation, ExecutionWritePort,
@@ -13,8 +19,9 @@ use super::{
 };
 
 pub struct ExecutionSqliteTestCutoverPort {
-    path: std::path::PathBuf,
-    connection: std::sync::Mutex<rusqlite::Connection>,
+    path: PathBuf,
+    store: Arc<ExecutionOrderTestCutoverStore>,
+    reject_order_place: Mutex<bool>,
 }
 
 impl std::fmt::Debug for ExecutionSqliteTestCutoverPort {
@@ -28,258 +35,251 @@ impl std::fmt::Debug for ExecutionSqliteTestCutoverPort {
 
 #[allow(dead_code)]
 impl ExecutionSqliteTestCutoverPort {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, String> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref().to_owned();
-        let connection = rusqlite::Connection::open(&path).map_err(|error| error.to_string())?;
-        connection
-            .execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 CREATE TABLE IF NOT EXISTS execution_test_ids (
-                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                    next_value INTEGER NOT NULL
-                 );
-                 INSERT OR IGNORE INTO execution_test_ids (singleton, next_value) VALUES (1, 1);
-                 CREATE TABLE IF NOT EXISTS execution_test_orders (
-                    id TEXT PRIMARY KEY,
-                    kind TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );
-                 CREATE TABLE IF NOT EXISTS execution_test_events (
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    operation TEXT NOT NULL,
-                    resource_id TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );",
-            )
-            .map_err(|error| error.to_string())?;
+        let store = ExecutionOrderTestCutoverStore::open_existing(
+            &path,
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+        )
+        .map_err(|err| err.to_string())?;
         Ok(Self {
             path,
-            connection: std::sync::Mutex::new(connection),
+            store: Arc::new(store),
+            reject_order_place: Mutex::new(false),
         })
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn store(&self) -> &ExecutionOrderTestCutoverStore {
+        &self.store
+    }
+
     pub fn order_count(&self) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let count = connection
-            .query_row("SELECT COUNT(*) FROM execution_test_orders", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative execution order count".to_owned())
+        self.store.order_count().map_err(|e| e.to_string())
     }
 
     pub fn order_status(&self, id: &str) -> Result<Option<String>, String> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT status FROM execution_test_orders WHERE id = ?1",
-                rusqlite::params![id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|error| error.to_string())
+        let order = self.store.get_order(id).map_err(|e| e.to_string())?;
+        Ok(order.map(|o| o.status))
     }
 
     pub fn event_count(&self, operation: &str) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let count = connection
-            .query_row(
-                "SELECT COUNT(*) FROM execution_test_events WHERE operation = ?1",
-                rusqlite::params![operation],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative execution event count".to_owned())
+        self.store.event_count(operation).map_err(|e| e.to_string())
     }
 
     pub fn reject_order_place_event(&self) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute_batch(
-                "DROP TRIGGER IF EXISTS execution_test_reject_order_place;
-                 CREATE TRIGGER execution_test_reject_order_place
-                 BEFORE INSERT ON execution_test_events
-                 WHEN NEW.operation = 'order-place' BEGIN
-                    SELECT RAISE(ABORT, 'test-cutover order-place rejection');
-                 END;",
-            )
-            .map_err(|error| error.to_string())?;
+        let mut reject = self
+            .reject_order_place
+            .lock()
+            .map_err(|_| "poisoned".to_owned())?;
+        *reject = true;
         Ok(())
     }
 
     pub fn clear_rejection(&self) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute_batch("DROP TRIGGER IF EXISTS execution_test_reject_order_place")
-            .map_err(|error| error.to_string())?;
+        let mut reject = self
+            .reject_order_place
+            .lock()
+            .map_err(|_| "poisoned".to_owned())?;
+        *reject = false;
         Ok(())
-    }
-
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, String> {
-        self.connection
-            .lock()
-            .map_err(|_| "execution fixture lock poisoned".to_owned())
-    }
-
-    fn mutate_transaction(
-        &self,
-        input: &ExecutionWriteInput,
-    ) -> Result<Value, ExecutionWritePortError> {
-        reject_non_normal_context(input.context)?;
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| failed("execution fixture lock poisoned"))?;
-        let transaction = connection
-            .unchecked_transaction()
-            .map_err(|_| failed("execution transaction failed"))?;
-        let result = match input.operation {
-            ExecutionWriteOperation::OrderPlace => place(&transaction, "order", input)?,
-            ExecutionWriteOperation::ComboPlace => place(&transaction, "combo", input)?,
-            ExecutionWriteOperation::OrderCancel | ExecutionWriteOperation::ComboCancel => {
-                cancel(&transaction, input)?
-            }
-            ExecutionWriteOperation::BuyingPower
-            | ExecutionWriteOperation::ComboPreview
-            | ExecutionWriteOperation::OrderPreview => json!({
-                "accepted": true,
-                "operation": input.operation.name(),
-                "durableMutation": false,
-            }),
-        };
-        transaction
-            .commit()
-            .map_err(|_| failed("execution commit failed"))?;
-        Ok(result)
     }
 }
 
 impl ExecutionWritePort for ExecutionSqliteTestCutoverPort {
     fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
-        self.mutate_transaction(input)
+        reject_non_normal_context(input.context)?;
+        let timestamp = now_rfc3339();
+
+        match input.operation {
+            ExecutionWriteOperation::OrderPlace => {
+                let should_reject = *self
+                    .reject_order_place
+                    .lock()
+                    .map_err(|_| failed(500, "lock poisoned"))?;
+                if should_reject {
+                    return Err(failed(500, "test-cutover order-place rejection"));
+                }
+                let seq = self
+                    .store
+                    .next_sequence("execution_orders")
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let id = format!("order-test-{seq}");
+                let order = StoredExecutionOrder {
+                    internal_order_id: id.clone(),
+                    broker_id: input.payload["brokerId"].as_str().unwrap_or("").to_owned(),
+                    broker_order_id: Some(id.clone()),
+                    broker_order_id_ex: None,
+                    source: "execution".to_owned(),
+                    source_detail: "".to_owned(),
+                    trading_environment: "simulated".to_owned(),
+                    account_id: "".to_owned(),
+                    market: "".to_owned(),
+                    symbol: input.payload["symbol"].as_str().map(ToOwned::to_owned),
+                    side: input.payload["side"].as_str().map(ToOwned::to_owned),
+                    order_type: input.payload["orderType"].as_str().map(ToOwned::to_owned),
+                    status: "submitted".to_owned(),
+                    raw_broker_status: None,
+                    requested_quantity: input.payload["quantity"].as_f64(),
+                    requested_price: input.payload["price"].as_f64(),
+                    filled_quantity: Some(0.0),
+                    filled_average_price: Some(0.0),
+                    remark: None,
+                    last_error: None,
+                    last_error_code: None,
+                    last_error_source: None,
+                    submitted_at: Some(timestamp.clone()),
+                    updated_at: timestamp.clone(),
+                    created_at: timestamp.clone(),
+                    order_kind: "single".to_owned(),
+                    product_class: "stock".to_owned(),
+                    quantity_mode: "units".to_owned(),
+                    client_order_id: None,
+                    preview_id: None,
+                    normalized_request: input.payload.to_string(),
+                    requested_amount: None,
+                    payout: None,
+                    fees: None,
+                };
+                self.store
+                    .save_order(order, &timestamp)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let evt_id = format!("evt_{timestamp}_{seq}");
+                let event = StoredExecutionOrderEvent {
+                    id: &evt_id,
+                    internal_order_id: &id,
+                    event_type: "order-place",
+                    previous_status: None,
+                    next_status: "submitted",
+                    payload_json: &input.payload.to_string(),
+                    created_at: &timestamp,
+                };
+                self.store
+                    .record_event(&event)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                Ok(json!({
+                    "internalOrderId": id,
+                    "status": "submitted",
+                }))
+            }
+            ExecutionWriteOperation::ComboPlace => {
+                let seq = self
+                    .store
+                    .next_sequence("execution_orders")
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let id = format!("combo-test-{seq}");
+                let order = StoredExecutionOrder {
+                    internal_order_id: id.clone(),
+                    broker_id: input.payload["brokerId"].as_str().unwrap_or("").to_owned(),
+                    broker_order_id: Some(id.clone()),
+                    broker_order_id_ex: None,
+                    source: "execution".to_owned(),
+                    source_detail: "".to_owned(),
+                    trading_environment: "simulated".to_owned(),
+                    account_id: "".to_owned(),
+                    market: "".to_owned(),
+                    symbol: input.payload["symbol"].as_str().map(ToOwned::to_owned),
+                    side: input.payload["side"].as_str().map(ToOwned::to_owned),
+                    order_type: input.payload["orderType"].as_str().map(ToOwned::to_owned),
+                    status: "submitted".to_owned(),
+                    raw_broker_status: None,
+                    requested_quantity: input.payload["quantity"].as_f64(),
+                    requested_price: input.payload["price"].as_f64(),
+                    filled_quantity: Some(0.0),
+                    filled_average_price: Some(0.0),
+                    remark: None,
+                    last_error: None,
+                    last_error_code: None,
+                    last_error_source: None,
+                    submitted_at: Some(timestamp.clone()),
+                    updated_at: timestamp.clone(),
+                    created_at: timestamp.clone(),
+                    order_kind: "combo".to_owned(),
+                    product_class: "combo".to_owned(),
+                    quantity_mode: "units".to_owned(),
+                    client_order_id: None,
+                    preview_id: None,
+                    normalized_request: input.payload.to_string(),
+                    requested_amount: None,
+                    payout: None,
+                    fees: None,
+                };
+                self.store
+                    .save_order(order, &timestamp)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let evt_id = format!("evt_{timestamp}_{seq}");
+                let event = StoredExecutionOrderEvent {
+                    id: &evt_id,
+                    internal_order_id: &id,
+                    event_type: "combo-place",
+                    previous_status: None,
+                    next_status: "submitted",
+                    payload_json: &input.payload.to_string(),
+                    created_at: &timestamp,
+                };
+                self.store
+                    .record_event(&event)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                Ok(json!({
+                    "internalOrderId": id,
+                    "status": "submitted",
+                }))
+            }
+            ExecutionWriteOperation::OrderCancel | ExecutionWriteOperation::ComboCancel => {
+                let id = input
+                    .internal_order_id
+                    .as_deref()
+                    .ok_or_else(|| failed(400, "missing internalOrderId"))?;
+                let mut transitioned = false;
+                if let Ok(true) = self.store.cancel_order(id, &timestamp) {
+                    let evt_id = format!("evt_cancel_{timestamp}_{id}");
+                    let event = StoredExecutionOrderEvent {
+                        id: &evt_id,
+                        internal_order_id: id,
+                        event_type: "order-cancel",
+                        previous_status: Some("submitted"),
+                        next_status: "cancelled",
+                        payload_json: "{}",
+                        created_at: &timestamp,
+                    };
+                    let _ = self.store.record_event(&event);
+                    transitioned = true;
+                }
+                Ok(json!({
+                    "internalOrderId": id,
+                    "transitioned": transitioned,
+                }))
+            }
+            ExecutionWriteOperation::BuyingPower
+            | ExecutionWriteOperation::ComboPreview
+            | ExecutionWriteOperation::OrderPreview => Ok(json!({
+                "durableMutation": false,
+            })),
+        }
     }
-}
-
-fn place(
-    transaction: &rusqlite::Transaction<'_>,
-    kind: &str,
-    input: &ExecutionWriteInput,
-) -> Result<Value, ExecutionWritePortError> {
-    let id = next_id(transaction, kind)?;
-    let payload = serde_json::to_string(&input.payload)
-        .map_err(|_| failed("execution payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO execution_test_orders (id, kind, status, payload)
-             VALUES (?1, ?2, 'submitted', ?3)",
-            rusqlite::params![id, kind, payload],
-        )
-        .map_err(|_| failed("execution order write failed"))?;
-    insert_event(transaction, input.operation.name(), &id, &input.payload)?;
-    Ok(json!({
-        "accepted": true,
-        "operation": input.operation.name(),
-        "internalOrderId": id,
-        "status": "submitted",
-    }))
-}
-
-fn cancel(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &ExecutionWriteInput,
-) -> Result<Value, ExecutionWritePortError> {
-    let id = input.internal_order_id.as_deref().unwrap_or_default();
-    let status = transaction
-        .query_row(
-            "SELECT status FROM execution_test_orders WHERE id = ?1",
-            rusqlite::params![id],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|_| failed("execution order load failed"))?
-        .ok_or_else(|| ExecutionWritePortError::Failed {
-            status: 404,
-            code: "EXECUTION_ORDER_NOT_FOUND".to_owned(),
-            message: "execution order not found".to_owned(),
-        })?;
-    let transitioned = status != "cancelled";
-    if transitioned {
-        transaction
-            .execute(
-                "UPDATE execution_test_orders SET status = 'cancelled' WHERE id = ?1",
-                rusqlite::params![id],
-            )
-            .map_err(|_| failed("execution order cancel failed"))?;
-        insert_event(transaction, input.operation.name(), id, &Value::Null)?;
-    }
-    Ok(json!({
-        "accepted": true,
-        "operation": input.operation.name(),
-        "internalOrderId": id,
-        "status": "cancelled",
-        "transitioned": transitioned,
-    }))
-}
-
-fn next_id(
-    transaction: &rusqlite::Transaction<'_>,
-    prefix: &str,
-) -> Result<String, ExecutionWritePortError> {
-    let value = transaction
-        .query_row(
-            "SELECT next_value FROM execution_test_ids WHERE singleton = 1",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|_| failed("execution id allocation failed"))?;
-    transaction
-        .execute(
-            "UPDATE execution_test_ids SET next_value = next_value + 1 WHERE singleton = 1",
-            [],
-        )
-        .map_err(|_| failed("execution id allocation failed"))?;
-    Ok(format!("{prefix}-test-{value}"))
-}
-
-fn insert_event(
-    transaction: &rusqlite::Transaction<'_>,
-    operation: &str,
-    resource_id: &str,
-    payload: &Value,
-) -> Result<(), ExecutionWritePortError> {
-    let payload = serde_json::to_string(payload)
-        .map_err(|_| failed("execution payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO execution_test_events (operation, resource_id, payload)
-             VALUES (?1, ?2, ?3)",
-            rusqlite::params![operation, resource_id, payload],
-        )
-        .map_err(|_| failed("execution event write failed"))?;
-    Ok(())
 }
 
 fn reject_non_normal_context(context: ExecutionWriteContext) -> Result<(), ExecutionWritePortError> {
     match context {
         ExecutionWriteContext::Normal => Ok(()),
-        ExecutionWriteContext::Canceled => Err(ExecutionWritePortError::Failed {
-            status: 499,
-            code: "REQUEST_CANCELLED".to_owned(),
-            message: "execution request cancelled".to_owned(),
-        }),
-        ExecutionWriteContext::Deadline => Err(ExecutionWritePortError::Failed {
-            status: 504,
-            code: "BROKER_TIMEOUT".to_owned(),
-            message: "execution request deadline exceeded".to_owned(),
-        }),
+        ExecutionWriteContext::Canceled => Err(failed(499, "request canceled")),
+        ExecutionWriteContext::Deadline => Err(failed(504, "request timed out")),
     }
 }
 
-fn failed(message: &str) -> ExecutionWritePortError {
+fn failed(status: u16, message: &str) -> ExecutionWritePortError {
     ExecutionWritePortError::Failed {
-        status: 500,
-        code: "EXECUTION_TEST_FAILED".to_owned(),
+        status,
+        code: "EXECUTION_FAILED".to_owned(),
         message: message.to_owned(),
     }
+}
+
+fn now_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "2026-08-26T00:00:00Z".to_owned())
 }

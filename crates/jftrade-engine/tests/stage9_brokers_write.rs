@@ -277,6 +277,7 @@ fn brokers_write_leaf_preserves_query_defaults_null_trailing_and_context() {
 fn sqlite_test_cutover_preserves_place_cancel_unlock_rollback_and_restart() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let database_path = directory.path().join("brokers-test-cutover.db");
+    seed_go_execution_orders_schema(&database_path);
     let port = Arc::new(
         BrokersWriteSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
     );
@@ -571,4 +572,126 @@ fn route_template_matches(path: &str, template: &str) -> bool {
             .iter()
             .zip(expected)
             .all(|(actual, expected)| expected.starts_with('{') || actual == &expected)
+}
+
+fn seed_go_execution_orders_schema(path: &std::path::Path) {
+    let connection = rusqlite::Connection::open(path).expect("create execution orders fixture");
+    connection
+        .execute_batch(
+            "CREATE TABLE execution_orders (
+                internal_order_id TEXT PRIMARY KEY,
+                broker_id TEXT NOT NULL DEFAULT '',
+                broker_order_id TEXT,
+                broker_order_id_ex TEXT,
+                source TEXT NOT NULL DEFAULT '',
+                source_detail TEXT NOT NULL DEFAULT '',
+                trading_environment TEXT NOT NULL DEFAULT '',
+                account_id TEXT NOT NULL DEFAULT '',
+                market TEXT NOT NULL DEFAULT '',
+                symbol TEXT,
+                side TEXT,
+                order_type TEXT,
+                status TEXT NOT NULL DEFAULT '',
+                requested_quantity REAL,
+                requested_price REAL,
+                filled_quantity REAL,
+                filled_average_price REAL,
+                remark TEXT,
+                last_error TEXT,
+                last_error_code TEXT,
+                last_error_source TEXT,
+                submitted_at TEXT,
+                updated_at TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT '',
+                raw_broker_status TEXT,
+                order_kind TEXT NOT NULL DEFAULT 'single',
+                product_class TEXT NOT NULL DEFAULT 'unknown',
+                quantity_mode TEXT NOT NULL DEFAULT 'units',
+                client_order_id TEXT,
+                preview_id TEXT,
+                normalized_request TEXT NOT NULL DEFAULT '{}',
+                requested_amount REAL,
+                payout REAL,
+                fees REAL
+            );
+            CREATE TABLE execution_order_legs (
+                id TEXT PRIMARY KEY,
+                internal_order_id TEXT NOT NULL,
+                leg_index INTEGER NOT NULL,
+                broker_leg_id TEXT,
+                instrument_id TEXT NOT NULL,
+                product_class TEXT NOT NULL DEFAULT 'unknown',
+                side TEXT NOT NULL DEFAULT '',
+                ratio INTEGER NOT NULL DEFAULT 1,
+                prediction_side TEXT NOT NULL DEFAULT '',
+                requested_quantity REAL,
+                requested_amount REAL,
+                requested_price REAL,
+                status TEXT NOT NULL DEFAULT '',
+                filled_quantity REAL,
+                filled_amount REAL,
+                average_price REAL,
+                fees REAL,
+                payout REAL,
+                updated_at TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE execution_order_previews (
+                preview_id TEXT PRIMARY KEY,
+                request_hash TEXT NOT NULL,
+                broker_id TEXT NOT NULL,
+                capability_version TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                quote_expires_at TEXT,
+                rfq_id TEXT,
+                normalized_request TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                consumed_at TEXT
+            );
+            CREATE TABLE execution_prediction_quotes (
+                quote_id TEXT PRIMARY KEY,
+                broker_id TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                trading_environment TEXT NOT NULL,
+                mvc TEXT NOT NULL,
+                legs_hash TEXT NOT NULL,
+                bid_price REAL,
+                ask_price REAL,
+                should_retry INTEGER NOT NULL DEFAULT 0,
+                received_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                expiry_source TEXT NOT NULL DEFAULT 'jftrade_policy',
+                status TEXT NOT NULL DEFAULT 'active',
+                consumed_at TEXT,
+                consumed_preview_id TEXT,
+                consumed_client_order_id TEXT
+            );
+            CREATE TABLE execution_order_events (
+                id TEXT PRIMARY KEY,
+                internal_order_id TEXT NOT NULL,
+                event_type TEXT NOT NULL DEFAULT '',
+                previous_status TEXT,
+                next_status TEXT NOT NULL DEFAULT '',
+                payload_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE execution_seen_fills (fill_key TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT '');
+            CREATE TABLE execution_sequences (name TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX idx_execution_orders_updated ON execution_orders (updated_at DESC, created_at DESC, internal_order_id DESC);
+            CREATE INDEX idx_execution_orders_broker_order ON execution_orders (broker_id, trading_environment, account_id, market, broker_order_id);
+            CREATE INDEX idx_execution_orders_broker_order_ex ON execution_orders (broker_id, trading_environment, account_id, market, broker_order_id_ex);
+            CREATE INDEX idx_execution_order_events_order ON execution_order_events (internal_order_id, created_at ASC, id ASC);
+            CREATE UNIQUE INDEX idx_execution_orders_client_id ON execution_orders (broker_id, trading_environment, account_id, client_order_id) WHERE client_order_id IS NOT NULL AND TRIM(client_order_id) <> '';
+            CREATE INDEX idx_execution_order_legs_order ON execution_order_legs (internal_order_id, leg_index ASC);
+            CREATE INDEX idx_execution_prediction_quotes_expiry ON execution_prediction_quotes (status, expires_at);
+            CREATE TABLE jftrade_schema_meta (
+                component_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO jftrade_schema_meta (component_id, version, created_at)
+                VALUES ('execution-orders', 5, '2026-08-22T06:00:00Z');",
+        )
+        .expect("seed Go-compatible execution-orders schema");
 }

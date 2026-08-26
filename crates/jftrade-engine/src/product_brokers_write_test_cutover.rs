@@ -1,21 +1,36 @@
-// Durable broker mutation test-cutover adapter.
+// Durable broker mutation test-cutover adapter backed by `jftrade-store-sqlite`.
 //
-// This code is included only by Rust tests. Its SQLite schema is isolated
-// from the Go broker/order stores and it never connects to a broker/OpenD,
-// submits an order, or emits a production side effect.
+// This code is included only by Rust tests. Its SQLite schema connects to
+// the real `execution-orders` component with schema validation and single-writer lease.
 
-use rusqlite::OptionalExtension;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+use jftrade_store_sqlite::{
+    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderTestCutoverStore, StoredExecutionOrder,
+    StoredExecutionOrderEvent,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::{
     BrokersWriteContext, BrokersWriteInput, BrokersWriteOperation, BrokersWritePort,
     BrokersWritePortError,
 };
 
+#[derive(Default, Serialize, Deserialize)]
+struct BrokerCompanionState {
+    sessions: BTreeMap<String, bool>,
+}
+
 pub struct BrokersWriteSqliteTestCutoverPort {
-    path: std::path::PathBuf,
-    connection: std::sync::Mutex<rusqlite::Connection>,
-    reject_next_event: std::sync::Mutex<bool>,
+    path: PathBuf,
+    store: Arc<ExecutionOrderTestCutoverStore>,
+    companion_path: PathBuf,
+    state: Mutex<BrokerCompanionState>,
+    reject_next_event: Mutex<bool>,
 }
 
 impl std::fmt::Debug for BrokersWriteSqliteTestCutoverPort {
@@ -29,316 +44,223 @@ impl std::fmt::Debug for BrokersWriteSqliteTestCutoverPort {
 
 #[allow(dead_code)]
 impl BrokersWriteSqliteTestCutoverPort {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, String> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref().to_owned();
-        let connection = rusqlite::Connection::open(&path).map_err(|error| error.to_string())?;
-        connection
-            .execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 CREATE TABLE IF NOT EXISTS brokers_test_ids (
-                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                    next_value INTEGER NOT NULL
-                 );
-                 INSERT OR IGNORE INTO brokers_test_ids (singleton, next_value)
-                    VALUES (1, 1);
-                 CREATE TABLE IF NOT EXISTS brokers_test_orders (
-                    order_id INTEGER PRIMARY KEY,
-                    broker_id TEXT NOT NULL,
-                    account_id TEXT NOT NULL,
-                    trading_environment TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );
-                 CREATE TABLE IF NOT EXISTS brokers_test_sessions (
-                    broker_id TEXT PRIMARY KEY,
-                    unlocked INTEGER NOT NULL,
-                    payload TEXT NOT NULL
-                 );
-                 CREATE TABLE IF NOT EXISTS brokers_test_events (
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    operation TEXT NOT NULL,
-                    resource_id TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );",
-            )
-            .map_err(|error| error.to_string())?;
+        let store = ExecutionOrderTestCutoverStore::open_existing(
+            &path,
+            EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+        )
+        .map_err(|err| err.to_string())?;
+        let companion_path = path.with_extension("broker_sessions.json");
+        let state = if companion_path.exists() {
+            let bytes = std::fs::read(&companion_path).map_err(|e| e.to_string())?;
+            serde_json::from_slice(&bytes).unwrap_or_default()
+        } else {
+            BrokerCompanionState::default()
+        };
         Ok(Self {
             path,
-            connection: std::sync::Mutex::new(connection),
-            reject_next_event: std::sync::Mutex::new(false),
+            store: Arc::new(store),
+            companion_path,
+            state: Mutex::new(state),
+            reject_next_event: Mutex::new(false),
         })
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn store(&self) -> &ExecutionOrderTestCutoverStore {
+        &self.store
+    }
+
+    fn persist_companion(&self, state: &BrokerCompanionState) -> Result<(), String> {
+        let bytes = serde_json::to_vec_pretty(state).map_err(|e| e.to_string())?;
+        std::fs::write(&self.companion_path, bytes).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     pub fn order_count(&self) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let count = connection
-            .query_row("SELECT COUNT(*) FROM brokers_test_orders", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative broker order count".to_owned())
+        self.store.order_count().map_err(|e| e.to_string())
     }
 
     pub fn order_status(&self, order_id: i64) -> Result<Option<String>, String> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT status FROM brokers_test_orders WHERE order_id = ?1",
-                rusqlite::params![order_id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|error| error.to_string())
+        let order = self
+            .store
+            .get_order(&order_id.to_string())
+            .map_err(|e| e.to_string())?;
+        Ok(order.map(|o| o.status))
     }
 
     pub fn event_count(&self, operation: &str) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let count = connection
-            .query_row(
-                "SELECT COUNT(*) FROM brokers_test_events WHERE operation = ?1",
-                rusqlite::params![operation],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative broker event count".to_owned())
+        self.store.event_count(operation).map_err(|e| e.to_string())
     }
 
     pub fn session_unlocked(&self, broker_id: &str) -> Result<Option<bool>, String> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT unlocked FROM brokers_test_sessions WHERE broker_id = ?1",
-                rusqlite::params![broker_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()
-            .map(|value| value.map(|unlocked| unlocked != 0))
-            .map_err(|error| error.to_string())
+        let state = self.state.lock().map_err(|_| "poisoned".to_owned())?;
+        Ok(state.sessions.get(broker_id).copied())
     }
 
     pub fn reject_next_event(&self) -> Result<(), String> {
         let mut reject = self
             .reject_next_event
             .lock()
-            .map_err(|_| "broker fixture rejection lock poisoned".to_owned())?;
+            .map_err(|_| "poisoned".to_owned())?;
         *reject = true;
         Ok(())
-    }
-
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, String> {
-        self.connection
-            .lock()
-            .map_err(|_| "broker fixture connection lock poisoned".to_owned())
     }
 
     fn take_event_rejection(&self) -> Result<bool, BrokersWritePortError> {
         let mut reject = self
             .reject_next_event
             .lock()
-            .map_err(|_| failed("broker fixture rejection lock poisoned"))?;
+            .map_err(|_| failed(500, "poisoned"))?;
         let value = *reject;
         *reject = false;
         Ok(value)
-    }
-
-    fn mutate_transaction(
-        &self,
-        input: &BrokersWriteInput,
-    ) -> Result<Value, BrokersWritePortError> {
-        reject_non_normal_context(input.context)?;
-        let reject_event = self.take_event_rejection()?;
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| failed("broker fixture connection lock poisoned"))?;
-        let transaction = connection
-            .unchecked_transaction()
-            .map_err(|_| failed("broker mutation transaction failed"))?;
-        let result = match input.operation {
-            BrokersWriteOperation::PlaceOrder => place(&transaction, input, reject_event),
-            BrokersWriteOperation::CancelOrders => cancel(&transaction, input, reject_event),
-            BrokersWriteOperation::Unlock => unlock(&transaction, input, reject_event),
-        }?;
-        transaction
-            .commit()
-            .map_err(|_| failed("broker mutation commit failed"))?;
-        Ok(result)
     }
 }
 
 impl BrokersWritePort for BrokersWriteSqliteTestCutoverPort {
     fn mutate(&self, input: &BrokersWriteInput) -> Result<Value, BrokersWritePortError> {
-        self.mutate_transaction(input)
-    }
-}
+        reject_non_normal_context(input.context)?;
+        let reject_event = self.take_event_rejection()?;
+        if reject_event {
+            return Err(failed(500, "test-cutover broker event rejected"));
+        }
+        let timestamp = now_rfc3339();
 
-fn place(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &BrokersWriteInput,
-    reject_event: bool,
-) -> Result<Value, BrokersWritePortError> {
-    let order_id = next_order_id(transaction)?;
-    let payload = serde_json::to_string(&input.payload)
-        .map_err(|_| failed("broker place payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO brokers_test_orders (
-                order_id, broker_id, account_id, trading_environment, market, status, payload
-             ) VALUES (?1, ?2, ?3, ?4, ?5, 'submitted', ?6)",
-            rusqlite::params![
-                order_id,
-                input.query.broker_id,
-                input.query.account_id,
-                input.query.trading_environment,
-                input.query.market,
-                payload,
-            ],
-        )
-        .map_err(|_| failed("broker order write failed"))?;
-    insert_event(
-        transaction,
-        "place-order",
-        &order_id.to_string(),
-        &input.payload,
-        reject_event,
-    )?;
-    Ok(json!({
-        "accepted": true,
-        "operation": "place-order",
-        "orderId": order_id,
-        "status": "submitted",
-        "brokerId": input.query.broker_id,
-    }))
-}
-
-fn cancel(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &BrokersWriteInput,
-    reject_event: bool,
-) -> Result<Value, BrokersWritePortError> {
-    let orders = input
-        .payload
-        .get("orders")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut cancelled = 0;
-    for item in orders {
-        let Some(order_id) = item.get("orderId").and_then(Value::as_i64) else {
-            continue;
-        };
-        let changed = transaction
-            .execute(
-                "UPDATE brokers_test_orders
-                 SET status = 'cancelled'
-                 WHERE order_id = ?1 AND status = 'submitted'",
-                rusqlite::params![order_id],
-            )
-            .map_err(|_| failed("broker order cancel failed"))?;
-        if changed == 1 {
-            cancelled += 1;
-            insert_event(
-                transaction,
-                "cancel-orders",
-                &order_id.to_string(),
-                &item,
-                reject_event,
-            )?;
+        match input.operation {
+            BrokersWriteOperation::PlaceOrder => {
+                let seq = self
+                    .store
+                    .next_sequence("broker_orders")
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let id = seq.to_string();
+                let order = StoredExecutionOrder {
+                    internal_order_id: id.clone(),
+                    broker_id: input.query.broker_id.clone(),
+                    broker_order_id: Some(id.clone()),
+                    broker_order_id_ex: None,
+                    source: "broker".to_owned(),
+                    source_detail: "".to_owned(),
+                    trading_environment: input.query.trading_environment.clone(),
+                    account_id: input.query.account_id.clone(),
+                    market: input.query.market.clone(),
+                    symbol: input.payload["symbol"].as_str().map(ToOwned::to_owned),
+                    side: input.payload["side"].as_str().map(ToOwned::to_owned),
+                    order_type: input.payload["orderType"].as_str().map(ToOwned::to_owned),
+                    status: "submitted".to_owned(),
+                    raw_broker_status: None,
+                    requested_quantity: input.payload["quantity"].as_f64(),
+                    requested_price: input.payload["price"].as_f64(),
+                    filled_quantity: Some(0.0),
+                    filled_average_price: Some(0.0),
+                    remark: None,
+                    last_error: None,
+                    last_error_code: None,
+                    last_error_source: None,
+                    submitted_at: Some(timestamp.clone()),
+                    updated_at: timestamp.clone(),
+                    created_at: timestamp.clone(),
+                    order_kind: "single".to_owned(),
+                    product_class: "stock".to_owned(),
+                    quantity_mode: "units".to_owned(),
+                    client_order_id: None,
+                    preview_id: None,
+                    normalized_request: input.payload.to_string(),
+                    requested_amount: None,
+                    payout: None,
+                    fees: None,
+                };
+                self.store
+                    .save_order(order, &timestamp)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                let evt_id = format!("evt_{timestamp}_{seq}");
+                let event = StoredExecutionOrderEvent {
+                    id: &evt_id,
+                    internal_order_id: &id,
+                    event_type: "place-order",
+                    previous_status: None,
+                    next_status: "submitted",
+                    payload_json: &input.payload.to_string(),
+                    created_at: &timestamp,
+                };
+                self.store
+                    .record_event(&event)
+                    .map_err(|e| failed(500, &e.to_string()))?;
+                Ok(json!({
+                    "orderId": seq,
+                    "status": "submitted",
+                }))
+            }
+            BrokersWriteOperation::CancelOrders => {
+                let orders = input.payload["orders"].as_array().cloned().unwrap_or_default();
+                let mut cancelled = 0;
+                for item in orders {
+                    let order_id = item["orderId"].as_i64().unwrap_or(0);
+                    let id = order_id.to_string();
+                    if let Ok(true) = self.store.cancel_order(&id, &timestamp) {
+                        let evt_id = format!("evt_cancel_{timestamp}_{order_id}");
+                        let event = StoredExecutionOrderEvent {
+                            id: &evt_id,
+                            internal_order_id: &id,
+                            event_type: "cancel-orders",
+                            previous_status: Some("submitted"),
+                            next_status: "cancelled",
+                            payload_json: "{}",
+                            created_at: &timestamp,
+                        };
+                        let _ = self.store.record_event(&event);
+                        cancelled += 1;
+                    }
+                }
+                Ok(json!({
+                    "cancelled": cancelled,
+                }))
+            }
+            BrokersWriteOperation::Unlock => {
+                let mut state = self.state.lock().map_err(|_| failed(500, "poisoned"))?;
+                state.sessions.insert(input.query.broker_id.clone(), true);
+                self.persist_companion(&state).map_err(|e| failed(500, &e.to_string()))?;
+                let evt_id = format!("evt_unlock_{timestamp}");
+                let event = StoredExecutionOrderEvent {
+                    id: &evt_id,
+                    internal_order_id: &input.query.broker_id,
+                    event_type: "unlock",
+                    previous_status: None,
+                    next_status: "unlocked",
+                    payload_json: "{}",
+                    created_at: &timestamp,
+                };
+                let _ = self.store.record_event(&event);
+                Ok(json!({
+                    "unlocked": true,
+                }))
+            }
         }
     }
-    Ok(json!({"accepted": true, "operation": "cancel-orders", "cancelled": cancelled}))
-}
-
-fn unlock(
-    transaction: &rusqlite::Transaction<'_>,
-    input: &BrokersWriteInput,
-    reject_event: bool,
-) -> Result<Value, BrokersWritePortError> {
-    let payload = serde_json::to_string(&input.payload)
-        .map_err(|_| failed("broker unlock payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO brokers_test_sessions (broker_id, unlocked, payload)
-             VALUES (?1, 1, ?2)
-             ON CONFLICT(broker_id) DO UPDATE SET unlocked = 1, payload = excluded.payload",
-            rusqlite::params![input.query.broker_id, payload],
-        )
-        .map_err(|_| failed("broker unlock write failed"))?;
-    insert_event(
-        transaction,
-        "unlock",
-        &input.query.broker_id,
-        &input.payload,
-        reject_event,
-    )?;
-    Ok(json!({
-        "accepted": true,
-        "operation": "unlock",
-        "unlocked": true,
-        "brokerId": input.query.broker_id,
-    }))
-}
-
-fn next_order_id(transaction: &rusqlite::Transaction<'_>) -> Result<i64, BrokersWritePortError> {
-    let value = transaction
-        .query_row(
-            "SELECT next_value FROM brokers_test_ids WHERE singleton = 1",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|_| failed("broker order id allocation failed"))?;
-    transaction
-        .execute(
-            "UPDATE brokers_test_ids SET next_value = next_value + 1 WHERE singleton = 1",
-            [],
-        )
-        .map_err(|_| failed("broker order id allocation failed"))?;
-    Ok(value)
-}
-
-fn insert_event(
-    transaction: &rusqlite::Transaction<'_>,
-    operation: &str,
-    resource_id: &str,
-    payload: &Value,
-    reject_event: bool,
-) -> Result<(), BrokersWritePortError> {
-    if reject_event {
-        return Err(failed("broker event write rejected"));
-    }
-    let payload = serde_json::to_string(payload)
-        .map_err(|_| failed("broker event payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO brokers_test_events (operation, resource_id, payload)
-             VALUES (?1, ?2, ?3)",
-            rusqlite::params![operation, resource_id, payload],
-        )
-        .map_err(|_| failed("broker event write failed"))?;
-    Ok(())
 }
 
 fn reject_non_normal_context(context: BrokersWriteContext) -> Result<(), BrokersWritePortError> {
     match context {
         BrokersWriteContext::Normal => Ok(()),
-        BrokersWriteContext::Canceled => Err(BrokersWritePortError::Failed {
-            status: 499,
-            code: "REQUEST_CANCELLED".to_owned(),
-            message: "broker request cancelled".to_owned(),
-        }),
-        BrokersWriteContext::Deadline => Err(BrokersWritePortError::Failed {
-            status: 504,
-            code: "BROKER_TIMEOUT".to_owned(),
-            message: "broker request deadline exceeded".to_owned(),
-        }),
+        BrokersWriteContext::Canceled => Err(failed(499, "request canceled")),
+        BrokersWriteContext::Deadline => Err(failed(504, "request timed out")),
     }
 }
 
-fn failed(message: &str) -> BrokersWritePortError {
+fn failed(status: u16, message: &str) -> BrokersWritePortError {
     BrokersWritePortError::Failed {
-        status: 500,
-        code: "BROKERS_TEST_FAILED".to_owned(),
+        status,
+        code: "BROKER_FAILED".to_owned(),
         message: message.to_owned(),
     }
+}
+
+fn now_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "2026-08-26T00:00:00Z".to_owned())
 }
