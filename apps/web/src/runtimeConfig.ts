@@ -18,18 +18,34 @@ export async function initializeTauriRuntimeConfig(): Promise<void> {
   ) {
     return;
   }
-  const config = await tauriInvoke<JFTradeRuntimeConfig>("desktop_runtime_config");
-  const apiBaseUrl = normalizeApiBaseUrl(config.apiBaseUrl);
-  const token = config.desktopApiToken?.trim();
-  if (!isLoopbackHttpUrl(apiBaseUrl) || !token || token.length < 32) {
-    throw new Error("Tauri runtime returned an unsafe desktop API configuration");
+  const maxAttempts = 50;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const config = await tauriInvoke<JFTradeRuntimeConfig>("desktop_runtime_config");
+      const apiBaseUrl = normalizeApiBaseUrl(config.apiBaseUrl);
+      const token = config.desktopApiToken?.trim();
+      if (!isLoopbackHttpUrl(apiBaseUrl) || !token || token.length < 32) {
+        throw new Error("Tauri runtime returned an unsafe desktop API configuration");
+      }
+      window.__JFTRADE_RUNTIME_CONFIG__ = {
+        apiBaseUrl,
+        authRequired: true,
+        desktopMode: true,
+        desktopApiToken: token,
+      };
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        (message.includes("DESKTOP_NOT_READY") || message.includes("starting")) &&
+        attempt < maxAttempts - 1
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
+      }
+      throw error;
+    }
   }
-  window.__JFTRADE_RUNTIME_CONFIG__ = {
-    apiBaseUrl,
-    authRequired: true,
-    desktopMode: true,
-    desktopApiToken: token,
-  };
 }
 
 declare global {
