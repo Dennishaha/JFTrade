@@ -140,6 +140,47 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
         assert!(state.connected);
         assert_eq!(state.active_demand, 1);
     }
+    assert!(runtime.set_market_data_opend_demand(vec![InstrumentRef {
+        channel: "SNAPSHOT".to_owned(),
+        market: "US".to_owned(),
+        symbol: "MSFT".to_owned(),
+        interval: None,
+    }]));
+    assert_eq!(
+        router
+            .lock()
+            .expect("router lock")
+            .demand()
+            .active
+            .first()
+            .map(|instrument| instrument.symbol.as_str()),
+        Some("MSFT")
+    );
+    assert!(!runtime.set_market_data_opend_demand(vec![InstrumentRef {
+        channel: "INVALID".to_owned(),
+        market: "US".to_owned(),
+        symbol: "AAPL".to_owned(),
+        interval: None,
+    }]));
+    assert_eq!(
+        router
+            .lock()
+            .expect("router lock")
+            .demand()
+            .active
+            .first()
+            .map(|instrument| instrument.symbol.as_str()),
+        Some("MSFT")
+    );
+    assert!(runtime.set_market_data_opend_demand(Vec::new()));
+    assert!(
+        router
+            .lock()
+            .expect("router lock")
+            .demand()
+            .active
+            .is_empty()
+    );
     runtime.shutdown().await.expect("shutdown product runtime");
     let state = router.lock().expect("router lock").runtime().clone();
     assert!(state.active_provider.is_empty());

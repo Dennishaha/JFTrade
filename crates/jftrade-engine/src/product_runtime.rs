@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jftrade_datamanagement::{
     DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
@@ -350,6 +350,9 @@ impl ProductRuntimeHandle {
         &self,
         demand: Vec<jftrade_marketdata::InstrumentRef>,
     ) -> bool {
+        if let Some(provider) = self.market_data_opend_provider.as_ref() {
+            return provider.set_demand(demand, current_unix_millis()).is_ok();
+        }
         let Some(runtime) = self.market_data_opend_runtime.as_ref() else {
             return false;
         };
@@ -397,6 +400,14 @@ impl ProductRuntimeHandle {
             Err(ProductRuntimeError::Shutdown(failures.join("; ")))
         }
     }
+}
+
+fn current_unix_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| i64::try_from(duration.as_millis()).ok())
+        .unwrap_or_default()
 }
 
 impl Drop for ProductRuntimeHandle {

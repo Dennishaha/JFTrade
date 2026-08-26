@@ -55,6 +55,7 @@ pub struct OpenDProviderRuntime {
     router: Arc<Mutex<ProviderRouter>>,
     provider_id: String,
     demand_consumer_id: String,
+    demand_managed: bool,
     runtime: OpenDSessionRuntime,
 }
 
@@ -147,6 +148,7 @@ impl OpenDProviderRuntime {
             router: config.router,
             provider_id,
             demand_consumer_id,
+            demand_managed: config.demand_managed,
             runtime,
         })
     }
@@ -165,6 +167,31 @@ impl OpenDProviderRuntime {
 
     pub fn runtime(&self) -> &OpenDSessionRuntime {
         &self.runtime
+    }
+
+    /// Replaces the demand owned by this provider bridge. The runtime task
+    /// reads demand from the same router, so updates must go through the
+    /// bridge's consumer rather than the task's standalone setter.
+    pub fn set_demand(
+        &self,
+        desired: Vec<InstrumentRef>,
+        now_ms: i64,
+    ) -> Result<(), jftrade_marketdata::MarketDataError> {
+        let mut router = self
+            .router
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if desired.is_empty() {
+            router.release_demand(&self.demand_consumer_id);
+            return Ok(());
+        }
+        router.acquire_demand(
+            &self.demand_consumer_id,
+            desired,
+            self.demand_managed,
+            now_ms,
+        )?;
+        Ok(())
     }
 
     pub fn shutdown(mut self) -> Result<(), OpenDProviderRuntimeError> {
