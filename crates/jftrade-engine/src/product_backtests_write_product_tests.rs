@@ -335,6 +335,7 @@ async fn backtests_sqlite_test_cutover_replays_transport_and_restart() {
     let database_path = directory.path().join("backtests-test-cutover.db");
     std::fs::write(&settings_path, b"{\"seed\":\"backtests-durable\"}\n").expect("seed settings");
     let settings_before = std::fs::read(&settings_path).expect("settings");
+    seed_go_backtest_runs_schema(&database_path);
     let port = Arc::new(
         BacktestsSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
     );
@@ -420,4 +421,29 @@ async fn backtests_sqlite_test_cutover_replays_transport_and_restart() {
         std::fs::read(&settings_path).expect("settings after restart"),
         settings_before
     );
+}
+
+fn seed_go_backtest_runs_schema(path: &std::path::Path) {
+    let connection = rusqlite::Connection::open(path).expect("create backtest runs fixture");
+    connection
+        .execute_batch(
+            "CREATE TABLE backtest_runs (
+                id TEXT PRIMARY KEY,
+                status TEXT NOT NULL DEFAULT '',
+                request_json TEXT NOT NULL DEFAULT '',
+                result_json TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX idx_backtest_runs_updated_at ON backtest_runs (updated_at DESC, id ASC);
+            CREATE INDEX idx_backtest_runs_status ON backtest_runs (status, updated_at DESC);
+            CREATE TABLE jftrade_schema_meta (
+                component_id TEXT PRIMARY KEY,
+                version INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO jftrade_schema_meta (component_id, version, created_at)
+                VALUES ('backtest-runs', 1, '2026-08-22T06:00:00Z');",
+        )
+        .expect("seed Go-compatible backtest-runs schema");
 }

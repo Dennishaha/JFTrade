@@ -2,6 +2,7 @@
 
 //! SQLite inspection plus explicitly fenced migration test-cutover stores.
 
+mod backtest_run;
 mod data_management;
 mod maintenance;
 mod research_preset;
@@ -10,6 +11,10 @@ mod strategy_definition;
 mod strategy_runtime;
 mod watchlist;
 
+pub use backtest_run::{
+    BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStoreError, BacktestRunTestCutoverStore,
+    StoredBacktestRun,
+};
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
 pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{

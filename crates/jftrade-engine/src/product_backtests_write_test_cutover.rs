@@ -1,20 +1,37 @@
-//! Durable backtests test-cutover adapter.
+//! Durable backtests test-cutover adapter backed by `jftrade-store-sqlite`.
 //!
-//! This module is compiled only for Rust tests. Its SQLite schema is isolated
-//! from the Go production run/task stores and it never starts PineTS, a
-//! market-data worker, Provider/OpenD, notifications, or user-visible tasks.
+//! This module is compiled only for Rust tests. Its SQLite schema connects to
+//! the real `backtest-runs` component with schema validation and single-writer lease.
 
-use rusqlite::OptionalExtension;
-use serde_json::{Value, json};
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+
+use jftrade_store_sqlite::{
+    BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunTestCutoverStore, StoredBacktestRun,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use super::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
     BacktestsWritePortResult,
 };
 
+#[derive(Default, Serialize, Deserialize)]
+struct BacktestCompanionState {
+    next_sequence: u64,
+    tasks: BTreeMap<String, String>,
+    events: Vec<(String, String)>,
+}
+
 pub struct BacktestsSqliteTestCutoverPort {
-    path: std::path::PathBuf,
-    connection: std::sync::Mutex<rusqlite::Connection>,
+    path: PathBuf,
+    store: Arc<BacktestRunTestCutoverStore>,
+    companion_path: PathBuf,
+    state: Mutex<BacktestCompanionState>,
+    reject_start: Mutex<bool>,
 }
 
 impl std::fmt::Debug for BacktestsSqliteTestCutoverPort {
@@ -28,186 +45,107 @@ impl std::fmt::Debug for BacktestsSqliteTestCutoverPort {
 
 #[allow(dead_code)]
 impl BacktestsSqliteTestCutoverPort {
-    pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self, String> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path = path.as_ref().to_owned();
-        let connection = rusqlite::Connection::open(&path).map_err(|error| error.to_string())?;
-        connection
-            .execute_batch(
-                "PRAGMA foreign_keys = ON;
-                 CREATE TABLE IF NOT EXISTS backtests_test_ids (
-                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-                    next_value INTEGER NOT NULL
-                 );
-                 INSERT OR IGNORE INTO backtests_test_ids (singleton, next_value) VALUES (1, 1);
-                 CREATE TABLE IF NOT EXISTS backtests_test_runs (
-                    id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );
-                 CREATE TABLE IF NOT EXISTS backtests_test_tasks (
-                    id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );
-                 CREATE TABLE IF NOT EXISTS backtests_test_events (
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    operation TEXT NOT NULL,
-                    resource_id TEXT NOT NULL,
-                    payload TEXT NOT NULL
-                 );",
-            )
-            .map_err(|error| error.to_string())?;
+        let store =
+            BacktestRunTestCutoverStore::open_existing(&path, BACKTEST_RUNS_TEST_CUTOVER_PROFILE)
+                .map_err(|err| err.to_string())?;
+        let companion_path = path.with_extension("tasks.json");
+        let state = if companion_path.exists() {
+            let bytes = std::fs::read(&companion_path).map_err(|e| e.to_string())?;
+            serde_json::from_slice(&bytes).unwrap_or_default()
+        } else {
+            BacktestCompanionState {
+                next_sequence: 1,
+                ..Default::default()
+            }
+        };
         Ok(Self {
             path,
-            connection: std::sync::Mutex::new(connection),
+            store: Arc::new(store),
+            companion_path,
+            state: Mutex::new(state),
+            reject_start: Mutex::new(false),
         })
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn store(&self) -> &BacktestRunTestCutoverStore {
+        &self.store
+    }
+
+    fn persist_companion(&self, state: &BacktestCompanionState) -> Result<(), String> {
+        let bytes = serde_json::to_vec_pretty(state).map_err(|e| e.to_string())?;
+        std::fs::write(&self.companion_path, bytes).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     pub fn seed_run(&self, id: &str, status: &str) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute(
-                "INSERT OR REPLACE INTO backtests_test_runs (id, status, payload)
-                 VALUES (?1, ?2, '{}')",
-                rusqlite::params![id, status],
-            )
-            .map_err(|error| error.to_string())?;
+        let timestamp = now_rfc3339();
+        let run = StoredBacktestRun {
+            id: id.to_owned(),
+            status: status.to_owned(),
+            request_json: "{}".to_owned(),
+            result_json: "".to_owned(),
+            created_at: timestamp.clone(),
+            updated_at: timestamp.clone(),
+        };
+        self.store
+            .save_run(run, &timestamp)
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
     pub fn seed_task(&self, id: &str, status: &str) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute(
-                "INSERT OR REPLACE INTO backtests_test_tasks (id, status, payload)
-                 VALUES (?1, ?2, '{}')",
-                rusqlite::params![id, status],
-            )
-            .map_err(|error| error.to_string())?;
+        let mut state = self.state.lock().map_err(|_| "poisoned".to_owned())?;
+        state.tasks.insert(id.to_owned(), status.to_owned());
+        self.persist_companion(&state)?;
         Ok(())
     }
 
     pub fn run_count(&self) -> Result<u64, String> {
-        self.count_rows("backtests_test_runs")
+        self.store.run_count().map_err(|e| e.to_string())
     }
 
     pub fn run_exists(&self, id: &str) -> Result<bool, String> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT 1 FROM backtests_test_runs WHERE id = ?1",
-                rusqlite::params![id],
-                |_| Ok(true),
-            )
-            .optional()
-            .map(|value| value.unwrap_or(false))
-            .map_err(|error| error.to_string())
+        let run = self.store.get_run(id).map_err(|e| e.to_string())?;
+        Ok(run.is_some())
     }
 
     pub fn task_status(&self, id: &str) -> Result<Option<String>, String> {
-        let connection = self.lock()?;
-        connection
-            .query_row(
-                "SELECT status FROM backtests_test_tasks WHERE id = ?1",
-                rusqlite::params![id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|error| error.to_string())
+        let state = self.state.lock().map_err(|_| "poisoned".to_owned())?;
+        Ok(state.tasks.get(id).cloned())
     }
 
     pub fn event_count(&self, operation: &str) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let count = connection
-            .query_row(
-                "SELECT COUNT(*) FROM backtests_test_events WHERE operation = ?1",
-                rusqlite::params![operation],
-                |row| row.get::<_, i64>(0),
-            )
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative backtests event count".to_owned())
+        let state = self.state.lock().map_err(|_| "poisoned".to_owned())?;
+        let count = state
+            .events
+            .iter()
+            .filter(|(op, _)| op == operation)
+            .count();
+        Ok(count as u64)
     }
 
     pub fn reject_start_event(&self) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute_batch(
-                "DROP TRIGGER IF EXISTS backtests_test_reject_start;
-                 CREATE TRIGGER backtests_test_reject_start
-                 BEFORE INSERT ON backtests_test_events
-                 WHEN NEW.operation = 'start' BEGIN
-                    SELECT RAISE(ABORT, 'test-cutover start rejection');
-                 END;",
-            )
-            .map_err(|error| error.to_string())?;
+        let mut reject = self
+            .reject_start
+            .lock()
+            .map_err(|_| "poisoned".to_owned())?;
+        *reject = true;
         Ok(())
     }
 
     pub fn clear_rejection(&self) -> Result<(), String> {
-        let connection = self.lock()?;
-        connection
-            .execute_batch("DROP TRIGGER IF EXISTS backtests_test_reject_start")
-            .map_err(|error| error.to_string())?;
+        let mut reject = self
+            .reject_start
+            .lock()
+            .map_err(|_| "poisoned".to_owned())?;
+        *reject = false;
         Ok(())
-    }
-
-    fn count_rows(&self, table: &str) -> Result<u64, String> {
-        let connection = self.lock()?;
-        let statement = format!("SELECT COUNT(*) FROM {table}");
-        let count = connection
-            .query_row(&statement, [], |row| row.get::<_, i64>(0))
-            .map_err(|error| error.to_string())?;
-        u64::try_from(count).map_err(|_| "negative backtests row count".to_owned())
-    }
-
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, String> {
-        self.connection
-            .lock()
-            .map_err(|_| "backtests fixture lock poisoned".to_owned())
-    }
-
-    fn mutate_transaction(
-        &self,
-        input: &BacktestsWriteInput,
-    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| failed("backtests fixture lock poisoned"))?;
-        let transaction = connection
-            .unchecked_transaction()
-            .map_err(|_| failed("backtests transaction failed"))?;
-        let (result, event) = match input {
-            BacktestsWriteInput::Start { payload } => {
-                let (result, id) = start_run(&transaction, payload)?;
-                (result, Some(("start", id, payload.clone())))
-            }
-            BacktestsWriteInput::Sync { payload } => {
-                let (result, id) = start_sync(&transaction, payload)?;
-                (result, Some(("sync", id, payload.clone())))
-            }
-            BacktestsWriteInput::CancelSync { task_id } => {
-                let cancelled = cancel_sync(&transaction, task_id)?;
-                let event = cancelled.then_some(("cancel-sync", task_id.clone(), Value::Null));
-                (BacktestsWritePortResult::SyncCancelled(cancelled), event)
-            }
-            BacktestsWriteInput::Delete { run_id } => {
-                let deleted = delete_run(&transaction, run_id)?;
-                let event = (deleted == BacktestsWriteDeleteResult::Deleted).then_some((
-                    "delete",
-                    run_id.clone(),
-                    Value::Null,
-                ));
-                (BacktestsWritePortResult::RunDeleted(deleted), event)
-            }
-        };
-        if let Some((operation, resource_id, payload)) = event {
-            insert_event(&transaction, operation, &resource_id, &payload)?;
-        }
-        transaction
-            .commit()
-            .map_err(|_| failed("backtests commit failed"))?;
-        Ok(result)
     }
 }
 
@@ -216,127 +154,117 @@ impl BacktestsWritePort for BacktestsSqliteTestCutoverPort {
         &self,
         input: &BacktestsWriteInput,
     ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
-        self.mutate_transaction(input)
+        match input {
+            BacktestsWriteInput::Start { payload } => {
+                let should_reject = *self
+                    .reject_start
+                    .lock()
+                    .map_err(|_| failed("lock poisoned"))?;
+                if should_reject {
+                    return Err(failed("test-cutover start rejection"));
+                }
+                let mut state = self.state.lock().map_err(|_| failed("lock poisoned"))?;
+                if state.next_sequence == 0 {
+                    state.next_sequence = 1;
+                }
+                let seq = state.next_sequence;
+                state.next_sequence += 1;
+                let id = format!("run-test-{seq}");
+                let timestamp = now_rfc3339();
+                let run = StoredBacktestRun {
+                    id: id.clone(),
+                    status: "queued".to_owned(),
+                    request_json: payload.to_string(),
+                    result_json: "".to_owned(),
+                    created_at: timestamp.clone(),
+                    updated_at: timestamp.clone(),
+                };
+                self.store
+                    .save_run(run, &timestamp)
+                    .map_err(|e| failed(&e.to_string()))?;
+                state.events.push(("start".to_owned(), id.clone()));
+                self.persist_companion(&state)
+                    .map_err(|e| failed(&e.to_string()))?;
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "id": id,
+                    "status": "queued",
+                    "message": "backtest queued",
+                })))
+            }
+            BacktestsWriteInput::Sync { payload: _ } => {
+                let mut state = self.state.lock().map_err(|_| failed("lock poisoned"))?;
+                if state.next_sequence == 0 {
+                    state.next_sequence = 1;
+                }
+                let seq = state.next_sequence;
+                state.next_sequence += 1;
+                let task_id = format!("task-test-{seq}");
+                state.tasks.insert(task_id.clone(), "running".to_owned());
+                state.events.push(("sync".to_owned(), task_id.clone()));
+                self.persist_companion(&state)
+                    .map_err(|e| failed(&e.to_string()))?;
+                Ok(BacktestsWritePortResult::Data(json!({
+                    "taskId": task_id,
+                    "status": "running",
+                })))
+            }
+            BacktestsWriteInput::CancelSync { task_id } => {
+                let mut state = self.state.lock().map_err(|_| failed("lock poisoned"))?;
+                let cancelled = if let Some(status) = state.tasks.get_mut(task_id) {
+                    if status == "running" {
+                        *status = "cancelled".to_owned();
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                if cancelled {
+                    state
+                        .events
+                        .push(("cancel-sync".to_owned(), task_id.clone()));
+                    self.persist_companion(&state)
+                        .map_err(|e| failed(&e.to_string()))?;
+                }
+                Ok(BacktestsWritePortResult::SyncCancelled(cancelled))
+            }
+            BacktestsWriteInput::Delete { run_id } => {
+                let run = self
+                    .store
+                    .get_run(run_id)
+                    .map_err(|e| failed(&e.to_string()))?;
+                let Some(existing) = run else {
+                    return Ok(BacktestsWritePortResult::RunDeleted(
+                        BacktestsWriteDeleteResult::Missing,
+                    ));
+                };
+                if existing.status == "running" || existing.status == "queued" {
+                    return Ok(BacktestsWritePortResult::RunDeleted(
+                        BacktestsWriteDeleteResult::NotTerminal,
+                    ));
+                }
+                self.store
+                    .delete_run(run_id)
+                    .map_err(|e| failed(&e.to_string()))?;
+                let mut state = self.state.lock().map_err(|_| failed("lock poisoned"))?;
+                state.events.push(("delete".to_owned(), run_id.clone()));
+                self.persist_companion(&state)
+                    .map_err(|e| failed(&e.to_string()))?;
+                Ok(BacktestsWritePortResult::RunDeleted(
+                    BacktestsWriteDeleteResult::Deleted,
+                ))
+            }
+        }
     }
-}
-
-fn start_run(
-    transaction: &rusqlite::Transaction<'_>,
-    payload: &Value,
-) -> Result<(BacktestsWritePortResult, String), BacktestsWritePortError> {
-    let id = next_id(transaction, "run")?;
-    insert_resource(transaction, "backtests_test_runs", &id, "queued", payload)?;
-    let result = BacktestsWritePortResult::Data(json!({
-        "id": id.clone(),
-        "status": "queued",
-        "message": "backtest queued",
-    }));
-    Ok((result, id))
-}
-
-fn start_sync(
-    transaction: &rusqlite::Transaction<'_>,
-    payload: &Value,
-) -> Result<(BacktestsWritePortResult, String), BacktestsWritePortError> {
-    let id = next_id(transaction, "task")?;
-    insert_resource(transaction, "backtests_test_tasks", &id, "running", payload)?;
-    let result = BacktestsWritePortResult::Data(json!({"taskId": id.clone(), "status": "running"}));
-    Ok((result, id))
-}
-
-fn next_id(
-    transaction: &rusqlite::Transaction<'_>,
-    prefix: &str,
-) -> Result<String, BacktestsWritePortError> {
-    let value = transaction
-        .query_row(
-            "SELECT next_value FROM backtests_test_ids WHERE singleton = 1",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .map_err(|_| failed("backtests id allocation failed"))?;
-    transaction
-        .execute(
-            "UPDATE backtests_test_ids SET next_value = next_value + 1 WHERE singleton = 1",
-            [],
-        )
-        .map_err(|_| failed("backtests id allocation failed"))?;
-    Ok(format!("{prefix}-test-{value}"))
-}
-
-fn insert_resource(
-    transaction: &rusqlite::Transaction<'_>,
-    table: &str,
-    id: &str,
-    status: &str,
-    payload: &Value,
-) -> Result<(), BacktestsWritePortError> {
-    let statement = format!("INSERT INTO {table} (id, status, payload) VALUES (?1, ?2, ?3)");
-    let payload = serde_json::to_string(payload).map_err(|_| failed("payload encode failed"))?;
-    transaction
-        .execute(&statement, rusqlite::params![id, status, payload])
-        .map_err(|_| failed("backtests resource write failed"))?;
-    Ok(())
-}
-
-fn cancel_sync(
-    transaction: &rusqlite::Transaction<'_>,
-    task_id: &str,
-) -> Result<bool, BacktestsWritePortError> {
-    transaction
-        .execute(
-            "UPDATE backtests_test_tasks SET status = 'cancelled'
-             WHERE id = ?1 AND status = 'running'",
-            rusqlite::params![task_id],
-        )
-        .map(|changed| changed == 1)
-        .map_err(|_| failed("backtests sync cancellation failed"))
-}
-
-fn delete_run(
-    transaction: &rusqlite::Transaction<'_>,
-    run_id: &str,
-) -> Result<BacktestsWriteDeleteResult, BacktestsWritePortError> {
-    let status = transaction
-        .query_row(
-            "SELECT status FROM backtests_test_runs WHERE id = ?1",
-            rusqlite::params![run_id],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(|_| failed("backtests run load failed"))?;
-    let Some(status) = status else {
-        return Ok(BacktestsWriteDeleteResult::Missing);
-    };
-    if !matches!(status.as_str(), "completed" | "failed" | "cancelled") {
-        return Ok(BacktestsWriteDeleteResult::NotTerminal);
-    }
-    transaction
-        .execute(
-            "DELETE FROM backtests_test_runs WHERE id = ?1",
-            rusqlite::params![run_id],
-        )
-        .map_err(|_| failed("backtests run delete failed"))?;
-    Ok(BacktestsWriteDeleteResult::Deleted)
-}
-
-fn insert_event(
-    transaction: &rusqlite::Transaction<'_>,
-    operation: &str,
-    resource_id: &str,
-    payload: &Value,
-) -> Result<(), BacktestsWritePortError> {
-    let payload = serde_json::to_string(payload).map_err(|_| failed("payload encode failed"))?;
-    transaction
-        .execute(
-            "INSERT INTO backtests_test_events (operation, resource_id, payload)
-             VALUES (?1, ?2, ?3)",
-            rusqlite::params![operation, resource_id, payload],
-        )
-        .map_err(|_| failed("backtests event write failed"))?;
-    Ok(())
 }
 
 fn failed(message: &str) -> BacktestsWritePortError {
     BacktestsWritePortError::Failed(message.to_owned())
+}
+
+fn now_rfc3339() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "2026-08-26T00:00:00Z".to_owned())
 }
