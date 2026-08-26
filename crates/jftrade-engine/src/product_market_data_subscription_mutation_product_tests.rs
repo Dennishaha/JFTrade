@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
+use super::super::product_market_data_subscription_mutation_port::test_cutover::MarketDataSubscriptionMutationSqliteTestCutoverPort;
 use super::super::product_market_data_subscription_mutation_port::{
     MarketDataSubscriptionMutationPort, MarketDataSubscriptionMutationPortError,
     MarketDataSubscriptionMutationRequest,
@@ -311,4 +312,227 @@ async fn market_data_subscription_mutations_replay_browser_boundary_failure_reco
         std::fs::read(&settings_path).expect("read settings after restart"),
         settings_before
     );
+}
+
+#[tokio::test]
+async fn market_data_subscription_mutations_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("market-data-subscriptions.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"subscription-durable\"}\n")
+        .expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("settings before replay");
+    let port = Arc::new(
+        MarketDataSubscriptionMutationSqliteTestCutoverPort::open(&database_path)
+            .expect("open durable adapter"),
+    );
+    let acquire_body = br#"{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL"}]}"#;
+    let acquire = mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions",
+        "",
+        acquire_body,
+    );
+    port.reject_next_event().expect("install event rejection");
+    assert!(matches!(
+        port.dispatch(&acquire),
+        Err(MarketDataSubscriptionMutationPortError::Failed { .. })
+    ));
+    assert_eq!(port.active_subscription_count().expect("rollback count"), 0);
+    assert_eq!(port.event_count("acquire").expect("rollback events"), 0);
+
+    let acquired = port.dispatch(&acquire).expect("acquire subscription");
+    assert_eq!(acquired["source"], "sqlite-test");
+    assert_eq!(port.active_subscription_count().expect("active count"), 1);
+    let heartbeat = mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions/heartbeat",
+        "",
+        br#"{"consumerId":"chart"}"#,
+    );
+    port.dispatch(&heartbeat).expect("heartbeat");
+
+    let prediction_acquire = mutation_request(
+        "POST",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+        "",
+        br#"{"dataTypes":["ORDER_BOOK"]}"#,
+    );
+    let lease = port
+        .dispatch(&prediction_acquire)
+        .expect("prediction acquire");
+    assert_eq!(lease["leaseId"], "lease-test-1");
+    let prediction_release = mutation_request(
+        "DELETE",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/lease-test-1",
+        "",
+        b"",
+    );
+    let attempts = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let request = prediction_release.clone();
+            std::thread::spawn(move || port.dispatch(&request))
+        })
+        .collect::<Vec<_>>();
+    let mut transitioned = 0;
+    let mut fenced = 0;
+    for attempt in attempts {
+        let response = attempt
+            .join()
+            .expect("join lease release")
+            .expect("release");
+        if response["transitioned"] == true {
+            transitioned += 1;
+        } else {
+            fenced += 1;
+        }
+    }
+    assert_eq!((transitioned, fenced), (1, 1));
+    assert_eq!(
+        port.lease_status("lease-test-1").expect("lease status"),
+        Some("released".to_owned())
+    );
+
+    let release = mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions/release",
+        "",
+        br#"{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL"}]}"#,
+    );
+    port.dispatch(&release).expect("release subscription");
+    assert_eq!(port.active_subscription_count().expect("released count"), 0);
+
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_market_data_subscription_mutation_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let response = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/market-data/subscriptions",
+        Some(std::str::from_utf8(acquire_body).expect("acquire body")),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["source"], "sqlite-test");
+    let response = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/market-data/subscriptions/heartbeat",
+        Some(r#"{"consumerId":"chart"}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    let response = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/market-data/subscriptions/release",
+        Some(r#"{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL"}]}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    let response = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/market-data/subscriptions?consumerId=chart",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    let response = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+        Some(r#"{"dataTypes":["ORDER_BOOK"]}"#),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["leaseId"], "lease-test-2");
+    let response = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/lease-test-2",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after replay"),
+        settings_before
+    );
+    drop(port);
+
+    let reopened = Arc::new(
+        MarketDataSubscriptionMutationSqliteTestCutoverPort::open(&database_path)
+            .expect("reopen durable adapter"),
+    );
+    assert_eq!(
+        reopened
+            .lease_status("lease-test-2")
+            .expect("reopened lease"),
+        Some("released".to_owned())
+    );
+    assert_eq!(
+        reopened
+            .active_subscription_count()
+            .expect("reopened count"),
+        0
+    );
+    let restarted = start_product(
+        ProductConfig::test_cutover(
+            "127.0.0.1:0".parse().expect("restart address"),
+            &settings_path,
+        )
+        .expect("restart config")
+        .with_market_data_subscription_mutation_port(reopened.clone()),
+    )
+    .await
+    .expect("start restarted product");
+    let response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/market-data/subscriptions",
+        Some(std::str::from_utf8(acquire_body).expect("restart acquire body")),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(
+        reopened
+            .active_subscription_count()
+            .expect("post-restart count"),
+        1
+    );
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after restart"),
+        settings_before
+    );
+}
+
+fn mutation_request(
+    method: &str,
+    path: &str,
+    query: &str,
+    body: &[u8],
+) -> MarketDataSubscriptionMutationRequest {
+    MarketDataSubscriptionMutationRequest {
+        method: method.to_owned(),
+        path: path.to_owned(),
+        query: query.to_owned(),
+        body: body.to_vec(),
+    }
 }

@@ -413,3 +413,126 @@ fn subscription_mutation_fixture_preserves_non_wire_provider_observations() {
             .any(|case| case.context_error == "canceled")
     );
 }
+
+#[test]
+fn sqlite_test_cutover_preserves_subscription_transactions_fencing_and_reopen() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("market-data-subscriptions.db");
+    let port = Arc::new(
+        product_market_data_subscription_mutation_port::test_cutover::
+            MarketDataSubscriptionMutationSqliteTestCutoverPort::open(&database_path)
+            .expect("open durable adapter"),
+    );
+    let acquire = sqlite_mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions",
+        "",
+        br#"{"consumerId":"chart","instruments":[{"market":"US","symbol":"AAPL"}]}"#,
+    );
+    port.reject_next_event().expect("install event rejection");
+    assert!(matches!(
+        port.dispatch(&acquire),
+        Err(MarketDataSubscriptionMutationPortError::Failed { .. })
+    ));
+    assert_eq!(port.active_subscription_count().expect("rollback count"), 0);
+    assert_eq!(port.event_count("acquire").expect("rollback events"), 0);
+
+    port.dispatch(&acquire).expect("acquire subscription");
+    let heartbeat = sqlite_mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions/heartbeat",
+        "",
+        br#"{"consumerId":"chart"}"#,
+    );
+    port.dispatch(&heartbeat).expect("heartbeat");
+
+    let prediction_acquire = sqlite_mutation_request(
+        "POST",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions",
+        "",
+        br#"{"dataTypes":["ORDER_BOOK"]}"#,
+    );
+    let lease = port
+        .dispatch(&prediction_acquire)
+        .expect("prediction acquire");
+    assert_eq!(lease["leaseId"], "lease-test-1");
+    let prediction_release = sqlite_mutation_request(
+        "DELETE",
+        "/api/v1/market-data/prediction/contracts/EC-42/subscriptions/lease-test-1",
+        "",
+        b"",
+    );
+    let attempts = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let request = prediction_release.clone();
+            std::thread::spawn(move || port.dispatch(&request))
+        })
+        .collect::<Vec<_>>();
+    let mut transitioned = 0;
+    let mut fenced = 0;
+    for attempt in attempts {
+        let response = attempt
+            .join()
+            .expect("join lease release")
+            .expect("release");
+        if response["transitioned"] == true {
+            transitioned += 1;
+        } else {
+            fenced += 1;
+        }
+    }
+    assert_eq!((transitioned, fenced), (1, 1));
+    assert_eq!(
+        port.lease_status("lease-test-1").expect("lease status"),
+        Some("released".to_owned())
+    );
+
+    let other_acquire = sqlite_mutation_request(
+        "POST",
+        "/api/v1/market-data/subscriptions",
+        "",
+        br#"{"consumerId":"other","instruments":[{"market":"HK","symbol":"00700"}]}"#,
+    );
+    port.dispatch(&other_acquire).expect("other acquire");
+    let clear = sqlite_mutation_request(
+        "DELETE",
+        "/api/v1/market-data/subscriptions",
+        "consumerId=",
+        b"",
+    );
+    port.dispatch(&clear).expect("clear subscriptions");
+    assert_eq!(port.active_subscription_count().expect("clear count"), 0);
+
+    drop(port);
+    let reopened = product_market_data_subscription_mutation_port::test_cutover::
+        MarketDataSubscriptionMutationSqliteTestCutoverPort::open(&database_path)
+        .expect("reopen durable adapter");
+    assert_eq!(
+        reopened
+            .lease_status("lease-test-1")
+            .expect("reopened lease"),
+        Some("released".to_owned())
+    );
+    assert_eq!(
+        reopened
+            .active_subscription_count()
+            .expect("reopened count"),
+        0
+    );
+    assert_eq!(reopened.event_count("acquire").expect("reopened events"), 2);
+}
+
+fn sqlite_mutation_request(
+    method: &str,
+    path: &str,
+    query: &str,
+    body: &[u8],
+) -> MarketDataSubscriptionMutationRequest {
+    MarketDataSubscriptionMutationRequest {
+        method: method.to_owned(),
+        path: path.to_owned(),
+        query: query.to_owned(),
+        body: body.to_vec(),
+    }
+}

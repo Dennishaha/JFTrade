@@ -103,6 +103,13 @@
       "evidence": "The 55-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, route/transport differential, and unchanged-settings checks passed for all six market-data subscription mutation routes. Evidence covers private bearer and browser Cookie/Origin/Referer/CSRF forwarding, auth and CSRF fencing, 503 unavailable and 502 provider-failure mapping, success/error/recovery paths, timeout, cancellation, Rust crash fail-closed behavior, Go rollback, Go restart recovery, explicit test-cutover registration, and request path/query forwarding. The injected Rust boundary has no Provider/OpenD, durable lease, SQLite, subscription registry, or user-visible side effect; the group remains cutover-test-only with Go as the sole production owner until durable owner, idempotency, cancellation fencing, live-provider lifecycle, and crash/restart recovery evidence closes."
     },
     {
+      "id": "stage9-market-data-subscription-mutation-isolated-sqlite-rehearsal",
+      "status": "passed",
+      "scope": "local-only cfg(test) isolated SQLite adapter and Rust integration replay",
+      "command": "cargo test -p jftrade-engine --test stage9_market_data_subscription_mutation -- --nocapture",
+      "evidence": "The independent 8-test replay passed for the temporary test-prefixed SQLite adapter: event-failure transaction rollback, subscription acquire/release/heartbeat/clear, prediction lease allocation, one-winner concurrent lease release fencing, close/reopen persistence, and fixture/leaf compatibility. The product-level SQLite replay and full check:quick/check:rust also passed. This is isolated test-cutover durability evidence only; it does not qualify Go production schema compatibility, cross-process fencing, Provider/OpenD lifecycle, backup/restore, or a Rust production owner, so all six routes remain cutover-test-only with Go as the sole production owner."
+    },
+    {
       "id": "stage9-market-data-provider-actions-authenticated-rust-product",
       "status": "passed",
       "scope": "local-only Rust explicit test-cutover profile, authenticated Go loopback rehearsal, full Stage 9 differential and local gates",

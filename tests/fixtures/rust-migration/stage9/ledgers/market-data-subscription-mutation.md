@@ -143,15 +143,22 @@ quirk: Focused handler fixtures execute below shared authentication middleware; 
 owner: integration branch
 后续: Include auth/CSRF and authenticated loopback evidence in integration cutover review.
 
-quirk: Durable idempotency, lease persistence, crash/restart recovery, cancellation fencing, and one authoritative subscription owner are not proven by fixture replay.
+quirk: Production durable idempotency, production lease persistence, cross-process cancellation fencing, crash/restart recovery, and one authoritative subscription owner are not proven by the isolated test adapter.
 范围: entire Tier A group / all six mutations
-证据: test-only injected port, no SQLite/provider adapter, no restart or recovery corpus, existing Go owner ledger.
+证据: existing Go owner ledger; the new `cfg(test)` SQLite adapter and integration replay use an isolated `market_data_test_*` schema and temporary database, not the Go production schema or Provider/OpenD runtime.
 分类: ownership
 判定: unresolved
-处置: Block `cutover-qualified`; keep Go as sole production owner and resolve only in the serial integration/release gates.
+处置: Block `cutover-qualified`; keep Go as sole production owner and resolve only with the production owner matrix and serial integration/release gates.
 风险: release-blocker
 owner: integration plus Go owner
 后续: Require durable owner matrix, backup/restore, crash recovery, duplicate-request, cancel/timeout, and no-double-write evidence before any owner switch.
+
+## Wave Closeout (2026-08-26)
+
+- Added `cfg(test)`-only `MarketDataSubscriptionMutationSqliteTestCutoverPort`. It uses a temporary isolated SQLite file and test-prefixed tables for consumer subscriptions, prediction leases, IDs, and events; it never opens production SQLite, connects Provider/OpenD, reconciles live demand, or emits user-visible updates.
+- Added coverage for event-failure transaction rollback, acquire/release/heartbeat/clear, prediction lease allocation and release, one-winner concurrent release fencing, close/reopen persistence, and independent integration-level replay. The product-level replay also exercised all six routes through the explicit test-cutover profile and verified settings bytes were unchanged.
+- Passed: `cargo test -p jftrade-engine --test stage9_market_data_subscription_mutation -- --nocapture` (8 tests), `cargo test -p jftrade-engine --lib market_data_subscription_mutations_sqlite_test_cutover_replays_transport_and_restart -- --nocapture`, the dedicated Go/Rust differential, `pnpm run check:quick`, and `pnpm run check:rust`.
+- This closes the local isolated durability rehearsal evidence only. All six operations remain `cutover-test-only`, `productionOwner=go`, and `goRemovalStatus=retained`; production schema compatibility, cross-process fencing, live Provider/OpenD lifecycle, backup/restore, release/security gates, and hard-cut evidence remain open.
 
 ## Qualification Blockers
 
@@ -167,7 +174,7 @@ owner: integration plus Go owner
 
 ## Integration Handoff
 
-- Add the three Rust source files to the product composition only behind the explicit `MarketDataSubscriptionMutationPort` test-cutover capability; do not alter the default profile.
+- Add the three Rust source files to the product composition only behind the explicit `MarketDataSubscriptionMutationPort` test-cutover capability; do not alter the default profile. Keep the independent integration replay in the test suite.
 - Supply a Go-owned adapter that returns the complete wire projection for the raw request and preserves `500/502/403/409` error precedence. It must not duplicate subscription state or call a second provider owner.
-- Before any qualification or owner switch, add durable owner, idempotency, cancellation fencing, Provider/OpenD lifecycle, and crash/restart recovery evidence; this group remains `cutover-test-only` until those gates close.
+- Before any qualification or owner switch, add production-owner durable state, idempotency, cross-process cancellation fencing, Provider/OpenD lifecycle, backup/restore, and crash/restart recovery evidence; the isolated adapter is not a substitute and this group remains `cutover-test-only` until those gates close.
 - Keep `GET /api/v1/market-data/subscriptions` in its existing read group; this mutation worker intentionally rejects GET.
