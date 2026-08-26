@@ -102,7 +102,7 @@ owner: Go watchlist service
 - The integration branch registers all eight operations as `cutover-test-only`
   only when the explicit `WatchlistWritePort` is supplied;
   `productionOwner=go` and `goRemovalStatus=retained` remain unchanged.
-  Current route coverage is `1 shadow / 120 cutover-test-only / 157
+  Current route coverage is `1 shadow / 118 cutover-test-only / 159
   cutover-qualified / 0 remaining / 0 Rust production owner`.
 - No default profile, shared product wiring, unified differential, OpenAPI, SQLite schema, Wails binding, provider/OpenD lifecycle, or production owner changed.
 - The authenticated Go loopback rehearsal now proves private Bearer/internal
@@ -151,7 +151,7 @@ owner: Go watchlist service
   Stage 9 Go references and authenticated rehearsals, Rust product and
   integration replay, all 221 engine library tests, and supporting package
   contracts. The complete Stage 9 product differential passed in this gate.
-- Final route coverage passed at `1 shadow / 120 cutover-test-only / 157
+- Final route coverage passed at `1 shadow / 118 cutover-test-only / 159
   cutover-qualified / 0 remaining / 0 Rust production owner`; both changed JSON
   files parsed successfully, and `git diff --check` passed.
 - No default route, production owner, OpenAPI/Wails contract, SQLite schema, or

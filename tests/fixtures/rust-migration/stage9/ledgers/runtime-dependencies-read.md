@@ -31,7 +31,7 @@ restart-time Go rollback.
 - Rust runtime unit batch: `cargo test -p jftrade-engine --lib runtime_dependencies::tests`.
 - Rust authenticated route: `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests::runtime_dependencies_use_the_normalized_settings_node_candidate -- --exact`.
 - Go authenticated rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestRuntimeDependenciesReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`.
-- Current route coverage: 1 shadow / 133 cutover-test-only / 144
+- Current route coverage: 1 shadow / 118 cutover-test-only / 159
   cutover-qualified / 0 remaining / 0 Rust production owner.
 
 The route is `cutover-qualified`, `productionOwner=go`, and

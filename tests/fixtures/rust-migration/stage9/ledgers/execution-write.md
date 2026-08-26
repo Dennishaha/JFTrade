@@ -245,8 +245,8 @@ agree on the exercised boundary; durable store evidence is explicitly absent.
   authenticated explicit `ExecutionWritePort`; default and read-only profiles
   remain unchanged. `route-ownership.json` records them as
   `cutover-test-only`, with Go still the production owner.
-- The current dynamic gate is `278 baseline / 1 shadow / 120
-  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
+- The current dynamic gate is `278 baseline / 1 shadow / 118
+  cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production
   owner`.
 - No default profile, production owner, broker/OpenD connection, SQLite write,
   notification/task side effect, Wails binding, OpenAPI asset, or Go deletion

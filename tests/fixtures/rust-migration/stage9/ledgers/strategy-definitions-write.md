@@ -4,7 +4,7 @@
 - Tier: A mutation/state change; this slice is test-cutover-only.
 - Operations: 5: create, update, delete, apply-linked-instances, and instantiate under `/api/v1/strategy-definitions`.
 - Go remains the production owner of the strategy definition store, version history, soft-delete guard, catalog instances, Pine compilation, runtime lifecycle, and all SQLite writes.
-- Current route coverage is `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`; all five operations remain `cutover-test-only`.
+- Current route coverage is `1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner`; all five operations remain `cutover-test-only`.
 - Rust boundary: `product_strategy_definition_write_port.rs` accepts a complete consumer-owned mutation projection. The explicit test-cutover adapter in `product_strategy_definition_write_test_cutover.rs` uses an isolated SQLite schema only for durable replay; it has no production route registration and does not open the Go strategy database, PineTS, Provider/OpenD, runtime, notification, or task owners.
 - Fixture: `tests/fixtures/rust-migration/stage9/strategy-definitions-write.json` (20 cases).
 - Go reference: `scripts/rust-migration/stage9_strategy_definitions_write_reference_test.go`.

@@ -6,7 +6,7 @@
 - Current route-ownership status after integration: all seven are
   `cutover-test-only` only when the explicit `StrategyRuntimeWritePort` is
   injected; Go remains the production owner. Current coverage is `1 shadow /
-  120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust
+  118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust
   production owner`.
 - Production owner: Go remains the only owner of the strategy catalog, runtime manager, PineTS lifecycle, subscriptions, activity/notification side effects, and SQLite writes. Rust is a leaf replay boundary only.
 - Rust boundary: `product_strategy_runtime_write_port.rs` accepts a complete consumer-owned mutation port. The isolated adapter in `product_strategy_runtime_write_test_cutover.rs` is compiled only for tests and persists fixture catalog/runtime projections; it does not open the Go strategy database or register a default-profile, broker/OpenD, PineTS, notification, task, listener, or production-owner path.

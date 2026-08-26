@@ -729,3 +729,10 @@ composition。若 demand consumer、instrument normalization 或 managed-stream
 校验失败，已激活的 provider 会立即回滚，避免显式启动失败留下 active router
 状态；未完成 activate 的既有 provider 不会被误停用。该修复仍只影响 opt-in
 composition，不改变默认 profile、公开契约或 Go production owner。
+
+2026-08-26：修复 ProductRuntimeHandle::set_market_data_opend_demand 在
+ProviderRouter-backed OpenD runtime 下静默 no-op 的 composition 缺陷。现在
+demand 更新通过 bridge 自有 consumer 写入唯一 ProviderRouter，支持替换、清空
+和非法 instrument 的 fail-closed 保留旧值；standalone runtime 与默认 profile
+不变。当前 route ledger 动态统计为 1 shadow / 118 cutover-test-only /
+159 cutover-qualified / 0 remaining / 0 Rust production owner。

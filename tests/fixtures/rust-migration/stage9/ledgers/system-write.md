@@ -2,8 +2,8 @@
 
 - Group: `system-write`
 - Tier: A: real-trade safety controls and OpenD runtime reset are state-changing operations. The Rust side is a test-only rehearsal leaf; it is not a production owner.
-- Current dynamic route gate: `278 baseline / 1 shadow / 120
-  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
+- Current dynamic route gate: `278 baseline / 1 shadow / 118
+  cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production
   owner`.
 - Routes in this group: 7 system mutations. The integration branch now registers
   them only behind the explicit `SystemWritePort`; ownership is

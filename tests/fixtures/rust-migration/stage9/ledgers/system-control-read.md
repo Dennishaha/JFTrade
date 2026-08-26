@@ -28,7 +28,7 @@ state equivalence remains covered by
 - Go/Rust leaf references: `pnpm run test:rust:stage9:product-differential`.
 - Rust authenticated/read-only route batch: `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests::system_control_reads_are_authenticated_and_do_not_create_control_state -- --exact`.
 - Go authenticated rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestSystemControlReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`.
-- Current route coverage: 3 shadow / 133 cutover-test-only / 142 cutover-qualified / 0 remaining / 0 Rust production owner.
+- Current route coverage: 1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner.
 
 All eight route entries are `cutover-qualified`, `productionOwner=go`, and
 `goRemovalStatus=retained`. The corresponding seven mutations remain

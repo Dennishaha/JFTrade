@@ -12,8 +12,8 @@
   notifications, and all production writes. Rust has no production owner.
 - Route ownership after integration: all 37 operations are `cutover-test-only`
   only when the explicit `AdkMutationPort` is supplied; Go remains the
-  production owner. Current dynamic coverage is `1 shadow / 120
-  cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production
+  production owner. Current dynamic coverage is `1 shadow / 118
+  cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production
   owner`.
 - Fixture: `tests/fixtures/rust-migration/stage9/adk-mutations.json`
   (`stage9.adk-mutations.v1`, 40 cases: 37 valid route cases and 3 shape/

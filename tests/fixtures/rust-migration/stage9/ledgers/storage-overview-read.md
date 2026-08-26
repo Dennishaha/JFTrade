@@ -15,6 +15,6 @@ verifies error, timeout, crash and restart-time Go rollback.
 Verification: `go test ./internal/app/apiserver/servercoretest -run '^TestStorageOverviewReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`; `cargo test -p jftrade-engine --lib product::tests::system_control_read_tests::storage_overview_matches_the_go_empty_projection_behind_authentication -- --exact`; `pnpm run test:rust:stage9:product-differential`.
 
 The route is `cutover-qualified`, `productionOwner=go`, and
-`goRemovalStatus=retained`. Current coverage is 2 shadow / 133
-cutover-test-only / 143 cutover-qualified / 0 remaining / 0 Rust production
+`goRemovalStatus=retained`. Current coverage is 1 shadow / 118
+cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production
 owner.

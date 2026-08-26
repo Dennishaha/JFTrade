@@ -16,7 +16,7 @@
 - Current ownership: these three routes are `cutover-test-only` in the shared
   `route-ownership.json`, with `productionOwner=go` and
   `goRemovalStatus=retained`. The current dynamic snapshot is
-  `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0
+  `1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0
   Rust production owner`. Go remains the sole production owner. The Rust code
   is a leaf and replay boundary only; the product route is registered only in
   the explicit authenticated test-cutover profile.

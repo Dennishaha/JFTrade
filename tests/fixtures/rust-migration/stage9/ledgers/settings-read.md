@@ -38,7 +38,7 @@ exact `liveWebSocketConnectionLimit` persistence key.
   `go test ./internal/store/settingsfile -run '^TestLiveWebSocketInterfaceSettingsMatchRustMigrationCorpus$' -count=1`
 - Unified Stage 9 differential:
   `pnpm run test:rust:stage9:product-differential`
-- Current route coverage: 1 shadow / 133 cutover-test-only / 144
+- Current route coverage: 1 shadow / 118 cutover-test-only / 159
   cutover-qualified / 0 remaining / 0 Rust production owner.
 
 The route entries are `cutover-qualified`, `productionOwner=go`, and

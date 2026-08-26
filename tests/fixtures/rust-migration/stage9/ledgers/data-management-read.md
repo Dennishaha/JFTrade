@@ -33,7 +33,7 @@ comparison normalizes those storage counters together with timestamps.
 - Rust Go-reference replay: `cargo test -p jftrade-engine --lib product_data_management::tests::stage9_data_management_overview_matches_current_go_owner -- --exact` through the unified product differential.
 - Rust authenticated/read-only product route: `cargo test -p jftrade-engine --lib product::tests::data_management_read_tests::data_management_overview_is_authenticated_and_does_not_create_missing_databases -- --exact`.
 - Go authenticated rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestDataManagementReadRehearsalPreservesWireAndRequiresRestartForGoRollback$' -count=1`.
-- Current route coverage: 11 shadow / 133 cutover-test-only / 134 cutover-qualified / 0 remaining / 0 Rust production owner.
+- Current route coverage: 1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner.
 
 The route is `cutover-qualified`, `productionOwner=go`, and
 `goRemovalStatus=retained`. All data-management mutations remain

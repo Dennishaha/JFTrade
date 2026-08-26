@@ -28,7 +28,7 @@ The fixture contains 38 cases and 40 requests. It records response status, conte
 
 ## A-tier owner and fencing evidence
 
-- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`.
+- The four routes register only when the explicit `BacktestsWritePort` is supplied in Rust product assembly; they are `cutover-test-only` in the ownership ledger. Go remains the only production write owner, and current route coverage is `1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner`.
 - The Rust leaf fails closed with `503 BACKTESTS_WRITE_UNAVAILABLE` when no explicit mutation port is supplied; structural body/URI errors still win before the missing-port response.
 - Start and sync mutations are delegated once per structurally valid request. Repeated POSTs are recorded as independent calls; no idempotency key is invented.
 - Delete performs no store work for blank/invalid IDs, performs the status guard before delete, and preserves the Go delete-failure-then-retry behavior in the restart fixture. No notification or second persistent owner is introduced.
@@ -142,7 +142,7 @@ owner: Go / integration branch
   rehearsals, 222 Rust product tests, Stage 9 integration replay, and supporting
   package contracts.
 - Affected Go owner regression: passed (`go test ./internal/api/backtest ./internal/backtest ./internal/store/backtest -count=1`).
-- Route coverage after integration: passed at `1 shadow / 120 cutover-test-only / 157 cutover-qualified / 0 remaining / 0 Rust production owner`.
+- Route coverage after integration: passed at `1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner`.
 - This wave changed only the backtests rehearsal tests and migration evidence; default profile, Go production owner, real SQLite/run store, PineTS, market-data worker, provider lifecycle, public contracts and Go/Wails deletion state remain unchanged.
 
 ## Handoff state
