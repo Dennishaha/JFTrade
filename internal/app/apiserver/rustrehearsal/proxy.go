@@ -137,9 +137,14 @@ func isRehearsalRequest(request *http.Request, operation rehearsalOperation) boo
 		return false
 	}
 	if strings.Contains(strings.ToLower(request.Header.Get("Accept")), "text/event-stream") {
-		return strings.HasSuffix(operation.template, "/stream") && isJSONContentType(request)
+		return isSSERehearsalOperation(operation) && isJSONContentType(request)
 	}
 	return isOrdinaryJSONRequest(request)
+}
+
+func isSSERehearsalOperation(operation rehearsalOperation) bool {
+	return strings.HasSuffix(operation.template, "/stream") ||
+		strings.HasSuffix(operation.template, "/streams/{streamId}")
 }
 
 func isOrdinaryJSONRequest(request *http.Request) bool {

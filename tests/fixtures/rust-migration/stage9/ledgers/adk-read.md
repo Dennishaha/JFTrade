@@ -110,8 +110,9 @@ existing product boundary so source headers are emitted without changing the
 public HTTP/OpenAPI contract. Do not connect the production Assistant runtime.
 风险: medium
 owner: integration
-后续: Add the authenticated Go sidecar GET-stream rehearsal, timeout/cancellation
-and restart evidence before qualification; Go remains the production owner.
+后续: Retain the authenticated Go sidecar GET-stream rehearsal, including
+timeout/cancellation and restart evidence, through hard-cut review; Go remains
+the production owner.
 
 ## Three-Way Review
 
@@ -126,26 +127,33 @@ and restart evidence before qualification; Go remains the production owner.
   registration requires explicit test-cutover capability plus the port.
 - The new Go success corpus, Rust leaf replay and raw product replay agree on
   SSE headers, retry framing, event IDs/order/body, run/stream reconnect paths
-  and `after` filtering. The dedicated authenticated GET-sidecar rehearsal,
-  production owner and release gates remain open.
+  and `after` filtering. The dedicated authenticated GET-sidecar rehearsal
+  now covers transport and recovery; production owner and release gates remain
+  open.
 
-The 22 ordinary JSON operations are now `cutover-qualified`,
+The 24 ADK GET operations are now `cutover-qualified`,
 `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated
 wire/error/timeout/crash/restart rehearsal. It exercises empty and missing
 resource projections without executing runs or mutating Assistant state.
 `GET /api/v1/adk/runs/{runId}/stream` and
-`GET /api/v1/adk/streams/{streamId}` remain `cutover-test-only` because
-authenticated GET-sidecar/recovery evidence is still pending. No Provider, ADK
-runtime, SQLite write, session mutation, approval/task mutation, notification,
-or Rust production owner was introduced.
+`GET /api/v1/adk/streams/{streamId}` now have a dedicated authenticated
+GET-sidecar rehearsal covering successful SSE, error, timeout, caller
+cancellation, Rust crash, Go rollback/restart, and settings immutability.
+They are qualified only as compatibility/rehearsal routes: Go remains the
+production owner, and no Provider, ADK runtime, SQLite write, session
+mutation, approval/task mutation, notification, or Rust production owner was
+introduced.
 
 ## 2026-08-26 verification
 
 - `go test ./scripts/rust-migration -run '^TestStage9ADKRead(SSE)?FixtureMatchesCurrentGoOwner$' -count=1 -timeout=300s`
 - `cargo test -p jftrade-engine --lib 'product::tests::adk_read_tests::' -- --nocapture`
 - `node scripts/rust-migration/check-stage9-adk-read.mjs`
+- `go test ./internal/app/apiserver/rustrehearsal -run '^TestRehearsalProxyRecognizesADKStreamReplayAsSSE$' -count=1`
+- `go test ./internal/app/apiserver/servercoretest -run '^TestADKReadStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$' -count=1 -timeout=300s`
 - `cargo fmt --all -- --check`
 
-These checks prove local Go JSON/SSE fixture parity and explicit Rust
-test-cutover transport replay. They do not change the two stream routes to
-`cutover-qualified` or change the Go production owner.
+These checks prove local Go JSON/SSE fixture parity, authenticated GET-sidecar
+transport/recovery behavior, and explicit Rust test-cutover transport replay.
+The two stream routes are now `cutover-qualified` for compatibility evidence
+only; Go remains the production owner and no production owner switch occurred.

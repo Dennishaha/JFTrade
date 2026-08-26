@@ -32,6 +32,14 @@ run("go", [
   "-count=1",
   "-timeout=300s",
 ]);
+run("go", [
+  "test",
+  "./internal/app/apiserver/servercoretest",
+  "-run",
+  "^TestADKReadStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$",
+  "-count=1",
+  "-timeout=300s",
+]);
 run("cargo", [
   "test",
   "-p",
@@ -42,5 +50,5 @@ run("cargo", [
   "--nocapture",
 ]);
 console.log(
-  "Stage 9 adk-read differential passed: Go JSON/SSE fixtures and Rust leaf/product replay agree.",
+  "Stage 9 adk-read differential passed: Go JSON/SSE fixtures, authenticated GET-sidecar rehearsal, and Rust leaf/product replay agree.",
 );

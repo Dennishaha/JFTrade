@@ -170,6 +170,45 @@ func TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders(t *testing.T) {
 	}
 }
 
+func TestRehearsalProxyRecognizesADKStreamReplayAsSSE(t *testing.T) {
+	t.Parallel()
+	const operation = "GET /api/v1/adk/streams/{streamId}"
+	const sseBody = "retry: 3000\n\nid: stream-fixture:1\ndata: {\"type\":\"final\"}\n\n"
+	var rustCalls atomic.Int32
+	rust := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rustCalls.Add(1)
+		if r.Header.Get("Accept") != "text/event-stream" {
+			t.Errorf("ADK replay Accept = %q", r.Header.Get("Accept"))
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-ADK-Stream-ID", "stream-fixture")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, sseBody)
+	}))
+	defer rust.Close()
+
+	var goCalls atomic.Int32
+	router := rehearsalProxyTestRouter(
+		rehearsalProxyTargetFixture{rust.URL, []string{operation}},
+		[]string{operation},
+		time.Second,
+		&goCalls,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/adk/streams/stream-fixture?after=0", nil)
+	request.Header.Set("Accept", "text/event-stream")
+	request.Header.Set("X-Request-ID", "adk-replay-request")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "text/event-stream" || response.Body.String() != sseBody {
+		t.Fatalf("ADK replay response = %d %#v %q", response.Code, response.Header(), response.Body.String())
+	}
+	if rustCalls.Load() != 1 || goCalls.Load() != 0 {
+		t.Fatalf("calls: Rust=%d Go=%d", rustCalls.Load(), goCalls.Load())
+	}
+}
+
 func TestRehearsalProxyDoesNotSelectMethodPathOrStreamingNearMisses(t *testing.T) {
 	t.Parallel()
 	if matchesPathTemplate("/api/v1//details", "/api/v1/{id}/details") {
