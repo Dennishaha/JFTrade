@@ -3259,12 +3259,15 @@
       "method": "GET",
       "path": "/api/v1/system/status",
       "capability": "system",
-      "implementationStatus": "shadow",
+      "implementationStatus": "cutover-qualified",
       "productionOwner": "go",
       "goRemovalStatus": "retained",
       "dependencies": [
         "go-production-owner",
-        "authenticated-loopback-shadow"
+        "explicit-test-cutover-profile",
+        "authenticated-loopback-mutation-rehearsal",
+        "rust-durable-test-cutover-store",
+        "authenticated-rust-product-replay"
       ],
       "evidence": [
         "tests/fixtures/rust-migration/stage9/ledgers/system-status-read.md",
