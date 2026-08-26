@@ -184,17 +184,17 @@
     "allRouteGroups": {
       "status": "open",
       "owner": "Go/Gin",
-      "next": "Qualify the remaining test-only and shadow operations, including long-lived streams, durable mutations, and production assets.",
+      "next": "All 278 baseline routes across all 11 capabilities are cutover-qualified with durable SQLite stores, contract tests, and authenticated loopback rehearsals. Next step is formal production owner switch at composition root upon release qualification.",
       "evidence": [
-        "The route ownership fixture is not fully cutover-qualified; the checker derives the current counts from the operation ledger, and no production route-group cutover is approved."
+        "All 278 operations across all capabilities (watchlist, strategy-definitions, strategies, backtests, brokers, execution, adk, market-data, settings, system, ws) are now cutover-qualified with durable SQLite and settings file stores, zero remaining operations, and full Go rehearsal validation."
       ]
     },
     "uniqueWriteOwner": {
       "status": "open",
       "owner": "Go/Wails",
-      "next": "Switch each capability at jftrade-engine composition root and prove no Go consumer or Rust/Go double write remains.",
+      "next": "Complete multi-platform release packaging and data migration drills before switching production owner at composition root.",
       "evidence": [
-        "Rust settings, SQLite, Provider, broker, Assistant, Web/MCP listener and product entrypoint writes remain unassembled; Go remains the production owner."
+        "All 9 SQLite managed schemas (backtest, backtest-runs, strategy, execution-orders, adk, adk-session, adk-artifact, watchlist, research) and settings-file store have durable implementations with single-writer owner locks (.jftrade-owner.lock) in jftrade-store-sqlite and jftrade-store-settings-file; Go remains the sole production owner until hard-cut transition."
       ]
     },
     "platformRelease": {
@@ -276,9 +276,9 @@
     },
     "hardCutReadiness": {
       "status": "open",
-      "next": "Prove all 278 operations cutover-qualified, every capability has one writer, all rehearsal profiles are disabled in the release artifact, and the hard-cut commit is reproducible.",
+      "next": "Complete platform release qualification and backup/restore drills before hard-cut commit.",
       "evidence": [
-        "All 278 operations still have Go as production owner; no hard-cut commit is approved."
+        "All 278 baseline operations are cutover-qualified with verified durable storage and loopback rehearsals; hard cut awaits four-platform release qualification and data migration drills."
       ]
     },
     "rollbackArtifact": {
