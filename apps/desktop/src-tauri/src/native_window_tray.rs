@@ -44,10 +44,7 @@ fn configure_system_tray(
         .separator()
         .text(QUIT, "退出")
         .build()?;
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .ok_or(NativeError::MissingTrayIcon)?;
+    let icon = tauri::include_image!("../../../internal/desktop/icons/jftrade-tray-template.png");
     TrayIconBuilder::with_id("jftrade-main")
         .menu(&menu)
         .icon(icon)
