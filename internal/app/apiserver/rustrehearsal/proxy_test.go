@@ -387,3 +387,46 @@ func TestRehearsalProxyPropagatesCallerCancellation(t *testing.T) {
 		t.Fatal("canceled Rust request replayed to Go")
 	}
 }
+
+func TestRehearsalProxySelectionAndTemplateEdgeCases(t *testing.T) {
+	proxy := newRehearsalProxy(rehearsalProxyTargetFixture{
+		endpoint: "http://127.0.0.1:3000",
+		capabilities: []string{
+			"GET /api/v1/items/{itemId}",
+			"POST /api/v1/items/{itemId}/stream",
+		},
+	}, []string{
+		"GET /api/v1/items/{itemId}",
+		"POST /api/v1/items/{itemId}/stream",
+	}, time.Second)
+
+	if proxy.selects(nil) {
+		t.Fatal("nil request selected")
+	}
+	if proxy.selects(&http.Request{}) {
+		t.Fatal("nil URL request selected")
+	}
+
+	nonJSONReq := httptest.NewRequest(http.MethodPost, "/api/v1/items/123/stream", strings.NewReader("not json"))
+	nonJSONReq.Header.Set("Content-Type", "text/plain")
+	nonJSONReq.Header.Set("Accept", "text/event-stream")
+	if proxy.selects(nonJSONReq) {
+		t.Fatal("non-JSON SSE request selected")
+	}
+
+	wsReq := httptest.NewRequest(http.MethodGet, "/api/v1/items/123", nil)
+	wsReq.Header.Set("Upgrade", "websocket")
+	if proxy.selects(wsReq) {
+		t.Fatal("websocket request selected")
+	}
+
+	if !matchesPathTemplate("/api/v1/items/456", "/api/v1/items/{itemId}") {
+		t.Fatal("template match failed")
+	}
+	if matchesPathTemplate("/api/v1/items/456/extra", "/api/v1/items/{itemId}") {
+		t.Fatal("template length mismatch matched")
+	}
+	if matchesPathTemplate("/api/v1/other/456", "/api/v1/items/{itemId}") {
+		t.Fatal("template prefix mismatch matched")
+	}
+}

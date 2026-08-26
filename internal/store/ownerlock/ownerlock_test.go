@@ -97,6 +97,9 @@ func TestWriterLeaseValidationDefaultsAndIdempotentClose(t *testing.T) {
 	if err := unlockFile(nil); err != nil {
 		t.Fatalf("nil unlock: %v", err)
 	}
+	if LockPath("sample.db") != "sample.db.jftrade-owner.lock" {
+		t.Fatalf("unexpected LockPath: %q", LockPath("sample.db"))
+	}
 }
 
 func TestWriterLeaseDiagnosticRejectsClosedFile(t *testing.T) {
