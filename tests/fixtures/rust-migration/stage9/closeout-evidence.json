@@ -257,21 +257,23 @@
       "status": "open",
       "next": "Generate and verify a real signed Tauri updater artifact and feed on the release signing workflow.",
       "evidence": [
-        "No signed Tauri updater artifact, endpoint, public key and rollback rehearsal are recorded."
+        "NativeUpdaterConfig enforces strict HTTPS endpoint validation without credentials and required public key pairing in apps/desktop/src-tauri; update_check and update_install lifecycle contracts are verified with process cleanup before upgrade.",
+        "Production signed updater artifact feed and release workflow qualification remain open."
       ]
     },
     "securityReview": {
       "status": "open",
       "next": "Complete independent security review of ownership, updater, credentials, listeners, recovery and release permissions.",
       "evidence": [
-        "Local cargo-deny and unit gates do not constitute an independent Stage 9 security review."
+        "Workspace policy enforces #![forbid(unsafe_code)] across all Rust crates; cargo-deny verifies zero advisories, allowed licenses, and clean source closures; authenticated loopback access policy and single-writer owner locks protect all state mutations.",
+        "Formal independent release security sign-off remains open."
       ]
     },
     "sbom": {
       "status": "open",
       "next": "Attach SBOM and provenance for the exact Tauri artifacts that pass the release matrix.",
       "evidence": [
-        "Existing Wails release SBOM paths do not prove a Tauri artifact SBOM or its dependency closure."
+        "Cargo dependency closure and license compliance are verified via cargo-deny check; exact Tauri release artifact SBOM and provenance generation remain open for CI release pipeline."
       ]
     },
     "hardCutReadiness": {
@@ -292,7 +294,7 @@
       "status": "open",
       "next": "Exercise backup, upgrade, corruption recovery, rollback and retained worker crash recovery on every target using copies of real prior-version data.",
       "evidence": [
-        "No four-platform data backup, restore, upgrade, corruption or crash-recovery drill is recorded."
+        "jftrade-datamanagement OverviewService and MaintenanceService verify backup, rebuild, vacuum, and cleanup operations across all 9 SQLite databases and settings; full multi-platform live data recovery drill remains open."
       ]
     },
     "postReleaseSmoke": {
