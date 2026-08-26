@@ -2,8 +2,9 @@
 mod product_execution_write_port;
 
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
+use product_execution_write_port::test_cutover::ExecutionSqliteTestCutoverPort;
 use product_execution_write_port::{
     EXECUTION_WRITE_ROUTES, ExecutionWriteContext, ExecutionWriteInput, ExecutionWriteOperation,
     ExecutionWritePort, ExecutionWritePortError, ExecutionWriteRequest, dispatch_execution_write,
@@ -282,6 +283,108 @@ fn execution_write_leaf_preserves_null_trailing_json_and_percent_id_trim() {
     assert_eq!(response.status, 200);
     assert_eq!(port.last_internal_order_id(), Some("order-1".to_owned()));
     assert_eq!(port.last_context(), Some(ExecutionWriteContext::Canceled));
+}
+
+#[test]
+fn sqlite_test_cutover_preserves_place_cancel_rollback_and_restart() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let database_path = directory.path().join("execution-test-cutover.db");
+    let port = Arc::new(
+        ExecutionSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
+    );
+    let order_place = execution_input(ExecutionWriteOperation::OrderPlace, None);
+    port.reject_order_place_event().expect("install rejection");
+    assert!(matches!(
+        port.mutate(&order_place),
+        Err(ExecutionWritePortError::Failed { status: 500, .. })
+    ));
+    assert_eq!(port.order_count().expect("orders after rollback"), 0);
+    assert_eq!(
+        port.event_count("order-place")
+            .expect("events after rollback"),
+        0
+    );
+    port.clear_rejection().expect("clear rejection");
+
+    let first = port.mutate(&order_place).expect("first order");
+    let second = port.mutate(&order_place).expect("duplicate order");
+    assert_eq!(first["internalOrderId"], "order-test-1");
+    assert_eq!(second["internalOrderId"], "order-test-2");
+    let combo = port
+        .mutate(&execution_input(ExecutionWriteOperation::ComboPlace, None))
+        .expect("combo place");
+    assert_eq!(combo["internalOrderId"], "combo-test-3");
+    assert_eq!(port.order_count().expect("placed orders"), 3);
+
+    for operation in [
+        ExecutionWriteOperation::BuyingPower,
+        ExecutionWriteOperation::ComboPreview,
+        ExecutionWriteOperation::OrderPreview,
+    ] {
+        let response = port
+            .mutate(&execution_input(operation, None))
+            .expect("non-durable operation");
+        assert_eq!(response["durableMutation"], false);
+    }
+    assert_eq!(port.order_count().expect("orders after previews"), 3);
+
+    let cancel = execution_input(ExecutionWriteOperation::OrderCancel, Some("order-test-1"));
+    let attempts = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let cancel = cancel.clone();
+            std::thread::spawn(move || port.mutate(&cancel))
+        })
+        .collect::<Vec<_>>();
+    let mut transitioned = 0;
+    let mut fenced = 0;
+    for attempt in attempts {
+        let response = attempt.join().expect("join cancel").expect("cancel result");
+        if response["transitioned"] == true {
+            transitioned += 1;
+        } else {
+            fenced += 1;
+        }
+    }
+    assert_eq!((transitioned, fenced), (1, 1));
+    assert_eq!(
+        port.order_status("order-test-1").expect("order status"),
+        Some("cancelled".to_owned())
+    );
+    assert_eq!(port.event_count("order-cancel").expect("cancel events"), 1);
+
+    let cancelled = ExecutionWriteInput {
+        context: ExecutionWriteContext::Canceled,
+        ..order_place.clone()
+    };
+    assert!(matches!(
+        port.mutate(&cancelled),
+        Err(ExecutionWritePortError::Failed { status: 499, .. })
+    ));
+    assert_eq!(port.order_count().expect("orders after cancellation"), 3);
+
+    drop(port);
+    let reopened = ExecutionSqliteTestCutoverPort::open(&database_path).expect("reopen adapter");
+    assert_eq!(
+        reopened
+            .order_status("order-test-1")
+            .expect("reopened status"),
+        Some("cancelled".to_owned())
+    );
+    let restarted = reopened.mutate(&order_place).expect("post-restart place");
+    assert_eq!(restarted["internalOrderId"], "order-test-4");
+}
+
+fn execution_input(
+    operation: ExecutionWriteOperation,
+    internal_order_id: Option<&str>,
+) -> ExecutionWriteInput {
+    ExecutionWriteInput {
+        operation,
+        internal_order_id: internal_order_id.map(str::to_owned),
+        payload: json!({"brokerId":"fixture","symbol":"US.AAPL"}),
+        context: ExecutionWriteContext::Normal,
+    }
 }
 
 #[derive(Debug)]

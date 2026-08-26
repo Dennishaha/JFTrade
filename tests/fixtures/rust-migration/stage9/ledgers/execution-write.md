@@ -25,6 +25,10 @@
   SQLite, connecting OpenD, or submitting an order.
 - Rust leaf:
   `crates/jftrade-engine/src/product_execution_write_port.rs`.
+- Rust test-cutover durability adapter:
+  `crates/jftrade-engine/src/product_execution_write_test_cutover.rs`, included
+  only under `cfg(test)` and backed by an isolated SQLite database; it is not
+  the production execution store or order-update worker.
 - Rust replay:
   `crates/jftrade-engine/tests/stage9_execution_write.rs`.
 - Differential:
@@ -255,9 +259,12 @@ agree on the exercised boundary; durable store evidence is explicitly absent.
 - Differential: `node scripts/rust-migration/check-stage9-execution-write.mjs`.
 - Authenticated Go loopback rehearsal: `go test ./internal/app/apiserver/servercoretest -run '^TestExecutionWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1` passed, covering private bearer/internal protocol, browser context forwarding, success/error/timeout/cancellation, crash fail-closed behavior, Go rollback, restart recovery, and unchanged settings bytes.
 - Authenticated Rust product replay: `cargo test -p jftrade-engine --lib product::tests::execution_write_product_tests -- --nocapture` passed, covering explicit registration, browser auth/CSRF fencing, unavailable/error/recovery, all seven route projections, repeated order forwarding, restart, and unchanged settings bytes.
+- Rust durable test-cutover replay: `cargo test -p jftrade-engine --test stage9_execution_write -- --nocapture` passed, covering isolated order/combo placement, preview and cancel persistence, allocator rollback on event failure, concurrent cancellation fencing, canceled-context rejection, close/reopen recovery, and all seven route projections.
+- Rust durable product replay: `cargo test -p jftrade-engine --lib execution_sqlite_test_cutover_replays_transport_and_restart -- --nocapture` passed, covering authenticated transport, restart recovery, and unchanged production settings/state boundaries through the isolated adapter.
 - Integration verification: dedicated differential, Rust leaf replay, product
-  route-isolation test, route coverage, layout, focused Clippy, `node --check`,
-  `git diff --check`, `check:quick`, and full `check:rust` pass after this
+  route-isolation test, isolated durability replay, route coverage, layout,
+  focused Clippy, `node --check`, `git diff --check`, `check:quick`, and full
+  `check:rust` pass after this
   wave's final composition.
 - This is a rehearsal only; A-tier unique-owner switch, production ledger
   fencing, broker/OpenD live, durable recovery, four-platform signed release,

@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
+use super::super::product_execution_write_port::test_cutover::ExecutionSqliteTestCutoverPort;
 use super::super::product_execution_write_port::{
     ExecutionWriteInput, ExecutionWritePort, ExecutionWritePortError,
 };
@@ -309,6 +310,82 @@ async fn execution_write_product_replays_browser_boundary_failure_recovery_and_r
         .expect("shutdown restarted execution product");
     assert_eq!(
         std::fs::read(&settings_path).expect("read settings after restart"),
+        settings_before
+    );
+}
+
+#[tokio::test]
+async fn execution_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("execution-test-cutover.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"execution-durable\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("settings");
+    let port = Arc::new(
+        ExecutionSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
+    );
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_execution_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let order_body = r#"{"brokerId":"fixture","symbol":"US.AAPL","side":"BUY","quantity":1}"#;
+    let combo_body = r#"{"brokerId":"fixture","market":"US","legs":[]}"#;
+    let operations = [
+        ("/api/v1/execution/buying-power", Some(order_body)),
+        ("/api/v1/execution/previews", Some(order_body)),
+        ("/api/v1/execution/combos/previews", Some(combo_body)),
+        ("/api/v1/execution/orders", Some(order_body)),
+        ("/api/v1/execution/combos", Some(combo_body)),
+    ];
+    for (path, body) in operations {
+        let response = request_json_with_status(address, "POST", path, body, &[]).await;
+        assert_eq!(response.0, 200, "POST {path}");
+    }
+    for path in [
+        "/api/v1/execution/orders/order-test-1/cancel",
+        "/api/v1/execution/combos/combo-test-2/cancel",
+    ] {
+        let response = request_json_with_status(address, "POST", path, None, &[]).await;
+        assert_eq!(response.0, 200, "POST {path}");
+    }
+    handle.shutdown().await.expect("shutdown product");
+    drop(port);
+
+    let reopened = Arc::new(
+        ExecutionSqliteTestCutoverPort::open(&database_path).expect("reopen durable adapter"),
+    );
+    assert_eq!(
+        reopened.order_status("order-test-1").expect("order status"),
+        Some("cancelled".to_owned())
+    );
+    assert_eq!(
+        reopened.order_status("combo-test-2").expect("combo status"),
+        Some("cancelled".to_owned())
+    );
+    let restarted_config = ProductConfig::test_cutover(
+        "127.0.0.1:0".parse().expect("restart address"),
+        &settings_path,
+    )
+    .expect("restart config")
+    .with_execution_write_port(reopened);
+    let restarted = start_product(restarted_config)
+        .await
+        .expect("restart product");
+    let response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/execution/orders",
+        Some(order_body),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["internalOrderId"], "order-test-3");
+    restarted.shutdown().await.expect("shutdown restart");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after restart"),
         settings_before
     );
 }
