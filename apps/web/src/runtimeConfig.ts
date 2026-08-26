@@ -29,7 +29,7 @@ export async function initializeTauriRuntimeConfig(): Promise<void> {
       }
       window.__JFTRADE_RUNTIME_CONFIG__ = {
         apiBaseUrl,
-        authRequired: true,
+        authRequired: config.authRequired === true,
         desktopMode: true,
         desktopApiToken: token,
       };
@@ -127,12 +127,14 @@ export function resolveDesktopBridgeAvailable(): boolean {
   }
   const runtimeWindow = window as typeof window & {
     chrome?: { webview?: { postMessage?: unknown } };
-    __TAURI_INTERNALS__?: { invoke?: unknown };
+    __TAURI_INTERNALS__?: unknown;
+    __TAURI__?: unknown;
     webkit?: { messageHandlers?: { external?: { postMessage?: unknown } } };
   };
   return (
     typeof runtimeWindow.chrome?.webview?.postMessage === "function" ||
-    typeof runtimeWindow.__TAURI_INTERNALS__?.invoke === "function" ||
+    runtimeWindow.__TAURI_INTERNALS__ != null ||
+    runtimeWindow.__TAURI__ != null ||
     typeof runtimeWindow.webkit?.messageHandlers?.external?.postMessage ===
       "function"
   );

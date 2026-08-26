@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default capabilities for the JFTrade desktop application","local":true,"windows":["*"],"permissions":["core:default","opener:default","notification:default","updater:default"]}}
+{"default":{"identifier":"default","description":"Default capabilities for the JFTrade desktop application","remote":{"urls":["http://127.0.0.1:3003","http://127.0.0.1:3003/*","http://localhost:3003","http://localhost:3003/*"]},"local":true,"windows":["*"],"permissions":["core:default","opener:default","notification:default","updater:default"]}}

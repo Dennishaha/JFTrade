@@ -105,7 +105,7 @@ pub fn run() -> Result<(), NativeError> {
         })?;
         let runtime_config = DesktopRuntimeConfig {
             api_base_url: format!("http://{}", runtime.startup_record().address),
-            auth_required: true,
+            auth_required: false,
             desktop_mode: true,
             desktop_api_token: token.clone(),
         };
