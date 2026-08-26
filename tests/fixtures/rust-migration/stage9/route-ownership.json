@@ -265,6 +265,8 @@
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_brokers_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib brokers_write_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4337,6 +4339,8 @@
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_brokers_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib brokers_write_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },
@@ -4355,6 +4359,8 @@
         "node scripts/rust-migration/check-stage9-brokers-write.mjs",
         "go test ./internal/app/apiserver/servercoretest -run '^TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart$' -count=1",
         "cargo test -p jftrade-engine --lib product::tests::brokers_write_product_tests -- --nocapture",
+        "cargo test -p jftrade-engine --test stage9_brokers_write -- --nocapture",
+        "cargo test -p jftrade-engine --lib brokers_write_sqlite_test_cutover_replays_transport_and_restart -- --nocapture",
         "pnpm run test:rust:stage9:product-differential"
       ]
     },

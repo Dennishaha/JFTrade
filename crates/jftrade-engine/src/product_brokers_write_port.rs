@@ -552,3 +552,8 @@ fn json_headers() -> BTreeMap<String, String> {
         "application/json; charset=utf-8".to_owned(),
     )])
 }
+
+#[cfg(test)]
+pub(crate) mod test_cutover {
+    include!("product_brokers_write_test_cutover.rs");
+}

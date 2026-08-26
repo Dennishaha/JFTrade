@@ -24,6 +24,10 @@
 - Go reference: `scripts/rust-migration/stage9_brokers_write_reference_test.go`.
 - Rust leaf/replay: `crates/jftrade-engine/src/product_brokers_write_port.rs` and
   `crates/jftrade-engine/tests/stage9_brokers_write.rs`.
+- Rust test-cutover durability adapter:
+  `crates/jftrade-engine/src/product_brokers_write_test_cutover.rs`, included
+  only under `cfg(test)` and backed by an isolated SQLite database; it does not
+  connect to broker/OpenD or represent the production order/session store.
 - Dedicated differential: `node scripts/rust-migration/check-stage9-brokers-write.mjs`.
 
 ## Contract ledger
@@ -216,10 +220,16 @@ fence and must not double-dispatch.
 
 - Go fixture generation with `JFTRADE_UPDATE_RUST_MIGRATION_FIXTURES=1` passed;
   the subsequent no-update drift replay passed.
-- The focused Rust replay passed 4 tests against the final 65-case/68-request
+- The focused Rust replay passed 5 tests against the final 65-case/68-request
   fixture. The dedicated differential
   `node scripts/rust-migration/check-stage9-brokers-write.mjs` also passed both
   the Go reference drift check and the workspace Rust replay.
+- The isolated SQLite test-cutover replay passed rollback of order allocation
+  and event writes, repeated placement with independent IDs, one-winner
+  concurrent cancellation, unlock/session persistence, canceled-context
+  rejection, close/reopen recovery, and post-restart allocation. The product
+  replay passed through authenticated explicit test-cutover transport and
+  preserved settings bytes.
 - The authenticated Go loopback rehearsal
   `TestBrokersWriteRehearsalFencesOwnersAndRecoversAcrossRestart` passed after
   removing duplicate unauthenticated/CSRF negative cases already covered by
@@ -227,10 +237,12 @@ fence and must not double-dispatch.
   protocol, browser context forwarding, success/error/timeout/cancellation,
   crash fail-closed behavior, Go rollback, restart recovery, and unchanged
   settings bytes.
-- The authenticated Rust product replay passed all 3 product tests, including
+- The authenticated Rust product replay passed all 4 product tests, including
   explicit test-cutover registration, private protocol/CSRF fencing,
-  unavailable/error/recovery, repeated mutations, restart, and unchanged
-  settings bytes.
+  unavailable/error/recovery, repeated mutations, isolated durable order and
+  session state, restart, and unchanged settings bytes. `check:quick` and
+  `check:rust` also passed, including the complete Stage 9 product
+  differential.
 - The current workspace already contains unrelated market-data integration
   edits in shared `crates/jftrade-engine/src/product*.rs`; this worker did not
   modify, stage, or revert them. They are outside this handoff.

@@ -4,8 +4,10 @@ use std::sync::{Arc, Mutex};
 use serde_json::{Value, json};
 use tempfile::tempdir;
 
+use super::super::product_brokers_write_port::test_cutover::BrokersWriteSqliteTestCutoverPort;
 use super::super::product_brokers_write_port::{
-    BrokersWriteInput, BrokersWritePort, BrokersWritePortError,
+    BrokersWriteContext, BrokersWriteInput, BrokersWriteOperation, BrokersWritePort,
+    BrokersWritePortError, BrokersWriteQuery,
 };
 use super::*;
 
@@ -418,4 +420,184 @@ async fn brokers_write_product_replays_browser_boundary_failure_recovery_and_res
         std::fs::read(&settings_path).expect("read restarted settings"),
         settings_before
     );
+}
+
+#[tokio::test]
+async fn brokers_write_sqlite_test_cutover_replays_transport_and_restart() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let database_path = directory.path().join("brokers-test-cutover.db");
+    std::fs::write(&settings_path, b"{\"seed\":\"brokers-durable\"}\n").expect("seed settings");
+    let settings_before = std::fs::read(&settings_path).expect("settings before replay");
+    let port = Arc::new(
+        BrokersWriteSqliteTestCutoverPort::open(&database_path).expect("open durable adapter"),
+    );
+    let place = brokers_durable_input(
+        BrokersWriteOperation::PlaceOrder,
+        json!({"symbol":"US.AAPL","side":"BUY","quantity":1}),
+        BrokersWriteContext::Normal,
+    );
+    port.reject_next_event().expect("install event rejection");
+    assert!(matches!(
+        port.mutate(&place),
+        Err(BrokersWritePortError::Failed { .. })
+    ));
+    assert_eq!(port.order_count().expect("orders after rollback"), 0);
+    assert_eq!(
+        port.event_count("place-order")
+            .expect("events after rollback"),
+        0
+    );
+
+    let first = port.mutate(&place).expect("first place");
+    let second = port.mutate(&place).expect("duplicate place");
+    assert_eq!(first["orderId"], 1);
+    assert_eq!(second["orderId"], 2);
+
+    let cancel = brokers_durable_input(
+        BrokersWriteOperation::CancelOrders,
+        json!({"orders":[{"orderId":1}]}),
+        BrokersWriteContext::Normal,
+    );
+    let attempts = (0..2)
+        .map(|_| {
+            let port = Arc::clone(&port);
+            let cancel = cancel.clone();
+            std::thread::spawn(move || port.mutate(&cancel))
+        })
+        .collect::<Vec<_>>();
+    let mut transitioned = 0;
+    let mut fenced = 0;
+    for attempt in attempts {
+        let response = attempt.join().expect("join cancel").expect("cancel result");
+        if response["cancelled"] == 1 {
+            transitioned += 1;
+        } else {
+            fenced += 1;
+        }
+    }
+    assert_eq!((transitioned, fenced), (1, 1));
+    assert_eq!(
+        port.order_status(1).expect("cancelled order status"),
+        Some("cancelled".to_owned())
+    );
+    assert_eq!(port.event_count("cancel-orders").expect("cancel events"), 1);
+
+    let unlock = brokers_durable_input(
+        BrokersWriteOperation::Unlock,
+        json!({"unlock":false}),
+        BrokersWriteContext::Normal,
+    );
+    assert_eq!(port.mutate(&unlock).expect("unlock")["unlocked"], true);
+    assert_eq!(
+        port.session_unlocked("fixture-broker")
+            .expect("session state"),
+        Some(true)
+    );
+
+    let canceled = brokers_durable_input(
+        BrokersWriteOperation::PlaceOrder,
+        json!({"symbol":"US.AAPL"}),
+        BrokersWriteContext::Canceled,
+    );
+    assert!(matches!(
+        port.mutate(&canceled),
+        Err(BrokersWritePortError::Failed { status: 499, .. })
+    ));
+    assert_eq!(port.order_count().expect("orders after cancellation"), 2);
+
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_brokers_write_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let address = handle.startup_record().address;
+    let place_body = r#"{"symbol":"US.AAPL","side":"BUY","quantity":1}"#;
+    let response = request_json_with_status(
+        address,
+        "POST",
+        "/api/v1/brokers/futu/orders?accountId=acct-1&market=US",
+        Some(place_body),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["orderId"], 3);
+    let cancel_body = r#"{"orders":[{"orderId":3}]}"#;
+    let response = request_json_with_status(
+        address,
+        "DELETE",
+        "/api/v1/brokers/futu/orders?accountId=acct-1&market=US",
+        Some(cancel_body),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["cancelled"], 1);
+    handle.shutdown().await.expect("shutdown product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after replay"),
+        settings_before
+    );
+    drop(port);
+
+    let reopened = Arc::new(
+        BrokersWriteSqliteTestCutoverPort::open(&database_path).expect("reopen durable adapter"),
+    );
+    assert_eq!(
+        reopened.order_status(3).expect("reopened order status"),
+        Some("cancelled".to_owned())
+    );
+    assert_eq!(
+        reopened
+            .session_unlocked("fixture-broker")
+            .expect("reopened session"),
+        Some(true)
+    );
+    let restarted = start_product(
+        ProductConfig::test_cutover(
+            "127.0.0.1:0".parse().expect("restart address"),
+            &settings_path,
+        )
+        .expect("restart config")
+        .with_brokers_write_port(reopened.clone()),
+    )
+    .await
+    .expect("start restarted product");
+    let response = request_json_with_status(
+        restarted.startup_record().address,
+        "POST",
+        "/api/v1/brokers/futu/orders",
+        Some(place_body),
+        &[],
+    )
+    .await;
+    assert_eq!(response.0, 200);
+    assert_eq!(response.1["data"]["orderId"], 4);
+    restarted
+        .shutdown()
+        .await
+        .expect("shutdown restarted product");
+    assert_eq!(
+        std::fs::read(&settings_path).expect("settings after restart"),
+        settings_before
+    );
+}
+
+fn brokers_durable_input(
+    operation: BrokersWriteOperation,
+    payload: Value,
+    context: BrokersWriteContext,
+) -> BrokersWriteInput {
+    BrokersWriteInput {
+        operation,
+        query: BrokersWriteQuery {
+            broker_id: "fixture-broker".to_owned(),
+            account_id: "acct-1".to_owned(),
+            trading_environment: "SIMULATE".to_owned(),
+            market: "US".to_owned(),
+        },
+        payload,
+        context,
+    }
 }
