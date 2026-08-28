@@ -56,6 +56,8 @@ struct ProductApi {
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
+    auth_session_invalidation_port:
+        Option<Arc<dyn product_auth_session_manager::AuthSessionInvalidationPort>>,
     stage9_write_ports: ProductStage9WritePorts,
     notification_sequence: AtomicU64,
 }
@@ -133,6 +135,7 @@ impl ProductApi {
             strategy_runtime_write_port: optional_ports.strategy_runtime_write,
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             auth_session_write_port: optional_ports.auth_session_write,
+            auth_session_invalidation_port: optional_ports.auth_session_invalidation,
             stage9_write_ports: optional_ports.stage9_write_ports,
             notification_sequence: AtomicU64::new(0),
         }
@@ -628,11 +631,17 @@ impl ProductApi {
         }
         let input: SecuritySettingsUpdate = serde_json::from_slice(body)
             .map_err(|_| ApiFailure::new(400, "BAD_REQUEST", "invalid security payload"))?;
-        self.settings
+        let settings = self
+            .settings
             .security
             .save(&input)
-            .map(|settings| ApiOutput::Json(json!(settings)))
-            .map_err(security_settings_save_failure)
+            .map_err(security_settings_save_failure)?;
+        if let Some(port) = self.auth_session_invalidation_port.as_ref() {
+            port.invalidate_all_sessions().map_err(|message| {
+                ApiFailure::new(500, "AUTH_SESSION_INVALIDATION_FAILED", message)
+            })?;
+        }
+        Ok(ApiOutput::Json(json!(settings)))
     }
 
     fn active_market_data_provider(&self) -> Result<ApiOutput, ApiFailure> {

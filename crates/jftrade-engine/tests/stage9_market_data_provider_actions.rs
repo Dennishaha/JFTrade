@@ -28,8 +28,8 @@ mod product_market_data_provider_actions_routes {
 
 use product_market_data_provider_actions_api::MarketDataProviderActionsApi;
 use product_market_data_provider_actions_port::{
-    MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
-    MarketDataProviderActionsRequest,
+    MarketDataProviderActionsFuture, MarketDataProviderActionsPort,
+    MarketDataProviderActionsPortError, MarketDataProviderActionsRequest,
 };
 
 #[derive(Debug, Deserialize)]
@@ -120,10 +120,10 @@ impl FixturePort {
 }
 
 impl MarketDataProviderActionsPort for FixturePort {
-    fn dispatch(
-        &self,
-        request: &MarketDataProviderActionsRequest,
-    ) -> Result<Value, MarketDataProviderActionsPortError> {
+    fn dispatch<'a>(
+        &'a self,
+        request: &'a MarketDataProviderActionsRequest,
+    ) -> MarketDataProviderActionsFuture<'a> {
         self.calls
             .lock()
             .expect("provider-actions call lock")
@@ -150,21 +150,23 @@ impl MarketDataProviderActionsPort for FixturePort {
                 MarketDataProviderActionsPortError::Unavailable(format!(
                     "fixture response missing for {key} occurrence {offset}"
                 ))
-            })?;
-        match response {
-            FixtureResponse::Data(data) => Ok(data),
-            FixtureResponse::Error {
+            });
+        let res = match response {
+            Ok(FixtureResponse::Data(data)) => Ok(data),
+            Ok(FixtureResponse::Error {
                 status,
                 code,
                 message,
                 retry_after_seconds,
-            } => Err(MarketDataProviderActionsPortError::Failed {
+            }) => Err(MarketDataProviderActionsPortError::Failed {
                 status,
                 code,
                 message,
                 retry_after_seconds,
             }),
-        }
+            Err(err) => Err(err),
+        };
+        Box::pin(std::future::ready(res))
     }
 }
 
@@ -230,15 +232,15 @@ fn provider_actions_routes_cover_exactly_the_five_unique_operations() {
     );
 }
 
-#[test]
-fn provider_actions_replay_matches_go_fixture_and_forwards_raw_requests() {
+#[tokio::test]
+async fn provider_actions_replay_matches_go_fixture_and_forwards_raw_requests() {
     let fixture = fixture();
     let port = Arc::new(FixturePort::from_fixture(&fixture));
     let api = MarketDataProviderActionsApi::new(Some(port.clone()));
 
     for case in &fixture.cases {
         let request = request_for(case);
-        let result = api.dispatch(&request);
+        let result = api.dispatch(&request).await;
         match (&case.data, result) {
             (Some(expected), Ok(ApiOutput::Json(actual))) => {
                 assert_eq!(case.expected_status, 200, "case {}", case.name);
@@ -283,8 +285,8 @@ fn provider_actions_replay_matches_go_fixture_and_forwards_raw_requests() {
     }
 }
 
-#[test]
-fn provider_actions_fail_closed_without_port_and_reject_unknown_routes() {
+#[tokio::test]
+async fn provider_actions_fail_closed_without_port_and_reject_unknown_routes() {
     let fixture = fixture();
     let api = MarketDataProviderActionsApi::new(None);
     let error = api
@@ -295,6 +297,7 @@ fn provider_actions_fail_closed_without_port_and_reject_unknown_routes() {
                 .find(|case| case.name == "normalize-empty-object")
                 .expect("normalize fixture case"),
         ))
+        .await
         .expect_err("missing port must fail closed");
     assert_eq!(error.status, 503);
     assert_eq!(error.code, "MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE");
@@ -316,6 +319,7 @@ fn provider_actions_fail_closed_without_port_and_reject_unknown_routes() {
     };
     let error = api
         .dispatch(&unknown)
+        .await
         .expect_err("subscription mutation must stay outside the group");
     assert_eq!(error.status, 404);
     assert_eq!(error.code, "NOT_FOUND");

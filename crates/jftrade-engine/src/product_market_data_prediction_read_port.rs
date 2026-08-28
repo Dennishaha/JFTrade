@@ -1,6 +1,5 @@
 /// Consumer-owned projections for prediction-market discovery and contract
-/// reads. Go remains authoritative for eligibility, Provider/OpenD lifecycle,
-/// query normalization, caching, and all subscription or write behavior.
+/// reads.
 pub trait MarketDataPredictionReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(
         &self,

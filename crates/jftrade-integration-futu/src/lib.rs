@@ -39,8 +39,8 @@ pub use quote_push::{
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
 };
 pub use runtime_task::{
-    OpenDSessionRuntime, OpenDSessionRuntimeConfig, OpenDSessionRuntimeError,
-    OpenDSessionRuntimeStatus,
+    OpenDSessionEventListener, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
+    OpenDSessionRuntimeError, OpenDSessionRuntimeStatus,
 };
 pub use session_coordinator::{
     OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
@@ -66,6 +66,7 @@ pub const PROTO_INIT_CONNECT: u32 = 1001;
 pub const PROTO_GET_GLOBAL_STATE: u32 = 1002;
 pub const PROTO_KEEP_ALIVE: u32 = 1004;
 pub const PROTO_QOT_SUB: u32 = 3001;
+pub const PROTO_GET_SUB_INFO: u32 = 3003;
 pub const PROTO_GET_BASIC_QOT: u32 = 3004;
 pub const PROTO_UPDATE_BASIC_QOT: u32 = 3005;
 pub const PROTO_GET_KL: u32 = 3006;

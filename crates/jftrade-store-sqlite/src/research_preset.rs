@@ -16,6 +16,7 @@ const RESEARCH_SCHEMA_VERSION: i64 = 1;
 const QUERY_SCHEMA_VERSION: u32 = 2;
 const MAX_PRESET_NAME_CHARS: usize = 80;
 pub const RESEARCH_PRESET_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const RESEARCH_PRESET_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,20 +65,33 @@ pub enum ResearchPresetStoreError {
     Incompatible(String),
 }
 
-pub struct ResearchPresetTestCutoverStore {
+pub struct ResearchPresetStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
 
-impl ResearchPresetTestCutoverStore {
-    /// Opens an existing Go-compatible research database behind an exclusive
-    /// test-cutover writer lease. It never creates or migrates a database.
+impl std::fmt::Debug for ResearchPresetStore {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ResearchPresetStore")
+            .field("path", &self.path)
+            .finish()
+    }
+}
+
+impl ResearchPresetStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, ResearchPresetStoreError> {
+        Self::open_existing(path, RESEARCH_PRESET_PRODUCTION_PROFILE)
+    }
+
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
     ) -> Result<Self, ResearchPresetStoreError> {
-        if profile != RESEARCH_PRESET_TEST_CUTOVER_PROFILE {
+        if profile != RESEARCH_PRESET_TEST_CUTOVER_PROFILE
+            && profile != RESEARCH_PRESET_PRODUCTION_PROFILE
+        {
             return Err(ResearchPresetStoreError::UnsupportedProfile(
                 profile.to_owned(),
             ));
@@ -95,10 +109,7 @@ impl ResearchPresetTestCutoverStore {
                 path.display().to_string(),
             ));
         }
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", RESEARCH_PRESET_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
         let connection = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -376,5 +387,54 @@ fn map_write_error(error: rusqlite::Error) -> ResearchPresetStoreError {
         ResearchPresetStoreError::Conflict
     } else {
         ResearchPresetStoreError::Query(error)
+    }
+}
+
+#[derive(Debug)]
+pub struct ResearchPresetTestCutoverStore {
+    inner: ResearchPresetStore,
+}
+
+impl ResearchPresetTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, ResearchPresetStoreError> {
+        let inner = ResearchPresetStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.inner.path()
+    }
+
+    pub fn list(&self) -> Result<Vec<StoredResearchPreset>, ResearchPresetStoreError> {
+        self.inner.list()
+    }
+
+    pub fn get(&self, preset_id: &str) -> Result<StoredResearchPreset, ResearchPresetStoreError> {
+        self.inner.get(preset_id)
+    }
+
+    pub fn insert(
+        &self,
+        preset: &ResearchPresetMutation,
+        timestamp: &str,
+    ) -> Result<StoredResearchPreset, ResearchPresetStoreError> {
+        self.inner.insert(preset, timestamp)
+    }
+
+    pub fn replace_revision(
+        &self,
+        preset: &ResearchPresetMutation,
+        expected_revision: u64,
+        timestamp: &str,
+    ) -> Result<StoredResearchPreset, ResearchPresetStoreError> {
+        self.inner
+            .replace_revision(preset, expected_revision, timestamp)
+    }
+
+    pub fn delete(&self, preset_id: &str) -> Result<(), ResearchPresetStoreError> {
+        self.inner.delete(preset_id)
     }
 }

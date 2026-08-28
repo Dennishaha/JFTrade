@@ -1,5 +1,5 @@
 impl ProductApi {
-    fn market_data_quote_read(
+    async fn market_data_quote_read(
         &self,
         path: &str,
         query: &str,
@@ -15,6 +15,7 @@ impl ProductApi {
                 )
             })?;
         port.read(path, query)
+            .await
             .map(ApiOutput::Json)
             .map_err(market_data_quote_read_snapshot_failure)
     }

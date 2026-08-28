@@ -17,6 +17,16 @@ use crate::{
 ///
 /// The task is never started by the default product profile. A caller that
 /// owns an authenticated coordinator may opt in to a bounded polling thread
+/// Listener for real-time events and errors emitted by OpenDSessionRuntime.
+pub trait OpenDSessionEventListener: Send + Sync + std::fmt::Debug {
+    fn on_event(&self, outcome: &OpenDSessionCoordinatorOutcome);
+    fn on_error(&self, error: &str);
+}
+
+/// Configuration for the explicitly composed OpenD runtime task.
+///
+/// The task is never started by the default product profile. A caller that
+/// owns an authenticated coordinator may opt in to a bounded polling thread
 /// and update its demand through [`OpenDSessionRuntime::set_demand`].
 #[derive(Clone, Debug)]
 pub struct OpenDSessionRuntimeConfig {
@@ -25,6 +35,8 @@ pub struct OpenDSessionRuntimeConfig {
     pub cache_capacity_per_instrument: usize,
     pub reconnect_initial_delay: Duration,
     pub reconnect_max_delay: Duration,
+    pub quota_refresh_enabled: bool,
+    pub event_listener: Option<Arc<dyn OpenDSessionEventListener>>,
 }
 
 impl Default for OpenDSessionRuntimeConfig {
@@ -35,6 +47,8 @@ impl Default for OpenDSessionRuntimeConfig {
             cache_capacity_per_instrument: 2,
             reconnect_initial_delay: Duration::from_millis(250),
             reconnect_max_delay: Duration::from_secs(5),
+            quota_refresh_enabled: false,
+            event_listener: None,
         }
     }
 }
@@ -296,6 +310,7 @@ fn run_task(context: RuntimeTaskContext) {
     let reconnect_max_delay = reconnect_max_delay.max(reconnect_initial_delay);
     let mut reconnect_failures = 0u32;
     let mut reconnect_not_before = None;
+    let mut quota_refresh_pending = config.quota_refresh_enabled;
     while stop_rx.recv_timeout(poll_interval).is_err() {
         if let Some(not_before) = reconnect_not_before
             && std::time::Instant::now() < not_before
@@ -323,21 +338,36 @@ fn run_task(context: RuntimeTaskContext) {
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let mut iteration_error = None;
-        if coordinator.desired() != desired
-            && let Err(error) =
-                coordinator.reconcile_topology(&desired, now.unix_millis().unwrap_or_default())
-        {
-            iteration_error = Some(error.to_string());
+        if coordinator.desired() != desired {
+            match coordinator.reconcile_topology(&desired, now.unix_millis().unwrap_or_default()) {
+                Ok(()) => quota_refresh_pending = config.quota_refresh_enabled,
+                Err(error) => iteration_error = Some(error.to_string()),
+            }
         }
         if iteration_error.is_none() {
             match coordinator.poll_once(now, event_timeout) {
-                Ok(OpenDSessionCoordinatorOutcome::Reconnected { .. }) => {
-                    let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
-                    state.reconnects = state.reconnects.saturating_add(1);
-                    reconnect_failures = 0;
+                Ok(outcome) => {
+                    if let Some(listener) = config.event_listener.as_ref() {
+                        listener.on_event(&outcome);
+                    }
+                    if let OpenDSessionCoordinatorOutcome::Reconnected { .. } = outcome {
+                        let mut state = status.lock().unwrap_or_else(|error| error.into_inner());
+                        state.reconnects = state.reconnects.saturating_add(1);
+                        reconnect_failures = 0;
+                        quota_refresh_pending = config.quota_refresh_enabled;
+                    }
                 }
-                Ok(_) => {}
                 Err(error) => iteration_error = Some(error.to_string()),
+            }
+        }
+        if iteration_error.is_none() && quota_refresh_pending {
+            let checked_at_ms = now.unix_millis().unwrap_or_default();
+            match coordinator.refresh_quota(checked_at_ms) {
+                Ok(()) => quota_refresh_pending = false,
+                Err(error) => {
+                    coordinator.record_quota_error(checked_at_ms, error.to_string());
+                    iteration_error = Some(error.to_string());
+                }
             }
         }
         if iteration_error.is_none() {
@@ -350,6 +380,11 @@ fn run_task(context: RuntimeTaskContext) {
             }
         }
         drop(coordinator);
+        if let Some(error) = iteration_error.as_deref()
+            && let Some(listener) = config.event_listener.as_ref()
+        {
+            listener.on_error(error);
+        }
         if let (Some(router), Some(provider_id)) = (router.as_ref(), provider_id.as_deref()) {
             sync_provider_health(router, provider_id, &recorder);
         }
@@ -497,7 +532,10 @@ mod tests {
             symbol: "AAPL".to_owned(),
             interval: None,
         }]);
-        std::thread::sleep(Duration::from_millis(30));
+        let deadline = std::time::Instant::now() + Duration::from_millis(1000);
+        while runtime.status().iterations == 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
         assert_eq!(runtime.demand().len(), 1);
         assert!(runtime.status().iterations > 0);
         runtime.shutdown().expect("shutdown");

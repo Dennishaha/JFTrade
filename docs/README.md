@@ -6,35 +6,33 @@
 
 ## 当前版本快照
 
-更新时间：2026-08-26。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
+更新时间：2026-08-27。本文描述当前工作树的运行边界；提交版本以仓库实际 HEAD 和 `vX.Y.Z` 发布 tag 为准。
 
-JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 AKShare 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。系统以同一套 API sidecar 为核心，可由 `cmd/jftrade-api` 独立启动，也可由 `cmd/jftrade-desktop` 管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
+JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工作台**。交易链路仍由 Futu/OpenD 管理；新安装的行情默认使用内置 AKShare 延迟数据源，支持美股、港股和沪深，也可以选择 Futu OpenD。生产系统以 Rust engine API 为核心，可独立启动，也可由 Tauri 桌面壳管理；前端控制台、行情、交易、策略、回测、ADK 和系统诊断都围绕 `/api/v1/*` 组织。
 
 当前主线事实：
 
-- 独立后端入口：`cmd/jftrade-api`，只支持 API sidecar 模式。
-- 桌面入口：`cmd/jftrade-desktop`，使用 Wails `v3.0.0-beta.8`，先显示窗口、再异步启动内置 API；仍通过 HTTP/SSE/WebSocket 访问 sidecar，并将启动状态、链接、日志和更新检查暴露为桌面 bindings。
+- 独立后端入口：`cargo run -p jftrade-engine --bin jftrade-api-rust`，默认绑定 `127.0.0.1:3000`。
+- 桌面入口：`apps/desktop/src-tauri`（Tauri 2），先显示窗口，再注入受管 Rust API 的 loopback URL 和临时桌面 Bearer token；前端仍通过 HTTP/SSE/WebSocket 访问 API。
 - 前端入口：`apps/web`，Vue 3 + Vite；文档站使用 VitePress。
 - 开发端口：API `127.0.0.1:3000`，Web `127.0.0.1:3003`，Docs `127.0.0.1:3001`。
-- 桌面内部端口：`JFTrade Dev` sidecar 为 `127.0.0.1:3008`，正式 `JFTrade` sidecar 为 `127.0.0.1:6699`；两者仅供 Wails 使用且可同时运行。
+- 桌面内部端口：开发壳 API 为 `127.0.0.1:3008`，正式壳 API 为 `127.0.0.1:6699`；两者仅供 Tauri WebView 使用且可同时运行。
 - 可选 Web 端口：默认 `127.0.0.1:6688`，可在桌面设置中修改；Web 关闭时桌面产品不创建该监听器。
-- 内置 Python 行情 helper：发布版随 `release_assets` 嵌入并由 JFTrade 自动启动，yfinance 与 AKShare 在同一进程中隔离运行；提供 `US`、`HK`、`SH`、`SZ` 的延迟查询与历史 K 线，不提供实时推流、Level 2 或实盘策略行情。发布资产必须显式准备；Wails 开发启动不再自动选择或构建 Python helper。
+- 内置 Python 行情 helper：发布版随受管 runtime 准备并由 Rust product runtime 启动，yfinance 与 AKShare 在同一进程中隔离运行；提供 `US`、`HK`、`SH`、`SZ` 的延迟查询与历史 K 线，不提供实时推流、Level 2 或实盘策略行情。发布资产必须显式准备。
 - 数据隔离：桌面开发版继续使用仓库 `var/jftrade-api`；正式产品使用系统用户数据目录，不扫描或迁移开发数据。
 - 自选系统：`watchlists.db` 是本地唯一主数据，支持多分组、Futu 只读预览导入、可见行快照行情和 ADK 只读查询。
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
-- PineTS worker：Node ESM `worker.mjs`，Go 通过 localhost gRPC 管理 worker pool。
-- 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Go 负责撮合、成交、资金曲线、风控、账户刷新和券商下单。
-- Rust 迁移：阶段 1–8 的本地 shadow/差分工作包和阶段 9 的 route-group rehearsal 已建立，但这些证据不等于产品切流。当前 `route-ownership.json` 登记 278 个 operation 为 `cutover-qualified`，并将 `productionOwner` 字段写为 Rust；所有 278 个 operation 的 `goRemovalStatus` 仍为 `retained`。这是迁移账本状态，不代表 Go/Wails 已从正式入口、公开 listener、SQLite、Provider、交易、Assistant 或桌面发布链路退出。
-- 当前可执行产品仍以 Go/Wails 为运行事实：Rust product 的默认 process profile 是 read-only shadow，写 route 和带副作用 route 只在显式 test-cutover/fixture composition 中启用。Stage 9 closeout 仍为 `in_progress`；`platformRelease`、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 等门禁仍未关闭，Go/Wails owner deletion 仍被阻断。请用 `pnpm run report:rust:stage9:closeout` 查看当前证据，用 `pnpm run check:rust:stage9:closeout` 作为 fail-closed 关闭门禁。
-- 当前 data-management maintenance 增量只在临时数据库和 `cutover-test-only.v1` 启用：cleanup execute、backup、compact、rebuild 均经过 writer lease、候选指纹或可验证备份 fencing。任何 route 的 `cutover-qualified` 都只表示契约/差分/隔离演练完成；只有 composition root、唯一副作用 owner、发布、恢复和 owner-deletion 门禁同时通过，才可写成正式生产 owner。
-- Rust calendar persistence 已兼容 Go owner 的 `MARKET/YYYY/source.json`、RFC3339Nano JSON、`0755/0644` 权限与同目录 fsync 原子替换；加载不会创建路径，并会在保留有效 snapshot 的同时逐文件报告遍历、权限、截断和 JSON 损坏。它已由 fixture-backed manager lifecycle 消费，但尚未接入正式 launcher 或扩大 route owner。
-- Rust calendar manager 已在 fixture source 边界内接入 registry、builtin/manual policy、snapshot restore/cache、source health/backoff、settings reload、start/close/cancel；sources/status 及 probe/refresh 四个控制操作由同一 manager 在 test-cutover profile 提供，覆盖未知市场、全失败/部分成功、超时、取消、缓存恢复和持久化失败。当前未复制真实 HTTP Provider，尚未接入正式 launcher 或生产 owner。
+- PineTS worker：Node ESM `worker.mjs`，Rust product runtime 通过 localhost gRPC 管理 worker pool 生命周期。
+- 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Rust engine 负责撮合、成交、资金曲线、风控、账户刷新和券商下单调度。
+- Rust 接管：阶段 1–9 的差分与 route-group 工作包已推进到 278 条 `/api/v1/*` production route；`route-ownership.json` 将它们登记为 `cutover-qualified`、`productionOwner=rust`、`goRemovalStatus=removed`。Wails 生产入口已下线。
+- 当前 closeout 尚未关闭：Stage 9 closeout 仍为 `in_progress`；四平台 package/install/upgrade/uninstall/rollback/runtime smoke、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部闭合。请用 `pnpm run report:rust:stage9:closeout` 查看当前证据，不要把 release/closeout 写成已完成。
+- 生产 SQLite 由 Rust engine 统一初始化并以唯一 `WriterLease` 声明写属主；数据库损坏、schema drift 或租约冲突会 fail-closed。data-management cleanup/backup/compact/rebuild 走生产 fencing 流程。
+- Rust calendar manager 在生产 composition 中提供持久化、settings reload、source health/backoff、snapshot/cache、start/close/cancel 与控制操作；外部 calendar source 不可用时按各自契约 fail-closed。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
 
 当前发布和验收入口：
 
 ```bash
-go test ./...
 pnpm run test:web
 pnpm run typecheck:web
 pnpm run test:pineworker
@@ -48,8 +46,7 @@ pnpm run check:rust:target-health # 检测中断编译遗留对象
 pnpm run clean:rust:artifacts     # 确认无 Cargo 进程后显式清理 target
 workers/marketdata-sidecar/.venv/bin/python -m pytest workers/marketdata-sidecar/tests
 pnpm run check:pinets-release
-pnpm run check:wails-bindings
-go test -tags release_assets ./cmd/jftrade-desktop ./internal/desktop -count=1
+pnpm run check:tauri-release-runtime
 ```
 
 独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；迁移中的 Tauri release launcher 复用同一 tag 规则，把单一版本同时锁入 Rust `/api/v1/system/status` build identity 和 Tauri bundle config。`dev` 与 `v0.0.0` 禁止进入两种桌面 release。

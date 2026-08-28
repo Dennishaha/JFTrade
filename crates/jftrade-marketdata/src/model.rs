@@ -141,17 +141,30 @@ impl InstrumentRef {
                 "market and symbol are required".to_owned(),
             ));
         }
-        self.interval = self
+        let interval = self
             .interval
             .take()
             .map(|value| value.trim().to_ascii_lowercase())
             .filter(|value| !value.is_empty());
-        if self.channel == "KLINE" && self.interval.is_none() {
-            return Err(MarketDataError::InvalidSubscription(
-                "KLINE requires interval".to_owned(),
-            ));
-        }
-        if self.channel != "KLINE" {
+        if self.channel == "KLINE" {
+            let Some(interval_val) = interval else {
+                return Err(MarketDataError::InvalidSubscription(
+                    "KLINE requires interval".to_owned(),
+                ));
+            };
+            let valid_intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"];
+            if !valid_intervals.contains(&interval_val.as_str()) {
+                return Err(MarketDataError::InvalidSubscription(format!(
+                    "unsupported KLINE interval: {interval_val}",
+                )));
+            }
+            self.interval = Some(interval_val);
+        } else if interval.is_some() {
+            return Err(MarketDataError::InvalidSubscription(format!(
+                "subscription interval is only valid for KLINE, got channel {}",
+                self.channel,
+            )));
+        } else {
             self.interval = None;
         }
         Ok(self)
@@ -159,6 +172,16 @@ impl InstrumentRef {
 
     pub fn instrument_id(&self) -> String {
         format!("{}.{}", self.market, self.symbol)
+    }
+
+    pub fn key(&self) -> String {
+        match &self.interval {
+            Some(interval) => format!(
+                "{}:{}:{}:{}",
+                self.channel, self.market, self.symbol, interval
+            ),
+            None => format!("{}:{}:{}", self.channel, self.market, self.symbol),
+        }
     }
 }
 
@@ -202,4 +225,41 @@ pub enum MarketDataError {
     CacheStale(String),
     #[error("market-data value belongs to a stale provider generation")]
     ProviderChanged,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhysicalSubscriptionSnapshot {
+    pub desired_count: usize,
+    pub own_active_count: usize,
+    pub pending_release_count: usize,
+    pub fallback_count: usize,
+    pub connection_generation: Option<u64>,
+    pub observed_connection_generation: Option<u64>,
+    pub total_used_quota: Option<u64>,
+    pub remain_quota: Option<u64>,
+    pub own_used_quota: Option<u64>,
+    pub checked_at: Option<String>,
+    pub last_error: Option<String>,
+    pub reconciled_at: Option<String>,
+    pub entries: Vec<PhysicalSubscriptionEntry>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhysicalSubscriptionEntry {
+    pub key: String,
+    pub kind: String,
+    pub instrument_id: String,
+    pub interval: Option<String>,
+    pub broker_state: String,
+    pub subscribed_at: Option<String>,
+    pub unsubscribe_eligible_at: Option<String>,
+    pub last_error: Option<String>,
+}
+
+pub trait PhysicalSubscriptionSnapshotPort: Send + Sync + std::fmt::Debug {
+    fn physical_subscription_snapshot(
+        &self,
+    ) -> Result<Option<PhysicalSubscriptionSnapshot>, String>;
 }

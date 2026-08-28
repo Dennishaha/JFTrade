@@ -20,6 +20,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
+use crate::websocket::{LiveHub, LiveHubConnection};
 use crate::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock,
     LiveConnectionMetrics, RouteCatalog, SseEvent, SystemClock, TransportMetrics, encode_event,
@@ -27,6 +28,15 @@ use crate::{
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LiveMarketDataStatus {
+    pub connected: bool,
+}
+
+pub trait LiveMarketDataStatusPort: Send + Sync + std::fmt::Debug {
+    fn snapshot(&self) -> LiveMarketDataStatus;
+}
 
 #[derive(Clone)]
 pub struct ApiState {
@@ -37,6 +47,8 @@ pub struct ApiState {
     pub clock: Arc<dyn Clock>,
     pub metrics: Arc<TransportMetrics>,
     pub live_connections: Arc<LiveConnectionMetrics>,
+    pub live_hub: Arc<LiveHub>,
+    pub live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
     request_sequence: Arc<AtomicU64>,
 }
 
@@ -50,6 +62,8 @@ impl ApiState {
             clock: Arc::new(SystemClock),
             metrics: Arc::new(TransportMetrics::default()),
             live_connections: Arc::new(LiveConnectionMetrics::default()),
+            live_hub: Arc::new(LiveHub::default()),
+            live_market_data_status: None,
             request_sequence: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -61,6 +75,19 @@ impl ApiState {
 
     pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
         self.clock = clock;
+        self
+    }
+
+    pub fn with_live_market_data_status(
+        mut self,
+        status: Arc<dyn LiveMarketDataStatusPort>,
+    ) -> Self {
+        self.live_market_data_status = Some(status);
+        self
+    }
+
+    pub fn with_live_hub(mut self, hub: Arc<LiveHub>) -> Self {
+        self.live_hub = hub;
         self
     }
 }
@@ -375,6 +402,19 @@ async fn websocket_handler(
             "Forbidden\n",
         );
     }
+    if state.access.enforce_access
+        && !state.access.desktop_trusted(&headers)
+        && !state.access.browser_authenticated(&headers)
+    {
+        return error_response(
+            &state.clock,
+            ApiFailure::new(
+                401,
+                "WEB_AUTH_REQUIRED",
+                "Web password authentication is required",
+            ),
+        );
+    }
     let Some(connection_permit) = state.live_connections.try_acquire() else {
         let limit = state.live_connections.snapshot().limit;
         return error_response(
@@ -387,9 +427,19 @@ async fn websocket_handler(
         );
     };
     let timestamp = state.clock.now_rfc3339();
+    let live_market_data_status = state.live_market_data_status.clone();
+    let live_hub_connection = state.live_hub.connect();
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
-        .on_upgrade(move |socket| websocket_session(socket, connection_permit, timestamp))
+        .on_upgrade(move |socket| {
+            websocket_session(
+                socket,
+                connection_permit,
+                live_hub_connection,
+                timestamp,
+                live_market_data_status,
+            )
+        })
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -410,17 +460,11 @@ struct LiveClientMessage {
 async fn websocket_session(
     mut socket: axum::extract::ws::WebSocket,
     connection_permit: crate::LiveConnectionPermit,
+    mut live_hub_connection: LiveHubConnection,
     timestamp: String,
+    live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
 ) {
-    let heartbeat = json!({
-        "type": "heartbeat",
-        "source": "system",
-        "payload": {
-            "at": timestamp,
-            "intervalMs": 15000,
-            "stale": false,
-        },
-    });
+    let heartbeat = live_heartbeat(&timestamp, live_market_data_status.as_deref());
     if socket
         .send(Message::Text(heartbeat.to_string().into()))
         .await
@@ -428,21 +472,74 @@ async fn websocket_session(
     {
         return;
     }
-    while let Some(message) = socket.recv().await {
-        let Ok(message) = message else {
-            return;
-        };
-        match live_subscription_update(&message) {
-            Ok(Some(active_instruments)) => {
-                connection_permit.set_active_instruments(&active_instruments);
+    let mut interval = tokio::time::interval(std::time::Duration::from_millis(15000));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                let timestamp = crate::SystemClock.now_rfc3339();
+                let hb = live_heartbeat(&timestamp, live_market_data_status.as_deref());
+                if socket.send(Message::Text(hb.to_string().into())).await.is_err() {
+                    break;
+                }
             }
-            Ok(None) => {}
-            Err(()) => return,
+            msg = socket.recv() => {
+                let Some(message) = msg else {
+                    break;
+                };
+                let Ok(message) = message else {
+                    break;
+                };
+                match live_subscription_update(&message) {
+                    Ok(Some(active_instruments)) => {
+                        connection_permit.set_active_instruments(&active_instruments);
+                        if let Ok(Some((provider_broker_id, _))) =
+                            live_subscription_details(&message)
+                        {
+                            live_hub_connection.set_subscription(
+                                &provider_broker_id,
+                                &active_instruments,
+                            );
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(()) => break,
+                }
+            }
+            event = live_hub_connection.recv() => {
+                let Some(event) = event else {
+                    break;
+                };
+                if socket.send(Message::Text(event.to_string().into())).await.is_err() {
+                    break;
+                }
+            }
         }
     }
 }
 
+fn live_heartbeat(
+    timestamp: &str,
+    status: Option<&dyn LiveMarketDataStatusPort>,
+) -> serde_json::Value {
+    let stale = status.is_some_and(|port| !port.snapshot().connected);
+    json!({
+        "type": "heartbeat",
+        "source": "system",
+        "payload": {
+            "at": timestamp,
+            "intervalMs": 15000,
+            "stale": stale,
+        },
+    })
+}
+
 fn live_subscription_update(message: &Message) -> Result<Option<Vec<String>>, ()> {
+    Ok(live_subscription_details(message)?.map(|(_, instruments)| instruments))
+}
+
+fn live_subscription_details(message: &Message) -> Result<Option<(String, Vec<String>)>, ()> {
     let payload = match message {
         Message::Text(payload) => payload.as_bytes(),
         Message::Binary(payload) => payload.as_ref(),
@@ -458,12 +555,40 @@ fn live_subscription_update(message: &Message) -> Result<Option<Vec<String>>, ()
     if message.subscriptions.provider_broker_id.trim().is_empty() {
         return Err(());
     }
-    Ok(Some(message.subscriptions.active_instruments))
+    Ok(Some((
+        message.subscriptions.provider_broker_id,
+        message.subscriptions.active_instruments,
+    )))
 }
 
 #[cfg(test)]
 mod websocket_subscription_tests {
     use super::*;
+
+    #[derive(Debug)]
+    struct FixedLiveStatus(bool);
+
+    impl LiveMarketDataStatusPort for FixedLiveStatus {
+        fn snapshot(&self) -> LiveMarketDataStatus {
+            LiveMarketDataStatus { connected: self.0 }
+        }
+    }
+
+    #[test]
+    fn heartbeat_reports_live_provider_connectivity_without_a_fixture_projection() {
+        assert_eq!(
+            live_heartbeat("fixture-time", Some(&FixedLiveStatus(false)))["payload"]["stale"],
+            true
+        );
+        assert_eq!(
+            live_heartbeat("fixture-time", Some(&FixedLiveStatus(true)))["payload"]["stale"],
+            false
+        );
+        assert_eq!(
+            live_heartbeat("fixture-time", None)["payload"]["stale"],
+            false
+        );
+    }
 
     #[test]
     fn subscription_message_matches_go_ignore_update_and_close_rules() {

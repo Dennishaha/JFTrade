@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -10,8 +11,9 @@ use jftrade_datamanagement::{
 };
 use jftrade_store_sqlite::{
     ManagedDatabaseCleanupCandidateStore, ManagedDatabaseMaintenanceStore,
-    ManagedDatabaseOverviewStore,
+    ManagedDatabaseOverviewStore, initialize_current,
 };
+use rusqlite::{Connection, OpenFlags};
 
 const REBUILD_MARKER_FILENAME: &str = "database-rebuild.json";
 
@@ -31,9 +33,22 @@ pub fn cleanup_preview_service(settings_path: &Path) -> Arc<CleanupPreviewServic
     }))
 }
 
+#[allow(dead_code)]
 pub fn maintenance_service(
     settings_path: &Path,
     previews: Arc<CleanupPreviewService>,
+) -> MaintenanceService {
+    maintenance_service_with_profile(
+        settings_path,
+        previews,
+        crate::product::PRODUCT_PRODUCTION_ROUTE_PROFILE,
+    )
+}
+
+pub fn maintenance_service_with_profile(
+    settings_path: &Path,
+    previews: Arc<CleanupPreviewService>,
+    profile: &str,
 ) -> MaintenanceService {
     let (descriptors, marker_path) =
         database_descriptors(settings_path, |name| env::var(name).ok());
@@ -42,9 +57,90 @@ pub fn maintenance_service(
         Arc::new(ManagedDatabaseMaintenanceStore::new(
             descriptors,
             marker_path,
-            crate::product::PRODUCT_TEST_CUTOVER_ROUTE_PROFILE,
+            profile,
         )),
     )
+}
+
+/// Open or create all managed production databases without replacing an
+/// existing file.  Existing schemas are validated against the pinned
+/// manifest; incompatibilities fail startup and leave the original untouched.
+pub fn initialize_production_databases(settings_path: &Path) -> Result<(), String> {
+    let (descriptors, _) = database_descriptors(settings_path, |name| env::var(name).ok());
+    for descriptor in descriptors {
+        let path = Path::new(&descriptor.path);
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent)
+                .map_err(|error| format!("create {}: {error}", parent.display()))?;
+        }
+        let existed = path.is_file();
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
+        )
+        .map_err(|error| format!("open {}: {error}", path.display()))?;
+        if existed {
+            match jftrade_store_sqlite::validate_current(
+                &connection,
+                &descriptor.path,
+                &descriptor.id,
+                descriptor.expected_version,
+            ) {
+                Ok(()) => {}
+                Err(error)
+                    if jftrade_store_sqlite::current_version(&connection, &descriptor.id)
+                        .is_some_and(|version| version < descriptor.expected_version) =>
+                {
+                    migrate_legacy_schema_metadata(
+                        &connection,
+                        &descriptor.path,
+                        &descriptor.id,
+                        descriptor.expected_version,
+                    )
+                    .map_err(|migration_error| {
+                        format!("{}; migration failed: {migration_error}", error)
+                    })?;
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        } else {
+            initialize_current(&connection, &descriptor.id).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn migrate_legacy_schema_metadata(
+    connection: &Connection,
+    path: &str,
+    component: &str,
+    expected_version: i64,
+) -> Result<(), String> {
+    let backup_path = format!("{path}.pre-migration.bak");
+    fs::copy(path, &backup_path)
+        .map_err(|error| format!("create migration backup {backup_path}: {error}"))?;
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| format!("begin metadata migration: {error}"))?;
+    transaction
+        .execute(
+            "UPDATE jftrade_schema_meta SET version = ?1 WHERE component_id = ?2",
+            rusqlite::params![expected_version, component],
+        )
+        .map_err(|error| format!("update schema metadata: {error}"))?;
+    if let Err(error) =
+        jftrade_store_sqlite::validate_current(&transaction, path, component, expected_version)
+    {
+        drop(transaction);
+        return Err(error.to_string());
+    }
+    transaction
+        .commit()
+        .map_err(|error| format!("commit metadata migration: {error}"))?;
+    Ok(())
 }
 
 fn overview_service_with_lookup(
@@ -354,6 +450,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn production_database_metadata_migration_is_atomic_and_backed_up() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("settings");
+        initialize_production_databases(&settings_path).expect("initialize databases");
+        let descriptor = database_descriptors(&settings_path, |_| None)
+            .0
+            .into_iter()
+            .find(|descriptor| descriptor.id == DATABASE_STRATEGY)
+            .expect("strategy descriptor");
+        let connection = Connection::open(&descriptor.path).expect("open watchlist");
+        connection
+            .execute(
+                "UPDATE jftrade_schema_meta SET version = 1 WHERE component_id = ?1",
+                [&descriptor.id],
+            )
+            .expect("downgrade metadata for migration test");
+        drop(connection);
+
+        initialize_production_databases(&settings_path).expect("migrate metadata");
+        let migrated = Connection::open(&descriptor.path).expect("reopen watchlist");
+        assert_eq!(
+            jftrade_store_sqlite::current_version(&migrated, &descriptor.id),
+            Some(descriptor.expected_version)
+        );
+        assert!(std::path::Path::new(&(descriptor.path.clone() + ".pre-migration.bak")).is_file());
     }
 
     #[derive(Debug, Default)]

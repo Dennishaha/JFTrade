@@ -6,8 +6,8 @@ use crate::real_trade_control::{
 use crate::runtime_dependencies;
 use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock,
-    LiveConnectionMetrics, PortFuture, RouteCatalog, RouteCatalogError, RouteSpec, SseEvent,
-    SystemClock, TransportMetrics, build_router,
+    LiveConnectionMetrics, LiveHub, PortFuture, RouteCatalog, RouteCatalogError, RouteSpec,
+    SseEvent, SystemClock, TransportMetrics, build_router,
 };
 use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{
@@ -22,11 +22,11 @@ use jftrade_settings::{
     BrokerSettingsService, ExchangeCalendarSettings, ExchangeCalendarSettingsService,
     ExecutionService, ExecutionSettings, FutuOpenDInstallSettingsService,
     InterfaceSettingsStorePort, ManagedBrokerAccount, MarketDataProviderSettingsError,
-    MarketDataProviderSettingsService, McpServerSettingsError, McpServerSettingsService,
-    McpServerSettingsUpdate, OnboardingSettingsService, OnboardingWriteRequest, PineWorkerSettings,
-    PineWorkerSettingsService, SecuritySettingsError, SecuritySettingsService,
-    SecuritySettingsUpdate, SystemNotificationService, SystemNotificationSettings,
-    UiAppearanceSettings, normalize_live_websocket_connection_limit,
+    MarketDataProviderSettingsService, MarketDataProviderSettingsStorePort, McpServerSettingsError,
+    McpServerSettingsService, McpServerSettingsUpdate, OnboardingSettingsService,
+    OnboardingWriteRequest, PineWorkerSettings, PineWorkerSettingsService, SecuritySettingsError,
+    SecuritySettingsService, SecuritySettingsUpdate, SystemNotificationService,
+    SystemNotificationSettings, UiAppearanceSettings, normalize_live_websocket_connection_limit,
     should_forward_system_notification,
 };
 use jftrade_store_settings_file::SettingsFileStore;
@@ -40,24 +40,32 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::env;
 use std::fs::File;
+use std::future::Future;
 use std::io::{BufReader, Read};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpListener as StdTcpListener};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use thiserror::Error;
-use tokio::net::TcpListener;
 use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
 pub const PRODUCT_BIND_ENV: &str = "JFTRADE_RUST_API_BIND";
 pub const PRODUCT_SETTINGS_PATH_ENV: &str = "JFTRADE_SETTINGS_PATH";
 pub const PRODUCT_DESKTOP_TOKEN_ENV: &str = "JFTRADE_DESKTOP_TOKEN";
 pub const PRODUCT_REHEARSAL_PROTOCOL_VERSION: &str = "jftrade-product-rehearsal.v1";
 pub const PRODUCT_READ_ONLY_ROUTE_PROFILE: &str = "read-only-shadow.v1";
 pub const PRODUCT_TEST_CUTOVER_ROUTE_PROFILE: &str = "cutover-test-only.v1";
+pub const PRODUCT_PRODUCTION_ROUTE_PROFILE: &str = "production.v1";
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
+#[path = "product_active_provider_state.rs"]
+pub(crate) mod product_active_provider_state;
+#[path = "product_query.rs"]
+pub(crate) mod product_query;
+pub(crate) use product_active_provider_state::ActiveProviderState;
+#[path = "product_candle_converter.rs"]
+pub(crate) mod product_candle_converter;
 #[path = "product_research_preset_port.rs"]
 mod product_research_preset_port;
 use product_research_preset_port::{
@@ -92,6 +100,9 @@ use product_auth_session_write_port::{
     AuthSessionWritePort, AuthSessionWriteRequest, AuthSessionWriteResponse,
     auth_session_write_routes, dispatch_auth_session_write,
 };
+#[path = "product_auth_session_manager.rs"]
+pub mod product_auth_session_manager;
+pub use product_auth_session_manager::ProductionAuthSessionManager;
 include!("product_snapshot_errors.rs");
 #[path = "product_alerts_write_port.rs"]
 mod product_alerts_write_port;
@@ -238,6 +249,26 @@ pub trait AlertSnapshotPort: Send + Sync + std::fmt::Debug {
         raw_query: &str,
     ) -> Result<serde_json::Value, AlertSnapshotError>;
 }
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ProductionRuntimeStatus {
+    Ready,
+    Degraded,
+    #[default]
+    Unavailable,
+    Failed,
+}
+
+impl ProductionRuntimeStatus {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Degraded => "degraded",
+            Self::Unavailable => "unavailable",
+            Self::Failed => "failed",
+        }
+    }
+}
 /// Consumer-owned read-only projection for strategy definition routes.
 ///
 /// The port carries the complete JSON projection because the Go owner still
@@ -299,6 +330,12 @@ pub struct ProductConfig {
     market_data_quote_read_snapshot_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     market_data_prediction_read_snapshot_port:
         Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
+    pub(crate) active_provider_state: Option<Arc<ActiveProviderState>>,
+    pub(crate) market_data_router: Option<Arc<Mutex<jftrade_marketdata::ProviderRouter>>>,
+    pub(crate) market_data_helper: Option<jftrade_integration_marketdata_helper::HelperClient>,
+    pub(crate) physical_subscription_port:
+        Option<Arc<dyn jftrade_marketdata::PhysicalSubscriptionSnapshotPort>>,
+    pub(crate) live_hub: Option<Arc<jftrade_api::LiveHub>>,
     market_data_runtime_status_port: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
     broker_read_snapshot_port: Option<Arc<dyn BrokerReadSnapshotPort>>,
     system_read_snapshot_port: Option<Arc<dyn SystemReadSnapshotPort>>,
@@ -328,6 +365,10 @@ pub struct ProductConfig {
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     stage9_write_ports: ProductStage9WritePorts,
     capabilities: ProductCapabilities,
+    production: bool,
+    provider_runtime_status: ProductionRuntimeStatus,
+    opend_runtime_status: ProductionRuntimeStatus,
+    worker_runtime_status: ProductionRuntimeStatus,
 }
 impl std::fmt::Debug for ProductConfig {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -345,6 +386,10 @@ impl std::fmt::Debug for ProductConfig {
 const PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV: &str = "JFTRADE_RUST_INTERNAL_PROXY_PROTOCOL";
 
 impl ProductConfig {
+    pub(crate) const fn is_production(&self) -> bool {
+        self.production
+    }
+
     pub(crate) fn new(
         bind_address: SocketAddr,
         settings_path: impl Into<PathBuf>,
@@ -384,6 +429,11 @@ impl ProductConfig {
             adk_read_snapshot_port: None,
             market_data_quote_read_snapshot_port: None,
             market_data_prediction_read_snapshot_port: None,
+            active_provider_state: None,
+            market_data_router: None,
+            market_data_helper: None,
+            physical_subscription_port: None,
+            live_hub: None,
             market_data_runtime_status_port: None,
             broker_read_snapshot_port: None,
             system_read_snapshot_port: None,
@@ -413,6 +463,10 @@ impl ProductConfig {
             auth_session_write_port: None,
             stage9_write_ports: ProductStage9WritePorts::default(),
             capabilities: ProductCapabilities::default(),
+            production: false,
+            provider_runtime_status: ProductionRuntimeStatus::Unavailable,
+            opend_runtime_status: ProductionRuntimeStatus::Unavailable,
+            worker_runtime_status: ProductionRuntimeStatus::Unavailable,
         })
     }
     #[cfg(test)]
@@ -447,287 +501,11 @@ impl ProductConfig {
             AccessPolicy::desktop(Some(desktop_token)),
         )
     }
-
-    pub fn from_process_env() -> Result<Self, ProductError> {
-        let bind_address = env::var(PRODUCT_BIND_ENV)
-            .unwrap_or_else(|_| DEFAULT_PRODUCT_BIND.to_owned())
-            .parse()
-            .map_err(ProductError::InvalidBindAddress)?;
-        let settings_path = env::var_os(PRODUCT_SETTINGS_PATH_ENV)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_SETTINGS_PATH));
-        let desktop_token = env::var(PRODUCT_DESKTOP_TOKEN_ENV)
-            .ok()
-            .filter(|value| value.trim().len() >= 32)
-            .ok_or(ProductError::MissingDesktopToken)?;
-        let access = AccessPolicy {
-            internal_proxy_protocol: env::var(PRODUCT_INTERNAL_PROXY_PROTOCOL_ENV)
-                .ok()
-                .filter(|value| !value.trim().is_empty()),
-            ..AccessPolicy::desktop(Some(desktop_token))
-        };
-        Self::new(bind_address, settings_path, access)
-    }
 }
 
 include!("product_config_ports.rs");
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProductStartupRecord {
-    pub event: &'static str,
-    pub address: SocketAddr,
-    pub owner: &'static str,
-    pub owned_routes: usize,
-    pub protocol_version: &'static str,
-    pub route_profile: &'static str,
-    pub route_profile_digest: String,
-    pub capabilities: Vec<String>,
-    pub resource_sha256: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ProductNotificationRequest {
-    pub title: String,
-    pub body: String,
-    pub sound_enabled: bool,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProductNotificationDelivery {
-    pub delivered: bool,
-    pub status: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub message: String,
-}
-
-pub trait ProductNotificationPort: Send + Sync + std::fmt::Debug {
-    fn deliver(&self, request: ProductNotificationRequest) -> ProductNotificationDelivery;
-}
-
-pub struct ProductHandle {
-    startup_record: ProductStartupRecord,
-    shutdown_tx: Option<oneshot::Sender<()>>,
-    task: Option<JoinHandle<Result<(), std::io::Error>>>,
-    calendar_manager: Option<Arc<CalendarManager>>,
-}
-
-impl ProductHandle {
-    pub const fn startup_record(&self) -> &ProductStartupRecord {
-        &self.startup_record
-    }
-
-    pub async fn shutdown(mut self) -> Result<(), ProductError> {
-        if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
-        }
-        if let Some(task) = self.task.take() {
-            task.await.map_err(ProductError::Join)??;
-        }
-        if let Some(manager) = self.calendar_manager.take() {
-            manager.close().map_err(ProductError::Calendar)?;
-        }
-        Ok(())
-    }
-}
-
-impl Drop for ProductHandle {
-    fn drop(&mut self) {
-        if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
-        }
-        if let Some(manager) = self.calendar_manager.take() {
-            let _ = manager.close();
-        }
-    }
-}
-
-pub async fn start_product(config: ProductConfig) -> Result<ProductHandle, ProductError> {
-    let runtime = ProductRuntimeState::product_only(&config);
-    start_product_with_runtime_state(config, runtime).await
-}
-
-pub(crate) async fn start_product_with_runtime_state(
-    config: ProductConfig,
-    runtime: Arc<ProductRuntimeState>,
-) -> Result<ProductHandle, ProductError> {
-    let listener = TcpListener::bind(config.bind_address)
-        .await
-        .map_err(ProductError::Bind)?;
-    let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
-    let route_ports = product_route_ports(&config);
-    let routes = product_routes(&config.capabilities, route_ports)?;
-    let route_count = routes.routes().len();
-    let route_capabilities = routes
-        .routes()
-        .iter()
-        .map(|route| format!("{} {}", route.method, route.path))
-        .collect::<Vec<_>>();
-    let route_profile_digest = route_profile_digest(&route_capabilities);
-    let resource_sha256 = current_executable_sha256()?;
-    let owner = if config.capabilities.is_empty() {
-        "rust-read-only-shadow"
-    } else {
-        "rust-cutover"
-    };
-    let route_profile = if config.capabilities.is_empty() {
-        PRODUCT_READ_ONLY_ROUTE_PROFILE
-    } else {
-        PRODUCT_TEST_CUTOVER_ROUTE_PROFILE
-    };
-    let data_management = product_data_management::overview_service(config.settings_path());
-    let cleanup_preview = product_data_management::cleanup_preview_service(config.settings_path());
-    let maintenance = product_data_management::maintenance_service(
-        config.settings_path(),
-        Arc::clone(&cleanup_preview),
-    );
-    let settings_store = Arc::new(
-        if config.capabilities.requires_writable_settings() {
-            SettingsFileStore::open(config.settings_path)
-        } else {
-            SettingsFileStore::open_read_only(config.settings_path)
-        }
-        .map_err(ProductError::Settings)?,
-    );
-    let metrics = Arc::new(TransportMetrics::default());
-    let interface_settings = settings_store
-        .load_interface_settings()
-        .map_err(ProductError::Settings)?;
-    let live_connections = Arc::new(LiveConnectionMetrics::new(
-        normalize_live_websocket_connection_limit(interface_settings.as_ref()),
-    ));
-    let real_trade_control = RealTradeControlReader::new(config.real_trade_control_path.clone());
-    if let Some(manager) = &config.calendar_manager {
-        manager.start().map_err(ProductError::Calendar)?;
-    }
-    let port = Arc::new(ProductApi::new(
-        address.port(),
-        ProductSettingsServices {
-            appearance: AppearanceService::new(settings_store.clone()),
-            brokers: BrokerSettingsService::new(settings_store.clone()),
-            onboarding: OnboardingSettingsService::new(settings_store.clone()),
-            futu_install: FutuOpenDInstallSettingsService::new(settings_store.clone()),
-            execution: ExecutionService::new(settings_store.clone()),
-            assistant_runtime: AssistantRuntimeService::new(settings_store.clone()),
-            system_notifications: SystemNotificationService::new(settings_store.clone()),
-            pine_worker: PineWorkerSettingsService::new(settings_store.clone()),
-            security: SecuritySettingsService::new(settings_store.clone()),
-            market_data_provider: MarketDataProviderSettingsService::new(settings_store.clone()),
-            backtest_market_data_provider: BacktestMarketDataProviderSettingsService::new(
-                settings_store.clone(),
-            ),
-            mcp_server: McpServerSettingsService::new(settings_store.clone()),
-            exchange_calendars: ExchangeCalendarSettingsService::new(settings_store),
-            data_management,
-            cleanup_preview,
-            maintenance,
-        },
-        Arc::clone(&metrics),
-        Arc::clone(&live_connections),
-        runtime,
-        real_trade_control,
-        ProductOptionalPorts {
-            notification: config.notification_port.clone(),
-            calendar_manager: config.calendar_manager.clone(),
-            watchlist_membership_snapshot: config.watchlist_membership_snapshot_port.clone(),
-            watchlist_read_snapshot: config.watchlist_read_snapshot_port.clone(),
-            portfolio_snapshot: config.portfolio_snapshot_port.clone(),
-            research_read_snapshot: config.research_read_snapshot_port.clone(),
-            research_preset_read_snapshot: config.research_preset_read_snapshot_port.clone(),
-            execution_read_snapshot: config.execution_read_snapshot_port.clone(),
-            market_data_provider_read_snapshot: config
-                .market_data_provider_read_snapshot_port
-                .clone(),
-            market_data_catalog_read_snapshot: config
-                .market_data_catalog_read_snapshot_port
-                .clone(),
-            market_data_derivative_read_snapshot: config
-                .market_data_derivative_read_snapshot_port
-                .clone(),
-            market_data_options_read_snapshot: config
-                .market_data_options_read_snapshot_port
-                .clone(),
-            market_data_news_actions_read_snapshot: config
-                .market_data_news_actions_read_snapshot_port
-                .clone(),
-            market_data_news_search_read_snapshot: config
-                .market_data_news_search_read_snapshot_port
-                .clone(),
-            adk_read_snapshot: config.adk_read_snapshot_port.clone(),
-            market_data_quote_read_snapshot: config.market_data_quote_read_snapshot_port.clone(),
-            market_data_prediction_read_snapshot: config
-                .market_data_prediction_read_snapshot_port
-                .clone(),
-            market_data_runtime_status: config.market_data_runtime_status_port.clone(),
-            broker_read_snapshot: config.broker_read_snapshot_port.clone(),
-            system_read_snapshot: config.system_read_snapshot_port.clone(),
-            remote_watchlist_snapshot: config.remote_watchlist_snapshot_port.clone(),
-            remote_watchlist_write: config.remote_watchlist_write_port.clone(),
-            watchlist_write: config.watchlist_write_port.clone(),
-            plugin_uninstall_guidance_snapshot: config
-                .plugin_uninstall_guidance_snapshot_port
-                .clone(),
-            plugin_snapshot: config.plugin_snapshot_port.clone(),
-            plugin_write: config.plugin_write_port.clone(),
-            research_preset_write: config.research_preset_write_port.clone(),
-            strategy_definition_write: config.strategy_definition_write_port.clone(),
-            market_data_provider_actions: config.market_data_provider_actions_port.clone(),
-            adk_chat_stream: config.adk_chat_stream_port.clone(),
-            adk_mutation: config.adk_mutation_port.clone(),
-            alert_snapshot: config.alert_snapshot_port.clone(),
-            alert_write: config.alert_write_port.clone(),
-            strategy_definition_snapshot: config.strategy_definition_snapshot_port.clone(),
-            strategy_pine_analyze_snapshot: config.strategy_pine_analyze_snapshot_port.clone(),
-            backtest_read_snapshot: config.backtest_read_snapshot_port.clone(),
-            backtest_sync_read_snapshot: config.backtest_sync_read_snapshot_port.clone(),
-            backtests_write: config.backtests_write_port.clone(),
-            strategy_read_snapshot: config.strategy_read_snapshot_port.clone(),
-            strategy_runtime_status: config.strategy_runtime_status_port.clone(),
-            strategy_runtime_write: config.strategy_runtime_write_port.clone(),
-            auth_session_snapshot: config.auth_session_snapshot_port.clone(),
-            auth_session_write: config.auth_session_write_port.clone(),
-            stage9_write_ports: config.stage9_write_ports.clone(),
-        },
-    ));
-    let mut state = ApiState::new(routes, config.access, port);
-    state.metrics = metrics;
-    state.live_connections = live_connections;
-    let router = build_router(state);
-    let (shutdown_tx, shutdown_rx) = oneshot::channel();
-    let task = tokio::spawn(async move {
-        axum::serve(listener, router)
-            .with_graceful_shutdown(async move {
-                let _ = shutdown_rx.await;
-            })
-            .await
-    });
-    Ok(ProductHandle {
-        startup_record: ProductStartupRecord {
-            event: "ready",
-            address,
-            owner,
-            owned_routes: route_count,
-            protocol_version: PRODUCT_REHEARSAL_PROTOCOL_VERSION,
-            route_profile,
-            route_profile_digest,
-            capabilities: route_capabilities,
-            resource_sha256,
-        },
-        shutdown_tx: Some(shutdown_tx),
-        task: Some(task),
-        calendar_manager: config.calendar_manager,
-    })
-}
-
-fn route_profile_digest(capabilities: &[String]) -> String {
-    let mut digest = Sha256::new();
-    for capability in capabilities {
-        digest.update(capability.as_bytes());
-        digest.update(b"\n");
-    }
-    encode_sha256(digest.finalize())
-}
+include!("product_server.rs");
 
 include!("product_resource_integrity.rs");
 include!("product_route_assembly.rs");
@@ -778,7 +556,7 @@ include!("product_wire_watchlist.rs");
 include!("product_wire_portfolio.rs");
 include!("product_wire_research.rs");
 include!("product_wire_brokers.rs");
-include!("product_error.rs");
+include!("product_production_profile.rs");
 #[cfg(test)]
 #[path = "product_tests.rs"]
 mod tests;

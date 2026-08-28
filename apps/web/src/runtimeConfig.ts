@@ -12,10 +12,7 @@ export async function initializeTauriRuntimeConfig(): Promise<void> {
   const runtimeWindow = window as typeof window & {
     __TAURI_INTERNALS__?: unknown;
   };
-  if (
-    runtimeWindow.__TAURI_INTERNALS__ == null ||
-    window.__JFTRADE_RUNTIME_CONFIG__?.desktopMode === true
-  ) {
+  if (runtimeWindow.__TAURI_INTERNALS__ == null) {
     return;
   }
   const maxAttempts = 50;

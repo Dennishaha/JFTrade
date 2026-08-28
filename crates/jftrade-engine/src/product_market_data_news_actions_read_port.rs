@@ -1,6 +1,5 @@
 /// Consumer-owned projections for provider-backed news and corporate-action
-/// reads. Go remains authoritative for Provider/OpenD lifecycle, capability
-/// checks, query validation, normalization, retries, and response shaping.
+/// reads.
 pub trait MarketDataNewsActionsReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(
         &self,

@@ -13,6 +13,7 @@ const healthStage = sequentialStage(pnpmRun("check:rust:target-health"));
 const workspaceCoreStages = Object.freeze([
   parallelStage(
     pnpmRun("check:rust:layout"),
+    pnpmRun("check:rust:production-policy"),
     pnpmRun("test:rust:stage9:route-coverage"),
     pnpmRun("format:rust:check"),
   ),

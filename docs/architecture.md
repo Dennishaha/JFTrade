@@ -8,14 +8,14 @@
 
 协议细节、K 线边界和排障案例分别下沉到专题文档。
 
-> 迁移状态（2026-08-26）：Rust 阶段 1–8 的本地基础、差分和 shadow 证据，以及 Stage 9 的 route rehearsal 已建立；route ledger 当前把 278 个 operation 登记为 `cutover-qualified`/`productionOwner=rust`，但全部 `goRemovalStatus` 仍为 `retained`。这只是迁移账本状态，不等于公开入口已切换。默认 Rust product profile 仍是 read-only shadow，写入和外部生命周期只在显式 test-cutover/fixture composition 中启用；正式 API、SQLite、Provider/OpenD、交易、Assistant、Web/SSE/WS 和 Wails 发布仍按 Go/Wails 生产事实维护，直到 closeout、发布、恢复和 owner-deletion 门禁全部关闭。下文继续描述当前生产架构；目标、守则和放行门禁见 [Go → Rust 完整迁移方案](architecture/go-to-rust-migration.md)。
+> 迁移状态（2026-08-27）：当前生产 composition root 是 Rust/Tauri。`jftrade-engine` 承接全部 278 条 `/api/v1/*` 生产路由和 SQLite 权威写入；Tauri 桌面壳管理受管 runtime。Go/Wails 生产入口已下线，历史 Go 实现仅作 reference、fixture 和差分验证保留。`route-ownership.json` 当前把 278 个 operation 登记为 `cutover-qualified`/`productionOwner=rust`/`goRemovalStatus=removed`；Stage 9 closeout 仍是 `in_progress`，平台发布、签名 updater、安全审查、SBOM、回退、备份恢复和 post-release smoke 门禁未关闭。运行入口、端口和数据目录以根目录 [README.md](../README.md) 为准。
 
 ## 一句话概括
 
-JFTrade 当前以一个本地后端服务为核心。它既可以由 `cmd/jftrade-api` 独立启动，也可以由 Wails `cmd/jftrade-desktop` 作为桌面 sidecar 管理。下文仍用 sidecar 指这个后端服务。
+JFTrade 当前以一个本地 Rust 后端服务为核心。它可以由 `cargo run -p jftrade-engine --bin jftrade-api-rust` 独立启动，也可以由 Tauri 壳 `apps/desktop/src-tauri` 作为受管 API 运行时启动。文中引用 `cmd/jftrade-api` 或 Wails 的段落属于迁移期参照语境。
 
-- 前端控制台使用 JFTrade 后端服务，`cmd/jftrade-api` 和 `cmd/jftrade-desktop` 都装配到 `internal/app/apiserver`；HTTP 层位于 `internal/api/*`，业务能力位于 `internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}`。
-- Wails 桌面壳不替换业务 transport：Vue 仍直接访问 REST、SSE 和 WebSocket；bindings 仅承载启动状态、链接、桌面日志和更新检查。
+- 前端控制台只消费 `/api/v1/*`；浏览器模式经过 Rust session auth，桌面模式通过 Tauri IPC 注入 loopback URL 和临时 Bearer token。
+- Tauri 桌面壳不替换业务 transport：Vue 仍直接访问 REST、SSE 和 WebSocket；Tauri IPC 仅注入 desktop runtime config，API 语义由 Rust engine 提供。
 - 策略执行、回测、行情和通知仍复用 bbgo 的公共类型、stream、backtest engine 和通知总线，但不再提供独立 bbgo CLI/full runtime 入口。
 
 历史上的 `pkg/jftradeapi` 兼容门面已经删除。旧文档或旧测试命令如果仍指向 `pkg/jftradeapi`，应迁移到 `internal/app/apiserver/servercore`、`internal/api/*` 或对应业务 service。

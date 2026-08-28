@@ -1,11 +1,13 @@
-/// Consumer-owned market-data catalog projections. The Go market-data
-/// service remains authoritative for provider lifecycle and catalog queries.
+pub type MarketDataCatalogReadFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<serde_json::Value, MarketDataCatalogReadSnapshotError>> + Send + 'a>>;
+
+/// Consumer-owned market-data catalog projections for markets and instrument search.
 pub trait MarketDataCatalogReadSnapshotPort: Send + Sync + std::fmt::Debug {
-    fn read(
-        &self,
-        path: &str,
-        query: &str,
-    ) -> Result<serde_json::Value, MarketDataCatalogReadSnapshotError>;
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        query: &'a str,
+    ) -> MarketDataCatalogReadFuture<'a>;
 }
 
 #[derive(Clone, Debug, Error)]

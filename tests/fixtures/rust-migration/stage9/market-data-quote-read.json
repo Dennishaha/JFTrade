@@ -147,6 +147,104 @@
       }
     },
     {
+      "name": "candles-limit-zero-clamped",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026limit=0",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [
+          {
+            "at": "2026-08-01T00:00:00Z",
+            "close": "101.0",
+            "open": "100.0"
+          }
+        ],
+        "pagination": {
+          "hasMore": false
+        },
+        "source": "fixture-candles"
+      }
+    },
+    {
+      "name": "candles-limit-overflow-clamped",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026limit=2000",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [
+          {
+            "at": "2026-08-01T00:00:00Z",
+            "close": "101.0",
+            "open": "100.0"
+          }
+        ],
+        "pagination": {
+          "hasMore": false
+        },
+        "source": "fixture-candles"
+      }
+    },
+    {
+      "name": "candles-limit-negative-clamped",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026limit=-10",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [
+          {
+            "at": "2026-08-01T00:00:00Z",
+            "close": "101.0",
+            "open": "100.0"
+          }
+        ],
+        "pagination": {
+          "hasMore": false
+        },
+        "source": "fixture-candles"
+      }
+    },
+    {
+      "name": "candles-paged-with-next-before",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026limit=2\u0026before=2026-08-28T00:00:00Z",
+      "expectedStatus": 200,
+      "data": {
+        "candles": [
+          {
+            "at": "2026-08-26T00:00:00Z",
+            "close": "101.0",
+            "open": "100.0"
+          },
+          {
+            "at": "2026-08-27T00:00:00Z",
+            "close": "102.0",
+            "open": "101.0"
+          }
+        ],
+        "pagination": {
+          "hasMore": true,
+          "nextBefore": "2026-08-26T00:00:00Z"
+        },
+        "source": "fixture-candles"
+      }
+    },
+    {
+      "name": "candles-invalid-sessions",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026sessions=bad_session",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid candle sessions: \"bad_session\""
+    },
+    {
+      "name": "candles-invalid-before-timestamp",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/candles/US/AAPL?period=1d\u0026before=2026-08-28",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "before must be an RFC3339 timestamp"
+    },
+    {
       "name": "candles-empty-result",
       "method": "GET",
       "requestPath": "/api/v1/market-data/candles/HK/00700?period=1d\u0026limit=10",

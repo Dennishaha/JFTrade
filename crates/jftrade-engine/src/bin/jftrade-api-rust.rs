@@ -2,7 +2,7 @@
 
 use std::io::{self, Write};
 
-use jftrade_engine::product::{ProductConfig, start_product};
+use jftrade_engine::product_runtime::ProductRuntimeBuilder;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .with_writer(io::stderr)
         .init();
-    let handle = start_product(ProductConfig::from_process_env()?).await?;
+    let handle = ProductRuntimeBuilder::from_process_env()?.start().await?;
     let startup_json = serde_json::to_string(handle.startup_record())?;
     {
         let stdout = io::stdout();

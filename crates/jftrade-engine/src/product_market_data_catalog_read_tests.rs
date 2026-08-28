@@ -64,17 +64,18 @@ impl FixtureMarketDataCatalogReadPort {
 }
 
 impl MarketDataCatalogReadSnapshotPort for FixtureMarketDataCatalogReadPort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataCatalogReadSnapshotError> {
+    fn read<'a>(&'a self, path: &'a str, query: &'a str) -> MarketDataCatalogReadFuture<'a> {
         let key = if query.is_empty() {
             path.to_owned()
         } else {
             format!("{path}?{query}")
         };
-        self.responses.get(&key).cloned().unwrap_or_else(|| {
+        let res = self.responses.get(&key).cloned().unwrap_or_else(|| {
             Err(MarketDataCatalogReadSnapshotError::Unavailable(
                 "fixture response missing".to_owned(),
             ))
-        })
+        });
+        Box::pin(std::future::ready(res))
     }
 }
 
@@ -82,10 +83,12 @@ impl MarketDataCatalogReadSnapshotPort for FixtureMarketDataCatalogReadPort {
 struct FailingMarketDataCatalogReadPort;
 
 impl MarketDataCatalogReadSnapshotPort for FailingMarketDataCatalogReadPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, MarketDataCatalogReadSnapshotError> {
-        Err(MarketDataCatalogReadSnapshotError::Unavailable(
-            "Go market-data catalog owner unavailable".to_owned(),
-        ))
+    fn read<'a>(&'a self, _path: &'a str, _query: &'a str) -> MarketDataCatalogReadFuture<'a> {
+        Box::pin(std::future::ready(Err(
+            MarketDataCatalogReadSnapshotError::Unavailable(
+                "Go market-data catalog owner unavailable".to_owned(),
+            ),
+        )))
     }
 }
 

@@ -27,6 +27,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/check-web-file-length-budget.test.mjs",
     "scripts/check-web-diff-thresholds.test.mjs",
     "scripts/rust-migration/check-layout.test.mjs",
+    "scripts/rust-migration/check-production-route-policy.test.mjs",
     "scripts/rust-migration/check-differential.test.mjs",
     "scripts/rust-migration/benchmark-readonly.test.mjs",
     "scripts/rust-migration/check-backtest-differential.test.mjs",

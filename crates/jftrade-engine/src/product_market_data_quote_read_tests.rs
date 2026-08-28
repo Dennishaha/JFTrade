@@ -64,7 +64,7 @@ impl FixtureMarketDataQuoteReadPort {
 }
 
 impl MarketDataQuoteReadSnapshotPort for FixtureMarketDataQuoteReadPort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataQuoteReadSnapshotError> {
+    fn read<'a>(&'a self, path: &'a str, query: &'a str) -> MarketDataQuoteReadFuture<'a> {
         let key = if query.is_empty() {
             path.to_owned()
         } else {
@@ -72,16 +72,21 @@ impl MarketDataQuoteReadSnapshotPort for FixtureMarketDataQuoteReadPort {
         };
         let mut responses = self.responses.lock().expect("quote fixture response lock");
         let Some(values) = responses.get_mut(&key) else {
-            return Err(MarketDataQuoteReadSnapshotError::Unavailable(
-                "fixture response missing".to_owned(),
-            ));
+            return Box::pin(std::future::ready(Err(
+                MarketDataQuoteReadSnapshotError::Unavailable(
+                    "fixture response missing".to_owned(),
+                ),
+            )));
         };
         if values.is_empty() {
-            return Err(MarketDataQuoteReadSnapshotError::Unavailable(
-                "fixture response exhausted".to_owned(),
-            ));
+            return Box::pin(std::future::ready(Err(
+                MarketDataQuoteReadSnapshotError::Unavailable(
+                    "fixture response exhausted".to_owned(),
+                ),
+            )));
         }
-        values.remove(0)
+        let res = values.remove(0);
+        Box::pin(std::future::ready(res))
     }
 }
 
@@ -89,10 +94,12 @@ impl MarketDataQuoteReadSnapshotPort for FixtureMarketDataQuoteReadPort {
 struct FailingMarketDataQuoteReadPort;
 
 impl MarketDataQuoteReadSnapshotPort for FailingMarketDataQuoteReadPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, MarketDataQuoteReadSnapshotError> {
-        Err(MarketDataQuoteReadSnapshotError::Unavailable(
-            "Go market-data quote-read owner unavailable".to_owned(),
-        ))
+    fn read<'a>(&'a self, _path: &'a str, _query: &'a str) -> MarketDataQuoteReadFuture<'a> {
+        Box::pin(std::future::ready(Err(
+            MarketDataQuoteReadSnapshotError::Unavailable(
+                "Go market-data quote-read owner unavailable".to_owned(),
+            ),
+        )))
     }
 }
 

@@ -1,10 +1,4 @@
-// Private Stage 9 boundary for provider-backed market-data actions.
-//
-// The Go market-data and product-feature services remain authoritative for
-// provider lifecycle, broker resolution, validation, caching, and all public
-// state. This port carries a complete response projection in explicit
-// test-cutover wiring; it does not expose a Provider/OpenD client or a
-// subscription lease operation.
+// Production boundary for provider-backed market-data actions.
 
 use serde_json::Value;
 use thiserror::Error;
@@ -45,15 +39,21 @@ pub enum MarketDataProviderActionsPortError {
     },
 }
 
+use std::future::Future;
+use std::pin::Pin;
+
+pub type MarketDataProviderActionsFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Value, MarketDataProviderActionsPortError>> + Send + 'a>>;
+
 /// Go-owned adapter boundary for the five provider-backed POST operations.
 ///
 /// Implementations used by tests may use fixture data or a mock broker. A
 /// production implementation is intentionally not supplied by this slice.
 pub trait MarketDataProviderActionsPort: Send + Sync + std::fmt::Debug {
-    fn dispatch(
-        &self,
-        request: &MarketDataProviderActionsRequest,
-    ) -> Result<Value, MarketDataProviderActionsPortError>;
+    fn dispatch<'a>(
+        &'a self,
+        request: &'a MarketDataProviderActionsRequest,
+    ) -> MarketDataProviderActionsFuture<'a>;
 }
 
 #[allow(dead_code)]

@@ -13,6 +13,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 const BACKTEST_RUNS_COMPONENT: &str = "backtest-runs";
 const BACKTEST_RUNS_SCHEMA_VERSION: i64 = 1;
 pub const BACKTEST_RUNS_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const BACKTEST_RUNS_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,22 +56,26 @@ pub enum BacktestRunStoreError {
     Incompatible(String),
 }
 
-pub struct BacktestRunTestCutoverStore {
+pub struct BacktestRunStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
 
-impl std::fmt::Debug for BacktestRunTestCutoverStore {
+impl std::fmt::Debug for BacktestRunStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("BacktestRunTestCutoverStore")
+            .debug_struct("BacktestRunStore")
             .field("path", &self.path)
             .finish()
     }
 }
 
-impl BacktestRunTestCutoverStore {
+impl BacktestRunStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, BacktestRunStoreError> {
+        Self::open_existing(path, BACKTEST_RUNS_PRODUCTION_PROFILE)
+    }
+
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -79,7 +84,9 @@ impl BacktestRunTestCutoverStore {
         if path.as_os_str().is_empty() {
             return Err(BacktestRunStoreError::EmptyPath);
         }
-        if profile != BACKTEST_RUNS_TEST_CUTOVER_PROFILE {
+        if profile != BACKTEST_RUNS_TEST_CUTOVER_PROFILE
+            && profile != BACKTEST_RUNS_PRODUCTION_PROFILE
+        {
             return Err(BacktestRunStoreError::UnsupportedProfile(
                 profile.to_owned(),
             ));
@@ -94,10 +101,7 @@ impl BacktestRunTestCutoverStore {
             ));
         }
 
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", BACKTEST_RUNS_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
             path,
@@ -209,6 +213,33 @@ impl BacktestRunTestCutoverStore {
         Ok(count as u64)
     }
 
+    pub fn list_runs(&self) -> Result<Vec<StoredBacktestRun>, BacktestRunStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, status, request_json, result_json, created_at, updated_at
+                 FROM backtest_runs ORDER BY created_at DESC",
+            )
+            .map_err(BacktestRunStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredBacktestRun {
+                    id: row.get(0)?,
+                    status: row.get(1)?,
+                    request_json: row.get(2)?,
+                    result_json: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })
+            .map_err(BacktestRunStoreError::Query)?;
+        let mut runs = Vec::new();
+        for row in rows {
+            runs.push(row.map_err(BacktestRunStoreError::Query)?);
+        }
+        Ok(runs)
+    }
+
     pub fn delete_run(&self, id: &str) -> Result<bool, BacktestRunStoreError> {
         let mut connection = self.lock()?;
         let transaction = connection
@@ -249,4 +280,47 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), BacktestRunStoreErr
                 "invalid RFC3339 timestamp {timestamp:?}: {error}"
             ))
         })
+}
+
+#[derive(Debug)]
+pub struct BacktestRunTestCutoverStore {
+    inner: BacktestRunStore,
+}
+
+impl BacktestRunTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, BacktestRunStoreError> {
+        let inner = BacktestRunStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.inner.path()
+    }
+
+    pub fn save_run(
+        &self,
+        run: StoredBacktestRun,
+        timestamp: &str,
+    ) -> Result<StoredBacktestRun, BacktestRunStoreError> {
+        self.inner.save_run(run, timestamp)
+    }
+
+    pub fn get_run(&self, id: &str) -> Result<Option<StoredBacktestRun>, BacktestRunStoreError> {
+        self.inner.get_run(id)
+    }
+
+    pub fn run_count(&self) -> Result<u64, BacktestRunStoreError> {
+        self.inner.run_count()
+    }
+
+    pub fn list_runs(&self) -> Result<Vec<StoredBacktestRun>, BacktestRunStoreError> {
+        self.inner.list_runs()
+    }
+
+    pub fn delete_run(&self, id: &str) -> Result<bool, BacktestRunStoreError> {
+        self.inner.delete_run(id)
+    }
 }

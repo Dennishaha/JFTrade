@@ -157,6 +157,12 @@ pub struct SecuritySettingsService {
     write_lock: Arc<Mutex<()>>,
 }
 
+impl std::fmt::Debug for SecuritySettingsService {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("SecuritySettingsService").finish()
+    }
+}
+
 impl SecuritySettingsService {
     pub fn new(store: Arc<dyn SecuritySettingsStorePort>) -> Self {
         Self::with_ports(store, None, Arc::new(SystemSecurityPasswords))
@@ -177,6 +183,18 @@ impl SecuritySettingsService {
 
     pub fn settings(&self) -> Result<SecuritySettings, SecuritySettingsError> {
         Ok(self.record()?.public_settings())
+    }
+
+    pub fn is_web_access_enabled(&self) -> Result<bool, SecuritySettingsError> {
+        Ok(self.record()?.web_access_enabled())
+    }
+
+    pub fn verify_password(&self, password: &str) -> Result<bool, SecuritySettingsError> {
+        let record = self.record()?;
+        if !record.web_access_enabled() || record.password_hash().is_empty() {
+            return Ok(false);
+        }
+        Ok(verify_argon2id(record.password_hash(), password))
     }
 
     pub fn save(

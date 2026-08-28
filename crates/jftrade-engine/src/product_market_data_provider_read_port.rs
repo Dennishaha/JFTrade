@@ -1,5 +1,4 @@
-/// Consumer-owned provider status projection. The Go market-data service keeps
-/// provider health, runtime, and subscriptions authoritative during rehearsal.
+/// Consumer-owned provider status projection.
 pub trait MarketDataProviderReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(
         &self,

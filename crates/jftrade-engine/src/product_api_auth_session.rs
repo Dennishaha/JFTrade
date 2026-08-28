@@ -17,6 +17,7 @@ impl ProductApi {
         port.session(AuthSessionSnapshotRequest {
             desktop_trusted: request.desktop_trusted,
             browser_authenticated: request.browser_authenticated,
+            session_cookie: request.session_cookie.clone(),
             origin_provided: request.origin_provided,
             origin_allowed: request.origin_allowed,
         })

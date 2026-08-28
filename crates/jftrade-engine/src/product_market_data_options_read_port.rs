@@ -1,5 +1,4 @@
-/// Consumer-owned option projections. Go retains derivative Provider/OpenD
-/// lifecycle, capability routing and all option query semantics.
+/// Consumer-owned option projections.
 pub trait MarketDataOptionsReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(
         &self,

@@ -2,6 +2,7 @@
 pub struct AuthSessionSnapshotRequest {
     pub desktop_trusted: bool,
     pub browser_authenticated: bool,
+    pub session_cookie: Option<String>,
     pub origin_provided: bool,
     pub origin_allowed: bool,
 }

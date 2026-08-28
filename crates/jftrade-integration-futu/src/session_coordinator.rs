@@ -1,3 +1,4 @@
+use prost::Message;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -30,6 +31,8 @@ pub enum OpenDSessionCoordinatorError {
     TopologyChangeUnsupported,
     #[error("OpenD timestamp conversion failed: {0}")]
     Time(#[from] jftrade_kernel::CodecError),
+    #[error("decode OpenD Qot_GetSubInfo response: {0}")]
+    Decode(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -140,6 +143,7 @@ impl OpenDSessionCoordinator {
     ) -> Result<(), OpenDSessionCoordinatorError> {
         self.ensure_open()?;
         self.desired = desired.to_vec();
+        self.lifecycle.set_last_reconciled_at_ms(now_ms);
         if let Some(pending) = self.pending_reconnect.as_mut() {
             let actions = self.lifecycle.reconfigure_for_reconnect(desired);
             pending.generation = self.lifecycle.generation();
@@ -148,6 +152,82 @@ impl OpenDSessionCoordinator {
         }
         let actions = self.lifecycle.reconcile_demand(desired, now_ms);
         self.execute_actions(&actions, now_ms)
+    }
+
+    pub fn set_quota(
+        &mut self,
+        total_used: Option<u64>,
+        remain: Option<u64>,
+        own_used: Option<u64>,
+        checked_at_ms: i64,
+        error: Option<String>,
+    ) {
+        self.lifecycle
+            .set_quota(total_used, remain, own_used, checked_at_ms, error);
+    }
+
+    pub fn set_last_reconciled_at_ms(&mut self, ms: i64) {
+        self.lifecycle.set_last_reconciled_at_ms(ms);
+    }
+
+    pub fn set_fallback_count(&mut self, count: usize) {
+        self.lifecycle.set_fallback_count(count);
+    }
+
+    /// Refreshes the physical subscription quota through OpenD's real
+    /// Qot_GetSubInfo RPC. The lifecycle keeps the previous successful values
+    /// when OpenD rejects or returns an incomplete payload, while recording the
+    /// latest error and check time for the production projection.
+    pub fn refresh_quota(
+        &mut self,
+        checked_at_ms: i64,
+    ) -> Result<(), OpenDSessionCoordinatorError> {
+        self.ensure_open()?;
+        let Some(session) = self.session.as_ref() else {
+            return Err(OpenDSessionCoordinatorError::Closed);
+        };
+        let body = session
+            .managed_session()
+            .call(crate::PROTO_GET_SUB_INFO, &[])?;
+        let response = GetSubInfoResponse::decode(body.as_slice())
+            .map_err(|error| OpenDSessionCoordinatorError::Decode(error.to_string()))?;
+        if response.ret_type.unwrap_or(-400) != 0 {
+            self.lifecycle.set_quota(
+                None,
+                None,
+                None,
+                checked_at_ms,
+                Some(
+                    response
+                        .ret_msg
+                        .unwrap_or_else(|| "OpenD Qot_GetSubInfo request failed".to_owned()),
+                ),
+            );
+            return Ok(());
+        }
+        let Some(s2c) = response.s2c else {
+            self.lifecycle.set_quota(
+                None,
+                None,
+                None,
+                checked_at_ms,
+                Some("OpenD Qot_GetSubInfo response missing s2c".to_owned()),
+            );
+            return Ok(());
+        };
+        self.lifecycle.set_quota(
+            to_quota(s2c.total_used_quota),
+            to_quota(s2c.remain_quota),
+            to_quota(s2c.own_used_quota),
+            checked_at_ms,
+            None,
+        );
+        Ok(())
+    }
+
+    pub fn record_quota_error(&mut self, checked_at_ms: i64, error: String) {
+        self.lifecycle
+            .set_quota(None, None, None, checked_at_ms, Some(error));
     }
 
     pub fn poll_once(
@@ -222,6 +302,18 @@ impl OpenDSessionCoordinator {
 
     pub fn desired(&self) -> Vec<InstrumentRef> {
         self.desired.clone()
+    }
+
+    pub fn physical_snapshot(&self) -> Option<jftrade_marketdata::PhysicalSubscriptionSnapshot> {
+        if self.closed {
+            None
+        } else {
+            let observed = self
+                .session
+                .as_ref()
+                .map(|s| s.managed_session().generation());
+            Some(self.lifecycle.physical_snapshot_with_observed(observed))
+        }
     }
 
     pub fn close(&mut self) -> Result<bool, OpenDSessionCoordinatorError> {
@@ -345,6 +437,30 @@ impl OpenDSessionCoordinator {
     }
 }
 
+#[derive(Clone, PartialEq, Message)]
+struct GetSubInfoResponse {
+    #[prost(int32, optional, tag = "1")]
+    ret_type: Option<i32>,
+    #[prost(string, optional, tag = "2")]
+    ret_msg: Option<String>,
+    #[prost(message, optional, tag = "4")]
+    s2c: Option<GetSubInfoS2c>,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct GetSubInfoS2c {
+    #[prost(int32, optional, tag = "2")]
+    total_used_quota: Option<i32>,
+    #[prost(int32, optional, tag = "3")]
+    remain_quota: Option<i32>,
+    #[prost(int32, optional, tag = "4")]
+    own_used_quota: Option<i32>,
+}
+
+fn to_quota(value: Option<i32>) -> Option<u64> {
+    value.and_then(|value| u64::try_from(value).ok())
+}
+
 fn now_unix_millis(now: WireTimestamp) -> Result<i64, OpenDSessionCoordinatorError> {
     Ok(now.unix_millis()?)
 }
@@ -376,7 +492,9 @@ mod tests {
 
     use super::*;
     use crate::transport::read_framed_frame;
-    use crate::{PROTO_INIT_CONNECT, PROTO_QOT_SUB, PROTO_UPDATE_BASIC_QOT, encode_frame};
+    use crate::{
+        PROTO_GET_SUB_INFO, PROTO_INIT_CONNECT, PROTO_QOT_SUB, PROTO_UPDATE_BASIC_QOT, encode_frame,
+    };
 
     #[derive(Clone, PartialEq, Message)]
     struct InitRequest {
@@ -493,6 +611,64 @@ mod tests {
         stream
             .write_all(&encode_frame(protocol, serial, &body).expect("response frame"))
             .expect("write response");
+    }
+
+    #[test]
+    fn refresh_quota_uses_the_authenticated_opend_protocol_and_preserves_last_success() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let init = read_framed_frame(&mut stream).expect("init request");
+            write_response(
+                &mut stream,
+                PROTO_INIT_CONNECT,
+                init.header.serial_no,
+                InitResponse {
+                    ret_type: Some(0),
+                    s2c: Some(InitState {
+                        server_ver: 1009,
+                        conn_id: 7,
+                    }),
+                }
+                .encode_to_vec(),
+            );
+            let quota = read_framed_frame(&mut stream).expect("quota request");
+            assert_eq!(quota.header.proto_id, PROTO_GET_SUB_INFO);
+            write_response(
+                &mut stream,
+                PROTO_GET_SUB_INFO,
+                quota.header.serial_no,
+                GetSubInfoResponse {
+                    ret_type: Some(0),
+                    s2c: Some(GetSubInfoS2c {
+                        total_used_quota: Some(11),
+                        remain_quota: Some(39),
+                        own_used_quota: Some(4),
+                    }),
+                    ..Default::default()
+                }
+                .encode_to_vec(),
+            );
+        });
+
+        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
+        let mut coordinator = OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+            recorder,
+            Vec::new(),
+            1_700_000_000_000,
+        )
+        .expect("connect fake OpenD");
+        coordinator
+            .refresh_quota(1_700_000_000_001)
+            .expect("quota RPC");
+        let snapshot = coordinator.physical_snapshot().expect("snapshot");
+        assert_eq!(snapshot.total_used_quota, Some(11));
+        assert_eq!(snapshot.remain_quota, Some(39));
+        assert_eq!(snapshot.own_used_quota, Some(4));
+        coordinator.close().expect("close");
+        server.join().expect("server");
     }
 
     fn basic_quote_push() -> Vec<u8> {
@@ -683,7 +859,12 @@ mod tests {
             _ => panic!("expected subscribe action"),
         };
         assert_eq!(
-            lifecycle.record_subscription_failure(subscription, 200, generation),
+            lifecycle.record_subscription_failure(
+                subscription,
+                200,
+                generation,
+                Some("reconnect failed".to_owned())
+            ),
             Some(5_000)
         );
         let replay = lifecycle.reconfigure_for_reconnect(&desired);

@@ -40,7 +40,15 @@ window.__JFTRADE_RUNTIME_CONFIG__ = {
   authRequired: false,
   desktopMode: true,
 };
-window.__TAURI_INTERNALS__ = { invoke: () => Promise.resolve() };
+window.__TAURI_INTERNALS__ = {
+  invoke: () =>
+    Promise.resolve({
+      apiBaseUrl: "http://127.0.0.1:6699",
+      authRequired: false,
+      desktopMode: true,
+      desktopApiToken: "a".repeat(64),
+    }),
+};
 window.CSS = { escape: (value) => String(value) };
 window.matchMedia = () => ({
   addEventListener: () => {},

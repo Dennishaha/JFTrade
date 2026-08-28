@@ -12,8 +12,9 @@ mod snapshot_poll;
 pub use cache::{CacheLookup, TickCache};
 pub use demand::{DemandBook, DemandSnapshot};
 pub use model::{
-    HealthStatus, InstrumentRef, MarketDataError, ProviderCapabilities, ProviderConstraints,
-    ProviderDescriptor, ProviderReadiness, Tick,
+    HealthStatus, InstrumentRef, MarketDataError, PhysicalSubscriptionEntry,
+    PhysicalSubscriptionSnapshot, PhysicalSubscriptionSnapshotPort, ProviderCapabilities,
+    ProviderConstraints, ProviderDescriptor, ProviderReadiness, Tick,
 };
 pub use router::{ActivationMode, ProviderRouter, ProviderRuntime};
 pub use runtime::{CollectorRuntimeState, MarketDataRuntimeRecorder};

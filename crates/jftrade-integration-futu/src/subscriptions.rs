@@ -95,13 +95,22 @@ struct ActiveRecord {
     generation: u64,
     active: bool,
     failures: usize,
+    last_error: Option<String>,
     retry_at_ms: i64,
+    fallback: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct SubscriptionReconciler {
     records: BTreeMap<String, ActiveRecord>,
     minimum_age_ms: i64,
+    fallback_count: usize,
+    total_used_quota: Option<u64>,
+    remain_quota: Option<u64>,
+    own_used_quota: Option<u64>,
+    quota_checked_at_ms: Option<i64>,
+    quota_last_error: Option<String>,
+    last_reconciled_at_ms: Option<i64>,
 }
 
 impl SubscriptionReconciler {
@@ -109,7 +118,47 @@ impl SubscriptionReconciler {
         Self {
             records: BTreeMap::new(),
             minimum_age_ms: minimum_age_ms.max(0),
+            fallback_count: 0,
+            total_used_quota: None,
+            remain_quota: None,
+            own_used_quota: None,
+            quota_checked_at_ms: None,
+            quota_last_error: None,
+            last_reconciled_at_ms: None,
         }
+    }
+
+    pub fn set_quota(
+        &mut self,
+        total_used: Option<u64>,
+        remain: Option<u64>,
+        own_used: Option<u64>,
+        checked_at_ms: i64,
+        error: Option<String>,
+    ) {
+        if total_used.is_some() {
+            self.total_used_quota = total_used;
+        }
+        if remain.is_some() {
+            self.remain_quota = remain;
+        }
+        if own_used.is_some() {
+            self.own_used_quota = own_used;
+        }
+        self.quota_checked_at_ms = if checked_at_ms > 0 {
+            Some(checked_at_ms)
+        } else {
+            None
+        };
+        self.quota_last_error = error;
+    }
+
+    pub fn set_last_reconciled_at_ms(&mut self, ms: i64) {
+        self.last_reconciled_at_ms = if ms > 0 { Some(ms) } else { None };
+    }
+
+    pub fn set_fallback_count(&mut self, count: usize) {
+        self.fallback_count = count;
     }
 
     pub fn actions(
@@ -152,6 +201,9 @@ impl SubscriptionReconciler {
     }
 
     pub fn record_success(&mut self, action: &ReconcileAction, now_ms: i64, generation: u64) {
+        if self.fallback_count > 0 {
+            self.fallback_count -= 1;
+        }
         match action {
             ReconcileAction::Subscribe { subscription } => {
                 self.records.insert(
@@ -162,7 +214,9 @@ impl SubscriptionReconciler {
                         generation,
                         active: true,
                         failures: 0,
+                        last_error: None,
                         retry_at_ms: 0,
+                        fallback: false,
                     },
                 );
             }
@@ -177,7 +231,9 @@ impl SubscriptionReconciler {
         subscription: &PhysicalSubscription,
         now_ms: i64,
         generation: u64,
+        error: Option<String>,
     ) -> i64 {
+        self.fallback_count = self.fallback_count.saturating_add(1);
         let record = self
             .records
             .entry(subscription.key.clone())
@@ -187,21 +243,25 @@ impl SubscriptionReconciler {
                 generation,
                 active: false,
                 failures: 0,
+                last_error: None,
                 retry_at_ms: 0,
+                fallback: false,
             });
         record.generation = generation;
         record.active = false;
+        record.last_error = error;
         let delay = retry_delay_ms(record.failures);
         record.failures = record.failures.saturating_add(1);
         record.retry_at_ms = now_ms.saturating_add(delay);
         delay
     }
 
-    fn record_unsubscribe_failure(
+    pub fn record_unsubscribe_failure(
         &mut self,
         subscription: &PhysicalSubscription,
         now_ms: i64,
         generation: u64,
+        error: Option<String>,
     ) -> i64 {
         let Some(record) = self.records.get_mut(&subscription.key) else {
             return retry_delay_ms(0);
@@ -209,6 +269,7 @@ impl SubscriptionReconciler {
         if record.generation != generation {
             return retry_delay_ms(0);
         }
+        record.last_error = error;
         let delay = retry_delay_ms(record.failures);
         record.failures = record.failures.saturating_add(1);
         record.retry_at_ms = now_ms.saturating_add(delay);
@@ -250,6 +311,76 @@ impl SubscriptionReconciler {
             .map(|record| record.subscription.instrument_id.clone())
             .collect()
     }
+
+    pub fn physical_snapshot(
+        &self,
+        desired: &[InstrumentRef],
+        generation: u64,
+        observed_generation: Option<u64>,
+    ) -> jftrade_marketdata::PhysicalSubscriptionSnapshot {
+        let desired_by_key = desired_subscriptions(desired)
+            .physical
+            .into_iter()
+            .map(|sub| (sub.key.clone(), sub))
+            .collect::<BTreeMap<_, _>>();
+        let mut entries = Vec::with_capacity(self.records.len());
+        let mut active_count = 0;
+        let mut pending_release_count = 0;
+        for (key, record) in &self.records {
+            let desired = desired_by_key.contains_key(key);
+            let state = if record.fallback {
+                "fallback"
+            } else if record.active && record.generation == generation {
+                if desired {
+                    active_count += 1;
+                    "active"
+                } else {
+                    pending_release_count += 1;
+                    "pending_release"
+                }
+            } else if record.failures > 0 {
+                "retrying"
+            } else {
+                "pending_subscribe"
+            };
+            let subscribed_at = format_millis_rfc3339(record.subscribed_at_ms);
+            let unsubscribe_eligible_at = format_millis_rfc3339(if record.subscribed_at_ms > 0 {
+                record.subscribed_at_ms + self.minimum_age_ms
+            } else {
+                0
+            });
+            let kind_str = match record.subscription.kind {
+                SubscriptionKind::Basic => "BASIC",
+                SubscriptionKind::Kline => "KLINE",
+                SubscriptionKind::OrderBook => "ORDER_BOOK",
+            };
+            entries.push(jftrade_marketdata::PhysicalSubscriptionEntry {
+                key: key.clone(),
+                kind: kind_str.to_owned(),
+                instrument_id: record.subscription.instrument_id.clone(),
+                interval: record.subscription.interval.clone(),
+                broker_state: state.to_owned(),
+                subscribed_at,
+                unsubscribe_eligible_at,
+                last_error: record.last_error.clone(),
+            });
+        }
+        jftrade_marketdata::PhysicalSubscriptionSnapshot {
+            desired_count: desired_by_key.len(),
+            own_active_count: active_count,
+            pending_release_count,
+            fallback_count: self.fallback_count,
+            connection_generation: Some(generation),
+            observed_connection_generation: observed_generation.or(Some(generation)),
+            total_used_quota: self.total_used_quota,
+            remain_quota: self.remain_quota,
+            own_used_quota: self.own_used_quota,
+            checked_at: self.quota_checked_at_ms.and_then(format_millis_rfc3339),
+            last_error: self.quota_last_error.clone(),
+            reconciled_at: self.last_reconciled_at_ms.and_then(format_millis_rfc3339),
+            entries,
+        }
+    }
 }
 
 /// Explicit OpenD subscription lifecycle seam.
@@ -276,6 +407,26 @@ impl OpenDSubscriptionLifecycle {
             generation: 0,
             closed: false,
         }
+    }
+
+    pub fn set_quota(
+        &mut self,
+        total_used: Option<u64>,
+        remain: Option<u64>,
+        own_used: Option<u64>,
+        checked_at_ms: i64,
+        error: Option<String>,
+    ) {
+        self.reconciler
+            .set_quota(total_used, remain, own_used, checked_at_ms, error);
+    }
+
+    pub fn set_last_reconciled_at_ms(&mut self, ms: i64) {
+        self.reconciler.set_last_reconciled_at_ms(ms);
+    }
+
+    pub fn set_fallback_count(&mut self, count: usize) {
+        self.reconciler.set_fallback_count(count);
     }
 
     pub fn reconcile_demand(
@@ -306,6 +457,21 @@ impl OpenDSubscriptionLifecycle {
         }
         self.reconciler
             .active_instruments(SubscriptionKind::Basic, self.generation)
+    }
+
+    pub fn physical_snapshot(&self) -> jftrade_marketdata::PhysicalSubscriptionSnapshot {
+        self.physical_snapshot_with_observed(None)
+    }
+
+    pub fn physical_snapshot_with_observed(
+        &self,
+        observed_generation: Option<u64>,
+    ) -> jftrade_marketdata::PhysicalSubscriptionSnapshot {
+        if self.closed {
+            return jftrade_marketdata::PhysicalSubscriptionSnapshot::default();
+        }
+        self.reconciler
+            .physical_snapshot(&self.desired, self.generation, observed_generation)
     }
 
     pub fn reconfigure(&mut self) -> u64 {
@@ -350,13 +516,14 @@ impl OpenDSubscriptionLifecycle {
         subscription: &PhysicalSubscription,
         now_ms: i64,
         generation: u64,
+        error: Option<String>,
     ) -> Option<i64> {
         if self.closed || generation != self.generation {
             return None;
         }
         Some(
             self.reconciler
-                .record_failure(subscription, now_ms, generation),
+                .record_failure(subscription, now_ms, generation, error),
         )
     }
 
@@ -383,16 +550,22 @@ impl OpenDSubscriptionLifecycle {
                 Ok(true)
             }
             Err(error) => {
+                let err_str = error.to_string();
                 match action {
                     ReconcileAction::Subscribe { subscription } => {
-                        self.reconciler
-                            .record_failure(subscription, now_ms, generation);
+                        self.reconciler.record_failure(
+                            subscription,
+                            now_ms,
+                            generation,
+                            Some(err_str),
+                        );
                     }
                     ReconcileAction::Unsubscribe { subscription } => {
                         self.reconciler.record_unsubscribe_failure(
                             subscription,
                             now_ms,
                             generation,
+                            Some(err_str),
                         );
                     }
                 }
@@ -512,212 +685,18 @@ pub fn retry_delay_ms(failures: usize) -> i64 {
     DELAYS[failures.min(DELAYS.len() - 1)]
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn reference(channel: &str, interval: Option<&str>) -> InstrumentRef {
-        InstrumentRef {
-            channel: channel.to_owned(),
-            market: "US".to_owned(),
-            symbol: "AAPL".to_owned(),
-            interval: interval.map(str::to_owned),
-        }
+fn format_millis_rfc3339(ms: i64) -> Option<String> {
+    if ms <= 0 {
+        return None;
     }
-
-    #[test]
-    fn kline_adds_basic_and_minimum_age_delays_unsubscribe() {
-        let desired = [reference("KLINE", Some("1m"))];
-        let plan = desired_subscriptions(&desired);
-        assert_eq!(plan.logical_count, 1);
-        assert_eq!(plan.physical.len(), 2);
-
-        let mut reconciler = SubscriptionReconciler::new(60_000);
-        let actions = reconciler.actions(&desired, 0, 1);
-        for action in &actions {
-            reconciler.record_success(action, 0, 1);
-        }
-        assert!(reconciler.actions(&desired, 1, 1).is_empty());
-        assert!(reconciler.actions(&[], 59_999, 1).is_empty());
-        assert_eq!(reconciler.actions(&[], 60_000, 1).len(), 2);
-        assert_eq!(reconciler.actions(&desired, 60_000, 2).len(), 2);
-    }
-
-    #[test]
-    fn subscription_failure_retry_is_fenced_to_its_generation() {
-        let desired = [reference("SNAPSHOT", None)];
-        let mut reconciler = SubscriptionReconciler::new(0);
-        let actions = reconciler.actions(&desired, 0, 1);
-        let subscription = match &actions[0] {
-            ReconcileAction::Subscribe { subscription } => subscription,
-            _ => panic!("expected subscribe action"),
-        };
-        assert_eq!(reconciler.record_failure(subscription, 0, 1), 5_000);
-        assert!(reconciler.actions(&desired, 4_999, 1).is_empty());
-        assert_eq!(reconciler.actions(&desired, 5_000, 1).len(), 1);
-        assert_eq!(reconciler.actions(&desired, 0, 2).len(), 1);
-    }
-
-    #[test]
-    fn failed_or_replayed_subscriptions_are_not_active_until_success() {
-        let desired = [reference("SNAPSHOT", None)];
-        let mut reconciler = SubscriptionReconciler::new(0);
-        let actions = reconciler.actions(&desired, 0, 1);
-        let subscription = match &actions[0] {
-            ReconcileAction::Subscribe { subscription } => subscription,
-            _ => panic!("expected subscribe action"),
-        };
-
-        assert!(
-            reconciler
-                .active_instruments(SubscriptionKind::Basic, 1)
-                .is_empty()
-        );
-        assert_eq!(reconciler.record_failure(subscription, 0, 1), 5_000);
-        assert!(
-            reconciler
-                .active_instruments(SubscriptionKind::Basic, 1)
-                .is_empty()
-        );
-        assert!(reconciler.actions(&[], 60_000, 1).is_empty());
-        assert!(reconciler.actions(&desired, 4_999, 1).is_empty());
-        assert_eq!(reconciler.actions(&desired, 5_000, 1).len(), 1);
-
-        reconciler.record_success(&actions[0], 5_000, 1);
-        assert_eq!(
-            reconciler.active_instruments(SubscriptionKind::Basic, 1),
-            vec!["US.AAPL".to_owned()]
-        );
-
-        let replay = reconciler.replay_actions(&desired, 2);
-        assert_eq!(replay.len(), 1);
-        assert!(
-            reconciler
-                .active_instruments(SubscriptionKind::Basic, 2)
-                .is_empty()
-        );
-        reconciler.record_success(&replay[0], 6_000, 2);
-        assert_eq!(
-            reconciler.active_instruments(SubscriptionKind::Basic, 2),
-            vec!["US.AAPL".to_owned()]
-        );
-    }
-
-    #[test]
-    fn failed_unsubscribe_is_deferred_until_its_retry_window() {
-        let desired = [reference("SNAPSHOT", None)];
-        let mut reconciler = SubscriptionReconciler::new(0);
-        let subscribe = reconciler.actions(&desired, 0, 1).pop().expect("subscribe");
-        reconciler.record_success(&subscribe, 0, 1);
-        let unsubscribe = reconciler.actions(&[], 0, 1).pop().expect("unsubscribe");
-        let subscription = match &unsubscribe {
-            ReconcileAction::Unsubscribe { subscription } => subscription,
-            _ => panic!("expected unsubscribe action"),
-        };
-        assert_eq!(
-            reconciler.record_unsubscribe_failure(subscription, 0, 1),
-            5_000
-        );
-        assert!(reconciler.actions(&[], 4_999, 1).is_empty());
-        assert!(matches!(
-            reconciler.actions(&[], 5_000, 1).as_slice(),
-            [ReconcileAction::Unsubscribe { .. }]
-        ));
-    }
-
-    #[test]
-    fn managed_session_close_updates_only_the_active_generation() {
-        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
-        let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
-        lifecycle.reconcile_demand(&[reference("SNAPSHOT", None)], 0);
-        let generation = lifecycle.generation();
-        let stale = OpenDSessionEvent::Closed {
-            generation: generation + 1,
-            reason: crate::OpenDSessionCloseReason::PeerClosed,
-        };
-        assert!(
-            lifecycle
-                .ingest_session_event(&stale, "2026-08-24T00:00:00Z".parse().expect("timestamp"),)
-                .expect("stale close")
-                .is_none()
-        );
-        assert_eq!(recorder.snapshot().stream_failures, 0);
-
-        let local = OpenDSessionEvent::Closed {
-            generation,
-            reason: OpenDSessionCloseReason::Local,
-        };
-        assert!(
-            lifecycle
-                .ingest_session_event(&local, "2026-08-24T00:00:01Z".parse().expect("timestamp"),)
-                .expect("local close")
-                .is_none()
-        );
-        assert_eq!(recorder.snapshot().stream_failures, 0);
-
-        let active = OpenDSessionEvent::Closed {
-            generation,
-            reason: crate::OpenDSessionCloseReason::PeerClosed,
-        };
-        assert!(
-            lifecycle
-                .ingest_session_event(&active, "2026-08-24T00:00:01Z".parse().expect("timestamp"),)
-                .expect("active close")
-                .is_none()
-        );
-        let snapshot = recorder.snapshot();
-        assert_eq!(snapshot.stream_failures, 1);
-        assert_eq!(
-            snapshot.stream_last_error.as_deref(),
-            Some("OpenD peer closed the TCP session")
-        );
-    }
-
-    #[test]
-    fn lifecycle_rejects_stale_callbacks_and_closes_recorder_once() {
-        let recorder = Arc::new(MarketDataRuntimeRecorder::default());
-        let mut lifecycle = OpenDSubscriptionLifecycle::new(Arc::clone(&recorder), 60_000);
-        let desired = [reference("KLINE", Some("1m"))];
-        let actions = lifecycle.reconcile_demand(&desired, 0);
-        let generation = lifecycle.generation();
-        assert_eq!(actions.len(), 2);
-        assert!(lifecycle.poll_started(
-            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
-            generation
-        ));
-        assert!(lifecycle.stream_connected(generation));
-        assert!(lifecycle.quote_failure(
-            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
-            "quote timeout",
-            generation,
-        ));
-        assert!(lifecycle.quote_success(generation));
-        assert!(lifecycle.record_subscription_success(&actions[0], 0, generation));
-        assert_eq!(
-            lifecycle.record_subscription_failure(
-                match &actions[1] {
-                    ReconcileAction::Subscribe { subscription } => subscription,
-                    _ => panic!("expected subscribe action"),
-                },
-                0,
-                generation,
-            ),
-            Some(5_000)
-        );
-
-        lifecycle.reconfigure();
-        let next = lifecycle.reconcile_demand(&[reference("SNAPSHOT", None)], 1);
-        let next_generation = lifecycle.generation();
-        assert_ne!(next_generation, generation);
-        assert!(!lifecycle.stream_failure(
-            "2026-08-24T00:00:00Z".parse().expect("timestamp"),
-            "stale stream",
-            generation,
-        ));
-        assert!(!next.is_empty());
-        assert!(lifecycle.close());
-        assert!(!lifecycle.close());
-        assert!(lifecycle.reconcile_demand(&desired, 10).is_empty());
-        assert!(recorder.snapshot().closed);
-    }
+    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
+        .ok()
+        .and_then(|dt| {
+            dt.format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
 }
+
+#[cfg(test)]
+#[path = "subscriptions_tests.rs"]
+mod tests;

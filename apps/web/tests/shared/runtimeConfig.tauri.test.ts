@@ -60,11 +60,34 @@ describe("Tauri runtime configuration", () => {
     expect(window.__JFTRADE_RUNTIME_CONFIG__).toBeUndefined();
   });
 
-  it("does not invoke Tauri from browser or an initialized Wails runtime", async () => {
+  it("does not invoke Tauri from a browser without the native bridge", async () => {
     await initializeTauriRuntimeConfig();
-    window.__JFTRADE_RUNTIME_CONFIG__ = { desktopMode: true };
-    (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    window.__JFTRADE_RUNTIME_CONFIG__ = {
+      apiBaseUrl: "http://127.0.0.1:3008",
+      authRequired: false,
+      desktopMode: true,
+    };
     await initializeTauriRuntimeConfig();
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a tokenless preloaded desktop config through Tauri IPC", async () => {
+    window.__JFTRADE_RUNTIME_CONFIG__ = {
+      apiBaseUrl: "http://127.0.0.1:3008",
+      authRequired: false,
+      desktopMode: true,
+    };
+    (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    invoke.mockResolvedValue({
+      apiBaseUrl: "http://127.0.0.1:3008/",
+      authRequired: false,
+      desktopMode: true,
+      desktopApiToken: "b".repeat(64),
+    });
+
+    await initializeTauriRuntimeConfig();
+
+    expect(invoke).toHaveBeenCalledWith("desktop_runtime_config");
+    expect(resolveDesktopApiToken()).toBe("b".repeat(64));
   });
 });

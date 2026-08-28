@@ -223,6 +223,60 @@ func stage9MarketDataQuoteReadInputs() []stage9MarketDataQuoteReadInput {
 			}),
 		},
 		{
+			name: "candles-limit-zero-clamped",
+			path: "/api/v1/market-data/candles/US/AAPL?period=1d&limit=0",
+			marketProvider: stage9MarketDataQuoteProviderWith(func(provider *stage9MarketDataQuoteProvider) {
+				provider.candles = marketsrv.CandlesResponse{
+					"candles": []map[string]any{{"at": "2026-08-01T00:00:00Z", "open": "100.0", "close": "101.0"}},
+					"source":  "fixture-candles", "pagination": map[string]any{"hasMore": false},
+				}
+			}),
+		},
+		{
+			name: "candles-limit-overflow-clamped",
+			path: "/api/v1/market-data/candles/US/AAPL?period=1d&limit=2000",
+			marketProvider: stage9MarketDataQuoteProviderWith(func(provider *stage9MarketDataQuoteProvider) {
+				provider.candles = marketsrv.CandlesResponse{
+					"candles": []map[string]any{{"at": "2026-08-01T00:00:00Z", "open": "100.0", "close": "101.0"}},
+					"source":  "fixture-candles", "pagination": map[string]any{"hasMore": false},
+				}
+			}),
+		},
+		{
+			name: "candles-limit-negative-clamped",
+			path: "/api/v1/market-data/candles/US/AAPL?period=1d&limit=-10",
+			marketProvider: stage9MarketDataQuoteProviderWith(func(provider *stage9MarketDataQuoteProvider) {
+				provider.candles = marketsrv.CandlesResponse{
+					"candles": []map[string]any{{"at": "2026-08-01T00:00:00Z", "open": "100.0", "close": "101.0"}},
+					"source":  "fixture-candles", "pagination": map[string]any{"hasMore": false},
+				}
+			}),
+		},
+		{
+			name: "candles-paged-with-next-before",
+			path: "/api/v1/market-data/candles/US/AAPL?period=1d&limit=2&before=2026-08-28T00:00:00Z",
+			marketProvider: stage9MarketDataQuoteProviderWith(func(provider *stage9MarketDataQuoteProvider) {
+				provider.candles = marketsrv.CandlesResponse{
+					"candles": []map[string]any{
+						{"at": "2026-08-26T00:00:00Z", "open": "100.0", "close": "101.0"},
+						{"at": "2026-08-27T00:00:00Z", "open": "101.0", "close": "102.0"},
+					},
+					"source":     "fixture-candles",
+					"pagination": map[string]any{"hasMore": true, "nextBefore": "2026-08-26T00:00:00Z"},
+				}
+			}),
+		},
+		{
+			name:           "candles-invalid-sessions",
+			path:           "/api/v1/market-data/candles/US/AAPL?period=1d&sessions=bad_session",
+			marketProvider: stage9MarketDataQuoteProviderReady(),
+		},
+		{
+			name:           "candles-invalid-before-timestamp",
+			path:           "/api/v1/market-data/candles/US/AAPL?period=1d&before=2026-08-28",
+			marketProvider: stage9MarketDataQuoteProviderReady(),
+		},
+		{
 			name: "candles-empty-result",
 			path: "/api/v1/market-data/candles/HK/00700?period=1d&limit=10",
 			marketProvider: stage9MarketDataQuoteProviderWith(func(provider *stage9MarketDataQuoteProvider) {

@@ -1,13 +1,19 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use axum::http::HeaderMap;
 
 pub const DESKTOP_WEBSOCKET_PROTOCOL: &str = "jftrade.desktop.v1";
 pub const INTERNAL_PROXY_PROTOCOL_HEADER: &str = "x-jftrade-internal-proxy";
 pub const ACCESS_SURFACE_HEADER: &str = "x-jftrade-access-surface";
-const SESSION_COOKIE: &str = "jftrade_web_session";
+pub const SESSION_COOKIE: &str = "jftrade_web_session";
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+pub trait WebSessionValidator: Send + Sync + std::fmt::Debug {
+    fn is_session_valid(&self, session_cookie: &str) -> bool;
+    fn is_csrf_valid(&self, session_cookie: &str, csrf_header: &str) -> bool;
+}
+
+#[derive(Clone, Debug)]
 pub struct AccessPolicy {
     pub desktop_token: Option<String>,
     pub session_token: Option<String>,
@@ -16,7 +22,23 @@ pub struct AccessPolicy {
     pub enforce_access: bool,
     pub desktop_mode: bool,
     pub internal_proxy_protocol: Option<String>,
+    pub session_validator: Option<Arc<dyn WebSessionValidator>>,
 }
+
+impl PartialEq for AccessPolicy {
+    fn eq(&self, other: &Self) -> bool {
+        self.desktop_token == other.desktop_token
+            && self.session_token == other.session_token
+            && self.csrf_token == other.csrf_token
+            && self.allowed_origins == other.allowed_origins
+            && self.enforce_access == other.enforce_access
+            && self.desktop_mode == other.desktop_mode
+            && self.internal_proxy_protocol == other.internal_proxy_protocol
+            && self.session_validator.is_some() == other.session_validator.is_some()
+    }
+}
+
+impl Eq for AccessPolicy {}
 
 pub fn desktop_trusted_origins() -> impl IntoIterator<Item = String> {
     [
@@ -47,6 +69,7 @@ impl Default for AccessPolicy {
             enforce_access: true,
             desktop_mode: false,
             internal_proxy_protocol: None,
+            session_validator: None,
         }
     }
 }
@@ -68,6 +91,28 @@ impl AccessPolicy {
             .filter_map(|value| canonical_origin(&value))
             .collect();
         self
+    }
+
+    pub fn with_session_validator(mut self, validator: Arc<dyn WebSessionValidator>) -> Self {
+        self.session_validator = Some(validator);
+        self
+    }
+
+    /// Browser-facing policy.  Unlike the desktop policy it never treats a
+    /// bearer token as trusted; sessions are established only by the web
+    /// login flow and are checked through the session cookie/CSRF pair.
+    pub fn web() -> Self {
+        Self {
+            desktop_mode: false,
+            enforce_access: true,
+            ..Self::default()
+        }
+        .with_allowed_origins([
+            "http://127.0.0.1:3003".to_owned(),
+            "http://localhost:3003".to_owned(),
+            "http://127.0.0.1:3000".to_owned(),
+            "http://localhost:3000".to_owned(),
+        ])
     }
 
     pub(crate) fn desktop_trusted(&self, headers: &HeaderMap) -> bool {
@@ -97,10 +142,19 @@ impl AccessPolicy {
     }
 
     pub(crate) fn browser_authenticated(&self, headers: &HeaderMap) -> bool {
+        let cookie = self.session_cookie(headers);
+        let validator_valid = self
+            .session_validator
+            .as_ref()
+            .zip(cookie.as_deref())
+            .is_some_and(|(validator, cookie)| validator.is_session_valid(cookie));
+        if validator_valid {
+            return true;
+        }
         let Some(expected) = self.session_token.as_deref() else {
             return false;
         };
-        self.session_cookie(headers)
+        cookie
             .as_deref()
             .is_some_and(|actual| constant_time_equal(actual, expected))
     }
@@ -110,13 +164,25 @@ impl AccessPolicy {
     }
 
     pub(crate) fn csrf_valid(&self, headers: &HeaderMap) -> bool {
+        let cookie = self.session_cookie(headers);
+        let csrf_header = headers
+            .get("x-csrf-token")
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim);
+        let validator_valid = self
+            .session_validator
+            .as_ref()
+            .zip(cookie.as_deref())
+            .is_some_and(|(validator, cookie)| {
+                csrf_header.is_some_and(|csrf| validator.is_csrf_valid(cookie, csrf))
+            });
+        if validator_valid {
+            return true;
+        }
         let Some(expected) = self.csrf_token.as_deref() else {
             return false;
         };
-        headers
-            .get("x-csrf-token")
-            .and_then(|value| value.to_str().ok())
-            .is_some_and(|actual| constant_time_equal(actual.trim(), expected))
+        csrf_header.is_some_and(|actual| constant_time_equal(actual, expected))
     }
 
     pub(crate) fn origin_allowed(&self, headers: &HeaderMap) -> bool {

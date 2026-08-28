@@ -57,6 +57,7 @@ pub enum HttpAdapterError {
         status: u16,
         code: String,
         message: String,
+        retry_after_seconds: Option<u64>,
     },
 }
 
@@ -107,16 +108,18 @@ impl HelperClient {
         })
     }
 
+    fn normalize_provider(provider: &str) -> Result<&'static str, HttpAdapterError> {
+        match provider.trim().to_ascii_lowercase().as_str() {
+            "yfinance" => Ok("yfinance"),
+            "akshare" => Ok("akshare"),
+            _ => Err(HttpAdapterError::InvalidUrl(format!(
+                "unsupported provider {provider}"
+            ))),
+        }
+    }
+
     pub async fn health(&self, provider: &str) -> Result<HelperHealth, HttpAdapterError> {
-        let provider = match provider.trim().to_ascii_lowercase().as_str() {
-            "yfinance" => "yfinance",
-            "akshare" => "akshare",
-            _ => {
-                return Err(HttpAdapterError::InvalidUrl(format!(
-                    "unsupported provider {provider}"
-                )));
-            }
-        };
+        let provider = Self::normalize_provider(provider)?;
         self.request_json(
             Method::GET,
             &["providers", provider, "health"],
@@ -138,11 +141,47 @@ impl HelperClient {
             .await
     }
 
+    pub async fn get_provider_json<T: DeserializeOwned>(
+        &self,
+        provider: &str,
+        segments: &[&str],
+    ) -> Result<T, HttpAdapterError> {
+        let norm_provider = Self::normalize_provider(provider)?;
+        let mut full_segments = Vec::with_capacity(segments.len() + 2);
+        full_segments.push("providers");
+        full_segments.push(norm_provider);
+        full_segments.extend_from_slice(segments);
+        self.get_json(&full_segments).await
+    }
+
+    pub async fn get_provider_json_with_query<T: DeserializeOwned>(
+        &self,
+        provider: &str,
+        segments: &[&str],
+        query: &[(&str, &str)],
+    ) -> Result<T, HttpAdapterError> {
+        let norm_provider = Self::normalize_provider(provider)?;
+        let mut full_segments = Vec::with_capacity(segments.len() + 2);
+        full_segments.push("providers");
+        full_segments.push(norm_provider);
+        full_segments.extend_from_slice(segments);
+        self.get_json_with_query(&full_segments, query).await
+    }
+
     pub async fn get_json<T: DeserializeOwned>(
         &self,
         segments: &[&str],
     ) -> Result<T, HttpAdapterError> {
-        self.request_json(Method::GET, segments, Option::<&()>::None)
+        self.request_json_with_query(Method::GET, segments, &[], Option::<&()>::None)
+            .await
+    }
+
+    pub async fn get_json_with_query<T: DeserializeOwned>(
+        &self,
+        segments: &[&str],
+        query: &[(&str, &str)],
+    ) -> Result<T, HttpAdapterError> {
+        self.request_json_with_query(Method::GET, segments, query, Option::<&()>::None)
             .await
     }
 
@@ -151,13 +190,25 @@ impl HelperClient {
         segments: &[&str],
         input: &I,
     ) -> Result<T, HttpAdapterError> {
-        self.request_json(Method::POST, segments, Some(input)).await
+        self.request_json_with_query(Method::POST, segments, &[], Some(input))
+            .await
     }
 
     async fn request_json<I: Serialize + ?Sized, T: DeserializeOwned>(
         &self,
         method: Method,
         segments: &[&str],
+        input: Option<&I>,
+    ) -> Result<T, HttpAdapterError> {
+        self.request_json_with_query(method, segments, &[], input)
+            .await
+    }
+
+    async fn request_json_with_query<I: Serialize + ?Sized, T: DeserializeOwned>(
+        &self,
+        method: Method,
+        segments: &[&str],
+        query: &[(&str, &str)],
         input: Option<&I>,
     ) -> Result<T, HttpAdapterError> {
         let mut endpoint = self.base_url.clone();
@@ -170,6 +221,9 @@ impl HelperClient {
                 path.push(segment);
             }
         }
+        if !query.is_empty() {
+            endpoint.query_pairs_mut().extend_pairs(query);
+        }
         for attempt in 1..=self.max_attempts {
             let mut request = self.client.request(method.clone(), endpoint.clone());
             if let Some(token) = &self.bearer_token {
@@ -181,12 +235,12 @@ impl HelperClient {
             match request.send().await {
                 Ok(response) => {
                     let status = response.status();
-                    let retry_after = response
+                    let retry_after_seconds = response
                         .headers()
                         .get(reqwest::header::RETRY_AFTER)
                         .and_then(|value| value.to_str().ok())
-                        .and_then(|value| value.trim().parse::<u64>().ok())
-                        .map(Duration::from_secs);
+                        .and_then(|value| value.trim().parse::<u64>().ok());
+                    let retry_after = retry_after_seconds.map(Duration::from_secs);
                     let body = response.bytes().await.map_err(classify_reqwest)?;
                     if body.len() > MAX_RESPONSE_BYTES {
                         return Err(HttpAdapterError::InvalidResponse(format!(
@@ -205,7 +259,7 @@ impl HelperClient {
                         .await;
                         continue;
                     }
-                    return Err(decode_remote_error(status, &body));
+                    return Err(decode_remote_error(status, &body, retry_after_seconds));
                 }
                 Err(error)
                     if (error.is_connect() || error.is_timeout())
@@ -244,17 +298,23 @@ fn classify_reqwest(error: reqwest::Error) -> HttpAdapterError {
     }
 }
 
-fn decode_remote_error(status: StatusCode, body: &[u8]) -> HttpAdapterError {
+fn decode_remote_error(
+    status: StatusCode,
+    body: &[u8],
+    retry_after_seconds: Option<u64>,
+) -> HttpAdapterError {
     match serde_json::from_slice::<HelperErrorEnvelope>(body) {
         Ok(envelope) => HttpAdapterError::Remote {
             status: status.as_u16(),
             code: envelope.error.code,
             message: envelope.error.message,
+            retry_after_seconds,
         },
         Err(_) => HttpAdapterError::Remote {
             status: status.as_u16(),
             code: String::new(),
             message: String::from_utf8_lossy(body).chars().take(512).collect(),
+            retry_after_seconds,
         },
     }
 }
@@ -331,5 +391,50 @@ mod tests {
         assert_eq!(health["status"], "ok");
         server.await.expect("server");
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn provider_aware_methods_prefix_providers_and_validate_provider_names() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let mut request = vec![0_u8; 4096];
+            let read = stream.read(&mut request).await.expect("read request");
+            let request = String::from_utf8_lossy(&request[..read]);
+            assert!(
+                request.starts_with("GET /providers/akshare/search?q=AAPL&limit=10 HTTP/1.1\r\n")
+            );
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 14\r\nConnection: close\r\n\r\n{\"entries\":[]}")
+                .await
+                .expect("write response");
+        });
+        let client = HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(1),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("client");
+
+        assert!(matches!(
+            client
+                .get_provider_json::<serde_json::Value>("unknown", &["search"])
+                .await,
+            Err(HttpAdapterError::InvalidUrl(_))
+        ));
+
+        let res = client
+            .get_provider_json_with_query::<crate::HelperSearchResponse>(
+                "akshare",
+                &["search"],
+                &[("q", "AAPL"), ("limit", "10")],
+            )
+            .await
+            .expect("search response");
+        assert!(res.entries.is_empty());
+        server.await.expect("server");
     }
 }

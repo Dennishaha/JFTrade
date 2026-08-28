@@ -5,6 +5,7 @@
 mod adk;
 mod adk_artifact;
 mod adk_session;
+mod backtest_market_data;
 mod backtest_run;
 mod data_management;
 mod execution_order;
@@ -15,44 +16,56 @@ mod strategy_definition;
 mod strategy_runtime;
 mod watchlist;
 
+pub use schema_manifest::{current_version, initialize_current, validate_current};
+
 pub use adk::{
-    ADK_TEST_CUTOVER_PROFILE, AdkStoreError, AdkTestCutoverStore, CreateAdkRunParams,
-    StoredAdkApproval, StoredAdkEntity, StoredAdkMemory, StoredAdkRun, StoredAdkTask,
-    StoredAdkWorkflow, StoredAdkWorkflowTrigger,
+    ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkStore,
+    AdkStoreError, AdkTestCutoverStore, CreateAdkRunParams, StoredAdkApproval, StoredAdkEntity,
+    StoredAdkMemory, StoredAdkRun, StoredAdkTask, StoredAdkWorkflow, StoredAdkWorkflowTrigger,
 };
 pub use adk_artifact::{
-    ADK_ARTIFACT_TEST_CUTOVER_PROFILE, AdkArtifactStoreError, AdkArtifactTestCutoverStore,
-    PutAdkArtifactParams, StoredAdkArtifact,
+    ADK_ARTIFACT_PRODUCTION_PROFILE, ADK_ARTIFACT_TEST_CUTOVER_PROFILE, AdkArtifactStore,
+    AdkArtifactStoreError, AdkArtifactTestCutoverStore, PutAdkArtifactParams, StoredAdkArtifact,
 };
 pub use adk_session::{
-    ADK_SESSION_TEST_CUTOVER_PROFILE, AdkSessionStoreError, AdkSessionTestCutoverStore,
-    RecordAdkEventParams, StoredAdkEvent, StoredAdkSessionState,
+    ADK_SESSION_PRODUCTION_PROFILE, ADK_SESSION_TEST_CUTOVER_PROFILE, AdkSessionStore,
+    AdkSessionStoreError, AdkSessionTestCutoverStore, RecordAdkEventParams, StoredAdkEvent,
+    StoredAdkSessionState,
+};
+pub use backtest_market_data::{
+    BACKTEST_MARKET_DATA_PRODUCTION_PROFILE, BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE,
+    BacktestMarketDataStore, BacktestMarketDataStoreError,
 };
 pub use backtest_run::{
-    BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStoreError, BacktestRunTestCutoverStore,
-    StoredBacktestRun,
+    BACKTEST_RUNS_PRODUCTION_PROFILE, BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStore,
+    BacktestRunStoreError, BacktestRunTestCutoverStore, StoredBacktestRun,
 };
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
 pub use execution_order::{
-    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderStoreError,
-    ExecutionOrderTestCutoverStore, StoredExecutionOrder, StoredExecutionOrderEvent,
+    EXECUTION_ORDERS_PRODUCTION_PROFILE, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE,
+    ExecutionOrderStore, ExecutionOrderStoreError, ExecutionOrderTestCutoverStore,
+    StoredExecutionOrder, StoredExecutionOrderEvent, StoredExecutionOrderEventRecord,
 };
 pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{
-    RESEARCH_PRESET_TEST_CUTOVER_PROFILE, ResearchPresetMutation, ResearchPresetStoreError,
+    RESEARCH_PRESET_PRODUCTION_PROFILE, RESEARCH_PRESET_TEST_CUTOVER_PROFILE,
+    ResearchPresetMutation, ResearchPresetStore, ResearchPresetStoreError,
     ResearchPresetTestCutoverStore, StoredResearchPreset,
 };
 pub use strategy_definition::{
-    STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StoredStrategyDefinition, StoredStrategyInstance,
-    StoredStrategyVersion, StrategyDefinitionStoreError, StrategyDefinitionTestCutoverStore,
+    STRATEGY_DEFINITION_PRODUCTION_PROFILE, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE,
+    StoredStrategyDefinition, StoredStrategyInstance, StoredStrategyVersion,
+    StrategyDefinitionStore, StrategyDefinitionStoreError, StrategyDefinitionTestCutoverStore,
 };
 pub use strategy_runtime::{
-    STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE, StoredRuntimeInstance, StrategyRuntimeStoreError,
-    StrategyRuntimeTestCutoverStore,
+    STRATEGY_RUNTIME_PRODUCTION_PROFILE, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE,
+    StoredRuntimeInstance, StoredStrategyAuditEvent, StoredStrategyLogEvent, StrategyRuntimeStore,
+    StrategyRuntimeStoreError, StrategyRuntimeTestCutoverStore,
 };
 pub use watchlist::{
     StoredBinding, StoredGroup, StoredImportPreview, StoredImportRun, StoredRemoteGroup,
-    StoredSource, WATCHLIST_TEST_CUTOVER_PROFILE, WatchlistStoreError, WatchlistTestCutoverStore,
+    StoredSource, WATCHLIST_PRODUCTION_PROFILE, WATCHLIST_TEST_CUTOVER_PROFILE, WatchlistStore,
+    WatchlistStoreError, WatchlistTestCutoverStore,
 };
 
 use std::path::Path;

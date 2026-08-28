@@ -5,6 +5,7 @@ mod manager_policy;
 mod manager_probe;
 mod manager_projection;
 mod manager_registry;
+mod manager_session;
 mod manager_types;
 mod snapshot;
 mod sources;

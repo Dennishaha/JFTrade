@@ -52,6 +52,8 @@ struct ProductOptionalPorts {
     strategy_runtime_write: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
+    auth_session_invalidation:
+        Option<Arc<dyn product_auth_session_manager::AuthSessionInvalidationPort>>,
     stage9_write_ports: ProductStage9WritePorts,
 }
 

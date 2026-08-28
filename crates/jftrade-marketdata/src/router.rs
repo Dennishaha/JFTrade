@@ -200,13 +200,66 @@ impl ProviderRouter {
         Ok(snapshot)
     }
 
-    pub fn release_demand(&mut self, consumer_id: &str) -> bool {
-        let released = self.demand.release(consumer_id);
+    pub fn replace_demand(
+        &mut self,
+        consumer_id: &str,
+        refs: impl IntoIterator<Item = InstrumentRef>,
+        managed: bool,
+        now_ms: i64,
+    ) -> Result<DemandSnapshot, MarketDataError> {
+        if managed {
+            self.require_streaming()?;
+        }
+        let snapshot = self.demand.replace(consumer_id, refs, managed, now_ms)?;
+        self.sync_runtime_demand(&snapshot);
+        Ok(snapshot)
+    }
+
+    pub fn release_demand_instrument(
+        &mut self,
+        consumer_id: &str,
+        target: &InstrumentRef,
+        now_ms: i64,
+    ) -> (bool, DemandSnapshot) {
+        let (released, snapshot) = self.demand.release_instrument(consumer_id, target, now_ms);
         if released {
-            let snapshot = self.demand.snapshot();
             self.sync_runtime_demand(&snapshot);
         }
-        released
+        (released, snapshot)
+    }
+
+    pub fn release_demand_consumer_with_time(
+        &mut self,
+        consumer_id: &str,
+        now_ms: i64,
+    ) -> (bool, DemandSnapshot) {
+        let (released, snapshot) = self.demand.release_consumer_with_time(consumer_id, now_ms);
+        if released {
+            self.sync_runtime_demand(&snapshot);
+        }
+        (released, snapshot)
+    }
+
+    pub fn release_demand_consumer(&mut self, consumer_id: &str) -> (bool, DemandSnapshot) {
+        let (released, snapshot) = self.demand.release_consumer(consumer_id);
+        if released {
+            self.sync_runtime_demand(&snapshot);
+        }
+        (released, snapshot)
+    }
+
+    pub fn release_demand(&mut self, consumer_id: &str) -> bool {
+        self.release_demand_consumer(consumer_id).0
+    }
+
+    pub fn clear_demand(&mut self, consumer_id: Option<&str>, now_ms: i64) -> DemandSnapshot {
+        let snapshot = self.demand.clear(consumer_id, now_ms);
+        self.sync_runtime_demand(&snapshot);
+        snapshot
+    }
+
+    pub fn heartbeat_demand(&mut self, consumer_id: &str, now_ms: i64) -> (bool, DemandSnapshot) {
+        self.demand.heartbeat(consumer_id, now_ms)
     }
 
     pub fn expire_demand(&mut self, now_ms: i64, ttl_ms: i64) -> Vec<String> {

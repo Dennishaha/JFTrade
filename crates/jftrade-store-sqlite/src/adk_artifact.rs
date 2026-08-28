@@ -13,6 +13,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 const ADK_ARTIFACT_COMPONENT: &str = "adk-artifact";
 const ADK_ARTIFACT_SCHEMA_VERSION: i64 = 1;
 pub const ADK_ARTIFACT_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const ADK_ARTIFACT_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,22 +68,26 @@ pub enum AdkArtifactStoreError {
     Incompatible(String),
 }
 
-pub struct AdkArtifactTestCutoverStore {
+pub struct AdkArtifactStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
 
-impl std::fmt::Debug for AdkArtifactTestCutoverStore {
+impl std::fmt::Debug for AdkArtifactStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("AdkArtifactTestCutoverStore")
+            .debug_struct("AdkArtifactStore")
             .field("path", &self.path)
             .finish()
     }
 }
 
-impl AdkArtifactTestCutoverStore {
+impl AdkArtifactStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, AdkArtifactStoreError> {
+        Self::open_existing(path, ADK_ARTIFACT_PRODUCTION_PROFILE)
+    }
+
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -91,7 +96,9 @@ impl AdkArtifactTestCutoverStore {
         if path.as_os_str().is_empty() {
             return Err(AdkArtifactStoreError::EmptyPath);
         }
-        if profile != ADK_ARTIFACT_TEST_CUTOVER_PROFILE {
+        if profile != ADK_ARTIFACT_TEST_CUTOVER_PROFILE
+            && profile != ADK_ARTIFACT_PRODUCTION_PROFILE
+        {
             return Err(AdkArtifactStoreError::UnsupportedProfile(
                 profile.to_owned(),
             ));
@@ -106,10 +113,7 @@ impl AdkArtifactTestCutoverStore {
             ));
         }
 
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", ADK_ARTIFACT_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
             path,
@@ -224,5 +228,74 @@ impl AdkArtifactTestCutoverStore {
             )
             .optional()
             .map_err(AdkArtifactStoreError::Query)
+    }
+
+    pub fn list_session_artifacts(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<StoredAdkArtifact>, AdkArtifactStoreError> {
+        let connection = self.lock_connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT app_name, user_id, session_id, file_name, version, part_json, mime_type, custom_metadata_json, created_at, updated_at
+                 FROM artifacts WHERE session_id = ?1 ORDER BY file_name ASC, version DESC",
+            )
+            .map_err(AdkArtifactStoreError::Query)?;
+        let rows = statement
+            .query_map(params![session_id], |row| {
+                Ok(StoredAdkArtifact {
+                    app_name: row.get(0)?,
+                    user_id: row.get(1)?,
+                    session_id: row.get(2)?,
+                    file_name: row.get(3)?,
+                    version: row.get(4)?,
+                    part_json: row.get(5)?,
+                    mime_type: row.get(6)?,
+                    custom_metadata_json: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                })
+            })
+            .map_err(AdkArtifactStoreError::Query)?;
+        rows.map(|row| row.map_err(AdkArtifactStoreError::Query))
+            .collect()
+    }
+}
+
+#[derive(Debug)]
+pub struct AdkArtifactTestCutoverStore {
+    inner: AdkArtifactStore,
+}
+
+impl AdkArtifactTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, AdkArtifactStoreError> {
+        let inner = AdkArtifactStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.inner.path
+    }
+
+    pub fn put_artifact(
+        &self,
+        params: PutAdkArtifactParams<'_>,
+    ) -> Result<StoredAdkArtifact, AdkArtifactStoreError> {
+        self.inner.put_artifact(params)
+    }
+
+    pub fn get_artifact(
+        &self,
+        app_name: &str,
+        user_id: &str,
+        session_id: &str,
+        file_name: &str,
+        version: i64,
+    ) -> Result<Option<StoredAdkArtifact>, AdkArtifactStoreError> {
+        self.inner
+            .get_artifact(app_name, user_id, session_id, file_name, version)
     }
 }

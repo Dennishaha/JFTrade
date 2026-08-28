@@ -127,6 +127,33 @@ pub fn current_version(connection: &Connection, component: &str) -> Option<i64> 
         .ok()
 }
 
+/// Create a brand-new managed database from the pinned schema manifest.
+/// Existing files are never replaced; callers should open them and run
+/// `validate_current` instead.  Keeping creation here guarantees that every
+/// production store uses the same DDL as compatibility validation.
+pub fn initialize_current(
+    connection: &Connection,
+    component: &str,
+) -> Result<(), SchemaManifestError> {
+    let definition = definition(component)?;
+    for statement in definition.statements.as_deref().unwrap_or_default() {
+        if !statement.trim().is_empty() {
+            connection.execute_batch(statement)?;
+        }
+    }
+    if let Some(dynamic) = &definition.dynamic_table {
+        connection.execute_batch(&dynamic.statement)?;
+    }
+    connection.execute_batch(
+        "CREATE TABLE jftrade_schema_meta (component_id TEXT PRIMARY KEY, version INTEGER NOT NULL, created_at TEXT NOT NULL)",
+    )?;
+    connection.execute(
+        "INSERT INTO jftrade_schema_meta (component_id, version, created_at) VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+        (&definition.id, definition.version),
+    )?;
+    Ok(())
+}
+
 pub fn validate_current(
     connection: &Connection,
     path: &str,

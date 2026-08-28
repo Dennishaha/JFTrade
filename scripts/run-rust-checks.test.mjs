@@ -13,6 +13,7 @@ test("workspace Rust gate keeps compile-heavy checks sequential", () => {
   assert.deepEqual(commandNames("workspace"), [
     "check:rust:target-health",
     "check:rust:layout",
+    "check:rust:production-policy",
     "test:rust:stage9:route-coverage",
     "format:rust:check",
     "lint:rust",

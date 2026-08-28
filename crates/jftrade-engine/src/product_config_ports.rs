@@ -1,4 +1,16 @@
 impl ProductConfig {
+    pub(crate) fn with_production_runtime_statuses(
+        mut self,
+        provider: ProductionRuntimeStatus,
+        opend: ProductionRuntimeStatus,
+        worker: ProductionRuntimeStatus,
+    ) -> Self {
+        self.provider_runtime_status = provider;
+        self.opend_runtime_status = opend;
+        self.worker_runtime_status = worker;
+        self
+    }
+
     pub fn settings_path(&self) -> &std::path::Path {
         &self.settings_path
     }
@@ -7,8 +19,27 @@ impl ProductConfig {
         &self.real_trade_control_path
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn with_active_provider_state(mut self, state: Arc<ActiveProviderState>) -> Self {
+        self.active_provider_state = Some(state);
+        self
+    }
+
     pub fn with_notification_port(mut self, port: Arc<dyn ProductNotificationPort>) -> Self {
         self.notification_port = Some(port);
+        self
+    }
+
+    pub fn with_live_hub(mut self, hub: Arc<jftrade_api::LiveHub>) -> Self {
+        self.live_hub = Some(hub);
+        self
+    }
+
+    pub fn with_physical_subscription_port(
+        mut self,
+        port: Arc<dyn jftrade_marketdata::PhysicalSubscriptionSnapshotPort>,
+    ) -> Self {
+        self.physical_subscription_port = Some(port);
         self
     }
 
@@ -110,6 +141,22 @@ impl ProductConfig {
         port: Arc<dyn MarketDataRuntimeStatusPort>,
     ) -> Self {
         self.market_data_runtime_status_port = Some(port);
+        self
+    }
+
+    pub fn with_market_data_router(
+        mut self,
+        router: Arc<Mutex<jftrade_marketdata::ProviderRouter>>,
+    ) -> Self {
+        self.market_data_router = Some(router);
+        self
+    }
+
+    pub fn with_market_data_helper(
+        mut self,
+        helper: jftrade_integration_marketdata_helper::HelperClient,
+    ) -> Self {
+        self.market_data_helper = Some(helper);
         self
     }
 

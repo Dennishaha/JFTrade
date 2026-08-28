@@ -119,6 +119,57 @@ fn strategy_runtime_instance_lifecycle_and_restart_durability() {
     assert!(reopened_inst.deleted);
 }
 
+#[test]
+fn strategy_runtime_rejects_corrupt_payload_and_reads_persisted_activity() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("strategy.db");
+    seed_go_strategy_schema(&path);
+    let store = open_store(&path);
+    store
+        .seed_instance("inst-activity", "STOPPED", TIMESTAMP_1)
+        .expect("seed instance");
+
+    let connection = Connection::open(&path).expect("open activity writer");
+    connection
+        .execute(
+            "INSERT INTO strategy_log_events (instance_id, at_ms, raw, level, source) \
+             VALUES ('inst-activity', 1000, 'started', 'info', 'runtime')",
+            [],
+        )
+        .expect("insert log");
+    connection
+        .execute(
+            "INSERT INTO strategy_audit_events (instance_id, kind, detail, at_ms) \
+             VALUES ('inst-activity', 'execution', 'submitted', 2000)",
+            [],
+        )
+        .expect("insert audit");
+    assert_eq!(
+        store.list_log_events("inst-activity").expect("read log")[0].raw,
+        "started"
+    );
+    assert_eq!(
+        store
+            .list_audit_events("inst-activity")
+            .expect("read audit")[0]
+            .detail,
+        "submitted"
+    );
+
+    connection
+        .execute(
+            "UPDATE strategy_catalog_operations SET payload_json = 'not-json' \
+             WHERE operation_id = 'inst-activity'",
+            [],
+        )
+        .expect("corrupt payload");
+    assert!(matches!(
+        store.list_instances(),
+        Err(StrategyRuntimeStoreError::Incompatible(message))
+            if message.contains("invalid payload JSON")
+    ));
+}
+
 fn open_store(path: &Path) -> StrategyRuntimeTestCutoverStore {
     StrategyRuntimeTestCutoverStore::open_existing(path, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE)
         .expect("open strategy runtime test-cutover store")

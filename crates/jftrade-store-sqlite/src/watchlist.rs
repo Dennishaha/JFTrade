@@ -1,11 +1,15 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, WriterLeaseError};
-use rusqlite::{Connection, ErrorCode, OpenFlags, OptionalExtension, TransactionBehavior, params};
+use rusqlite::{
+    Connection, ErrorCode, OpenFlags, OptionalExtension, TransactionBehavior, params,
+    params_from_iter,
+};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
@@ -14,6 +18,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 const WATCHLIST_COMPONENT: &str = "watchlist";
 const WATCHLIST_SCHEMA_VERSION: i64 = 1;
 pub const WATCHLIST_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const WATCHLIST_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -144,6 +149,17 @@ pub struct StoredImportRun {
     pub completed_at: String,
 }
 
+#[derive(Clone, Debug)]
+struct ItemListRow {
+    instrument_id: String,
+    market: String,
+    symbol: String,
+    name: String,
+    instrument_type: String,
+    revision: i64,
+    last_imported_at: Option<String>,
+}
+
 #[derive(Debug, Error)]
 pub enum WatchlistStoreError {
     #[error("watchlist database path is required")]
@@ -178,22 +194,26 @@ pub enum WatchlistStoreError {
     Incompatible(String),
 }
 
-pub struct WatchlistTestCutoverStore {
+pub struct WatchlistStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
 
-impl std::fmt::Debug for WatchlistTestCutoverStore {
+impl std::fmt::Debug for WatchlistStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("WatchlistTestCutoverStore")
+            .debug_struct("WatchlistStore")
             .field("path", &self.path)
             .finish()
     }
 }
 
-impl WatchlistTestCutoverStore {
+impl WatchlistStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, WatchlistStoreError> {
+        Self::open_existing(path, WATCHLIST_PRODUCTION_PROFILE)
+    }
+
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -202,7 +222,7 @@ impl WatchlistTestCutoverStore {
         if path.as_os_str().is_empty() {
             return Err(WatchlistStoreError::EmptyPath);
         }
-        if profile != WATCHLIST_TEST_CUTOVER_PROFILE {
+        if profile != WATCHLIST_TEST_CUTOVER_PROFILE && profile != WATCHLIST_PRODUCTION_PROFILE {
             return Err(WatchlistStoreError::UnsupportedProfile(profile.to_owned()));
         }
         if !path
@@ -215,10 +235,7 @@ impl WatchlistTestCutoverStore {
             ));
         }
 
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", WATCHLIST_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
             path,
@@ -836,6 +853,464 @@ impl WatchlistTestCutoverStore {
         transaction.commit().map_err(WatchlistStoreError::Query)?;
         Ok(run)
     }
+
+    pub fn list_items(&self) -> Result<Vec<serde_json::Value>, WatchlistStoreError> {
+        let connection = self.lock()?;
+        let mut stmt = connection
+            .prepare(
+                "SELECT instrument_id, market, symbol, name, instrument_type, membership_revision, created_at, updated_at
+                 FROM watchlist_instruments ORDER BY market, symbol",
+            )
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(serde_json::json!({
+                    "instrumentId": row.get::<_, String>(0)?,
+                    "market": row.get::<_, String>(1)?,
+                    "symbol": row.get::<_, String>(2)?,
+                    "name": row.get::<_, String>(3)?,
+                    "instrumentType": row.get::<_, String>(4)?,
+                    "membershipRevision": row.get::<_, i64>(5)?,
+                    "createdAt": row.get::<_, String>(6)?,
+                    "updatedAt": row.get::<_, String>(7)?,
+                }))
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        let mut items = Vec::new();
+        for item in rows {
+            items.push(item.map_err(WatchlistStoreError::Query)?);
+        }
+        Ok(items)
+    }
+
+    /// List local instruments using the same cursor, market, text and group
+    /// filters as the Go watchlist repository.  The extra row is fetched so
+    /// the returned cursor is only present when another page really exists.
+    pub fn list_items_page(
+        &self,
+        group_id: Option<&str>,
+        cursor: Option<&str>,
+        limit: usize,
+        query: Option<&str>,
+        market: Option<&str>,
+    ) -> Result<(Vec<serde_json::Value>, Option<String>), WatchlistStoreError> {
+        if limit == 0 {
+            return Err(WatchlistStoreError::Validation(
+                "limit must be a positive integer".to_owned(),
+            ));
+        }
+        let connection = self.lock()?;
+        let rows = query_item_rows(
+            &connection,
+            group_id.unwrap_or_default(),
+            cursor.unwrap_or_default(),
+            query.unwrap_or_default(),
+            market.unwrap_or_default(),
+            limit,
+        )?;
+        let next_cursor = rows
+            .get(limit)
+            .map(|_| rows[limit - 1].instrument_id.clone());
+        let selected_rows = if next_cursor.is_some() {
+            &rows[..limit]
+        } else {
+            &rows[..]
+        };
+        let items = hydrate_item_rows(&connection, selected_rows)?;
+        Ok((items, next_cursor))
+    }
+
+    pub fn list_sources(&self) -> Result<Vec<StoredSource>, WatchlistStoreError> {
+        let connection = self.lock()?;
+        let mut stmt = connection
+            .prepare("SELECT source_id, broker, display_name, status, last_error, updated_at FROM watchlist_sources ORDER BY source_id")
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = stmt
+            .query_map([], |row| {
+                let err: String = row.get(4)?;
+                Ok(StoredSource {
+                    source_id: row.get(0)?,
+                    broker: row.get(1)?,
+                    display_name: row.get(2)?,
+                    status: row.get(3)?,
+                    error: if err.is_empty() { None } else { Some(err) },
+                    updated_at: row.get(5)?,
+                })
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        let mut sources = Vec::new();
+        for source in rows {
+            sources.push(source.map_err(WatchlistStoreError::Query)?);
+        }
+        Ok(sources)
+    }
+
+    pub fn source_exists(&self, source_id: &str) -> Result<bool, WatchlistStoreError> {
+        let connection = self.lock()?;
+        connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM watchlist_sources WHERE source_id = ?1)",
+                params![source_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|value| value != 0)
+            .map_err(WatchlistStoreError::Query)
+    }
+
+    pub fn list_remote_groups(
+        &self,
+        source_id: &str,
+    ) -> Result<Vec<StoredRemoteGroup>, WatchlistStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT source_id, remote_group_id, name, group_type, ambiguous,
+                        member_count, remote_hash, observed_at
+                 FROM watchlist_remote_groups
+                 WHERE source_id = ?1
+                 ORDER BY name, remote_group_id",
+            )
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = statement
+            .query_map(params![source_id], |row| {
+                Ok(StoredRemoteGroup {
+                    source_id: row.get(0)?,
+                    remote_group_id: row.get(1)?,
+                    name: row.get(2)?,
+                    group_type: row.get(3)?,
+                    ambiguous: row.get::<_, i64>(4)? != 0,
+                    member_count: row.get::<_, i64>(5)? as usize,
+                    remote_hash: row.get(6)?,
+                    observed_at: row.get(7)?,
+                })
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        rows.map(|row| row.map_err(WatchlistStoreError::Query))
+            .collect()
+    }
+
+    pub fn list_bindings(&self) -> Result<Vec<StoredBinding>, WatchlistStoreError> {
+        let connection = self.lock()?;
+        let mut stmt = connection
+            .prepare("SELECT binding_id, source_id, remote_group_id, remote_name, local_group_id, created_at, updated_at FROM watchlist_bindings ORDER BY binding_id")
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(StoredBinding {
+                    binding_id: row.get(0)?,
+                    source_id: row.get(1)?,
+                    remote_group_id: row.get(2)?,
+                    remote_name: row.get(3)?,
+                    local_group_id: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        let mut bindings = Vec::new();
+        for binding in rows {
+            bindings.push(binding.map_err(WatchlistStoreError::Query)?);
+        }
+        Ok(bindings)
+    }
+
+    pub fn list_import_runs(&self) -> Result<Vec<StoredImportRun>, WatchlistStoreError> {
+        let connection = self.lock()?;
+        let mut stmt = connection
+            .prepare("SELECT run_id, preview_id, source_id, remote_group_id, remote_group_name, local_group_id, status, added_count, removed_count, unchanged_count, remote_hash, created_at, completed_at FROM watchlist_import_runs ORDER BY completed_at DESC, run_id DESC")
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(StoredImportRun {
+                    run_id: row.get(0)?,
+                    preview_id: row.get(1)?,
+                    source_id: row.get(2)?,
+                    remote_group_id: row.get(3)?,
+                    remote_group_name: row.get(4)?,
+                    local_group_id: row.get(5)?,
+                    status: row.get(6)?,
+                    added_count: row.get::<_, i64>(7)? as usize,
+                    removed_count: row.get::<_, i64>(8)? as usize,
+                    unchanged_count: row.get::<_, i64>(9)? as usize,
+                    remote_hash: row.get(10)?,
+                    created_at: row.get(11)?,
+                    completed_at: row.get(12)?,
+                })
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        let mut runs = Vec::new();
+        for run in rows {
+            runs.push(run.map_err(WatchlistStoreError::Query)?);
+        }
+        Ok(runs)
+    }
+
+    pub fn list_import_runs_page(
+        &self,
+        source_id: Option<&str>,
+        cursor: Option<&str>,
+        limit: usize,
+    ) -> Result<(Vec<StoredImportRun>, Option<String>), WatchlistStoreError> {
+        if limit == 0 {
+            return Err(WatchlistStoreError::Validation(
+                "limit must be a positive integer".to_owned(),
+            ));
+        }
+        let connection = self.lock()?;
+        let mut args = Vec::new();
+        let mut sql = String::from(
+            "SELECT run_id, preview_id, source_id, remote_group_id, remote_group_name,
+                    local_group_id, status, added_count, removed_count, unchanged_count,
+                    remote_hash, created_at, completed_at
+             FROM watchlist_import_runs WHERE 1 = 1",
+        );
+        if let Some(source_id) = source_id.filter(|value| !value.is_empty()) {
+            sql.push_str(" AND source_id = ?");
+            args.push(rusqlite::types::Value::Text(source_id.to_owned()));
+        }
+        if let Some(cursor) = cursor.filter(|value| !value.is_empty()) {
+            let created_at: Option<String> = connection
+                .query_row(
+                    "SELECT created_at FROM watchlist_import_runs WHERE run_id = ?1",
+                    params![cursor],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(WatchlistStoreError::Query)?;
+            let Some(created_at) = created_at else {
+                return Err(WatchlistStoreError::NotFound);
+            };
+            sql.push_str(" AND (created_at < ? OR (created_at = ? AND run_id < ?))");
+            args.extend([
+                rusqlite::types::Value::Text(created_at.clone()),
+                rusqlite::types::Value::Text(created_at),
+                rusqlite::types::Value::Text(cursor.to_owned()),
+            ]);
+        }
+        sql.push_str(" ORDER BY created_at DESC, run_id DESC LIMIT ?");
+        let fetch_limit = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
+        args.push(rusqlite::types::Value::Integer(fetch_limit));
+
+        let mut statement = connection
+            .prepare(&sql)
+            .map_err(WatchlistStoreError::Query)?;
+        let rows = statement
+            .query_map(params_from_iter(args.iter()), |row| {
+                Ok(StoredImportRun {
+                    run_id: row.get(0)?,
+                    preview_id: row.get(1)?,
+                    source_id: row.get(2)?,
+                    remote_group_id: row.get(3)?,
+                    remote_group_name: row.get(4)?,
+                    local_group_id: row.get(5)?,
+                    status: row.get(6)?,
+                    added_count: row.get::<_, i64>(7)? as usize,
+                    removed_count: row.get::<_, i64>(8)? as usize,
+                    unchanged_count: row.get::<_, i64>(9)? as usize,
+                    remote_hash: row.get(10)?,
+                    created_at: row.get(11)?,
+                    completed_at: row.get(12)?,
+                })
+            })
+            .map_err(WatchlistStoreError::Query)?;
+        let runs = rows
+            .map(|row| row.map_err(WatchlistStoreError::Query))
+            .collect::<Result<Vec<_>, _>>()?;
+        let next_cursor = runs.get(limit).map(|_| runs[limit - 1].run_id.clone());
+        let runs = if next_cursor.is_some() {
+            runs[..limit].to_vec()
+        } else {
+            runs
+        };
+        Ok((runs, next_cursor))
+    }
+}
+
+fn query_item_rows(
+    connection: &Connection,
+    group_id: &str,
+    cursor: &str,
+    query: &str,
+    market: &str,
+    limit: usize,
+) -> Result<Vec<ItemListRow>, WatchlistStoreError> {
+    let mut args = Vec::new();
+    let mut sql = String::from(
+        "SELECT i.instrument_id, i.market, i.symbol, i.name, i.instrument_type,
+                i.membership_revision,
+                (SELECT MAX(o.last_imported_at)
+                   FROM watchlist_membership_origins o
+                  WHERE o.instrument_id = i.instrument_id)
+         FROM ",
+    );
+    let order_column = if group_id.is_empty() {
+        sql.push_str(
+            "watchlist_instruments i
+             WHERE EXISTS (
+                 SELECT 1 FROM watchlist_memberships member
+                  WHERE member.instrument_id = i.instrument_id)",
+        );
+        "i.instrument_id"
+    } else {
+        sql.push_str(
+            "watchlist_memberships member
+             JOIN watchlist_instruments i ON i.instrument_id = member.instrument_id
+             WHERE member.group_id = ?",
+        );
+        args.push(rusqlite::types::Value::Text(group_id.to_owned()));
+        "member.instrument_id"
+    };
+    if !cursor.is_empty() {
+        sql.push_str(" AND ");
+        sql.push_str(order_column);
+        sql.push_str(" > ?");
+        args.push(rusqlite::types::Value::Text(cursor.to_owned()));
+    }
+    if !query.is_empty() {
+        sql.push_str(" AND (UPPER(i.instrument_id) LIKE UPPER(?) OR UPPER(i.name) LIKE UPPER(?))");
+        let pattern = format!("%{query}%");
+        args.push(rusqlite::types::Value::Text(pattern.clone()));
+        args.push(rusqlite::types::Value::Text(pattern));
+    }
+    match market {
+        "CN" => sql.push_str(" AND i.market IN ('SH', 'SZ')"),
+        "" => {}
+        _ => {
+            sql.push_str(" AND i.market = ?");
+            args.push(rusqlite::types::Value::Text(market.to_owned()));
+        }
+    }
+    sql.push_str(" ORDER BY ");
+    sql.push_str(order_column);
+    sql.push_str(" LIMIT ?");
+    args.push(rusqlite::types::Value::Integer(
+        i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX),
+    ));
+
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(WatchlistStoreError::Query)?;
+    let rows = statement
+        .query_map(params_from_iter(args.iter()), |row| {
+            Ok(ItemListRow {
+                instrument_id: row.get(0)?,
+                market: row.get(1)?,
+                symbol: row.get(2)?,
+                name: row.get(3)?,
+                instrument_type: row.get(4)?,
+                revision: row.get(5)?,
+                last_imported_at: row.get(6)?,
+            })
+        })
+        .map_err(WatchlistStoreError::Query)?;
+    rows.map(|row| row.map_err(WatchlistStoreError::Query))
+        .collect()
+}
+
+fn hydrate_item_rows(
+    connection: &Connection,
+    rows: &[ItemListRow],
+) -> Result<Vec<serde_json::Value>, WatchlistStoreError> {
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
+    let instrument_ids = rows
+        .iter()
+        .map(|row| row.instrument_id.clone())
+        .collect::<Vec<_>>();
+    let placeholders = std::iter::repeat_n("?", instrument_ids.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let mut groups_by_instrument: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+    let group_sql = format!(
+        "SELECT m.instrument_id, g.group_id, g.name
+           FROM watchlist_memberships m
+           JOIN watchlist_groups g ON g.group_id = m.group_id
+          WHERE m.instrument_id IN ({placeholders})
+          ORDER BY m.instrument_id, g.is_default DESC, g.created_at, g.group_id"
+    );
+    let mut statement = connection
+        .prepare(&group_sql)
+        .map_err(WatchlistStoreError::Query)?;
+    let group_rows = statement
+        .query_map(params_from_iter(instrument_ids.iter()), |row| {
+            let group_id: String = row.get(1)?;
+            let name: String = row.get(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                json!({"groupId": group_id, "name": name}),
+            ))
+        })
+        .map_err(WatchlistStoreError::Query)?;
+    for group_row in group_rows {
+        let (instrument_id, group) = group_row.map_err(WatchlistStoreError::Query)?;
+        groups_by_instrument
+            .entry(instrument_id)
+            .or_default()
+            .push(group);
+    }
+
+    let mut sources_by_instrument: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let source_sql = format!(
+        "SELECT DISTINCT instrument_id, source_id
+           FROM watchlist_membership_origins
+          WHERE instrument_id IN ({placeholders})
+          ORDER BY instrument_id, source_id"
+    );
+    let mut statement = connection
+        .prepare(&source_sql)
+        .map_err(WatchlistStoreError::Query)?;
+    let source_rows = statement
+        .query_map(params_from_iter(instrument_ids.iter()), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(WatchlistStoreError::Query)?;
+    for source_row in source_rows {
+        let (instrument_id, source_id) = source_row.map_err(WatchlistStoreError::Query)?;
+        sources_by_instrument
+            .entry(instrument_id)
+            .or_default()
+            .push(source_id);
+    }
+
+    rows.iter()
+        .map(|row| {
+            let groups = groups_by_instrument
+                .remove(&row.instrument_id)
+                .unwrap_or_default();
+            let group_ids = groups
+                .iter()
+                .filter_map(|group| group.get("groupId").and_then(|value| value.as_str()))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            let mut item = serde_json::Map::new();
+            item.insert("instrumentId".to_owned(), json!(row.instrument_id));
+            item.insert("market".to_owned(), json!(row.market));
+            item.insert("symbol".to_owned(), json!(row.symbol));
+            if !row.name.is_empty() {
+                item.insert("name".to_owned(), json!(row.name));
+            }
+            if !row.instrument_type.is_empty() {
+                item.insert("type".to_owned(), json!(row.instrument_type));
+            }
+            item.insert("revision".to_owned(), json!(row.revision));
+            item.insert("groupIds".to_owned(), json!(group_ids));
+            item.insert("groups".to_owned(), json!(groups));
+            if let Some(last_imported_at) = row
+                .last_imported_at
+                .as_deref()
+                .filter(|value| !value.is_empty())
+            {
+                item.insert("lastImportedAt".to_owned(), json!(last_imported_at));
+            }
+            if let Some(source_ids) = sources_by_instrument.remove(&row.instrument_id)
+                && !source_ids.is_empty()
+            {
+                item.insert("sourceIds".to_owned(), json!(source_ids));
+            }
+            Ok(serde_json::Value::Object(item))
+        })
+        .collect()
 }
 
 fn get_group_query(
@@ -940,4 +1415,154 @@ fn generate_id() -> String {
     let id = COUNTER.fetch_add(1, Ordering::Relaxed);
     let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
     format!("{timestamp:x}_{id}")
+}
+
+#[derive(Debug)]
+pub struct WatchlistTestCutoverStore {
+    inner: WatchlistStore,
+}
+
+impl WatchlistTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, WatchlistStoreError> {
+        let inner = WatchlistStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.inner.path()
+    }
+
+    pub fn list_groups(&self) -> Result<Vec<StoredGroup>, WatchlistStoreError> {
+        self.inner.list_groups()
+    }
+
+    pub fn get_group(&self, group_id: &str) -> Result<StoredGroup, WatchlistStoreError> {
+        self.inner.get_group(group_id)
+    }
+
+    pub fn create_group(
+        &self,
+        name: &str,
+        timestamp: &str,
+    ) -> Result<StoredGroup, WatchlistStoreError> {
+        self.inner.create_group(name, timestamp)
+    }
+
+    pub fn update_group(
+        &self,
+        group_id: &str,
+        name: &str,
+        expected_revision: i64,
+        timestamp: &str,
+    ) -> Result<StoredGroup, WatchlistStoreError> {
+        self.inner
+            .update_group(group_id, name, expected_revision, timestamp)
+    }
+
+    pub fn delete_group(&self, group_id: &str) -> Result<(), WatchlistStoreError> {
+        self.inner.delete_group(group_id)
+    }
+
+    pub fn delete_binding(&self, binding_id: &str) -> Result<(), WatchlistStoreError> {
+        self.inner.delete_binding(binding_id)
+    }
+
+    pub fn get_memberships(&self, instrument_id: &str) -> Result<Memberships, WatchlistStoreError> {
+        self.inner.get_memberships(instrument_id)
+    }
+
+    pub fn replace_memberships(
+        &self,
+        instrument_id: &str,
+        group_ids: &[String],
+        new_group_names: &[String],
+        expected_revision: i64,
+        timestamp: &str,
+    ) -> Result<Memberships, WatchlistStoreError> {
+        self.inner.replace_memberships(
+            instrument_id,
+            group_ids,
+            new_group_names,
+            expected_revision,
+            timestamp,
+        )
+    }
+
+    pub fn create_import_preview(
+        &self,
+        source_id: &str,
+        remote_group_id: &str,
+        local_group_id: Option<&str>,
+        new_group_name: Option<&str>,
+        timestamp: &str,
+    ) -> Result<StoredImportPreview, WatchlistStoreError> {
+        self.inner.create_import_preview(
+            source_id,
+            remote_group_id,
+            local_group_id,
+            new_group_name,
+            timestamp,
+        )
+    }
+
+    pub fn commit_import_preview(
+        &self,
+        preview_id: &str,
+        delete_instrument_ids: &[String],
+        timestamp: &str,
+    ) -> Result<StoredImportRun, WatchlistStoreError> {
+        self.inner
+            .commit_import_preview(preview_id, delete_instrument_ids, timestamp)
+    }
+
+    pub fn list_items(&self) -> Result<Vec<serde_json::Value>, WatchlistStoreError> {
+        self.inner.list_items()
+    }
+
+    pub fn list_items_page(
+        &self,
+        group_id: Option<&str>,
+        cursor: Option<&str>,
+        limit: usize,
+        query: Option<&str>,
+        market: Option<&str>,
+    ) -> Result<(Vec<serde_json::Value>, Option<String>), WatchlistStoreError> {
+        self.inner
+            .list_items_page(group_id, cursor, limit, query, market)
+    }
+
+    pub fn list_sources(&self) -> Result<Vec<StoredSource>, WatchlistStoreError> {
+        self.inner.list_sources()
+    }
+
+    pub fn source_exists(&self, source_id: &str) -> Result<bool, WatchlistStoreError> {
+        self.inner.source_exists(source_id)
+    }
+
+    pub fn list_remote_groups(
+        &self,
+        source_id: &str,
+    ) -> Result<Vec<StoredRemoteGroup>, WatchlistStoreError> {
+        self.inner.list_remote_groups(source_id)
+    }
+
+    pub fn list_bindings(&self) -> Result<Vec<StoredBinding>, WatchlistStoreError> {
+        self.inner.list_bindings()
+    }
+
+    pub fn list_import_runs(&self) -> Result<Vec<StoredImportRun>, WatchlistStoreError> {
+        self.inner.list_import_runs()
+    }
+
+    pub fn list_import_runs_page(
+        &self,
+        source_id: Option<&str>,
+        cursor: Option<&str>,
+        limit: usize,
+    ) -> Result<(Vec<StoredImportRun>, Option<String>), WatchlistStoreError> {
+        self.inner.list_import_runs_page(source_id, cursor, limit)
+    }
 }

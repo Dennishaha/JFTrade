@@ -43,11 +43,11 @@ pub enum PluginWritePortError {
     Unavailable(String),
 }
 
-/// Consumer-owned mutation boundary for plugin metadata.
+/// Consumer-owned mutation boundary for plugin installation state.
 ///
-/// The port returns the complete Go operation projection. It deliberately has
-/// no filesystem, dynamic-library, process, event, or persistence methods;
-/// those remain behind the Go owner until a separately qualified cutover.
+/// The port returns the complete operation projection. Production adapters may
+/// perform artifact and process lifecycle work behind this boundary, while
+/// cutover fixtures can keep using an in-memory implementation.
 pub trait PluginWritePort: Send + Sync {
     fn mutate(
         &self,
@@ -102,7 +102,7 @@ fn parse_route(method: &str, path: &str) -> Option<PluginWriteOperation> {
         let prefix = "/api/v1/plugins/";
         let suffix = operation.suffix();
         let id = path.strip_prefix(prefix)?.strip_suffix(suffix)?;
-        (!id.is_empty() && !id.contains('/')).then_some(operation)
+        is_safe_plugin_id(id).then_some(operation)
     })
 }
 
@@ -119,7 +119,16 @@ fn parse_plugin_id(path: &str) -> Option<String> {
     }
     let decoded = percent_decode_str(encoded).decode_utf8().ok()?;
     let plugin_id = decoded.trim();
-    (!plugin_id.is_empty() && !plugin_id.contains('/')).then(|| plugin_id.to_owned())
+    is_safe_plugin_id(plugin_id).then(|| plugin_id.to_owned())
+}
+
+fn is_safe_plugin_id(plugin_id: &str) -> bool {
+    !plugin_id.is_empty()
+        && plugin_id != "."
+        && plugin_id != ".."
+        && !plugin_id.contains('/')
+        && !plugin_id.contains('\\')
+        && !plugin_id.chars().any(char::is_control)
 }
 
 fn port_error_response(

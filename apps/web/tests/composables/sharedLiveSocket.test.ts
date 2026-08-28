@@ -26,6 +26,27 @@ describe("SharedLiveSocketHub", () => {
     expect(hub.reconnect()).toBeNull();
   });
 
+  it("sends the desktop token as the WebSocket authentication protocol", async () => {
+    window.__JFTRADE_RUNTIME_CONFIG__ = {
+      apiBaseUrl: "http://127.0.0.1:3008",
+      desktopMode: true,
+      desktopApiToken: "desktop-token",
+    };
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+
+    const hub = getSharedLiveSocketHub();
+    hub.connect();
+    await Promise.resolve();
+
+    expect(MockWebSocket.instances[0]?.url).toBe(
+      "ws://127.0.0.1:3008/api/v1/ws/live",
+    );
+    expect(MockWebSocket.instances[0]?.protocols).toEqual([
+      "jftrade.desktop.v1",
+      "desktop-token",
+    ]);
+  });
+
   it("buffers recent events, updates heartbeats, and removes listeners cleanly", async () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 

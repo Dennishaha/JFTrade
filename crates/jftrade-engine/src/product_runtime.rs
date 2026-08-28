@@ -1,52 +1,50 @@
-use std::collections::BTreeMap;
-use std::net::Ipv4Addr;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use jftrade_datamanagement::{
-    DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
-    DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
-    DATABASE_WATCHLIST, DatabaseDescriptor,
-};
 use jftrade_integration_futu::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDSessionCoordinator, OpenDSessionRuntime,
     OpenDSessionRuntimeConfig,
 };
-use jftrade_integration_marketdata_helper::{
-    HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, ProcessError,
-    allocate_loopback_port,
-};
-use jftrade_integration_pine::{
-    GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
-    WorkerHealth, WorkerProcessSpec,
-};
+use jftrade_integration_marketdata_helper::ProcessError;
+use jftrade_integration_pine::PineProcessError;
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
+use jftrade_settings::{
+    MarketDataProvider, MarketDataProviderSettingsStorePort, normalize_market_data_provider,
+};
+use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::product::{
-    ProductConfig, ProductError, ProductHandle, start_product_with_runtime_state,
+    ActiveProviderState, ProductConfig, ProductError, ProductionRuntimeStatus,
+    start_product_with_runtime_state,
 };
 
-#[derive(Clone, Debug)]
-pub struct PineWorkerRuntimeConfig {
-    pub spec: WorkerProcessSpec,
-    pub process: PineProcessConfig,
-    pub readiness: PineReadinessPolicy,
-    pub connect_timeout: Duration,
-    pub request_timeout: Duration,
-}
+#[path = "product_runtime_resources.rs"]
+mod product_runtime_resources;
+use product_runtime_resources::product_resources;
 
-#[derive(Clone, Debug)]
-pub struct MarketDataHelperRuntimeConfig {
-    pub process: HelperProcessConfig,
-    pub startup_timeout: Duration,
-    pub initial_retry_delay: Duration,
-    pub max_retry_delay: Duration,
-    pub request_timeout: Duration,
-}
+#[path = "product_runtime_workers.rs"]
+mod product_runtime_workers;
+pub use product_runtime_workers::{
+    DesktopMarketDataRuntimeConfig, DesktopPineRuntimeConfig, DesktopRetainedRuntimeConfig,
+    MarketDataHelperRuntimeConfig, PineWorkerRuntimeConfig,
+};
+use product_runtime_workers::{
+    desktop_marketdata_helper, desktop_pine_workers, start_marketdata_helper, start_pine_worker,
+};
+
+#[path = "product_runtime_opend_listener.rs"]
+mod product_runtime_opend_listener;
+use product_runtime_opend_listener::LiveHubOpenDEventListener;
+
+#[path = "product_runtime_composition.rs"]
+mod product_runtime_composition;
+use product_runtime_composition::{
+    DynamicOpenDPhysicalSubscriptionAdapter, OpenDPhysicalSubscriptionAdapter,
+    SharedOpenDProviderRuntime, compose_market_data_runtime, opend_provider_config,
+};
 
 #[derive(Clone, Debug)]
 pub struct ProductRuntimeConfig {
@@ -66,29 +64,31 @@ pub struct ProductRuntimeConfig {
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
 }
 
-#[derive(Clone, Debug)]
-pub struct DesktopPineRuntimeConfig {
-    pub runtime_path: PathBuf,
-    pub bundle_path: PathBuf,
-    pub proto_path: PathBuf,
-    pub bearer_token: String,
-    pub worker_count: usize,
-    pub log_path: Option<PathBuf>,
+pub struct ProductRuntimeBuilder {
+    config: ProductRuntimeConfig,
 }
 
-#[derive(Clone, Debug)]
-pub struct DesktopMarketDataRuntimeConfig {
-    pub executable: PathBuf,
-    pub prefix_args: Vec<String>,
-    pub environment: BTreeMap<String, String>,
-    pub bearer_token: String,
-    pub log_path: Option<PathBuf>,
-}
+impl ProductRuntimeBuilder {
+    pub fn from_process_env() -> Result<Self, ProductRuntimeError> {
+        let product = ProductConfig::from_process_env()?;
+        let retained = DesktopRetainedRuntimeConfig::from_process_env();
+        let mut config = ProductRuntimeConfig::desktop(product, retained)?;
+        compose_market_data_runtime(&mut config)?;
+        Ok(Self { config })
+    }
 
-#[derive(Clone, Debug, Default)]
-pub struct DesktopRetainedRuntimeConfig {
-    pub pine: Option<DesktopPineRuntimeConfig>,
-    pub marketdata: Option<DesktopMarketDataRuntimeConfig>,
+    pub fn with_desktop_assets(
+        product: ProductConfig,
+        retained: DesktopRetainedRuntimeConfig,
+    ) -> Result<Self, ProductRuntimeError> {
+        let mut config = ProductRuntimeConfig::desktop(product, retained)?;
+        compose_market_data_runtime(&mut config)?;
+        Ok(Self { config })
+    }
+
+    pub async fn start(self) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+        start_product_runtime(self.config).await
+    }
 }
 
 impl ProductRuntimeConfig {
@@ -118,12 +118,6 @@ impl ProductRuntimeConfig {
         })
     }
 
-    /// Connects a router-owned recorder to the product status projection.
-    ///
-    /// The recorder is optional so the default product remains fail-closed when
-    /// provider/OpenD lifecycle has not been composed yet. A caller that owns a
-    /// `ProviderRouter` should pass `router.runtime_recorder()` here so the
-    /// product and router observe one shared state rather than separate copies.
     pub fn with_market_data_runtime_recorder(
         mut self,
         recorder: Arc<MarketDataRuntimeRecorder>,
@@ -132,16 +126,12 @@ impl ProductRuntimeConfig {
         self
     }
 
-    /// Connects the product to the router that owns provider demand and health.
-    /// The router's recorder becomes the sole status projection source.
     pub fn with_market_data_router(mut self, router: Arc<Mutex<ProviderRouter>>) -> Self {
         self.market_data_router = Some(router);
         self.market_data_runtime_recorder = None;
         self
     }
 
-    /// Connects an explicitly authenticated OpenD session to product status
-    /// and shutdown ownership. No default desktop profile calls this method.
     pub fn with_opend_session_coordinator(
         mut self,
         coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
@@ -157,8 +147,6 @@ impl ProductRuntimeConfig {
         self
     }
 
-    /// Connects an explicitly authenticated OpenD session and opts into the
-    /// runtime-owned polling task. The default profile never calls this.
     pub fn with_opend_session_runtime(
         mut self,
         coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
@@ -169,15 +157,11 @@ impl ProductRuntimeConfig {
         self
     }
 
-    /// Installs the explicit single-owner Futu/OpenD bridge. The bridge is
-    /// opt-in and therefore cannot change the default desktop composition.
     pub fn with_opend_provider_runtime(mut self, provider: OpenDProviderRuntimeConfig) -> Self {
         self.market_data_opend_provider = Some(provider);
         self
     }
 
-    /// Connects a lifecycle-owned strategy registry to the product status
-    /// projection without inventing strategy instances in the composition root.
     pub fn with_strategy_runtime_registry(
         mut self,
         registry: Arc<StrategyRuntimeRegistry>,
@@ -206,16 +190,19 @@ pub struct RuntimeResourceDescriptor {
 #[derive(Clone, Debug)]
 pub(crate) struct ProductRuntimeSnapshot {
     pub resources: Vec<RuntimeResourceDescriptor>,
+    pub production: bool,
 }
 
 pub(crate) struct ProductRuntimeState {
     resources: Vec<RuntimeResourceDescriptor>,
+    production: bool,
 }
 
 impl ProductRuntimeState {
     pub(crate) fn product_only(config: &ProductConfig) -> Arc<Self> {
         Arc::new(Self {
             resources: product_resources(config),
+            production: config.is_production(),
         })
     }
 
@@ -294,111 +281,147 @@ impl ProductRuntimeState {
                 critical: false,
             });
         }
-        Arc::new(Self { resources })
+        Arc::new(Self {
+            resources,
+            production: config.product.is_production(),
+        })
     }
 
     pub(crate) fn snapshot(&self) -> ProductRuntimeSnapshot {
         ProductRuntimeSnapshot {
             resources: self.resources.clone(),
+            production: self.production,
         }
     }
 }
 
+#[path = "product_runtime_supervisor.rs"]
+mod product_runtime_supervisor;
+use product_runtime_supervisor::ProductShutdownSupervisor;
+
 pub struct ProductRuntimeHandle {
-    product: Option<ProductHandle>,
-    pine_workers: Vec<PineProcess>,
-    marketdata_helper: Option<HelperProcess>,
+    supervisor: ProductShutdownSupervisor,
     market_data_router: Option<Arc<Mutex<ProviderRouter>>>,
-    market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
-    market_data_opend_runtime: Option<OpenDSessionRuntime>,
-    market_data_opend_provider: Option<OpenDProviderRuntime>,
 }
 
 impl ProductRuntimeHandle {
     pub fn startup_record(&self) -> &crate::product::ProductStartupRecord {
-        self.product
+        self.supervisor
+            .product
             .as_ref()
             .expect("running product runtime must own its product handle")
             .startup_record()
     }
 
+    /// Returns the single live event hub owned by the Rust product listener.
+    /// Provider runtimes may publish already-shaped tick/depth/error events
+    /// through this handle without creating a second websocket owner.
+    pub fn live_hub(&self) -> Option<Arc<jftrade_api::LiveHub>> {
+        self.supervisor
+            .product
+            .as_ref()
+            .map(crate::product::ProductHandle::live_hub)
+    }
+
     pub fn market_data_router(&self) -> Option<Arc<Mutex<ProviderRouter>>> {
         self.market_data_router.clone().or_else(|| {
-            self.market_data_opend_provider
+            self.supervisor
+                .market_data_opend_provider
                 .as_ref()
                 .map(OpenDProviderRuntime::router)
         })
     }
 
     pub fn market_data_opend(&self) -> Option<Arc<Mutex<OpenDSessionCoordinator>>> {
-        self.market_data_opend.clone().or_else(|| {
-            self.market_data_opend_provider
-                .as_ref()
-                .map(OpenDProviderRuntime::coordinator)
-        })
+        self.supervisor
+            .market_data_dynamic_opend
+            .as_ref()
+            .and_then(|runtime| {
+                runtime
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .as_ref()
+                    .map(OpenDProviderRuntime::coordinator)
+            })
+            .or_else(|| self.supervisor.market_data_opend.clone())
+            .or_else(|| {
+                self.supervisor
+                    .market_data_opend_provider
+                    .as_ref()
+                    .map(OpenDProviderRuntime::coordinator)
+            })
     }
 
+    /// Compatibility accessor for callers that need the explicitly composed
+    /// session task. Dynamically activated Futu uses the status accessor
+    /// below because its owner is held behind a runtime mutex.
     pub fn market_data_opend_runtime(&self) -> Option<&OpenDSessionRuntime> {
-        self.market_data_opend_runtime.as_ref().or_else(|| {
-            self.market_data_opend_provider
+        self.supervisor.market_data_opend_runtime.as_ref()
+    }
+
+    pub fn market_data_opend_runtime_status(
+        &self,
+    ) -> Option<jftrade_integration_futu::OpenDSessionRuntimeStatus> {
+        if let Some(status) =
+            self.supervisor
+                .market_data_dynamic_opend
                 .as_ref()
-                .map(OpenDProviderRuntime::runtime)
-        })
+                .and_then(|runtime| {
+                    runtime
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .as_ref()
+                        .map(|provider| provider.runtime().status())
+                })
+        {
+            return Some(status);
+        }
+        self.supervisor
+            .market_data_opend_runtime
+            .as_ref()
+            .map(OpenDSessionRuntime::status)
+            .or_else(|| {
+                self.supervisor
+                    .market_data_opend_provider
+                    .as_ref()
+                    .map(|provider| provider.runtime().status())
+            })
     }
 
     pub fn set_market_data_opend_demand(
         &self,
         demand: Vec<jftrade_marketdata::InstrumentRef>,
     ) -> bool {
-        if let Some(provider) = self.market_data_opend_provider.as_ref() {
+        if let Some(result) =
+            self.supervisor
+                .market_data_dynamic_opend
+                .as_ref()
+                .and_then(|runtime| {
+                    runtime
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .as_ref()
+                        .map(|provider| provider.set_demand(demand.clone(), current_unix_millis()))
+                })
+        {
+            return result.is_ok();
+        }
+        if let Some(provider) = self.supervisor.market_data_opend_provider.as_ref() {
             return provider.set_demand(demand, current_unix_millis()).is_ok();
         }
-        let Some(runtime) = self.market_data_opend_runtime.as_ref() else {
+        let Some(runtime) = self.supervisor.market_data_opend_runtime.as_ref() else {
             return false;
         };
         runtime.set_demand(demand);
         true
     }
 
+    pub fn shutdown_events(&self) -> Vec<&'static str> {
+        self.supervisor.recorder.events()
+    }
+
     pub async fn shutdown(mut self) -> Result<(), ProductRuntimeError> {
-        let mut failures = Vec::new();
-        if let Some(mut task) = self.market_data_opend_runtime.take()
-            && let Err(error) = task.shutdown()
-        {
-            failures.push(error.to_string());
-        } else if let Some(coordinator) = self.market_data_opend.take()
-            && let Err(error) = coordinator
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .close()
-        {
-            failures.push(error.to_string());
-        }
-        if let Some(provider) = self.market_data_opend_provider.take()
-            && let Err(error) = provider.shutdown()
-        {
-            failures.push(error.to_string());
-        }
-        if let Some(mut helper) = self.marketdata_helper.take()
-            && let Err(error) = helper.stop().await
-        {
-            failures.push(error.to_string());
-        }
-        while let Some(worker) = self.pine_workers.pop() {
-            if let Err(error) = worker.stop().await {
-                failures.push(error.to_string());
-            }
-        }
-        if let Some(product) = self.product.take()
-            && let Err(error) = product.shutdown().await
-        {
-            failures.push(error.to_string());
-        }
-        if failures.is_empty() {
-            Ok(())
-        } else {
-            Err(ProductRuntimeError::Shutdown(failures.join("; ")))
-        }
+        self.supervisor.execute_shutdown().await
     }
 }
 
@@ -412,24 +435,33 @@ fn current_unix_millis() -> i64 {
 
 impl Drop for ProductRuntimeHandle {
     fn drop(&mut self) {
-        if let Some(helper) = self.marketdata_helper.as_mut() {
-            helper.terminate();
-        }
-        for worker in self.pine_workers.iter_mut().rev() {
-            worker.terminate();
-        }
-        drop(self.market_data_opend_runtime.take());
-        drop(self.market_data_opend_provider.take());
-        drop(self.product.take());
+        self.supervisor.execute_sync_drop();
     }
 }
 
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+    if config.market_data_router.is_none()
+        && config.market_data_opend_provider.is_none()
+        && config.market_data_opend.is_none()
+        && config.market_data_opend_task.is_none()
+    {
+        compose_market_data_runtime(&mut config)?;
+    }
+    let opend_configured = config.market_data_opend.is_some()
+        || config.market_data_opend_task.is_some()
+        || config.market_data_opend_provider.is_some();
+    let opend_task_configured = config.market_data_opend_task.is_some();
+    let helper_configured = config.marketdata_helper.is_some();
+    let pine_workers_configured = !config.pine_workers.is_empty();
+    let provider_configured = opend_configured
+        || config.market_data_router.is_some()
+        || config.market_data_runtime_recorder.is_some()
+        || config.marketdata_helper.is_some();
+    let worker_configured = pine_workers_configured || helper_configured;
     if config.market_data_opend_provider.is_some()
-        && (config.market_data_router.is_some()
-            || config.market_data_runtime_recorder.is_some()
+        && (config.market_data_runtime_recorder.is_some()
             || config.market_data_opend.is_some()
             || config.market_data_opend_task.is_some())
     {
@@ -438,336 +470,296 @@ pub async fn start_product_runtime(
     if config.market_data_opend_task.is_some() && config.market_data_opend.is_none() {
         return Err(ProductRuntimeError::MissingOpenDSession);
     }
+    // Validate/create the production schema before any external worker or
+    // provider is started.  A migration failure therefore cannot leave an
+    // external process running while the API is unable to serve its stores.
+    if config.product.is_production() {
+        crate::product_data_management::initialize_production_databases(
+            config.product.settings_path(),
+        )
+        .map_err(ProductError::Storage)?;
+    }
+    let live_hub = config
+        .product
+        .live_hub
+        .clone()
+        .unwrap_or_else(|| Arc::new(jftrade_api::LiveHub::default()));
+    config.product = config.product.with_live_hub(Arc::clone(&live_hub));
+
     let market_data_router = config.market_data_router.take();
     let market_data_opend = config.market_data_opend.take();
-    let market_data_opend_task = config.market_data_opend_task.take();
-    let market_data_opend_provider =
-        if let Some(provider) = config.market_data_opend_provider.clone() {
-            Some(OpenDProviderRuntime::start(provider)?)
+    let mut market_data_opend_task = config.market_data_opend_task.take();
+    if let Some(task) = market_data_opend_task.as_mut()
+        && task.event_listener.is_none()
+    {
+        task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(Arc::clone(
+            &live_hub,
+        ))));
+    }
+    let (market_data_opend_provider, market_data_router) =
+        if let Some(mut provider) = config.market_data_opend_provider.clone() {
+            let shared_router = Arc::clone(&provider.router);
+            if provider.task.event_listener.is_none() {
+                provider.task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(
+                    Arc::clone(&live_hub),
+                )));
+            }
+            match OpenDProviderRuntime::start(provider) {
+                Ok(runtime) => (Some(runtime), Some(shared_router)),
+                Err(error) => {
+                    eprintln!("Warning: OpenD provider runtime failed to connect: {error}");
+                    (None, Some(shared_router))
+                }
+            }
         } else {
-            None
+            (None, market_data_router)
         };
-    if let Some(provider) = market_data_opend_provider.as_ref() {
-        let recorder = provider
-            .router()
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .runtime_recorder();
-        config.product = config
-            .product
-            .with_market_data_runtime_status_port(recorder);
+    let market_data_runtime_recorder = if let Some(provider) = market_data_opend_provider.as_ref() {
+        Some(
+            provider
+                .router()
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .runtime_recorder(),
+        )
     } else if let Some(router) = market_data_router.as_ref() {
-        let recorder = router
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .runtime_recorder();
-        config.product = config
-            .product
-            .with_market_data_runtime_status_port(recorder);
+        Some(
+            router
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .runtime_recorder(),
+        )
     } else if let Some(coordinator) = market_data_opend.as_ref() {
-        let recorder = coordinator
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .lifecycle()
-            .recorder();
+        Some(
+            coordinator
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .lifecycle()
+                .recorder(),
+        )
+    } else {
+        config.market_data_runtime_recorder.take()
+    };
+    if let Some(recorder) = market_data_runtime_recorder.as_ref() {
         config.product = config
             .product
-            .with_market_data_runtime_status_port(recorder);
-    } else if let Some(recorder) = config.market_data_runtime_recorder.take() {
-        config.product = config
-            .product
-            .with_market_data_runtime_status_port(recorder);
+            .with_market_data_runtime_status_port(recorder.clone());
+    }
+    if let Some(router) = market_data_router.as_ref() {
+        config.product = config.product.with_market_data_router(Arc::clone(router));
+    }
+    let dynamic_opend: SharedOpenDProviderRuntime =
+        Arc::new(Mutex::new(market_data_opend_provider));
+    if market_data_router.is_some() {
+        config.product = config.product.with_physical_subscription_port(Arc::new(
+            DynamicOpenDPhysicalSubscriptionAdapter {
+                runtime: Arc::clone(&dynamic_opend),
+            },
+        ));
+    }
+    if let Some(coordinator) = market_data_opend.as_ref()
+        && config.product.physical_subscription_port.is_none()
+    {
+        config.product = config.product.with_physical_subscription_port(Arc::new(
+            OpenDPhysicalSubscriptionAdapter {
+                coordinator: Arc::clone(coordinator),
+            },
+        ));
     }
     if let Some(registry) = config.strategy_runtime_registry.take() {
         config.product = config.product.with_strategy_runtime_status_port(registry);
     }
     let state = ProductRuntimeState::configured(&config);
-    let product = start_product_with_runtime_state(config.product, Arc::clone(&state)).await?;
-    let mut runtime = ProductRuntimeHandle {
-        product: Some(product),
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router,
-        market_data_opend,
-        market_data_opend_runtime: None,
-        market_data_opend_provider,
-    };
+    let mut supervisor = ProductShutdownSupervisor::new();
+    supervisor.market_data_dynamic_opend = Some(Arc::clone(&dynamic_opend));
+    supervisor.market_data_opend = market_data_opend;
 
-    if let (Some(coordinator), Some(task_config)) =
-        (runtime.market_data_opend.as_ref(), market_data_opend_task)
-    {
+    if let (Some(coordinator), Some(task_config)) = (
+        supervisor.market_data_opend.as_ref(),
+        market_data_opend_task,
+    ) {
         match OpenDSessionRuntime::start(Arc::clone(coordinator), task_config) {
-            Ok(task) => runtime.market_data_opend_runtime = Some(task),
+            Ok(task) => supervisor.market_data_opend_runtime = Some(task),
             Err(error) => {
-                let _ = runtime.shutdown().await;
-                return Err(error.into());
+                eprintln!("Warning: OpenD session runtime failed to connect: {error}");
             }
         }
     }
 
-    for worker in config.pine_workers {
+    for worker in std::mem::take(&mut config.pine_workers) {
         let result = start_pine_worker(worker).await;
         match result {
             Ok((process, _health)) => {
-                runtime.pine_workers.push(process);
+                supervisor.pine_workers.push(process);
             }
             Err(error) => {
-                let _ = runtime.shutdown().await;
+                let _ = supervisor.execute_shutdown().await;
                 return Err(ProductRuntimeError::Pine(error));
             }
         }
     }
 
-    if let Some(helper) = config.marketdata_helper {
+    if let Some(helper) = config.marketdata_helper.take() {
         match start_marketdata_helper(helper).await {
-            Ok(process) => {
-                runtime.marketdata_helper = Some(process);
+            Ok((process, client)) => {
+                config.product = config.product.with_market_data_helper(client);
+                supervisor.marketdata_helper = Some(process);
             }
             Err(error) => {
-                let _ = runtime.shutdown().await;
-                return Err(error);
+                eprintln!("Warning: market-data helper failed to start: {error}");
             }
         }
     }
-    Ok(runtime)
-}
 
-async fn start_pine_worker(
-    config: PineWorkerRuntimeConfig,
-) -> Result<(PineProcess, WorkerHealth), PineProcessError> {
-    let probe = GrpcPineReadinessProbe::new(
-        config.process.bearer_token.clone(),
-        config.connect_timeout,
-        config.request_timeout,
-    )?;
-    let mut process = PineProcess::start(config.spec, config.process)?;
-    let health = process.wait_until_ready(&probe, config.readiness).await?;
-    Ok((process, health))
-}
-
-async fn start_marketdata_helper(
-    config: MarketDataHelperRuntimeConfig,
-) -> Result<HelperProcess, ProductRuntimeError> {
-    let endpoint = format!("http://{}:{}", config.process.host, config.process.port);
-    let client = HelperClient::new(HelperClientConfig {
-        base_url: endpoint,
-        bearer_token: config.process.bearer_token.clone(),
-        request_timeout: config.request_timeout,
-        max_attempts: 1,
-        retry_delay: config.initial_retry_delay,
-    })?;
-    let mut process = HelperProcess::new(config.process)?;
-    process
-        .start_until_ready(
-            &client,
-            config.startup_timeout,
-            config.initial_retry_delay,
-            config.max_retry_delay,
-        )
-        .await?;
-    Ok(process)
-}
-
-fn desktop_pine_workers(
-    config: DesktopPineRuntimeConfig,
-) -> Result<Vec<PineWorkerRuntimeConfig>, ProductRuntimeError> {
-    if config.worker_count == 0 {
-        return Err(ProductRuntimeError::InvalidWorkerCount);
-    }
-    let mut workers = Vec::with_capacity(config.worker_count);
-    for index in 0..config.worker_count {
-        workers.push(PineWorkerRuntimeConfig {
-            spec: WorkerProcessSpec {
-                worker_id: format!("pineworker-{}", index + 1),
-                host: Ipv4Addr::LOCALHOST.into(),
-                port: allocate_loopback_port()?,
+    let initial_provider = if dynamic_opend
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .is_some()
+    {
+        Some(MarketDataProvider::Futu)
+    } else {
+        SettingsFileStore::open_read_only(config.product.settings_path())
+            .ok()
+            .and_then(|store| store.load_active_market_data_provider().ok().flatten())
+            .map(|provider| normalize_market_data_provider(&provider))
+    };
+    let settings_path = config.product.settings_path().to_owned();
+    let helper_ready = config.product.market_data_helper.is_some();
+    let activation_router = market_data_router.clone();
+    let activation_runtime = Arc::clone(&dynamic_opend);
+    let activation_hub = Arc::clone(&live_hub);
+    let active_provider_state = Arc::new(
+        ActiveProviderState::new(initial_provider).with_activation(Arc::new(
+            move |provider, previous| {
+                let mut runtime = activation_runtime
+                    .lock()
+                    .map_err(|error| format!("failed to lock provider runtime: {error}"))?;
+                match provider {
+                    MarketDataProvider::Futu => {
+                        if runtime.is_none() {
+                            let router = activation_router.as_ref().ok_or_else(|| {
+                                "market-data provider router is not configured".to_owned()
+                            })?;
+                            let mut configuration =
+                                opend_provider_config(&settings_path, Arc::clone(router))
+                                    .map_err(|error| error.to_string())?;
+                            configuration.task.event_listener = Some(Arc::new(
+                                LiveHubOpenDEventListener::new(Arc::clone(&activation_hub)),
+                            ));
+                            *runtime = Some(
+                                OpenDProviderRuntime::start(configuration)
+                                    .map_err(|error| error.to_string())?,
+                            );
+                        }
+                    }
+                    MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
+                        if !helper_ready && previous == Some(MarketDataProvider::Futu) {
+                            return Err("market-data helper is not ready".to_owned());
+                        }
+                        if previous == Some(MarketDataProvider::Futu)
+                            && let Some(opend) = runtime.take()
+                        {
+                            opend.shutdown().map_err(|error| error.to_string())?;
+                        }
+                    }
+                }
+                Ok(())
             },
-            process: PineProcessConfig {
-                runtime: config.runtime_path.clone(),
-                bundle_path: config.bundle_path.clone(),
-                proto_path: Some(config.proto_path.clone()),
-                max_message_bytes: None,
-                pine_ts_version: None,
-                bearer_token: Some(config.bearer_token.clone()),
-                environment: BTreeMap::new(),
-                log_path: config.log_path.clone(),
-                stop_timeout: Duration::from_secs(5),
-            },
-            readiness: PineReadinessPolicy::go_compatibility(),
-            connect_timeout: Duration::from_secs(1),
-            request_timeout: Duration::from_secs(3),
-        });
-    }
-    Ok(workers)
-}
+        )),
+    );
+    active_provider_state.set_readiness(
+        helper_ready,
+        dynamic_opend
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some(),
+        market_data_router.is_some(),
+    );
+    config.product = config
+        .product
+        .with_active_provider_state(active_provider_state);
 
-fn desktop_marketdata_helper(
-    config: DesktopMarketDataRuntimeConfig,
-) -> Result<MarketDataHelperRuntimeConfig, ProductRuntimeError> {
-    Ok(MarketDataHelperRuntimeConfig {
-        process: HelperProcessConfig {
-            executable: config.executable,
-            host: Ipv4Addr::LOCALHOST.into(),
-            port: allocate_loopback_port()?,
-            bearer_token: Some(config.bearer_token),
-            prefix_args: config.prefix_args,
-            extra_args: Vec::new(),
-            environment: config.environment,
-            log_path: config.log_path,
-            stop_timeout: Duration::from_secs(5),
-        },
-        startup_timeout: Duration::from_secs(15),
-        initial_retry_delay: Duration::from_millis(100),
-        max_retry_delay: Duration::from_secs(1),
-        request_timeout: Duration::from_secs(3),
+    let provider_status = if (helper_configured && supervisor.marketdata_helper.is_none())
+        || (opend_task_configured && supervisor.market_data_opend_runtime.is_none())
+    {
+        ProductionRuntimeStatus::Unavailable
+    } else {
+        production_provider_status(provider_configured, market_data_runtime_recorder.as_deref())
+    };
+
+    let opend_status = if opend_configured {
+        if opend_task_configured && supervisor.market_data_opend_runtime.is_none() {
+            ProductionRuntimeStatus::Unavailable
+        } else {
+            provider_status
+        }
+    } else {
+        ProductionRuntimeStatus::Unavailable
+    };
+
+    let worker_status = if worker_configured {
+        let helper_ok = if helper_configured {
+            supervisor.marketdata_helper.is_some()
+        } else {
+            true
+        };
+        let pine_ok = if pine_workers_configured {
+            !supervisor.pine_workers.is_empty()
+        } else {
+            true
+        };
+        if helper_ok && pine_ok {
+            ProductionRuntimeStatus::Ready
+        } else if supervisor.marketdata_helper.is_some() || !supervisor.pine_workers.is_empty() {
+            ProductionRuntimeStatus::Degraded
+        } else {
+            ProductionRuntimeStatus::Unavailable
+        }
+    } else {
+        ProductionRuntimeStatus::Unavailable
+    };
+    config.product = config.product.with_production_runtime_statuses(
+        provider_status,
+        opend_status,
+        worker_status,
+    );
+
+    // Do not expose an HTTP listener until every configured external runtime
+    // has passed its startup/readiness gate.  On failure the partially started
+    // resources are released through the same reverse-order shutdown path.
+    match start_product_with_runtime_state(config.product, Arc::clone(&state)).await {
+        Ok(mut product) => {
+            supervisor.production_ports = product.take_production_ports();
+            supervisor.product = Some(product);
+        }
+        Err(error) => {
+            let _ = supervisor.execute_shutdown().await;
+            return Err(error.into());
+        }
+    }
+    Ok(ProductRuntimeHandle {
+        supervisor,
+        market_data_router,
     })
 }
 
-fn settings_resource(path: String) -> RuntimeResourceDescriptor {
-    RuntimeResourceDescriptor {
-        id: "settings-file".to_owned(),
-        owner: "settings".to_owned(),
-        kind: "json-file".to_owned(),
-        path,
-        initialized_by: "jftrade-engine".to_owned(),
-        schema_owner: "jftrade-settings".to_owned(),
-        close_owner: "jftrade-engine".to_owned(),
-        health_provider: "jftrade-store-settings-file".to_owned(),
-        environment_override: "JFTRADE_SETTINGS_PATH".to_owned(),
-        critical: true,
-    }
-}
-
-fn product_resources(config: &ProductConfig) -> Vec<RuntimeResourceDescriptor> {
-    let mut resources = vec![settings_resource(
-        config.settings_path().to_string_lossy().into_owned(),
-    )];
-    resources.extend(
-        crate::product_data_management::managed_database_runtime_descriptors(
-            config.settings_path(),
-        )
-        .iter()
-        .map(database_resource),
-    );
-    resources.push(real_trade_control_resource(
-        config
-            .real_trade_control_path()
-            .to_string_lossy()
-            .into_owned(),
-    ));
-    resources
-}
-
-fn database_resource(database: &DatabaseDescriptor) -> RuntimeResourceDescriptor {
-    let (id, owner, schema_owner, health_provider, environment_override, critical) =
-        match database.id.as_str() {
-            DATABASE_BACKTEST => (
-                "backtest-kline-db",
-                "backtest",
-                "pkg/backtest storage",
-                "data-management/backtest",
-                "JFTRADE_BACKTEST_DB",
-                true,
-            ),
-            DATABASE_BACKTEST_RUNS => (
-                "backtest-run-db",
-                "backtest",
-                "backtest run store",
-                "data-management/backtest-runs",
-                "JFTRADE_BACKTEST_RUN_DB",
-                true,
-            ),
-            DATABASE_STRATEGY => (
-                "strategy-runtime-db",
-                "strategy",
-                "strategy runtime store",
-                "data-management/strategy",
-                "JFTRADE_STRATEGY_RUNTIME_DB",
-                true,
-            ),
-            DATABASE_EXECUTION => (
-                "execution-orders-db",
-                "trading",
-                "execution order store",
-                "data-management/execution",
-                "JFTRADE_EXECUTION_ORDER_DB",
-                true,
-            ),
-            DATABASE_ADK => (
-                "adk-db",
-                "assistant/runtime",
-                "adk store",
-                "system.runtime-dependencies/adk",
-                "JFTRADE_ADK_DB",
-                false,
-            ),
-            DATABASE_ADK_SESSION => (
-                "adk-session-db",
-                "assistant/runtime",
-                "adk session store",
-                "system.runtime-dependencies/adk",
-                "JFTRADE_ADK_SESSION_DB",
-                false,
-            ),
-            DATABASE_ADK_ARTIFACT => (
-                "adk-artifact-db",
-                "assistant/runtime",
-                "adk artifact store",
-                "system.runtime-dependencies/adk",
-                "JFTRADE_ADK_SESSION_DB",
-                false,
-            ),
-            DATABASE_WATCHLIST => (
-                "watchlist-db",
-                "watchlist",
-                "internal/store/watchlist migrations",
-                "data-management/watchlist",
-                "JFTRADE_WATCHLIST_DB",
-                true,
-            ),
-            DATABASE_RESEARCH => (
-                "research-db",
-                "research",
-                "internal/store/research migrations",
-                "data-management/research",
-                "JFTRADE_RESEARCH_DB",
-                true,
-            ),
-            _ => (
-                database.id.as_str(),
-                "data-management",
-                "jftrade-datamanagement",
-                "data-management/databases",
-                "",
-                false,
-            ),
+fn production_provider_status(
+    configured: bool,
+    recorder: Option<&MarketDataRuntimeRecorder>,
+) -> ProductionRuntimeStatus {
+    let Some(state) = recorder.map(MarketDataRuntimeRecorder::snapshot) else {
+        return if configured {
+            ProductionRuntimeStatus::Degraded
+        } else {
+            ProductionRuntimeStatus::Unavailable
         };
-    RuntimeResourceDescriptor {
-        id: id.to_owned(),
-        owner: owner.to_owned(),
-        kind: "sqlite".to_owned(),
-        path: database.path.clone(),
-        initialized_by: "jftrade-engine data-management inventory".to_owned(),
-        schema_owner: schema_owner.to_owned(),
-        close_owner: "jftrade-store-sqlite".to_owned(),
-        health_provider: health_provider.to_owned(),
-        environment_override: environment_override.to_owned(),
-        critical,
-    }
-}
-
-fn real_trade_control_resource(path: String) -> RuntimeResourceDescriptor {
-    RuntimeResourceDescriptor {
-        id: "real-trade-control".to_owned(),
-        owner: "trading".to_owned(),
-        kind: "json-file".to_owned(),
-        path,
-        initialized_by: "jftrade-engine".to_owned(),
-        schema_owner: "real-trade control plane".to_owned(),
-        close_owner: "jftrade-engine".to_owned(),
-        health_provider: "system.real-trade-risk".to_owned(),
-        environment_override: "JFTRADE_REAL_TRADE_CONTROL_PATH".to_owned(),
-        critical: true,
+    };
+    if state.closed {
+        ProductionRuntimeStatus::Failed
+    } else if state.connected {
+        ProductionRuntimeStatus::Ready
+    } else {
+        ProductionRuntimeStatus::Degraded
     }
 }
 
@@ -791,6 +783,8 @@ pub enum ProductRuntimeError {
     OpenDTask(#[from] jftrade_integration_futu::OpenDSessionRuntimeError),
     #[error("compose OpenD provider runtime: {0}")]
     OpenDProvider(#[from] jftrade_integration_futu::OpenDProviderRuntimeError),
+    #[error("market-data runtime settings: {0}")]
+    Settings(String),
     #[error("stop Rust product runtime: {0}")]
     Shutdown(String),
 }

@@ -14,7 +14,7 @@ fn start_native_product(
         .api_bind
         .parse()
         .map_err(NativeError::Bind)?;
-    let product_config = ProductConfig::desktop_shadow(
+    let product_config = ProductConfig::desktop_production(
         bind_address,
         &bootstrap.profile.settings_path,
         token.to_owned(),
@@ -25,8 +25,8 @@ fn start_native_product(
         resource_root,
         log_path,
     )?;
-    let runtime_config = ProductRuntimeConfig::desktop(product_config, retained)?;
-    tauri::async_runtime::block_on(start_product_runtime(runtime_config)).map_err(Into::into)
+    let builder = ProductRuntimeBuilder::with_desktop_assets(product_config, retained)?;
+    tauri::async_runtime::block_on(builder.start()).map_err(Into::into)
 }
 
 fn retained_runtime_config(

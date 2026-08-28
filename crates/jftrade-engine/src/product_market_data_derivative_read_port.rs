@@ -1,5 +1,4 @@
-/// Consumer-owned derivative catalog projections. Go retains broker
-/// resolution, Provider/OpenD lifecycle and the derivative query service.
+/// Consumer-owned derivative catalog projections.
 pub trait MarketDataDerivativeReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn read(
         &self,

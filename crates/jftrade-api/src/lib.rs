@@ -11,7 +11,8 @@ mod websocket;
 
 pub use auth::{
     ACCESS_SURFACE_HEADER, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,
-    INTERNAL_PROXY_PROTOCOL_HEADER, canonical_origin, desktop_trusted_origins,
+    INTERNAL_PROXY_PROTOCOL_HEADER, SESSION_COOKIE, WebSessionValidator, canonical_origin,
+    desktop_trusted_origins,
 };
 pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
 pub use observability::{
@@ -19,9 +20,9 @@ pub use observability::{
 };
 pub use ports::{ApiOutput, ApiPort, ApiRequest, Asset, AssetBundle, PortFuture};
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
-pub use router::{ApiState, build_router};
+pub use router::{ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, build_router};
 pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};
 pub use websocket::{
     DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,
-    websocket_origin_allowed,
+    LiveDemandListener, LiveHub, LiveHubConnection, LiveHubSnapshot, websocket_origin_allowed,
 };

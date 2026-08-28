@@ -13,6 +13,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 const EXECUTION_ORDERS_COMPONENT: &str = "execution-orders";
 const EXECUTION_ORDERS_SCHEMA_VERSION: i64 = 5;
 pub const EXECUTION_ORDERS_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const EXECUTION_ORDERS_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,16 +82,16 @@ pub enum ExecutionOrderStoreError {
     Incompatible(String),
 }
 
-pub struct ExecutionOrderTestCutoverStore {
+pub struct ExecutionOrderStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
 
-impl std::fmt::Debug for ExecutionOrderTestCutoverStore {
+impl std::fmt::Debug for ExecutionOrderStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ExecutionOrderTestCutoverStore")
+            .debug_struct("ExecutionOrderStore")
             .field("path", &self.path)
             .finish()
     }
@@ -107,7 +108,23 @@ pub struct StoredExecutionOrderEvent<'a> {
     pub created_at: &'a str,
 }
 
-impl ExecutionOrderTestCutoverStore {
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredExecutionOrderEventRecord {
+    pub id: String,
+    pub internal_order_id: String,
+    pub event_type: String,
+    pub previous_status: Option<String>,
+    pub next_status: String,
+    pub payload_json: String,
+    pub created_at: String,
+}
+
+impl ExecutionOrderStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, ExecutionOrderStoreError> {
+        Self::open_existing(path, EXECUTION_ORDERS_PRODUCTION_PROFILE)
+    }
+
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -116,7 +133,9 @@ impl ExecutionOrderTestCutoverStore {
         if path.as_os_str().is_empty() {
             return Err(ExecutionOrderStoreError::EmptyPath);
         }
-        if profile != EXECUTION_ORDERS_TEST_CUTOVER_PROFILE {
+        if profile != EXECUTION_ORDERS_TEST_CUTOVER_PROFILE
+            && profile != EXECUTION_ORDERS_PRODUCTION_PROFILE
+        {
             return Err(ExecutionOrderStoreError::UnsupportedProfile(
                 profile.to_owned(),
             ));
@@ -131,10 +150,7 @@ impl ExecutionOrderTestCutoverStore {
             ));
         }
 
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", EXECUTION_ORDERS_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
             path,
@@ -364,6 +380,68 @@ impl ExecutionOrderTestCutoverStore {
         Ok(count as u64)
     }
 
+    pub fn list_orders(&self) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex,
+                        source, source_detail, trading_environment, account_id, market,
+                        symbol, side, order_type, status, raw_broker_status,
+                        requested_quantity, requested_price, filled_quantity, filled_average_price,
+                        remark, last_error, last_error_code, last_error_source,
+                        submitted_at, updated_at, created_at, order_kind, product_class,
+                        quantity_mode, client_order_id, preview_id, normalized_request,
+                        requested_amount, payout, fees
+                 FROM execution_orders ORDER BY created_at DESC",
+            )
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredExecutionOrder {
+                    internal_order_id: row.get(0)?,
+                    broker_id: row.get(1)?,
+                    broker_order_id: row.get(2)?,
+                    broker_order_id_ex: row.get(3)?,
+                    source: row.get(4)?,
+                    source_detail: row.get(5)?,
+                    trading_environment: row.get(6)?,
+                    account_id: row.get(7)?,
+                    market: row.get(8)?,
+                    symbol: row.get(9)?,
+                    side: row.get(10)?,
+                    order_type: row.get(11)?,
+                    status: row.get(12)?,
+                    raw_broker_status: row.get(13)?,
+                    requested_quantity: row.get(14)?,
+                    requested_price: row.get(15)?,
+                    filled_quantity: row.get(16)?,
+                    filled_average_price: row.get(17)?,
+                    remark: row.get(18)?,
+                    last_error: row.get(19)?,
+                    last_error_code: row.get(20)?,
+                    last_error_source: row.get(21)?,
+                    submitted_at: row.get(22)?,
+                    updated_at: row.get(23)?,
+                    created_at: row.get(24)?,
+                    order_kind: row.get(25)?,
+                    product_class: row.get(26)?,
+                    quantity_mode: row.get(27)?,
+                    client_order_id: row.get(28)?,
+                    preview_id: row.get(29)?,
+                    normalized_request: row.get(30)?,
+                    requested_amount: row.get(31)?,
+                    payout: row.get(32)?,
+                    fees: row.get(33)?,
+                })
+            })
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let mut orders = Vec::new();
+        for row in rows {
+            orders.push(row.map_err(ExecutionOrderStoreError::Query)?);
+        }
+        Ok(orders)
+    }
+
     pub fn cancel_order(
         &self,
         id: &str,
@@ -435,6 +513,36 @@ impl ExecutionOrderTestCutoverStore {
         Ok(count as u64)
     }
 
+    pub fn list_order_events(
+        &self,
+        internal_order_id: &str,
+    ) -> Result<Vec<StoredExecutionOrderEventRecord>, ExecutionOrderStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, internal_order_id, event_type, previous_status,
+                        next_status, payload_json, created_at
+                 FROM execution_order_events
+                 WHERE internal_order_id = ?1 ORDER BY created_at ASC, id ASC",
+            )
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let rows = statement
+            .query_map(params![internal_order_id], |row| {
+                Ok(StoredExecutionOrderEventRecord {
+                    id: row.get(0)?,
+                    internal_order_id: row.get(1)?,
+                    event_type: row.get(2)?,
+                    previous_status: row.get(3)?,
+                    next_status: row.get(4)?,
+                    payload_json: row.get(5)?,
+                    created_at: row.get(6)?,
+                })
+            })
+            .map_err(ExecutionOrderStoreError::Query)?;
+        rows.map(|row| row.map_err(ExecutionOrderStoreError::Query))
+            .collect()
+    }
+
     pub fn next_sequence(&self, name: &str) -> Result<i64, ExecutionOrderStoreError> {
         let mut connection = self.lock()?;
         let transaction = connection
@@ -472,4 +580,76 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), ExecutionOrderStore
                 "invalid RFC3339 timestamp {timestamp:?}: {error}"
             ))
         })
+}
+
+#[derive(Debug)]
+pub struct ExecutionOrderTestCutoverStore {
+    inner: ExecutionOrderStore,
+}
+
+impl ExecutionOrderTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, ExecutionOrderStoreError> {
+        let inner = ExecutionOrderStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.inner.path()
+    }
+
+    pub fn save_order(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        self.inner.save_order(order, timestamp)
+    }
+
+    pub fn get_order(
+        &self,
+        id: &str,
+    ) -> Result<Option<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        self.inner.get_order(id)
+    }
+
+    pub fn order_count(&self) -> Result<u64, ExecutionOrderStoreError> {
+        self.inner.order_count()
+    }
+
+    pub fn list_orders(&self) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        self.inner.list_orders()
+    }
+
+    pub fn cancel_order(
+        &self,
+        id: &str,
+        timestamp: &str,
+    ) -> Result<bool, ExecutionOrderStoreError> {
+        self.inner.cancel_order(id, timestamp)
+    }
+
+    pub fn record_event(
+        &self,
+        event: &StoredExecutionOrderEvent<'_>,
+    ) -> Result<(), ExecutionOrderStoreError> {
+        self.inner.record_event(event)
+    }
+
+    pub fn event_count(&self, event_type: &str) -> Result<u64, ExecutionOrderStoreError> {
+        self.inner.event_count(event_type)
+    }
+
+    pub fn list_order_events(
+        &self,
+        internal_order_id: &str,
+    ) -> Result<Vec<StoredExecutionOrderEventRecord>, ExecutionOrderStoreError> {
+        self.inner.list_order_events(internal_order_id)
+    }
+
+    pub fn next_sequence(&self, name: &str) -> Result<i64, ExecutionOrderStoreError> {
+        self.inner.next_sequence(name)
+    }
 }

@@ -69,6 +69,72 @@ enum ProductCapability {
 struct ProductCapabilities(BTreeSet<ProductCapability>);
 
 impl ProductCapabilities {
+    fn all() -> Self {
+        Self(BTreeSet::from([
+            ProductCapability::AuthSession,
+            ProductCapability::AuthSessionWrite,
+            ProductCapability::SystemRead,
+            ProductCapability::SystemWrite,
+            ProductCapability::AppearanceWrite,
+            ProductCapability::OnboardingWrite,
+            ProductCapability::CalendarSettingsWrite,
+            ProductCapability::MarketDataProviderWrite,
+            ProductCapability::BacktestMarketDataProviderWrite,
+            ProductCapability::ExecutionWrite,
+            ProductCapability::AssistantRuntimeWrite,
+            ProductCapability::McpServerWrite,
+            ProductCapability::SystemNotificationsWrite,
+            ProductCapability::PineWorkerWrite,
+            ProductCapability::SecurityWrite,
+            ProductCapability::BrokerSettingsWrite,
+            ProductCapability::DataManagementPreview,
+            ProductCapability::DataManagementMaintenance,
+            ProductCapability::CalendarSources,
+            ProductCapability::CalendarStatus,
+            ProductCapability::CalendarControl,
+            ProductCapability::WatchlistMemberships,
+            ProductCapability::WatchlistRead,
+            ProductCapability::Portfolio,
+            ProductCapability::ResearchRead,
+            ProductCapability::ResearchPresetRead,
+            ProductCapability::ExecutionRead,
+            ProductCapability::MarketDataProviderRead,
+            ProductCapability::MarketDataSubscriptionMutation,
+            ProductCapability::MarketDataCatalogRead,
+            ProductCapability::MarketDataDerivativeRead,
+            ProductCapability::MarketDataOptionsRead,
+            ProductCapability::MarketDataNewsActionsRead,
+            ProductCapability::MarketDataNewsSearchRead,
+            ProductCapability::AdkRead,
+            ProductCapability::AdkMutations,
+            ProductCapability::MarketDataQuoteRead,
+            ProductCapability::MarketDataPredictionRead,
+            ProductCapability::BrokerRead,
+            ProductCapability::BrokersWrite,
+            ProductCapability::RemoteWatchlistRead,
+            ProductCapability::RemoteWatchlistWrite,
+            ProductCapability::WatchlistWrite,
+            ProductCapability::Plugins,
+            ProductCapability::PluginsWrite,
+            ProductCapability::PluginUninstallGuidance,
+            ProductCapability::ResearchScreenWrite,
+            ProductCapability::ResearchPresetWrite,
+            ProductCapability::StrategyDefinitionWrite,
+            ProductCapability::MarketDataProviderActions,
+            ProductCapability::AdkChatStream,
+            ProductCapability::Alerts,
+            ProductCapability::AlertsWrite,
+            ProductCapability::StrategyDefinitions,
+            ProductCapability::BacktestRead,
+            ProductCapability::BacktestSyncRead,
+            ProductCapability::BacktestsWrite,
+            ProductCapability::StrategyRead,
+            ProductCapability::StrategyRuntimeWrite,
+            ProductCapability::StrategyPineAnalyze,
+            ProductCapability::WsLive,
+        ]))
+    }
+
     #[cfg(test)]
     fn test_cutover() -> Self {
         Self(BTreeSet::from([
@@ -256,7 +322,7 @@ struct ProductRoutePorts {
     ws_live: bool,
 }
 
-fn product_route_ports(config: &ProductConfig) -> ProductRoutePorts {
+fn configured_route_ports(config: &ProductConfig) -> ProductRoutePorts {
     ProductRoutePorts {
         auth_session: config.auth_session_snapshot_port.is_some(),
         auth_session_write: config.auth_session_write_port.is_some(),

@@ -118,10 +118,10 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
     );
     provider.task.poll_interval = Duration::from_secs(10);
     let directory = tempdir().expect("temporary directory");
-    let product = ProductConfig::new(
+    let product = ProductConfig::desktop_production(
         "127.0.0.1:0".parse().expect("product address"),
         directory.path().join("settings.json"),
-        AccessPolicy::default(),
+        "a".repeat(32),
     )
     .expect("product config");
     let config = ProductRuntimeConfig::desktop(product, DesktopRetainedRuntimeConfig::default())
@@ -131,8 +131,11 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
     let runtime = start_product_runtime(config)
         .await
         .expect("start product runtime");
+    assert_eq!(runtime.startup_record().provider_status, "ready");
+    assert_eq!(runtime.startup_record().opend_status, "ready");
+    assert_eq!(runtime.startup_record().worker_status, "unavailable");
     assert!(runtime.market_data_opend().is_some());
-    assert!(runtime.market_data_opend_runtime().is_some());
+    assert!(runtime.market_data_opend_runtime_status().is_some());
     {
         let state = router.lock().expect("router lock").runtime().clone();
         assert_eq!(state.active_provider, "futu");

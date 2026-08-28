@@ -169,6 +169,16 @@ impl OpenDProviderRuntime {
         &self.runtime
     }
 
+    pub fn physical_snapshot(
+        &self,
+    ) -> Result<Option<jftrade_marketdata::PhysicalSubscriptionSnapshot>, String> {
+        let coordinator_arc = self.runtime.coordinator();
+        let coordinator = coordinator_arc
+            .lock()
+            .map_err(|error| format!("failed to acquire coordinator lock: {error}"))?;
+        Ok(coordinator.physical_snapshot())
+    }
+
     /// Replaces the demand owned by this provider bridge. The runtime task
     /// reads demand from the same router, so updates must go through the
     /// bridge's consumer rather than the task's standalone setter.
@@ -181,11 +191,7 @@ impl OpenDProviderRuntime {
             .router
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if desired.is_empty() {
-            router.release_demand(&self.demand_consumer_id);
-            return Ok(());
-        }
-        router.acquire_demand(
+        router.replace_demand(
             &self.demand_consumer_id,
             desired,
             self.demand_managed,

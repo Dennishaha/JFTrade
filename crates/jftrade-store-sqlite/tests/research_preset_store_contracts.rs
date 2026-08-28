@@ -22,8 +22,7 @@ fn preset_mutations_are_revision_fenced_and_survive_restart() {
     assert_eq!(store.path(), path);
     let conflict =
         ResearchPresetTestCutoverStore::open_existing(&path, RESEARCH_PRESET_TEST_CUTOVER_PROFILE)
-            .err()
-            .expect("second writer must fail");
+            .expect_err("second writer must fail");
     assert!(matches!(
         conflict,
         ResearchPresetStoreError::WriterLease(WriterLeaseError::Held { .. })

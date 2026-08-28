@@ -1,11 +1,13 @@
-/// Consumer-owned quote projections. Go remains authoritative for Provider/
-/// OpenD lifecycle, cache freshness, subscription demand and query semantics.
+pub type MarketDataQuoteReadFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<serde_json::Value, MarketDataQuoteReadSnapshotError>> + Send + 'a>>;
+
+/// Consumer-owned quote projections for subscriptions, securities, snapshots, candles, and depth.
 pub trait MarketDataQuoteReadSnapshotPort: Send + Sync + std::fmt::Debug {
-    fn read(
-        &self,
-        path: &str,
-        query: &str,
-    ) -> Result<serde_json::Value, MarketDataQuoteReadSnapshotError>;
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        query: &'a str,
+    ) -> MarketDataQuoteReadFuture<'a>;
 }
 
 #[derive(Clone, Debug, Error)]

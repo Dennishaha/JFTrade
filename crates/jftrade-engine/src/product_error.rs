@@ -24,12 +24,24 @@ pub enum ProductError {
     LocalAddress(#[source] std::io::Error),
     #[error("invalid Rust product route catalog")]
     Routes(#[from] RouteCatalogError),
+    #[error("Rust production route registry does not match the canonical ledger: {0}")]
+    RouteRegistry(String),
+    #[error("missing Rust production adapter {adapter} for {method} {path}")]
+    MissingProductionAdapter {
+        method: String,
+        path: String,
+        adapter: String,
+    },
     #[error("failed to open Rust product settings")]
     Settings(#[source] jftrade_settings::SettingsStoreError),
+    #[error("failed to initialize Rust production databases: {0}")]
+    Storage(String),
     #[error("Rust exchange-calendar manager failed")]
     Calendar(#[source] jftrade_calendar::CalendarManagerError),
     #[error("Rust product API task failed")]
     Join(#[source] tokio::task::JoinError),
+    #[error("Rust product API supervisor thread panicked")]
+    ServerThreadPanicked,
     #[error("Rust product API transport failed")]
     Transport(#[from] std::io::Error),
 }

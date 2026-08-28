@@ -1,5 +1,5 @@
 impl ProductApi {
-    fn market_data_catalog_read(&self, path: &str, query: &str) -> Result<ApiOutput, ApiFailure> {
+    async fn market_data_catalog_read(&self, path: &str, query: &str) -> Result<ApiOutput, ApiFailure> {
         let port = self
             .market_data_catalog_read_snapshot_port
             .as_ref()
@@ -11,6 +11,7 @@ impl ProductApi {
                 )
             })?;
         port.read(path, query)
+            .await
             .map(ApiOutput::Json)
             .map_err(market_data_catalog_read_snapshot_failure)
     }

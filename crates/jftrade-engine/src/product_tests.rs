@@ -664,6 +664,9 @@ mod ws_live_tests;
 #[path = "product_strategy_pine_tests.rs"]
 mod strategy_pine_tests;
 
+#[path = "product_production_assembly_tests.rs"]
+mod production_assembly_tests;
+
 #[derive(Debug)]
 struct FixtureAlertSnapshotPort {
     price: Value,
@@ -2342,12 +2345,11 @@ fn market_data_provider_actions_register_only_with_explicit_test_port() {
 struct FixtureMarketDataProviderActionsPort;
 
 impl MarketDataProviderActionsPort for FixtureMarketDataProviderActionsPort {
-    fn dispatch(
-        &self,
-        _request: &product_market_data_provider_actions_port::MarketDataProviderActionsRequest,
-    ) -> Result<Value, product_market_data_provider_actions_port::MarketDataProviderActionsPortError>
-    {
-        Ok(Value::Null)
+    fn dispatch<'a>(
+        &'a self,
+        _request: &'a product_market_data_provider_actions_port::MarketDataProviderActionsRequest,
+    ) -> product_market_data_provider_actions_port::MarketDataProviderActionsFuture<'a> {
+        Box::pin(std::future::ready(Ok(Value::Null)))
     }
 }
 

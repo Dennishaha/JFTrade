@@ -2107,6 +2107,7 @@ name = "jftrade-calendar"
 version = "0.1.0"
 dependencies = [
  "jftrade-kernel",
+ "jiff",
  "serde",
  "serde_json",
  "tempfile",

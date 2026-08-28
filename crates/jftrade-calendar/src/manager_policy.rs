@@ -74,15 +74,23 @@ pub(crate) fn builtin_schedule(market: &str, at: WireTimestamp) -> TradingDaySch
 }
 
 fn builtin_sessions(market: &str) -> Vec<CalendarSessionWindow> {
-    let regular = |start_minute, end_minute| CalendarSessionWindow {
-        kind: "regular".to_owned(),
+    let session = |kind: &str, start_minute, end_minute| CalendarSessionWindow {
+        kind: kind.to_owned(),
         start_minute,
         end_minute,
     };
     match market {
-        "HK" => vec![regular(570, 720), regular(780, 960)],
-        "CN" | "SH" | "SZ" => vec![regular(570, 690), regular(780, 900)],
-        _ => vec![regular(570, 960)],
+        "US" => vec![
+            session("overnight", 0, 240),
+            session("pre", 240, 570),
+            session("regular", 570, 960),
+            session("after", 960, 1200),
+        ],
+        "HK" => vec![session("regular", 570, 720), session("regular", 780, 960)],
+        "CN" | "SH" | "SZ" => {
+            vec![session("regular", 570, 690), session("regular", 780, 900)]
+        }
+        _ => vec![session("regular", 570, 960)],
     }
 }
 

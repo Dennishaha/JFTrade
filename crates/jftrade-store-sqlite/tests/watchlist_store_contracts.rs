@@ -195,6 +195,109 @@ fn watchlist_membership_mutations_and_preview_commit_lifecycle() {
 }
 
 #[test]
+fn watchlist_read_pages_preserve_filters_groups_sources_and_remote_catalog() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("watchlist.db");
+    seed_go_watchlist_schema(&path);
+    let store = open_store(&path);
+
+    let default_group = store.list_groups().expect("list default group")[0].clone();
+    let technology = store
+        .create_group("Technology", TIMESTAMP_1)
+        .expect("create technology group");
+    store
+        .replace_memberships(
+            "US.AAPL",
+            &[default_group.group_id.clone(), technology.group_id.clone()],
+            &[],
+            0,
+            TIMESTAMP_1,
+        )
+        .expect("add Apple membership");
+    store
+        .replace_memberships(
+            "US.MSFT",
+            std::slice::from_ref(&technology.group_id),
+            &[],
+            0,
+            TIMESTAMP_1,
+        )
+        .expect("add Microsoft membership");
+    drop(store);
+
+    let connection = Connection::open(&path).expect("open metadata connection");
+    connection
+        .execute(
+            "UPDATE watchlist_instruments SET name = ?1, instrument_type = ?2 WHERE instrument_id = ?3",
+            ("Apple", "stock", "US.AAPL"),
+        )
+        .expect("update Apple metadata");
+    connection
+        .execute(
+            "UPDATE watchlist_instruments SET name = ?1, instrument_type = ?2 WHERE instrument_id = ?3",
+            ("Microsoft", "stock", "US.MSFT"),
+        )
+        .expect("update Microsoft metadata");
+    connection
+        .execute(
+            "INSERT INTO watchlist_sources
+                (source_id, broker, display_name, status, last_error, updated_at)
+             VALUES (?1, 'futu', 'Futu', 'ready', '', ?2)",
+            ("futu:default", TIMESTAMP_1),
+        )
+        .expect("insert source");
+    connection
+        .execute(
+            "INSERT INTO watchlist_membership_origins
+                (group_id, instrument_id, source_id, remote_group_id, last_imported_at)
+             VALUES (?1, 'US.AAPL', 'futu:default', 'remote-tech', ?2)",
+            (&technology.group_id, TIMESTAMP_2),
+        )
+        .expect("insert membership origin");
+    connection
+        .execute(
+            "INSERT INTO watchlist_remote_groups
+                (source_id, remote_group_id, name, group_type, ambiguous, member_count, remote_hash, observed_at)
+             VALUES ('futu:default', 'remote-tech', 'Tech', 'stock', 0, 1, 'hash-1', ?1)",
+            [TIMESTAMP_2],
+        )
+        .expect("insert remote group");
+    drop(connection);
+
+    let store = open_store(&path);
+    let (first_page, next_cursor) = store
+        .list_items_page(Some(&technology.group_id), None, 1, None, Some("US"))
+        .expect("list first filtered page");
+    assert_eq!(first_page.len(), 1);
+    assert_eq!(first_page[0]["instrumentId"], "US.AAPL");
+    assert_eq!(first_page[0]["type"], "stock");
+    assert_eq!(first_page[0]["groupIds"][0], "default");
+    assert_eq!(first_page[0]["sourceIds"][0], "futu:default");
+    assert_eq!(first_page[0]["lastImportedAt"], TIMESTAMP_2);
+    assert_eq!(next_cursor.as_deref(), Some("US.AAPL"));
+
+    let (second_page, no_cursor) = store
+        .list_items_page(
+            Some(&technology.group_id),
+            next_cursor.as_deref(),
+            1,
+            Some("Microsoft"),
+            Some("US"),
+        )
+        .expect("list second filtered page");
+    assert_eq!(second_page[0]["instrumentId"], "US.MSFT");
+    assert!(no_cursor.is_none());
+
+    assert!(store.source_exists("futu:default").expect("source exists"));
+    assert!(!store.source_exists("missing").expect("missing source"));
+    let remote_groups = store
+        .list_remote_groups("futu:default")
+        .expect("list remote groups");
+    assert_eq!(remote_groups.len(), 1);
+    assert_eq!(remote_groups[0].remote_group_id, "remote-tech");
+}
+
+#[test]
 fn concurrent_group_updates_commit_with_revision_fence() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("watchlist.db");

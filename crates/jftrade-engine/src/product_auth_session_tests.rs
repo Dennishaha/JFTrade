@@ -325,12 +325,14 @@ async fn auth_session_product_recovers_after_snapshot_failure_and_restart_withou
             AuthSessionSnapshotRequest {
                 desktop_trusted: false,
                 browser_authenticated: true,
+                session_cookie: Some("fixture-session".to_owned()),
                 origin_provided: true,
                 origin_allowed: true,
             },
             AuthSessionSnapshotRequest {
                 desktop_trusted: false,
                 browser_authenticated: true,
+                session_cookie: Some("fixture-session".to_owned()),
                 origin_provided: true,
                 origin_allowed: true,
             },

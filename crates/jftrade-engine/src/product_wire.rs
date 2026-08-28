@@ -236,7 +236,7 @@ impl ApiPort for ProductApi {
                     self.market_data_provider_read(path, &request.query)
                 }
                 ("GET", path) if is_market_data_catalog_read_path(path) => {
-                    self.market_data_catalog_read(path, &request.query)
+                    self.market_data_catalog_read(path, &request.query).await
                 }
                 ("GET", path) if is_market_data_derivative_read_path(path) => {
                     self.market_data_derivative_read(path, &request.query)
@@ -251,7 +251,7 @@ impl ApiPort for ProductApi {
                     self.market_data_news_actions_read(path, &request.query)
                 }
                 ("GET", path) if is_market_data_quote_read_path(path) => {
-                    self.market_data_quote_read(path, &request.query)
+                    self.market_data_quote_read(path, &request.query).await
                 }
                 ("GET", path) if is_market_data_prediction_read_path(path) => {
                     self.market_data_prediction_read_api.dispatch(&request)
@@ -276,7 +276,8 @@ impl ApiPort for ProductApi {
                 }
                 ("POST", path) if is_market_data_provider_action_path(path) => self
                     .market_data_provider_actions
-                    .dispatch(&request),
+                    .dispatch(&request)
+                    .await,
                 ("POST", ADK_CHAT_PATH | ADK_CHAT_STREAM_PATH)
                     if self.adk_chat_stream_port.is_some() => self.adk_chat_stream(&request),
                 ("POST", "/api/v1/settings/data-management/cleanup/preview") => {
@@ -321,9 +322,12 @@ impl ApiPort for ProductApi {
                     self.delete_managed_broker_account(&id)
                 }
                 _ => Err(ApiFailure::new(
-                    501,
-                    "RUST_OWNER_NOT_IMPLEMENTED",
-                    format!("Rust product owner has not implemented {}", request.path),
+                    500,
+                    "ROUTE_REGISTRY_INVARIANT",
+                    format!(
+                        "registered route has no dispatch binding: {} {}",
+                        request.method, request.path
+                    ),
                 )),
             }
         })

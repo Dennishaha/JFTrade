@@ -14,6 +14,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 const STRATEGY_COMPONENT: &str = "strategy";
 const STRATEGY_SCHEMA_VERSION: i64 = 2;
 pub const STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
+pub const STRATEGY_DEFINITION_PRODUCTION_PROFILE: &str = "production.v1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,22 +95,26 @@ pub enum StrategyDefinitionStoreError {
     Incompatible(String),
 }
 
-pub struct StrategyDefinitionTestCutoverStore {
-    path: PathBuf,
-    connection: Mutex<Connection>,
-    _writer_lease: WriterLease,
+use crate::strategy_runtime::{
+    STRATEGY_RUNTIME_PRODUCTION_PROFILE, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE,
+};
+
+pub struct StrategyStoreInner {
+    pub(crate) path: PathBuf,
+    pub(crate) connection: Mutex<Connection>,
+    pub(crate) _writer_lease: WriterLease,
 }
 
-impl std::fmt::Debug for StrategyDefinitionTestCutoverStore {
+impl std::fmt::Debug for StrategyStoreInner {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("StrategyDefinitionTestCutoverStore")
+            .debug_struct("StrategyStoreInner")
             .field("path", &self.path)
             .finish()
     }
 }
 
-impl StrategyDefinitionTestCutoverStore {
+impl StrategyStoreInner {
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -118,7 +123,11 @@ impl StrategyDefinitionTestCutoverStore {
         if path.as_os_str().is_empty() {
             return Err(StrategyDefinitionStoreError::EmptyPath);
         }
-        if profile != STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE {
+        if profile != STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE
+            && profile != STRATEGY_DEFINITION_PRODUCTION_PROFILE
+            && profile != STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE
+            && profile != STRATEGY_RUNTIME_PRODUCTION_PROFILE
+        {
             return Err(StrategyDefinitionStoreError::UnsupportedProfile(
                 profile.to_owned(),
             ));
@@ -133,10 +142,7 @@ impl StrategyDefinitionTestCutoverStore {
             ));
         }
 
-        let writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE),
-        )?;
+        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
             path,
@@ -166,14 +172,49 @@ impl StrategyDefinitionTestCutoverStore {
         })
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn lock(&self) -> Result<MutexGuard<'_, Connection>, StrategyDefinitionStoreError> {
+    pub fn lock(&self) -> Result<MutexGuard<'_, Connection>, StrategyDefinitionStoreError> {
         self.connection
             .lock()
             .map_err(|_| StrategyDefinitionStoreError::LockUnavailable)
+    }
+}
+
+use std::sync::Arc;
+
+#[derive(Clone, Debug)]
+pub struct StrategyDefinitionStore {
+    pub(crate) inner: Arc<StrategyStoreInner>,
+}
+
+impl StrategyDefinitionStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, StrategyDefinitionStoreError> {
+        Self::open_existing(path, STRATEGY_DEFINITION_PRODUCTION_PROFILE)
+    }
+
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, StrategyDefinitionStoreError> {
+        let inner = StrategyStoreInner::open_existing(path, profile)?;
+        Ok(Self {
+            inner: Arc::new(inner),
+        })
+    }
+
+    pub fn from_inner(inner: Arc<StrategyStoreInner>) -> Self {
+        Self { inner }
+    }
+
+    pub fn inner(&self) -> &Arc<StrategyStoreInner> {
+        &self.inner
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.inner.path
+    }
+
+    fn lock(&self) -> Result<MutexGuard<'_, Connection>, StrategyDefinitionStoreError> {
+        self.inner.lock()
     }
 
     pub fn get_definition(
@@ -378,6 +419,82 @@ impl StrategyDefinitionTestCutoverStore {
         }
         Ok(versions)
     }
+
+    pub fn get_version(
+        &self,
+        definition_id: &str,
+        version: &str,
+    ) -> Result<Option<StoredStrategyVersion>, StrategyDefinitionStoreError> {
+        let connection = self.lock()?;
+        let row = connection
+            .query_row(
+                "SELECT definition_id, version, name, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, saved_at
+                 FROM strategy_definition_versions
+                 WHERE definition_id = ?1 AND version = ?2",
+                params![definition_id, version],
+                |row| {
+                    Ok(StoredStrategyVersion {
+                        definition_id: row.get(0)?,
+                        version: row.get(1)?,
+                        name: row.get(2)?,
+                        description: row.get(3)?,
+                        runtime: row.get(4)?,
+                        source_format: row.get(5)?,
+                        symbol: row.get(6)?,
+                        interval: row.get(7)?,
+                        script: row.get(8)?,
+                        visual_model_json: row.get(9)?,
+                        created_at: row.get(10)?,
+                        updated_at: row.get(11)?,
+                        saved_at: row.get(12)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(StrategyDefinitionStoreError::Query)?;
+        Ok(row)
+    }
+
+    pub fn list_definitions(
+        &self,
+        include_deleted: bool,
+    ) -> Result<Vec<StoredStrategyDefinition>, StrategyDefinitionStoreError> {
+        let connection = self.lock()?;
+        let sql = if include_deleted {
+            "SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at
+             FROM strategy_design_definitions ORDER BY updated_at DESC"
+        } else {
+            "SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at
+             FROM strategy_design_definitions WHERE (deleted_at IS NULL OR TRIM(deleted_at) = '') ORDER BY updated_at DESC"
+        };
+        let mut statement = connection
+            .prepare(sql)
+            .map_err(StrategyDefinitionStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredStrategyDefinition {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    version: row.get(2)?,
+                    description: row.get(3)?,
+                    runtime: row.get(4)?,
+                    source_format: row.get(5)?,
+                    symbol: row.get(6)?,
+                    interval: row.get(7)?,
+                    script: row.get(8)?,
+                    visual_model_json: row.get(9)?,
+                    created_at: row.get(10)?,
+                    updated_at: row.get(11)?,
+                    deleted_at: row.get(12)?,
+                })
+            })
+            .map_err(StrategyDefinitionStoreError::Query)?;
+        let mut definitions = Vec::new();
+        for row in rows {
+            definitions.push(row.map_err(StrategyDefinitionStoreError::Query)?);
+        }
+        Ok(definitions)
+    }
 }
 
 fn get_definition_query(
@@ -433,4 +550,69 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), StrategyDefinitionS
                 "invalid RFC3339 timestamp {timestamp:?}: {error}"
             ))
         })
+}
+
+#[derive(Debug)]
+pub struct StrategyDefinitionTestCutoverStore {
+    inner: StrategyDefinitionStore,
+}
+
+impl StrategyDefinitionTestCutoverStore {
+    pub fn open_existing(
+        path: impl AsRef<Path>,
+        profile: &str,
+    ) -> Result<Self, StrategyDefinitionStoreError> {
+        let inner = StrategyDefinitionStore::open_existing(path, profile)?;
+        Ok(Self { inner })
+    }
+
+    pub fn path(&self) -> &Path {
+        self.inner.path()
+    }
+
+    pub fn get_definition(
+        &self,
+        id: &str,
+        include_deleted: bool,
+    ) -> Result<Option<StoredStrategyDefinition>, StrategyDefinitionStoreError> {
+        self.inner.get_definition(id, include_deleted)
+    }
+
+    pub fn save_definition(
+        &self,
+        definition: StoredStrategyDefinition,
+        timestamp: &str,
+    ) -> Result<StoredStrategyDefinition, StrategyDefinitionStoreError> {
+        self.inner.save_definition(definition, timestamp)
+    }
+
+    pub fn delete_definition(
+        &self,
+        id: &str,
+        timestamp: &str,
+    ) -> Result<StoredStrategyDefinition, StrategyDefinitionStoreError> {
+        self.inner.delete_definition(id, timestamp)
+    }
+
+    pub fn list_versions(
+        &self,
+        definition_id: &str,
+    ) -> Result<Vec<StoredStrategyVersion>, StrategyDefinitionStoreError> {
+        self.inner.list_versions(definition_id)
+    }
+
+    pub fn get_version(
+        &self,
+        definition_id: &str,
+        version: &str,
+    ) -> Result<Option<StoredStrategyVersion>, StrategyDefinitionStoreError> {
+        self.inner.get_version(definition_id, version)
+    }
+
+    pub fn list_definitions(
+        &self,
+        include_deleted: bool,
+    ) -> Result<Vec<StoredStrategyDefinition>, StrategyDefinitionStoreError> {
+        self.inner.list_definitions(include_deleted)
+    }
 }

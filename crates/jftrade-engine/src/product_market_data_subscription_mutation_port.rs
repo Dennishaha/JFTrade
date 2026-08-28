@@ -1,9 +1,4 @@
-// Stage 9 test-cutover boundary for market-data subscription mutations.
-//
-// Go remains the only owner of subscription demand, prediction eligibility,
-// Provider/OpenD lifecycle, lease state, persistence, and cleanup.  This
-// port deliberately carries raw HTTP inputs to an explicitly injected test
-// adapter so the Rust leaf cannot create a second subscription owner.
+// Production boundary for market-data subscription mutations.
 
 use serde_json::Value;
 use thiserror::Error;

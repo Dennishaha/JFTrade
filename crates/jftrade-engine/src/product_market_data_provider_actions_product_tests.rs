@@ -5,9 +5,9 @@ use serde_json::{Value, json};
 use tempfile::tempdir;
 
 use super::super::product_market_data_provider_actions_port::{
-    BATCH_SNAPSHOTS_PATH, MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
-    MarketDataProviderActionsRequest, NORMALIZE_INSTRUMENT_PATH, PREDICTION_COMBO_QUOTES_PATH,
-    ZERO_DTE_CONTRACTS_PATH,
+    BATCH_SNAPSHOTS_PATH, MarketDataProviderActionsFuture, MarketDataProviderActionsPort,
+    MarketDataProviderActionsPortError, MarketDataProviderActionsRequest,
+    NORMALIZE_INSTRUMENT_PATH, PREDICTION_COMBO_QUOTES_PATH, ZERO_DTE_CONTRACTS_PATH,
 };
 use super::*;
 
@@ -17,15 +17,16 @@ struct FixtureMarketDataProviderActionsPort {
 }
 
 impl MarketDataProviderActionsPort for FixtureMarketDataProviderActionsPort {
-    fn dispatch(
-        &self,
-        request: &MarketDataProviderActionsRequest,
-    ) -> Result<Value, MarketDataProviderActionsPortError> {
-        Ok(json!({
+    fn dispatch<'a>(
+        &'a self,
+        request: &'a MarketDataProviderActionsRequest,
+    ) -> MarketDataProviderActionsFuture<'a> {
+        let res = Ok(json!({
             "accepted": true,
             "source": self.source,
             "path": request.path,
-        }))
+        }));
+        Box::pin(std::future::ready(res))
     }
 }
 
@@ -54,19 +55,21 @@ impl SequencedMarketDataProviderActionsPort {
 }
 
 impl MarketDataProviderActionsPort for SequencedMarketDataProviderActionsPort {
-    fn dispatch(
-        &self,
-        request: &MarketDataProviderActionsRequest,
-    ) -> Result<Value, MarketDataProviderActionsPortError> {
+    fn dispatch<'a>(
+        &'a self,
+        request: &'a MarketDataProviderActionsRequest,
+    ) -> MarketDataProviderActionsFuture<'a> {
         self.calls
             .lock()
             .expect("market-data provider actions call lock")
             .push(request.clone());
-        self.responses
+        let res = self
+            .responses
             .lock()
             .expect("market-data provider actions response lock")
             .pop_front()
-            .expect("market-data provider actions rehearsal response")
+            .expect("market-data provider actions rehearsal response");
+        Box::pin(std::future::ready(res))
     }
 }
 

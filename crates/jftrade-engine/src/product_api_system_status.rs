@@ -56,12 +56,20 @@ impl ProductApi {
                 "goarch": go_compatible_arch()
             },
             "persistence": {
-                "engine": "json",
+                "engine": if runtime.production { "sqlite" } else { "json" },
                 "databasePath": settings_path,
                 "status": "ok",
                 "migrated": true,
                 "pendingMigrations": [],
-                "tables": ["broker_integrations", "broker_accounts"],
+                "tables": if runtime.production {
+                    json!([
+                        "watchlist", "strategy_definitions", "strategy_runtime",
+                        "execution_orders", "backtest_runs", "adk", "adk_sessions",
+                        "adk_artifacts", "research_presets"
+                    ])
+                } else {
+                    json!(["broker_integrations", "broker_accounts"])
+                },
                 "checkedAt": checked_at
             },
             "observability": {

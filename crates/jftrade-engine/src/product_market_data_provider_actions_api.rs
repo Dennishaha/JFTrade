@@ -21,7 +21,7 @@ impl MarketDataProviderActionsApi {
         Self { port }
     }
 
-    pub fn dispatch(&self, request: &ApiRequest) -> Result<ApiOutput, ApiFailure> {
+    pub async fn dispatch(&self, request: &ApiRequest) -> Result<ApiOutput, ApiFailure> {
         dispatch_market_data_provider_actions(
             self.port.as_deref(),
             &request.method,
@@ -29,10 +29,11 @@ impl MarketDataProviderActionsApi {
             &request.query,
             &request.body,
         )
+        .await
     }
 }
 
-pub fn dispatch_market_data_provider_actions(
+pub async fn dispatch_market_data_provider_actions(
     port: Option<&dyn MarketDataProviderActionsPort>,
     method: &str,
     path: &str,
@@ -61,6 +62,7 @@ pub fn dispatch_market_data_provider_actions(
         body: body.to_vec(),
     };
     port.dispatch(&request)
+        .await
         .map(ApiOutput::Json)
         .map_err(market_data_provider_actions_failure)
 }
@@ -113,6 +115,7 @@ fn market_data_provider_actions_failure(error: MarketDataProviderActionsPortErro
 
 #[cfg(test)]
 mod tests {
+    use super::super::product_market_data_provider_actions_port::MarketDataProviderActionsFuture;
     use super::*;
     use serde_json::json;
 
@@ -120,11 +123,11 @@ mod tests {
     struct ErrorPort(MarketDataProviderActionsPortError);
 
     impl MarketDataProviderActionsPort for ErrorPort {
-        fn dispatch(
-            &self,
-            _request: &MarketDataProviderActionsRequest,
-        ) -> Result<Value, MarketDataProviderActionsPortError> {
-            Err(self.0.clone())
+        fn dispatch<'a>(
+            &'a self,
+            _request: &'a MarketDataProviderActionsRequest,
+        ) -> MarketDataProviderActionsFuture<'a> {
+            Box::pin(std::future::ready(Err(self.0.clone())))
         }
     }
 
@@ -144,12 +147,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn provider_actions_failure_mapping_preserves_unavailable_and_retry_wire() {
+    #[tokio::test]
+    async fn provider_actions_failure_mapping_preserves_unavailable_and_retry_wire() {
         let unavailable = MarketDataProviderActionsApi::new(Some(Arc::new(ErrorPort(
             MarketDataProviderActionsPortError::Unavailable("warming".to_owned()),
         ))))
         .dispatch(&request())
+        .await
         .expect_err("unavailable provider port");
         assert_eq!(unavailable.status, 503);
         assert_eq!(
@@ -166,6 +170,7 @@ mod tests {
             },
         ))))
         .dispatch(&request())
+        .await
         .expect_err("rate-limited provider port");
         assert_eq!(failed.status, 429);
         assert_eq!(failed.code, "PROVIDER_RATE_LIMITED");

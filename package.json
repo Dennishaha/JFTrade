@@ -63,6 +63,7 @@
     "check:rust:target-health": "node scripts/check-rust-target-health.mjs",
     "clean:rust:artifacts": "cargo clean",
     "check:rust:layout": "node scripts/rust-migration/check-layout.mjs",
+    "check:rust:production-policy": "node scripts/rust-migration/check-production-route-policy.mjs",
     "check:rust:policy": "cargo deny check",
     "test:pinets-release-check": "node scripts/check-pinets-release.test.mjs",
     "test:pineworker-asset-build": "node scripts/build-pineworker-assets.test.mjs",

@@ -279,7 +279,10 @@ export class MockWebSocket {
   readyState = MockWebSocket.CONNECTING;
   private readonly listeners = new Map<string, Set<(event: Event | MessageEvent<string>) => void>>();
 
-  constructor(public readonly url: string) {
+  constructor(
+    public readonly url: string,
+    public readonly protocols?: string | string[],
+  ) {
     MockWebSocket.instances.push(this);
 
     queueMicrotask(() => {
