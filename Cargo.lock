@@ -2170,6 +2170,7 @@ dependencies = [
  "jftrade-strategy",
  "jftrade-trading",
  "jftrade-watchlist",
+ "jiff",
  "percent-encoding",
  "prost",
  "rusqlite",

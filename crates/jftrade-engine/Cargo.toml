@@ -29,6 +29,7 @@ jftrade-store-sqlite.workspace = true
 jftrade-strategy.workspace = true
 jftrade-trading.workspace = true
 jftrade-watchlist.workspace = true
+jiff.workspace = true
 percent-encoding.workspace = true
 rusqlite.workspace = true
 serde.workspace = true

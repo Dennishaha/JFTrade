@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
+use jftrade_kernel::Fixed8;
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, WriterLeaseError};
 use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
@@ -20,6 +21,17 @@ const BACKTEST_SCHEMA_VERSION: i64 = 3;
 
 pub const BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const BACKTEST_MARKET_DATA_PRODUCTION_PROFILE: &str = "production.v1";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StoredBacktestCandle {
+    pub start_time: i64,
+    pub end_time: i64,
+    pub open: String,
+    pub high: String,
+    pub low: String,
+    pub close: String,
+    pub volume: String,
+}
 
 #[derive(Debug, Error)]
 pub enum BacktestMarketDataStoreError {
@@ -41,6 +53,8 @@ pub enum BacktestMarketDataStoreError {
     LockUnavailable,
     #[error("query backtest market-data database: {0}")]
     Query(#[source] rusqlite::Error),
+    #[error("invalid backtest market-data candle: {0}")]
+    Validation(String),
 }
 
 /// A single leased connection for the dynamic K-line tables.
@@ -144,6 +158,245 @@ impl BacktestMarketDataStore {
     pub fn kline_table_count(&self) -> Result<usize, BacktestMarketDataStoreError> {
         Ok(self.kline_tables()?.len())
     }
+
+    /// Atomically create the provider/symbol/interval table and upsert a page
+    /// of validated candles. Table names follow the Go KLineStore naming
+    /// scheme, while all values remain the public Fixed8 text representation.
+    pub fn insert_candles(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        candles: &[StoredBacktestCandle],
+    ) -> Result<usize, BacktestMarketDataStoreError> {
+        let table = kline_table_name(provider_id, symbol, interval, rehab_type, session_scope)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(BacktestMarketDataStoreError::Query)?;
+        transaction
+            .execute_batch(&format!(
+                "CREATE TABLE IF NOT EXISTS \"{table}\" (
+                    end_time INTEGER NOT NULL,
+                    start_time INTEGER NOT NULL,
+                    open TEXT NOT NULL,
+                    high TEXT NOT NULL,
+                    low TEXT NOT NULL,
+                    close TEXT NOT NULL,
+                    volume TEXT NOT NULL,
+                    PRIMARY KEY (end_time)
+                ) WITHOUT ROWID"
+            ))
+            .map_err(BacktestMarketDataStoreError::Query)?;
+        validate_kline_table_schema(&transaction, &table)?;
+        for candle in candles {
+            let candle = canonical_candle(candle)?;
+            transaction
+                .execute(
+                    &format!(
+                        "INSERT INTO \"{table}\" (end_time, start_time, open, high, low, close, volume)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                         ON CONFLICT(end_time) DO UPDATE SET
+                           start_time = excluded.start_time,
+                           open = excluded.open,
+                           high = excluded.high,
+                           low = excluded.low,
+                           close = excluded.close,
+                           volume = excluded.volume"
+                    ),
+                    rusqlite::params![
+                        candle.end_time,
+                        candle.start_time,
+                        candle.open,
+                        candle.high,
+                        candle.low,
+                        candle.close,
+                        candle.volume,
+                    ],
+                )
+                .map_err(BacktestMarketDataStoreError::Query)?;
+        }
+        transaction
+            .commit()
+            .map_err(BacktestMarketDataStoreError::Query)?;
+        Ok(candles.len())
+    }
+}
+
+fn validate_kline_table_schema(
+    connection: &rusqlite::Transaction<'_>,
+    table: &str,
+) -> Result<(), BacktestMarketDataStoreError> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info(\"{table}\")"))
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    let columns = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(5)?,
+            ))
+        })
+        .map_err(BacktestMarketDataStoreError::Query)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    let expected = vec![
+        ("end_time".to_owned(), "INTEGER".to_owned(), 1, 1),
+        ("start_time".to_owned(), "INTEGER".to_owned(), 1, 0),
+        ("open".to_owned(), "TEXT".to_owned(), 1, 0),
+        ("high".to_owned(), "TEXT".to_owned(), 1, 0),
+        ("low".to_owned(), "TEXT".to_owned(), 1, 0),
+        ("close".to_owned(), "TEXT".to_owned(), 1, 0),
+        ("volume".to_owned(), "TEXT".to_owned(), 1, 0),
+    ];
+    if columns != expected {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "dynamic K-line table structure does not match production schema".to_owned(),
+        ));
+    }
+    let sql: String = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [table],
+            |row| row.get(0),
+        )
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    let normalized = sql
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase();
+    if !normalized.ends_with("without rowid") || !normalized.contains("primary key (end_time)") {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "dynamic K-line table must use WITHOUT ROWID and end_time primary key".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_candle(candle: &StoredBacktestCandle) -> Result<(), BacktestMarketDataStoreError> {
+    if candle.end_time <= candle.start_time {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "candle end_time must be after start_time".to_owned(),
+        ));
+    }
+    let parse = |name: &str, value: &str| {
+        value
+            .parse::<Fixed8>()
+            .map_err(|error| BacktestMarketDataStoreError::Validation(format!("{name}: {error}")))
+    };
+    let open = parse("open", &candle.open)?;
+    let high = parse("high", &candle.high)?;
+    let low = parse("low", &candle.low)?;
+    let close = parse("close", &candle.close)?;
+    let volume = parse("volume", &candle.volume)?;
+    if open <= Fixed8::ZERO || high <= Fixed8::ZERO || low <= Fixed8::ZERO || close <= Fixed8::ZERO
+    {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "OHLC values must be positive".to_owned(),
+        ));
+    }
+    if high < low || open < low || open > high || close < low || close > high {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "OHLC values are inconsistent".to_owned(),
+        ));
+    }
+    if volume < Fixed8::ZERO {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "volume cannot be negative".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn canonical_candle(
+    candle: &StoredBacktestCandle,
+) -> Result<StoredBacktestCandle, BacktestMarketDataStoreError> {
+    validate_candle(candle)?;
+    let canonical = |value: &str| {
+        value
+            .parse::<Fixed8>()
+            .map(|parsed| parsed.storage_text())
+            .map_err(|error| BacktestMarketDataStoreError::Validation(error.to_string()))
+    };
+    Ok(StoredBacktestCandle {
+        start_time: candle.start_time,
+        end_time: candle.end_time,
+        open: canonical(&candle.open)?,
+        high: canonical(&candle.high)?,
+        low: canonical(&candle.low)?,
+        close: canonical(&candle.close)?,
+        volume: canonical(&candle.volume)?,
+    })
+}
+
+fn kline_table_name(
+    provider_id: &str,
+    symbol: &str,
+    interval: &str,
+    rehab_type: &str,
+    session_scope: &str,
+) -> Result<String, BacktestMarketDataStoreError> {
+    let provider = normalize_component(provider_id, "futu");
+    let symbol = normalize_component(symbol, "value");
+    let interval = normalize_component(interval, "value");
+    let rehab = match rehab_type.trim().to_ascii_lowercase().as_str() {
+        "forward" | "backward" | "none" => rehab_type.trim().to_ascii_lowercase(),
+        _ => {
+            return Err(BacktestMarketDataStoreError::Validation(
+                "invalid rehab type".to_owned(),
+            ));
+        }
+    };
+    let scope_tag = match session_scope.trim().to_ascii_lowercase().as_str() {
+        "regular" => "r",
+        "extended" => "x",
+        _ => {
+            return Err(BacktestMarketDataStoreError::Validation(
+                "invalid session scope".to_owned(),
+            ));
+        }
+    };
+    let hash = fnv1a(format!("{provider}|{symbol}").as_bytes());
+    Ok(format!(
+        "local_klines__{provider}__{symbol}__{interval}__{rehab}__{scope_tag}__{hash:08x}"
+    ))
+}
+
+fn normalize_component(value: &str, default: &str) -> String {
+    let mut out = String::new();
+    let mut underscore = false;
+    for ch in value.trim().to_ascii_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            underscore = false;
+        } else if !underscore {
+            out.push('_');
+            underscore = true;
+        }
+    }
+    let trimmed = out.trim_matches('_');
+    if trimmed.is_empty() {
+        default.to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
+fn fnv1a(bytes: &[u8]) -> u32 {
+    let mut hash = 0x811c9dc5u32;
+    for byte in bytes {
+        hash ^= u32::from(*byte);
+        hash = hash.wrapping_mul(0x01000193);
+    }
+    hash
 }
 
 #[cfg(test)]

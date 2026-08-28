@@ -559,11 +559,6 @@ pub(crate) fn production_ports(
     let research_preset_port = Arc::new(ProductionResearchPresetPort {
         store: research_store,
     });
-    let backtest_port = Arc::new(ProductionBacktestPort {
-        store: backtest_store,
-        sync_tasks: backtest_sync_tasks,
-        _market_data_store: backtest_market_data_store,
-    });
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
     });
@@ -600,6 +595,13 @@ pub(crate) fn production_ports(
     let active_provider = provider_snapshot.provider;
     let has_helper = provider_snapshot.helper_ready;
     let has_router = provider_snapshot.router_ready;
+    let backtest_port = Arc::new(ProductionBacktestPort {
+        store: backtest_store,
+        sync_tasks: backtest_sync_tasks,
+        _market_data_store: backtest_market_data_store,
+        helper: config.market_data_helper.clone(),
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
     let active_provider_str = match active_provider {
         Some(jftrade_settings::MarketDataProvider::Futu) => Some("futu"),
         Some(jftrade_settings::MarketDataProvider::Yfinance) => Some("yfinance"),

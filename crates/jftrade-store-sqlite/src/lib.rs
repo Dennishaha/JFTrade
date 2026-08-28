@@ -35,7 +35,7 @@ pub use adk_session::{
 };
 pub use backtest_market_data::{
     BACKTEST_MARKET_DATA_PRODUCTION_PROFILE, BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE,
-    BacktestMarketDataStore, BacktestMarketDataStoreError,
+    BacktestMarketDataStore, BacktestMarketDataStoreError, StoredBacktestCandle,
 };
 pub use backtest_run::{
     BACKTEST_RUNS_PRODUCTION_PROFILE, BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStore,

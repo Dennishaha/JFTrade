@@ -66,6 +66,7 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataSubscriptionReleaseWrite
             | MarketDataSubscriptionClearWrite
             | MarketDataSubscriptionHeartbeatWrite
+            | BacktestSyncStart
     )
 }
 
@@ -221,7 +222,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::ResearchRead,
         Adapter::ResearchScreenWrite,
         Adapter::BacktestStart,
-        Adapter::BacktestSyncStart,
         Adapter::ExecutionWrite,
         Adapter::BrokerRead,
         Adapter::BrokerWrite,
@@ -255,8 +255,10 @@ pub(crate) fn production_adapter_bindings(
 
     if matrix.can_read_candles() {
         ready.push(Adapter::MarketDataCandlesRead);
+        ready.push(Adapter::BacktestSyncStart);
     } else {
         unavailable.push(Adapter::MarketDataCandlesRead);
+        unavailable.push(Adapter::BacktestSyncStart);
     }
 
     if matrix.can_read_securities() {
