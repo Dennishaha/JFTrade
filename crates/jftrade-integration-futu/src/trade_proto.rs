@@ -36,6 +36,16 @@ pub enum ValidationError {
         operation: &'static str,
         field: String,
     },
+    #[error("OpenD {operation} field {field} must not be empty")]
+    EmptyField {
+        operation: &'static str,
+        field: &'static str,
+    },
+    #[error("OpenD {operation} field {field} must be non-negative")]
+    Negative {
+        operation: &'static str,
+        field: &'static str,
+    },
 }
 
 pub fn validate_response(
@@ -89,6 +99,89 @@ fn validate_optional_finite(
 ) -> Result<(), ResponseError> {
     if let Some(value) = value {
         validate_finite(operation, field, value)?;
+    }
+    Ok(())
+}
+
+fn validate_required_text(
+    operation: &'static str,
+    field: &'static str,
+    value: &str,
+) -> Result<(), ResponseError> {
+    if value.trim().is_empty() {
+        return Err(ValidationError::EmptyField { operation, field }.into());
+    }
+    Ok(())
+}
+
+fn validate_non_negative(
+    operation: &'static str,
+    field: &'static str,
+    value: f64,
+) -> Result<(), ResponseError> {
+    validate_finite(operation, field, value)?;
+    if value < 0.0 {
+        return Err(ValidationError::Negative { operation, field }.into());
+    }
+    Ok(())
+}
+
+fn validate_account_s2c(
+    operation: &'static str,
+    payload: &trd_get_acc_list::S2c,
+) -> Result<(), ResponseError> {
+    for account in &payload.acc_list {
+        if account.acc_id == 0 {
+            let card = account.card_num.as_deref().unwrap_or_default();
+            let universal = account.uni_card_num.as_deref().unwrap_or_default();
+            if card.trim().is_empty() && universal.trim().is_empty() {
+                return Err(ValidationError::EmptyField {
+                    operation,
+                    field: "account_identity",
+                }
+                .into());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_position_s2c(
+    operation: &'static str,
+    payload: &trd_get_position_list::S2c,
+) -> Result<(), ResponseError> {
+    for position in &payload.position_list {
+        validate_required_text(operation, "code", &position.code)?;
+        validate_required_text(operation, "name", &position.name)?;
+        validate_non_negative(operation, "qty", position.qty)?;
+        validate_non_negative(operation, "can_sell_qty", position.can_sell_qty)?;
+        validate_non_negative(operation, "price", position.price)?;
+        validate_finite(operation, "val", position.val)?;
+        validate_finite(operation, "pl_val", position.pl_val)?;
+        for (field, value) in [
+            ("cost_price", position.cost_price),
+            ("pl_ratio", position.pl_ratio),
+            ("td_pl_val", position.td_pl_val),
+            ("td_trd_val", position.td_trd_val),
+            ("td_buy_val", position.td_buy_val),
+            ("td_sell_val", position.td_sell_val),
+            ("unrealized_pl", position.unrealized_pl),
+            ("realized_pl", position.realized_pl),
+            ("diluted_cost_price", position.diluted_cost_price),
+            ("average_cost_price", position.average_cost_price),
+            ("average_pl_ratio", position.average_pl_ratio),
+        ] {
+            validate_optional_finite(operation, field, value)?;
+        }
+        for (field, value) in [
+            ("td_buy_qty", position.td_buy_qty),
+            ("td_sell_qty", position.td_sell_qty),
+            ("payout_if_win", position.payout_if_win),
+        ] {
+            if let Some(value) = value {
+                validate_non_negative(operation, field, value)?;
+            }
+        }
     }
     Ok(())
 }
@@ -157,8 +250,18 @@ fn validate_funds(operation: &'static str, funds: &trd_common::Funds) -> Result<
     Ok(())
 }
 
+fn validate_noop_s2c<T>(_: &'static str, _: &T) -> Result<(), ResponseError> {
+    Ok(())
+}
+
 macro_rules! trade_list_proto {
-    ($module:ident, $file:literal, $operation:literal, $protocol_id:literal) => {
+    (
+        $module:ident,
+        $file:literal,
+        $operation:literal,
+        $protocol_id:literal,
+        $validator:ident
+    ) => {
         pub mod $module {
             use prost::Message;
 
@@ -185,7 +288,9 @@ macro_rules! trade_list_proto {
                     response.ret_msg.as_deref(),
                     true,
                 )?;
-                Ok(response.s2c.unwrap_or_default())
+                let payload = response.s2c.unwrap_or_default();
+                super::$validator($operation, &payload)?;
+                Ok(payload)
             }
         }
     };
@@ -233,26 +338,30 @@ trade_list_proto!(
     trd_get_acc_list,
     "trd_get_acc_list.rs",
     "GetAccountList",
-    2001
+    2001,
+    validate_account_s2c
 );
 trade_funds_proto!(trd_get_funds, "trd_get_funds.rs", "GetFunds", 2101);
 trade_list_proto!(
     trd_get_position_list,
     "trd_get_position_list.rs",
     "GetPositionList",
-    2102
+    2102,
+    validate_position_s2c
 );
 trade_list_proto!(
     trd_get_order_list,
     "trd_get_order_list.rs",
     "GetOrderList",
-    2201
+    2201,
+    validate_noop_s2c
 );
 trade_list_proto!(
     trd_get_order_fill_list,
     "trd_get_order_fill_list.rs",
     "GetOrderFillList",
-    2211
+    2211,
+    validate_noop_s2c
 );
 
 /// Descriptive aliases for callers that use the Go operation names.
@@ -266,7 +375,10 @@ pub use trd_get_position_list as get_position_list;
 mod tests {
     use prost::Message;
 
-    use super::{ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds};
+    use super::{
+        ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds,
+        trd_get_position_list,
+    };
 
     fn header() -> trd_common::TrdHeader {
         trd_common::TrdHeader {
@@ -412,6 +524,119 @@ mod tests {
                 field,
                 operation: "GetFunds"
             })) if field == "available_funds"
+        ));
+    }
+
+    #[test]
+    fn account_validation_allows_unknown_enums_with_card_identity() {
+        let response = trd_get_acc_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_acc_list::S2c {
+                acc_list: vec![trd_common::TrdAcc {
+                    trd_env: 999,
+                    acc_id: 0,
+                    card_num: Some("card-1".to_owned()),
+                    acc_type: Some(999),
+                    ..Default::default()
+                }],
+            }),
+        };
+        let decoded = trd_get_acc_list::decode_response(&response.encode_to_vec())
+            .expect("unknown enums are compatible");
+        assert_eq!(decoded.acc_list.len(), 1);
+    }
+
+    #[test]
+    fn account_validation_rejects_missing_identity() {
+        let response = trd_get_acc_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_acc_list::S2c {
+                acc_list: vec![trd_common::TrdAcc::default()],
+            }),
+        };
+        assert_eq!(
+            trd_get_acc_list::decode_response(&response.encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::EmptyField {
+                operation: "GetAccountList",
+                field: "account_identity",
+            }))
+        );
+    }
+
+    fn position_response(position: trd_common::Position) -> trd_get_position_list::Response {
+        trd_get_position_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_position_list::S2c {
+                header: header(),
+                position_list: vec![position],
+            }),
+        }
+    }
+
+    fn valid_position() -> trd_common::Position {
+        trd_common::Position {
+            position_id: 1,
+            position_side: 999,
+            code: "US.AAPL".to_owned(),
+            name: "Apple".to_owned(),
+            qty: 0.0,
+            can_sell_qty: 0.0,
+            price: 0.0,
+            val: 0.0,
+            pl_val: 0.0,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn position_validation_accepts_zero_values_and_unknown_enum() {
+        let decoded = trd_get_position_list::decode_response(
+            &position_response(valid_position()).encode_to_vec(),
+        )
+        .expect("valid zero position");
+        assert_eq!(decoded.position_list[0].qty, 0.0);
+        assert_eq!(decoded.position_list[0].position_side, 999);
+    }
+
+    #[test]
+    fn position_validation_rejects_empty_identity_and_negative_quantity() {
+        let mut position = valid_position();
+        position.code.clear();
+        assert!(matches!(
+            trd_get_position_list::decode_response(&position_response(position).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::EmptyField {
+                field: "code",
+                operation: "GetPositionList"
+            }))
+        ));
+
+        let mut position = valid_position();
+        position.qty = -1.0;
+        assert!(matches!(
+            trd_get_position_list::decode_response(&position_response(position).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::Negative {
+                field: "qty",
+                operation: "GetPositionList"
+            }))
+        ));
+    }
+
+    #[test]
+    fn position_validation_rejects_non_finite_optional_values() {
+        let mut position = valid_position();
+        position.average_cost_price = Some(f64::NAN);
+        assert!(matches!(
+            trd_get_position_list::decode_response(&position_response(position).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite {
+                field,
+                operation: "GetPositionList"
+            })) if field == "average_cost_price"
         ));
     }
 }
