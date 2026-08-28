@@ -103,6 +103,20 @@ pub struct TradeFundsSnapshot {
     pub funds: TradeFunds,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeOrderFeeItemSnapshot {
+    pub title: String,
+    pub value: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeOrderFeeSnapshot {
+    pub header: TradeHeader,
+    pub broker_order_id_ex: String,
+    pub fee_amount: Option<f64>,
+    pub fee_items: Vec<TradeOrderFeeItemSnapshot>,
+}
+
 /// A single account cash-flow entry returned by Trd_FlowSummary.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TradeCashFlowSnapshot {
@@ -493,6 +507,31 @@ pub(crate) fn funds_projection(
         header: header.into(),
         funds: funds.into(),
     }
+}
+
+pub(crate) fn order_fees_projection(
+    payload: trade_proto::trd_get_order_fee::S2c,
+) -> Vec<TradeOrderFeeSnapshot> {
+    let header: TradeHeader = payload.header.into();
+    let mut fees = payload
+        .order_fee_list
+        .into_iter()
+        .map(|fee| TradeOrderFeeSnapshot {
+            header: header.clone(),
+            broker_order_id_ex: fee.order_id_ex.trim().to_owned(),
+            fee_amount: fee.fee_amount,
+            fee_items: fee
+                .fee_list
+                .into_iter()
+                .map(|item| TradeOrderFeeItemSnapshot {
+                    title: item.title.unwrap_or_default().trim().to_owned(),
+                    value: item.value.unwrap_or_default(),
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    fees.sort_by(|left, right| left.broker_order_id_ex.cmp(&right.broker_order_id_ex));
+    fees
 }
 pub(crate) fn cash_flows_projection(
     payload: trade_proto::trd_flow_summary::S2c,

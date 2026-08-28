@@ -7,13 +7,13 @@ use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
     ResponseError, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
-    trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
+    trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
 };
 use crate::trade_snapshots::{
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFilter,
-    TradeFundsSnapshot, TradeHeader, TradeOrderSnapshot, TradePositionSnapshot, account_projection,
-    cash_flows_projection, fills_projection, funds_projection, orders_projection,
-    positions_projection,
+    TradeFundsSnapshot, TradeHeader, TradeOrderFeeSnapshot, TradeOrderSnapshot,
+    TradePositionSnapshot, account_projection, cash_flows_projection, fills_projection,
+    funds_projection, order_fees_projection, orders_projection, positions_projection,
 };
 
 /// Engine-facing read contract for the authenticated OpenD trade account.
@@ -42,6 +42,12 @@ pub trait TradeReadPort: Send + Sync {
         clearing_date: String,
         cash_flow_direction: Option<i32>,
     ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError>;
+
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_id_ex_list: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError>;
 
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
@@ -163,6 +169,17 @@ impl OpenDTradeReadClient {
             &trd_get_order_fill_list::encode_request(&request),
         )?;
         Ok(trd_get_order_fill_list::decode_response(&body)?)
+    }
+
+    pub(crate) fn get_order_fee(
+        &self,
+        request: trd_get_order_fee::Request,
+    ) -> Result<trd_get_order_fee::S2c, TradeSessionError> {
+        let body = self.call(
+            trd_get_order_fee::PROTOCOL_ID,
+            &trd_get_order_fee::encode_request(&request),
+        )?;
+        Ok(trd_get_order_fee::decode_response(&body)?)
     }
 
     pub(crate) fn get_flow_summary(
@@ -296,6 +313,20 @@ impl OpenDTradeReadClient {
         Ok(fills_projection(payload))
     }
 
+    pub fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_id_ex_list: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        let payload = self.get_order_fee(trd_get_order_fee::Request {
+            c2s: trd_get_order_fee::C2s {
+                header: header.into(),
+                order_id_ex_list,
+            },
+        })?;
+        Ok(order_fees_projection(payload))
+    }
+
     fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
@@ -338,6 +369,14 @@ impl TradeReadPort for OpenDTradeReadClient {
         cash_flow_direction: Option<i32>,
     ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
         OpenDTradeReadClient::read_cash_flows(self, header, clearing_date, cash_flow_direction)
+    }
+
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        order_id_ex_list: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        OpenDTradeReadClient::read_order_fees(self, header, order_id_ex_list)
     }
 
     #[allow(clippy::too_many_arguments)]

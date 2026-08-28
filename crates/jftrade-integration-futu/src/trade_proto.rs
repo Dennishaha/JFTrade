@@ -10,6 +10,7 @@ pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }
 
+use crate::trade_proto_fee_validation::validate_order_fee_s2c;
 use crate::trade_proto_fill_validation::validate_fill_s2c;
 use crate::trade_proto_order_validation::validate_order_s2c;
 use crate::trade_proto_validation::{
@@ -200,6 +201,13 @@ trade_list_proto!(
     2211,
     validate_fill_s2c
 );
+trade_list_proto!(
+    trd_get_order_fee,
+    "trd_get_order_fee.rs",
+    "GetOrderFee",
+    2225,
+    validate_order_fee_s2c
+);
 
 #[cfg(test)]
 mod tests {
@@ -207,7 +215,8 @@ mod tests {
 
     use super::{
         ResponseError, ValidationError, trd_common, trd_flow_summary, trd_get_acc_list,
-        trd_get_funds, trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
+        trd_get_funds, trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list,
+        trd_get_position_list,
     };
 
     fn header() -> trd_common::TrdHeader {
@@ -293,6 +302,65 @@ mod tests {
         };
         let decoded = trd_get_funds::decode_response(&response.encode_to_vec()).expect("response");
         assert_eq!(decoded, trd_common::Funds::default());
+    }
+
+    #[test]
+    fn order_fee_request_round_trips_order_id_list() {
+        let request = trd_get_order_fee::Request {
+            c2s: trd_get_order_fee::C2s {
+                header: header(),
+                order_id_ex_list: vec!["ord-1".to_owned(), "ord-2".to_owned()],
+            },
+        };
+        let encoded = trd_get_order_fee::encode_request(&request);
+        let decoded = trd_get_order_fee::Request::decode(encoded.as_slice()).expect("request");
+        assert_eq!(decoded, request);
+        assert_eq!(trd_get_order_fee::PROTOCOL_ID, 2225);
+    }
+
+    #[test]
+    fn order_fee_response_rejects_empty_id_and_non_finite_values() {
+        let response = trd_get_order_fee::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fee::S2c {
+                header: header(),
+                order_fee_list: vec![trd_common::OrderFee {
+                    order_id_ex: String::new(),
+                    fee_amount: Some(f64::NAN),
+                    fee_list: Vec::new(),
+                }],
+            }),
+        };
+        assert!(matches!(
+            trd_get_order_fee::decode_response(&response.encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::EmptyField {
+                operation: "GetOrderFee",
+                field: "order_id_ex"
+            }))
+        ));
+
+        let response = trd_get_order_fee::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fee::S2c {
+                header: header(),
+                order_fee_list: vec![trd_common::OrderFee {
+                    order_id_ex: "ord-1".to_owned(),
+                    fee_amount: Some(f64::INFINITY),
+                    fee_list: Vec::new(),
+                }],
+            }),
+        };
+        assert!(matches!(
+            trd_get_order_fee::decode_response(&response.encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite {
+                operation: "GetOrderFee",
+                field
+            })) if field == "fee_amount"
+        ));
     }
 
     fn funds_response(funds: trd_common::Funds) -> trd_get_funds::Response {

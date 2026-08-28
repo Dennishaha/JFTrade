@@ -8,6 +8,7 @@ fn main() {
         "../../pkg/futu/proto/Trd_GetPositionList.proto",
         "../../pkg/futu/proto/Trd_GetOrderList.proto",
         "../../pkg/futu/proto/Trd_GetOrderFillList.proto",
+        "../../pkg/futu/proto/Trd_GetOrderFee.proto",
         "../../pkg/futu/proto/Trd_FlowSummary.proto",
     ];
     for proto in protos {

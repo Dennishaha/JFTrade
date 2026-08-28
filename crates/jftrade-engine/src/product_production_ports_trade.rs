@@ -8,7 +8,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
-    TradeFilter, TradeFundsSnapshot, TradeHeader, TradeReadPort, TradeSessionError,
+    TradeFilter, TradeFundsSnapshot, TradeHeader, TradeOrderFeeSnapshot, TradeReadPort,
+    TradeSessionError,
     trade_header,
 };
 use jftrade_settings::MarketDataProvider;
@@ -100,6 +101,22 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .map(|flow| cash_flow_value(&resolved, flow))
                     .collect::<Vec<_>>();
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "cashFlows": cash_flows}))
+            }
+            "order-fees" => {
+                let order_ids = request
+                    .order_id_ex_list()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let resolved = request
+                    .resolve_account(client.as_ref())
+                    .map_err(map_broker_header_error)?;
+                let fees = client
+                    .read_order_fees(resolved.header.clone(), order_ids)
+                    .map_err(session_error)?;
+                let fees = fees
+                    .into_iter()
+                    .map(|fee| order_fee_value(&resolved, fee))
+                    .collect::<Vec<_>>();
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fees": fees}))
             }
             "positions" => {
                 let resolved = request
@@ -428,6 +445,30 @@ impl TradeRequest {
             .map(ToOwned::to_owned)
     }
 
+    fn order_id_ex_list(&self) -> Result<Vec<String>, String> {
+        let mut values = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for key in ["orderIdEx", "orderIdExList"] {
+            for raw in self.query.get_all(key).unwrap_or(&[]) {
+                for part in raw.split(',') {
+                    let value = part.trim();
+                    if value.is_empty() {
+                        continue;
+                    }
+                    let key = value.to_ascii_uppercase();
+                    if seen.insert(key) {
+                        values.push(value.to_owned());
+                    }
+                }
+            }
+        }
+        if values.is_empty() {
+            Err("query parameter orderIdEx is required".to_owned())
+        } else {
+            Ok(values)
+        }
+    }
+
     fn cash_flow_direction(&self) -> Option<i32> {
         match self.query.get_first("direction").map(str::trim).map(str::to_ascii_uppercase).as_deref() {
             Some("IN") | Some("CASH_FLOW_DIRECTION_IN") => Some(1),
@@ -531,6 +572,32 @@ fn order_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::
 
 fn fill_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
     json!({"accountId": request.account_id, "brokerFillId": value.fill_id.to_string(), "brokerFillIdEx": non_empty(&value.fill_id_ex), "brokerOrderId": value.order_id.map(|v| v.to_string()).unwrap_or_default(), "brokerOrderIdEx": value.order_id_ex, "fillPrice": value.price, "filledAt": canonical_time(&value.create_time), "filledQuantity": value.qty, "market": request.market, "side": trade_side(value.trd_side), "status": value.status.map(fill_status_label), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "tradingEnvironment": request.environment})
+}
+
+fn order_fee_value(request: &ResolvedTradeRequest, value: TradeOrderFeeSnapshot) -> Value {
+    let fee_amount = value.fee_amount;
+    let fee_items = value
+        .fee_items
+        .into_iter()
+        .map(|item| json!({"title": item.title, "value": item.value}))
+        .collect::<Vec<_>>();
+    let mut output = json!({
+        "accountId": request.account_id,
+        "tradingEnvironment": request.environment,
+        "market": request.market,
+        "brokerOrderIdEx": value.broker_order_id_ex,
+        "feeItems": fee_items,
+    })
+    ;
+    if let Some(amount) = fee_amount {
+        output["feeAmount"] = json!(amount);
+    } else {
+        output.as_object_mut().expect("fee object").remove("feeAmount");
+    }
+    if output["feeItems"].as_array().is_some_and(Vec::is_empty) {
+        output.as_object_mut().expect("fee object").remove("feeItems");
+    }
+    output
 }
 
 fn cash_flow_value(
@@ -736,6 +803,16 @@ mod tests {
                 create_time: None,
             }])
         }
+        fn read_order_fees(&self, header: TradeHeader, _: Vec<String>) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+            Ok(vec![TradeOrderFeeSnapshot {
+                header,
+                broker_order_id_ex: "fee-2".to_owned(),
+                fee_amount: Some(1.5),
+                fee_items: vec![jftrade_integration_futu::TradeOrderFeeItemSnapshot {
+                    title: "commission".to_owned(), value: 1.5,
+                }],
+            }])
+        }
         fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
         fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
         fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
@@ -781,6 +858,30 @@ mod tests {
             .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US")
             .expect_err("missing clearing date");
         assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("clearingDate")));
+    }
+
+    #[test]
+    fn broker_read_projects_order_fees_and_merges_order_id_queries() {
+        let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+        let value = port
+            .read(
+                "/api/v1/brokers/futu/order-fees",
+                "accountId=42&market=US&orderIdEx=fee-1&orderIdEx=FEE-1&orderIdExList=fee-2,fee-1",
+            )
+            .expect("order fees");
+        assert_eq!(value["connectivity"], "connected");
+        assert_eq!(value["fees"][0]["brokerOrderIdEx"], "fee-2");
+        assert_eq!(value["fees"][0]["feeAmount"], 1.5);
+        assert_eq!(value["fees"][0]["feeItems"][0]["title"], "commission");
+    }
+
+    #[test]
+    fn order_fees_require_at_least_one_non_empty_order_id() {
+        let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+        let error = port
+            .read("/api/v1/brokers/futu/order-fees", "accountId=42&market=US&orderIdEx=,")
+            .expect_err("missing order id");
+        assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("orderIdEx")));
     }
 
     #[test]
