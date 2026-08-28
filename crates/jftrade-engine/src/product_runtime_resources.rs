@@ -1,11 +1,138 @@
+use std::sync::Arc;
+
 use jftrade_datamanagement::{
     DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
     DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
     DATABASE_WATCHLIST, DatabaseDescriptor,
 };
+use serde::Serialize;
 
-use super::RuntimeResourceDescriptor;
+use super::ProductRuntimeConfig;
 use crate::product::ProductConfig;
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeResourceDescriptor {
+    pub id: String,
+    pub owner: String,
+    pub kind: String,
+    pub path: String,
+    pub initialized_by: String,
+    pub schema_owner: String,
+    pub close_owner: String,
+    pub health_provider: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub environment_override: String,
+    pub critical: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ProductRuntimeSnapshot {
+    pub resources: Vec<RuntimeResourceDescriptor>,
+    pub production: bool,
+}
+
+pub(crate) struct ProductRuntimeState {
+    resources: Vec<RuntimeResourceDescriptor>,
+    production: bool,
+}
+
+impl ProductRuntimeState {
+    pub(crate) fn product_only(config: &ProductConfig) -> Arc<Self> {
+        Arc::new(Self {
+            resources: product_resources(config),
+            production: config.is_production(),
+        })
+    }
+
+    pub(crate) fn configured(config: &ProductRuntimeConfig) -> Arc<Self> {
+        let mut resources = product_resources(&config.product);
+        resources.extend(
+            config
+                .pine_workers
+                .iter()
+                .map(|worker| RuntimeResourceDescriptor {
+                    id: worker.spec.worker_id.clone(),
+                    owner: "strategy".to_owned(),
+                    kind: "managed-node-process".to_owned(),
+                    path: worker.process.bundle_path.to_string_lossy().into_owned(),
+                    initialized_by: "jftrade-engine".to_owned(),
+                    schema_owner: "workers/pineworker".to_owned(),
+                    close_owner: "jftrade-engine".to_owned(),
+                    health_provider: "PineWorker.HealthCheck".to_owned(),
+                    environment_override: "JFTRADE_PINEWORKER_BUNDLE".to_owned(),
+                    critical: false,
+                }),
+        );
+        if let Some(helper) = &config.marketdata_helper {
+            resources.push(RuntimeResourceDescriptor {
+                id: "marketdata-sidecar".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "managed-python-process".to_owned(),
+                path: helper.process.executable.to_string_lossy().into_owned(),
+                initialized_by: "jftrade-engine".to_owned(),
+                schema_owner: "workers/marketdata-sidecar".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "marketdata-sidecar /healthz".to_owned(),
+                environment_override: "JFTRADE_MARKETDATA_SIDECAR".to_owned(),
+                critical: false,
+            });
+        }
+        if config.market_data_opend.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-session".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "managed-opend-session".to_owned(),
+                path: "loopback OpenD API socket".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD protocol".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDSessionCoordinator".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
+        if config.market_data_opend_task.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-runtime-task".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "managed-marketdata-task".to_owned(),
+                path: "OpenD poll/reconnect/demand task".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD runtime lifecycle".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDSessionRuntime".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
+        if config.market_data_opend_provider.is_some() {
+            resources.push(RuntimeResourceDescriptor {
+                id: "futu-opend-provider-runtime".to_owned(),
+                owner: "marketdata".to_owned(),
+                kind: "provider-router-opend-bridge".to_owned(),
+                path: "loopback OpenD API socket".to_owned(),
+                initialized_by: "jftrade-engine composition root".to_owned(),
+                schema_owner: "Futu OpenD provider runtime".to_owned(),
+                close_owner: "jftrade-engine".to_owned(),
+                health_provider: "OpenDProviderRuntime".to_owned(),
+                environment_override: String::new(),
+                critical: false,
+            });
+        }
+        Arc::new(Self {
+            resources,
+            production: config.product.is_production(),
+        })
+    }
+
+    pub(crate) fn snapshot(&self) -> ProductRuntimeSnapshot {
+        ProductRuntimeSnapshot {
+            resources: self.resources.clone(),
+            production: self.production,
+        }
+    }
+}
 
 fn settings_resource(path: String) -> RuntimeResourceDescriptor {
     RuntimeResourceDescriptor {

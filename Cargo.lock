@@ -2171,6 +2171,7 @@ dependencies = [
  "jftrade-trading",
  "jftrade-watchlist",
  "percent-encoding",
+ "prost",
  "rusqlite",
  "serde",
  "serde_json",

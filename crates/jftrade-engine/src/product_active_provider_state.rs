@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 type Activation =
     dyn Fn(MarketDataProvider, Option<MarketDataProvider>) -> Result<(), String> + Send + Sync;
+type ReadinessReader = dyn Fn() -> (bool, bool, bool) + Send + Sync;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ProviderRuntimeSnapshot {
@@ -19,6 +20,7 @@ pub(crate) struct ProviderRuntimeSnapshot {
 #[derive(Clone, Default)]
 pub(crate) struct ActiveProviderState {
     activation: Arc<Mutex<Option<Arc<Activation>>>>,
+    readiness_reader: Arc<Mutex<Option<Arc<ReadinessReader>>>>,
     /// Serializes the physical transition and publication of the snapshot.
     /// The callback may stop one runtime and start another, so holding this
     /// guard across the callback is what prevents two concurrent settings
@@ -41,6 +43,7 @@ impl ActiveProviderState {
     pub(crate) fn new(initial: Option<MarketDataProvider>) -> Self {
         Self {
             activation: Arc::new(Mutex::new(None)),
+            readiness_reader: Arc::new(Mutex::new(None)),
             transition: Arc::new(Mutex::new(())),
             snapshot: Arc::new(RwLock::new(ProviderRuntimeSnapshot {
                 provider: initial,
@@ -58,6 +61,14 @@ impl ActiveProviderState {
         self
     }
 
+    pub(crate) fn with_dynamic_readiness(self, reader: Arc<ReadinessReader>) -> Self {
+        *self
+            .readiness_reader
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(reader);
+        self
+    }
+
     pub(crate) fn begin_shutdown(&self) {
         self.snapshot
             .write()
@@ -66,10 +77,23 @@ impl ActiveProviderState {
     }
 
     pub(crate) fn snapshot(&self) -> ProviderRuntimeSnapshot {
-        self.snapshot
+        let mut snapshot = self
+            .snapshot
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .clone()
+            .clone();
+        if let Some(reader) = self
+            .readiness_reader
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+        {
+            let (helper_ready, opend_ready, router_ready) = reader();
+            snapshot.helper_ready = helper_ready;
+            snapshot.opend_ready = opend_ready;
+            snapshot.router_ready = router_ready;
+        }
+        snapshot
     }
 
     pub(crate) fn set_readiness(&self, helper_ready: bool, opend_ready: bool, router_ready: bool) {
@@ -80,10 +104,7 @@ impl ActiveProviderState {
     }
 
     pub(crate) fn get(&self) -> Option<MarketDataProvider> {
-        self.snapshot
-            .read()
-            .unwrap_or_else(|error| error.into_inner())
-            .provider
+        self.snapshot().provider
     }
 }
 

@@ -64,10 +64,9 @@ pub(crate) fn convert_helper_candles_response(
             Some("pre" | "after" | "overnight")
         )
     });
-    // Older helper fixtures omitted `extended_hours`; when the returned rows
-    // themselves prove extended sessions, preserve the Go observable value.
-    let extended_hours =
-        include_session && actual_extended && (resp.extended_hours || params.is_yfinance);
+    // extendedHours is strictly determined by the intersection of helper
+    // capability (resp.extended_hours) and the actual presence of extended sessions.
+    let extended_hours = include_session && actual_extended && resp.extended_hours;
     let instrument_id = format!("{}.{}", params.market, params.symbol);
     let mut meta = json!({
         "extendedHours": extended_hours,

@@ -13,17 +13,12 @@ use jftrade_settings::{
 };
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
-use serde::Serialize;
 use thiserror::Error;
 
 use crate::product::{
     ActiveProviderState, ProductConfig, ProductError, ProductionRuntimeStatus,
     start_product_with_runtime_state,
 };
-
-#[path = "product_runtime_resources.rs"]
-mod product_runtime_resources;
-use product_runtime_resources::product_resources;
 
 #[path = "product_runtime_workers.rs"]
 mod product_runtime_workers;
@@ -62,6 +57,7 @@ pub struct ProductRuntimeConfig {
     /// activation and runtime task as one composition unit.
     pub market_data_opend_provider: Option<OpenDProviderRuntimeConfig>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
+    pub shutdown_recorder: Option<product_runtime_supervisor::ShutdownEventRecorder>,
 }
 
 pub struct ProductRuntimeBuilder {
@@ -115,6 +111,7 @@ impl ProductRuntimeConfig {
             market_data_opend_task: None,
             market_data_opend_provider: None,
             strategy_runtime_registry: None,
+            shutdown_recorder: None,
         })
     }
 
@@ -129,6 +126,14 @@ impl ProductRuntimeConfig {
     pub fn with_market_data_router(mut self, router: Arc<Mutex<ProviderRouter>>) -> Self {
         self.market_data_router = Some(router);
         self.market_data_runtime_recorder = None;
+        self
+    }
+
+    pub fn with_shutdown_recorder(
+        mut self,
+        recorder: product_runtime_supervisor::ShutdownEventRecorder,
+    ) -> Self {
+        self.shutdown_recorder = Some(recorder);
         self
     }
 
@@ -171,133 +176,15 @@ impl ProductRuntimeConfig {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeResourceDescriptor {
-    pub id: String,
-    pub owner: String,
-    pub kind: String,
-    pub path: String,
-    pub initialized_by: String,
-    pub schema_owner: String,
-    pub close_owner: String,
-    pub health_provider: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub environment_override: String,
-    pub critical: bool,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct ProductRuntimeSnapshot {
-    pub resources: Vec<RuntimeResourceDescriptor>,
-    pub production: bool,
-}
-
-pub(crate) struct ProductRuntimeState {
-    resources: Vec<RuntimeResourceDescriptor>,
-    production: bool,
-}
-
-impl ProductRuntimeState {
-    pub(crate) fn product_only(config: &ProductConfig) -> Arc<Self> {
-        Arc::new(Self {
-            resources: product_resources(config),
-            production: config.is_production(),
-        })
-    }
-
-    fn configured(config: &ProductRuntimeConfig) -> Arc<Self> {
-        let mut resources = product_resources(&config.product);
-        resources.extend(
-            config
-                .pine_workers
-                .iter()
-                .map(|worker| RuntimeResourceDescriptor {
-                    id: worker.spec.worker_id.clone(),
-                    owner: "strategy".to_owned(),
-                    kind: "managed-node-process".to_owned(),
-                    path: worker.process.bundle_path.to_string_lossy().into_owned(),
-                    initialized_by: "jftrade-engine".to_owned(),
-                    schema_owner: "workers/pineworker".to_owned(),
-                    close_owner: "jftrade-engine".to_owned(),
-                    health_provider: "PineWorker.HealthCheck".to_owned(),
-                    environment_override: "JFTRADE_PINEWORKER_BUNDLE".to_owned(),
-                    critical: false,
-                }),
-        );
-        if let Some(helper) = &config.marketdata_helper {
-            resources.push(RuntimeResourceDescriptor {
-                id: "marketdata-sidecar".to_owned(),
-                owner: "marketdata".to_owned(),
-                kind: "managed-python-process".to_owned(),
-                path: helper.process.executable.to_string_lossy().into_owned(),
-                initialized_by: "jftrade-engine".to_owned(),
-                schema_owner: "workers/marketdata-sidecar".to_owned(),
-                close_owner: "jftrade-engine".to_owned(),
-                health_provider: "marketdata-sidecar /healthz".to_owned(),
-                environment_override: "JFTRADE_MARKETDATA_SIDECAR".to_owned(),
-                critical: false,
-            });
-        }
-        if config.market_data_opend.is_some() {
-            resources.push(RuntimeResourceDescriptor {
-                id: "futu-opend-session".to_owned(),
-                owner: "marketdata".to_owned(),
-                kind: "managed-opend-session".to_owned(),
-                path: "loopback OpenD API socket".to_owned(),
-                initialized_by: "jftrade-engine composition root".to_owned(),
-                schema_owner: "Futu OpenD protocol".to_owned(),
-                close_owner: "jftrade-engine".to_owned(),
-                health_provider: "OpenDSessionCoordinator".to_owned(),
-                environment_override: String::new(),
-                critical: false,
-            });
-        }
-        if config.market_data_opend_task.is_some() {
-            resources.push(RuntimeResourceDescriptor {
-                id: "futu-opend-runtime-task".to_owned(),
-                owner: "marketdata".to_owned(),
-                kind: "managed-marketdata-task".to_owned(),
-                path: "OpenD poll/reconnect/demand task".to_owned(),
-                initialized_by: "jftrade-engine composition root".to_owned(),
-                schema_owner: "Futu OpenD runtime lifecycle".to_owned(),
-                close_owner: "jftrade-engine".to_owned(),
-                health_provider: "OpenDSessionRuntime".to_owned(),
-                environment_override: String::new(),
-                critical: false,
-            });
-        }
-        if config.market_data_opend_provider.is_some() {
-            resources.push(RuntimeResourceDescriptor {
-                id: "futu-opend-provider-runtime".to_owned(),
-                owner: "marketdata".to_owned(),
-                kind: "provider-router-opend-bridge".to_owned(),
-                path: "loopback OpenD API socket".to_owned(),
-                initialized_by: "jftrade-engine composition root".to_owned(),
-                schema_owner: "Futu OpenD provider runtime".to_owned(),
-                close_owner: "jftrade-engine".to_owned(),
-                health_provider: "OpenDProviderRuntime".to_owned(),
-                environment_override: String::new(),
-                critical: false,
-            });
-        }
-        Arc::new(Self {
-            resources,
-            production: config.product.is_production(),
-        })
-    }
-
-    pub(crate) fn snapshot(&self) -> ProductRuntimeSnapshot {
-        ProductRuntimeSnapshot {
-            resources: self.resources.clone(),
-            production: self.production,
-        }
-    }
-}
+#[path = "product_runtime_resources.rs"]
+mod product_runtime_resources;
+pub(crate) use product_runtime_resources::ProductRuntimeState;
+pub use product_runtime_resources::RuntimeResourceDescriptor;
 
 #[path = "product_runtime_supervisor.rs"]
 mod product_runtime_supervisor;
 use product_runtime_supervisor::ProductShutdownSupervisor;
+pub use product_runtime_supervisor::ShutdownEventRecorder;
 
 pub struct ProductRuntimeHandle {
     supervisor: ProductShutdownSupervisor,
@@ -311,6 +198,10 @@ impl ProductRuntimeHandle {
             .as_ref()
             .expect("running product runtime must own its product handle")
             .startup_record()
+    }
+
+    pub fn shutdown_recorder(&self) -> ShutdownEventRecorder {
+        self.supervisor.recorder.clone()
     }
 
     /// Returns the single live event hub owned by the Rust product listener.
@@ -570,7 +461,11 @@ pub async fn start_product_runtime(
         config.product = config.product.with_strategy_runtime_status_port(registry);
     }
     let state = ProductRuntimeState::configured(&config);
-    let mut supervisor = ProductShutdownSupervisor::new();
+    let mut supervisor = if let Some(recorder) = config.shutdown_recorder.take() {
+        ProductShutdownSupervisor::with_recorder(recorder)
+    } else {
+        ProductShutdownSupervisor::new()
+    };
     supervisor.market_data_dynamic_opend = Some(Arc::clone(&dynamic_opend));
     supervisor.market_data_opend = market_data_opend;
 
@@ -618,19 +513,38 @@ pub async fn start_product_runtime(
     {
         Some(MarketDataProvider::Futu)
     } else {
-        SettingsFileStore::open_read_only(config.product.settings_path())
-            .ok()
-            .and_then(|store| store.load_active_market_data_provider().ok().flatten())
-            .map(|provider| normalize_market_data_provider(&provider))
+        let settings_file = std::path::Path::new(config.product.settings_path());
+        if settings_file.exists() {
+            let store = SettingsFileStore::open_read_only(config.product.settings_path())
+                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?;
+            store
+                .load_active_market_data_provider()
+                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?
+                .map(|provider| normalize_market_data_provider(&provider))
+        } else {
+            None
+        }
     };
     let settings_path = config.product.settings_path().to_owned();
     let helper_ready = config.product.market_data_helper.is_some();
     let activation_router = market_data_router.clone();
     let activation_runtime = Arc::clone(&dynamic_opend);
     let activation_hub = Arc::clone(&live_hub);
+    let dyn_opend_for_readiness = Arc::clone(&dynamic_opend);
+    let dyn_router_for_readiness = market_data_router.clone();
+    let dynamic_readiness: Arc<dyn Fn() -> (bool, bool, bool) + Send + Sync> =
+        Arc::new(move || {
+            let opend_ready = dyn_opend_for_readiness
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .is_some();
+            let router_ready = dyn_router_for_readiness.is_some();
+            (helper_ready, opend_ready, router_ready)
+        });
     let active_provider_state = Arc::new(
-        ActiveProviderState::new(initial_provider).with_activation(Arc::new(
-            move |provider, previous| {
+        ActiveProviderState::new(initial_provider)
+            .with_dynamic_readiness(dynamic_readiness)
+            .with_activation(Arc::new(move |provider, previous| {
                 let mut runtime = activation_runtime
                     .lock()
                     .map_err(|error| format!("failed to lock provider runtime: {error}"))?;
@@ -664,9 +578,9 @@ pub async fn start_product_runtime(
                     }
                 }
                 Ok(())
-            },
-        )),
+            })),
     );
+    supervisor.active_provider_state = Some(Arc::clone(&active_provider_state));
     active_provider_state.set_readiness(
         helper_ready,
         dynamic_opend

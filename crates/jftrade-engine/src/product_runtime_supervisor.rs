@@ -16,22 +16,26 @@ use jftrade_integration_pine::PineProcess;
 use std::sync::{Arc, Mutex};
 
 use super::ProductRuntimeError;
-use crate::product::ProductHandle;
 use crate::product::product_production_ports::ProductionPortBundle;
+use crate::product::{ActiveProviderState, ProductHandle};
 use crate::product_runtime::product_runtime_composition::SharedOpenDProviderRuntime;
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ShutdownEventRecorder {
+pub struct ShutdownEventRecorder {
     events: Arc<Mutex<Vec<&'static str>>>,
 }
 
 impl ShutdownEventRecorder {
-    pub(crate) fn record(&self, event: &'static str) {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record(&self, event: &'static str) {
         let mut list = self.events.lock().unwrap_or_else(|e| e.into_inner());
         list.push(event);
     }
 
-    pub(crate) fn events(&self) -> Vec<&'static str> {
+    pub fn events(&self) -> Vec<&'static str> {
         self.events
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -41,6 +45,7 @@ impl ShutdownEventRecorder {
 
 pub(crate) struct ProductShutdownSupervisor {
     pub(crate) product: Option<ProductHandle>,
+    pub(crate) active_provider_state: Option<Arc<ActiveProviderState>>,
     pub(crate) market_data_opend_provider: Option<OpenDProviderRuntime>,
     pub(crate) market_data_dynamic_opend: Option<SharedOpenDProviderRuntime>,
     pub(crate) market_data_opend_runtime: Option<OpenDSessionRuntime>,
@@ -53,8 +58,13 @@ pub(crate) struct ProductShutdownSupervisor {
 
 impl ProductShutdownSupervisor {
     pub(crate) fn new() -> Self {
+        Self::with_recorder(ShutdownEventRecorder::default())
+    }
+
+    pub(crate) fn with_recorder(recorder: ShutdownEventRecorder) -> Self {
         Self {
             product: None,
+            active_provider_state: None,
             market_data_opend_provider: None,
             market_data_dynamic_opend: None,
             market_data_opend_runtime: None,
@@ -62,7 +72,7 @@ impl ProductShutdownSupervisor {
             marketdata_helper: None,
             pine_workers: Vec::new(),
             production_ports: None,
-            recorder: ShutdownEventRecorder::default(),
+            recorder,
         }
     }
 
@@ -78,6 +88,9 @@ impl ProductShutdownSupervisor {
     }
 
     pub(crate) async fn execute_shutdown(&mut self) -> Result<(), ProductRuntimeError> {
+        if let Some(state) = self.active_provider_state.as_ref() {
+            state.begin_shutdown();
+        }
         let mut failures = Vec::new();
         // 1. Stop HTTP server and live hub first (reverse of construction)
         if let Some(product) = self.product.take() {
@@ -154,6 +167,9 @@ impl ProductShutdownSupervisor {
     }
 
     pub(crate) fn execute_sync_drop(&mut self) {
+        if let Some(state) = self.active_provider_state.as_ref() {
+            state.begin_shutdown();
+        }
         if !self.has_active_resources() {
             return;
         }
