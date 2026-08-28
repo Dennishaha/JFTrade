@@ -20,8 +20,6 @@ pub enum ResponseError {
     },
     #[error("OpenD response missing required s2c")]
     MissingS2c,
-    #[error("OpenD {operation} response missing required s2c")]
-    MissingS2cFor { operation: &'static str },
     #[error("failed to decode OpenD {operation} response: {message}")]
     Decode {
         operation: &'static str,
@@ -35,7 +33,7 @@ pub fn validate_response(
     ret_msg: Option<&str>,
     has_s2c: bool,
 ) -> Result<(), ResponseError> {
-    validate_response_for(ret_type, err_code, ret_msg, has_s2c, None)
+    validate_response_for(ret_type, err_code, ret_msg, has_s2c)
 }
 
 fn validate_response_for(
@@ -43,7 +41,6 @@ fn validate_response_for(
     err_code: Option<i32>,
     ret_msg: Option<&str>,
     has_s2c: bool,
-    operation: Option<&'static str>,
 ) -> Result<(), ResponseError> {
     if ret_type != 0 {
         return Err(ResponseError::ReturnCode {
@@ -53,15 +50,12 @@ fn validate_response_for(
         });
     }
     if !has_s2c {
-        return match operation {
-            Some(operation) => Err(ResponseError::MissingS2cFor { operation }),
-            None => Err(ResponseError::MissingS2c),
-        };
+        return Err(ResponseError::MissingS2c);
     }
     Ok(())
 }
 
-macro_rules! trade_read_proto {
+macro_rules! trade_list_proto {
     ($module:ident, $file:literal, $operation:literal, $protocol_id:literal) => {
         pub mod $module {
             use prost::Message;
@@ -83,42 +77,74 @@ macro_rules! trade_read_proto {
                         operation: $operation,
                         message: error.to_string(),
                     })?;
-                let has_s2c = response.s2c.is_some();
                 super::validate_response_for(
                     response.ret_type,
                     response.err_code,
                     response.ret_msg.as_deref(),
-                    has_s2c,
-                    Some($operation),
+                    true,
                 )?;
-                response.s2c.ok_or(super::ResponseError::MissingS2cFor {
-                    operation: $operation,
-                })
+                Ok(response.s2c.unwrap_or_default())
             }
         }
     };
 }
 
-trade_read_proto!(
+macro_rules! trade_funds_proto {
+    ($module:ident, $file:literal, $operation:literal, $protocol_id:literal) => {
+        pub mod $module {
+            use prost::Message;
+
+            include!(concat!(env!("OUT_DIR"), "/", $file));
+
+            /// Futu OpenD protocol identifier for this operation.
+            pub const PROTOCOL_ID: u32 = $protocol_id;
+
+            /// Encodes a typed request body for the OpenD frame payload.
+            pub fn encode_request(request: &Request) -> Vec<u8> {
+                request.encode_to_vec()
+            }
+
+            /// Decodes the funds projection, normalizing absent S2C/funds to zero values.
+            pub fn decode_response(
+                body: &[u8],
+            ) -> Result<super::trd_common::Funds, super::ResponseError> {
+                let response =
+                    Response::decode(body).map_err(|error| super::ResponseError::Decode {
+                        operation: $operation,
+                        message: error.to_string(),
+                    })?;
+                super::validate_response_for(
+                    response.ret_type,
+                    response.err_code,
+                    response.ret_msg.as_deref(),
+                    true,
+                )?;
+                Ok(response.s2c.and_then(|s2c| s2c.funds).unwrap_or_default())
+            }
+        }
+    };
+}
+
+trade_list_proto!(
     trd_get_acc_list,
     "trd_get_acc_list.rs",
     "GetAccountList",
     2001
 );
-trade_read_proto!(trd_get_funds, "trd_get_funds.rs", "GetFunds", 2101);
-trade_read_proto!(
+trade_funds_proto!(trd_get_funds, "trd_get_funds.rs", "GetFunds", 2101);
+trade_list_proto!(
     trd_get_position_list,
     "trd_get_position_list.rs",
     "GetPositionList",
     2102
 );
-trade_read_proto!(
+trade_list_proto!(
     trd_get_order_list,
     "trd_get_order_list.rs",
     "GetOrderList",
     2201
 );
-trade_read_proto!(
+trade_list_proto!(
     trd_get_order_fill_list,
     "trd_get_order_fill_list.rs",
     "GetOrderFillList",
@@ -170,12 +196,14 @@ mod tests {
             err_code: Some(0),
             s2c: Some(trd_get_funds::S2c {
                 header: header(),
-                funds: None,
+                funds: Some(trd_common::Funds {
+                    power: 123.0,
+                    ..Default::default()
+                }),
             }),
         };
         let decoded = trd_get_funds::decode_response(&response.encode_to_vec()).expect("response");
-        assert_eq!(decoded.header.acc_id, 42);
-        assert!(decoded.funds.is_none());
+        assert_eq!(decoded.power, 123.0);
     }
 
     #[test]
@@ -197,18 +225,27 @@ mod tests {
     }
 
     #[test]
-    fn funds_missing_s2c_reports_the_operation() {
+    fn list_missing_s2c_normalizes_to_an_empty_result() {
+        let response = trd_get_acc_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: None,
+        };
+        let decoded =
+            trd_get_acc_list::decode_response(&response.encode_to_vec()).expect("response");
+        assert!(decoded.acc_list.is_empty());
+    }
+
+    #[test]
+    fn funds_missing_s2c_normalizes_to_an_empty_snapshot() {
         let response = trd_get_funds::Response {
             ret_type: 0,
             ret_msg: None,
             err_code: None,
             s2c: None,
         };
-        assert_eq!(
-            trd_get_funds::decode_response(&response.encode_to_vec()),
-            Err(ResponseError::MissingS2cFor {
-                operation: "GetFunds",
-            })
-        );
+        let decoded = trd_get_funds::decode_response(&response.encode_to_vec()).expect("response");
+        assert_eq!(decoded, trd_common::Funds::default());
     }
 }
