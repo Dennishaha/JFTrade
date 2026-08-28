@@ -148,6 +148,7 @@ fn decode_optional_json_field(
 
 impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
     fn progress(&self, task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
+        self.sync_workers.reap_finished();
         self.sync_tasks
             .get(task_id)
             .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?
