@@ -64,6 +64,11 @@ pub enum ValidationError {
         operation: &'static str,
         field: &'static str,
     },
+    #[error("OpenD {operation} field {field} has an unsupported value")]
+    UnsupportedValue {
+        operation: &'static str,
+        field: String,
+    },
 }
 
 fn validate_response_for(

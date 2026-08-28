@@ -1,4 +1,4 @@
-use crate::trade_proto::{ResponseError, trd_get_margin_ratio};
+use crate::trade_proto::{ResponseError, ValidationError, trd_get_margin_ratio};
 use crate::trade_proto_validation::{validate_optional_finite, validate_required_text};
 
 pub(crate) fn validate_margin_ratio_s2c(
@@ -6,6 +6,16 @@ pub(crate) fn validate_margin_ratio_s2c(
     payload: &trd_get_margin_ratio::S2c,
 ) -> Result<(), ResponseError> {
     for info in &payload.margin_ratio_info_list {
+        if !matches!(
+            info.security.market,
+            1 | 11 | 21 | 22 | 31 | 41 | 51 | 61 | 71
+        ) {
+            return Err(ValidationError::UnsupportedValue {
+                operation,
+                field: "security.market".to_owned(),
+            }
+            .into());
+        }
         validate_required_text(operation, "security.code", &info.security.code)?;
         for (field, value) in [
             ("short_pool_remain", info.short_pool_remain),
