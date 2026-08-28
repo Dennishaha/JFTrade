@@ -1,7 +1,6 @@
 //! Backtests, Execution Orders, Brokers, and ADK production ports.
 
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use jftrade_store_sqlite::{BacktestMarketDataStore, BacktestRunStore, ExecutionOrderStore};
 use serde_json::{Value, json};
 use crate::product::product_active_provider_state::ActiveProviderState;
@@ -30,7 +29,6 @@ use crate::product::{
 pub(crate) struct ProductionBacktestPort {
     pub(crate) store: Arc<BacktestRunStore>,
     pub(crate) _market_data_store: Arc<BacktestMarketDataStore>,
-    pub(crate) sync_tasks: Mutex<BTreeMap<String, Value>>,
 }
 
 impl BacktestReadSnapshotPort for ProductionBacktestPort {
@@ -43,14 +41,24 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
             .into_iter()
             .map(|r| {
                 let request = decode_json_field(&r.request_json, "backtest request")?;
-                let result = decode_json_field(&r.result_json, "backtest result")?;
+                // Go's ListLightweight validates the persisted result while
+                // omitting the potentially large result payload from the
+                // response.  Empty result_json is the normal representation
+                // for queued/running runs and must not turn the whole list
+                // into a store failure.
+                let result = decode_optional_json_field(&r.result_json, "backtest result")?;
+                let market_data_provider = result
+                    .as_ref()
+                    .and_then(|value| value.get("marketDataProvider"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
                 Ok(json!({
                     "id": r.id,
                     "status": r.status,
                     "request": request,
-                    "result": result,
                     "createdAt": r.created_at,
                     "updatedAt": r.updated_at,
+                    "marketDataProvider": market_data_provider,
                 }))
             })
             .collect::<Result<Vec<_>, BacktestReadSnapshotError>>()?;
@@ -75,8 +83,28 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
             .store
             .get_run(run_id)
             .map_err(|e| BacktestReadSnapshotError::Unavailable(e.to_string()))?;
-        run.map(|r| decode_json_field(&r.result_json, "backtest result"))
-            .transpose()
+        run.map(|r| {
+            let request = decode_json_field(&r.request_json, "backtest request")?;
+            let result = decode_optional_json_field(&r.result_json, "backtest result")?;
+            let market_data_provider = result
+                .as_ref()
+                .and_then(|value| value.get("marketDataProvider"))
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let mut response = json!({
+                "id": r.id,
+                "status": r.status,
+                "request": request,
+                "createdAt": r.created_at,
+                "updatedAt": r.updated_at,
+                "marketDataProvider": market_data_provider,
+            });
+            if let Some(result) = result {
+                response["result"] = result;
+            }
+            Ok(response)
+        })
+        .transpose()
     }
 }
 
@@ -86,18 +114,22 @@ fn decode_json_field(raw: &str, field: &str) -> Result<Value, BacktestReadSnapsh
     })
 }
 
+fn decode_optional_json_field(
+    raw: &str,
+    field: &str,
+) -> Result<Option<Value>, BacktestReadSnapshotError> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "null" {
+        return Ok(None);
+    }
+    decode_json_field(trimmed, field).map(Some)
+}
+
 impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
-    fn progress(&self, task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
-        Ok(self
-            .sync_tasks
-            .lock()
-            .map_err(|_| {
-                BacktestSyncReadSnapshotError::Unavailable(
-                    "backtest sync task registry lock is poisoned".to_owned(),
-                )
-            })?
-            .get(task_id)
-            .cloned())
+    fn progress(&self, _task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
+        Err(BacktestSyncReadSnapshotError::Unavailable(
+            "backtest market-data sync runtime is not configured".to_owned(),
+        ))
     }
 }
 
@@ -114,19 +146,9 @@ impl BacktestsWritePort for ProductionBacktestPort {
                     "backtest market-data sync runtime is not configured".to_owned(),
                 ))
             }
-            BacktestsWriteInput::CancelSync { task_id } => {
-                let mut tasks = self.sync_tasks.lock().map_err(|_| {
-                    BacktestsWritePortError::Failed(
-                        "backtest sync task registry lock is poisoned".to_owned(),
-                    )
-                })?;
-                if tasks.is_empty() {
-                    return Err(BacktestsWritePortError::Unavailable(
-                        "backtest market-data sync runtime is not configured".to_owned(),
-                    ));
-                }
-                Ok(BacktestsWritePortResult::SyncCancelled(
-                    tasks.remove(task_id).is_some(),
+            BacktestsWriteInput::CancelSync { .. } => {
+                Err(BacktestsWritePortError::Unavailable(
+                    "backtest market-data sync runtime is not configured".to_owned(),
                 ))
             }
             BacktestsWriteInput::Delete { run_id } => {

@@ -141,18 +141,35 @@ impl StrategyRuntimeStore {
         status: &str,
         timestamp: &str,
     ) -> Result<(), StrategyRuntimeStoreError> {
+        self.seed_instance_with_binding(instance_id, status, json!({}), timestamp)
+    }
+
+    pub fn seed_instance_with_binding(
+        &self,
+        instance_id: &str,
+        status: &str,
+        binding: Value,
+        timestamp: &str,
+    ) -> Result<(), StrategyRuntimeStoreError> {
         validate_rfc3339_timestamp(timestamp)?;
-        let connection = self.lock()?;
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(StrategyRuntimeStoreError::Query)?;
         let is_running = status == "RUNNING";
+        let runtime_risk = binding
+            .get("runtimeRisk")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
         let payload = json!({
-            "binding": {},
-            "runtimeRisk": {},
+            "binding": binding,
+            "runtimeRisk": runtime_risk,
             "definitionRevision": 0,
             "runtimeActive": is_running,
             "deleted": false,
         });
 
-        connection
+        transaction
             .execute(
                 "INSERT INTO strategy_catalog_operations (operation_id, plugin_id, status, updated_at, payload_json)
                  VALUES (?1, '', ?2, ?3, ?4)
@@ -164,7 +181,7 @@ impl StrategyRuntimeStore {
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
-        connection
+        transaction
             .execute(
                 "INSERT INTO strategy_runtime_observations (instance_id, actual_status_snapshot, active_symbols_json, updated_at_ms)
                  VALUES (?1, ?2, '[]', 0)
@@ -174,6 +191,9 @@ impl StrategyRuntimeStore {
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
+        transaction
+            .commit()
+            .map_err(StrategyRuntimeStoreError::Query)?;
         Ok(())
     }
 
@@ -631,6 +651,17 @@ impl StrategyRuntimeTestCutoverStore {
         timestamp: &str,
     ) -> Result<(), StrategyRuntimeStoreError> {
         self.inner.seed_instance(instance_id, status, timestamp)
+    }
+
+    pub fn seed_instance_with_binding(
+        &self,
+        instance_id: &str,
+        status: &str,
+        binding: Value,
+        timestamp: &str,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        self.inner
+            .seed_instance_with_binding(instance_id, status, binding, timestamp)
     }
 
     pub fn list_instances(&self) -> Result<Vec<StoredRuntimeInstance>, StrategyRuntimeStoreError> {

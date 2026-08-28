@@ -72,8 +72,8 @@ mod product_production_assembly_tests {
         assert_eq!(record.event, "ready");
         assert_eq!(record.owner, "rust");
         assert_eq!(record.owned_routes, 278);
-        assert_eq!(record.ready_routes, 183);
-        assert_eq!(record.external_unavailable_routes, 95);
+        assert_eq!(record.ready_routes, 181);
+        assert_eq!(record.external_unavailable_routes, 97);
         assert_eq!(
             record.ready_routes + record.external_unavailable_routes,
             record.owned_routes
@@ -390,7 +390,12 @@ mod product_production_assembly_tests {
             .mutate(&ResearchPresetWriteMutation::Create {
                 payload: json!({
                     "name": "High Volume Screen",
-                    "filters": [],
+                    "definition": {
+                        "market": "US",
+                        "pool": {},
+                        "catalogVersion": "futu-stock-screen-v1",
+                        "querySchemaVersion": 2,
+                    },
                 }),
             })
             .expect("create preset");
@@ -887,12 +892,12 @@ mod product_production_assembly_tests {
         assert!(registry.bindings().iter().any(|binding| {
             binding.method == "GET"
                 && binding.path == "/api/v1/backtests/sync/{taskId}"
-                && binding.adapter_binding == ProductionAdapterBinding::Ready
+                && binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable
         }));
         assert!(registry.bindings().iter().any(|binding| {
             binding.method == "DELETE"
                 && binding.path == "/api/v1/backtests/sync/{taskId}"
-                && binding.adapter_binding == ProductionAdapterBinding::Ready
+                && binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable
         }));
         assert!(registry.bindings().iter().any(|binding| {
             binding.method == "PUT"
@@ -2085,7 +2090,7 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
-    async fn production_backtest_sync_registry_distinguishes_missing_task_from_runtime_failure() {
+    async fn production_backtest_sync_endpoints_fail_closed_without_persistent_sync_runtime() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();
         let handle = start_product(config).await.expect("start product");
         let address = handle.startup_record().address;
@@ -2099,8 +2104,11 @@ mod product_production_assembly_tests {
             &[("Authorization", &format!("Bearer {token}"))],
         )
         .await;
-        assert_eq!(read_status, 404, "sync read response: {read_response}");
-        assert_eq!(read_response["error"]["code"], "NOT_FOUND");
+        assert_eq!(read_status, 500, "sync read response: {read_response}");
+        assert_eq!(
+            read_response["error"]["code"],
+            "BACKTEST_SYNC_TASK_STORE_FAILED"
+        );
 
         let (start_status, start_response) = request_json_with_status(
             address,
@@ -2846,6 +2854,14 @@ mod product_production_assembly_tests {
         const EXTERNAL_UNAVAILABLE_EVIDENCE: &[(&str, &str, &str, &str, u16, &str)] = &[
             (
                 "DELETE",
+                "/api/v1/backtests/sync/{taskId}",
+                "",
+                "",
+                503,
+                "BACKTESTS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "DELETE",
                 "/api/v1/brokers/{brokerId}/orders",
                 "",
                 "{}",
@@ -2883,6 +2899,14 @@ mod product_production_assembly_tests {
                 "",
                 503,
                 "ALERTS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/backtests/sync/{taskId}",
+                "",
+                "",
+                500,
+                "BACKTEST_SYNC_TASK_STORE_FAILED",
             ),
             (
                 "GET",

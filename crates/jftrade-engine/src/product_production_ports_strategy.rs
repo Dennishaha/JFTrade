@@ -1,10 +1,11 @@
 //! Strategy and Research Presets production ports.
 
 use std::sync::Arc;
-use std::time::SystemTime;
 
+use jftrade_research::normalize_definition_v2;
 use jftrade_store_sqlite::{
-    ResearchPresetMutation, ResearchPresetStore, StrategyDefinitionStore, StrategyRuntimeStore,
+    ResearchPresetMutation, ResearchPresetStore, ResearchPresetStoreError, StrategyDefinitionStore,
+    StrategyDefinitionStoreError, StrategyRuntimeStore,
 };
 use serde_json::{Value, json};
 
@@ -122,33 +123,103 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
 
         match input.operation {
             StrategyDefinitionWriteOperation::Create => {
-                let def = input.definition.clone().unwrap_or_default();
-                let id = def.get("id").and_then(Value::as_str).unwrap_or("strategy-default");
-                let name = def.get("name").and_then(Value::as_str).unwrap_or("").to_owned();
-                let stored = self.store
+                let Some(Value::Object(def)) = input.definition.as_ref() else {
+                    return Err(StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "invalid definition payload".to_owned(),
+                    });
+                };
+                let name = def
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "strategy name is required".to_owned(),
+                    })?;
+                let id = def
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(generate_strategy_id);
+                let description = def
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .unwrap_or_default()
+                    .to_owned();
+                let runtime = def
+                    .get("runtime")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("pine-pinets")
+                    .to_owned();
+                let source_format = def
+                    .get("sourceFormat")
+                    .or_else(|| def.get("source_format"))
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("pine-v6")
+                    .to_owned();
+                let symbol = def
+                    .get("symbol")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .unwrap_or_default()
+                    .to_owned();
+                let interval = def
+                    .get("interval")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .unwrap_or_default()
+                    .to_owned();
+                let script = def
+                    .get("script")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let visual_model_json = if let Some(vm) = def.get("visualModelJson").and_then(Value::as_str) {
+                    vm.to_owned()
+                } else if let Some(vm) = def.get("visualModel") {
+                    serde_json::to_string(vm).unwrap_or_else(|_| "{}".to_owned())
+                } else {
+                    "{}".to_owned()
+                };
+                let version = def
+                    .get("version")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("0.1.0")
+                    .to_owned();
+                let stored = self
+                    .store
                     .save_definition(
                         jftrade_store_sqlite::StoredStrategyDefinition {
-                            id: id.to_owned(),
-                            name,
-                            version: "1.0".to_owned(),
-                            description: "".to_owned(),
-                            runtime: "pine".to_owned(),
-                            source_format: "pine".to_owned(),
-                            symbol: "".to_owned(),
-                            interval: "".to_owned(),
-                            script: "".to_owned(),
-                            visual_model_json: "{}".to_owned(),
+                            id,
+                            name: name.to_owned(),
+                            version,
+                            description,
+                            runtime,
+                            source_format,
+                            symbol,
+                            interval,
+                            script,
+                            visual_model_json,
                             created_at: timestamp.clone(),
                             updated_at: timestamp.clone(),
                             deleted_at: None,
                         },
                         &timestamp,
                     )
-                    .map_err(|e| StrategyDefinitionWritePortError::Failed {
-                        status: 400,
-                        code: "STRATEGY_DEFINITION_ERROR".to_owned(),
-                        message: e.to_string(),
-                    })?;
+                    .map_err(map_strategy_store_error)?;
                 serde_json::to_value(&stored).map_err(|error| {
                     StrategyDefinitionWritePortError::Failed {
                         status: 500,
@@ -158,33 +229,112 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                 })
             }
             StrategyDefinitionWriteOperation::Update => {
-                let def = input.definition.clone().unwrap_or_default();
-                let id = input.definition_id.as_deref().unwrap_or("strategy-default");
-                let name = def.get("name").and_then(Value::as_str).unwrap_or("").to_owned();
-                let stored = self.store
+                let definition_id = input
+                    .definition_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "invalid definition id".to_owned(),
+                    })?;
+                let existing = self
+                    .store
+                    .get_definition(definition_id, false)
+                    .map_err(map_strategy_store_error)?
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 404,
+                        code: "NOT_FOUND".to_owned(),
+                        message: "strategy resource not found".to_owned(),
+                    })?;
+                let Some(Value::Object(def)) = input.definition.as_ref() else {
+                    return Err(StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "invalid definition payload".to_owned(),
+                    });
+                };
+                let name = if let Some(raw) = def.get("name") {
+                    let trimmed = raw
+                        .as_str()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                            status: 400,
+                            code: "BAD_REQUEST".to_owned(),
+                            message: "strategy name is required".to_owned(),
+                        })?;
+                    trimmed.to_owned()
+                } else {
+                    existing.name.clone()
+                };
+                let description = def
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.description);
+                let runtime = def
+                    .get("runtime")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.runtime);
+                let source_format = def
+                    .get("sourceFormat")
+                    .or_else(|| def.get("source_format"))
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.source_format);
+                let symbol = def
+                    .get("symbol")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.symbol);
+                let interval = def
+                    .get("interval")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.interval);
+                let script = def
+                    .get("script")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(existing.script);
+                let visual_model_json = if let Some(vm) = def.get("visualModelJson").and_then(Value::as_str) {
+                    vm.to_owned()
+                } else if let Some(vm) = def.get("visualModel") {
+                    serde_json::to_string(vm).unwrap_or_else(|_| existing.visual_model_json.clone())
+                } else {
+                    existing.visual_model_json
+                };
+                let stored = self
+                    .store
                     .save_definition(
                         jftrade_store_sqlite::StoredStrategyDefinition {
-                            id: id.to_owned(),
+                            id: definition_id.to_owned(),
                             name,
-                            version: "1.0".to_owned(),
-                            description: "".to_owned(),
-                            runtime: "pine".to_owned(),
-                            source_format: "pine".to_owned(),
-                            symbol: "".to_owned(),
-                            interval: "".to_owned(),
-                            script: "".to_owned(),
-                            visual_model_json: "{}".to_owned(),
-                            created_at: timestamp.clone(),
+                            version: existing.version,
+                            description,
+                            runtime,
+                            source_format,
+                            symbol,
+                            interval,
+                            script,
+                            visual_model_json,
+                            created_at: existing.created_at,
                             updated_at: timestamp.clone(),
                             deleted_at: None,
                         },
                         &timestamp,
                     )
-                    .map_err(|e| StrategyDefinitionWritePortError::Failed {
-                        status: 400,
-                        code: "STRATEGY_DEFINITION_ERROR".to_owned(),
-                        message: e.to_string(),
-                    })?;
+                    .map_err(map_strategy_store_error)?;
                 serde_json::to_value(&stored).map_err(|error| {
                     StrategyDefinitionWritePortError::Failed {
                         status: 500,
@@ -194,35 +344,145 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                 })
             }
             StrategyDefinitionWriteOperation::Delete => {
-                let id = input.definition_id.as_deref().unwrap_or_default();
-                self.store
-                    .delete_definition(id, &timestamp)
-                    .map_err(|e| StrategyDefinitionWritePortError::Failed {
+                let definition_id = input
+                    .definition_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
                         status: 400,
-                        code: "STRATEGY_DEFINITION_ERROR".to_owned(),
-                        message: e.to_string(),
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "invalid definition id".to_owned(),
                     })?;
-                Ok(json!({"deleted": true}))
+                let deleted = self
+                    .store
+                    .delete_definition(definition_id, &timestamp)
+                    .map_err(map_strategy_store_error)?;
+                serde_json::to_value(&deleted).map_err(|error| {
+                    StrategyDefinitionWritePortError::Failed {
+                        status: 500,
+                        code: "STRATEGY_DEFINITION_ERROR".to_owned(),
+                        message: format!("encode deleted strategy definition: {error}"),
+                    }
+                })
             }
             StrategyDefinitionWriteOperation::ApplyLinkedInstances => {
+                let definition_id = input
+                    .definition_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 404,
+                        code: "NOT_FOUND".to_owned(),
+                        message: "resource not found".to_owned(),
+                    })?;
+                if self
+                    .store
+                    .get_definition(definition_id, false)
+                    .map_err(map_strategy_store_error)?
+                    .is_none()
+                {
+                    return Err(StrategyDefinitionWritePortError::Failed {
+                        status: 404,
+                        code: "NOT_FOUND".to_owned(),
+                        message: "resource not found".to_owned(),
+                    });
+                }
                 Err(StrategyDefinitionWritePortError::Unavailable(
                     "linked strategy runtime is not configured".to_owned(),
                 ))
             }
             StrategyDefinitionWriteOperation::Instantiate => {
-                let id = input.definition_id.as_deref().unwrap_or_default();
-                let instance_id = format!("inst_{id}");
+                let definition_id = input
+                    .definition_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 404,
+                        code: "NOT_FOUND".to_owned(),
+                        message: "resource not found".to_owned(),
+                    })?;
+                let current = self
+                    .store
+                    .get_definition(definition_id, false)
+                    .map_err(map_strategy_store_error)?
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
+                        status: 404,
+                        code: "NOT_FOUND".to_owned(),
+                        message: "resource not found".to_owned(),
+                    })?;
+                if let Some(message) = input.binding_error.as_deref() {
+                    return Err(StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: message.to_owned(),
+                    });
+                }
+                let instance_id = format!("inst_{}", generate_strategy_id());
+                let binding = input.binding.clone().unwrap_or_else(|| json!({}));
                 let runtime = StrategyRuntimeStore::from_definition_store(&self.store);
                 runtime
-                    .seed_instance(&instance_id, "STOPPED", &timestamp)
+                    .seed_instance_with_binding(&instance_id, "STOPPED", binding.clone(), &timestamp)
                     .map_err(|error| StrategyDefinitionWritePortError::Failed {
                         status: 400,
                         code: "STRATEGY_RUNTIME_ERROR".to_owned(),
                         message: error.to_string(),
                     })?;
-                Ok(json!({"instanceId": instance_id, "definitionId": id, "status": "STOPPED"}))
+                let def_val = serde_json::to_value(&current).unwrap_or_default();
+                Ok(json!({
+                    "id": instance_id,
+                    "definitionId": definition_id,
+                    "definitionVersion": current.version,
+                    "definition": def_val,
+                    "binding": binding,
+                    "status": "STOPPED",
+                }))
             }
         }
+    }
+}
+
+fn generate_strategy_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let timestamp = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+    format!("{timestamp:x}_{id}")
+}
+
+fn map_strategy_store_error(error: StrategyDefinitionStoreError) -> StrategyDefinitionWritePortError {
+    match error {
+        StrategyDefinitionStoreError::NotFound => StrategyDefinitionWritePortError::Failed {
+            status: 404,
+            code: "NOT_FOUND".to_owned(),
+            message: "strategy resource not found".to_owned(),
+        },
+        StrategyDefinitionStoreError::Conflict => StrategyDefinitionWritePortError::Failed {
+            status: 409,
+            code: "CONFLICT".to_owned(),
+            message: "strategy state conflict".to_owned(),
+        },
+        StrategyDefinitionStoreError::DeleteGuard(message) => {
+            StrategyDefinitionWritePortError::Failed {
+                status: 400,
+                code: "STRATEGY_INVALID".to_owned(),
+                message,
+            }
+        }
+        StrategyDefinitionStoreError::Validation(message) => {
+            StrategyDefinitionWritePortError::Failed {
+                status: 400,
+                code: "STRATEGY_INVALID".to_owned(),
+                message,
+            }
+        }
+        other => StrategyDefinitionWritePortError::Failed {
+            status: 500,
+            code: "STRATEGY_FAILED".to_owned(),
+            message: other.to_string(),
+        },
     }
 }
 
@@ -458,23 +718,42 @@ impl StrategyRuntimeStatusPort for ProductionStrategyRuntimePort {
                 active_instances: Vec::new(),
             };
         };
+        let active_strategies = instances
+            .iter()
+            .filter(|i| i.runtime_active || i.status.eq_ignore_ascii_case("RUNNING"))
+            .count();
+        let status = if active_strategies > 0 {
+            "active".to_owned()
+        } else {
+            "idle".to_owned()
+        };
         StrategyRuntimeSummary {
-            status: "running".to_owned(),
-            active_strategies: instances.len(),
+            status,
+            active_strategies,
             supports_backtest_parity: true,
             active_instances: instances
                 .into_iter()
-                .map(|i| crate::product::StrategyRuntimeActiveInstance {
-                    instance_id: i.id,
-                    definition_name: "".to_owned(),
-                    actual_status: i.status,
-                    active_symbols: None,
-                    last_closed_kline_at: None,
-                    last_signal_at: None,
-                    last_order_at: None,
-                    last_error_at: None,
-                    last_error: None,
-                    updated_at: Some(i.updated_at),
+                .filter(|instance| {
+                    instance.runtime_active || instance.status.eq_ignore_ascii_case("RUNNING")
+                })
+                .map(|i| {
+                    let actual_status = i.status.to_ascii_lowercase();
+                    crate::product::StrategyRuntimeActiveInstance {
+                        instance_id: i.id,
+                        definition_name: "".to_owned(),
+                        actual_status,
+                        active_symbols: None,
+                        last_closed_kline_at: None,
+                        last_signal_at: None,
+                        last_order_at: None,
+                        last_error_at: None,
+                        last_error: None,
+                        updated_at: if i.updated_at.is_empty() {
+                            None
+                        } else {
+                            Some(i.updated_at)
+                        },
+                    }
                 })
                 .collect(),
         }
@@ -602,10 +881,16 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
         }
 
         if let Some(id) = path.strip_prefix("/api/v1/research/screens/presets/") {
+            if id.is_empty() || id.contains('/') {
+                return Err(ResearchPresetReadSnapshotError::NotFound);
+            }
             let preset = self
                 .store
                 .get(id)
-                .map_err(|e| ResearchPresetReadSnapshotError::Unavailable(e.to_string()))?;
+                .map_err(|e| match e {
+                    ResearchPresetStoreError::NotFound => ResearchPresetReadSnapshotError::NotFound,
+                    other => ResearchPresetReadSnapshotError::Unavailable(other.to_string()),
+                })?;
             return serde_json::to_value(&preset)
                 .map_err(|error| ResearchPresetReadSnapshotError::Unavailable(error.to_string()));
         }
@@ -625,78 +910,136 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
 
         match mutation {
             ResearchPresetWriteMutation::Create { payload } => {
-                let name = payload.get("name").and_then(Value::as_str).unwrap_or("Default");
-                let id = payload
+                let object = payload
+                    .as_object()
+                    .ok_or_else(|| invalid_preset("name is required"))?;
+                let name = normalized_preset_name(object.get("name"))?;
+                let definition = normalized_preset_definition(object.get("definition"))?;
+                let id = object
                     .get("id")
                     .and_then(Value::as_str)
-                    .map(|s| s.to_owned())
-                    .unwrap_or_else(|| {
-                        format!(
-                            "preset_{}",
-                            SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .map(|d| d.as_millis())
-                                .unwrap_or(0)
-                        )
-                    });
-                let definition = if payload.is_object() {
-                    payload.clone()
-                } else {
-                    json!({})
-                };
-                let m = ResearchPresetMutation {
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("preset_{}", generate_strategy_id()));
+                let preset = ResearchPresetMutation {
                     preset_id: id,
-                    name: name.to_owned(),
+                    name,
                     query_schema_version: 2,
                     definition,
                     revision: 1,
                 };
                 let stored = self
                     .store
-                    .insert(&m, &timestamp)
-                    .map_err(|e| ResearchPresetWritePortError::Invalid(e.to_string()))?;
-                serde_json::to_value(&stored).map_err(|error| {
-                    ResearchPresetWritePortError::Failed(format!(
-                        "encode stored research preset: {error}"
-                    ))
+                    .insert(&preset, &timestamp)
+                    .map_err(map_research_preset_store_error)?;
+                serde_json::to_value(&stored).map_err(|e| {
+                    ResearchPresetWritePortError::Failed(format!("encode stored research preset: {e}"))
                 })
             }
             ResearchPresetWriteMutation::Update { preset_id, payload } => {
-                let current = self
-                    .store
-                    .get(preset_id)
-                    .map_err(|e| ResearchPresetWritePortError::Invalid(e.to_string()))?;
-                let name = payload.get("name").and_then(Value::as_str).unwrap_or(&current.preset.name);
-                let definition = if payload.is_object() {
-                    payload.clone()
+                if preset_id.trim().is_empty() {
+                    return Err(invalid_preset("preset id is required"));
+                }
+                let object = payload
+                    .as_object()
+                    .ok_or_else(|| invalid_preset("expectedRevision must be positive"))?;
+                let expected_revision = object
+                    .get("expectedRevision")
+                    .and_then(Value::as_u64)
+                    .filter(|r| *r > 0)
+                    .ok_or_else(|| invalid_preset("expectedRevision must be positive"))?;
+                let has_name = object.get("name").is_some_and(|v| !v.is_null());
+                let has_definition = object.get("definition").is_some_and(|v| !v.is_null());
+                if !has_name && !has_definition {
+                    return Err(invalid_preset("name or definition is required"));
+                }
+                let current = self.store.get(preset_id).map_err(map_research_preset_store_error)?;
+                let name = if has_name {
+                    normalized_preset_name(object.get("name"))?
+                } else {
+                    current.preset.name.clone()
+                };
+                let definition = if has_definition {
+                    normalized_preset_definition(object.get("definition"))?
                 } else {
                     current.preset.definition.clone()
                 };
-                let expected_revision = current.preset.revision;
-                let m = ResearchPresetMutation {
-                    preset_id: preset_id.clone(),
-                    name: name.to_owned(),
+                let next_revision = expected_revision.checked_add(1).ok_or_else(|| {
+                    invalid_preset("expectedRevision exceeds supported range")
+                })?;
+                let preset = ResearchPresetMutation {
+                    preset_id: current.preset.preset_id,
+                    name,
                     query_schema_version: 2,
                     definition,
-                    revision: expected_revision + 1,
+                    revision: next_revision,
                 };
                 let stored = self
                     .store
-                    .replace_revision(&m, expected_revision, &timestamp)
-                    .map_err(|e| ResearchPresetWritePortError::Invalid(e.to_string()))?;
-                serde_json::to_value(&stored).map_err(|error| {
-                    ResearchPresetWritePortError::Failed(format!(
-                        "encode stored research preset: {error}"
-                    ))
+                    .replace_revision(&preset, expected_revision, &timestamp)
+                    .map_err(map_research_preset_store_error)?;
+                serde_json::to_value(&stored).map_err(|e| {
+                    ResearchPresetWritePortError::Failed(format!("encode stored research preset: {e}"))
                 })
             }
             ResearchPresetWriteMutation::Delete { preset_id } => {
-                self.store
-                    .delete(preset_id)
-                    .map_err(|e| ResearchPresetWritePortError::Invalid(e.to_string()))?;
+                if preset_id.trim().is_empty() {
+                    return Err(invalid_preset("preset id is required"));
+                }
+                self.store.delete(preset_id).map_err(map_research_preset_store_error)?;
                 Ok(json!({"deleted": true}))
             }
         }
+    }
+}
+
+fn normalized_preset_name(value: Option<&Value>) -> Result<String, ResearchPresetWritePortError> {
+    let name = value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .ok_or_else(|| invalid_preset("name is required"))?;
+    if name.chars().count() > 80 {
+        return Err(invalid_preset("name must not exceed 80 characters"));
+    }
+    Ok(name.to_owned())
+}
+
+fn normalized_preset_definition(value: Option<&Value>) -> Result<Value, ResearchPresetWritePortError> {
+    let value = value
+        .cloned()
+        .ok_or_else(|| invalid_preset("definition is required"))?;
+    normalize_definition_v2(value).map_err(|error| invalid_preset(error.to_string()))
+}
+
+fn invalid_preset(message: impl Into<String>) -> ResearchPresetWritePortError {
+    ResearchPresetWritePortError::Invalid(format!(
+        "invalid research screen preset: {}",
+        message.into()
+    ))
+}
+
+fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchPresetWritePortError {
+    match error {
+        ResearchPresetStoreError::NotFound => {
+            ResearchPresetWritePortError::NotFound("research screen preset not found".to_owned())
+        }
+        ResearchPresetStoreError::Conflict => {
+            ResearchPresetWritePortError::Conflict("research screen preset conflict".to_owned())
+        }
+        ResearchPresetStoreError::Incompatible(message) => invalid_preset(message),
+        ResearchPresetStoreError::UnsupportedProfile(_) => {
+            ResearchPresetWritePortError::Unavailable
+        }
+        ResearchPresetStoreError::NotRegularFile(_)
+        | ResearchPresetStoreError::EmptyPath
+        | ResearchPresetStoreError::WriterLease(_)
+        | ResearchPresetStoreError::Open(_)
+        | ResearchPresetStoreError::Configure(_)
+        | ResearchPresetStoreError::Schema(_)
+        | ResearchPresetStoreError::LockUnavailable
+        | ResearchPresetStoreError::Query(_) => ResearchPresetWritePortError::Unavailable,
     }
 }
 

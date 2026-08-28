@@ -299,7 +299,17 @@ impl WatchlistWritePort for ProductionWatchlistPort {
 
         match route {
             "create-group" => {
-                let name = mutation.value["name"].as_str().unwrap_or_default();
+                let name = mutation
+                    .value
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "name is required".to_owned(),
+                    })?;
                 let group = self
                     .store
                     .create_group(name, &timestamp)
@@ -312,9 +322,38 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                 }))
             }
             "update-group" => {
-                let group_id = mutation.value["groupId"].as_str().unwrap_or_default();
-                let name = mutation.value["name"].as_str().unwrap_or_default();
-                let expected_revision = mutation.value["expectedRevision"].as_i64().unwrap_or_default();
+                let group_id = mutation
+                    .value
+                    .get("groupId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "groupId is required".to_owned(),
+                    })?;
+                let name = mutation
+                    .value
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "name is required".to_owned(),
+                    })?;
+                let expected_revision = mutation
+                    .value
+                    .get("expectedRevision")
+                    .and_then(Value::as_i64)
+                    .filter(|r| *r >= 1)
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "expectedRevision must be positive".to_owned(),
+                    })?;
                 let group = self
                     .store
                     .update_group(group_id, name, expected_revision, &timestamp)
@@ -327,27 +366,83 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                 }))
             }
             "delete-group" => {
-                let group_id = mutation.value["groupId"].as_str().unwrap_or_default();
+                let group_id = mutation
+                    .value
+                    .get("groupId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "groupId is required".to_owned(),
+                    })?;
                 self.store
                     .delete_group(group_id)
                     .map_err(watchlist_store_error)?;
                 Ok(json!({"deleted": true}))
             }
             "delete-binding" => {
-                let binding_id = mutation.value["bindingId"].as_str().unwrap_or_default();
+                let binding_id = mutation
+                    .value
+                    .get("bindingId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "bindingId is required".to_owned(),
+                    })?;
                 self.store
                     .delete_binding(binding_id)
                     .map_err(watchlist_store_error)?;
                 Ok(json!({"deleted": true}))
             }
             "preview-import" => {
-                let source_id = mutation.value["sourceId"].as_str().unwrap_or_default();
-                let remote_group_id = mutation.value["remoteGroupId"].as_str().unwrap_or_default();
-                let local_group_id = mutation.value["localGroupId"].as_str();
-                let new_group_name = mutation.value["newGroupName"].as_str();
+                let source_id = mutation
+                    .value
+                    .get("sourceId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "sourceId is required".to_owned(),
+                    })?;
+                let remote_group_id = mutation
+                    .value
+                    .get("remoteGroupId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "remoteGroupId is required".to_owned(),
+                    })?;
+                let local_group_id = mutation
+                    .value
+                    .get("localGroupId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
+                let new_group_name = mutation
+                    .value
+                    .get("newGroupName")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
                 let preview = self
                     .store
-                    .create_import_preview(source_id, remote_group_id, local_group_id, new_group_name, &timestamp)
+                    .create_import_preview(
+                        source_id,
+                        remote_group_id,
+                        local_group_id,
+                        new_group_name,
+                        &timestamp,
+                    )
                     .map_err(watchlist_store_error)?;
                 Ok(json!({
                     "id": preview.preview_id.clone(),
@@ -358,7 +453,17 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                 }))
             }
             "commit-import" => {
-                let preview_id = mutation.value["previewId"].as_str().unwrap_or_default();
+                let preview_id = mutation
+                    .value
+                    .get("previewId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "previewId is required".to_owned(),
+                    })?;
                 let delete_instrument_ids = string_array(
                     mutation.value.get("deleteInstrumentIds"),
                     "deleteInstrumentIds",
@@ -380,16 +485,39 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                 message: "market-data provider runtime is not configured".to_owned(),
             }),
             "replace-memberships" => {
-                let instrument_id = mutation.value["instrumentId"].as_str().unwrap_or_default();
+                let instrument_id = mutation
+                    .value
+                    .get("instrumentId")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "instrumentId is required".to_owned(),
+                    })?;
                 let group_ids = string_array(mutation.value.get("groupIds"), "groupIds")?;
-                let new_group_names = string_array(
-                    mutation.value.get("newGroupNames"),
-                    "newGroupNames",
-                )?;
-                let expected_revision = mutation.value["expectedRevision"].as_i64().unwrap_or_default();
+                let new_group_names =
+                    string_array(mutation.value.get("newGroupNames"), "newGroupNames")?;
+                let expected_revision = mutation
+                    .value
+                    .get("expectedRevision")
+                    .and_then(Value::as_i64)
+                    .filter(|r| *r >= 0)
+                    .ok_or_else(|| WatchlistWritePortError {
+                        status: 400,
+                        code: "WATCHLIST_INVALID".to_owned(),
+                        message: "expectedRevision must be non-negative".to_owned(),
+                    })?;
                 let memberships = self
                     .store
-                    .replace_memberships(instrument_id, &group_ids, &new_group_names, expected_revision, &timestamp)
+                    .replace_memberships(
+                        instrument_id,
+                        &group_ids,
+                        &new_group_names,
+                        expected_revision,
+                        &timestamp,
+                    )
                     .map_err(watchlist_store_error)?;
                 Ok(json!({
                     "instrumentId": memberships.instrument_id,

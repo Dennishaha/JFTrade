@@ -560,7 +560,6 @@ pub(crate) fn production_ports(
     let backtest_port = Arc::new(ProductionBacktestPort {
         store: backtest_store,
         _market_data_store: backtest_market_data_store,
-        sync_tasks: Default::default(),
     });
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
