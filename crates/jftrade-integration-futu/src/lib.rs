@@ -16,11 +16,16 @@ mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
-pub mod trade_proto;
+// The generated module is crate-internal; generated messages must not leak to
+// engine consumers.  Generated code is intentionally exempt from local lint
+// rules because its field/enum names are dictated by the OpenD schema.
+#[allow(dead_code, clippy::all)]
+mod trade_proto;
 mod trade_proto_fill_validation;
 mod trade_proto_order_validation;
 mod trade_proto_validation;
 mod trade_session;
+mod trade_snapshots;
 mod trading;
 mod transport;
 
@@ -58,7 +63,12 @@ pub use subscriptions::{
     OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
     SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
 };
-pub use trade_session::{OpenDTradeReadClient, TradeSessionError, trade_header};
+pub use trade_proto::ResponseError;
+pub use trade_session::{OpenDTradeReadClient, TradeReadPort, TradeSessionError, trade_header};
+pub use trade_snapshots::{
+    TradeAccountSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot, TradeFilter, TradeFunds,
+    TradeFundsSnapshot, TradeHeader, TradeMarketInfo, TradeOrderSnapshot, TradePositionSnapshot,
+};
 pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
     plan_shadow_protocol,

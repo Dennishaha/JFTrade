@@ -62,15 +62,6 @@ pub enum ValidationError {
     },
 }
 
-pub fn validate_response(
-    ret_type: i32,
-    err_code: Option<i32>,
-    ret_msg: Option<&str>,
-    has_s2c: bool,
-) -> Result<(), ResponseError> {
-    validate_response_for(ret_type, err_code, ret_msg, has_s2c)
-}
-
 fn validate_response_for(
     ret_type: i32,
     err_code: Option<i32>,
@@ -199,13 +190,6 @@ trade_list_proto!(
     2211,
     validate_fill_s2c
 );
-
-/// Descriptive aliases for callers that use the Go operation names.
-pub use trd_get_acc_list as get_account_list;
-pub use trd_get_funds as get_funds;
-pub use trd_get_order_fill_list as get_order_fill_list;
-pub use trd_get_order_list as get_order_list;
-pub use trd_get_position_list as get_position_list;
 
 #[cfg(test)]
 mod tests {

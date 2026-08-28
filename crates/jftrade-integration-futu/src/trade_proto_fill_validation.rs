@@ -20,14 +20,14 @@ pub(crate) fn validate_fill_s2c(
         validate_required_text(operation, "code", &fill.code)?;
         validate_required_text(operation, "name", &fill.name)?;
         validate_opend_time(operation, "create_time", &fill.create_time)?;
-        if let Some(order_id) = fill.order_id {
-            if order_id == 0 {
-                return Err(ValidationError::EmptyField {
-                    operation,
-                    field: "order_id",
-                }
-                .into());
+        if let Some(order_id) = fill.order_id
+            && order_id == 0
+        {
+            return Err(ValidationError::EmptyField {
+                operation,
+                field: "order_id",
             }
+            .into());
         }
         if let Some(order_id_ex) = fill.order_id_ex.as_deref() {
             validate_required_text(operation, "order_id_ex", order_id_ex)?;
