@@ -56,6 +56,8 @@ mod product_production_ports_watchlist;
 mod product_production_ports_strategy;
 #[path = "product_production_ports_execution.rs"]
 mod product_production_ports_execution;
+#[path = "product_production_ports_trade.rs"]
+mod product_production_ports_trade;
 #[path = "product_backtest_sync_registry.rs"]
 mod product_backtest_sync_registry;
 #[path = "product_production_ports_system.rs"]
@@ -68,8 +70,9 @@ mod product_production_ports_adk;
 mod product_production_adapter_bindings;
 
 pub(crate) use product_production_ports_execution::{
-    ProductionBacktestPort, ProductionBrokerPort, ProductionExecutionPort, ProductionPortfolioPort,
+    ProductionBacktestPort, ProductionExecutionPort,
 };
+pub(crate) use product_production_ports_trade::{ProductionBrokerPort, ProductionPortfolioPort};
 pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
@@ -418,6 +421,10 @@ pub(crate) struct ProductionPortBundle {
     pub ws_live: Arc<dyn WsLiveSnapshotPort>,
     pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
+    #[allow(dead_code)]
+    pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
+    #[allow(dead_code)]
+    pub(crate) trade_logged_in: Option<bool>,
 }
 
 impl ProductionPortBundle {
@@ -646,10 +653,14 @@ pub(crate) fn production_ports(
     });
     let broker_port = Arc::new(ProductionBrokerPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_read_port: config.trade_read_port.clone(),
+        trade_logged_in: config.trade_logged_in,
     });
     let portfolio_port = Arc::new(ProductionPortfolioPort {
         active_provider_state: Arc::clone(&active_provider_state),
         _execution_store: Arc::clone(&execution_store),
+        trade_read_port: config.trade_read_port.clone(),
+        trade_logged_in: config.trade_logged_in,
     });
     let research_port = Arc::new(ProductionResearchPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -774,5 +785,7 @@ pub(crate) fn production_ports(
         ws_live: Arc::new(ProductionWsLivePort),
         bound_adapters,
         backtest_sync_workers,
+        trade_read_port: config.trade_read_port.clone(),
+        trade_logged_in: config.trade_logged_in,
     })
 }

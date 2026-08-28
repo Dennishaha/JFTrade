@@ -24,8 +24,7 @@ use crate::product::product_execution_write_port::{
 use crate::product::{
     BacktestReadSnapshotError,
     BacktestReadSnapshotPort, BacktestSyncReadSnapshotError, BacktestSyncReadSnapshotPort,
-    BrokerReadSnapshotError, BrokerReadSnapshotPort, ExecutionReadSnapshotError,
-    ExecutionReadSnapshotPort, PortfolioSnapshotError, PortfolioSnapshotPort,
+    ExecutionReadSnapshotError, ExecutionReadSnapshotPort,
 };
 
 #[path = "product_backtest_sync_request.rs"]
@@ -622,49 +621,6 @@ impl BrokersWritePort for ProductionExecutionPort {
         let _ = input;
         Err(BrokersWritePortError::Unavailable(
             "broker/OpenD runtime is not configured".to_owned(),
-        ))
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Broker & Portfolio
-// ---------------------------------------------------------------------------
-
-#[derive(Debug)]
-pub(crate) struct ProductionBrokerPort {
-    pub(crate) active_provider_state: Arc<ActiveProviderState>,
-}
-
-impl BrokerReadSnapshotPort for ProductionBrokerPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, BrokerReadSnapshotError> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
-            return Err(BrokerReadSnapshotError::Unavailable(
-                "broker integration is not enabled".to_owned(),
-            ));
-        }
-        Err(BrokerReadSnapshotError::Unavailable(
-            "broker integration is not enabled".to_owned(),
-        ))
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct ProductionPortfolioPort {
-    pub(crate) active_provider_state: Arc<ActiveProviderState>,
-    pub(crate) _execution_store: Arc<ExecutionOrderStore>,
-}
-
-impl PortfolioSnapshotPort for ProductionPortfolioPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, PortfolioSnapshotError> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
-            return Err(PortfolioSnapshotError::Unavailable(
-                "portfolio provider is not configured".to_owned(),
-            ));
-        }
-        Err(PortfolioSnapshotError::Unavailable(
-            "portfolio provider is not configured".to_owned(),
         ))
     }
 }

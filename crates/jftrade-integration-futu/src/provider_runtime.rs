@@ -56,6 +56,7 @@ pub struct OpenDProviderRuntime {
     provider_id: String,
     demand_consumer_id: String,
     demand_managed: bool,
+    trade_logged_in: Option<bool>,
     runtime: OpenDSessionRuntime,
 }
 
@@ -149,6 +150,7 @@ impl OpenDProviderRuntime {
             provider_id,
             demand_consumer_id,
             demand_managed: config.demand_managed,
+            trade_logged_in: probe.trade_logged_in,
             runtime,
         })
     }
@@ -167,6 +169,13 @@ impl OpenDProviderRuntime {
 
     pub fn runtime(&self) -> &OpenDSessionRuntime {
         &self.runtime
+    }
+
+    /// Login evidence captured by the initial OpenD global-state probe.
+    /// `None` is intentionally preserved as unknown and must not be treated
+    /// as an authenticated trade session by callers.
+    pub fn trade_logged_in(&self) -> Option<bool> {
+        self.trade_logged_in
     }
 
     pub fn physical_snapshot(

@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDSessionCoordinator, OpenDSessionRuntime,
-    OpenDSessionRuntimeConfig,
+    OpenDSessionRuntimeConfig, OpenDTradeReadClient, TradeReadPort,
 };
 use jftrade_integration_marketdata_helper::ProcessError;
 use jftrade_integration_pine::PineProcessError;
@@ -412,7 +412,22 @@ pub async fn start_product_runtime(
                 )));
             }
             match OpenDProviderRuntime::start(provider) {
-                Ok(runtime) => (Some(runtime), Some(shared_router)),
+                Ok(runtime) => {
+                    let trade_logged_in = runtime.trade_logged_in();
+                    let trade_read_port = runtime
+                        .coordinator()
+                        .lock()
+                        .ok()
+                        .and_then(|coordinator| {
+                            OpenDTradeReadClient::from_coordinator(&coordinator).ok()
+                        })
+                        .map(|client| Arc::new(client) as Arc<dyn TradeReadPort>);
+                    config.product = config
+                        .product
+                        .clone()
+                        .with_trade_read_port(trade_read_port, trade_logged_in);
+                    (Some(runtime), Some(shared_router))
+                }
                 Err(error) => {
                     eprintln!("Warning: OpenD provider runtime failed to connect: {error}");
                     (None, Some(shared_router))
@@ -447,6 +462,16 @@ pub async fn start_product_runtime(
     } else {
         config.market_data_runtime_recorder.take()
     };
+    if config.product.trade_read_port.is_none()
+        && let Some(coordinator) = market_data_opend.as_ref()
+        && let Ok(guard) = coordinator.lock()
+        && let Ok(client) = OpenDTradeReadClient::from_coordinator(&guard)
+    {
+        config.product = config
+            .product
+            .clone()
+            .with_trade_read_port(Some(Arc::new(client)), None);
+    }
     if let Some(recorder) = market_data_runtime_recorder.as_ref() {
         config.product = config
             .product

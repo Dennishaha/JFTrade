@@ -152,6 +152,16 @@ impl ProductConfig {
         self
     }
 
+    pub(crate) fn with_trade_read_port(
+        mut self,
+        port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
+        trade_logged_in: Option<bool>,
+    ) -> Self {
+        self.trade_read_port = port;
+        self.trade_logged_in = trade_logged_in;
+        self
+    }
+
     pub fn with_market_data_helper(
         mut self,
         helper: jftrade_integration_marketdata_helper::HelperClient,
