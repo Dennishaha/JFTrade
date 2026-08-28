@@ -8,8 +8,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
-    TradeFilter, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
-    TradeOrderFeeSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
+    TradeFilter, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort, TradeSecurity,
     trade_header,
 };
 use jftrade_settings::MarketDataProvider;
@@ -21,6 +20,18 @@ use crate::product::{
     PortfolioSnapshotPort,
 };
 use crate::product::product_query::QueryMap;
+
+#[path = "trade_projection.rs"]
+mod trade_projection;
+pub(super) use trade_projection::{
+    account_value, cash_flow_direction_label, cash_flow_value, canonical_time, currency_label,
+    fill_status_label, fill_value, funds_value, margin_ratio_value, map_broker_header_error,
+    map_portfolio_header_error, market_label_from_code, max_trade_order_type_label,
+    max_trade_quantity_value, non_empty, order_fee_value, order_status_label, order_type_label,
+    order_value, position_value, qualify_symbol, security_firm_label, session_error, session_label,
+    simulated_account_type_label, time_in_force_label, trade_market_authority, trade_side,
+    unavailable, unavailable_portfolio,
+};
 
 #[derive(Clone)]
 pub(crate) struct ProductionBrokerPort {
@@ -133,6 +144,25 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .map(|ratio| margin_ratio_value(&resolved, ratio))
                     .collect::<Vec<_>>();
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "marginRatios": ratios}))
+            }
+            "max-trade-qtys" => {
+                let (market, code, sec_market) = request
+                    .max_trade_symbol()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let resolved = request
+                    .resolve_account_with_environment(client.as_ref(), None, Some(&market))
+                    .map_err(map_broker_header_error)?;
+                let max_request = request
+                    .max_trade_quantity_request(resolved.header.clone(), code, sec_market)
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let snapshot = client
+                    .read_max_trade_quantity(max_request)
+                    .map_err(session_error)?;
+                Ok(json!({
+                    "checkedAt": checked_at(),
+                    "connectivity": "connected",
+                    "maxTradeQuantity": max_trade_quantity_value(&resolved, snapshot, &market),
+                }))
             }
             "positions" => {
                 let resolved = request
@@ -356,7 +386,7 @@ impl TradeRequest {
         client: &dyn TradeReadPort,
         market: i32,
     ) -> Result<ResolvedTradeRequest, String> {
-        self.resolve_account_with_environment(client, Some(1), qot_market_label(market))
+        self.resolve_account_with_environment(client, Some(1), trade_account_market_label(market))
     }
 
     fn resolve_account_with_environment(
@@ -374,8 +404,8 @@ impl TradeRequest {
         let requested_account = self.account_id().map(str::to_ascii_lowercase);
         let requested_environment = forced_environment.or(self.environment_code()?);
         let requested_market = forced_market
-            .map(str::to_ascii_uppercase)
-            .or_else(|| self.query.get_first("market").map(str::trim).filter(|market| !market.is_empty()).map(str::to_ascii_uppercase));
+            .map(normalize_trade_account_market)
+            .or_else(|| self.query.get_first("market").map(str::trim).filter(|market| !market.is_empty()).map(normalize_trade_account_market));
         let mut candidates = accounts.into_iter().filter(|account| {
             let account_id = account_identity(account);
             let account_matches = requested_account
@@ -536,6 +566,115 @@ impl TradeRequest {
         }
     }
 
+    fn max_trade_symbol(&self) -> Result<(String, String, i32), String> {
+        let raw = self
+            .query
+            .get_first("symbol")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+        let qualified = raw.contains('.') || raw.contains(':');
+        let (market, code) = raw
+            .split_once('.')
+            .or_else(|| raw.split_once(':'))
+            .map(|(market, code)| (market.trim().to_owned(), code.trim().to_owned()))
+            .unwrap_or_else(|| (self.market_label().trim().to_owned(), raw.to_owned()));
+        if market.is_empty() || code.is_empty() {
+            return Err("query parameter symbol is invalid".to_owned());
+        }
+        let market = market.to_ascii_uppercase();
+        if !qualified {
+            return Err("query parameter symbol must be in MARKET.CODE form".to_owned());
+        }
+        if let Some(expected) = self
+            .query
+            .get_first("market")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let expected = expected.to_ascii_uppercase();
+            if market != expected && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ"))
+            {
+                return Err(format!("query parameter symbol {raw:?} is invalid for market {expected}"));
+            }
+        }
+        let sec_market = match market.as_str() {
+            "HK" => 1,
+            "US" => 2,
+            "SH" => 31,
+            "SZ" => 32,
+            "SG" => 41,
+            "JP" => 51,
+            "AU" => 61,
+            "MY" => 71,
+            "CA" => 81,
+            _ => return Err(format!("invalid market: {market}")),
+        };
+        Ok((market, code.to_ascii_uppercase(), sec_market))
+    }
+
+    fn max_trade_quantity_request(
+        &self,
+        header: TradeHeader,
+        code: String,
+        sec_market: i32,
+    ) -> Result<TradeMaxTradeQuantityRequest, String> {
+        let order_type = self
+            .query
+            .get_first("orderType")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+        let order_type = match order_type.to_ascii_uppercase().as_str() {
+            "LIMIT" | "LIMIT_MAKER" | "NORMAL" => 1,
+            "MARKET" => 2,
+            "STOP" => 10,
+            "STOP_LIMIT" | "STOPLIMIT" => 11,
+            "TAKE_PROFIT_MARKET" | "MARKETIFTOUCHED" => 12,
+            "TAKE_PROFIT" | "LIMITIFTOUCHED" => 13,
+            value => return Err(format!("unsupported orderType {value:?}")),
+        };
+        let price_raw = self
+            .query
+            .get_first("price")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+        let price = price_raw
+            .parse::<f64>()
+            .map_err(|_| "query parameter price is invalid".to_owned())?;
+        if !price.is_finite() || price <= 0.0 {
+            return Err("query parameter price must be positive".to_owned());
+        }
+        let adjust_side_and_limit = self.query.get_first("adjustSideAndLimit").map(str::trim).filter(|value| !value.is_empty()).map(|value| value.parse::<f64>().map_err(|_| "query parameter adjustSideAndLimit is invalid".to_owned())).transpose()?;
+        if adjust_side_and_limit.is_some_and(|value| !value.is_finite()) {
+            return Err("query parameter adjustSideAndLimit is invalid".to_owned());
+        }
+        let session = self.query.get_first("session").map(str::trim).filter(|value| !value.is_empty()).map(|value| match value.to_ascii_uppercase().as_str() {
+            "NONE" | "SESSION_NONE" => Ok(0),
+            "RTH" | "SESSION_RTH" => Ok(1),
+            "ETH" | "SESSION_ETH" => Ok(2),
+            "ALL" | "SESSION_ALL" => Ok(3),
+            "OVERNIGHT" | "SESSION_OVERNIGHT" => Ok(4),
+            _ => Err(format!("unsupported session {value:?}")),
+        }).transpose()?;
+        let position_id = self.query.get_first("positionId").map(str::trim).filter(|value| !value.is_empty()).map(|value| value.parse::<u64>().map_err(|_| "query parameter positionId is invalid".to_owned())).transpose()?;
+        let order_id_ex = self.query.get_first("orderIdEx").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned);
+        Ok(TradeMaxTradeQuantityRequest {
+            header,
+            order_type,
+            code,
+            price,
+            order_id: None,
+            adjust_price: adjust_side_and_limit.map(|value| value != 0.0),
+            adjust_side_and_limit,
+            sec_market: Some(sec_market),
+            order_id_ex,
+            session,
+            position_id,
+        })
+    }
+
     fn cash_flow_direction(&self) -> Option<i32> {
         match self.query.get_first("direction").map(str::trim).map(str::to_ascii_uppercase).as_deref() {
             Some("IN") | Some("CASH_FLOW_DIRECTION_IN") => Some(1),
@@ -614,264 +753,22 @@ fn qot_market_label(value: i32) -> Option<&'static str> {
     }
 }
 
+fn trade_account_market_label(value: i32) -> Option<&'static str> {
+    match value {
+        21 | 22 => Some("CN"),
+        _ => qot_market_label(value),
+    }
+}
+
+fn normalize_trade_account_market(value: &str) -> String {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "SH" | "SZ" => "CN".to_owned(),
+        value => value.to_owned(),
+    }
+}
+
 fn checked_at() -> String {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis().to_string()).unwrap_or_else(|_| "0".to_owned())
-}
-
-fn account_value(value: jftrade_integration_futu::TradeAccountSnapshot) -> Value {
-    let account_id = account_identity(&value);
-    let markets = value
-        .trd_market_auth_list
-        .iter()
-        .filter_map(|market| trade_market_authority(*market))
-        .fold(Vec::new(), |mut result, market| {
-            if !result.contains(&market) {
-                result.push(market);
-            }
-            result
-        });
-    json!({
-        "tradingEnvironment": environment_label_from_code(value.trd_env),
-        "accountId": account_id.unwrap_or_default(),
-        "accountType": value.acc_type.map(account_type_label).unwrap_or("UNKNOWN"),
-        "accountRole": value.acc_role.and_then(account_role_label),
-        "securityFirm": value.security_firm.and_then(security_firm_label),
-        "marketAuthorities": markets,
-        "simulatedAccountType": value.sim_acc_type.and_then(simulated_account_type_label),
-    })
-}
-
-fn funds_value(request: &ResolvedTradeRequest, value: TradeFundsSnapshot) -> Value {
-    let balances = value.funds.cash_info_list.iter().map(|cash| json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "currency": currency_label(cash.currency), "cash": cash.cash, "availableWithdrawalCash": cash.available_balance, "netCashPower": cash.net_cash_power})).collect::<Vec<_>>();
-    let assets = value
-        .funds
-        .market_info_list
-        .iter()
-        .map(|item| {
-            json!({
-                "accountId": request.account_id,
-                "tradingEnvironment": request.environment,
-                "market": market_label_from_code(item.trd_market).unwrap_or(request.market.as_str()),
-                "assets": item.assets,
-            })
-        })
-        .collect::<Vec<_>>();
-    json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPnl": value.funds.unrealized_pl, "realizedPnl": value.funds.realized_pl, "securitiesAssets": value.funds.securities_assets, "fundAssets": value.funds.fund_assets, "bondAssets": value.funds.bond_assets, "longMarketValue": value.funds.long_mv, "shortMarketValue": value.funds.short_mv, "netCashPower": value.funds.net_cash_power, "maxWithdrawal": value.funds.max_withdrawal, "pendingAsset": value.funds.pending_asset, "initialMargin": value.funds.initial_margin, "maintenanceMargin": value.funds.maintenance_margin, "marginCallMargin": value.funds.margin_call_margin, "isPdt": value.funds.is_pdt, "pdtSeq": value.funds.pdt_seq, "beginningDTBP": value.funds.beginning_dtbp, "remainingDTBP": value.funds.remaining_dtbp, "dtCallAmount": value.funds.dt_call_amount, "exposureLevel": value.funds.exposure_level, "exposureLimit": value.funds.exposure_limit, "usedLimit": value.funds.used_limit, "remainingLimit": value.funds.remaining_limit}})
-}
-
-fn position_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradePositionSnapshot) -> Value {
-    json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": value.cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": value.unrealized_pl, "realizedPnl": value.realized_pl, "pnlRatio": value.pl_ratio, "currency": currency_label(value.currency)})
-}
-
-fn order_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeOrderSnapshot) -> Value {
-    json!({"accountId": request.account_id, "brokerOrderId": value.order_id.to_string(), "brokerOrderIdEx": non_empty(&value.order_id_ex), "currency": currency_label(value.currency), "filledAveragePrice": value.fill_avg_price, "filledQuantity": value.fill_qty, "lastError": value.last_err_msg, "market": request.market, "orderType": order_type_label(value.order_type), "price": value.price, "quantity": value.qty, "remark": value.remark, "side": trade_side(value.trd_side), "status": order_status_label(value.order_status), "submittedAt": canonical_time(&value.create_time), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "timeInForce": value.time_in_force.map(time_in_force_label), "tradingEnvironment": request.environment, "updatedAt": canonical_time(&value.update_time)})
-}
-
-fn fill_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
-    json!({"accountId": request.account_id, "brokerFillId": value.fill_id.to_string(), "brokerFillIdEx": non_empty(&value.fill_id_ex), "brokerOrderId": value.order_id.map(|v| v.to_string()).unwrap_or_default(), "brokerOrderIdEx": value.order_id_ex, "fillPrice": value.price, "filledAt": canonical_time(&value.create_time), "filledQuantity": value.qty, "market": request.market, "side": trade_side(value.trd_side), "status": value.status.map(fill_status_label), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "tradingEnvironment": request.environment})
-}
-
-fn order_fee_value(request: &ResolvedTradeRequest, value: TradeOrderFeeSnapshot) -> Value {
-    let fee_amount = value.fee_amount;
-    let fee_items = value
-        .fee_items
-        .into_iter()
-        .map(|item| json!({"title": item.title, "value": item.value}))
-        .collect::<Vec<_>>();
-    let mut output = json!({
-        "accountId": request.account_id,
-        "tradingEnvironment": request.environment,
-        "market": request.market,
-        "brokerOrderIdEx": value.broker_order_id_ex,
-        "feeItems": fee_items,
-    })
-    ;
-    if let Some(amount) = fee_amount {
-        output["feeAmount"] = json!(amount);
-    } else {
-        output.as_object_mut().expect("fee object").remove("feeAmount");
-    }
-    if output["feeItems"].as_array().is_some_and(Vec::is_empty) {
-        output.as_object_mut().expect("fee object").remove("feeItems");
-    }
-    output
-}
-
-fn margin_ratio_value(request: &ResolvedTradeRequest, value: TradeMarginRatioSnapshot) -> Value {
-    let mut output = json!({
-        "accountId": request.account_id,
-        "tradingEnvironment": request.environment,
-        "market": if value.market.is_empty() { request.market.clone() } else { value.market },
-        "symbol": value.symbol,
-    });
-    let object = output.as_object_mut().expect("margin ratio object");
-    macro_rules! optional {
-        ($name:literal, $value:expr) => {
-            if let Some(value) = $value {
-                object.insert($name.to_owned(), json!(value));
-            }
-        };
-    }
-    optional!("isLongPermit", value.is_long_permit);
-    optional!("isShortPermit", value.is_short_permit);
-    optional!("shortPoolRemain", value.short_pool_remain);
-    optional!("shortFeeRate", value.short_fee_rate);
-    optional!("alertLongRatio", value.alert_long_ratio);
-    optional!("alertShortRatio", value.alert_short_ratio);
-    optional!("initialMarginLongRatio", value.initial_margin_long_ratio);
-    optional!("initialMarginShortRatio", value.initial_margin_short_ratio);
-    optional!("marginCallLongRatio", value.margin_call_long_ratio);
-    optional!("marginCallShortRatio", value.margin_call_short_ratio);
-    optional!("maintenanceLongRatio", value.maintenance_long_ratio);
-    optional!("maintenanceShortRatio", value.maintenance_short_ratio);
-    output
-}
-
-fn cash_flow_value(
-    request: &ResolvedTradeRequest,
-    value: jftrade_integration_futu::TradeCashFlowSnapshot,
-) -> Value {
-    json!({
-        "accountId": request.account_id,
-        "tradingEnvironment": request.environment,
-        "market": request.market,
-        "cashFlowId": value.cash_flow_id.map(|id| id.to_string()),
-        "clearingDate": value.clearing_date,
-        "settlementDate": value.settlement_date,
-        "currency": currency_label(value.currency),
-        "cashFlowType": value.cash_flow_type,
-        "cashFlowDirection": value.cash_flow_direction.map(cash_flow_direction_label),
-        "cashFlowAmount": value.cash_flow_amount,
-        "cashFlowRemark": value.cash_flow_remark,
-    })
-}
-
-fn cash_flow_direction_label(value: i32) -> &'static str {
-    match value {
-        1 => "IN",
-        2 => "OUT",
-        _ => "UNKNOWN",
-    }
-}
-
-fn qualify_symbol(market: &str, code: &str) -> String {
-    if code.contains('.') || market.is_empty() { code.to_owned() } else { format!("{market}.{code}") }
-}
-
-fn non_empty(value: &str) -> Option<&str> {
-    (!value.trim().is_empty()).then_some(value)
-}
-
-fn currency_label(currency: Option<i32>) -> Option<&'static str> {
-    match currency {
-        Some(1) => Some("HKD"), Some(2) => Some("USD"), Some(3) => Some("CNH"),
-        Some(4) => Some("JPY"), Some(5) => Some("SGD"), Some(6) => Some("AUD"),
-        Some(7) => Some("CAD"), Some(8) => Some("MYR"), Some(9) => Some("NZD"),
-        _ => None,
-    }
-}
-
-fn market_label_from_code(market: Option<i32>) -> Option<&'static str> {
-    match market {
-        Some(1 | 4 | 10 | 113) => Some("HK"),
-        Some(2 | 11 | 123 | 17) => Some("US"),
-        Some(3) => Some("CN"),
-        Some(5) => Some("FUTURES"),
-        Some(6 | 12 | 124) => Some("SG"),
-        Some(7) => Some("CRYPTO"),
-        Some(8) => Some("AU"),
-        Some(13 | 15 | 126) => Some("JP"),
-        Some(111 | 125) => Some("MY"),
-        Some(112) => Some("CA"),
-        _ => None,
-    }
-}
-
-fn trade_market_authority(value: i32) -> Option<&'static str> {
-    market_label_from_code(Some(value))
-}
-
-fn trade_side(side: i32) -> &'static str {
-    match side {
-        1 => "BUY",
-        2 => "SELL",
-        3 => "SELLSHORT",
-        4 => "BUYBACK",
-        _ => "UNKNOWN",
-    }
-}
-
-fn account_type_label(value: i32) -> &'static str {
-    match value { 1 => "CASH", 2 => "MARGIN", 3 => "TFSA", 4 => "RRSP", 5 => "SRRSP", 6 => "DERIVATIVES", _ => "UNKNOWN" }
-}
-
-fn account_role_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("NORMAL"), 2 => Some("MASTER"), 3 => Some("IPO"), _ => None }
-}
-
-fn security_firm_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("FUTUSECURITIES"), 2 => Some("FUTUINC"), 3 => Some("FUTUSG"), 4 => Some("FUTUAU"), 5 => Some("FUTUCA"), 6 => Some("FUTUMY"), 7 => Some("FUTUJP"), _ => None }
-}
-
-fn simulated_account_type_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("STOCK"), 2 => Some("OPTION"), 3 => Some("FUTURES"), 4 => Some("STOCKANDOPTION"), 5 => Some("COMPETITION"), _ => None }
-}
-
-fn order_type_label(value: i32) -> &'static str {
-    match value {
-        1 => "NORMAL", 2 => "MARKET", 5 => "ABSOLUTELIMIT", 6 => "AUCTION",
-        7 => "AUCTIONLIMIT", 8 => "SPECIALLIMIT", 9 => "SPECIALLIMIT_ALL",
-        10 => "STOP", 11 => "STOPLIMIT", 12 => "MARKETIFTOUCHED",
-        13 => "LIMITIFTOUCHED", 14 => "TRAILINGSTOP", 15 => "TRAILINGSTOPLIMIT",
-        16 => "TWAP_MARKET", 17 => "TWAP_LIMIT", 18 => "VWAP_MARKET", 19 => "VWAP_LIMIT",
-        _ => "UNKNOWN",
-    }
-}
-
-fn order_status_label(value: i32) -> &'static str {
-    match value {
-        -1 => "UNKNOWN", 0 => "UNSUBMITTED", 1 => "WAITINGSUBMIT", 2 => "SUBMITTING",
-        3 => "SUBMITFAILED", 4 => "TIMEOUT", 5 => "SUBMITTED", 10 => "FILLED_PART",
-        11 => "FILLED_ALL", 12 => "CANCELLING_PART", 13 => "CANCELLING_ALL",
-        14 => "CANCELLED_PART", 15 => "CANCELLED_ALL", 21 => "FAILED", 22 => "DISABLED",
-        23 => "DELETED", 24 => "FILLCANCELLED", _ => "UNKNOWN",
-    }
-}
-
-fn fill_status_label(value: i32) -> &'static str {
-    match value { 0 => "OK", 1 => "CANCELLED", 2 => "CHANGED", 3 => "PAYOUT", _ => "UNKNOWN" }
-}
-
-fn time_in_force_label(value: i32) -> &'static str {
-    match value { 0 => "DAY", 1 => "GTC", 2 => "IOC", 3 => "GTD", _ => "UNKNOWN" }
-}
-
-fn canonical_time(value: &str) -> &str {
-    value.trim()
-}
-
-fn session_error(error: TradeSessionError) -> BrokerReadSnapshotError {
-    unavailable(error.to_string())
-}
-
-fn unavailable(message: impl Into<String>) -> BrokerReadSnapshotError {
-    BrokerReadSnapshotError::Unavailable(message.into())
-}
-
-fn unavailable_portfolio(message: impl Into<String>) -> PortfolioSnapshotError {
-    PortfolioSnapshotError::Unavailable(message.into())
-}
-
-fn map_broker_header_error(message: String) -> BrokerReadSnapshotError {
-    if message == "accountId is required" {
-        unavailable(message)
-    } else {
-        BrokerReadSnapshotError::Invalid(message)
-    }
-}
-
-fn map_portfolio_header_error(message: String) -> PortfolioSnapshotError {
-    unavailable_portfolio(message)
 }
 
 #[cfg(test)]

@@ -7,14 +7,15 @@ use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
     ResponseError, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
-    trd_get_margin_ratio, trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list,
-    trd_get_position_list,
+    trd_get_margin_ratio, trd_get_max_trd_qtys, trd_get_order_fee, trd_get_order_fill_list,
+    trd_get_order_list, trd_get_position_list,
 };
 use crate::trade_snapshots::{
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFilter,
-    TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot, TradeOrderFeeSnapshot,
-    TradeOrderSnapshot, TradePositionSnapshot, TradeSecurity, account_projection,
-    cash_flows_projection, fills_projection, funds_projection, margin_ratios_projection,
+    TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
+    TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
+    TradePositionSnapshot, TradeSecurity, account_projection, cash_flows_projection,
+    fills_projection, funds_projection, margin_ratios_projection, max_trade_quantity_projection,
     order_fees_projection, orders_projection, positions_projection,
 };
 
@@ -56,6 +57,11 @@ pub trait TradeReadPort: Send + Sync {
         header: TradeHeader,
         securities: Vec<TradeSecurity>,
     ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError>;
+
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError>;
 
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
@@ -199,6 +205,20 @@ impl OpenDTradeReadClient {
             &trd_get_margin_ratio::encode_request(&request),
         )?;
         Ok(trd_get_margin_ratio::decode_response(&body)?)
+    }
+
+    pub(crate) fn get_max_trade_qtys(
+        &self,
+        request: trd_get_max_trd_qtys::Request,
+    ) -> Result<trd_common::MaxTrdQtys, TradeSessionError> {
+        let body = self.call(
+            trd_get_max_trd_qtys::PROTOCOL_ID,
+            &trd_get_max_trd_qtys::encode_request(&request),
+        )?;
+        let payload = trd_get_max_trd_qtys::decode_response(&body)?;
+        payload
+            .max_trd_qtys
+            .ok_or(crate::trade_proto::ResponseError::MissingMaxTradeQuantity.into())
     }
 
     pub(crate) fn get_flow_summary(
@@ -384,6 +404,28 @@ impl OpenDTradeReadClient {
         }
     }
 
+    pub fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        let payload = self.get_max_trade_qtys(trd_get_max_trd_qtys::Request {
+            c2s: trd_get_max_trd_qtys::C2s {
+                header: request.header.clone().into(),
+                order_type: request.order_type,
+                code: request.code.clone(),
+                price: request.price,
+                order_id: request.order_id,
+                adjust_price: request.adjust_price,
+                adjust_side_and_limit: request.adjust_side_and_limit,
+                sec_market: request.sec_market,
+                order_id_ex: request.order_id_ex.clone(),
+                session: request.session,
+                position_id: request.position_id,
+            },
+        })?;
+        Ok(max_trade_quantity_projection(&request, payload))
+    }
+
     fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
@@ -464,6 +506,13 @@ impl TradeReadPort for OpenDTradeReadClient {
         OpenDTradeReadClient::read_margin_ratios(self, header, securities)
     }
 
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        OpenDTradeReadClient::read_max_trade_quantity(self, request)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
         &self,
@@ -510,322 +559,5 @@ impl TradeReadPort for OpenDTradeReadClient {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::io::{Read, Write};
-    use std::net::TcpListener;
-    use std::thread;
-    use std::time::Duration;
-
-    use prost::Message;
-
-    use super::*;
-    use crate::{decode_frame, encode_frame};
-
-    fn read_frame(stream: &mut std::net::TcpStream) -> crate::Frame {
-        let mut header = [0_u8; crate::frame::HEADER_LEN];
-        stream.read_exact(&mut header).expect("frame header");
-        let body_len = u32::from_le_bytes(header[12..16].try_into().expect("length")) as usize;
-        let mut packet = Vec::from(header);
-        let mut body = vec![0_u8; body_len];
-        stream.read_exact(&mut body).expect("frame body");
-        packet.extend(body);
-        decode_frame(&packet).expect("decoded frame")
-    }
-
-    #[test]
-    fn account_list_call_uses_protocol_serial_and_typed_response() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let request = read_frame(&mut stream);
-            assert_eq!(request.header.proto_id, trd_get_acc_list::PROTOCOL_ID);
-            let decoded =
-                trd_get_acc_list::Request::decode(request.body.as_slice()).expect("request");
-            assert_eq!(decoded.c2s.user_id, 7);
-            let response = trd_get_acc_list::Response {
-                ret_type: 0,
-                ret_msg: None,
-                err_code: None,
-                s2c: Some(trd_get_acc_list::S2c { acc_list: vec![] }),
-            };
-            stream
-                .write_all(
-                    &encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response"),
-                )
-                .expect("write response");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 1).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let payload = client
-            .get_account_list(trd_get_acc_list::Request {
-                c2s: trd_get_acc_list::C2s {
-                    user_id: 7,
-                    trd_category: None,
-                    need_general_sec_account: None,
-                },
-            })
-            .expect("account list");
-        assert!(payload.acc_list.is_empty());
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn cash_flow_read_encodes_header_and_projects_neutral_snapshot() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let request = read_frame(&mut stream);
-            assert_eq!(request.header.proto_id, trd_flow_summary::PROTOCOL_ID);
-            let decoded =
-                trd_flow_summary::Request::decode(request.body.as_slice()).expect("request");
-            assert_eq!(decoded.c2s.header.acc_id, 42);
-            assert_eq!(decoded.c2s.header.trd_market, 2);
-            assert_eq!(decoded.c2s.clearing_date, "2026-08-21");
-            assert_eq!(decoded.c2s.cash_flow_direction, Some(1));
-            let response = trd_flow_summary::Response {
-                ret_type: 0,
-                ret_msg: None,
-                err_code: None,
-                s2c: Some(trd_flow_summary::S2c {
-                    header: trade_header(1, 42, 2).into(),
-                    flow_summary_info_list: vec![
-                        trd_flow_summary::FlowSummaryInfo {
-                            clearing_date: Some("2026-08-21".to_owned()),
-                            cash_flow_direction: Some(1),
-                            cash_flow_amount: Some(88.8),
-                            cash_flow_id: Some(7),
-                            ..Default::default()
-                        },
-                        trd_flow_summary::FlowSummaryInfo {
-                            clearing_date: Some("2026-08-21".to_owned()),
-                            cash_flow_direction: Some(2),
-                            cash_flow_amount: Some(1.2),
-                            cash_flow_id: Some(8),
-                            ..Default::default()
-                        },
-                    ],
-                }),
-            };
-            stream
-                .write_all(
-                    &encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response"),
-                )
-                .expect("write response");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 5).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let flows = client
-            .read_cash_flows(trade_header(1, 42, 2), "2026-08-21".to_owned(), Some(1))
-            .expect("cash flows");
-        assert_eq!(flows.len(), 2);
-        assert_eq!(flows[0].header.acc_id, 42);
-        assert_eq!(flows[0].cash_flow_id, Some(8));
-        assert_eq!(flows[1].cash_flow_amount, Some(88.8));
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn return_code_is_exposed_as_typed_trade_response_error() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let request = read_frame(&mut stream);
-            let response = trd_get_acc_list::Response {
-                ret_type: -1,
-                ret_msg: Some("account unavailable".to_owned()),
-                err_code: Some(1101),
-                s2c: None,
-            };
-            stream
-                .write_all(
-                    &encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response"),
-                )
-                .expect("write response");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 3).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let result = client.get_account_list(trd_get_acc_list::Request {
-            c2s: trd_get_acc_list::C2s {
-                user_id: 0,
-                trd_category: None,
-                need_general_sec_account: None,
-            },
-        });
-        assert!(matches!(
-            result,
-            Err(TradeSessionError::Response(ResponseError::ReturnCode {
-                ret_type: -1,
-                err_code: 1101,
-                ..
-            }))
-        ));
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn request_timeout_is_preserved_from_managed_session() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let _request = read_frame(&mut stream);
-            thread::sleep(Duration::from_millis(100));
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(25), 4).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let result = client.get_account_list(trd_get_acc_list::Request {
-            c2s: trd_get_acc_list::C2s {
-                user_id: 0,
-                trd_category: None,
-                need_general_sec_account: None,
-            },
-        });
-        assert!(matches!(
-            result,
-            Err(TradeSessionError::Session(
-                OpenDManagedSessionError::RequestTimeout { protocol: 2001, .. }
-            ))
-        ));
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn calls_after_session_close_surface_closed_error() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (_stream, _) = listener.accept().expect("accept");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 2).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        session.close().expect("close");
-        let result = client.call(trd_get_acc_list::PROTOCOL_ID, &[]);
-        assert!(matches!(result, Err(TradeSessionError::Session(_))));
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn read_accounts_projects_a_framed_response_without_exposing_proto_types() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let request = read_frame(&mut stream);
-            assert_eq!(request.header.proto_id, trd_get_acc_list::PROTOCOL_ID);
-            let decoded =
-                trd_get_acc_list::Request::decode(request.body.as_slice()).expect("request");
-            assert_eq!(decoded.c2s.user_id, 7);
-            let response = trd_get_acc_list::Response {
-                ret_type: 0,
-                ret_msg: None,
-                err_code: None,
-                s2c: Some(trd_get_acc_list::S2c {
-                    acc_list: vec![trd_common::TrdAcc {
-                        trd_env: 1,
-                        acc_id: 42,
-                        trd_market_auth_list: vec![1, 11],
-                        card_num: Some("card".to_owned()),
-                        ..Default::default()
-                    }],
-                }),
-            };
-            stream
-                .write_all(
-                    &encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response"),
-                )
-                .expect("write response");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 5).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let accounts = client
-            .read_accounts(7, Some(1), Some(true))
-            .expect("accounts");
-        assert_eq!(accounts.len(), 1);
-        assert_eq!(accounts[0].acc_id, 42);
-        assert_eq!(accounts[0].trd_market_auth_list, vec![1, 11]);
-        assert_eq!(accounts[0].card_num.as_deref(), Some("card"));
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-
-    #[test]
-    fn read_funds_preserves_framed_return_code_error() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
-        let address = listener.local_addr().expect("address");
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            let request = read_frame(&mut stream);
-            assert_eq!(request.header.proto_id, trd_get_funds::PROTOCOL_ID);
-            let response = trd_get_funds::Response {
-                ret_type: -1,
-                ret_msg: Some("trade login required".to_owned()),
-                err_code: Some(2002),
-                s2c: None,
-            };
-            stream
-                .write_all(
-                    &encode_frame(
-                        request.header.proto_id,
-                        request.header.serial_no,
-                        &response.encode_to_vec(),
-                    )
-                    .expect("response"),
-                )
-                .expect("write response");
-        });
-        let session = Arc::new(
-            OpenDManagedSession::connect(address, Duration::from_millis(500), 6).expect("session"),
-        );
-        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
-        let result = client.read_funds(trade_header(1, 42, 1), None, None, None);
-        assert!(matches!(
-            result,
-            Err(TradeSessionError::Response(ResponseError::ReturnCode {
-                ret_type: -1,
-                err_code: 2002,
-                ..
-            }))
-        ));
-        session.close().expect("close");
-        server.join().expect("server");
-    }
-}
+#[path = "trade_session_tests.rs"]
+mod tests;

@@ -10,6 +10,7 @@ fn main() {
         "../../pkg/futu/proto/Trd_GetOrderFillList.proto",
         "../../pkg/futu/proto/Trd_GetOrderFee.proto",
         "../../pkg/futu/proto/Trd_GetMarginRatio.proto",
+        "../../pkg/futu/proto/Trd_GetMaxTrdQtys.proto",
         "../../pkg/futu/proto/Trd_FlowSummary.proto",
     ];
     for proto in protos {

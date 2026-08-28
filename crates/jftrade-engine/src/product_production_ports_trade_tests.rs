@@ -86,6 +86,23 @@ impl TradeReadPort for FakeTradeRead {
         }])
     }
 
+    fn read_max_trade_quantity(&self, request: TradeMaxTradeQuantityRequest) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        Ok(TradeMaxTradeQuantitySnapshot {
+            header: request.header,
+            code: request.code,
+            order_type: request.order_type,
+            price: request.price,
+            max_cash_buy: 0.0,
+            max_cash_and_margin_buy: None,
+            max_position_sell: 0.0,
+            max_sell_short: None,
+            max_buy_back: None,
+            long_required_im: None,
+            short_required_im: None,
+            session: None,
+        })
+    }
+
     fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
@@ -177,6 +194,47 @@ fn margin_ratios_require_symbols() {
         .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US")
         .expect_err("missing symbol");
     assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+}
+
+#[test]
+fn broker_read_projects_max_trade_quantity_snapshot() {
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&market=US&symbol=US.AAPL&orderType=LIMIT&price=100",
+        )
+        .expect("max trade quantity");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["maxTradeQuantity"]["symbol"], "US.AAPL");
+    assert_eq!(value["maxTradeQuantity"]["orderType"], "LIMIT");
+    assert_eq!(value["maxTradeQuantity"]["price"], 100.0);
+}
+
+#[test]
+fn max_trade_quantity_rejects_invalid_inputs() {
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    for query in [
+        "accountId=42&market=US&orderType=LIMIT&price=100",
+        "accountId=42&market=US&symbol=US.AAPL&price=100",
+        "accountId=42&market=US&symbol=US.AAPL&orderType=LIMIT&price=0",
+        "accountId=42&market=US&symbol=US.AAPL&orderType=TRAILING&price=100",
+    ] {
+        assert!(matches!(
+            port.read("/api/v1/brokers/futu/max-trade-qtys", query),
+            Err(BrokerReadSnapshotError::Invalid(_))
+        ));
+    }
 }
 
 #[test]

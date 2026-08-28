@@ -142,6 +142,37 @@ pub struct TradeMarginRatioSnapshot {
     pub maintenance_short_ratio: Option<f64>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeMaxTradeQuantityRequest {
+    pub header: TradeHeader,
+    pub order_type: i32,
+    pub code: String,
+    pub price: f64,
+    pub order_id: Option<u64>,
+    pub adjust_price: Option<bool>,
+    pub adjust_side_and_limit: Option<f64>,
+    pub sec_market: Option<i32>,
+    pub order_id_ex: Option<String>,
+    pub session: Option<i32>,
+    pub position_id: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeMaxTradeQuantitySnapshot {
+    pub header: TradeHeader,
+    pub code: String,
+    pub order_type: i32,
+    pub price: f64,
+    pub max_cash_buy: f64,
+    pub max_cash_and_margin_buy: Option<f64>,
+    pub max_position_sell: f64,
+    pub max_sell_short: Option<f64>,
+    pub max_buy_back: Option<f64>,
+    pub long_required_im: Option<f64>,
+    pub short_required_im: Option<f64>,
+    pub session: Option<i32>,
+}
+
 /// A single account cash-flow entry returned by Trd_FlowSummary.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TradeCashFlowSnapshot {
@@ -568,12 +599,13 @@ pub(crate) fn margin_ratios_projection(
         .into_iter()
         .map(|info| {
             let security = info.security;
-            let market = qot_market_label(security.market).unwrap_or_default();
+            let security_market = qot_security_market_label(security.market).unwrap_or_default();
+            let market = trade_market_label(security.market).unwrap_or_default();
             let code = security.code.trim().to_ascii_uppercase();
-            let symbol = if market.is_empty() {
+            let symbol = if security_market.is_empty() {
                 String::new()
             } else {
-                format!("{market}.{code}")
+                format!("{security_market}.{code}")
             };
             TradeMarginRatioSnapshot {
                 header: header.clone(),
@@ -598,7 +630,27 @@ pub(crate) fn margin_ratios_projection(
     ratios
 }
 
-fn qot_market_label(value: i32) -> Option<&'static str> {
+pub(crate) fn max_trade_quantity_projection(
+    request: &TradeMaxTradeQuantityRequest,
+    payload: trade_proto::trd_common::MaxTrdQtys,
+) -> TradeMaxTradeQuantitySnapshot {
+    TradeMaxTradeQuantitySnapshot {
+        header: request.header.clone(),
+        code: request.code.clone(),
+        order_type: request.order_type,
+        price: request.price,
+        max_cash_buy: payload.max_cash_buy,
+        max_cash_and_margin_buy: payload.max_cash_and_margin_buy,
+        max_position_sell: payload.max_position_sell,
+        max_sell_short: payload.max_sell_short,
+        max_buy_back: payload.max_buy_back,
+        long_required_im: payload.long_required_im,
+        short_required_im: payload.short_required_im,
+        session: payload.session,
+    }
+}
+
+fn qot_security_market_label(value: i32) -> Option<&'static str> {
     match value {
         1 => Some("HK"),
         11 => Some("US"),
@@ -610,6 +662,13 @@ fn qot_market_label(value: i32) -> Option<&'static str> {
         61 => Some("MY"),
         71 => Some("CA"),
         _ => None,
+    }
+}
+
+fn trade_market_label(value: i32) -> Option<&'static str> {
+    match value {
+        21 | 22 => Some("CN"),
+        _ => qot_security_market_label(value),
     }
 }
 pub(crate) fn cash_flows_projection(
