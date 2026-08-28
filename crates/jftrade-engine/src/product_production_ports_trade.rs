@@ -41,9 +41,12 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, BrokerReadSnapshotError> {
         if path == "/api/v1/brokers/capabilities" {
             self.ensure_ready()?;
+            let descriptor = serde_json::to_value(jftrade_integration_futu::broker_descriptor())
+                .map_err(|error| unavailable(error.to_string()))?;
             return Ok(json!({
-                "brokers": [{"id": "futu", "displayName": "Futu", "status": "ready"}],
-                "runtime": {"tradeLoggedIn": true}
+                "brokers": [{"id": "futu", "displayName": "Futu", "status": "ready", "descriptor": descriptor}],
+                "catalog": {"brokers": ["futu"]},
+                "runtime": []
             }));
         }
         let request = TradeRequest::parse(path, query).map_err(BrokerReadSnapshotError::Invalid)?;
@@ -58,9 +61,12 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .read_accounts(0, None, None)
                     .map_err(session_error)?;
                 let accounts_discovered = accounts.len();
+                let descriptor = serde_json::to_value(jftrade_integration_futu::broker_descriptor())
+                    .map_err(|error| unavailable(error.to_string()))?;
                 Ok(json!({
                     "accounts": accounts.into_iter().map(account_value).collect::<Vec<_>>(),
-                    "session": {"brokerId": request.broker_id, "accountsDiscovered": accounts_discovered, "tradeLoggedIn": true, "connectivity": "connected", "checkedAt": checked_at()}
+                    "descriptor": descriptor,
+                    "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": true, "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": "", "apiPort": 0, "websocketPort": 0, "port": 0, "useEncryption": false, "marketDataTransport": "opend-tcp"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": 0, "limit": 0, "atLimit": false}}
                 }))
             }
             "funds" => {
@@ -223,8 +229,8 @@ impl TradeRequest {
         let account = self.account_id().ok_or_else(|| "accountId is required".to_owned())?;
         let acc_id = account.parse::<u64>().map_err(|_| "accountId must be a numeric Futu account id".to_owned())?;
         let env = match self.query.get_first("tradingEnvironment").unwrap_or("real").to_ascii_lowercase().as_str() {
-            "real" | "production" => 0,
-            "sim" | "simulate" | "paper" => 1,
+            "sim" | "simulate" | "paper" => 0,
+            "real" | "production" => 1,
             value => return Err(format!("invalid tradingEnvironment: {value}")),
         };
         let market_name = self.market_label();
@@ -259,7 +265,7 @@ impl TradeRequest {
 
 fn market_code(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
-        "HK" => Ok(1), "US" => Ok(11), "SH" => Ok(21), "SZ" => Ok(22), "CN" => Ok(21),
+        "HK" => Ok(1), "US" => Ok(2), "SH" | "SZ" | "CN" => Ok(3),
         value => Err(format!("invalid market: {value}")),
     }
 }
@@ -381,5 +387,17 @@ mod tests {
         let value = port.read("/api/v1/brokers/futu/funds", "accountId=42&market=US").expect("funds");
         assert_eq!(value["summary"]["totalAssets"], 2.0);
         assert_eq!(value["connectivity"], "connected");
+    }
+
+    #[test]
+    fn trade_header_uses_futu_trade_enums_not_quote_codes() {
+        let request = TradeRequest::parse(
+            "/api/v1/brokers/futu/funds",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("request");
+        let header = request.header().expect("header");
+        assert_eq!(header.trd_env, 1);
+        assert_eq!(header.trd_market, 2);
     }
 }
