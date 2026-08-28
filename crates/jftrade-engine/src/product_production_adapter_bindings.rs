@@ -30,8 +30,13 @@ impl ProductionPortBundle {
             let snapshot = self.active_provider_state.snapshot();
             return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
                 && snapshot.opend_ready
-                && self.trade_logged_in == Some(true)
-                && self.trade_read_port.is_some()
+                && (self
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.snapshot().is_ready())
+                    || (self.trade_runtime.is_none()
+                        && self.trade_logged_in == Some(true)
+                        && self.trade_read_port.is_some()))
             {
                 ProductionAdapterBinding::Ready
             } else {

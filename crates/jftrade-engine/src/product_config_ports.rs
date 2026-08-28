@@ -162,6 +162,14 @@ impl ProductConfig {
         self
     }
 
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        runtime: Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
+    ) -> Self {
+        self.trade_runtime = Some(runtime);
+        self
+    }
+
     pub fn with_market_data_helper(
         mut self,
         helper: jftrade_integration_marketdata_helper::HelperClient,

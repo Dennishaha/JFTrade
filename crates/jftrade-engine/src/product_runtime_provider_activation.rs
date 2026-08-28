@@ -18,6 +18,7 @@ use jftrade_settings::MarketDataProvider;
 use super::product_runtime_composition::{SharedOpenDProviderRuntime, opend_provider_config};
 use super::product_runtime_helper_health::HelperHealthMonitor;
 use super::product_runtime_opend_listener::LiveHubOpenDEventListener;
+use crate::product::product_production_ports::SharedTradeReadRuntime;
 
 pub(super) type DynamicReadiness = Arc<dyn Fn() -> (bool, bool, bool) + Send + Sync>;
 
@@ -100,12 +101,14 @@ pub(super) fn provider_activation(
     market_data_router: &Option<Arc<Mutex<ProviderRouter>>>,
     live_hub: &Arc<jftrade_api::LiveHub>,
     settings_path: &std::path::Path,
+    trade_runtime: Arc<SharedTradeReadRuntime>,
 ) -> Result<Activation, OpenDProviderRuntimeError> {
     let dyn_helper_for_activation = helper_process.clone();
     let activation_runtime = Arc::clone(dynamic_opend);
     let activation_router = market_data_router.clone();
     let activation_hub = Arc::clone(live_hub);
     let settings_path = settings_path.to_owned();
+    let trade_runtime_for_activation = Arc::clone(&trade_runtime);
     Ok(Arc::new(move |provider, previous| {
         let mut runtime = activation_runtime
             .lock()
@@ -122,10 +125,24 @@ pub(super) fn provider_activation(
                     configuration.task.event_listener = Some(Arc::new(
                         LiveHubOpenDEventListener::new(Arc::clone(&activation_hub)),
                     ));
-                    *runtime = Some(
-                        OpenDProviderRuntime::start(configuration)
-                            .map_err(|error| error.to_string())?,
-                    );
+                    let provider = OpenDProviderRuntime::start(configuration)
+                        .map_err(|error| error.to_string())?;
+                    let trade_logged_in = provider.trade_logged_in();
+                    let client = provider
+                        .coordinator()
+                        .lock()
+                        .ok()
+                        .and_then(|coordinator| {
+                            jftrade_integration_futu::OpenDTradeReadClient::from_coordinator(
+                                &coordinator,
+                            )
+                            .ok()
+                        })
+                        .map(|client| {
+                            Arc::new(client) as Arc<dyn jftrade_integration_futu::TradeReadPort>
+                        });
+                    trade_runtime_for_activation.set(client, trade_logged_in);
+                    *runtime = Some(provider);
                 }
             }
             MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
@@ -153,6 +170,7 @@ pub(super) fn provider_activation(
                 if previous == Some(MarketDataProvider::Futu)
                     && let Some(opend) = runtime.take()
                 {
+                    trade_runtime_for_activation.clear();
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }

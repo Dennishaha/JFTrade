@@ -371,6 +371,8 @@ pub struct ProductConfig {
     worker_runtime_status: ProductionRuntimeStatus,
     pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
     pub(crate) trade_logged_in: Option<bool>,
+    pub(crate) trade_runtime:
+        Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
 }
 impl std::fmt::Debug for ProductConfig {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -471,6 +473,7 @@ impl ProductConfig {
             worker_runtime_status: ProductionRuntimeStatus::Unavailable,
             trade_read_port: None,
             trade_logged_in: None,
+            trade_runtime: None,
         })
     }
     #[cfg(test)]

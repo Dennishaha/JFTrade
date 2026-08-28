@@ -392,6 +392,11 @@ pub async fn start_product_runtime(
         .clone()
         .unwrap_or_else(|| Arc::new(jftrade_api::LiveHub::default()));
     config.product = config.product.with_live_hub(Arc::clone(&live_hub));
+    let trade_runtime =
+        Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+    config.product = config
+        .product
+        .with_trade_runtime(Arc::clone(&trade_runtime));
 
     let market_data_router = config.market_data_router.take();
     let market_data_opend = config.market_data_opend.take();
@@ -426,6 +431,7 @@ pub async fn start_product_runtime(
                         .product
                         .clone()
                         .with_trade_read_port(trade_read_port, trade_logged_in);
+                    trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                     (Some(runtime), Some(shared_router))
                 }
                 Err(error) => {
@@ -585,6 +591,7 @@ pub async fn start_product_runtime(
         &market_data_router,
         &live_hub,
         &settings_path,
+        Arc::clone(&trade_runtime),
     )?;
     let active_provider_state = Arc::new(
         ActiveProviderState::new(initial_provider)
