@@ -10,6 +10,7 @@ pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }
 
+use crate::trade_proto_order_validation::validate_order_s2c;
 use crate::trade_proto_validation::{
     validate_account_s2c, validate_funds, validate_noop_s2c, validate_position_s2c,
 };
@@ -29,6 +30,11 @@ pub enum ResponseError {
         operation: &'static str,
         message: String,
     },
+    #[error("OpenD {operation} field {field} must be a YYYY-MM-DD HH:MM:SS[.MS] timestamp")]
+    InvalidTime {
+        operation: &'static str,
+        field: &'static str,
+    },
     #[error("{0}")]
     Validation(#[from] ValidationError),
 }
@@ -47,6 +53,11 @@ pub enum ValidationError {
     },
     #[error("OpenD {operation} field {field} must be non-negative")]
     Negative {
+        operation: &'static str,
+        field: &'static str,
+    },
+    #[error("OpenD {operation} field {field} must be a YYYY-MM-DD HH:MM:SS[.MS] timestamp")]
+    InvalidTime {
         operation: &'static str,
         field: &'static str,
     },
@@ -180,7 +191,7 @@ trade_list_proto!(
     "trd_get_order_list.rs",
     "GetOrderList",
     2201,
-    validate_noop_s2c
+    validate_order_s2c
 );
 trade_list_proto!(
     trd_get_order_fill_list,
@@ -203,7 +214,7 @@ mod tests {
 
     use super::{
         ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds,
-        trd_get_position_list,
+        trd_get_order_list, trd_get_position_list,
     };
 
     fn header() -> trd_common::TrdHeader {
@@ -473,6 +484,89 @@ mod tests {
                 field,
                 operation: "GetPositionList"
             })) if field == "average_cost_price"
+        ));
+    }
+
+    fn order_response(order: trd_common::Order) -> trd_get_order_list::Response {
+        trd_get_order_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_list::S2c {
+                header: header(),
+                order_list: vec![order],
+            }),
+        }
+    }
+
+    fn valid_order() -> trd_common::Order {
+        trd_common::Order {
+            trd_side: 999,
+            order_type: 999,
+            order_status: 999,
+            order_id: 1,
+            order_id_ex: "EXT-1".to_owned(),
+            code: "US.AAPL".to_owned(),
+            name: "Apple".to_owned(),
+            qty: 0.0,
+            create_time: "2026-08-29 09:30:00".to_owned(),
+            update_time: "2026-08-29 09:30:00.123".to_owned(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn order_validation_accepts_zero_values_unknown_enums_and_millisecond_time() {
+        let decoded =
+            trd_get_order_list::decode_response(&order_response(valid_order()).encode_to_vec())
+                .expect("valid order");
+        assert_eq!(decoded.order_list[0].qty, 0.0);
+        assert_eq!(decoded.order_list[0].order_status, 999);
+    }
+
+    #[test]
+    fn order_validation_rejects_missing_identity_and_bad_time() {
+        let mut order = valid_order();
+        order.order_id_ex.clear();
+        assert!(matches!(
+            trd_get_order_list::decode_response(&order_response(order).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::EmptyField {
+                field: "order_id_ex",
+                operation: "GetOrderList"
+            }))
+        ));
+
+        let mut order = valid_order();
+        order.create_time = "2026-02-29 09:30:00".to_owned();
+        assert!(matches!(
+            trd_get_order_list::decode_response(&order_response(order).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::InvalidTime {
+                field: "create_time",
+                operation: "GetOrderList"
+            }))
+        ));
+    }
+
+    #[test]
+    fn order_validation_rejects_negative_and_non_finite_numbers() {
+        let mut order = valid_order();
+        order.qty = -1.0;
+        assert!(matches!(
+            trd_get_order_list::decode_response(&order_response(order).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::Negative {
+                field: "qty",
+                operation: "GetOrderList"
+            }))
+        ));
+
+        let mut order = valid_order();
+        order.price = Some(f64::NAN);
+        assert!(matches!(
+            trd_get_order_list::decode_response(&order_response(order).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite {
+                field,
+                operation: "GetOrderList"
+            })) if field == "price"
         ));
     }
 }
