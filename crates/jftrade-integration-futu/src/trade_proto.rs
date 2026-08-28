@@ -126,6 +126,17 @@ fn validate_non_negative(
     Ok(())
 }
 
+fn validate_optional_non_negative(
+    operation: &'static str,
+    field: &'static str,
+    value: Option<f64>,
+) -> Result<(), ResponseError> {
+    if let Some(value) = value {
+        validate_non_negative(operation, field, value)?;
+    }
+    Ok(())
+}
+
 fn validate_account_s2c(
     operation: &'static str,
     payload: &trd_get_acc_list::S2c,
@@ -159,7 +170,6 @@ fn validate_position_s2c(
         validate_finite(operation, "val", position.val)?;
         validate_finite(operation, "pl_val", position.pl_val)?;
         for (field, value) in [
-            ("cost_price", position.cost_price),
             ("pl_ratio", position.pl_ratio),
             ("td_pl_val", position.td_pl_val),
             ("td_trd_val", position.td_trd_val),
@@ -167,11 +177,16 @@ fn validate_position_s2c(
             ("td_sell_val", position.td_sell_val),
             ("unrealized_pl", position.unrealized_pl),
             ("realized_pl", position.realized_pl),
-            ("diluted_cost_price", position.diluted_cost_price),
-            ("average_cost_price", position.average_cost_price),
             ("average_pl_ratio", position.average_pl_ratio),
         ] {
             validate_optional_finite(operation, field, value)?;
+        }
+        for (field, value) in [
+            ("cost_price", position.cost_price),
+            ("diluted_cost_price", position.diluted_cost_price),
+            ("average_cost_price", position.average_cost_price),
+        ] {
+            validate_optional_non_negative(operation, field, value)?;
         }
         for (field, value) in [
             ("td_buy_qty", position.td_buy_qty),
@@ -622,6 +637,16 @@ mod tests {
             trd_get_position_list::decode_response(&position_response(position).encode_to_vec()),
             Err(ResponseError::Validation(ValidationError::Negative {
                 field: "qty",
+                operation: "GetPositionList"
+            }))
+        ));
+
+        let mut position = valid_position();
+        position.cost_price = Some(-0.01);
+        assert!(matches!(
+            trd_get_position_list::decode_response(&position_response(position).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::Negative {
+                field: "cost_price",
                 operation: "GetPositionList"
             }))
         ));
