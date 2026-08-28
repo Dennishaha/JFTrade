@@ -11,7 +11,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use jftrade_engine::product::ProductConfig;
-use jftrade_engine::product_runtime::{ProductRuntimeConfig, start_product_runtime};
+use jftrade_engine::product_runtime::{
+    DesktopRetainedRuntimeConfig, ProductRuntimeConfig, start_product_runtime,
+};
 use jftrade_integration_futu::{
     Frame, PROTO_GET_GLOBAL_STATE, PROTO_GET_SUB_INFO, PROTO_INIT_CONNECT, PROTO_QOT_SUB,
     decode_frame, encode_frame,
@@ -415,18 +417,9 @@ async fn test_market_data_canonical_fixture_subscription_matches_production() {
     )
     .unwrap();
 
-    let runtime = start_product_runtime(ProductRuntimeConfig {
-        product,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    })
+    let runtime = start_product_runtime(
+        ProductRuntimeConfig::desktop(product, DesktopRetainedRuntimeConfig::default()).unwrap(),
+    )
     .await
     .expect("runtime start");
 
@@ -558,18 +551,10 @@ async fn test_futu_quota_and_subscriptions_through_real_composition_runtime() {
     )
     .expect("config");
 
-    let runtime = start_product_runtime(ProductRuntimeConfig {
-        product: product_config,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    })
+    let runtime = start_product_runtime(
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap(),
+    )
     .await
     .expect("runtime start");
 
@@ -628,18 +613,9 @@ async fn test_omitted_broker_subscription_lifecycle_and_single_demand_owner() {
     )
     .expect("config");
 
-    let runtime_config = ProductRuntimeConfig {
-        product: product_config,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    };
+    let runtime_config =
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap();
 
     let runtime = start_product_runtime(runtime_config)
         .await
@@ -744,18 +720,9 @@ async fn test_active_provider_mutation_atomic_single_state_source() {
     )
     .expect("config");
 
-    let runtime_config = ProductRuntimeConfig {
-        product: product_config,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    };
+    let runtime_config =
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap();
 
     let runtime = start_product_runtime(runtime_config)
         .await
@@ -940,19 +907,9 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
     .unwrap();
 
     let product_config = product_config.with_market_data_helper(helper_client);
-
-    let runtime_config = ProductRuntimeConfig {
-        product: product_config,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    };
+    let runtime_config =
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap();
 
     let runtime = start_product_runtime(runtime_config)
         .await
@@ -1120,19 +1077,9 @@ async fn test_candle_converter_strict_rejection_boundaries() {
     .unwrap();
 
     let product_config = product_config.with_market_data_helper(helper_client);
-
-    let runtime_config = ProductRuntimeConfig {
-        product: product_config,
-        pine_workers: Vec::new(),
-        marketdata_helper: None,
-        market_data_router: None,
-        market_data_runtime_recorder: None,
-        market_data_opend: None,
-        market_data_opend_task: None,
-        market_data_opend_provider: None,
-        strategy_runtime_registry: None,
-        shutdown_recorder: None,
-    };
+    let runtime_config =
+        ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
+            .unwrap();
 
     let runtime = start_product_runtime(runtime_config)
         .await

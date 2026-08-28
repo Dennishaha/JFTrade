@@ -21,21 +21,23 @@ use crate::product::{ActiveProviderState, ProductHandle};
 use crate::product_runtime::product_runtime_composition::SharedOpenDProviderRuntime;
 
 #[derive(Clone, Debug, Default)]
-pub struct ShutdownEventRecorder {
+pub(crate) struct ShutdownEventRecorder {
     events: Arc<Mutex<Vec<&'static str>>>,
 }
 
 impl ShutdownEventRecorder {
-    pub fn new() -> Self {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    pub fn record(&self, event: &'static str) {
+    pub(crate) fn record(&self, event: &'static str) {
         let mut list = self.events.lock().unwrap_or_else(|e| e.into_inner());
         list.push(event);
     }
 
-    pub fn events(&self) -> Vec<&'static str> {
+    #[cfg(test)]
+    pub(crate) fn events(&self) -> Vec<&'static str> {
         self.events
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -51,6 +53,7 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) market_data_opend_runtime: Option<OpenDSessionRuntime>,
     pub(crate) market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     pub(crate) marketdata_helper: Option<Arc<Mutex<Option<HelperProcess>>>>,
+    pub(crate) helper_health: Option<Arc<super::HelperHealthMonitor>>,
     pub(crate) pine_workers: Vec<PineProcess>,
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) recorder: ShutdownEventRecorder,
@@ -82,6 +85,7 @@ impl ProductShutdownSupervisor {
             market_data_opend_runtime: None,
             market_data_opend: None,
             marketdata_helper: None,
+            helper_health: None,
             pine_workers: Vec::new(),
             production_ports: None,
             recorder,
@@ -158,28 +162,31 @@ impl ProductShutdownSupervisor {
                 self.recorder.record("opend");
             }
         }
-        // 5. Stop market-data helper and Pine workers
-        let mut had_workers = false;
+        // 5. Stop market-data helper (health monitor first, then process)
+        if let Some(monitor) = self.helper_health.take() {
+            monitor.stop();
+        }
         let helper_opt = self
             .marketdata_helper
             .take()
             .and_then(|arc| arc.lock().ok()?.take());
         if let Some(mut helper) = helper_opt {
-            had_workers = true;
             if let Err(error) = helper.stop().await {
                 failures.push(error.to_string());
             }
+            self.recorder.record("marketdata_helper");
         }
+        // 6. Stop Pine workers
+        let had_pine = !self.pine_workers.is_empty();
         while let Some(worker) = self.pine_workers.pop() {
-            had_workers = true;
             if let Err(error) = worker.stop().await {
                 failures.push(error.to_string());
             }
         }
-        if had_workers {
-            self.recorder.record("helper_pine");
+        if had_pine {
+            self.recorder.record("pine_worker");
         }
-        // 6. Release SQLite stores & 9 WriterLease locks last
+        // 7. Release SQLite stores & 9 WriterLease locks last
         if self.production_ports.is_some() {
             drop(self.production_ports.take());
             self.recorder.record("sqlite_lease");
@@ -238,24 +245,27 @@ impl ProductShutdownSupervisor {
                 self.recorder.record("opend");
             }
         }
-        // 4. Terminate helper & Pine workers
-        let mut had_workers = false;
+        // 4. Terminate helper (health monitor first, then process)
+        if let Some(monitor) = self.helper_health.take() {
+            monitor.stop();
+        }
         let helper_opt = self
             .marketdata_helper
             .take()
             .and_then(|arc| arc.lock().ok()?.take());
         if let Some(mut helper) = helper_opt {
-            had_workers = true;
             helper.terminate();
+            self.recorder.record("marketdata_helper");
         }
+        // 5. Terminate Pine workers
+        let had_pine = !self.pine_workers.is_empty();
         while let Some(mut worker) = self.pine_workers.pop() {
-            had_workers = true;
             worker.terminate();
         }
-        if had_workers {
-            self.recorder.record("helper_pine");
+        if had_pine {
+            self.recorder.record("pine_worker");
         }
-        // 5. Release SQLite stores & 9 WriterLease locks last
+        // 6. Release SQLite stores & 9 WriterLease locks last
         if self.production_ports.is_some() {
             drop(self.production_ports.take());
             self.recorder.record("sqlite_lease");

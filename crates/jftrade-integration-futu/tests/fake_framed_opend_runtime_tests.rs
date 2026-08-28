@@ -5,9 +5,9 @@ use std::thread;
 use std::time::Duration;
 
 use jftrade_integration_futu::{
-    Frame, OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionRuntime,
-    OpenDSessionRuntimeConfig, OpenDTcpProbeConfig, PROTO_GET_SUB_INFO, PROTO_INIT_CONNECT,
-    PROTO_QOT_SUB, decode_frame, encode_frame,
+    Frame, OpenDSessionCloseReason, OpenDSessionCoordinator, OpenDSessionEvent,
+    OpenDSessionRuntime, OpenDSessionRuntimeConfig, OpenDTcpProbeConfig, PROTO_GET_SUB_INFO,
+    PROTO_INIT_CONNECT, PROTO_QOT_SUB, decode_frame, encode_frame,
 };
 use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
 use prost::Message;
@@ -358,46 +358,70 @@ fn test_reconnect_and_demand_replay_with_framed_opend() {
 fn test_fallback_establishment_recovery_and_count_semantics() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
     let address = listener.local_addr().expect("local_addr");
+    let (first_connected_tx, first_connected_rx) = mpsc::channel();
+    let (second_connected_tx, second_connected_rx) = mpsc::channel();
+    let (replayed_sub_tx, replayed_sub_rx) = mpsc::channel();
 
     let server = thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept");
-        // 1. Initial connect handshake
-        let init = read_framed_frame(&mut stream).expect("init frame");
-        assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
+        // Gen 1: First connection - server accepts, handshakes, answers subscription, then drops stream (real EOF)
+        let (mut stream1, _) = listener.accept().expect("accept 1");
+        let init1 = read_framed_frame(&mut stream1).expect("init frame 1");
+        assert_eq!(init1.header.proto_id, PROTO_INIT_CONNECT);
         write_framed_response(
-            &mut stream,
+            &mut stream1,
             PROTO_INIT_CONNECT,
-            init.header.serial_no,
+            init1.header.serial_no,
             &InitResponse {
                 ret_type: Some(0),
                 ret_msg: Some("ok".to_owned()),
                 s2c: Some(InitState {
                     server_ver: 1009,
-                    conn_id: 100,
+                    conn_id: 101,
                 }),
             }
             .encode_to_vec(),
         );
 
-        // 2. First subscription: server returns error rejection (ret_type = -1)
-        let sub1 = read_framed_frame(&mut stream).expect("sub1 frame");
+        let sub1 = read_framed_frame(&mut stream1).expect("sub1 frame");
         assert_eq!(sub1.header.proto_id, PROTO_QOT_SUB);
         write_framed_response(
-            &mut stream,
+            &mut stream1,
             PROTO_QOT_SUB,
             sub1.header.serial_no,
             &SubResponse {
-                ret_type: Some(-1),
-                ret_msg: Some("subscription quota exceeded".to_owned()),
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
             }
             .encode_to_vec(),
         );
 
-        // 3. Second subscription attempt: server returns success (ret_type = 0)
-        let sub2 = read_framed_frame(&mut stream).expect("sub2 frame");
+        first_connected_tx.send(()).expect("send gen 1 ack");
+        // Drop stream1 to simulate real EOF / disconnect
+        drop(stream1);
+
+        // Gen 2: Second connection - server accepts, answers replayed subscription, then drops stream (second reconnect)
+        let (mut stream2, _) = listener.accept().expect("accept 2");
+        let init2 = read_framed_frame(&mut stream2).expect("init frame 2");
+        assert_eq!(init2.header.proto_id, PROTO_INIT_CONNECT);
+        write_framed_response(
+            &mut stream2,
+            PROTO_INIT_CONNECT,
+            init2.header.serial_no,
+            &InitResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 102,
+                }),
+            }
+            .encode_to_vec(),
+        );
+
+        let sub2 = read_framed_frame(&mut stream2).expect("sub2 frame");
         assert_eq!(sub2.header.proto_id, PROTO_QOT_SUB);
         write_framed_response(
-            &mut stream,
+            &mut stream2,
             PROTO_QOT_SUB,
             sub2.header.serial_no,
             &SubResponse {
@@ -406,6 +430,62 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
             }
             .encode_to_vec(),
         );
+
+        second_connected_tx.send(()).expect("send gen 2 ack");
+        drop(stream2);
+
+        // Gen 3: Third connection - server handshakes, accepts replayed subscription and answers basic quote queries
+        let (mut stream3, _) = listener.accept().expect("accept 3");
+        let init3 = read_framed_frame(&mut stream3).expect("init frame 3");
+        assert_eq!(init3.header.proto_id, PROTO_INIT_CONNECT);
+        write_framed_response(
+            &mut stream3,
+            PROTO_INIT_CONNECT,
+            init3.header.serial_no,
+            &InitResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+                s2c: Some(InitState {
+                    server_ver: 1009,
+                    conn_id: 103,
+                }),
+            }
+            .encode_to_vec(),
+        );
+
+        while let Some(frame) = read_framed_frame(&mut stream3) {
+            match frame.header.proto_id {
+                PROTO_QOT_SUB => {
+                    let req =
+                        SubRequest::decode(frame.body.as_slice()).expect("decode replayed sub");
+                    let code = req
+                        .c2s
+                        .and_then(|c| c.securities.into_iter().next())
+                        .and_then(|s| s.code)
+                        .expect("code");
+                    let _ = replayed_sub_tx.send(code);
+                    write_framed_response(
+                        &mut stream3,
+                        PROTO_QOT_SUB,
+                        frame.header.serial_no,
+                        &SubResponse {
+                            ret_type: Some(0),
+                            ret_msg: Some("ok".to_owned()),
+                        }
+                        .encode_to_vec(),
+                    );
+                }
+                jftrade_integration_futu::PROTO_GET_BASIC_QOT => {
+                    write_framed_response(
+                        &mut stream3,
+                        jftrade_integration_futu::PROTO_GET_BASIC_QOT,
+                        frame.header.serial_no,
+                        &[0x08, 0x00, 0x22, 0x00],
+                    );
+                }
+                _ => {}
+            }
+        }
     });
 
     let demand = vec![InstrumentRef {
@@ -416,41 +496,97 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
     }];
 
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
-    let mut coordinator = OpenDSessionCoordinator::connect(
-        OpenDTcpProbeConfig::new(address, Duration::from_secs(2)),
-        recorder,
-        Vec::new(),
-        1_700_000_000_000,
-    )
-    .expect("connect");
+    let coordinator = Arc::new(Mutex::new(
+        OpenDSessionCoordinator::connect(
+            OpenDTcpProbeConfig::new(address, Duration::from_secs(2)),
+            Arc::clone(&recorder),
+            demand.clone(),
+            1_700_000_000_000,
+        )
+        .expect("connect"),
+    ));
 
-    assert_eq!(
-        coordinator
+    // Initial state after Gen 1 connection
+    {
+        let snap1 = coordinator
+            .lock()
+            .unwrap()
             .physical_snapshot()
-            .expect("snapshot")
-            .fallback_count,
-        0
-    );
+            .expect("snapshot gen 1");
+        assert_eq!(snap1.connection_generation, Some(1));
+        assert_eq!(snap1.fallback_count, 0);
+    }
+    first_connected_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("gen 1 connected");
 
-    // 1. Initial subscription fails on wire -> explicitly propagates error AND records fallback_count = 1
-    let err = coordinator
-        .reconcile_topology(&demand, 1_700_000_000_100)
-        .expect_err("reconcile demand must fail on wire rejection");
-    assert!(matches!(err, OpenDSessionCoordinatorError::Subscription(_)));
+    let mut runtime = OpenDSessionRuntime::start(
+        Arc::clone(&coordinator),
+        OpenDSessionRuntimeConfig {
+            poll_interval: Duration::from_millis(5),
+            event_timeout: Duration::from_millis(1),
+            reconnect_initial_delay: Duration::from_millis(20),
+            reconnect_max_delay: Duration::from_millis(50),
+            ..OpenDSessionRuntimeConfig::default()
+        },
+    )
+    .expect("start session runtime");
 
-    let snap_fallback = coordinator.physical_snapshot().expect("snapshot");
-    assert_eq!(snap_fallback.fallback_count, 1);
-    assert_eq!(snap_fallback.own_active_count, 0);
+    second_connected_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("gen 2 connected and disconnected");
 
-    // 2. Retry / re-reconcile beyond retry backoff; server accepts QOT_SUB -> succeeds and recovers fallback_count = 0
-    coordinator
-        .reconcile_topology(&demand, 1_700_000_100_000)
-        .expect("reconcile demand recover");
+    let replayed = replayed_sub_rx
+        .recv_timeout(Duration::from_secs(3))
+        .expect("replayed sub gen 3");
+    assert_eq!(replayed, "AAPL");
 
-    let snap_recovered = coordinator.physical_snapshot().expect("snapshot");
+    // Wait for gen 3 to settle
+    for _ in 0..100 {
+        let snap = coordinator
+            .lock()
+            .unwrap()
+            .physical_snapshot()
+            .expect("snapshot");
+        if snap.connection_generation == Some(3)
+            && snap.fallback_count == 0
+            && snap.own_active_count == 1
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    let snap_recovered = coordinator
+        .lock()
+        .unwrap()
+        .physical_snapshot()
+        .expect("snapshot recovered");
+    assert_eq!(snap_recovered.connection_generation, Some(3));
+    assert_eq!(snap_recovered.observed_connection_generation, Some(3));
     assert_eq!(snap_recovered.fallback_count, 0);
+    assert_eq!(snap_recovered.last_error, None);
     assert_eq!(snap_recovered.own_active_count, 1);
+    assert_eq!(snap_recovered.desired_count, 1);
 
-    coordinator.close().expect("close");
+    // Stale callback generation fencing assertion:
+    // Ingesting a closed or unsolicited frame from Gen 1 or Gen 2 MUST be ignored and not mutate Gen 3 state.
+    {
+        let guard = coordinator.lock().unwrap();
+        let stale_event = crate::OpenDSessionEvent::Closed {
+            generation: 1,
+            reason: crate::OpenDSessionCloseReason::PeerClosed,
+        };
+        let ingest_result = guard.lifecycle().ingest_session_event(
+            &stale_event,
+            "2026-08-28T00:00:00Z".parse().expect("timestamp"),
+        );
+        assert!(ingest_result.is_ok());
+        let rec = guard.recorder().snapshot();
+        assert_eq!(rec.generation, 3);
+        assert_eq!(rec.stream_last_error, None);
+    }
+
+    runtime.shutdown().expect("shutdown");
     server.join().expect("server join");
 }

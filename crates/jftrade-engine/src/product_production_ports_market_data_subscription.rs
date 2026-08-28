@@ -463,6 +463,21 @@ impl ProductionMarketDataSubscriptionMutationPort {
             .get_first("consumerId")
             .unwrap_or_default();
 
+        let provider_broker_id = query_map.get_first("providerBrokerId").unwrap_or_default();
+        let uses_polling =
+            Self::uses_broker_polling((!provider_broker_id.is_empty()).then_some(provider_broker_id));
+        if uses_polling {
+            return Ok(broker_polling_subscription_response(
+                consumer_id,
+                provider_broker_id,
+                Vec::new(),
+                "cleared",
+            ));
+        }
+
+        // Baseline semantics: without a physical router the shared demand
+        // book is the local empty state, so clearing it stays a 200 with an
+        // empty snapshot instead of failing closed on the missing provider.
         let now_ms = current_unix_millis();
         let snapshot = if let Some(router) = &self.router {
             let mut router_guard = router.lock().unwrap_or_else(|e| e.into_inner());

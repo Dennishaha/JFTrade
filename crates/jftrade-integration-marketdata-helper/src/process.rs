@@ -210,7 +210,16 @@ impl HelperProcess {
         }
     }
 
-    pub fn child_status(&mut self) -> Result<Option<std::process::ExitStatus>, ProcessError> {
+    pub fn is_alive(&mut self) -> bool {
+        self.child
+            .as_mut()
+            .and_then(|c| c.try_wait().ok())
+            .is_some_and(|status| status.is_none())
+    }
+
+    pub(crate) fn child_status(
+        &mut self,
+    ) -> Result<Option<std::process::ExitStatus>, ProcessError> {
         self.child
             .as_mut()
             .map(Child::try_wait)

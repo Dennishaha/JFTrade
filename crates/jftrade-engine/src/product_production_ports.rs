@@ -16,8 +16,7 @@ use jftrade_datamanagement::{
     DATABASE_WATCHLIST,
 };
 use jftrade_settings::{
-    FutuOpenDInstallSettings, FutuOpenDInstallSettingsStorePort, MarketDataProvider,
-    MarketDataProviderSettingsStorePort, SecuritySettingsService,
+    MarketDataProvider, MarketDataProviderSettingsStorePort, SecuritySettingsService,
     normalize_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
@@ -42,8 +41,8 @@ use crate::product::{
     MarketDataDerivativeReadSnapshotPort, MarketDataNewsActionsReadSnapshotPort,
     MarketDataNewsSearchReadSnapshotPort, MarketDataOptionsReadSnapshotPort,
     MarketDataPredictionReadSnapshotPort, MarketDataQuoteReadSnapshotPort,
-    MarketDataRuntimeState, PortfolioSnapshotPort, ProductionRuntimeStatus,
-    RemoteWatchlistSnapshotPort, ResearchReadSnapshotPort, WsLiveSnapshotPort,
+    MarketDataRuntimeState, PortfolioSnapshotPort, RemoteWatchlistSnapshotPort,
+    ResearchReadSnapshotPort, WsLiveSnapshotPort,
 };
 
 #[path = "product_production_ports_plugins.rs"]
@@ -81,7 +80,9 @@ pub(crate) use product_production_adapter_bindings::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding,
 };
 pub(crate) use product_production_adapter_bindings::production_adapter_bindings;
-use product_production_ports_system::ProductionSystemWritePort;
+pub(crate) use product_production_ports_system::{
+    ProductionSystemPort, ProductionSystemWritePort,
+};
 pub(crate) use product_production_ports_strategy::{
     ProductionResearchPresetPort, ProductionStrategyDefinitionPort,
     ProductionStrategyRuntimePort,
@@ -114,7 +115,7 @@ use crate::product::{
     PluginUninstallGuidanceSnapshotPort, ProductConfig, ResearchPresetReadSnapshotPort,
     StrategyDefinitionSnapshotPort, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
     MarketDataRuntimeStatusPort,
-    SystemReadSnapshotError, SystemReadSnapshotPort, WatchlistMembershipSnapshotPort,
+    SystemReadSnapshotPort, WatchlistMembershipSnapshotPort,
     WatchlistReadSnapshotPort, product_data_management,
 };
 
@@ -286,169 +287,59 @@ impl AlertWritePort for ProductionAlertPort {
     }
 }
 
-pub(crate) struct ProductionSystemPort {
-    runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
-    settings: Arc<SettingsFileStore>,
-    opend_status: ProductionRuntimeStatus,
+pub const PRODUCTION_DATABASE_IDS: [&str; 9] = [
+    DATABASE_WATCHLIST,
+    DATABASE_STRATEGY,
+    DATABASE_RESEARCH,
+    DATABASE_BACKTEST_RUNS,
+    DATABASE_BACKTEST,
+    DATABASE_EXECUTION,
+    DATABASE_ADK,
+    DATABASE_ADK_SESSION,
+    DATABASE_ADK_ARTIFACT,
+];
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProductionDatabaseLeaseSnapshot {
+    pub expected: usize,
+    pub acquired: usize,
+    pub databases: Vec<String>,
+    pub status: &'static str,
 }
 
-impl std::fmt::Debug for ProductionSystemPort {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("ProductionSystemPort")
-            .field("runtime_status", &self.runtime_status.is_some())
-            .field("settings_path", &self.settings.path())
-            .field("opend_status", &self.opend_status)
-            .finish()
-    }
-}
-
-impl SystemReadSnapshotPort for ProductionSystemPort {
-    fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
-        match path {
-            "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
-            "/api/v1/system/worker/broker-order-updates" => Ok(json!({})),
-            "/api/v1/system/info" => Ok(json!({
-                "version": env!("CARGO_PKG_VERSION"),
-                "architecture": std::env::consts::ARCH,
-                "os": std::env::consts::OS,
-                "engine": "rust",
-                "productionOwner": "rust",
-            })),
-            "/api/v1/system/status" => {
-                let market_data = self.runtime_status.as_ref().map(|port| port.snapshot());
-                let status = if market_data.as_ref().is_some_and(|state| state.connected) {
-                    "operational"
-                } else {
-                    "degraded"
-                };
-                Ok(json!({
-                    "status": status,
-                    "workers": "healthy",
-                    "marketData": {
-                        "connected": market_data.as_ref().is_some_and(|state| state.connected),
-                        "activeCount": market_data.as_ref().map_or(0, |state| state.active_count),
-                    },
-                }))
-            }
-            "/api/v1/system/diagnostics" => Ok(json!({
-                "databaseIntegrity": "ok",
-                "settingsIntegrity": "ok",
-                "marketDataRuntime": self.runtime_status.is_some().then_some("configured"),
-            })),
-            _ => Err(SystemReadSnapshotError::Unavailable(format!("system path not found: {path}"))),
+impl ProductionDatabaseLeaseSnapshot {
+    pub fn new(acquired_databases: Vec<String>) -> Self {
+        let expected = PRODUCTION_DATABASE_IDS.len();
+        let acquired = acquired_databases.len();
+        let status = if acquired == expected && expected > 0 {
+            "acquired"
+        } else if acquired == 0 {
+            "none"
+        } else {
+            "partial"
+        };
+        Self {
+            expected,
+            acquired,
+            databases: acquired_databases,
+            status,
         }
     }
 }
 
-impl ProductionSystemPort {
-    fn futu_opend_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
-        let settings = self
-            .settings
-            .load_futu_open_d_install_settings()
-            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?
-            .unwrap_or_else(FutuOpenDInstallSettings::default);
-        let Some(runtime_status) = self.runtime_status.as_ref() else {
-            return Ok(json!({
-                "status": "unavailable",
-                "reason": "broker integration not enabled",
-            }));
-        };
-        let state = runtime_status.snapshot();
-        let has_error = state.quote_last_error.as_ref().is_some_and(|error| !error.is_empty())
-            || state.stream_last_error.as_ref().is_some_and(|error| !error.is_empty());
-        let connectivity = if state.connected {
-            "connected"
-        } else if has_error {
-            "degraded"
-        } else {
-            "disconnected"
-        };
-        let status = if state.connected {
-            "healthy"
-        } else if has_error || self.opend_status == ProductionRuntimeStatus::Degraded {
-            "degraded"
-        } else {
-            "offline"
-        };
-        let last_error = state
-            .quote_last_error
-            .clone()
-            .filter(|error| !error.is_empty())
-            .or(state.stream_last_error.clone().filter(|error| !error.is_empty()));
-        Ok(json!({
-            "checkedAt": provider_now_rfc3339(),
-            "status": status,
-            "runtime": {
-                "connectivity": connectivity,
-                "host": settings.host,
-                "apiPort": settings.api_port,
-                "websocketPort": settings.websocket_port,
-                "useEncryption": settings.use_encryption,
-                "websocketKeyConfigured": settings.websocket_key_required,
-                "marketDataTransport": "bbgo-opend-tcp-api",
-                "quoteLoggedIn": Value::Null,
-                "tradeLoggedIn": Value::Null,
-                "programStatus": Value::Null,
-                "serverVersion": Value::Null,
-                "minimumVersion": jftrade_integration_futu::MINIMUM_OPEND_VERSION,
-                "lastError": last_error,
-            },
-            "diagnosis": {
-                "code": if state.connected { "NONE" } else { "OPEND_UNAVAILABLE" },
-                "summary": last_error,
-                "manualRetryRequired": !state.connected,
-                "restartOpenDRecommended": false,
-            },
-            "localSocketDiagnostics": {
-                "transportMode": "bbgo-opend-tcp-api",
-                "configuredOpenDWebSocketLimit": settings.max_websocket_connections,
-                "configuredOpenDWebSocketLimitActive": false,
-                "configuredOpenDWebSocketLimitScope": "stored for FTWebSocket compatibility; current market-data path uses the OpenD native API via bbgo",
-                "websocketEstablishedConnections": 0,
-                "jftradeLiveWebSocketLimit": settings.max_websocket_connections,
-                "jftradeLiveWebSocketAtLimit": false,
-                "likelyConnectionSaturation": false,
-                "openDWebSocketPoolLikelySaturation": false,
-                "liveQuoteBackoffActive": state.quote_retry_at.is_some(),
-                "liveQuoteRetryAfter": state.quote_retry_at,
-                "liveQuoteFailureCount": state.quote_failures,
-                "liveQuoteLastError": state.quote_last_error,
-                "liveStreamBackoffActive": state.stream_retry_at.is_some(),
-                "liveStreamRetryAfter": state.stream_retry_at,
-                "liveStreamFailureCount": state.stream_failures,
-                "liveStreamLastError": state.stream_last_error,
-                "topClientProcesses": [],
-            },
-            "localInstallation": {
-                "platform": std::env::consts::OS,
-                "installed": false,
-                "version": Value::Null,
-                "installPath": Value::Null,
-                "guiDetected": false,
-                "process": {"running": false, "pid": Value::Null, "executablePath": Value::Null},
-            },
-            "latestVersion": {
-                "value": Value::Null,
-                "sourceUrl": Value::Null,
-                "checkedAt": Value::Null,
-                "status": "unknown",
-                "error": Value::Null,
-            },
-            "recommendations": [],
-        }))
-    }
-}
 // Bundle
 
 #[derive(Clone)]
 pub(crate) struct ProductionPortBundle {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    // Lease evidence snapshot; consumed by test-support accessors and the
+    // system port so integrity reporting never invents "ok".
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) database_leases: ProductionDatabaseLeaseSnapshot,
     pub database_lease_status: &'static str,
     pub provider_status: &'static str,
     pub opend_status: &'static str,
     pub worker_status: &'static str,
-    pub websocket_status: &'static str,
     pub calendar_manager: Arc<CalendarManager>,
     pub auth_session: Arc<dyn AuthSessionSnapshotPort>,
     pub auth_session_write: Arc<dyn AuthSessionWritePort>,
@@ -526,12 +417,15 @@ pub(crate) fn production_ports(
             })
     };
 
+    let mut acquired_databases = Vec::with_capacity(PRODUCTION_DATABASE_IDS.len());
+
     let watchlist_path = get_path(DATABASE_WATCHLIST)?;
     let watchlist_store = Arc::new(
         WatchlistStore::open_existing(&watchlist_path, WATCHLIST_PRODUCTION_PROFILE).map_err(
             |e| ProductError::Storage(format!("failed to open watchlist production store: {e}")),
         )?,
     );
+    acquired_databases.push(DATABASE_WATCHLIST.to_owned());
 
     let strategy_path = get_path(DATABASE_STRATEGY)?;
     let strategy_def_store = Arc::new(
@@ -548,6 +442,7 @@ pub(crate) fn production_ports(
     let strategy_runtime_store = Arc::new(StrategyRuntimeStore::from_definition_store(
         &strategy_def_store,
     ));
+    acquired_databases.push(DATABASE_STRATEGY.to_owned());
 
     let research_path = get_path(DATABASE_RESEARCH)?;
     let research_store = Arc::new(
@@ -558,6 +453,7 @@ pub(crate) fn production_ports(
                 ))
             })?,
     );
+    acquired_databases.push(DATABASE_RESEARCH.to_owned());
 
     let backtest_path = get_path(DATABASE_BACKTEST_RUNS)?;
     let backtest_store = Arc::new(
@@ -566,6 +462,7 @@ pub(crate) fn production_ports(
                 ProductError::Storage(format!("failed to open backtest runs production store: {e}"))
             })?,
     );
+    acquired_databases.push(DATABASE_BACKTEST_RUNS.to_owned());
 
     let backtest_market_data_path = get_path(DATABASE_BACKTEST)?;
     let backtest_market_data_store = Arc::new(
@@ -579,6 +476,7 @@ pub(crate) fn production_ports(
             ))
         })?,
     );
+    acquired_databases.push(DATABASE_BACKTEST.to_owned());
 
     let execution_path = get_path(DATABASE_EXECUTION)?;
     let execution_store = Arc::new(
@@ -589,6 +487,7 @@ pub(crate) fn production_ports(
                 ))
             })?,
     );
+    acquired_databases.push(DATABASE_EXECUTION.to_owned());
 
     let adk_path = get_path(DATABASE_ADK)?;
     let adk_store = Arc::new(
@@ -596,6 +495,7 @@ pub(crate) fn production_ports(
             ProductError::Storage(format!("failed to open ADK production store: {e}"))
         })?,
     );
+    acquired_databases.push(DATABASE_ADK.to_owned());
 
     let adk_session_path = get_path(DATABASE_ADK_SESSION)?;
     let adk_session_store = Arc::new(
@@ -603,6 +503,7 @@ pub(crate) fn production_ports(
             |e| ProductError::Storage(format!("failed to open ADK session production store: {e}")),
         )?,
     );
+    acquired_databases.push(DATABASE_ADK_SESSION.to_owned());
 
     let adk_artifact_path = get_path(DATABASE_ADK_ARTIFACT)?;
     let adk_artifact_store = Arc::new(
@@ -611,6 +512,10 @@ pub(crate) fn production_ports(
                 ProductError::Storage(format!("failed to open ADK artifact production store: {e}"))
             })?,
     );
+    acquired_databases.push(DATABASE_ADK_ARTIFACT.to_owned());
+
+    let database_leases = ProductionDatabaseLeaseSnapshot::new(acquired_databases);
+    let database_lease_status = database_leases.status;
 
     let auth_session_mgr = Arc::new(
         ProductionAuthSessionManager::open(security.clone(), config.settings_path()).map_err(
@@ -734,11 +639,11 @@ pub(crate) fn production_ports(
 
     Ok(ProductionPortBundle {
         active_provider_state: Arc::clone(&active_provider_state),
-        database_lease_status: "acquired",
+        database_leases: database_leases.clone(),
+        database_lease_status,
         provider_status: config.provider_runtime_status.as_str(),
         opend_status: config.opend_runtime_status.as_str(),
         worker_status: config.worker_runtime_status.as_str(),
-        websocket_status: if config.live_hub.is_some() { "ready" } else { "not-started" },
         calendar_manager,
         auth_session: auth_session_mgr.clone(),
         auth_session_write: auth_session_mgr.clone(),
@@ -775,6 +680,8 @@ pub(crate) fn production_ports(
             runtime_status: config.market_data_runtime_status_port.clone(),
             settings: market_data_settings.clone(),
             opend_status: config.opend_runtime_status,
+            worker_status: config.worker_runtime_status,
+            database_leases: database_leases.clone(),
         }),
         system_write: system_write_port,
         portfolio: Arc::new(ProductionUnavailablePort::new("portfolio provider is not configured")),

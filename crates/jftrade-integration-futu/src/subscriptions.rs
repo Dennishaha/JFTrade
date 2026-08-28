@@ -157,10 +157,6 @@ impl SubscriptionReconciler {
         self.last_reconciled_at_ms = if ms > 0 { Some(ms) } else { None };
     }
 
-    pub fn set_fallback_count(&mut self, count: usize) {
-        self.fallback_count = count;
-    }
-
     pub fn actions(
         &self,
         desired: &[InstrumentRef],
@@ -425,10 +421,6 @@ impl OpenDSubscriptionLifecycle {
 
     pub fn set_last_reconciled_at_ms(&mut self, ms: i64) {
         self.reconciler.set_last_reconciled_at_ms(ms);
-    }
-
-    pub fn set_fallback_count(&mut self, count: usize) {
-        self.reconciler.set_fallback_count(count);
     }
 
     pub fn reconcile_demand(

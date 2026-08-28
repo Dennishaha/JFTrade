@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use jftrade_integration_marketdata_helper::{
@@ -14,6 +15,7 @@ use jftrade_integration_pine::{
 };
 
 use super::ProductRuntimeError;
+use super::product_runtime_helper_health::HelperHealthMonitor;
 
 #[derive(Clone, Debug)]
 pub struct PineWorkerRuntimeConfig {
@@ -31,6 +33,11 @@ pub struct MarketDataHelperRuntimeConfig {
     pub initial_retry_delay: Duration,
     pub max_retry_delay: Duration,
     pub request_timeout: Duration,
+    /// Interval between live `/healthz` probes after startup readiness.
+    pub health_interval: Duration,
+    /// A helper whose last successful `/healthz` check is older than this TTL
+    /// counts as stale and downgrades the runtime readiness.
+    pub health_ttl: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -118,7 +125,14 @@ pub(crate) async fn start_pine_worker(
 
 pub(crate) async fn start_marketdata_helper(
     config: MarketDataHelperRuntimeConfig,
-) -> Result<(HelperProcess, HelperClient), ProductRuntimeError> {
+) -> Result<
+    (
+        HelperProcess,
+        HelperClient,
+        Arc<crate::product_runtime::HelperHealthMonitor>,
+    ),
+    ProductRuntimeError,
+> {
     let endpoint = format!("http://{}:{}", config.process.host, config.process.port);
     let client = HelperClient::new(HelperClientConfig {
         base_url: endpoint,
@@ -136,7 +150,16 @@ pub(crate) async fn start_marketdata_helper(
             config.max_retry_delay,
         )
         .await?;
-    Ok((process, client))
+    let monitor = Arc::new(HelperHealthMonitor::new(
+        client.clone(),
+        config.health_interval,
+        config.health_ttl,
+    ));
+    // The readiness gate above just proved /healthz with a real round trip;
+    // seed the monitor with that evidence and keep it live.
+    monitor.seed_success();
+    monitor.spawn();
+    Ok((process, client, monitor))
 }
 
 pub(crate) fn desktop_pine_workers(
@@ -191,5 +214,7 @@ pub(crate) fn desktop_marketdata_helper(
         initial_retry_delay: Duration::from_millis(100),
         max_retry_delay: Duration::from_secs(1),
         request_timeout: Duration::from_secs(3),
+        health_interval: Duration::from_secs(5),
+        health_ttl: Duration::from_secs(15),
     })
 }

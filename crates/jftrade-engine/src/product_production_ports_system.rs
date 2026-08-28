@@ -1,31 +1,246 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
+use jftrade_settings::{FutuOpenDInstallSettings, FutuOpenDInstallSettingsStorePort};
+use jftrade_settings::InterfaceSettingsStorePort;
+use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_trading::{
     RealTradeControlEvent, RealTradeControlState, RealTradeHardStopEntry,
     RealTradeKillSwitchEntry, RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::product::product_system_write_port::{
     RealTradeHardStopCommand, RealTradeKillSwitchCommand, RealTradeRuntimeRiskCommand,
     SystemWriteInput, SystemWriteOperation, SystemWritePort, SystemWritePortError,
 };
+use crate::product::{
+    MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
+    SystemReadSnapshotPort,
+};
+use super::provider_now_rfc3339;
+
+pub(crate) struct ProductionSystemPort {
+    pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
+    pub(crate) settings: Arc<SettingsFileStore>,
+    pub(crate) opend_status: ProductionRuntimeStatus,
+    pub(crate) worker_status: ProductionRuntimeStatus,
+    pub(crate) database_leases:
+        crate::product::product_production_ports::ProductionDatabaseLeaseSnapshot,
+}
+
+impl std::fmt::Debug for ProductionSystemPort {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionSystemPort")
+            .field("runtime_status", &self.runtime_status.is_some())
+            .field("settings_path", &self.settings.path())
+            .field("opend_status", &self.opend_status)
+            .field("worker_status", &self.worker_status)
+            .field("database_leases", &self.database_leases.status)
+            .finish()
+    }
+}
+
+impl ProductionSystemPort {
+    /// Worker evidence comes from the runtime status the composition root
+    /// observed while starting helper/Pine workers; "healthy" is only
+    /// reported when every configured worker actually reached readiness.
+    fn workers_evidence(&self) -> &'static str {
+        match self.worker_status {
+            ProductionRuntimeStatus::Ready => "healthy",
+            ProductionRuntimeStatus::Degraded | ProductionRuntimeStatus::Failed => "degraded",
+            ProductionRuntimeStatus::Unavailable => "unavailable",
+        }
+    }
+
+    /// Database integrity is derived from the actual WriterLease acquisition
+    /// snapshot, never assumed.
+    fn database_integrity_evidence(&self) -> &'static str {
+        match self.database_leases.status {
+            "acquired" => "ok",
+            "partial" => "degraded",
+            _ => "unavailable",
+        }
+    }
+
+    /// Settings integrity is proven by actually reading the settings file at
+    /// query time; a failed read downgrades the projection.
+    fn settings_integrity_evidence(&self) -> Result<&'static str, SystemReadSnapshotError> {
+        match self.settings.load_interface_settings() {
+            Ok(_) => Ok("ok"),
+            Err(_) => Ok("degraded"),
+        }
+    }
+}
+
+impl SystemReadSnapshotPort for ProductionSystemPort {
+    fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
+        match path {
+            "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
+            "/api/v1/system/worker/broker-order-updates" => Ok(json!({})),
+            "/api/v1/system/info" => Ok(json!({
+                "version": env!("CARGO_PKG_VERSION"),
+                "architecture": std::env::consts::ARCH,
+                "os": std::env::consts::OS,
+                "engine": "rust",
+                "productionOwner": "rust",
+            })),
+            "/api/v1/system/status" => {
+                let market_data = self.runtime_status.as_ref().map(|port| port.snapshot());
+                let status = if market_data.as_ref().is_some_and(|state| state.connected) {
+                    "operational"
+                } else {
+                    "degraded"
+                };
+                Ok(json!({
+                    "status": status,
+                    "workers": self.workers_evidence(),
+                    "marketData": {
+                        "connected": market_data.as_ref().is_some_and(|state| state.connected),
+                        "activeCount": market_data.as_ref().map_or(0, |state| state.active_count),
+                    },
+                }))
+            }
+            "/api/v1/system/diagnostics" => {
+                let settings_integrity = self.settings_integrity_evidence()?;
+                Ok(json!({
+                    "databaseIntegrity": self.database_integrity_evidence(),
+                    "settingsIntegrity": settings_integrity,
+                    "marketDataRuntime": self.runtime_status.as_ref().map(|port| {
+                        if port.snapshot().connected { "ready" } else { "degraded" }
+                    }),
+                }))
+            }
+            _ => Err(SystemReadSnapshotError::Unavailable(format!(
+                "system path not found: {path}"
+            ))),
+        }
+    }
+}
+
+impl ProductionSystemPort {
+    fn futu_opend_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
+        let settings = self
+            .settings
+            .load_futu_open_d_install_settings()
+            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?
+            .unwrap_or_else(FutuOpenDInstallSettings::default);
+        let Some(runtime_status) = self.runtime_status.as_ref() else {
+            return Ok(json!({
+                "status": "unavailable",
+                "reason": "broker integration not enabled",
+            }));
+        };
+        let state = runtime_status.snapshot();
+        let has_error = state
+            .quote_last_error
+            .as_ref()
+            .is_some_and(|error| !error.is_empty())
+            || state
+                .stream_last_error
+                .as_ref()
+                .is_some_and(|error| !error.is_empty());
+        let connectivity = if state.connected {
+            "connected"
+        } else if has_error {
+            "degraded"
+        } else {
+            "disconnected"
+        };
+        let status = if state.connected {
+            "healthy"
+        } else if has_error || self.opend_status == ProductionRuntimeStatus::Degraded {
+            "degraded"
+        } else {
+            "offline"
+        };
+        let last_error = state
+            .quote_last_error
+            .clone()
+            .filter(|error| !error.is_empty())
+            .or(state
+                .stream_last_error
+                .clone()
+                .filter(|error| !error.is_empty()));
+        Ok(json!({
+            "checkedAt": provider_now_rfc3339(),
+            "status": status,
+            "runtime": {
+                "connectivity": connectivity,
+                "host": settings.host,
+                "apiPort": settings.api_port,
+                "websocketPort": settings.websocket_port,
+                "useEncryption": settings.use_encryption,
+                "websocketKeyConfigured": settings.websocket_key_required,
+                "marketDataTransport": "bbgo-opend-tcp-api",
+                "quoteLoggedIn": Value::Null,
+                "tradeLoggedIn": Value::Null,
+                "programStatus": Value::Null,
+                "serverVersion": Value::Null,
+                "minimumVersion": jftrade_integration_futu::MINIMUM_OPEND_VERSION,
+                "lastError": last_error,
+            },
+            "diagnosis": {
+                "code": if state.connected { "NONE" } else { "OPEND_UNAVAILABLE" },
+                "summary": last_error,
+                "manualRetryRequired": !state.connected,
+                "restartOpenDRecommended": false,
+            },
+            "localSocketDiagnostics": {
+                "transportMode": "bbgo-opend-tcp-api",
+                "configuredOpenDWebSocketLimit": settings.max_websocket_connections,
+                "configuredOpenDWebSocketLimitActive": false,
+                "configuredOpenDWebSocketLimitScope": "stored for FTWebSocket compatibility; current market-data path uses the OpenD native API via bbgo",
+                "websocketEstablishedConnections": 0,
+                "jftradeLiveWebSocketLimit": settings.max_websocket_connections,
+                "jftradeLiveWebSocketAtLimit": false,
+                "likelyConnectionSaturation": false,
+                "openDWebSocketPoolLikelySaturation": false,
+                "liveQuoteBackoffActive": state.quote_retry_at.is_some(),
+                "liveQuoteRetryAfter": state.quote_retry_at,
+                "liveQuoteFailureCount": state.quote_failures,
+                "liveQuoteLastError": state.quote_last_error,
+                "liveStreamBackoffActive": state.stream_retry_at.is_some(),
+                "liveStreamRetryAfter": state.stream_retry_at,
+                "liveStreamFailureCount": state.stream_failures,
+                "liveStreamLastError": state.stream_last_error,
+                "topClientProcesses": [],
+            },
+            "localInstallation": {
+                "platform": std::env::consts::OS,
+                "installed": false,
+                "version": Value::Null,
+                "installPath": Value::Null,
+                "guiDetected": false,
+                "process": {"running": false, "pid": Value::Null, "executablePath": Value::Null},
+            },
+            "latestVersion": {
+                "value": Value::Null,
+                "sourceUrl": Value::Null,
+                "checkedAt": Value::Null,
+                "status": "unknown",
+                "error": Value::Null,
+            },
+            "recommendations": [],
+        }))
+    }
+}
 
 const REAL_TRADE_EVENT_LIMIT: usize = 200;
 
 #[derive(Debug)]
-pub(super) struct ProductionSystemWritePort {
+pub(crate) struct ProductionSystemWritePort {
     path: PathBuf,
     state: Mutex<RealTradeControlState>,
 }
 
 impl ProductionSystemWritePort {
-    pub(super) fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
+    pub(crate) fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
         let path = path.into();
         let state = load_state(&path)?;
         Ok(Self {

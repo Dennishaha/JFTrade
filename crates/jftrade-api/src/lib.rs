@@ -24,5 +24,6 @@ pub use router::{ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, build
 pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};
 pub use websocket::{
     DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,
-    LiveDemandListener, LiveHub, LiveHubConnection, LiveHubSnapshot, websocket_origin_allowed,
+    LiveDemandListener, LiveHub, LiveHubConnection, LiveHubLifecycle, LiveHubSnapshot,
+    websocket_origin_allowed,
 };

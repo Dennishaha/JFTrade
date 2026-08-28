@@ -170,10 +170,6 @@ impl OpenDSessionCoordinator {
         self.lifecycle.set_last_reconciled_at_ms(ms);
     }
 
-    pub fn set_fallback_count(&mut self, count: usize) {
-        self.lifecycle.set_fallback_count(count);
-    }
-
     /// Refreshes the physical subscription quota through OpenD's real
     /// Qot_GetSubInfo RPC. The lifecycle keeps the previous successful values
     /// when OpenD rejects or returns an incomplete payload, while recording the

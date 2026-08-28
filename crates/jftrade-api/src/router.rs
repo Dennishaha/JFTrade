@@ -20,7 +20,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
-use crate::websocket::{LiveHub, LiveHubConnection};
+use crate::websocket::{LiveHub, LiveHubConnection, LiveHubLifecycle};
 use crate::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock,
     LiveConnectionMetrics, RouteCatalog, SseEvent, SystemClock, TransportMetrics, encode_event,
@@ -393,6 +393,19 @@ async fn websocket_handler(
             StatusCode::NOT_FOUND,
             "text/plain; charset=utf-8",
             "404 page not found\n",
+        );
+    }
+    if matches!(
+        state.live_hub.lifecycle(),
+        LiveHubLifecycle::ShuttingDown | LiveHubLifecycle::Stopped
+    ) {
+        return error_response(
+            &state.clock,
+            ApiFailure::new(
+                503,
+                "LIVE_WS_UNAVAILABLE",
+                "live websocket hub is not accepting connections",
+            ),
         );
     }
     if !websocket_origin_allowed(&headers, &state.access) {

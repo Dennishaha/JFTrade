@@ -140,12 +140,16 @@ impl ProductHandle {
     }
 
     pub(crate) fn sync_terminate(&mut self) {
+        // Shutdown must first stop accepting new websocket connections; the
+        // HTTP drain below then completes without serving fresh upgrades.
+        self.live_hub.begin_shutdown();
         if let Some(state) = &self.active_provider_state {
             state.begin_shutdown();
         }
         if let Some(mut server) = self.server.take() {
             let _ = server.shutdown_blocking();
         }
+        self.live_hub.mark_stopped();
         if let Some(manager) = self.calendar_manager.take() {
             let _ = manager.close();
         }
@@ -153,12 +157,14 @@ impl ProductHandle {
     }
 
     pub async fn shutdown(mut self) -> Result<(), ProductError> {
+        self.live_hub.begin_shutdown();
         if let Some(state) = &self.active_provider_state {
             state.begin_shutdown();
         }
         if let Some(server) = self.server.take() {
             server.shutdown().await?;
         }
+        self.live_hub.mark_stopped();
         if let Some(manager) = self.calendar_manager.take() {
             manager.close().map_err(ProductError::Calendar)?;
         }
@@ -169,12 +175,14 @@ impl ProductHandle {
 
 impl Drop for ProductHandle {
     fn drop(&mut self) {
+        self.live_hub.begin_shutdown();
         if let Some(state) = &self.active_provider_state {
             state.begin_shutdown();
         }
         if let Some(mut server) = self.server.take() {
             let _ = server.shutdown_blocking();
         }
+        self.live_hub.mark_stopped();
         if let Some(manager) = self.calendar_manager.take() {
             let _ = manager.close();
         }
@@ -187,10 +195,53 @@ pub async fn start_product(config: ProductConfig) -> Result<ProductHandle, Produ
     start_product_with_runtime_state(config, runtime).await
 }
 
+/// Fully prepared but not yet exposed product server: production ports are
+/// constructed and held, every route is bound, yet no socket accepts traffic.
+/// Exposing happens in [`expose_prepared_product`], which starts the HTTP
+/// listener and marks the live hub `serving`.
+pub(crate) struct PreparedProduct {
+    pub(crate) handle: ProductHandle,
+    listener: StdTcpListener,
+    router: axum::Router,
+    live_hub: Arc<LiveHub>,
+    production: bool,
+    production_runtime_core_ready: bool,
+}
+
 pub(crate) async fn start_product_with_runtime_state(
-    mut config: ProductConfig,
+    config: ProductConfig,
     runtime: Arc<ProductRuntimeState>,
 ) -> Result<ProductHandle, ProductError> {
+    let prepared = prepare_product_with_runtime_state(config, runtime).await?;
+    expose_prepared_product(prepared)
+}
+
+/// Move the prepared product into actual service: start the HTTP server
+/// thread, then mark the live hub `serving` so startup readiness and the
+/// websocket status derive from the real hub lifecycle.
+pub(crate) fn expose_prepared_product(
+    mut prepared: PreparedProduct,
+) -> Result<ProductHandle, ProductError> {
+    let server = ProductServerOwner::start(prepared.listener, prepared.router)?;
+    prepared.live_hub.mark_serving();
+    let lifecycle = prepared.live_hub.lifecycle();
+    let websocket_ready = lifecycle == LiveHubLifecycle::Serving;
+    prepared.handle.startup_record.websocket_status = lifecycle.as_str();
+    prepared.handle.startup_record.runtime_readiness = if !prepared.production {
+        "rehearsal"
+    } else if prepared.production_runtime_core_ready && websocket_ready {
+        "ready"
+    } else {
+        "degraded"
+    };
+    prepared.handle.server = Some(server);
+    Ok(prepared.handle)
+}
+
+pub(crate) async fn prepare_product_with_runtime_state(
+    mut config: ProductConfig,
+    runtime: Arc<ProductRuntimeState>,
+) -> Result<PreparedProduct, ProductError> {
     if config.production {
         product_data_management::initialize_production_databases(config.settings_path())
             .map_err(ProductError::Storage)?;
@@ -311,11 +362,10 @@ pub(crate) async fn start_product_with_runtime_state(
     }
     let listener = StdTcpListener::bind(config.bind_address).map_err(ProductError::Bind)?;
     let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
-    let production_runtime_ready = production_ports.as_ref().is_some_and(|ports| {
+    let production_runtime_core_ready = production_ports.as_ref().is_some_and(|ports| {
         ports.provider_status == "ready"
             && ports.opend_status == "ready"
             && ports.worker_status == "ready"
-            && ports.websocket_status == "ready"
     });
     active_provider_state.set_readiness(
         config.market_data_helper.is_some(),
@@ -567,48 +617,53 @@ pub(crate) async fn start_product_with_runtime_state(
         }));
     }
     let router = build_router(state);
-    let server = ProductServerOwner::start(listener, router)?;
-    Ok(ProductHandle {
-        startup_record: ProductStartupRecord {
-            event: "ready",
-            address,
-            owner,
-            owned_routes: route_count,
-            ready_routes: ready_route_count,
-            external_unavailable_routes: external_unavailable_route_count,
-            protocol_version: PRODUCT_REHEARSAL_PROTOCOL_VERSION,
-            route_profile,
-            route_profile_digest,
-            capabilities: route_capabilities,
-            resource_sha256,
-            runtime_readiness: if !config.production {
-                "rehearsal"
-            } else if production_runtime_ready {
-                "ready"
-            } else {
-                "degraded"
-            },
-            database_lease_status: production_ports
-                .as_ref()
-                .map_or("none", |ports| ports.database_lease_status),
-            provider_status: production_ports
-                .as_ref()
-                .map_or("not-started", |ports| ports.provider_status),
-            opend_status: production_ports
-                .as_ref()
-                .map_or("not-started", |ports| ports.opend_status),
-            worker_status: production_ports
-                .as_ref()
-                .map_or("not-started", |ports| ports.worker_status),
-            websocket_status: production_ports
-                .as_ref()
-                .map_or("not-started", |ports| ports.websocket_status),
+    let startup_record = ProductStartupRecord {
+        event: "ready",
+        address,
+        owner,
+        owned_routes: route_count,
+        ready_routes: ready_route_count,
+        external_unavailable_routes: external_unavailable_route_count,
+        protocol_version: PRODUCT_REHEARSAL_PROTOCOL_VERSION,
+        route_profile,
+        route_profile_digest,
+        capabilities: route_capabilities,
+        resource_sha256,
+        runtime_readiness: if !config.production {
+            "rehearsal"
+        } else if production_runtime_core_ready {
+            "ready"
+        } else {
+            "degraded"
         },
-        server: Some(server),
-        calendar_manager,
+        database_lease_status: production_ports
+            .as_ref()
+            .map_or("none", |ports| ports.database_lease_status),
+        provider_status: production_ports
+            .as_ref()
+            .map_or("not-started", |ports| ports.provider_status),
+        opend_status: production_ports
+            .as_ref()
+            .map_or("not-started", |ports| ports.opend_status),
+        worker_status: production_ports
+            .as_ref()
+            .map_or("not-started", |ports| ports.worker_status),
+        websocket_status: live_hub.lifecycle().as_str(),
+    };
+    Ok(PreparedProduct {
+        handle: ProductHandle {
+            startup_record,
+            server: None,
+            calendar_manager,
+            live_hub: Arc::clone(&live_hub),
+            active_provider_state: config.active_provider_state,
+            production_ports,
+        },
+        listener,
+        router,
         live_hub,
-        active_provider_state: config.active_provider_state,
-        production_ports,
+        production: config.production,
+        production_runtime_core_ready,
     })
 }
 

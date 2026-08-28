@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
 use axum::http::HeaderMap;
 use serde_json::Value;
@@ -135,6 +135,50 @@ pub trait LiveDemandListener: Send + Sync + std::fmt::Debug {
     fn on_disconnect(&self, connection_id: u64);
 }
 
+/// Lifecycle of the live hub, reported by startup readiness and enforced by
+/// the websocket upgrade path.  A hub starts `accepting` (constructed, not
+/// yet attached to a serving HTTP listener), becomes `serving` once the HTTP
+/// server is live, and shutdown first moves it to `shutting_down` so no new
+/// connection is accepted while existing requests drain; the server thread
+/// join completes the `stopped` state.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum LiveHubLifecycle {
+    #[default]
+    Accepting,
+    Serving,
+    ShuttingDown,
+    Stopped,
+}
+
+impl LiveHubLifecycle {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Accepting => "accepting",
+            Self::Serving => "serving",
+            Self::ShuttingDown => "shutting_down",
+            Self::Stopped => "stopped",
+        }
+    }
+
+    fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::Serving,
+            2 => Self::ShuttingDown,
+            3 => Self::Stopped,
+            _ => Self::Accepting,
+        }
+    }
+
+    const fn to_u8(self) -> u8 {
+        match self {
+            Self::Accepting => 0,
+            Self::Serving => 1,
+            Self::ShuttingDown => 2,
+            Self::Stopped => 3,
+        }
+    }
+}
+
 /// Rust-owned live event hub.  Provider runtimes publish wire-shaped events
 /// here and each websocket connection receives only events matching its
 /// active instrument subscription.  The hub deliberately does not synthesize
@@ -145,6 +189,7 @@ pub struct LiveHub {
     subscriptions: Arc<RwLock<BTreeMap<u64, LiveSubscription>>>,
     next_connection_id: AtomicUsize,
     demand_listener: RwLock<Option<Arc<dyn LiveDemandListener>>>,
+    lifecycle: AtomicU8,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -190,7 +235,32 @@ impl LiveHub {
             subscriptions: Arc::new(RwLock::new(BTreeMap::new())),
             next_connection_id: AtomicUsize::new(0),
             demand_listener: RwLock::new(None),
+            lifecycle: AtomicU8::new(LiveHubLifecycle::Accepting.to_u8()),
         }
+    }
+
+    pub fn lifecycle(&self) -> LiveHubLifecycle {
+        LiveHubLifecycle::from_u8(self.lifecycle.load(Ordering::Acquire))
+    }
+
+    /// The HTTP server is now serving; websocket upgrades may proceed.
+    pub fn mark_serving(&self) {
+        self.lifecycle
+            .store(LiveHubLifecycle::Serving.to_u8(), Ordering::Release);
+    }
+
+    /// Shutdown begins: stop accepting new websocket connections before any
+    /// other teardown step drains in-flight work.
+    pub fn begin_shutdown(&self) {
+        self.lifecycle
+            .store(LiveHubLifecycle::ShuttingDown.to_u8(), Ordering::Release);
+    }
+
+    /// The HTTP server thread has finished; no connection can ever be
+    /// accepted again.
+    pub fn mark_stopped(&self) {
+        self.lifecycle
+            .store(LiveHubLifecycle::Stopped.to_u8(), Ordering::Release);
     }
 
     pub fn set_demand_listener(&self, listener: Arc<dyn LiveDemandListener>) {
@@ -424,6 +494,26 @@ mod tests {
         assert_eq!(metrics.snapshot().active_instruments, ["US.MSFT"]);
         drop(first);
         assert!(metrics.snapshot().active_instruments.is_empty());
+    }
+
+    #[test]
+    fn live_hub_lifecycle_transitions_match_server_exposure_and_shutdown() {
+        let hub = LiveHub::new(8);
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::Accepting);
+        assert_eq!(hub.lifecycle().as_str(), "accepting");
+
+        hub.mark_serving();
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::Serving);
+        assert_eq!(hub.lifecycle().as_str(), "serving");
+
+        // Shutdown first stops accepting new connections...
+        hub.begin_shutdown();
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::ShuttingDown);
+        assert_eq!(hub.lifecycle().as_str(), "shutting_down");
+        // ...and the joined server completes the stopped state.
+        hub.mark_stopped();
+        assert_eq!(hub.lifecycle(), LiveHubLifecycle::Stopped);
+        assert_eq!(hub.lifecycle().as_str(), "stopped");
     }
 
     #[tokio::test]

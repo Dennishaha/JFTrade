@@ -3,10 +3,12 @@
 //! Host lifecycle boundary for the retained Node PineTS worker.
 
 mod asset;
+mod mock_worker;
 mod pool;
 mod process;
 
 pub use asset::{PineBundle, PineBundleError};
+pub use mock_worker::{MockPineWorker, spawn_mock_pine_worker, wait_until_listening};
 pub use pool::{
     PoolError, SessionOperation, WorkerHealth, WorkerPool, WorkerReservation, WorkerSnapshot,
 };

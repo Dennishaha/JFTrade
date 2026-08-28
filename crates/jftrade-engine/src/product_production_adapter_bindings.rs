@@ -11,6 +11,13 @@ pub(crate) enum ProductionAdapterBinding {
 }
 
 impl ProductionPortBundle {
+    #[cfg(test)]
+    pub(crate) fn database_leases(
+        &self,
+    ) -> &crate::product::product_production_ports::ProductionDatabaseLeaseSnapshot {
+        &self.database_leases
+    }
+
     /// Return the concrete binding installed by the production composition
     /// root. A missing adapter is a startup error; an external-unavailable
     /// adapter is an intentional fail-closed boundary that keeps the public
@@ -162,10 +169,6 @@ impl MarketDataCapabilityMatrix {
             None => false,
         }
     }
-
-    pub(crate) fn can_read_subscriptions(&self) -> bool {
-        self.active_provider.is_some() || self.helper_ready || self.router_ready
-    }
 }
 
 pub(crate) fn production_adapter_bindings(
@@ -206,6 +209,7 @@ pub(crate) fn production_adapter_bindings(
         Adapter::AdkMutation,
         Adapter::WebSocketLive,
         Adapter::MarketDataProviderRead,
+        Adapter::MarketDataSubscriptionRead,
         Adapter::MarketDataInstrumentsNormalizeWrite,
         Adapter::PluginsWrite,
     ];
@@ -273,12 +277,6 @@ pub(crate) fn production_adapter_bindings(
     } else {
         unavailable.push(Adapter::MarketDataSnapshotsRead);
         unavailable.push(Adapter::MarketDataBatchSnapshotsWrite);
-    }
-
-    if matrix.can_read_subscriptions() {
-        ready.push(Adapter::MarketDataSubscriptionRead);
-    } else {
-        unavailable.push(Adapter::MarketDataSubscriptionRead);
     }
 
     if matrix.can_mutate_subscriptions() {

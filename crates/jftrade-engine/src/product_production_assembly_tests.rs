@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod product_production_assembly_tests {
+    use std::collections::HashSet;
     use std::fs;
     use std::net::SocketAddr;
     use std::path::PathBuf;
@@ -7,7 +8,7 @@ mod product_production_assembly_tests {
 
     use jftrade_api::AccessPolicy;
     use jftrade_datamanagement::{DATABASE_ADK, DATABASE_WATCHLIST};
-    use serde_json::json;
+    use serde_json::{Value, json};
     use tempfile::TempDir;
 
     use crate::product::product_adk_chat_stream_port::{
@@ -71,8 +72,8 @@ mod product_production_assembly_tests {
         assert_eq!(record.event, "ready");
         assert_eq!(record.owner, "rust");
         assert_eq!(record.owned_routes, 278);
-        assert_eq!(record.ready_routes, 182);
-        assert_eq!(record.external_unavailable_routes, 96);
+        assert_eq!(record.ready_routes, 183);
+        assert_eq!(record.external_unavailable_routes, 95);
         assert_eq!(
             record.ready_routes + record.external_unavailable_routes,
             record.owned_routes
@@ -87,7 +88,10 @@ mod product_production_assembly_tests {
         assert_eq!(record.provider_status, "unavailable");
         assert_eq!(record.opend_status, "unavailable");
         assert_eq!(record.worker_status, "unavailable");
-        assert_eq!(record.websocket_status, "not-started");
+        // The websocket status now derives from the real live-hub lifecycle:
+        // the hub is always composed and reported as serving once the HTTP
+        // listener is exposed.
+        assert_eq!(record.websocket_status, "serving");
         assert!(!record.capabilities.is_empty());
 
         handle.shutdown().await.expect("shutdown cleanly");
@@ -2684,6 +2688,826 @@ mod product_production_assembly_tests {
             "authenticated request to unknown endpoint must be 404"
         );
 
+        async fn execute_http_with_body(
+            address: SocketAddr,
+            method: &str,
+            path: &str,
+            token: Option<&str>,
+            body: &str,
+        ) -> (u16, String) {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+            let mut stream = tokio::net::TcpStream::connect(address)
+                .await
+                .expect("connect");
+            let auth_header = match token {
+                Some(tok) => format!("Authorization: Bearer {tok}\r\n"),
+                None => String::new(),
+            };
+            let content_headers = if body.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "Content-Type: application/json\r\nContent-Length: {}\r\n",
+                    body.len()
+                )
+            };
+            let request = format!(
+                "{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n{auth_header}{content_headers}\r\n{body}"
+            );
+            stream
+                .write_all(request.as_bytes())
+                .await
+                .expect("write request");
+            let mut response = Vec::new();
+            stream
+                .read_to_end(&mut response)
+                .await
+                .expect("read response");
+            let text = String::from_utf8_lossy(&response).to_string();
+            let mut parts = text.split("\r\n\r\n");
+            let head = parts.next().unwrap_or_default();
+            let body_text = parts.next().unwrap_or_default().to_string();
+            let status = head
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .split_whitespace()
+                .nth(1)
+                .and_then(|code| code.parse::<u16>().ok())
+                .unwrap_or(0);
+            (status, body_text)
+        }
+
+        /// Per-operation fail-closed evidence for every ExternalUnavailable
+        /// binding: (method, path-template, query, body, expected status,
+        /// expected baseline error code).  An empty code with status 200 marks
+        /// the subscription-clear baseline (cleared snapshot, shared demand
+        /// book without a physical router).
+        const EXTERNAL_UNAVAILABLE_EVIDENCE: &[(&str, &str, &str, &str, u16, &str)] = &[
+            (
+                "DELETE",
+                "/api/v1/brokers/{brokerId}/orders",
+                "",
+                "{}",
+                503,
+                "BROKERS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "DELETE",
+                "/api/v1/market-data/prediction/contracts/{code}/subscriptions/{leaseId}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_SUBSCRIPTION_MUTATION_UNAVAILABLE",
+            ),
+            (
+                "DELETE",
+                "/api/v1/market-data/subscriptions",
+                "",
+                "",
+                200,
+                "",
+            ),
+            (
+                "GET",
+                "/api/v1/alerts/option-events",
+                "",
+                "",
+                503,
+                "ALERTS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/alerts/price",
+                "",
+                "",
+                503,
+                "ALERTS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/capabilities",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/cash-flows",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/fills",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/funds",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/klines",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/margin-ratios",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/max-trade-qtys",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/order-fees",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/orders",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/positions",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/quote",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/runtime",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/brokers/{brokerId}/securities",
+                "",
+                "",
+                503,
+                "BROKER_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/broker-queue/{instrumentId}",
+                "",
+                "",
+                409,
+                "BROKER_CAPABILITY_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/candles/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_QUOTE_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/capital-flow/{instrumentId}",
+                "",
+                "",
+                409,
+                "BROKER_CAPABILITY_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/corporate-actions/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_NEWS_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/depth/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_QUOTE_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/futures",
+                "",
+                "",
+                503,
+                "MARKET_DATA_DERIVATIVE_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/instruments",
+                "query=AAPL&limit=20",
+                "",
+                503,
+                "MARKET_DATA_CATALOG_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/instruments/{instrumentId}/profile",
+                "",
+                "",
+                409,
+                "BROKER_CAPABILITY_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/intraday/{instrumentId}",
+                "",
+                "",
+                409,
+                "BROKER_CAPABILITY_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/markets",
+                "",
+                "",
+                503,
+                "MARKET_DATA_CATALOG_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/news",
+                "",
+                "",
+                503,
+                "MARKET_DATA_NEWS_SEARCH_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/news/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_NEWS_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/options/analysis/{instrumentId}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_OPTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/options/chains/{instrumentId}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_OPTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/options/events",
+                "",
+                "",
+                503,
+                "MARKET_DATA_OPTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/options/expirations/{instrumentId}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_OPTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/options/screens",
+                "",
+                "",
+                503,
+                "MARKET_DATA_OPTIONS_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/categories",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/combos/eligible-events",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/competitions",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/candles",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/candles/history",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/milestones",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/order-book",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/snapshot",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/contracts/{code}/ticks",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/events",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/events/{eventId}/contracts",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/prediction/series",
+                "",
+                "",
+                503,
+                "MARKET_DATA_PREDICTION_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/securities/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_QUOTE_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/snapshots/{market}/{symbol}",
+                "",
+                "",
+                503,
+                "MARKET_DATA_QUOTE_READ_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/ticks/{instrumentId}",
+                "",
+                "",
+                409,
+                "BROKER_CAPABILITY_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/market-data/warrants",
+                "",
+                "",
+                503,
+                "MARKET_DATA_DERIVATIVE_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/portfolio/{brokerId}/cash-balances",
+                "",
+                "",
+                503,
+                "PORTFOLIO_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/portfolio/{brokerId}/positions",
+                "",
+                "",
+                503,
+                "PORTFOLIO_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/analyst/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/calendars",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/corporate-actions/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/financials/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/industries",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/institutions",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/instruments/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/macro",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/ownership/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/rankings",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/screens",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/short-interest/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/technical-indicators/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/research/valuation/{instrumentId}",
+                "",
+                "",
+                503,
+                "RESEARCH_UNAVAILABLE",
+            ),
+            (
+                "GET",
+                "/api/v1/watchlists/remote",
+                "",
+                "",
+                503,
+                "WATCHLIST_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/adk/chat",
+                "",
+                "{\"clientRequestId\":\"6f9619ff-8b86-d011-b42d-00cf96c96d3a\"}",
+                503,
+                "ADK_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/adk/chat/stream",
+                "",
+                "{\"clientRequestId\":\"6f9619ff-8b86-d011-b42d-00cf96c96d3a\"}",
+                503,
+                "ADK_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/alerts/option-events",
+                "",
+                "{}",
+                503,
+                "ALERTS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/alerts/price",
+                "",
+                "{}",
+                503,
+                "ALERTS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/backtests",
+                "",
+                "{}",
+                503,
+                "BACKTESTS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/backtests/sync",
+                "",
+                "{}",
+                503,
+                "BACKTESTS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/brokers/{brokerId}/orders",
+                "",
+                "{}",
+                503,
+                "BROKERS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/brokers/{brokerId}/unlock",
+                "",
+                "{}",
+                503,
+                "BROKERS_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/buying-power",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/combos",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/combos/previews",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/combos/{internalOrderId}/cancel",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/orders",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/orders/{internalOrderId}/cancel",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/execution/previews",
+                "",
+                "{}",
+                503,
+                "EXECUTION_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/options/analysis/{instrumentId}",
+                "",
+                "{}",
+                503,
+                "MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/options/events/zero-dte-contracts",
+                "",
+                "{}",
+                503,
+                "MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/prediction/combos/quotes",
+                "",
+                "{}",
+                503,
+                "MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/prediction/contracts/{code}/subscriptions",
+                "",
+                "{}",
+                503,
+                "MARKET_DATA_SUBSCRIPTION_MUTATION_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/snapshots",
+                "",
+                "{\"instrumentIds\":[\"US.AAPL\"]}",
+                503,
+                "MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/subscriptions",
+                "",
+                "{\"consumerId\":\"test-consumer\",\"providerBrokerId\":\"futu\",\"instruments\":[{\"market\":\"US\",\"symbol\":\"AAPL\"}]}",
+                503,
+                "MARKET_DATA_SUBSCRIPTION_MUTATION_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/subscriptions/heartbeat",
+                "",
+                "{\"consumerId\":\"test-consumer\",\"providerBrokerId\":\"futu\"}",
+                503,
+                "MARKET_DATA_SUBSCRIPTION_MUTATION_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/market-data/subscriptions/release",
+                "",
+                "{\"consumerId\":\"test-consumer\",\"providerBrokerId\":\"futu\"}",
+                503,
+                "MARKET_DATA_SUBSCRIPTION_MUTATION_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/research/screens",
+                "",
+                "{\"querySchemaVersion\":2,\"catalogVersion\":\"futu-stock-screen-v1\",\"market\":\"US\"}",
+                503,
+                "RESEARCH_SCREEN_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/strategy-pine/analyze",
+                "",
+                "{}",
+                503,
+                "STRATEGY_PINE_ANALYZE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/system/futu-opend/manual-retry",
+                "",
+                "{}",
+                503,
+                "SYSTEM_WRITE_UNAVAILABLE",
+            ),
+            (
+                "POST",
+                "/api/v1/watchlists/remote",
+                "",
+                "{}",
+                503,
+                "WATCHLIST_REMOTE_WRITE_UNAVAILABLE",
+            ),
+        ];
+
+        let mut covered: HashSet<(String, String)> = HashSet::new();
+
         // 2. Table-driven test across all 278 canonical routes
         for binding in &bindings {
             // Instantiate parameterized paths with sample values
@@ -2740,7 +3564,107 @@ mod product_production_assembly_tests {
                 binding.method,
                 binding.path
             );
+
+            if binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable {
+                // C. ExternalUnavailable operations get per-operation evidence:
+                // each entry carries a request that passes parameter and body
+                // validation, so the operation genuinely reaches its port
+                // boundary, plus the exact baseline status and error code it
+                // must project.  503/502 is the fail-closed boundary for an
+                // absent external provider/worker; 409 BROKER_CAPABILITY_UN-
+                // AVAILABLE is the Go baseline for capability-gated broker
+                // market-data reads; DELETE subscriptions keeps its baseline
+                // 200 shared-demand-book semantics (cleared snapshot).
+                let entry = EXTERNAL_UNAVAILABLE_EVIDENCE
+                    .iter()
+                    .find(|(method, path, _, _, _, _)| {
+                        *method == binding.method && *path == binding.path
+                    })
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "ExternalUnavailable route {} {} has no per-operation evidence entry",
+                            binding.method, binding.path
+                        )
+                    });
+                let (
+                    entry_method,
+                    entry_path,
+                    entry_query,
+                    entry_body,
+                    expected_status,
+                    expected_code,
+                ) = entry;
+                assert_eq!(entry_method, &binding.method);
+                assert_eq!(entry_path, &binding.path);
+                let concrete_with_query = if entry_query.is_empty() {
+                    concrete_path.clone()
+                } else {
+                    format!("{concrete_path}?{entry_query}")
+                };
+                let (strict_status, strict_body) = execute_http_with_body(
+                    address,
+                    &binding.method,
+                    &concrete_with_query,
+                    Some(&token),
+                    entry_body,
+                )
+                .await;
+                assert_eq!(
+                    strict_status, *expected_status,
+                    "ExternalUnavailable route {} {} must project its baseline status",
+                    binding.method, binding.path
+                );
+                let payload: Value = serde_json::from_str(&strict_body).unwrap_or_else(|error| {
+                    panic!(
+                        "route {} {} returned non-JSON body ({error}): {strict_body}",
+                        binding.method, binding.path
+                    )
+                });
+                if *expected_status == 200 {
+                    // Baseline subscription clear: 200 with the cleared snapshot.
+                    assert_eq!(
+                        payload["data"]["cleared"],
+                        json!(true),
+                        "subscription clear must keep its baseline 200 cleared semantics"
+                    );
+                } else {
+                    assert_eq!(
+                        payload["ok"],
+                        json!(false),
+                        "fail-closed route {} {} must use the error envelope",
+                        binding.method,
+                        binding.path
+                    );
+                    assert_eq!(
+                        payload["error"]["code"],
+                        json!(expected_code),
+                        "fail-closed route {} {} must project its baseline error code",
+                        binding.method,
+                        binding.path
+                    );
+                    let message = payload["error"]["message"].as_str().unwrap_or_default();
+                    assert!(
+                        !message.is_empty(),
+                        "fail-closed route {} {} must carry an error message",
+                        binding.method,
+                        binding.path
+                    );
+                    assert!(
+                        payload["timestamp"].is_string(),
+                        "fail-closed route {} {} must carry a timestamp",
+                        binding.method,
+                        binding.path
+                    );
+                }
+                covered.insert((binding.method.clone(), binding.path.clone()));
+            }
         }
+
+        assert_eq!(
+            covered.len(),
+            EXTERNAL_UNAVAILABLE_EVIDENCE.len(),
+            "every evidence entry must be exercised by exactly one ExternalUnavailable binding"
+        );
 
         handle.shutdown().await.expect("shutdown");
     }

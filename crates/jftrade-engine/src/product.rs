@@ -6,8 +6,8 @@ use crate::real_trade_control::{
 use crate::runtime_dependencies;
 use jftrade_api::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, ApiState, Clock,
-    LiveConnectionMetrics, LiveHub, PortFuture, RouteCatalog, RouteCatalogError, RouteSpec,
-    SseEvent, SystemClock, TransportMetrics, build_router,
+    LiveConnectionMetrics, LiveHub, LiveHubLifecycle, PortFuture, RouteCatalog, RouteCatalogError,
+    RouteSpec, SseEvent, SystemClock, TransportMetrics, build_router,
 };
 use jftrade_calendar::CalendarManager;
 use jftrade_datamanagement::{
