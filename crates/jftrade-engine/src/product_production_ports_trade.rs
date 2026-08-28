@@ -64,16 +64,16 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 }))
             }
             "funds" => {
-                let header = request.header().map_err(BrokerReadSnapshotError::Invalid)?;
+                let header = request.header().map_err(map_broker_header_error)?;
                 let funds = client
                     .read_funds(header, request.refresh_cache(), None, None)
                     .map_err(session_error)?;
-                Ok(funds_value(funds))
+                Ok(funds_value(&request, funds))
             }
             "positions" => {
                 let positions = client
                     .read_positions(
-                        request.header().map_err(BrokerReadSnapshotError::Invalid)?,
+                        request.header().map_err(map_broker_header_error)?,
                         request.filter(),
                         None,
                         None,
@@ -83,19 +83,34 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                         None,
                     )
                     .map_err(session_error)?;
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions.into_iter().map(position_value).collect::<Vec<_>>() }))
+                let positions = positions.into_iter().map(|v| {
+                    let value = position_value(&request, v);
+                    json!({
+                        "brokerId": request.broker_id,
+                        "tradingEnvironment": value["tradingEnvironment"],
+                        "accountId": value["accountId"],
+                        "market": value["market"],
+                        "symbol": value["symbol"],
+                        "quantity": value["quantity"],
+                        "averagePrice": if value["averageCostPrice"].is_null() { value["costPrice"].clone() } else { value["averageCostPrice"].clone() },
+                        "marketValue": value["marketValue"],
+                        "updatedAt": checked_at(),
+                        "createdAt": checked_at(),
+                    })
+                }).collect::<Vec<_>>();
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions }))
             }
             "orders" => {
                 let orders = client
-                    .read_orders(request.header().map_err(BrokerReadSnapshotError::Invalid)?, request.filter(), Vec::new(), request.refresh_cache())
+                    .read_orders(request.header().map_err(map_broker_header_error)?, request.filter(), Vec::new(), request.refresh_cache())
                     .map_err(session_error)?;
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders.into_iter().map(order_value).collect::<Vec<_>>() }))
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders.into_iter().map(|v| order_value(&request, v)).collect::<Vec<_>>() }))
             }
             "fills" => {
                 let fills = client
-                    .read_fills(request.header().map_err(BrokerReadSnapshotError::Invalid)?, request.filter(), request.refresh_cache())
+                    .read_fills(request.header().map_err(map_broker_header_error)?, request.filter(), request.refresh_cache())
                     .map_err(session_error)?;
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fills": fills.into_iter().map(fill_value).collect::<Vec<_>>() }))
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fills": fills.into_iter().map(|v| fill_value(&request, v)).collect::<Vec<_>>() }))
             }
             _ => Err(unavailable(format!("Futu broker resource '{}' is unavailable", request.resource))),
         }
@@ -150,13 +165,13 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
         match request.resource.as_str() {
             "positions" => {
                 let positions = client
-                    .read_positions(request.header().map_err(unavailable_portfolio)?, request.filter(), None, None, request.refresh_cache(), None, None, None)
+                    .read_positions(request.header().map_err(map_portfolio_header_error)?, request.filter(), None, None, request.refresh_cache(), None, None, None)
                     .map_err(|e| unavailable_portfolio(e.to_string()))?;
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions.into_iter().map(position_value).collect::<Vec<_>>() }))
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions.into_iter().map(|v| position_value(&request, v)).collect::<Vec<_>>() }))
             }
             "cash-balances" => {
                 let funds = client
-                    .read_funds(request.header().map_err(unavailable_portfolio)?, request.refresh_cache(), None, None)
+                    .read_funds(request.header().map_err(map_portfolio_header_error)?, request.refresh_cache(), None, None)
                     .map_err(|e| unavailable_portfolio(e.to_string()))?;
                 let balances = funds.funds.cash_info_list.into_iter().map(|cash| json!({
                     "currency": cash.currency,
@@ -164,7 +179,16 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
                     "availableBalance": cash.available_balance,
                     "netCashPower": cash.net_cash_power,
                 })).collect::<Vec<_>>();
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "balances": balances, "cashBalances": balances }))
+                let balances = balances.into_iter().map(|balance| json!({
+                    "brokerId": request.broker_id,
+                    "tradingEnvironment": request.environment_label(),
+                    "accountId": request.account_id(),
+                    "currency": balance["currency"],
+                    "cashBalance": balance["cash"],
+                    "updatedAt": checked_at(),
+                    "createdAt": checked_at(),
+                })).collect::<Vec<_>>();
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "balances": balances }))
             }
             _ => Err(unavailable_portfolio(format!("Futu portfolio resource '{}' is unavailable", request.resource))),
         }
@@ -196,15 +220,32 @@ impl TradeRequest {
     }
 
     fn header(&self) -> Result<TradeHeader, String> {
-        let account = self.query.get_first("accountId").ok_or_else(|| "accountId is required".to_owned())?;
+        let account = self.account_id().ok_or_else(|| "accountId is required".to_owned())?;
         let acc_id = account.parse::<u64>().map_err(|_| "accountId must be a numeric Futu account id".to_owned())?;
         let env = match self.query.get_first("tradingEnvironment").unwrap_or("real").to_ascii_lowercase().as_str() {
             "real" | "production" => 0,
             "sim" | "simulate" | "paper" => 1,
             value => return Err(format!("invalid tradingEnvironment: {value}")),
         };
-        let market = market_code(self.query.get_first("market").unwrap_or("US"))?;
+        let market_name = self.market_label();
+        let market = market_code(&market_name)?;
         Ok(trade_header(env, acc_id, market))
+    }
+
+    fn account_id(&self) -> Option<&str> {
+        self.query.get_first("accountId").map(str::trim).filter(|value| !value.is_empty())
+    }
+
+    fn environment_label(&self) -> String {
+        match self.query.get_first("tradingEnvironment").map(str::trim).unwrap_or("real").to_ascii_lowercase().as_str() {
+            "sim" | "simulate" | "paper" => "SIMULATE".to_owned(),
+            "real" | "production" => "REAL".to_owned(),
+            _ => String::new(),
+        }
+    }
+
+    fn market_label(&self) -> String {
+        self.query.get_first("market").map(str::trim).unwrap_or("HK").to_owned()
     }
 
     fn refresh_cache(&self) -> Option<bool> {
@@ -231,22 +272,38 @@ fn account_value(value: jftrade_integration_futu::TradeAccountSnapshot) -> Value
     json!({"tradingEnvironment": value.trd_env, "accountId": value.acc_id, "tradingMarketAuth": value.trd_market_auth_list, "accountType": value.acc_type, "cardNumber": value.card_num, "securityFirm": value.security_firm, "accountStatus": value.acc_status, "accountRole": value.acc_role})
 }
 
-fn funds_value(value: TradeFundsSnapshot) -> Value {
-    let balances = value.funds.cash_info_list.iter().map(|cash| json!({"currency": cash.currency, "cash": cash.cash, "availableBalance": cash.available_balance, "netCashPower": cash.net_cash_power})).collect::<Vec<_>>();
-    let assets = value.funds.market_info_list.iter().map(|item| json!({"tradingMarket": item.trd_market, "assets": item.assets})).collect::<Vec<_>>();
-    json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPl": value.funds.unrealized_pl, "realizedPl": value.funds.realized_pl}})
+fn funds_value(request: &TradeRequest, value: TradeFundsSnapshot) -> Value {
+    let balances = value.funds.cash_info_list.iter().map(|cash| json!({"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "currency": currency_label(cash.currency), "cash": cash.cash, "availableWithdrawalCash": cash.available_balance, "netCashPower": cash.net_cash_power})).collect::<Vec<_>>();
+    let assets = value.funds.market_info_list.iter().map(|item| json!({"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "market": market_label_from_code(item.trd_market), "assets": item.assets})).collect::<Vec<_>>();
+    json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "market": request.market_label(), "power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPnl": value.funds.unrealized_pl, "realizedPnl": value.funds.realized_pl, "securitiesAssets": value.funds.securities_assets, "fundAssets": value.funds.fund_assets, "bondAssets": value.funds.bond_assets, "longMarketValue": value.funds.long_mv, "shortMarketValue": value.funds.short_mv, "netCashPower": value.funds.net_cash_power, "maxWithdrawal": value.funds.max_withdrawal, "pendingAsset": value.funds.pending_asset, "initialMargin": value.funds.initial_margin, "maintenanceMargin": value.funds.maintenance_margin, "marginCallMargin": value.funds.margin_call_margin, "isPdt": value.funds.is_pdt, "pdtSeq": value.funds.pdt_seq, "beginningDTBP": value.funds.beginning_dtbp, "remainingDTBP": value.funds.remaining_dtbp, "dtCallAmount": value.funds.dt_call_amount, "exposureLevel": value.funds.exposure_level, "exposureLimit": value.funds.exposure_limit, "usedLimit": value.funds.used_limit, "remainingLimit": value.funds.remaining_limit}})
 }
 
-fn position_value(value: jftrade_integration_futu::TradePositionSnapshot) -> Value {
-    json!({"positionId": value.position_id, "positionSide": value.position_side, "symbol": value.code, "name": value.name, "quantity": value.qty, "canSellQuantity": value.can_sell_qty, "price": value.price, "costPrice": value.cost_price, "value": value.val, "profitLossValue": value.pl_val, "profitLossRatio": value.pl_ratio, "securityMarket": value.sec_market, "tradingMarket": value.trd_market, "currency": value.currency, "accountId": value.acc_id})
+fn position_value(request: &TradeRequest, value: jftrade_integration_futu::TradePositionSnapshot) -> Value {
+    json!({"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "market": request.market_label(), "positionId": value.position_id, "positionSide": value.position_side, "symbol": qualify_symbol(&request.market_label(), &value.code), "symbolName": value.name, "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": value.cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": value.unrealized_pl, "realizedPnl": value.realized_pl, "pnlRatio": value.pl_ratio, "currency": currency_label(value.currency)})
 }
 
-fn order_value(value: jftrade_integration_futu::TradeOrderSnapshot) -> Value {
-    json!({"orderId": value.order_id, "orderIdEx": value.order_id_ex, "symbol": value.code, "name": value.name, "side": value.trd_side, "orderType": value.order_type, "status": value.order_status, "quantity": value.qty, "price": value.price, "createdAt": value.create_time, "updatedAt": value.update_time, "filledQuantity": value.fill_qty, "filledAveragePrice": value.fill_avg_price, "lastError": value.last_err_msg, "tradingMarket": value.trd_market})
+fn order_value(request: &TradeRequest, value: jftrade_integration_futu::TradeOrderSnapshot) -> Value {
+    json!({"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "market": request.market_label(), "brokerOrderId": value.order_id.to_string(), "brokerOrderIdEx": value.order_id_ex, "symbol": qualify_symbol(&request.market_label(), &value.code), "symbolName": value.name, "side": trade_side(value.trd_side), "orderType": value.order_type.to_string(), "status": value.order_status.to_string(), "quantity": value.qty, "price": value.price, "submittedAt": value.create_time, "updatedAt": value.update_time, "filledQuantity": value.fill_qty, "filledAveragePrice": value.fill_avg_price, "lastError": value.last_err_msg, "remark": value.remark, "timeInForce": value.time_in_force.map(|v| v.to_string()), "currency": currency_label(value.currency)})
 }
 
-fn fill_value(value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
-    json!({"fillId": value.fill_id, "fillIdEx": value.fill_id_ex, "orderId": value.order_id, "orderIdEx": value.order_id_ex, "symbol": value.code, "name": value.name, "side": value.trd_side, "quantity": value.qty, "price": value.price, "createdAt": value.create_time, "counterBrokerId": value.counter_broker_id, "counterBrokerName": value.counter_broker_name, "status": value.status, "tradingMarket": value.trd_market})
+fn fill_value(request: &TradeRequest, value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
+    json!({"accountId": request.account_id(), "tradingEnvironment": request.environment_label(), "market": request.market_label(), "brokerFillId": value.fill_id.to_string(), "brokerFillIdEx": value.fill_id_ex, "brokerOrderId": value.order_id.map(|v| v.to_string()), "brokerOrderIdEx": value.order_id_ex, "symbol": qualify_symbol(&request.market_label(), &value.code), "symbolName": value.name, "side": trade_side(value.trd_side), "quantity": value.qty, "price": value.price, "submittedAt": value.create_time, "counterBrokerId": value.counter_broker_id, "counterBrokerName": value.counter_broker_name, "status": value.status.map(|v| v.to_string())})
+}
+
+fn qualify_symbol(market: &str, code: &str) -> String {
+    if code.contains('.') || market.is_empty() { code.to_owned() } else { format!("{market}.{code}") }
+}
+
+fn currency_label(currency: Option<i32>) -> Option<&'static str> {
+    match currency { Some(1) => Some("HKD"), Some(2) => Some("USD"), Some(3) => Some("CNH"), Some(4) => Some("CNY"), Some(5) => Some("JPY"), _ => None }
+}
+
+fn market_label_from_code(market: Option<i32>) -> Option<&'static str> {
+    match market { Some(1) => Some("HK"), Some(11) => Some("US"), Some(21) => Some("SH"), Some(22) => Some("SZ"), _ => None }
+}
+
+fn trade_side(side: i32) -> &'static str {
+    match side { 1 => "BUY", 2 => "SELL", 3 => "SELL_SHORT", 4 => "BUY_BACK", _ => "UNKNOWN" }
 }
 
 fn session_error(error: TradeSessionError) -> BrokerReadSnapshotError {
@@ -259,6 +316,18 @@ fn unavailable(message: impl Into<String>) -> BrokerReadSnapshotError {
 
 fn unavailable_portfolio(message: impl Into<String>) -> PortfolioSnapshotError {
     PortfolioSnapshotError::Unavailable(message.into())
+}
+
+fn map_broker_header_error(message: String) -> BrokerReadSnapshotError {
+    if message == "accountId is required" {
+        unavailable(message)
+    } else {
+        BrokerReadSnapshotError::Invalid(message)
+    }
+}
+
+fn map_portfolio_header_error(message: String) -> PortfolioSnapshotError {
+    unavailable_portfolio(message)
 }
 
 #[cfg(test)]
