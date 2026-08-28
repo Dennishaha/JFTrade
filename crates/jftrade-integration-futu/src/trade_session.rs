@@ -103,7 +103,7 @@ impl OpenDTradeReadClient {
         Ok(trd_get_order_fill_list::decode_response(&body)?)
     }
 
-    pub fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
+    fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
 }
