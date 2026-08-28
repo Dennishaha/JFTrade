@@ -9,6 +9,11 @@ const SCHEMA_DEFINITIONS: &str =
     include_str!("../../../tests/fixtures/rust-migration/stage9/sqlite-schema-definitions.json");
 const SCHEMA_VERSION: &str = "stage9.sqlite-schema-definitions.v1";
 const METADATA_TABLE: &str = "jftrade_schema_meta";
+// Internal compatibility tables are owned by a production adapter but are
+// deliberately outside the public Go schema manifest.  They are validated by
+// their owning store and ignored by the public-schema comparison so adding a
+// private projection never changes the SQLite wire contract.
+const INTERNAL_TABLE_NAMES: &[&str] = &["jftrade_internal__backtest_sync_tasks"];
 const KLINE_PATTERN: &str = "^local_klines__[a-z0-9_]+__[a-z0-9_]+__[a-z0-9_]+__(forward|backward|none)__(r|x)__[0-9a-f]{8}$";
 
 #[derive(Clone, Debug, Deserialize)]
@@ -208,6 +213,9 @@ pub fn validate_current(
         }
     }
     for (table_name, mut actual_table) in actual.tables {
+        if INTERNAL_TABLE_NAMES.contains(&table_name.as_str()) {
+            continue;
+        }
         let Some(mut prototype) = dynamic_prototype.clone() else {
             return incompatible(
                 component,
