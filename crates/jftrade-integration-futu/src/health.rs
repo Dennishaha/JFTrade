@@ -102,6 +102,10 @@ impl OpenDInitializedSession {
     pub fn managed_session(&self) -> &OpenDManagedSession {
         &self.session
     }
+
+    pub(crate) fn managed_session_handle(&self) -> Arc<OpenDManagedSession> {
+        Arc::clone(&self.session)
+    }
 }
 
 /// Converts the protocol-neutral OpenD result into the broker-neutral health

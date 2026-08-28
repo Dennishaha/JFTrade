@@ -20,6 +20,7 @@ pub mod trade_proto;
 mod trade_proto_fill_validation;
 mod trade_proto_order_validation;
 mod trade_proto_validation;
+mod trade_session;
 mod trading;
 mod transport;
 
@@ -57,6 +58,7 @@ pub use subscriptions::{
     OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
     SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
 };
+pub use trade_session::{OpenDTradeReadClient, TradeSessionError, trade_header};
 pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
     plan_shadow_protocol,
