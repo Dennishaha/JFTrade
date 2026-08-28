@@ -65,16 +65,16 @@ mod product_production_ports_adk;
 mod product_production_adapter_bindings;
 
 pub(crate) use product_production_ports_execution::{
-    ProductionBacktestPort, ProductionExecutionPort,
+    ProductionBacktestPort, ProductionBrokerPort, ProductionExecutionPort, ProductionPortfolioPort,
 };
 pub(crate) use product_production_ports_market_data::{
-    ProductionMarketDataCatalogPort, ProductionMarketDataProviderActionsPort,
+    ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
+    ProductionMarketDataNewsPort, ProductionMarketDataOptionsPort,
+    ProductionMarketDataPredictionPort, ProductionMarketDataProviderActionsPort,
     ProductionMarketDataQuotePort, ProductionMarketDataSubscriptionMutationPort,
 };
 pub(crate) use product_production_ports_plugins::ProductionPluginPort;
-pub(crate) use product_production_ports_unavailable::{
-    ProductionUnavailablePort, ProductionWsLivePort,
-};
+pub(crate) use product_production_ports_unavailable::ProductionWsLivePort;
 pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
 pub(crate) use product_production_adapter_bindings::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding,
@@ -84,10 +84,13 @@ pub(crate) use product_production_ports_system::{
     ProductionSystemPort, ProductionSystemWritePort,
 };
 pub(crate) use product_production_ports_strategy::{
-    ProductionResearchPresetPort, ProductionStrategyDefinitionPort,
+    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort,
+    ProductionStrategyDefinitionPort, ProductionStrategyPinePort,
     ProductionStrategyRuntimePort,
 };
-pub(crate) use product_production_ports_watchlist::ProductionWatchlistPort;
+pub(crate) use product_production_ports_watchlist::{
+    ProductionRemoteWatchlistPort, ProductionWatchlistPort,
+};
 
 use crate::product::product_adk_chat_stream_port::AdkChatStreamPort;
 use crate::product::product_adk_mutation_port::AdkMutationPort;
@@ -249,8 +252,10 @@ fn provider_now_rfc3339() -> String {
 
 // Plugins, Brokers, Alerts, System
 
-#[derive(Debug, Default)]
-pub(crate) struct ProductionAlertPort;
+#[derive(Clone, Debug)]
+pub(crate) struct ProductionAlertPort {
+    pub(crate) active_provider_state: Arc<ActiveProviderState>,
+}
 
 impl AlertSnapshotPort for ProductionAlertPort {
     fn snapshot(
@@ -258,6 +263,12 @@ impl AlertSnapshotPort for ProductionAlertPort {
         _kind: AlertKind,
         _raw_query: &str,
     ) -> Result<Value, AlertSnapshotError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(AlertSnapshotError::Unavailable(
+                "alert provider runtime is not configured".to_owned(),
+            ));
+        }
         Err(AlertSnapshotError::Unavailable(
             "alert provider runtime is not configured".to_owned(),
         ))
@@ -271,6 +282,12 @@ impl AlertWritePort for ProductionAlertPort {
         _broker_id: Option<&str>,
         _account_id: Option<&str>,
     ) -> Result<AlertWriteResolution, AlertWritePortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(AlertWritePortError::Unavailable(
+                "alert provider runtime is not configured".to_owned(),
+            ));
+        }
         Err(AlertWritePortError::Unavailable(
             "alert provider runtime is not configured".to_owned(),
         ))
@@ -281,6 +298,12 @@ impl AlertWritePort for ProductionAlertPort {
         _resolution: &AlertWriteResolution,
         _action: &AlertWriteAction,
     ) -> Result<Option<Value>, AlertWritePortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(AlertWritePortError::Unavailable(
+                "alert provider runtime is not configured".to_owned(),
+            ));
+        }
         Err(AlertWritePortError::Unavailable(
             "alert provider runtime is not configured".to_owned(),
         ))
@@ -523,7 +546,7 @@ pub(crate) fn production_ports(
         )?,
     );
     let watchlist_port = Arc::new(ProductionWatchlistPort {
-        store: watchlist_store,
+        store: watchlist_store.clone(),
     });
     let strategy_def_port = Arc::new(ProductionStrategyDefinitionPort {
         store: strategy_def_store.clone(),
@@ -540,7 +563,7 @@ pub(crate) fn production_ports(
         sync_tasks: Default::default(),
     });
     let execution_port = Arc::new(ProductionExecutionPort {
-        store: execution_store,
+        store: execution_store.clone(),
     });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
@@ -602,7 +625,41 @@ pub(crate) fn production_ports(
         tool_catalog,
         settings_path: config.settings_path().to_owned(),
     });
-    let alert_port = Arc::new(ProductionAlertPort);
+    let alert_port = Arc::new(ProductionAlertPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let broker_port = Arc::new(ProductionBrokerPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let portfolio_port = Arc::new(ProductionPortfolioPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+        _execution_store: Arc::clone(&execution_store),
+    });
+    let research_port = Arc::new(ProductionResearchPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let research_screen_port = Arc::new(ProductionResearchScreenPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let strategy_pine_port = Arc::new(ProductionStrategyPinePort {
+        worker_status: config.worker_runtime_status.as_str(),
+    });
+    let remote_watchlist_port = Arc::new(ProductionRemoteWatchlistPort {
+        _store: watchlist_store.clone(),
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let market_data_derivative_port = Arc::new(ProductionMarketDataDerivativePort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let market_data_options_port = Arc::new(ProductionMarketDataOptionsPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let market_data_news_port = Arc::new(ProductionMarketDataNewsPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
+    let market_data_prediction_port = Arc::new(ProductionMarketDataPredictionPort {
+        active_provider_state: Arc::clone(&active_provider_state),
+    });
     let system_write_port = Arc::new(
         ProductionSystemWritePort::open(config.real_trade_control_path()).map_err(|error| {
             ProductError::Storage(format!(
@@ -657,7 +714,7 @@ pub(crate) fn production_ports(
         plugins: plugin_port.clone(),
         plugin_guidance: plugin_port.clone(),
         plugin_write: plugin_port,
-        broker: Arc::new(ProductionUnavailablePort::new("broker integration is not enabled")),
+        broker: broker_port,
         brokers_write: execution_port.clone(),
         strategy_definition: strategy_def_port.clone(),
         strategy_definition_write: strategy_def_port,
@@ -684,20 +741,20 @@ pub(crate) fn production_ports(
             database_leases: database_leases.clone(),
         }),
         system_write: system_write_port,
-        portfolio: Arc::new(ProductionUnavailablePort::new("portfolio provider is not configured")),
-        research_read: Arc::new(ProductionUnavailablePort::new("research provider is not configured")),
-        market_data_derivative: Arc::new(ProductionUnavailablePort::new("derivative market-data provider is not configured")),
-        market_data_options: Arc::new(ProductionUnavailablePort::new("options market-data provider is not configured")),
-        market_data_news_actions: Arc::new(ProductionUnavailablePort::new("news provider is not configured")),
-        market_data_news_search: Arc::new(ProductionUnavailablePort::new("news provider is not configured")),
+        portfolio: portfolio_port,
+        research_read: research_port,
+        market_data_derivative: market_data_derivative_port,
+        market_data_options: market_data_options_port,
+        market_data_news_actions: market_data_news_port.clone(),
+        market_data_news_search: market_data_news_port,
         market_data_quote: market_data_quote_port,
-        market_data_prediction: Arc::new(ProductionUnavailablePort::new("prediction market-data provider is not configured")),
-        remote_watchlist: Arc::new(ProductionUnavailablePort::new("remote watchlist provider is not configured")),
-        remote_watchlist_write: Arc::new(ProductionUnavailablePort::new("remote watchlist provider is not configured")),
+        market_data_prediction: market_data_prediction_port,
+        remote_watchlist: remote_watchlist_port.clone(),
+        remote_watchlist_write: remote_watchlist_port,
         market_data_subscription_mutation: market_data_sub_port,
         market_data_provider_actions: market_data_actions_port,
-        research_screen_write: Arc::new(ProductionUnavailablePort::new("research screener is not configured")),
-        strategy_pine_analyze: Arc::new(ProductionUnavailablePort::new("pine analyzer is not configured")),
+        research_screen_write: research_screen_port,
+        strategy_pine_analyze: strategy_pine_port,
         ws_live: Arc::new(ProductionWsLivePort),
         bound_adapters,
     })

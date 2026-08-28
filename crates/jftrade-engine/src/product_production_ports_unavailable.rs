@@ -36,11 +36,13 @@ use crate::product::{
     ResearchReadSnapshotPort, WsLiveSnapshotPort,
 };
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct ProductionUnavailablePort {
     reason: &'static str,
 }
 
+#[allow(dead_code)]
 impl ProductionUnavailablePort {
     pub(super) fn new(reason: &'static str) -> Self {
         Self { reason }

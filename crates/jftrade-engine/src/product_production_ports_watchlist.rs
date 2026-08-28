@@ -7,10 +7,16 @@ use jftrade_watchlist::{GroupRef, Memberships};
 use percent_encoding::percent_decode_str;
 use serde_json::{Value, json};
 
+use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_watchlist_remote_write_port::{
+    RemoteWatchlistWriteAction, RemoteWatchlistWritePort, RemoteWatchlistWritePortError,
+    RemoteWatchlistWriteResolution,
+};
 use crate::product::product_watchlist_write_port::{
     WatchlistWriteMutation, WatchlistWritePort, WatchlistWritePortError,
 };
 use crate::product::{
+    RemoteWatchlistSnapshotError, RemoteWatchlistSnapshotPort,
     WatchlistMembershipSnapshotError, WatchlistMembershipSnapshotPort,
     WatchlistReadSnapshotError, WatchlistReadSnapshotPort,
 };
@@ -397,5 +403,63 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                 message: format!("unknown watchlist mutation route: {route}"),
             }),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Remote Watchlist
+// ---------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub(crate) struct ProductionRemoteWatchlistPort {
+    pub(crate) _store: Arc<WatchlistStore>,
+    pub(crate) active_provider_state: Arc<ActiveProviderState>,
+}
+
+impl RemoteWatchlistSnapshotPort for ProductionRemoteWatchlistPort {
+    fn read(&self, _query: &str) -> Result<Value, RemoteWatchlistSnapshotError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(RemoteWatchlistSnapshotError::Unavailable(
+                "remote watchlist provider is not configured".to_owned(),
+            ));
+        }
+        Err(RemoteWatchlistSnapshotError::Unavailable(
+            "remote watchlist provider is not configured".to_owned(),
+        ))
+    }
+}
+
+impl RemoteWatchlistWritePort for ProductionRemoteWatchlistPort {
+    fn resolve(
+        &self,
+        _broker_id: Option<&str>,
+        _account_id: Option<&str>,
+    ) -> Result<RemoteWatchlistWriteResolution, RemoteWatchlistWritePortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(RemoteWatchlistWritePortError::Unavailable(
+                "remote watchlist provider is not configured".to_owned(),
+            ));
+        }
+        Err(RemoteWatchlistWritePortError::Unavailable(
+            "remote watchlist provider is not configured".to_owned(),
+        ))
+    }
+
+    fn apply(
+        &self,
+        _resolution: &RemoteWatchlistWriteResolution,
+        _action: &RemoteWatchlistWriteAction,
+    ) -> Result<Option<Value>, RemoteWatchlistWritePortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || !snapshot.opend_ready {
+            return Err(RemoteWatchlistWritePortError::Unavailable(
+                "remote watchlist provider is not configured".to_owned(),
+            ));
+        }
+        Err(RemoteWatchlistWritePortError::Unavailable(
+            "remote watchlist provider is not configured".to_owned(),
+        ))
     }
 }

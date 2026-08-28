@@ -8,8 +8,12 @@ use jftrade_store_sqlite::{
 };
 use serde_json::{Value, json};
 
+use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_research_preset_write_port::{
     ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError,
+};
+use crate::product::product_research_screen_write_port::{
+    ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery,
 };
 use crate::product::product_strategy_definition_write_port::{
     StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
@@ -19,8 +23,12 @@ use crate::product::product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWriteOperation, StrategyRuntimeWritePort,
     StrategyRuntimeWritePortError,
 };
+use crate::product::strategy_pine::{
+    StrategyPineAnalyzeInput, StrategyPineAnalyzeSnapshotError, StrategyPineAnalyzeSnapshotPort,
+};
 use crate::product::{
-    ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, StrategyDefinitionPreview,
+    ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort,
+    ResearchReadSnapshotError, ResearchReadSnapshotPort, StrategyDefinitionPreview,
     StrategyDefinitionSnapshotError, StrategyDefinitionSnapshotPort, StrategyReadSnapshotError,
     StrategyReadSnapshotPort, StrategyRuntimeStatusPort, StrategyRuntimeSummary,
 };
@@ -689,5 +697,71 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                 Ok(json!({"deleted": true}))
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Research Read & Screen Write
+// ---------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub(crate) struct ProductionResearchPort {
+    pub(crate) active_provider_state: Arc<ActiveProviderState>,
+}
+
+impl ResearchReadSnapshotPort for ProductionResearchPort {
+    fn read(&self, _path: &str, _query: &str) -> Result<Value, ResearchReadSnapshotError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || (!snapshot.helper_ready && !snapshot.opend_ready) {
+            return Err(ResearchReadSnapshotError::Unavailable(
+                "research provider is not configured".to_owned(),
+            ));
+        }
+        Err(ResearchReadSnapshotError::Unavailable(
+            "research provider is not configured".to_owned(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ProductionResearchScreenPort {
+    pub(crate) active_provider_state: Arc<ActiveProviderState>,
+}
+
+impl ResearchScreenWritePort for ProductionResearchScreenPort {
+    fn query(
+        &self,
+        _request: &ResearchScreenWriteQuery,
+    ) -> Result<Value, ResearchScreenWritePortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider.is_none() || (!snapshot.helper_ready && !snapshot.opend_ready) {
+            return Err(ResearchScreenWritePortError::Unavailable);
+        }
+        Err(ResearchScreenWritePortError::Unavailable)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Strategy Pine Analyze
+// ---------------------------------------------------------------------------
+
+#[derive(Debug)]
+pub(crate) struct ProductionStrategyPinePort {
+    pub(crate) worker_status: &'static str,
+}
+
+impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
+    fn analyze(
+        &self,
+        _input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        if self.worker_status != "ready" {
+            return Err(StrategyPineAnalyzeSnapshotError::Unavailable(
+                "pine analyzer is not configured".to_owned(),
+            ));
+        }
+        Err(StrategyPineAnalyzeSnapshotError::Unavailable(
+            "pine analyzer is not configured".to_owned(),
+        ))
     }
 }

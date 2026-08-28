@@ -1041,6 +1041,106 @@ mod product_production_assembly_tests {
     }
 
     #[test]
+    fn production_internal_adapters_dynamic_capability_and_recovery() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let ports = production_ports(&config, &security).expect("production ports");
+
+        // 1. Broker & Portfolio dynamic fail-closed capability
+        let broker_err = ports
+            .broker
+            .read("/api/v1/brokers/capabilities", "")
+            .expect_err("broker read must fail closed when not configured");
+        assert!(matches!(
+            broker_err,
+            crate::product::BrokerReadSnapshotError::Unavailable(_)
+        ));
+
+        let portfolio_err = ports
+            .portfolio
+            .read("/api/v1/portfolio/overview", "")
+            .expect_err("portfolio read must fail closed when not configured");
+        assert!(matches!(
+            portfolio_err,
+            crate::product::PortfolioSnapshotError::Unavailable(_)
+        ));
+
+        // 2. Research Read & Screen Write dynamic fail-closed capability
+        let research_err = ports
+            .research_read
+            .read("/api/v1/research/calendars", "")
+            .expect_err("research read must fail closed when not configured");
+        assert!(matches!(
+            research_err,
+            crate::product::ResearchReadSnapshotError::Unavailable(_)
+        ));
+
+        // 3. Remote Watchlist snapshot and write
+        let remote_wl_err = ports
+            .remote_watchlist
+            .read("")
+            .expect_err("remote watchlist read must fail closed when not configured");
+        assert!(matches!(
+            remote_wl_err,
+            crate::product::RemoteWatchlistSnapshotError::Unavailable(_)
+        ));
+
+        let remote_wl_write_err = ports
+            .remote_watchlist_write
+            .resolve(Some("futu"), Some("123"))
+            .expect_err("remote watchlist write must fail closed when not configured");
+        assert!(matches!(
+            remote_wl_write_err,
+            crate::product::product_watchlist_remote_write_port::RemoteWatchlistWritePortError::Unavailable(_)
+        ));
+
+        // 4. Strategy Pine analyze
+        let pine_err = ports
+            .strategy_pine_analyze
+            .analyze(&crate::product::strategy_pine::StrategyPineAnalyzeInput {
+                script: "indicator('test')".to_owned(),
+                source_format: "pine-v6".to_owned(),
+                include_ast: false,
+            })
+            .expect_err("strategy pine analyze must fail closed when worker not ready");
+        assert!(matches!(
+            pine_err,
+            crate::product::strategy_pine::StrategyPineAnalyzeSnapshotError::Unavailable(_)
+        ));
+
+        // 5. Market data derivatives, options, news, prediction
+        assert!(matches!(
+            ports
+                .market_data_derivative
+                .read("/api/v1/market-data/warrants", ""),
+            Err(crate::product::MarketDataDerivativeReadSnapshotError::Unavailable(_))
+        ));
+        assert!(matches!(
+            ports
+                .market_data_options
+                .read("/api/v1/market-data/options/US.AAPL/chain", ""),
+            Err(crate::product::MarketDataOptionsReadSnapshotError::Unavailable(_))
+        ));
+        assert!(matches!(
+            ports
+                .market_data_news_actions
+                .read("/api/v1/market-data/news/US.AAPL", ""),
+            Err(crate::product::MarketDataNewsActionsReadSnapshotError::Unavailable(_))
+        ));
+        assert!(matches!(
+            ports
+                .market_data_news_search
+                .read("/api/v1/market-data/news", ""),
+            Err(crate::product::MarketDataNewsSearchReadSnapshotError::Unavailable(_))
+        ));
+        assert!(matches!(
+            ports
+                .market_data_prediction
+                .read("/api/v1/market-data/prediction/events", ""),
+            Err(crate::product::MarketDataPredictionReadSnapshotError::Unavailable(_))
+        ));
+    }
+
+    #[test]
     fn production_builtin_skills_project_bound_tool_catalog() {
         let (_temp_dir, _settings_path, config, security) = setup_test_env();
         let ports = production_ports(&config, &security).expect("production ports");
