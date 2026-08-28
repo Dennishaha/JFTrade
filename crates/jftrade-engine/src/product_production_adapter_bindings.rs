@@ -33,7 +33,7 @@ impl ProductionPortBundle {
                 jftrade_settings::MarketDataProvider::Akshare => "akshare",
             });
             return production_adapter_bindings(&MarketDataCapabilityMatrix::new(
-                provider.as_deref(),
+                provider,
                 snapshot.helper_ready,
                 snapshot.opend_ready || snapshot.router_ready,
             ))
