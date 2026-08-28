@@ -1,8 +1,12 @@
 use super::*;
 use jftrade_integration_futu::{
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds, TradeFundsSnapshot,
-    TradeOrderSnapshot, TradePositionSnapshot,
+    ResponseError,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds,
+    TradeFundsSnapshot, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
+    TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
+    TradePositionSnapshot, TradeSessionError,
 };
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 struct FakeTradeRead;
@@ -106,6 +110,35 @@ impl TradeReadPort for FakeTradeRead {
     fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
+}
+
+#[derive(Debug)]
+struct ErrorTradeRead {
+    message: &'static str,
+}
+
+impl ErrorTradeRead {
+    fn error(&self) -> TradeSessionError {
+        TradeSessionError::Response(ResponseError::ReturnCode {
+            ret_type: -1,
+            err_code: 429,
+            message: self.message.to_owned(),
+        })
+    }
+}
+
+impl TradeReadPort for ErrorTradeRead {
+    fn read_accounts(&self, user_id: u64, category: Option<i32>, general: Option<bool>) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        FakeTradeRead.read_accounts(user_id, category, general)
+    }
+    fn read_funds(&self, _: TradeHeader, _: Option<bool>, _: Option<i32>, _: Option<i32>) -> Result<TradeFundsSnapshot, TradeSessionError> { Err(self.error()) }
+    fn read_cash_flows(&self, _: TradeHeader, _: String, _: Option<i32>) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_order_fees(&self, _: TradeHeader, _: Vec<String>) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_margin_ratios(&self, _: TradeHeader, _: Vec<TradeSecurity>) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_max_trade_quantity(&self, _: TradeMaxTradeQuantityRequest) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> { Err(self.error()) }
+    fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Err(self.error()) }
 }
 
 fn ready_state() -> Arc<ActiveProviderState> {
@@ -244,6 +277,75 @@ fn margin_ratios_reject_symbol_with_conflicting_market() {
         .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US&symbol=HK.00700")
         .expect_err("conflicting market");
     assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("market")));
+}
+
+#[test]
+fn margin_ratios_use_recent_cache_only_for_rate_limit_errors() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(Arc::clone(&runtime)),
+    };
+    let query = "accountId=42&market=US&symbol=US.AAPL";
+    let initial = port
+        .read("/api/v1/brokers/futu/margin-ratios", query)
+        .expect("initial margin-ratio read");
+    assert_eq!(initial["marginRatios"][0]["symbol"], "US.AAPL");
+
+    runtime.set(
+        Some(Arc::new(ErrorTradeRead {
+            message: "rate limit exceeded",
+        })),
+        Some(true),
+    );
+    let fallback = port
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbol=US.AAPL",
+        )
+        .expect("recent cache fallback");
+    assert_eq!(fallback["marginRatios"][0]["symbol"], "US.AAPL");
+
+    runtime.margin_ratio_cache.put_at(
+        "42|REAL|US|US.AAPL".to_owned(),
+        vec![TradeMarginRatioSnapshot {
+            header: TradeHeader {
+                trd_env: 1,
+                acc_id: 42,
+                trd_market: 2,
+                jp_acc_type: None,
+            },
+            market: "US".to_owned(),
+            symbol: "US.AAPL".to_owned(),
+            is_long_permit: None,
+            is_short_permit: None,
+            short_pool_remain: None,
+            short_fee_rate: None,
+            alert_long_ratio: None,
+            alert_short_ratio: None,
+            initial_margin_long_ratio: None,
+            initial_margin_short_ratio: None,
+            margin_call_long_ratio: None,
+            margin_call_short_ratio: None,
+            maintenance_long_ratio: None,
+            maintenance_short_ratio: None,
+        }],
+        Instant::now() - Duration::from_secs(121),
+    );
+    let expired = port.read("/api/v1/brokers/futu/margin-ratios", query);
+    assert!(matches!(expired, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("rate limit")));
+
+    runtime.set(
+        Some(Arc::new(ErrorTradeRead {
+            message: "broker service unavailable",
+        })),
+        Some(true),
+    );
+    let non_rate = port.read("/api/v1/brokers/futu/margin-ratios", query);
+    assert!(matches!(non_rate, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker service unavailable")));
 }
 
 #[test]

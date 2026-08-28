@@ -21,9 +21,17 @@ use crate::product::{
 };
 use crate::product::product_query::QueryMap;
 
+#[path = "product_trade_margin_cache.rs"]
+mod product_trade_margin_cache;
+use product_trade_margin_cache::MarginRatioCache;
+
+#[path = "product_trade_margin_route.rs"]
+mod product_trade_margin_route;
+
 #[path = "trade_projection.rs"]
 mod trade_projection;
-pub(super) use trade_projection::{
+#[allow(unused_imports)]
+use trade_projection::{
     account_value, cash_flow_direction_label, cash_flow_value, canonical_time, currency_label,
     fill_status_label, fill_value, funds_value, margin_ratio_value, map_broker_header_error,
     map_portfolio_header_error, market_label_from_code, max_trade_order_type_label,
@@ -130,20 +138,11 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fees": fees}))
             }
             "margin-ratios" => {
-                let securities = request
-                    .securities()
-                    .map_err(BrokerReadSnapshotError::Invalid)?;
-                let resolved = request
-                    .resolve_account_real_for_market(client.as_ref(), securities[0].market)
-                    .map_err(map_broker_header_error)?;
-                let ratios = client
-                    .read_margin_ratios(resolved.header.clone(), securities)
-                    .map_err(session_error)?;
-                let ratios = ratios
-                    .into_iter()
-                    .map(|ratio| margin_ratio_value(&resolved, ratio))
-                    .collect::<Vec<_>>();
-                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "marginRatios": ratios}))
+                product_trade_margin_route::read_margin_ratios(
+                    &request,
+                    client.as_ref(),
+                    self.trade_runtime.as_ref(),
+                )
             }
             "max-trade-qtys" => {
                 let (market, code, sec_market) = request
@@ -313,7 +312,12 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct SharedTradeReadRuntime(Arc<RwLock<Option<(Arc<dyn TradeReadPort>, bool)>>>);
+pub(crate) struct SharedTradeReadRuntime {
+    state: Arc<RwLock<TradeRuntimeState>>,
+    margin_ratio_cache: MarginRatioCache,
+}
+
+type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
 
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.debug_struct("SharedTradeReadRuntime").field("ready", &self.snapshot().is_ready()).finish() }
@@ -330,12 +334,14 @@ impl TradeReadRuntimeSnapshot {
 
 impl SharedTradeReadRuntime {
     pub(crate) fn set(&self, client: Option<Arc<dyn TradeReadPort>>, logged_in: Option<bool>) {
-        *self.0.write().unwrap_or_else(|e| e.into_inner()) =
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) =
             client.map(|c| (c, logged_in == Some(true)));
     }
-    pub(crate) fn clear(&self) { *self.0.write().unwrap_or_else(|e| e.into_inner()) = None; }
+    pub(crate) fn clear(&self) {
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
+    }
     pub(crate) fn snapshot(&self) -> TradeReadRuntimeSnapshot {
-        self.0.read().unwrap_or_else(|e| e.into_inner()).as_ref().map_or(TradeReadRuntimeSnapshot { client: None, trade_logged_in: None }, |(c, logged)| TradeReadRuntimeSnapshot { client: Some(Arc::clone(c)), trade_logged_in: Some(*logged) })
+        self.state.read().unwrap_or_else(|e| e.into_inner()).as_ref().map_or(TradeReadRuntimeSnapshot { client: None, trade_logged_in: None }, |(c, logged)| TradeReadRuntimeSnapshot { client: Some(Arc::clone(c)), trade_logged_in: Some(*logged) })
     }
 }
 
