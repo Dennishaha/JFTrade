@@ -73,6 +73,7 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             active_provider_state: std::sync::Arc::new(
                 ActiveProviderState::new(Some(MarketDataProvider::Yfinance)),
             ),
+            sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
         },
         directory,
     )

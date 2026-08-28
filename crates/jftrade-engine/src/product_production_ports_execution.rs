@@ -8,7 +8,9 @@ use jftrade_store_sqlite::{
     CancelBacktestSyncResult, ExecutionOrderStore, StoredBacktestSyncTask,
 };
 use serde_json::{Value, json};
+use tokio::sync::oneshot;
 use crate::product::product_active_provider_state::ActiveProviderState;
+use super::BacktestSyncWorkerRegistry;
 use crate::product::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
     BacktestsWritePortResult,
@@ -36,6 +38,7 @@ pub(crate) struct ProductionBacktestPort {
     pub(crate) _market_data_store: Arc<BacktestMarketDataStore>,
     pub(crate) helper: Option<HelperClient>,
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) sync_workers: Arc<BacktestSyncWorkerRegistry>,
 }
 
 impl std::fmt::Debug for ProductionBacktestPort {
@@ -253,9 +256,18 @@ impl ProductionBacktestPort {
         let response_task_id = task.task_id.clone();
         let tasks = Arc::clone(&self.sync_tasks);
         let market_store = Arc::clone(&self._market_data_store);
-        runtime.spawn(async move {
-            run_sync_task(tasks, market_store, helper, provider_id, request, task_id).await;
+        let registry = Arc::clone(&self.sync_workers);
+        let worker_task_id = task_id.clone();
+        let registry_task_id = worker_task_id.clone();
+        let registry_tasks = Arc::clone(&tasks);
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+        let handle = runtime.spawn(async move {
+            tokio::select! {
+                _ = run_sync_task(Arc::clone(&tasks), market_store, helper, provider_id, request, task_id) => {}
+                _ = cancel_rx => mark_task_cancelled(&tasks, &worker_task_id),
+            }
         });
+        registry.register(registry_task_id, registry_tasks, handle, cancel_tx);
         Ok(BacktestsWritePortResult::Data(json!({
             "taskId": response_task_id,
             "symbol": task.symbol,
@@ -451,6 +463,11 @@ fn is_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) -> Result<bool, St
         .get(task_id)
         .map(|task| task.is_some_and(|task| task.status == "cancelled"))
         .map_err(|error| error.to_string())
+}
+
+fn mark_task_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) {
+    let timestamp = format_timestamp(time::OffsetDateTime::now_utc());
+    let _ = tasks.cancel(task_id, &timestamp);
 }
 
 fn persist_task(tasks: &BacktestSyncTaskStore, task: &mut StoredBacktestSyncTask, status: &str, error: Option<String>) -> Result<(), String> {

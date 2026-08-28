@@ -56,6 +56,8 @@ mod product_production_ports_watchlist;
 mod product_production_ports_strategy;
 #[path = "product_production_ports_execution.rs"]
 mod product_production_ports_execution;
+#[path = "product_backtest_sync_registry.rs"]
+mod product_backtest_sync_registry;
 #[path = "product_production_ports_system.rs"]
 mod product_production_ports_system;
 #[path = "product_production_ports_market_data.rs"]
@@ -68,6 +70,7 @@ mod product_production_adapter_bindings;
 pub(crate) use product_production_ports_execution::{
     ProductionBacktestPort, ProductionBrokerPort, ProductionExecutionPort, ProductionPortfolioPort,
 };
+pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
     ProductionMarketDataNewsPort, ProductionMarketDataOptionsPort,
@@ -414,6 +417,13 @@ pub(crate) struct ProductionPortBundle {
     pub strategy_pine_analyze: Arc<dyn StrategyPineAnalyzeSnapshotPort>,
     pub ws_live: Arc<dyn WsLiveSnapshotPort>,
     pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
+    pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
+}
+
+impl ProductionPortBundle {
+    pub(crate) fn backtest_sync_workers(&self) -> Arc<BacktestSyncWorkerRegistry> {
+        Arc::clone(&self.backtest_sync_workers)
+    }
 }
 
 use crate::product::ProductError;
@@ -595,12 +605,14 @@ pub(crate) fn production_ports(
     let active_provider = provider_snapshot.provider;
     let has_helper = provider_snapshot.helper_ready;
     let has_router = provider_snapshot.router_ready;
+    let backtest_sync_workers = Arc::new(BacktestSyncWorkerRegistry::default());
     let backtest_port = Arc::new(ProductionBacktestPort {
         store: backtest_store,
         sync_tasks: backtest_sync_tasks,
         _market_data_store: backtest_market_data_store,
         helper: config.market_data_helper.clone(),
         active_provider_state: Arc::clone(&active_provider_state),
+        sync_workers: Arc::clone(&backtest_sync_workers),
     });
     let active_provider_str = match active_provider {
         Some(jftrade_settings::MarketDataProvider::Futu) => Some("futu"),
@@ -761,5 +773,6 @@ pub(crate) fn production_ports(
         strategy_pine_analyze: strategy_pine_port,
         ws_live: Arc::new(ProductionWsLivePort),
         bound_adapters,
+        backtest_sync_workers,
     })
 }

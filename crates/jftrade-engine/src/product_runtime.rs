@@ -641,10 +641,14 @@ pub async fn start_product_runtime(
 
     #[cfg(test)]
     if config.inject_startup_failure {
-        supervisor.production_ports = {
+        let ports = {
             let mut prepared = prepared;
             prepared.handle.take_production_ports()
         };
+        supervisor.backtest_sync_workers = ports.as_ref().map(
+            crate::product::product_production_ports::ProductionPortBundle::backtest_sync_workers,
+        );
+        supervisor.production_ports = ports;
         let _ = supervisor.execute_shutdown().await;
         return Err(ProductError::RouteRegistry(
             "injected startup fault after production lease acquisition, before HTTP exposure"
@@ -655,7 +659,11 @@ pub async fn start_product_runtime(
 
     match expose_prepared_product(prepared) {
         Ok(mut product) => {
-            supervisor.production_ports = product.take_production_ports();
+            let ports = product.take_production_ports();
+            supervisor.backtest_sync_workers = ports
+                .as_ref()
+                .map(crate::product::product_production_ports::ProductionPortBundle::backtest_sync_workers);
+            supervisor.production_ports = ports;
             supervisor.product = Some(product);
         }
         Err(error) => {
