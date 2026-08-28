@@ -183,7 +183,7 @@ pub use product_runtime_resources::RuntimeResourceDescriptor;
 
 #[path = "product_runtime_supervisor.rs"]
 mod product_runtime_supervisor;
-use product_runtime_supervisor::ProductShutdownSupervisor;
+pub(crate) use product_runtime_supervisor::ProductShutdownSupervisor;
 pub use product_runtime_supervisor::ShutdownEventRecorder;
 
 pub struct ProductRuntimeHandle {
@@ -494,17 +494,21 @@ pub async fn start_product_runtime(
         }
     }
 
-    if let Some(helper) = config.marketdata_helper.take() {
+    let helper_process = if let Some(helper) = config.marketdata_helper.take() {
         match start_marketdata_helper(helper).await {
             Ok((process, client)) => {
                 config.product = config.product.with_market_data_helper(client);
-                supervisor.marketdata_helper = Some(process);
+                Some(Arc::new(Mutex::new(Some(process))))
             }
             Err(error) => {
-                eprintln!("Warning: market-data helper failed to start: {error}");
+                let _ = supervisor.execute_shutdown().await;
+                return Err(error);
             }
         }
-    }
+    } else {
+        None
+    };
+    supervisor.marketdata_helper = helper_process.clone();
 
     let initial_provider = if dynamic_opend
         .lock()
@@ -526,7 +530,8 @@ pub async fn start_product_runtime(
         }
     };
     let settings_path = config.product.settings_path().to_owned();
-    let helper_ready = config.product.market_data_helper.is_some();
+    let dyn_helper_for_readiness = helper_process.clone();
+    let dyn_helper_for_activation = helper_process.clone();
     let activation_router = market_data_router.clone();
     let activation_runtime = Arc::clone(&dynamic_opend);
     let activation_hub = Arc::clone(&live_hub);
@@ -534,6 +539,21 @@ pub async fn start_product_runtime(
     let dyn_router_for_readiness = market_data_router.clone();
     let dynamic_readiness: Arc<dyn Fn() -> (bool, bool, bool) + Send + Sync> =
         Arc::new(move || {
+            let helper_ready = if let Some(ref proc_arc) = dyn_helper_for_readiness {
+                if let Ok(mut proc_opt) = proc_arc.lock() {
+                    if let Some(ref mut proc) = *proc_opt {
+                        proc.snapshot().state
+                            == jftrade_integration_marketdata_helper::ProcessState::Ready
+                            && proc.child_status().is_ok_and(|status| status.is_none())
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
             let opend_ready = dyn_opend_for_readiness
                 .lock()
                 .unwrap_or_else(|error| error.into_inner())
@@ -567,7 +587,22 @@ pub async fn start_product_runtime(
                         }
                     }
                     MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
-                        if !helper_ready && previous == Some(MarketDataProvider::Futu) {
+                        let is_helper_ready = if let Some(ref proc_arc) = dyn_helper_for_activation {
+                            if let Ok(mut proc_opt) = proc_arc.lock() {
+                                if let Some(ref mut proc) = *proc_opt {
+                                    proc.snapshot().state
+                                        == jftrade_integration_marketdata_helper::ProcessState::Ready
+                                        && proc.child_status().ok().flatten().is_none()
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        } else {
+                            true
+                        };
+                        if !is_helper_ready && previous == Some(MarketDataProvider::Futu) {
                             return Err("market-data helper is not ready".to_owned());
                         }
                         if previous == Some(MarketDataProvider::Futu)
@@ -582,7 +617,7 @@ pub async fn start_product_runtime(
     );
     supervisor.active_provider_state = Some(Arc::clone(&active_provider_state));
     active_provider_state.set_readiness(
-        helper_ready,
+        config.product.market_data_helper.is_some() || supervisor.marketdata_helper.is_some(),
         dynamic_opend
             .lock()
             .unwrap_or_else(|error| error.into_inner())

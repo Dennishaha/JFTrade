@@ -5,9 +5,9 @@ use std::thread;
 use std::time::Duration;
 
 use jftrade_integration_futu::{
-    Frame, OpenDSessionCoordinator, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
-    OpenDTcpProbeConfig, PROTO_GET_SUB_INFO, PROTO_INIT_CONNECT, PROTO_QOT_SUB, decode_frame,
-    encode_frame,
+    Frame, OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionRuntime,
+    OpenDSessionRuntimeConfig, OpenDTcpProbeConfig, PROTO_GET_SUB_INFO, PROTO_INIT_CONNECT,
+    PROTO_QOT_SUB, decode_frame, encode_frame,
 };
 use jftrade_marketdata::{InstrumentRef, MarketDataRuntimeRecorder};
 use prost::Message;
@@ -361,6 +361,7 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
 
     let server = thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("accept");
+        // 1. Initial connect handshake
         let init = read_framed_frame(&mut stream).expect("init frame");
         assert_eq!(init.header.proto_id, PROTO_INIT_CONNECT);
         write_framed_response(
@@ -377,7 +378,42 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
             }
             .encode_to_vec(),
         );
+
+        // 2. First subscription: server returns error rejection (ret_type = -1)
+        let sub1 = read_framed_frame(&mut stream).expect("sub1 frame");
+        assert_eq!(sub1.header.proto_id, PROTO_QOT_SUB);
+        write_framed_response(
+            &mut stream,
+            PROTO_QOT_SUB,
+            sub1.header.serial_no,
+            &SubResponse {
+                ret_type: Some(-1),
+                ret_msg: Some("subscription quota exceeded".to_owned()),
+            }
+            .encode_to_vec(),
+        );
+
+        // 3. Second subscription attempt: server returns success (ret_type = 0)
+        let sub2 = read_framed_frame(&mut stream).expect("sub2 frame");
+        assert_eq!(sub2.header.proto_id, PROTO_QOT_SUB);
+        write_framed_response(
+            &mut stream,
+            PROTO_QOT_SUB,
+            sub2.header.serial_no,
+            &SubResponse {
+                ret_type: Some(0),
+                ret_msg: Some("ok".to_owned()),
+            }
+            .encode_to_vec(),
+        );
     });
+
+    let demand = vec![InstrumentRef {
+        channel: "SNAPSHOT".to_owned(),
+        market: "US".to_owned(),
+        symbol: "AAPL".to_owned(),
+        interval: None,
+    }];
 
     let recorder = Arc::new(MarketDataRuntimeRecorder::default());
     let mut coordinator = OpenDSessionCoordinator::connect(
@@ -396,28 +432,24 @@ fn test_fallback_establishment_recovery_and_count_semantics() {
         0
     );
 
-    // Explicit fallback_count manipulation and reconciliation behavior
-    coordinator.set_fallback_count(3);
-    assert_eq!(
-        coordinator
-            .physical_snapshot()
-            .expect("snapshot")
-            .fallback_count,
-        3
-    );
+    // 1. Initial subscription fails on wire -> explicitly propagates error AND records fallback_count = 1
+    let err = coordinator
+        .reconcile_topology(&demand, 1_700_000_000_100)
+        .expect_err("reconcile demand must fail on wire rejection");
+    assert!(matches!(err, OpenDSessionCoordinatorError::Subscription(_)));
 
-    // Verify snapshot reflects fallback count accurately
-    let snapshot = coordinator.physical_snapshot().expect("snapshot");
-    assert_eq!(snapshot.fallback_count, 3);
+    let snap_fallback = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snap_fallback.fallback_count, 1);
+    assert_eq!(snap_fallback.own_active_count, 0);
 
-    coordinator.set_fallback_count(0);
-    assert_eq!(
-        coordinator
-            .physical_snapshot()
-            .expect("snapshot")
-            .fallback_count,
-        0
-    );
+    // 2. Retry / re-reconcile beyond retry backoff; server accepts QOT_SUB -> succeeds and recovers fallback_count = 0
+    coordinator
+        .reconcile_topology(&demand, 1_700_000_100_000)
+        .expect("reconcile demand recover");
+
+    let snap_recovered = coordinator.physical_snapshot().expect("snapshot");
+    assert_eq!(snap_recovered.fallback_count, 0);
+    assert_eq!(snap_recovered.own_active_count, 1);
 
     coordinator.close().expect("close");
     server.join().expect("server join");

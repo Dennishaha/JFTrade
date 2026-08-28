@@ -50,10 +50,22 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) market_data_dynamic_opend: Option<SharedOpenDProviderRuntime>,
     pub(crate) market_data_opend_runtime: Option<OpenDSessionRuntime>,
     pub(crate) market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
-    pub(crate) marketdata_helper: Option<HelperProcess>,
+    pub(crate) marketdata_helper: Option<Arc<Mutex<Option<HelperProcess>>>>,
     pub(crate) pine_workers: Vec<PineProcess>,
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) recorder: ShutdownEventRecorder,
+}
+
+impl Drop for ProductShutdownSupervisor {
+    fn drop(&mut self) {
+        self.execute_sync_drop();
+    }
+}
+
+impl Default for ProductShutdownSupervisor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProductShutdownSupervisor {
@@ -76,18 +88,21 @@ impl ProductShutdownSupervisor {
         }
     }
 
-    pub(crate) fn has_active_resources(&self) -> bool {
+    pub fn has_active_resources(&self) -> bool {
         self.product.is_some()
             || self.market_data_opend_provider.is_some()
             || self.market_data_dynamic_opend.is_some()
             || self.market_data_opend_runtime.is_some()
             || self.market_data_opend.is_some()
-            || self.marketdata_helper.is_some()
+            || self
+                .marketdata_helper
+                .as_ref()
+                .is_some_and(|h| h.lock().is_ok_and(|g| g.is_some()))
             || !self.pine_workers.is_empty()
             || self.production_ports.is_some()
     }
 
-    pub(crate) async fn execute_shutdown(&mut self) -> Result<(), ProductRuntimeError> {
+    pub async fn execute_shutdown(&mut self) -> Result<(), ProductRuntimeError> {
         if let Some(state) = self.active_provider_state.as_ref() {
             state.begin_shutdown();
         }
@@ -100,19 +115,24 @@ impl ProductShutdownSupervisor {
             self.recorder.record("http_join");
         }
         // 2. Release provider demand & bridge
+        let mut had_provider = false;
         if let Some(provider) = self.market_data_opend_provider.take() {
+            had_provider = true;
             if let Err(error) = provider.shutdown() {
                 failures.push(error.to_string());
             }
-            self.recorder.record("provider");
         }
         if let Some(runtime) = self.market_data_dynamic_opend.take()
             && let Some(provider) = runtime.lock().unwrap_or_else(|e| e.into_inner()).take()
         {
+            had_provider = true;
             if let Err(error) = provider.shutdown() {
                 failures.push(error.to_string());
             }
+        }
+        if had_provider {
             self.recorder.record("provider");
+            self.recorder.record("opend");
         }
         // 3. Stop OpenD task runtime
         let mut opend_closed = false;
@@ -121,7 +141,9 @@ impl ProductShutdownSupervisor {
             if let Err(error) = task.shutdown() {
                 failures.push(error.to_string());
             }
-            self.recorder.record("opend");
+            if !had_provider {
+                self.recorder.record("opend");
+            }
         }
         // 4. Close OpenD coordinator
         if let Some(coordinator) = self.market_data_opend.take() {
@@ -132,13 +154,17 @@ impl ProductShutdownSupervisor {
             {
                 failures.push(error.to_string());
             }
-            if !opend_closed {
+            if !opend_closed && !had_provider {
                 self.recorder.record("opend");
             }
         }
         // 5. Stop market-data helper and Pine workers
         let mut had_workers = false;
-        if let Some(mut helper) = self.marketdata_helper.take() {
+        let helper_opt = self
+            .marketdata_helper
+            .take()
+            .and_then(|arc| arc.lock().ok()?.take());
+        if let Some(mut helper) = helper_opt {
             had_workers = true;
             if let Err(error) = helper.stop().await {
                 failures.push(error.to_string());
@@ -179,35 +205,46 @@ impl ProductShutdownSupervisor {
             self.recorder.record("http_join");
         }
         // 2. Release provider demand & bridge
+        let mut had_provider = false;
         if let Some(provider) = self.market_data_opend_provider.take() {
+            had_provider = true;
             let _ = provider.shutdown();
-            self.recorder.record("provider");
         }
         if let Some(runtime) = self.market_data_dynamic_opend.take()
             && let Some(provider) = runtime.lock().unwrap_or_else(|e| e.into_inner()).take()
         {
+            had_provider = true;
             let _ = provider.shutdown();
+        }
+        if had_provider {
             self.recorder.record("provider");
+            self.recorder.record("opend");
         }
         // 3. Stop OpenD task runtime & coordinator
         let mut opend_recorded = false;
         if let Some(mut task) = self.market_data_opend_runtime.take() {
             opend_recorded = true;
             let _ = task.shutdown();
-            self.recorder.record("opend");
+            if !had_provider {
+                self.recorder.record("opend");
+            }
         }
         if let Some(coordinator) = self.market_data_opend.take() {
             let _ = coordinator
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
                 .close();
-            if !opend_recorded {
+            if !opend_recorded && !had_provider {
                 self.recorder.record("opend");
             }
         }
         // 4. Terminate helper & Pine workers
         let mut had_workers = false;
-        if let Some(mut helper) = self.marketdata_helper.take() {
+        let helper_opt = self
+            .marketdata_helper
+            .take()
+            .and_then(|arc| arc.lock().ok()?.take());
+        if let Some(mut helper) = helper_opt {
             had_workers = true;
             helper.terminate();
         }

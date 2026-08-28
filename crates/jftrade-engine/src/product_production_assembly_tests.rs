@@ -87,7 +87,7 @@ mod product_production_assembly_tests {
         assert_eq!(record.provider_status, "unavailable");
         assert_eq!(record.opend_status, "unavailable");
         assert_eq!(record.worker_status, "unavailable");
-        assert_eq!(record.websocket_status, "ready");
+        assert_eq!(record.websocket_status, "not-started");
         assert!(!record.capabilities.is_empty());
 
         handle.shutdown().await.expect("shutdown cleanly");
@@ -2595,5 +2595,153 @@ mod product_production_assembly_tests {
             .expect("clear in helper mode should succeed");
         assert_eq!(clear_res["cleared"], true);
         assert!(clear_res["transport"].is_null());
+    }
+
+    #[tokio::test]
+    async fn canonical_278_routes_table_driven_reachability_and_auth_matrix() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let bindings = {
+            let ports = production_ports(&config, &security).expect("production ports");
+            let registry =
+                crate::product::product_production_route_registry::ProductionRouteRegistry::bind(
+                    &ports,
+                )
+                .expect("bind all routes");
+            assert_eq!(registry.bindings().len(), 278);
+            registry.bindings().to_vec()
+        };
+
+        let handle = start_product(config).await.expect("start product");
+        let address = handle.startup_record().address;
+        let token = "a".repeat(32);
+
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        async fn execute_http(
+            address: SocketAddr,
+            method: &str,
+            path: &str,
+            token: Option<&str>,
+        ) -> u16 {
+            let mut stream = tokio::net::TcpStream::connect(address)
+                .await
+                .expect("connect");
+            let auth_header = match token {
+                Some(tok) => format!("Authorization: Bearer {tok}\r\n"),
+                None => String::new(),
+            };
+            let body = match method {
+                "POST" | "PUT" | "PATCH" => "{}",
+                _ => "",
+            };
+            let content_headers = if !body.is_empty() {
+                format!(
+                    "Content-Type: application/json\r\nContent-Length: {}\r\n",
+                    body.len()
+                )
+            } else {
+                String::new()
+            };
+            let req = format!(
+                "{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n{auth_header}{content_headers}\r\n{body}"
+            );
+            stream
+                .write_all(req.as_bytes())
+                .await
+                .expect("write request");
+            let mut resp = Vec::new();
+            stream.read_to_end(&mut resp).await.expect("read response");
+            let text = String::from_utf8_lossy(&resp);
+            let status_line = text.lines().next().unwrap_or_default();
+            status_line
+                .split_whitespace()
+                .nth(1)
+                .and_then(|s| s.parse::<u16>().ok())
+                .unwrap_or(0)
+        }
+
+        // 1. Verify unknown endpoint returns 404 (when authenticated) and 401 (when unauthenticated)
+        let unauth_unknown = execute_http(
+            address,
+            "GET",
+            "/api/v1/unknown-endpoint-nonexistent-404",
+            None,
+        )
+        .await;
+        assert_eq!(
+            unauth_unknown, 401,
+            "unauthenticated request to unknown endpoint must be 401"
+        );
+        let auth_unknown = execute_http(
+            address,
+            "GET",
+            "/api/v1/unknown-endpoint-nonexistent-404",
+            Some(&token),
+        )
+        .await;
+        assert_eq!(
+            auth_unknown, 404,
+            "authenticated request to unknown endpoint must be 404"
+        );
+
+        // 2. Table-driven test across all 278 canonical routes
+        for binding in &bindings {
+            // Instantiate parameterized paths with sample values
+            let concrete_path = binding
+                .path
+                .replace("{runId}", "test-run")
+                .replace("{id}", "test-id")
+                .replace("{symbol}", "AAPL")
+                .replace("{market}", "US")
+                .replace("{name}", "test")
+                .replace("{sessionId}", "test-session")
+                .replace("{taskId}", "test-task")
+                .replace("{strategyId}", "test-strategy")
+                .replace("{ruleId}", "test-rule")
+                .replace("{profileId}", "test-profile")
+                .replace("{groupId}", "test-group")
+                .replace("{presetId}", "test-preset")
+                .replace("{code}", "test-code")
+                .replace("{templateId}", "test-template")
+                .replace("{alertId}", "test-alert")
+                .replace("{orderId}", "test-order")
+                .replace("{accountId}", "test-account")
+                .replace("{streamId}", "test-stream")
+                .replace("{instanceId}", "test-instance")
+                .replace("{databaseId}", "main")
+                .replace("{internalOrderId}", "test-order")
+                .replace("{instrumentId}", "US.AAPL")
+                .replace("{brokerId}", "futu");
+
+            // A. Unauthenticated request must return 401 (except public auth endpoints)
+            let is_auth_route = binding.path.starts_with("/api/v1/auth/");
+            let unauth_status = execute_http(address, &binding.method, &concrete_path, None).await;
+            if is_auth_route {
+                assert!(
+                    unauth_status != 500 && unauth_status != 501,
+                    "Auth route {} {} returned unexpected 500/501 error: {unauth_status}",
+                    binding.method,
+                    binding.path
+                );
+            } else {
+                assert_eq!(
+                    unauth_status, 401,
+                    "Route {} {} without auth must return 401 Unauthorized, got {unauth_status}",
+                    binding.method, binding.path
+                );
+            }
+
+            // B. Authenticated request must reach the handler and NEVER return 500 (Internal Server Error) or 501 (Not Implemented)
+            let auth_status =
+                execute_http(address, &binding.method, &concrete_path, Some(&token)).await;
+            assert!(
+                auth_status != 500 && auth_status != 501,
+                "Route {} {} returned server error / unimplemented status {auth_status}",
+                binding.method,
+                binding.path
+            );
+        }
+
+        handle.shutdown().await.expect("shutdown");
     }
 }

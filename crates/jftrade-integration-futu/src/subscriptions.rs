@@ -395,6 +395,7 @@ pub struct OpenDSubscriptionLifecycle {
     recorder: Arc<MarketDataRuntimeRecorder>,
     desired: Vec<InstrumentRef>,
     generation: u64,
+    reconnect_generation: u64,
     closed: bool,
 }
 
@@ -405,6 +406,7 @@ impl OpenDSubscriptionLifecycle {
             recorder,
             desired: Vec::new(),
             generation: 0,
+            reconnect_generation: 0,
             closed: false,
         }
     }
@@ -494,6 +496,7 @@ impl OpenDSubscriptionLifecycle {
         } else {
             reconciled
         };
+        self.reconnect_generation = self.generation;
         self.reconciler
             .replay_actions(&self.desired, self.generation)
     }
@@ -540,7 +543,8 @@ impl OpenDSubscriptionLifecycle {
     ) -> Result<bool, SubscriptionExecutorError> {
         if self.closed
             || generation != self.generation
-            || executor.session().managed_session().generation() != generation
+            || executor.session().managed_session().generation() < self.reconnect_generation
+            || executor.session().managed_session().generation() > generation
         {
             return Ok(false);
         }

@@ -538,6 +538,27 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 "runtimeActive": inst.runtime_active,
                 "deleted": inst.deleted,
             })),
+            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::NotFound) => {
+                Err(StrategyRuntimeWritePortError::Failed {
+                    status: 404,
+                    code: "NOT_FOUND".to_owned(),
+                    message: "strategy instance not found".to_owned(),
+                })
+            }
+            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::Conflict) => {
+                Err(StrategyRuntimeWritePortError::Failed {
+                    status: 409,
+                    code: "CONFLICT".to_owned(),
+                    message: "strategy state conflict".to_owned(),
+                })
+            }
+            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::Validation(msg)) => {
+                Err(StrategyRuntimeWritePortError::Failed {
+                    status: 400,
+                    code: "VALIDATION_FAILED".to_owned(),
+                    message: msg,
+                })
+            }
             Err(e) => Err(StrategyRuntimeWritePortError::Failed {
                 status: 500,
                 code: "STRATEGY_RUNTIME_MUTATION_FAILED".to_owned(),

@@ -140,23 +140,48 @@ impl MarketDataProviderReadSnapshotPort for ProductionMarketDataProviderPort {
     fn read(&self, path: &str, _query: &str) -> Result<Value, MarketDataProviderReadSnapshotError> {
         if path == "/api/v1/market-data/provider" {
             let active_provider = self.active_provider_state.get().unwrap_or_default();
+            let snapshot = self.active_provider_state.snapshot();
             let runtime = self.runtime_status.as_ref().map(|port| port.snapshot());
-            let connected = runtime.as_ref().is_some_and(|state| state.connected);
-            let readiness = if connected {
-                "ready"
-            } else if runtime.is_some() {
-                "degraded"
-            } else {
-                "unavailable"
+            let (connected, readiness, stream_mode, last_error) = match active_provider {
+                MarketDataProvider::Futu => {
+                    let connected = runtime.as_ref().is_some_and(|state| state.connected)
+                        || snapshot.opend_ready;
+                    let readiness = if connected {
+                        "ready"
+                    } else if snapshot.router_ready || runtime.is_some() {
+                        "degraded"
+                    } else {
+                        "unavailable"
+                    };
+                    let last_error = runtime
+                        .as_ref()
+                        .and_then(|state| {
+                            state
+                                .quote_last_error
+                                .as_deref()
+                                .or(state.stream_last_error.as_deref())
+                        })
+                        .map(str::to_owned)
+                        .or_else(|| {
+                            (!connected).then(|| {
+                                "market-data provider runtime is not connected".to_owned()
+                            })
+                        });
+                    (
+                        connected,
+                        readiness,
+                        if connected { "push-stream" } else { "idle" },
+                        last_error,
+                    )
+                }
+                MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
+                    let connected = snapshot.helper_ready;
+                    let readiness = if connected { "ready" } else { "unavailable" };
+                    let last_error =
+                        (!connected).then(|| "market-data helper is not ready".to_owned());
+                    (connected, readiness, "idle", last_error)
+                }
             };
-            let last_error = runtime.as_ref().and_then(|state| {
-                state
-                    .quote_last_error
-                    .as_deref()
-                    .or(state.stream_last_error.as_deref())
-            }).map(str::to_owned).or_else(|| {
-                (!connected).then(|| "market-data provider runtime is not connected".to_owned())
-            });
             let descriptor = provider_descriptor_for(active_provider);
             return Ok(json!({
                 "checkedAt": provider_now_rfc3339(),
@@ -165,7 +190,7 @@ impl MarketDataProviderReadSnapshotPort for ProductionMarketDataProviderPort {
                     "connected": connected,
                     "readiness": readiness,
                     "lastError": last_error,
-                    "streamMode": if connected { "push-stream" } else { "idle" },
+                    "streamMode": stream_mode,
                     "activeCount": runtime.as_ref().map_or(0, |state| state.active_count),
                 },
                 "runtime": runtime
@@ -713,7 +738,7 @@ pub(crate) fn production_ports(
         provider_status: config.provider_runtime_status.as_str(),
         opend_status: config.opend_runtime_status.as_str(),
         worker_status: config.worker_runtime_status.as_str(),
-        websocket_status: "ready",
+        websocket_status: if config.live_hub.is_some() { "ready" } else { "not-started" },
         calendar_manager,
         auth_session: auth_session_mgr.clone(),
         auth_session_write: auth_session_mgr.clone(),
@@ -723,16 +748,11 @@ pub(crate) fn production_ports(
         watchlist_memberships: watchlist_port.clone(),
         watchlist_write: watchlist_port,
         catalog: market_data_catalog_port,
-        provider: Arc::new(ProductionMarketDataProviderPort {
-            active_provider_state: Arc::clone(&active_provider_state),
-            runtime_status: config.market_data_runtime_status_port.clone(),
-        }),
+        provider: Arc::new(ProductionMarketDataProviderPort { active_provider_state, runtime_status: config.market_data_runtime_status_port.clone() }),
         plugins: plugin_port.clone(),
         plugin_guidance: plugin_port.clone(),
         plugin_write: plugin_port,
-        broker: Arc::new(ProductionUnavailablePort::new(
-            "broker integration is not enabled",
-        )),
+        broker: Arc::new(ProductionUnavailablePort::new("broker integration is not enabled")),
         brokers_write: execution_port.clone(),
         strategy_definition: strategy_def_port.clone(),
         strategy_definition_write: strategy_def_port,
@@ -757,42 +777,20 @@ pub(crate) fn production_ports(
             opend_status: config.opend_runtime_status,
         }),
         system_write: system_write_port,
-        portfolio: Arc::new(ProductionUnavailablePort::new(
-            "portfolio provider is not configured",
-        )),
-        research_read: Arc::new(ProductionUnavailablePort::new(
-            "research provider is not configured",
-        )),
-        market_data_derivative: Arc::new(ProductionUnavailablePort::new(
-            "derivative market-data provider is not configured",
-        )),
-        market_data_options: Arc::new(ProductionUnavailablePort::new(
-            "options market-data provider is not configured",
-        )),
-        market_data_news_actions: Arc::new(ProductionUnavailablePort::new(
-            "news provider is not configured",
-        )),
-        market_data_news_search: Arc::new(ProductionUnavailablePort::new(
-            "news provider is not configured",
-        )),
+        portfolio: Arc::new(ProductionUnavailablePort::new("portfolio provider is not configured")),
+        research_read: Arc::new(ProductionUnavailablePort::new("research provider is not configured")),
+        market_data_derivative: Arc::new(ProductionUnavailablePort::new("derivative market-data provider is not configured")),
+        market_data_options: Arc::new(ProductionUnavailablePort::new("options market-data provider is not configured")),
+        market_data_news_actions: Arc::new(ProductionUnavailablePort::new("news provider is not configured")),
+        market_data_news_search: Arc::new(ProductionUnavailablePort::new("news provider is not configured")),
         market_data_quote: market_data_quote_port,
-        market_data_prediction: Arc::new(ProductionUnavailablePort::new(
-            "prediction market-data provider is not configured",
-        )),
-        remote_watchlist: Arc::new(ProductionUnavailablePort::new(
-            "remote watchlist provider is not configured",
-        )),
-        remote_watchlist_write: Arc::new(ProductionUnavailablePort::new(
-            "remote watchlist provider is not configured",
-        )),
+        market_data_prediction: Arc::new(ProductionUnavailablePort::new("prediction market-data provider is not configured")),
+        remote_watchlist: Arc::new(ProductionUnavailablePort::new("remote watchlist provider is not configured")),
+        remote_watchlist_write: Arc::new(ProductionUnavailablePort::new("remote watchlist provider is not configured")),
         market_data_subscription_mutation: market_data_sub_port,
         market_data_provider_actions: market_data_actions_port,
-        research_screen_write: Arc::new(ProductionUnavailablePort::new(
-            "research screener is not configured",
-        )),
-        strategy_pine_analyze: Arc::new(ProductionUnavailablePort::new(
-            "pine analyzer is not configured",
-        )),
+        research_screen_write: Arc::new(ProductionUnavailablePort::new("research screener is not configured")),
+        strategy_pine_analyze: Arc::new(ProductionUnavailablePort::new("pine analyzer is not configured")),
         ws_live: Arc::new(ProductionWsLivePort),
         bound_adapters,
     })

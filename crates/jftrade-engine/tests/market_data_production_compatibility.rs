@@ -182,6 +182,50 @@ async fn request_api(
     }
 }
 
+fn assert_json_strictly_equal(actual: &Value, expected: &Value, path: &str) {
+    match (actual, expected) {
+        (Value::Object(act_map), Value::Object(exp_map)) => {
+            for (k, v) in act_map {
+                let subpath = format!("{path}.{k}");
+                let exp_v = exp_map.get(k).unwrap_or_else(|| {
+                    panic!("unexpected extra field '{k}' at path {path}; actual was: {actual:?}");
+                });
+                assert_json_strictly_equal(v, exp_v, &subpath);
+            }
+            for k in exp_map.keys() {
+                assert!(
+                    act_map.contains_key(k),
+                    "missing expected field '{k}' at path {path}; actual was: {actual:?}"
+                );
+            }
+        }
+        (Value::Array(act_arr), Value::Array(exp_arr)) => {
+            assert_eq!(
+                act_arr.len(),
+                exp_arr.len(),
+                "array length mismatch at path {path}"
+            );
+            for (i, (act_elem, exp_elem)) in act_arr.iter().zip(exp_arr.iter()).enumerate() {
+                let subpath = format!("{path}[{i}]");
+                assert_json_strictly_equal(act_elem, exp_elem, &subpath);
+            }
+        }
+        (Value::Null, Value::Null) => {}
+        (Value::Bool(a), Value::Bool(b)) => {
+            assert_eq!(a, b, "bool mismatch at path {path}");
+        }
+        (Value::Number(a), Value::Number(b)) => {
+            assert_eq!(a, b, "number mismatch at path {path}");
+        }
+        (Value::String(a), Value::String(b)) => {
+            assert_eq!(a, b, "string mismatch at path {path}");
+        }
+        (a, b) => {
+            panic!("type mismatch at path {path}: actual {a:?} vs expected {b:?}");
+        }
+    }
+}
+
 fn assert_differential_match(actual: &ApiResponse, expected_case: &Value) {
     let expected_status = expected_case["expectedStatus"]
         .as_u64()
@@ -217,12 +261,12 @@ fn assert_differential_match(actual: &ApiResponse, expected_case: &Value) {
         }
     }
 
+    if let Some(expected_body) = expected_case.get("expectedBody") {
+        assert_json_strictly_equal(&actual.body, expected_body, "body");
+    }
+
     if let Some(expected_data) = expected_case.get("data") {
-        assert_eq!(
-            &actual.body["data"], expected_data,
-            "Data mismatch for case '{}'",
-            expected_case["name"]
-        );
+        assert_json_strictly_equal(&actual.body["data"], expected_data, "body.data");
     }
 
     if let Some(expected_code) = expected_case.get("errorCode") {
@@ -240,6 +284,87 @@ fn assert_differential_match(actual: &ApiResponse, expected_case: &Value) {
             expected_case["name"]
         );
     }
+
+    if let Some(expected_pagination) = expected_case.get("pagination") {
+        assert_json_strictly_equal(
+            &actual.body["pagination"],
+            expected_pagination,
+            "body.pagination",
+        );
+    }
+}
+
+#[test]
+fn test_differential_strictly_rejects_extra_fields_and_validates_headers() {
+    let base = serde_json::json!({
+        "status": "ok",
+        "data": {
+            "items": [1, 2, 3],
+            "nested": {
+                "symbol": "AAPL",
+                "nullableField": null
+            }
+        }
+    });
+
+    let with_extra = serde_json::json!({
+        "status": "ok",
+        "data": {
+            "items": [1, 2, 3],
+            "nested": {
+                "symbol": "AAPL",
+                "nullableField": null,
+                "unexpectedExtra": 123
+            }
+        }
+    });
+
+    let result = std::panic::catch_unwind(|| {
+        assert_json_strictly_equal(&with_extra, &base, "root");
+    });
+    assert!(
+        result.is_err(),
+        "strictly must reject unexpected extra fields"
+    );
+
+    let api_response = ApiResponse {
+        status: 429,
+        headers: {
+            let mut h = BTreeMap::new();
+            h.insert("Retry-After".to_owned(), "30".to_owned());
+            h.insert("Content-Type".to_owned(), "application/json".to_owned());
+            h
+        },
+        body: serde_json::json!({
+            "error": {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many requests"
+            },
+            "pagination": {
+                "page": 1,
+                "pageSize": 50,
+                "total": 100
+            }
+        }),
+    };
+
+    let expected_case = serde_json::json!({
+        "name": "rate_limit_case",
+        "expectedStatus": 429,
+        "headers": {
+            "retry-after": "30",
+            "content-type": "application/json"
+        },
+        "errorCode": "RATE_LIMIT_EXCEEDED",
+        "errorMessage": "Too many requests",
+        "pagination": {
+            "page": 1,
+            "pageSize": 50,
+            "total": 100
+        }
+    });
+
+    assert_differential_match(&api_response, &expected_case);
 }
 
 fn read_framed_packet(stream: &mut StdTcpStream) -> Option<Frame> {

@@ -210,7 +210,7 @@ impl HelperProcess {
         }
     }
 
-    fn child_status(&mut self) -> Result<Option<std::process::ExitStatus>, ProcessError> {
+    pub fn child_status(&mut self) -> Result<Option<std::process::ExitStatus>, ProcessError> {
         self.child
             .as_mut()
             .map(Child::try_wait)

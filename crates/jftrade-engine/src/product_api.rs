@@ -559,8 +559,8 @@ impl ProductApi {
     fn test_system_notification(&self) -> Result<ApiOutput, ApiFailure> {
         let port = self.notification_port.as_ref().ok_or_else(|| {
             ApiFailure::new(
-                500,
-                "SYSTEM_NOTIFICATION_TEST_FAILED",
+                503,
+                "SYSTEM_NOTIFICATION_UNAVAILABLE",
                 "desktop system notifications are not available",
             )
         })?;
