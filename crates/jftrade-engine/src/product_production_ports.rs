@@ -418,6 +418,7 @@ impl ProductionSystemPort {
 
 #[derive(Clone)]
 pub(crate) struct ProductionPortBundle {
+    pub(crate) active_provider_state: Arc<ActiveProviderState>,
     pub database_lease_status: &'static str,
     pub provider_status: &'static str,
     pub opend_status: &'static str,
@@ -707,6 +708,7 @@ pub(crate) fn production_ports(
     )));
 
     Ok(ProductionPortBundle {
+        active_provider_state: Arc::clone(&active_provider_state),
         database_lease_status: "acquired",
         provider_status: config.provider_runtime_status.as_str(),
         opend_status: config.opend_runtime_status.as_str(),

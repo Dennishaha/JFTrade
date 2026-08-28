@@ -22,8 +22,44 @@ impl ProductionPortBundle {
         if adapter == ProductionRouteAdapter::WebSocketLive && !self.ws_live.enabled() {
             return None;
         }
+        // Market-data capability is provider-dependent and can change at
+        // runtime. Recompute those bindings from the shared snapshot instead
+        // of exposing the startup matrix after a provider transition.
+        if is_dynamic_market_data_adapter(adapter) {
+            let snapshot = self.active_provider_state.snapshot();
+            let provider = snapshot.provider.map(|provider| match provider {
+                jftrade_settings::MarketDataProvider::Futu => "futu",
+                jftrade_settings::MarketDataProvider::Yfinance => "yfinance",
+                jftrade_settings::MarketDataProvider::Akshare => "akshare",
+            });
+            return production_adapter_bindings(&MarketDataCapabilityMatrix::new(
+                provider.as_deref(),
+                snapshot.helper_ready,
+                snapshot.opend_ready || snapshot.router_ready,
+            ))
+            .get(&adapter)
+            .copied();
+        }
         self.bound_adapters.get(&adapter).copied()
     }
+}
+
+fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
+    use ProductionRouteAdapter::*;
+    matches!(
+        adapter,
+        MarketDataSearchRead
+            | MarketDataCandlesRead
+            | MarketDataSecuritiesRead
+            | MarketDataMarketsRead
+            | MarketDataSnapshotsRead
+            | MarketDataBatchSnapshotsWrite
+            | MarketDataSubscriptionRead
+            | MarketDataSubscriptionAcquireWrite
+            | MarketDataSubscriptionReleaseWrite
+            | MarketDataSubscriptionClearWrite
+            | MarketDataSubscriptionHeartbeatWrite
+    )
 }
 
 fn bind_adapters(
