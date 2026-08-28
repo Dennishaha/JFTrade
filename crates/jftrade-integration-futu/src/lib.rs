@@ -16,10 +16,11 @@ mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
-mod trading;
+pub mod trade_proto;
+mod trade_proto_fill_validation;
 mod trade_proto_order_validation;
 mod trade_proto_validation;
-pub mod trade_proto;
+mod trading;
 mod transport;
 
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};

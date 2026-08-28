@@ -193,7 +193,3 @@ pub(crate) fn validate_funds(
     }
     Ok(())
 }
-
-pub(crate) fn validate_noop_s2c<T>(_: &'static str, _: &T) -> Result<(), ResponseError> {
-    Ok(())
-}

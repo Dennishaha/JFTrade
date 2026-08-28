@@ -62,7 +62,7 @@ fn is_opend_time(value: &str) -> bool {
         && Time::from_hms(hour, minute, second).is_ok()
 }
 
-fn validate_opend_time(
+pub(crate) fn validate_opend_time(
     operation: &'static str,
     field: &'static str,
     value: &str,

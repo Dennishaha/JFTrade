@@ -10,10 +10,9 @@ pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }
 
+use crate::trade_proto_fill_validation::validate_fill_s2c;
 use crate::trade_proto_order_validation::validate_order_s2c;
-use crate::trade_proto_validation::{
-    validate_account_s2c, validate_funds, validate_noop_s2c, validate_position_s2c,
-};
+use crate::trade_proto_validation::{validate_account_s2c, validate_funds, validate_position_s2c};
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ResponseError {
@@ -198,7 +197,7 @@ trade_list_proto!(
     "trd_get_order_fill_list.rs",
     "GetOrderFillList",
     2211,
-    validate_noop_s2c
+    validate_fill_s2c
 );
 
 /// Descriptive aliases for callers that use the Go operation names.
@@ -214,7 +213,7 @@ mod tests {
 
     use super::{
         ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds,
-        trd_get_order_list, trd_get_position_list,
+        trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
     };
 
     fn header() -> trd_common::TrdHeader {
@@ -567,6 +566,92 @@ mod tests {
                 field,
                 operation: "GetOrderList"
             })) if field == "price"
+        ));
+    }
+
+    fn fill_response(fill: trd_common::OrderFill) -> trd_get_order_fill_list::Response {
+        trd_get_order_fill_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fill_list::S2c {
+                header: header(),
+                order_fill_list: vec![fill],
+            }),
+        }
+    }
+
+    fn valid_fill() -> trd_common::OrderFill {
+        trd_common::OrderFill {
+            trd_side: 999,
+            fill_id: 1,
+            fill_id_ex: "FILL-1".to_owned(),
+            code: "US.AAPL".to_owned(),
+            name: "Apple".to_owned(),
+            qty: 0.0,
+            price: 0.0,
+            create_time: "2026-08-29 09:30:00.123".to_owned(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn fill_validation_accepts_zero_values_unknown_enum_and_optional_ids() {
+        let fill = trd_common::OrderFill {
+            order_id: Some(7),
+            order_id_ex: Some("EXT-7".to_owned()),
+            ..valid_fill()
+        };
+        let decoded =
+            trd_get_order_fill_list::decode_response(&fill_response(fill).encode_to_vec())
+                .expect("valid fill");
+        assert_eq!(decoded.order_fill_list[0].qty, 0.0);
+        assert_eq!(decoded.order_fill_list[0].trd_side, 999);
+    }
+
+    #[test]
+    fn fill_validation_rejects_missing_identity_and_bad_time() {
+        let mut fill = valid_fill();
+        fill.fill_id_ex.clear();
+        assert!(matches!(
+            trd_get_order_fill_list::decode_response(&fill_response(fill).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::EmptyField {
+                field: "fill_id_ex",
+                operation: "GetOrderFillList"
+            }))
+        ));
+
+        let mut fill = valid_fill();
+        fill.create_time = "2026-02-29 09:30:00".to_owned();
+        assert!(matches!(
+            trd_get_order_fill_list::decode_response(&fill_response(fill).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::InvalidTime {
+                field: "create_time",
+                operation: "GetOrderFillList"
+            }))
+        ));
+    }
+
+    #[test]
+    fn fill_validation_rejects_negative_and_non_finite_values() {
+        let mut fill = valid_fill();
+        fill.qty = -1.0;
+        assert!(matches!(
+            trd_get_order_fill_list::decode_response(&fill_response(fill).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::Negative {
+                field: "qty",
+                operation: "GetOrderFillList"
+            }))
+        ));
+
+        let mut fill = valid_fill();
+        fill.update_timestamp = Some(f64::INFINITY);
+        assert!(matches!(
+            trd_get_order_fill_list::decode_response(&fill_response(fill).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite {
+                field,
+                operation: "GetOrderFillList"
+            })) if field == "update_timestamp"
         ));
     }
 }
