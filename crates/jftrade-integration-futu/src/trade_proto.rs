@@ -25,6 +25,17 @@ pub enum ResponseError {
         operation: &'static str,
         message: String,
     },
+    #[error("{0}")]
+    Validation(#[from] ValidationError),
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ValidationError {
+    #[error("OpenD {operation} field {field} must be finite")]
+    NonFinite {
+        operation: &'static str,
+        field: String,
+    },
 }
 
 pub fn validate_response(
@@ -51,6 +62,97 @@ fn validate_response_for(
     }
     if !has_s2c {
         return Err(ResponseError::MissingS2c);
+    }
+    Ok(())
+}
+
+fn validate_finite(
+    operation: &'static str,
+    field: impl Into<String>,
+    value: f64,
+) -> Result<(), ResponseError> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(ValidationError::NonFinite {
+            operation,
+            field: field.into(),
+        }
+        .into())
+    }
+}
+
+fn validate_optional_finite(
+    operation: &'static str,
+    field: &'static str,
+    value: Option<f64>,
+) -> Result<(), ResponseError> {
+    if let Some(value) = value {
+        validate_finite(operation, field, value)?;
+    }
+    Ok(())
+}
+
+fn validate_funds(operation: &'static str, funds: &trd_common::Funds) -> Result<(), ResponseError> {
+    macro_rules! required {
+        ($($field:ident),+ $(,)?) => {
+            $(validate_finite(operation, stringify!($field), funds.$field)?;)+
+        };
+    }
+    macro_rules! optional {
+        ($($field:ident),+ $(,)?) => {
+            $(validate_optional_finite(operation, stringify!($field), funds.$field)?;)+
+        };
+    }
+
+    required!(
+        power,
+        total_assets,
+        cash,
+        market_val,
+        frozen_cash,
+        debt_cash,
+        avl_withdrawal_cash,
+    );
+    optional!(
+        available_funds,
+        unrealized_pl,
+        realized_pl,
+        initial_margin,
+        maintenance_margin,
+        max_power_short,
+        net_cash_power,
+        long_mv,
+        short_mv,
+        pending_asset,
+        max_withdrawal,
+        margin_call_margin,
+        beginning_dtbp,
+        remaining_dtbp,
+        dt_call_amount,
+        securities_assets,
+        fund_assets,
+        bond_assets,
+        crypto_mv,
+        exposure_limit,
+        used_limit,
+        remaining_limit,
+    );
+    for cash in &funds.cash_info_list {
+        validate_optional_finite(operation, "cash_info_list.cash", cash.cash)?;
+        validate_optional_finite(
+            operation,
+            "cash_info_list.available_balance",
+            cash.available_balance,
+        )?;
+        validate_optional_finite(
+            operation,
+            "cash_info_list.net_cash_power",
+            cash.net_cash_power,
+        )?;
+    }
+    for market in &funds.market_info_list {
+        validate_optional_finite(operation, "market_info_list.assets", market.assets)?;
     }
     Ok(())
 }
@@ -119,7 +221,9 @@ macro_rules! trade_funds_proto {
                     response.ret_msg.as_deref(),
                     true,
                 )?;
-                Ok(response.s2c.and_then(|s2c| s2c.funds).unwrap_or_default())
+                let funds = response.s2c.and_then(|s2c| s2c.funds).unwrap_or_default();
+                super::validate_funds($operation, &funds)?;
+                Ok(funds)
             }
         }
     };
@@ -162,7 +266,7 @@ pub use trd_get_position_list as get_position_list;
 mod tests {
     use prost::Message;
 
-    use super::{ResponseError, trd_common, trd_get_acc_list, trd_get_funds};
+    use super::{ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds};
 
     fn header() -> trd_common::TrdHeader {
         trd_common::TrdHeader {
@@ -247,5 +351,67 @@ mod tests {
         };
         let decoded = trd_get_funds::decode_response(&response.encode_to_vec()).expect("response");
         assert_eq!(decoded, trd_common::Funds::default());
+    }
+
+    fn funds_response(funds: trd_common::Funds) -> trd_get_funds::Response {
+        trd_get_funds::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_funds::S2c {
+                header: header(),
+                funds: Some(funds),
+            }),
+        }
+    }
+
+    #[test]
+    fn funds_validation_accepts_zero_values_and_present_finite_optionals() {
+        let funds = trd_common::Funds {
+            power: 0.0,
+            available_funds: Some(12.5),
+            cash_info_list: vec![trd_common::AccCashInfo {
+                cash: Some(0.0),
+                available_balance: Some(1.0),
+                net_cash_power: Some(2.0),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let decoded = trd_get_funds::decode_response(&funds_response(funds).encode_to_vec())
+            .expect("finite funds");
+        assert_eq!(decoded.power, 0.0);
+        assert_eq!(decoded.available_funds, Some(12.5));
+    }
+
+    #[test]
+    fn funds_validation_rejects_non_finite_required_and_optional_values() {
+        for (field, value) in [("power", f64::NAN), ("cash", f64::INFINITY)] {
+            let mut funds = trd_common::Funds::default();
+            match field {
+                "power" => funds.power = value,
+                "cash" => funds.cash = value,
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                trd_get_funds::decode_response(&funds_response(funds).encode_to_vec()),
+                Err(ResponseError::Validation(ValidationError::NonFinite {
+                    operation: "GetFunds",
+                    field: field.to_owned(),
+                }))
+            );
+        }
+
+        let funds = trd_common::Funds {
+            available_funds: Some(f64::NEG_INFINITY),
+            ..Default::default()
+        };
+        assert!(matches!(
+            trd_get_funds::decode_response(&funds_response(funds).encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite {
+                field,
+                operation: "GetFunds"
+            })) if field == "available_funds"
+        ));
     }
 }
