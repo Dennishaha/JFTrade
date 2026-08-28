@@ -1,15 +1,15 @@
-/// Consumer-owned read-only projections for persisted backtest runs. The Go
-/// run store remains the sole production owner; Rust only receives snapshots
-/// in explicit test-cutover wiring and never opens the backtest database.
+/// Read-only projections for persisted backtest runs. Production composition
+/// binds this port to the leased Rust SQLite store; test profiles may inject a
+/// snapshot implementation for compatibility replay.
 pub trait BacktestReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn list(&self) -> Result<serde_json::Value, BacktestReadSnapshotError>;
     fn status(&self, run_id: &str) -> Result<Option<serde_json::Value>, BacktestReadSnapshotError>;
     fn result(&self, run_id: &str) -> Result<Option<serde_json::Value>, BacktestReadSnapshotError>;
 }
 
-/// Consumer-owned snapshots for the mutable backtest sync-task projection.
-/// The Go task store and worker lifecycle remain authoritative; Rust only
-/// receives a captured progress value in explicit test-cutover wiring.
+/// Persisted projection for the mutable backtest sync-task state. The
+/// production implementation uses the backtest-runs WriterLease; a worker is
+/// still required before new sync requests can be accepted.
 pub trait BacktestSyncReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn progress(
         &self,

@@ -24,6 +24,7 @@ use jftrade_store_sqlite::{
     ADK_ARTIFACT_PRODUCTION_PROFILE, ADK_PRODUCTION_PROFILE, ADK_SESSION_PRODUCTION_PROFILE,
     AdkArtifactStore, AdkSessionStore, AdkStore, BACKTEST_MARKET_DATA_PRODUCTION_PROFILE,
     BACKTEST_RUNS_PRODUCTION_PROFILE, BacktestMarketDataStore, BacktestRunStore,
+    BacktestSyncTaskStore,
     EXECUTION_ORDERS_PRODUCTION_PROFILE, ExecutionOrderStore,
     RESEARCH_PRESET_PRODUCTION_PROFILE, ResearchPresetStore,
     STRATEGY_DEFINITION_PRODUCTION_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
@@ -485,6 +486,7 @@ pub(crate) fn production_ports(
                 ProductError::Storage(format!("failed to open backtest runs production store: {e}"))
             })?,
     );
+    let backtest_sync_tasks = Arc::new(BacktestSyncTaskStore::new(Arc::clone(&backtest_store)));
     acquired_databases.push(DATABASE_BACKTEST_RUNS.to_owned());
 
     let backtest_market_data_path = get_path(DATABASE_BACKTEST)?;
@@ -559,6 +561,7 @@ pub(crate) fn production_ports(
     });
     let backtest_port = Arc::new(ProductionBacktestPort {
         store: backtest_store,
+        sync_tasks: backtest_sync_tasks,
         _market_data_store: backtest_market_data_store,
     });
     let execution_port = Arc::new(ProductionExecutionPort {

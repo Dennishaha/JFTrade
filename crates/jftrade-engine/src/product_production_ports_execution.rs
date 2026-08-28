@@ -1,7 +1,10 @@
 //! Backtests, Execution Orders, Brokers, and ADK production ports.
 
 use std::sync::Arc;
-use jftrade_store_sqlite::{BacktestMarketDataStore, BacktestRunStore, ExecutionOrderStore};
+use jftrade_store_sqlite::{
+    BacktestMarketDataStore, BacktestRunStore, BacktestSyncTaskStore,
+    CancelBacktestSyncResult, ExecutionOrderStore, StoredBacktestSyncTask,
+};
 use serde_json::{Value, json};
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_backtests_write_port::{
@@ -28,6 +31,7 @@ use crate::product::{
 #[derive(Debug)]
 pub(crate) struct ProductionBacktestPort {
     pub(crate) store: Arc<BacktestRunStore>,
+    pub(crate) sync_tasks: Arc<BacktestSyncTaskStore>,
     pub(crate) _market_data_store: Arc<BacktestMarketDataStore>,
 }
 
@@ -126,10 +130,12 @@ fn decode_optional_json_field(
 }
 
 impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
-    fn progress(&self, _task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
-        Err(BacktestSyncReadSnapshotError::Unavailable(
-            "backtest market-data sync runtime is not configured".to_owned(),
-        ))
+    fn progress(&self, task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
+        self.sync_tasks
+            .get(task_id)
+            .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?
+            .map(|task| sync_task_projection(&task))
+            .transpose()
     }
 }
 
@@ -141,15 +147,11 @@ impl BacktestsWritePort for ProductionBacktestPort {
                     "backtest worker runtime is not configured".to_owned(),
                 ))
             }
-            BacktestsWriteInput::Sync { .. } => {
-                Err(BacktestsWritePortError::Unavailable(
-                    "backtest market-data sync runtime is not configured".to_owned(),
-                ))
+            BacktestsWriteInput::Sync { payload } => {
+                self.start_sync_task(payload)
             }
-            BacktestsWriteInput::CancelSync { .. } => {
-                Err(BacktestsWritePortError::Unavailable(
-                    "backtest market-data sync runtime is not configured".to_owned(),
-                ))
+            BacktestsWriteInput::CancelSync { task_id } => {
+                self.cancel_sync_task(task_id)
             }
             BacktestsWriteInput::Delete { run_id } => {
                 match self.store.delete_run(run_id) {
@@ -167,6 +169,178 @@ impl BacktestsWritePort for ProductionBacktestPort {
             }
         }
     }
+}
+
+impl ProductionBacktestPort {
+    fn start_sync_task(
+        &self,
+        _payload: &Value,
+    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
+        // Persisting a queued task without an actual provider/sync executor
+        // would be a false success. The production composition currently has
+        // no Rust K-line sync runner, so keep the route reachable and report a
+        // truthful baseline 503 until one is injected.
+        Err(BacktestsWritePortError::Unavailable(
+            "backtest market-data sync runtime is not configured".to_owned(),
+        ))
+    }
+
+    fn cancel_sync_task(
+        &self,
+        task_id: &str,
+    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
+        let timestamp = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .map_err(|error| BacktestsWritePortError::Failed(error.to_string()))?;
+        match self
+            .sync_tasks
+            .cancel(task_id, &timestamp)
+            .map_err(|error| match error {
+                jftrade_store_sqlite::BacktestRunStoreError::Conflict(message) => {
+                    BacktestsWritePortError::Conflict(message)
+                }
+                other => BacktestsWritePortError::Failed(other.to_string()),
+            })?
+        {
+            CancelBacktestSyncResult::Cancelled => {
+                Ok(BacktestsWritePortResult::SyncCancelled(true))
+            }
+            CancelBacktestSyncResult::Missing => {
+                Ok(BacktestsWritePortResult::SyncCancelled(false))
+            }
+            // Go's CancelSync intentionally collapses a terminal task and an
+            // unknown task into the same 404 response.
+            CancelBacktestSyncResult::AlreadyTerminal => {
+                Ok(BacktestsWritePortResult::SyncCancelled(false))
+            }
+        }
+    }
+
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use jftrade_store_sqlite::{
+        BACKTEST_RUNS_PRODUCTION_PROFILE, BacktestRunStore, initialize_current,
+    };
+    use rusqlite::Connection;
+    use tempfile::tempdir;
+
+    fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
+        let directory = tempdir().expect("temporary directory");
+        let runs_path = directory.path().join("backtest-runs.db");
+        let connection = Connection::open(&runs_path).expect("create runs database");
+        initialize_current(&connection, "backtest-runs").expect("initialize runs database");
+        drop(connection);
+        let runs = Arc::new(
+            BacktestRunStore::open_existing(&runs_path, BACKTEST_RUNS_PRODUCTION_PROFILE)
+                .expect("open runs store"),
+        );
+        let sync_tasks = Arc::new(BacktestSyncTaskStore::new(Arc::clone(&runs)));
+        let market_data_path = directory.path().join("backtest.db");
+        let connection = Connection::open(&market_data_path).expect("create market database");
+        initialize_current(&connection, "backtest").expect("initialize market database");
+        drop(connection);
+        let market_data = Arc::new(
+            BacktestMarketDataStore::open_existing(
+                &market_data_path,
+                jftrade_store_sqlite::BACKTEST_MARKET_DATA_PRODUCTION_PROFILE,
+            )
+            .expect("open market store"),
+        );
+        (
+            ProductionBacktestPort {
+                store: runs,
+                sync_tasks,
+                _market_data_store: market_data,
+            },
+            directory,
+        )
+    }
+
+    #[test]
+    fn production_sync_read_projects_persisted_task() {
+        let (port, _directory) = production_port();
+        port.sync_tasks
+            .create(StoredBacktestSyncTask {
+                task_id: "sync-production".to_owned(),
+                status: "running".to_owned(),
+                symbol: "US.AAPL".to_owned(),
+                market_data_provider: "yfinance".to_owned(),
+                total_intervals: 2,
+                completed_intervals: 1,
+                total_batches: 2,
+                completed_batches: 1,
+                current_interval: "1d".to_owned(),
+                retries: 0,
+                error: None,
+                started_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:01:00Z".to_owned(),
+                revision: 0,
+            })
+            .expect("persist task");
+        let projected = port.progress("sync-production").expect("project task").unwrap();
+        assert_eq!(projected["status"], "running");
+        assert_eq!(projected["completedIntervals"], 1);
+        assert!(port.progress("missing").expect("missing task").is_none());
+    }
+
+    #[test]
+    fn production_sync_cancel_matches_not_found_for_terminal_task() {
+        let (port, _directory) = production_port();
+        port.sync_tasks
+            .create(StoredBacktestSyncTask {
+                task_id: "sync-terminal".to_owned(),
+                status: "completed".to_owned(),
+                symbol: "US.AAPL".to_owned(),
+                market_data_provider: "yfinance".to_owned(),
+                total_intervals: 0,
+                completed_intervals: 0,
+                total_batches: 0,
+                completed_batches: 0,
+                current_interval: String::new(),
+                retries: 0,
+                error: None,
+                started_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:00:00Z".to_owned(),
+                revision: 0,
+            })
+            .expect("persist terminal task");
+        let result = port.mutate(&BacktestsWriteInput::CancelSync {
+            task_id: "sync-terminal".to_owned(),
+        });
+        assert_eq!(
+            result,
+            Ok(BacktestsWritePortResult::SyncCancelled(false))
+        );
+    }
+}
+
+fn sync_task_projection(task: &StoredBacktestSyncTask) -> Result<Value, BacktestSyncReadSnapshotError> {
+    if task.task_id.trim().is_empty() || task.status.trim().is_empty() {
+        return Err(BacktestSyncReadSnapshotError::Unavailable(
+            "stored sync task has invalid identity".to_owned(),
+        ));
+    }
+    let mut value = json!({
+        "completedBatches": task.completed_batches,
+        "completedIntervals": task.completed_intervals,
+        "currentInterval": task.current_interval,
+        "marketDataProvider": task.market_data_provider,
+        "retries": task.retries,
+        "startedAt": task.started_at,
+        "status": task.status,
+        "symbol": task.symbol,
+        "taskId": task.task_id,
+        "totalBatches": task.total_batches,
+        "totalIntervals": task.total_intervals,
+        "updatedAt": task.updated_at,
+    });
+    if let Some(error) = &task.error {
+        value["error"] = Value::String(error.clone());
+    }
+    Ok(value)
 }
 
 // ---------------------------------------------------------------------------

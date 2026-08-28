@@ -1,9 +1,9 @@
-//! Stage 9 test-cutover leaf for the four backtest mutation routes.
+//! Backtest mutation route boundary.
 //!
-//! Go remains the only owner of strategy compilation, PineTS, market-data
-//! sync, run/task stores, and asynchronous recovery. This module only binds
-//! the public route shapes and delegates state changes to an explicitly
-//! injected consumer-owned port; it is not registered by any product profile.
+//! The public route parser and error envelope are shared by test-cutover and
+//! production composition. Production adapters own persisted run/task state;
+//! strategy compilation, PineTS, and the asynchronous market-data executor
+//! remain explicit dependencies and report 503 until injected.
 
 use std::collections::BTreeMap;
 
@@ -79,12 +79,12 @@ pub enum BacktestsWritePortError {
     Unavailable(String),
     BadRequest(String),
     StrategyNotFound(String),
+    Conflict(String),
     Failed(String),
 }
 
-/// Consumer-owned mutation boundary. A future integration adapter may call
-/// the current Go-owned service, but this port itself has no store, worker,
-/// provider, notification, or production-owner capability.
+/// Mutation boundary. Implementations must own their persistence and external
+/// worker lifecycle; returning success without those dependencies is forbidden.
 pub trait BacktestsWritePort: Send + Sync + std::fmt::Debug {
     fn mutate(
         &self,
@@ -301,6 +301,11 @@ fn port_error(operation: BacktestsWriteOperation, error: BacktestsWritePortError
         BacktestsWritePortError::StrategyNotFound(message) => ErrorSpec {
             status: 404,
             code: "NOT_FOUND".to_owned(),
+            message,
+        },
+        BacktestsWritePortError::Conflict(message) => ErrorSpec {
+            status: 409,
+            code: "CONFLICT".to_owned(),
             message,
         },
         BacktestsWritePortError::Failed(message) => match operation {

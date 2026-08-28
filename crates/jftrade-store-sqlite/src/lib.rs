@@ -7,6 +7,7 @@ mod adk_artifact;
 mod adk_session;
 mod backtest_market_data;
 mod backtest_run;
+mod backtest_sync_task;
 mod data_management;
 mod execution_order;
 mod maintenance;
@@ -39,6 +40,9 @@ pub use backtest_market_data::{
 pub use backtest_run::{
     BACKTEST_RUNS_PRODUCTION_PROFILE, BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStore,
     BacktestRunStoreError, BacktestRunTestCutoverStore, StoredBacktestRun,
+};
+pub use backtest_sync_task::{
+    BacktestSyncTaskStore, CancelBacktestSyncResult, StoredBacktestSyncTask,
 };
 pub use data_management::{ManagedDatabaseCleanupCandidateStore, ManagedDatabaseOverviewStore};
 pub use execution_order::{

@@ -52,6 +52,8 @@ pub enum BacktestRunStoreError {
     NotTerminal(String),
     #[error("invalid backtest runs request: {0}")]
     Validation(String),
+    #[error("backtest runs operation conflicts with current state: {0}")]
+    Conflict(String),
     #[error("incompatible backtest runs database: {0}")]
     Incompatible(String),
 }
@@ -103,7 +105,7 @@ impl BacktestRunStore {
 
         let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
 
-        let connection = Connection::open_with_flags(
+        let mut connection = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
@@ -124,6 +126,13 @@ impl BacktestRunStore {
             BACKTEST_RUNS_SCHEMA_VERSION,
         )?;
 
+        if profile == BACKTEST_RUNS_PRODUCTION_PROFILE {
+            crate::backtest_sync_task::ensure_sync_task_schema(
+                &mut connection,
+                &path.display().to_string(),
+            )?;
+        }
+
         Ok(Self {
             path: path.to_path_buf(),
             connection: Mutex::new(connection),
@@ -135,7 +144,7 @@ impl BacktestRunStore {
         &self.path
     }
 
-    fn lock(&self) -> Result<MutexGuard<'_, Connection>, BacktestRunStoreError> {
+    pub(crate) fn lock(&self) -> Result<MutexGuard<'_, Connection>, BacktestRunStoreError> {
         self.connection
             .lock()
             .map_err(|_| BacktestRunStoreError::LockUnavailable)
@@ -272,7 +281,7 @@ impl BacktestRunStore {
     }
 }
 
-fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), BacktestRunStoreError> {
+pub(crate) fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), BacktestRunStoreError> {
     OffsetDateTime::parse(timestamp, &Rfc3339)
         .map(|_| ())
         .map_err(|error| {
