@@ -1,5 +1,6 @@
 use crate::trade_proto::{
-    ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_position_list,
+    ResponseError, ValidationError, trd_common, trd_flow_summary, trd_get_acc_list,
+    trd_get_position_list,
 };
 
 pub(crate) fn validate_finite(
@@ -190,6 +191,18 @@ pub(crate) fn validate_funds(
     }
     for market in &funds.market_info_list {
         validate_optional_finite(operation, "market_info_list.assets", market.assets)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_cash_flow_s2c(
+    operation: &'static str,
+    payload: &trd_flow_summary::S2c,
+) -> Result<(), ResponseError> {
+    for flow in &payload.flow_summary_info_list {
+        if let Some(amount) = flow.cash_flow_amount {
+            validate_finite(operation, "cash_flow_amount", amount)?;
+        }
     }
     Ok(())
 }

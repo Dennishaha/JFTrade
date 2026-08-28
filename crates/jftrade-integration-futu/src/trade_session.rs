@@ -6,13 +6,14 @@ use crate::health::OpenDInitializedSession;
 use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
-    ResponseError, trd_common, trd_get_acc_list, trd_get_funds, trd_get_order_fill_list,
-    trd_get_order_list, trd_get_position_list,
+    ResponseError, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
+    trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
 };
 use crate::trade_snapshots::{
-    TradeAccountSnapshot, TradeFillSnapshot, TradeFilter, TradeFundsSnapshot, TradeHeader,
-    TradeOrderSnapshot, TradePositionSnapshot, account_projection, fills_projection,
-    funds_projection, orders_projection, positions_projection,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFilter,
+    TradeFundsSnapshot, TradeHeader, TradeOrderSnapshot, TradePositionSnapshot, account_projection,
+    cash_flows_projection, fills_projection, funds_projection, orders_projection,
+    positions_projection,
 };
 
 /// Engine-facing read contract for the authenticated OpenD trade account.
@@ -34,6 +35,13 @@ pub trait TradeReadPort: Send + Sync {
         currency: Option<i32>,
         asset_category: Option<i32>,
     ) -> Result<TradeFundsSnapshot, TradeSessionError>;
+
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        cash_flow_direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError>;
 
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
@@ -157,6 +165,17 @@ impl OpenDTradeReadClient {
         Ok(trd_get_order_fill_list::decode_response(&body)?)
     }
 
+    pub(crate) fn get_flow_summary(
+        &self,
+        request: trd_flow_summary::Request,
+    ) -> Result<trd_flow_summary::S2c, TradeSessionError> {
+        let body = self.call(
+            trd_flow_summary::PROTOCOL_ID,
+            &trd_flow_summary::encode_request(&request),
+        )?;
+        Ok(trd_flow_summary::decode_response(&body)?)
+    }
+
     /// Reads account metadata without exposing the generated protobuf type.
     pub fn read_accounts(
         &self,
@@ -192,6 +211,25 @@ impl OpenDTradeReadClient {
             },
         })?;
         Ok(funds_projection(header.into(), funds))
+    }
+
+    /// Reads account cash-flow summaries without exposing protobuf types.
+    pub fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        cash_flow_direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        let payload = self.get_flow_summary(trd_flow_summary::Request {
+            c2s: trd_flow_summary::C2s {
+                header: header.into(),
+                clearing_date,
+                cash_flow_direction,
+                start_create_date: None,
+                end_create_date: None,
+            },
+        })?;
+        Ok(cash_flows_projection(payload))
     }
 
     /// Reads positions with optional neutral filtering and returns snapshots.
@@ -291,6 +329,15 @@ impl TradeReadPort for OpenDTradeReadClient {
         asset_category: Option<i32>,
     ) -> Result<TradeFundsSnapshot, TradeSessionError> {
         OpenDTradeReadClient::read_funds(self, header, refresh_cache, currency, asset_category)
+    }
+
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        clearing_date: String,
+        cash_flow_direction: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        OpenDTradeReadClient::read_cash_flows(self, header, clearing_date, cash_flow_direction)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -403,6 +450,70 @@ mod tests {
             })
             .expect("account list");
         assert!(payload.acc_list.is_empty());
+        session.close().expect("close");
+        server.join().expect("server");
+    }
+
+    #[test]
+    fn cash_flow_read_encodes_header_and_projects_neutral_snapshot() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let address = listener.local_addr().expect("address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let request = read_frame(&mut stream);
+            assert_eq!(request.header.proto_id, trd_flow_summary::PROTOCOL_ID);
+            let decoded =
+                trd_flow_summary::Request::decode(request.body.as_slice()).expect("request");
+            assert_eq!(decoded.c2s.header.acc_id, 42);
+            assert_eq!(decoded.c2s.header.trd_market, 2);
+            assert_eq!(decoded.c2s.clearing_date, "2026-08-21");
+            assert_eq!(decoded.c2s.cash_flow_direction, Some(1));
+            let response = trd_flow_summary::Response {
+                ret_type: 0,
+                ret_msg: None,
+                err_code: None,
+                s2c: Some(trd_flow_summary::S2c {
+                    header: trade_header(1, 42, 2).into(),
+                    flow_summary_info_list: vec![
+                        trd_flow_summary::FlowSummaryInfo {
+                            clearing_date: Some("2026-08-21".to_owned()),
+                            cash_flow_direction: Some(1),
+                            cash_flow_amount: Some(88.8),
+                            cash_flow_id: Some(7),
+                            ..Default::default()
+                        },
+                        trd_flow_summary::FlowSummaryInfo {
+                            clearing_date: Some("2026-08-21".to_owned()),
+                            cash_flow_direction: Some(2),
+                            cash_flow_amount: Some(1.2),
+                            cash_flow_id: Some(8),
+                            ..Default::default()
+                        },
+                    ],
+                }),
+            };
+            stream
+                .write_all(
+                    &encode_frame(
+                        request.header.proto_id,
+                        request.header.serial_no,
+                        &response.encode_to_vec(),
+                    )
+                    .expect("response"),
+                )
+                .expect("write response");
+        });
+        let session = Arc::new(
+            OpenDManagedSession::connect(address, Duration::from_millis(500), 5).expect("session"),
+        );
+        let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+        let flows = client
+            .read_cash_flows(trade_header(1, 42, 2), "2026-08-21".to_owned(), Some(1))
+            .expect("cash flows");
+        assert_eq!(flows.len(), 2);
+        assert_eq!(flows[0].header.acc_id, 42);
+        assert_eq!(flows[0].cash_flow_id, Some(8));
+        assert_eq!(flows[1].cash_flow_amount, Some(88.8));
         session.close().expect("close");
         server.join().expect("server");
     }

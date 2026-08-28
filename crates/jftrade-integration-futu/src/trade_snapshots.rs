@@ -5,6 +5,7 @@
 //! dependency on OpenD's wire types.
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 
 use crate::trade_proto::{self, trd_common};
 
@@ -100,6 +101,50 @@ impl From<trd_common::TrdAcc> for TradeAccountSnapshot {
 pub struct TradeFundsSnapshot {
     pub header: TradeHeader,
     pub funds: TradeFunds,
+}
+
+/// A single account cash-flow entry returned by Trd_FlowSummary.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeCashFlowSnapshot {
+    pub header: TradeHeader,
+    pub clearing_date: Option<String>,
+    pub settlement_date: Option<String>,
+    pub currency: Option<i32>,
+    pub cash_flow_type: Option<String>,
+    pub cash_flow_direction: Option<i32>,
+    pub cash_flow_amount: Option<f64>,
+    pub cash_flow_remark: Option<String>,
+    pub cash_flow_id: Option<u64>,
+    pub create_time: Option<String>,
+}
+
+impl TradeCashFlowSnapshot {
+    pub(crate) fn from_proto(
+        header: TradeHeader,
+        value: trade_proto::trd_flow_summary::FlowSummaryInfo,
+    ) -> Self {
+        Self {
+            header,
+            clearing_date: optional_text(value.clearing_date),
+            settlement_date: optional_text(value.settlement_date),
+            currency: value.currency,
+            cash_flow_type: optional_text(value.cash_flow_type),
+            cash_flow_direction: value
+                .cash_flow_direction
+                .filter(|direction| matches!(direction, 1 | 2)),
+            cash_flow_amount: value.cash_flow_amount,
+            cash_flow_remark: optional_text(value.cash_flow_remark),
+            cash_flow_id: value.cash_flow_id,
+            create_time: value.create_time,
+        }
+    }
+}
+
+fn optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let value = value.trim().to_owned();
+        (!value.is_empty()).then_some(value)
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -448,6 +493,23 @@ pub(crate) fn funds_projection(
         header: header.into(),
         funds: funds.into(),
     }
+}
+pub(crate) fn cash_flows_projection(
+    payload: trade_proto::trd_flow_summary::S2c,
+) -> Vec<TradeCashFlowSnapshot> {
+    let header: TradeHeader = payload.header.into();
+    let mut flows = payload
+        .flow_summary_info_list
+        .into_iter()
+        .map(|flow| TradeCashFlowSnapshot::from_proto(header.clone(), flow))
+        .collect::<Vec<_>>();
+    flows.sort_by_key(|flow| {
+        (
+            Reverse(flow.clearing_date.as_deref().unwrap_or_default().to_owned()),
+            Reverse(flow.cash_flow_id.unwrap_or_default()),
+        )
+    });
+    flows
 }
 pub(crate) fn positions_projection(
     payload: trade_proto::trd_get_position_list::S2c,

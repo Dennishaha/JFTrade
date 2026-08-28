@@ -81,6 +81,26 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .map_err(session_error)?;
                 Ok(funds_value(&resolved, funds))
             }
+            "cash-flows" => {
+                let clearing_date = request
+                    .clearing_date()
+                    .ok_or_else(|| BrokerReadSnapshotError::Invalid("query parameter clearingDate is required".to_owned()))?;
+                let resolved = request
+                    .resolve_account(client.as_ref())
+                    .map_err(map_broker_header_error)?;
+                let flows = client
+                    .read_cash_flows(
+                        resolved.header.clone(),
+                        clearing_date,
+                        request.cash_flow_direction(),
+                    )
+                    .map_err(session_error)?;
+                let cash_flows = flows
+                    .into_iter()
+                    .map(|flow| cash_flow_value(&resolved, flow))
+                    .collect::<Vec<_>>();
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "cashFlows": cash_flows}))
+            }
             "positions" => {
                 let resolved = request
                     .resolve_account(client.as_ref())
@@ -400,6 +420,22 @@ impl TradeRequest {
         self.query.get_first("refreshCache").and_then(|v| match v.to_ascii_lowercase().as_str() { "1" | "true" => Some(true), "0" | "false" => Some(false), _ => None })
     }
 
+    fn clearing_date(&self) -> Option<String> {
+        self.query
+            .get_first("clearingDate")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    }
+
+    fn cash_flow_direction(&self) -> Option<i32> {
+        match self.query.get_first("direction").map(str::trim).map(str::to_ascii_uppercase).as_deref() {
+            Some("IN") | Some("CASH_FLOW_DIRECTION_IN") => Some(1),
+            Some("OUT") | Some("CASH_FLOW_DIRECTION_OUT") => Some(2),
+            _ => None,
+        }
+    }
+
     fn filter(&self) -> Option<TradeFilter> {
         self.query.get_first("symbol").map(|symbol| TradeFilter { code_list: vec![symbol.rsplit('.').next().unwrap_or(symbol).to_owned()], ..TradeFilter::default() })
     }
@@ -495,6 +531,33 @@ fn order_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::
 
 fn fill_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
     json!({"accountId": request.account_id, "brokerFillId": value.fill_id.to_string(), "brokerFillIdEx": non_empty(&value.fill_id_ex), "brokerOrderId": value.order_id.map(|v| v.to_string()).unwrap_or_default(), "brokerOrderIdEx": value.order_id_ex, "fillPrice": value.price, "filledAt": canonical_time(&value.create_time), "filledQuantity": value.qty, "market": request.market, "side": trade_side(value.trd_side), "status": value.status.map(fill_status_label), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "tradingEnvironment": request.environment})
+}
+
+fn cash_flow_value(
+    request: &ResolvedTradeRequest,
+    value: jftrade_integration_futu::TradeCashFlowSnapshot,
+) -> Value {
+    json!({
+        "accountId": request.account_id,
+        "tradingEnvironment": request.environment,
+        "market": request.market,
+        "cashFlowId": value.cash_flow_id.map(|id| id.to_string()),
+        "clearingDate": value.clearing_date,
+        "settlementDate": value.settlement_date,
+        "currency": currency_label(value.currency),
+        "cashFlowType": value.cash_flow_type,
+        "cashFlowDirection": value.cash_flow_direction.map(cash_flow_direction_label),
+        "cashFlowAmount": value.cash_flow_amount,
+        "cashFlowRemark": value.cash_flow_remark,
+    })
+}
+
+fn cash_flow_direction_label(value: i32) -> &'static str {
+    match value {
+        1 => "IN",
+        2 => "OUT",
+        _ => "UNKNOWN",
+    }
 }
 
 fn qualify_symbol(market: &str, code: &str) -> String {
@@ -621,7 +684,7 @@ fn map_portfolio_header_error(message: String) -> PortfolioSnapshotError {
 mod tests {
     use super::*;
     use jftrade_integration_futu::{
-        TradeAccountSnapshot, TradeFillSnapshot, TradeFunds, TradeFundsSnapshot,
+        TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds, TradeFundsSnapshot,
         TradeOrderSnapshot, TradePositionSnapshot,
     };
 
@@ -659,6 +722,20 @@ mod tests {
                 exposure_limit: None, used_limit: None, remaining_limit: None,
             } })
         }
+        fn read_cash_flows(&self, header: TradeHeader, _: String, _: Option<i32>) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+            Ok(vec![TradeCashFlowSnapshot {
+                header,
+                clearing_date: Some("2026-08-21".to_owned()),
+                settlement_date: Some("2026-08-22".to_owned()),
+                currency: Some(2),
+                cash_flow_type: Some("DIVIDEND".to_owned()),
+                cash_flow_direction: Some(1),
+                cash_flow_amount: Some(12.5),
+                cash_flow_remark: Some("fixture".to_owned()),
+                cash_flow_id: Some(9),
+                create_time: None,
+            }])
+        }
         fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
         fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
         fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
@@ -683,6 +760,27 @@ mod tests {
         let value = port.read("/api/v1/brokers/futu/funds", "accountId=42&market=US").expect("funds");
         assert_eq!(value["summary"]["totalAssets"], 2.0);
         assert_eq!(value["connectivity"], "connected");
+    }
+
+    #[test]
+    fn broker_read_projects_cash_flows_with_baseline_fields_and_sorting() {
+        let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+        let value = port
+            .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US&clearingDate=2026-08-21&direction=IN")
+            .expect("cash flows");
+        assert_eq!(value["connectivity"], "connected");
+        assert_eq!(value["cashFlows"][0]["cashFlowId"], "9");
+        assert_eq!(value["cashFlows"][0]["cashFlowDirection"], "IN");
+        assert_eq!(value["cashFlows"][0]["cashFlowAmount"], 12.5);
+    }
+
+    #[test]
+    fn cash_flows_require_clearing_date() {
+        let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+        let error = port
+            .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US")
+            .expect_err("missing clearing date");
+        assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("clearingDate")));
     }
 
     #[test]

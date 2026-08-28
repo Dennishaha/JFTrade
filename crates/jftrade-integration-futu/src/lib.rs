@@ -66,8 +66,9 @@ pub use subscriptions::{
 pub use trade_proto::ResponseError;
 pub use trade_session::{OpenDTradeReadClient, TradeReadPort, TradeSessionError, trade_header};
 pub use trade_snapshots::{
-    TradeAccountSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot, TradeFilter, TradeFunds,
-    TradeFundsSnapshot, TradeHeader, TradeMarketInfo, TradeOrderSnapshot, TradePositionSnapshot,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot,
+    TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarketInfo, TradeOrderSnapshot,
+    TradePositionSnapshot,
 };
 pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,

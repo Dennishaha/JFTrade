@@ -12,7 +12,9 @@ pub mod trd_common {
 
 use crate::trade_proto_fill_validation::validate_fill_s2c;
 use crate::trade_proto_order_validation::validate_order_s2c;
-use crate::trade_proto_validation::{validate_account_s2c, validate_funds, validate_position_s2c};
+use crate::trade_proto_validation::{
+    validate_account_s2c, validate_cash_flow_s2c, validate_funds, validate_position_s2c,
+};
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ResponseError {
@@ -168,6 +170,14 @@ trade_list_proto!(
     2001,
     validate_account_s2c
 );
+
+trade_list_proto!(
+    trd_flow_summary,
+    "trd_flow_summary.rs",
+    "FlowSummary",
+    2226,
+    validate_cash_flow_s2c
+);
 trade_funds_proto!(trd_get_funds, "trd_get_funds.rs", "GetFunds", 2101);
 trade_list_proto!(
     trd_get_position_list,
@@ -196,8 +206,8 @@ mod tests {
     use prost::Message;
 
     use super::{
-        ResponseError, ValidationError, trd_common, trd_get_acc_list, trd_get_funds,
-        trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
+        ResponseError, ValidationError, trd_common, trd_flow_summary, trd_get_acc_list,
+        trd_get_funds, trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
     };
 
     fn header() -> trd_common::TrdHeader {
@@ -636,6 +646,44 @@ mod tests {
                 field,
                 operation: "GetOrderFillList"
             })) if field == "update_timestamp"
+        ));
+    }
+
+    #[test]
+    fn cash_flow_response_decodes_and_rejects_non_finite_amount() {
+        let response = trd_flow_summary::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_flow_summary::S2c {
+                header: header(),
+                flow_summary_info_list: vec![trd_flow_summary::FlowSummaryInfo {
+                    clearing_date: Some("2026-08-21".to_owned()),
+                    cash_flow_amount: Some(42.5),
+                    ..Default::default()
+                }],
+            }),
+        };
+        let decoded = trd_flow_summary::decode_response(&response.encode_to_vec()).expect("flow");
+        assert_eq!(
+            decoded.flow_summary_info_list[0].cash_flow_amount,
+            Some(42.5)
+        );
+
+        let invalid = trd_flow_summary::Response {
+            s2c: Some(trd_flow_summary::S2c {
+                header: header(),
+                flow_summary_info_list: vec![trd_flow_summary::FlowSummaryInfo {
+                    cash_flow_amount: Some(f64::NAN),
+                    ..Default::default()
+                }],
+            }),
+            ..response
+        };
+        assert!(matches!(
+            trd_flow_summary::decode_response(&invalid.encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite { field, operation: "FlowSummary" }))
+                if field == "cash_flow_amount"
         ));
     }
 }
