@@ -17,6 +17,7 @@ mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
 mod trading;
+mod trade_proto_validation;
 pub mod trade_proto;
 mod transport;
 
