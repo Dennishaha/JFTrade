@@ -17,6 +17,7 @@ mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
 mod trading;
+pub mod trade_proto;
 mod transport;
 
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
