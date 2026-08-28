@@ -12,6 +12,7 @@ pub mod trd_common {
 
 use crate::trade_proto_fee_validation::validate_order_fee_s2c;
 use crate::trade_proto_fill_validation::validate_fill_s2c;
+use crate::trade_proto_margin_ratio_validation::validate_margin_ratio_s2c;
 use crate::trade_proto_order_validation::validate_order_s2c;
 use crate::trade_proto_validation::{
     validate_account_s2c, validate_cash_flow_s2c, validate_funds, validate_position_s2c,
@@ -208,15 +209,22 @@ trade_list_proto!(
     2225,
     validate_order_fee_s2c
 );
+trade_list_proto!(
+    trd_get_margin_ratio,
+    "trd_get_margin_ratio.rs",
+    "GetMarginRatio",
+    2223,
+    validate_margin_ratio_s2c
+);
 
 #[cfg(test)]
 mod tests {
     use prost::Message;
 
     use super::{
-        ResponseError, ValidationError, trd_common, trd_flow_summary, trd_get_acc_list,
-        trd_get_funds, trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list,
-        trd_get_position_list,
+        ResponseError, ValidationError, qot_common, trd_common, trd_flow_summary, trd_get_acc_list,
+        trd_get_funds, trd_get_margin_ratio, trd_get_order_fee, trd_get_order_fill_list,
+        trd_get_order_list, trd_get_position_list,
     };
 
     fn header() -> trd_common::TrdHeader {
@@ -360,6 +368,46 @@ mod tests {
                 operation: "GetOrderFee",
                 field
             })) if field == "fee_amount"
+        ));
+    }
+
+    #[test]
+    fn margin_ratio_response_validates_security_and_finite_fields() {
+        let response = trd_get_margin_ratio::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_margin_ratio::S2c {
+                header: header(),
+                margin_ratio_info_list: vec![trd_get_margin_ratio::MarginRatioInfo {
+                    security: qot_common::Security {
+                        market: 11,
+                        code: "AAPL".to_owned(),
+                    },
+                    is_long_permit: Some(true),
+                    is_short_permit: None,
+                    short_pool_remain: None,
+                    short_fee_rate: Some(0.02),
+                    alert_long_ratio: None,
+                    alert_short_ratio: None,
+                    im_long_ratio: Some(0.3),
+                    im_short_ratio: None,
+                    mcm_long_ratio: None,
+                    mcm_short_ratio: None,
+                    mm_long_ratio: None,
+                    mm_short_ratio: Some(0.4),
+                }],
+            }),
+        };
+        let decoded =
+            trd_get_margin_ratio::decode_response(&response.encode_to_vec()).expect("margin ratio");
+        assert_eq!(decoded.margin_ratio_info_list.len(), 1);
+
+        let mut invalid = response;
+        invalid.s2c.as_mut().expect("s2c").margin_ratio_info_list[0].im_long_ratio = Some(f64::NAN);
+        assert!(matches!(
+            trd_get_margin_ratio::decode_response(&invalid.encode_to_vec()),
+            Err(ResponseError::Validation(ValidationError::NonFinite { operation: "GetMarginRatio", field })) if field == "im_long_ratio"
         ));
     }
 

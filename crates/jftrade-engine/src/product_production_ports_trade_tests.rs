@@ -66,6 +66,26 @@ impl TradeReadPort for FakeTradeRead {
         }])
     }
 
+    fn read_margin_ratios(&self, header: TradeHeader, _: Vec<TradeSecurity>) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        Ok(vec![TradeMarginRatioSnapshot {
+            header,
+            market: "US".to_owned(),
+            symbol: "US.AAPL".to_owned(),
+            is_long_permit: Some(true),
+            is_short_permit: Some(false),
+            short_pool_remain: Some(100.0),
+            short_fee_rate: Some(0.02),
+            alert_long_ratio: Some(0.5),
+            alert_short_ratio: None,
+            initial_margin_long_ratio: Some(0.3),
+            initial_margin_short_ratio: None,
+            margin_call_long_ratio: None,
+            margin_call_short_ratio: None,
+            maintenance_long_ratio: None,
+            maintenance_short_ratio: Some(0.4),
+        }])
+    }
+
     fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
     fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
@@ -135,6 +155,37 @@ fn order_fees_require_at_least_one_non_empty_order_id() {
         .read("/api/v1/brokers/futu/order-fees", "accountId=42&market=US&orderIdEx=,")
         .expect_err("missing order id");
     assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("orderIdEx")));
+}
+
+#[test]
+fn broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values() {
+    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let value = port
+        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US&symbol=US.AAPL")
+        .expect("margin ratios");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["marginRatios"][0]["tradingEnvironment"], "REAL");
+    assert_eq!(value["marginRatios"][0]["symbol"], "US.AAPL");
+    assert_eq!(value["marginRatios"][0]["shortFeeRate"], 0.02);
+    assert!(value["marginRatios"][0].get("alertShortRatio").is_none());
+}
+
+#[test]
+fn margin_ratios_require_symbols() {
+    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let error = port
+        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US")
+        .expect_err("missing symbol");
+    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+}
+
+#[test]
+fn margin_ratios_reject_symbol_with_conflicting_market() {
+    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let error = port
+        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US&symbol=HK.00700")
+        .expect_err("conflicting market");
+    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("market")));
 }
 
 #[test]

@@ -8,8 +8,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
-    TradeFilter, TradeFundsSnapshot, TradeHeader, TradeOrderFeeSnapshot, TradeReadPort,
-    TradeSessionError,
+    TradeFilter, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
+    TradeOrderFeeSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
     trade_header,
 };
 use jftrade_settings::MarketDataProvider;
@@ -117,6 +117,22 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .map(|fee| order_fee_value(&resolved, fee))
                     .collect::<Vec<_>>();
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fees": fees}))
+            }
+            "margin-ratios" => {
+                let securities = request
+                    .securities()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let resolved = request
+                    .resolve_account_real_for_market(client.as_ref(), securities[0].market)
+                    .map_err(map_broker_header_error)?;
+                let ratios = client
+                    .read_margin_ratios(resolved.header.clone(), securities)
+                    .map_err(session_error)?;
+                let ratios = ratios
+                    .into_iter()
+                    .map(|ratio| margin_ratio_value(&resolved, ratio))
+                    .collect::<Vec<_>>();
+                Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "marginRatios": ratios}))
             }
             "positions" => {
                 let resolved = request
@@ -331,9 +347,23 @@ impl TradeRequest {
         Ok(trade_header(env, acc_id, market))
     }
 
-    fn resolve_account(
+    fn resolve_account(&self, client: &dyn TradeReadPort) -> Result<ResolvedTradeRequest, String> {
+        self.resolve_account_with_environment(client, None, None)
+    }
+
+    fn resolve_account_real_for_market(
         &self,
         client: &dyn TradeReadPort,
+        market: i32,
+    ) -> Result<ResolvedTradeRequest, String> {
+        self.resolve_account_with_environment(client, Some(1), qot_market_label(market))
+    }
+
+    fn resolve_account_with_environment(
+        &self,
+        client: &dyn TradeReadPort,
+        forced_environment: Option<i32>,
+        forced_market: Option<&str>,
     ) -> Result<ResolvedTradeRequest, String> {
         let accounts = client
             .read_accounts(0, None, None)
@@ -342,13 +372,10 @@ impl TradeRequest {
             return Err("no Futu trading accounts discovered".to_owned());
         }
         let requested_account = self.account_id().map(str::to_ascii_lowercase);
-        let requested_environment = self.environment_code()?;
-        let requested_market = self
-            .query
-            .get_first("market")
-            .map(str::trim)
-            .filter(|market| !market.is_empty())
-            .map(str::to_ascii_uppercase);
+        let requested_environment = forced_environment.or(self.environment_code()?);
+        let requested_market = forced_market
+            .map(str::to_ascii_uppercase)
+            .or_else(|| self.query.get_first("market").map(str::trim).filter(|market| !market.is_empty()).map(str::to_ascii_uppercase));
         let mut candidates = accounts.into_iter().filter(|account| {
             let account_id = account_identity(account);
             let account_matches = requested_account
@@ -469,6 +496,46 @@ impl TradeRequest {
         }
     }
 
+    fn securities(&self) -> Result<Vec<TradeSecurity>, String> {
+        let mut securities = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let explicit_market = self.query.get_first("market").map(str::trim).filter(|v| !v.is_empty()).map(str::to_ascii_uppercase);
+        for key in ["symbol", "symbols"] {
+            let default_market = self.market_label();
+            for raw in self.query.get_all(key).unwrap_or(&[]) {
+                for part in raw.split(',') {
+                    let value = part.trim();
+                    if value.is_empty() {
+                        continue;
+                    }
+                    let (market, code) = value.split_once('.').unwrap_or((default_market.as_str(), value));
+                    let market = market.trim().to_ascii_uppercase();
+                    let code = code.trim().to_ascii_uppercase();
+                    if code.is_empty() {
+                        continue;
+                    }
+                    if let Some(expected) = explicit_market.as_deref()
+                        && value.contains('.')
+                        && market != expected
+                        && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ"))
+                    {
+                        return Err(format!("query parameter symbol {value:?} is invalid for market {expected}"));
+                    }
+                    let market_code = quote_market_code(&market)
+                        .ok_or_else(|| format!("invalid market: {market}"))?;
+                    if seen.insert(format!("{market}:{code}")) {
+                        securities.push(TradeSecurity { market: market_code, code });
+                    }
+                }
+            }
+        }
+        if securities.is_empty() {
+            Err("query parameter symbol is required".to_owned())
+        } else {
+            Ok(securities)
+        }
+    }
+
     fn cash_flow_direction(&self) -> Option<i32> {
         match self.query.get_first("direction").map(str::trim).map(str::to_ascii_uppercase).as_deref() {
             Some("IN") | Some("CASH_FLOW_DIRECTION_IN") => Some(1),
@@ -514,6 +581,36 @@ fn market_code(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
         "HK" => Ok(1), "US" => Ok(2), "SH" | "SZ" | "CN" => Ok(3),
         value => Err(format!("invalid market: {value}")),
+    }
+}
+
+fn quote_market_code(value: &str) -> Option<i32> {
+    match value {
+        "HK" => Some(1),
+        "US" => Some(11),
+        "SH" | "CN" => Some(21),
+        "SZ" => Some(22),
+        "SG" => Some(31),
+        "JP" => Some(41),
+        "AU" => Some(51),
+        "MY" => Some(61),
+        "CA" => Some(71),
+        _ => None,
+    }
+}
+
+fn qot_market_label(value: i32) -> Option<&'static str> {
+    match value {
+        1 => Some("HK"),
+        11 => Some("US"),
+        21 => Some("SH"),
+        22 => Some("SZ"),
+        31 => Some("SG"),
+        41 => Some("JP"),
+        51 => Some("AU"),
+        61 => Some("MY"),
+        71 => Some("CA"),
+        _ => None,
     }
 }
 
@@ -597,6 +694,36 @@ fn order_fee_value(request: &ResolvedTradeRequest, value: TradeOrderFeeSnapshot)
     if output["feeItems"].as_array().is_some_and(Vec::is_empty) {
         output.as_object_mut().expect("fee object").remove("feeItems");
     }
+    output
+}
+
+fn margin_ratio_value(request: &ResolvedTradeRequest, value: TradeMarginRatioSnapshot) -> Value {
+    let mut output = json!({
+        "accountId": request.account_id,
+        "tradingEnvironment": request.environment,
+        "market": if value.market.is_empty() { request.market.clone() } else { value.market },
+        "symbol": value.symbol,
+    });
+    let object = output.as_object_mut().expect("margin ratio object");
+    macro_rules! optional {
+        ($name:literal, $value:expr) => {
+            if let Some(value) = $value {
+                object.insert($name.to_owned(), json!(value));
+            }
+        };
+    }
+    optional!("isLongPermit", value.is_long_permit);
+    optional!("isShortPermit", value.is_short_permit);
+    optional!("shortPoolRemain", value.short_pool_remain);
+    optional!("shortFeeRate", value.short_fee_rate);
+    optional!("alertLongRatio", value.alert_long_ratio);
+    optional!("alertShortRatio", value.alert_short_ratio);
+    optional!("initialMarginLongRatio", value.initial_margin_long_ratio);
+    optional!("initialMarginShortRatio", value.initial_margin_short_ratio);
+    optional!("marginCallLongRatio", value.margin_call_long_ratio);
+    optional!("marginCallShortRatio", value.margin_call_short_ratio);
+    optional!("maintenanceLongRatio", value.maintenance_long_ratio);
+    optional!("maintenanceShortRatio", value.maintenance_short_ratio);
     output
 }
 

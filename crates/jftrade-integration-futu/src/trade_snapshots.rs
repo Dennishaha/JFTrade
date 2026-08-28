@@ -117,6 +117,31 @@ pub struct TradeOrderFeeSnapshot {
     pub fee_items: Vec<TradeOrderFeeItemSnapshot>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct TradeSecurity {
+    pub market: i32,
+    pub code: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeMarginRatioSnapshot {
+    pub header: TradeHeader,
+    pub market: String,
+    pub symbol: String,
+    pub is_long_permit: Option<bool>,
+    pub is_short_permit: Option<bool>,
+    pub short_pool_remain: Option<f64>,
+    pub short_fee_rate: Option<f64>,
+    pub alert_long_ratio: Option<f64>,
+    pub alert_short_ratio: Option<f64>,
+    pub initial_margin_long_ratio: Option<f64>,
+    pub initial_margin_short_ratio: Option<f64>,
+    pub margin_call_long_ratio: Option<f64>,
+    pub margin_call_short_ratio: Option<f64>,
+    pub maintenance_long_ratio: Option<f64>,
+    pub maintenance_short_ratio: Option<f64>,
+}
+
 /// A single account cash-flow entry returned by Trd_FlowSummary.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TradeCashFlowSnapshot {
@@ -532,6 +557,60 @@ pub(crate) fn order_fees_projection(
         .collect::<Vec<_>>();
     fees.sort_by(|left, right| left.broker_order_id_ex.cmp(&right.broker_order_id_ex));
     fees
+}
+
+pub(crate) fn margin_ratios_projection(
+    payload: trade_proto::trd_get_margin_ratio::S2c,
+) -> Vec<TradeMarginRatioSnapshot> {
+    let header: TradeHeader = payload.header.into();
+    let mut ratios = payload
+        .margin_ratio_info_list
+        .into_iter()
+        .map(|info| {
+            let security = info.security;
+            let market = qot_market_label(security.market).unwrap_or_default();
+            let code = security.code.trim().to_ascii_uppercase();
+            let symbol = if market.is_empty() {
+                String::new()
+            } else {
+                format!("{market}.{code}")
+            };
+            TradeMarginRatioSnapshot {
+                header: header.clone(),
+                market: market.to_owned(),
+                symbol,
+                is_long_permit: info.is_long_permit,
+                is_short_permit: info.is_short_permit,
+                short_pool_remain: info.short_pool_remain,
+                short_fee_rate: info.short_fee_rate,
+                alert_long_ratio: info.alert_long_ratio,
+                alert_short_ratio: info.alert_short_ratio,
+                initial_margin_long_ratio: info.im_long_ratio,
+                initial_margin_short_ratio: info.im_short_ratio,
+                margin_call_long_ratio: info.mcm_long_ratio,
+                margin_call_short_ratio: info.mcm_short_ratio,
+                maintenance_long_ratio: info.mm_long_ratio,
+                maintenance_short_ratio: info.mm_short_ratio,
+            }
+        })
+        .collect::<Vec<_>>();
+    ratios.sort_by(|left, right| left.symbol.cmp(&right.symbol));
+    ratios
+}
+
+fn qot_market_label(value: i32) -> Option<&'static str> {
+    match value {
+        1 => Some("HK"),
+        11 => Some("US"),
+        21 => Some("SH"),
+        22 => Some("SZ"),
+        31 => Some("SG"),
+        41 => Some("JP"),
+        51 => Some("AU"),
+        61 => Some("MY"),
+        71 => Some("CA"),
+        _ => None,
+    }
 }
 pub(crate) fn cash_flows_projection(
     payload: trade_proto::trd_flow_summary::S2c,

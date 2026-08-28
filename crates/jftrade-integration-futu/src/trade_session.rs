@@ -7,13 +7,15 @@ use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
     ResponseError, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
-    trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
+    trd_get_margin_ratio, trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list,
+    trd_get_position_list,
 };
 use crate::trade_snapshots::{
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFilter,
-    TradeFundsSnapshot, TradeHeader, TradeOrderFeeSnapshot, TradeOrderSnapshot,
-    TradePositionSnapshot, account_projection, cash_flows_projection, fills_projection,
-    funds_projection, order_fees_projection, orders_projection, positions_projection,
+    TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot, TradeOrderFeeSnapshot,
+    TradeOrderSnapshot, TradePositionSnapshot, TradeSecurity, account_projection,
+    cash_flows_projection, fills_projection, funds_projection, margin_ratios_projection,
+    order_fees_projection, orders_projection, positions_projection,
 };
 
 /// Engine-facing read contract for the authenticated OpenD trade account.
@@ -48,6 +50,12 @@ pub trait TradeReadPort: Send + Sync {
         header: TradeHeader,
         order_id_ex_list: Vec<String>,
     ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError>;
+
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError>;
 
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
@@ -180,6 +188,17 @@ impl OpenDTradeReadClient {
             &trd_get_order_fee::encode_request(&request),
         )?;
         Ok(trd_get_order_fee::decode_response(&body)?)
+    }
+
+    pub(crate) fn get_margin_ratio(
+        &self,
+        request: trd_get_margin_ratio::Request,
+    ) -> Result<trd_get_margin_ratio::S2c, TradeSessionError> {
+        let body = self.call(
+            trd_get_margin_ratio::PROTOCOL_ID,
+            &trd_get_margin_ratio::encode_request(&request),
+        )?;
+        Ok(trd_get_margin_ratio::decode_response(&body)?)
     }
 
     pub(crate) fn get_flow_summary(
@@ -327,9 +346,67 @@ impl OpenDTradeReadClient {
         Ok(order_fees_projection(payload))
     }
 
+    pub fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        let mut remaining = securities;
+        loop {
+            let payload = self.get_margin_ratio(trd_get_margin_ratio::Request {
+                c2s: trd_get_margin_ratio::C2s {
+                    header: header.clone().into(),
+                    security_list: remaining
+                        .iter()
+                        .map(|security| crate::trade_proto::qot_common::Security {
+                            market: security.market,
+                            code: security.code.clone(),
+                        })
+                        .collect(),
+                },
+            });
+            match payload {
+                Ok(payload) => return Ok(margin_ratios_projection(payload)),
+                Err(error) => {
+                    let Some(unknown_code) = unknown_security_code(&error) else {
+                        return Err(error);
+                    };
+                    let before = remaining.len();
+                    remaining.retain(|security| !security.code.eq_ignore_ascii_case(&unknown_code));
+                    if remaining.len() == before {
+                        return Err(error);
+                    }
+                    if remaining.is_empty() {
+                        return Ok(Vec::new());
+                    }
+                }
+            }
+        }
+    }
+
     fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
+}
+
+fn unknown_security_code(error: &TradeSessionError) -> Option<String> {
+    let message = error.to_string();
+    let lower = message.to_ascii_lowercase();
+    for marker in ["unknown stock", "unknown security", "未知股票"] {
+        let Some(index) = lower.find(&marker.to_ascii_lowercase()) else {
+            continue;
+        };
+        let tail = message[index + marker.len()..]
+            .trim_matches(|c: char| c.is_whitespace() || c == ':' || c == '"');
+        let code = tail
+            .split_whitespace()
+            .next()?
+            .trim_matches(|c: char| c == ',' || c == ';' || c == '"');
+        if !code.is_empty() {
+            return Some(code.to_owned());
+        }
+    }
+    None
 }
 
 /// Builds the common trade header used by funds, positions, orders and fills.
@@ -377,6 +454,14 @@ impl TradeReadPort for OpenDTradeReadClient {
         order_id_ex_list: Vec<String>,
     ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
         OpenDTradeReadClient::read_order_fees(self, header, order_id_ex_list)
+    }
+
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        securities: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        OpenDTradeReadClient::read_margin_ratios(self, header, securities)
     }
 
     #[allow(clippy::too_many_arguments)]

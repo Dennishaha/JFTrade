@@ -23,6 +23,7 @@ mod subscriptions;
 mod trade_proto;
 mod trade_proto_fee_validation;
 mod trade_proto_fill_validation;
+mod trade_proto_margin_ratio_validation;
 mod trade_proto_order_validation;
 mod trade_proto_validation;
 mod trade_session;
@@ -68,8 +69,9 @@ pub use trade_proto::ResponseError;
 pub use trade_session::{OpenDTradeReadClient, TradeReadPort, TradeSessionError, trade_header};
 pub use trade_snapshots::{
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot,
-    TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarketInfo,
-    TradeOrderFeeItemSnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot, TradePositionSnapshot,
+    TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
+    TradeMarketInfo, TradeOrderFeeItemSnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
+    TradePositionSnapshot, TradeSecurity,
 };
 pub use trading::{
     RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
