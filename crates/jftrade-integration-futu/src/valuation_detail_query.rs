@@ -230,9 +230,7 @@ fn validate_query(query: &ValuationDetailQuery) -> Result<(), ValuationDetailQue
     if code.is_empty()
         || code.len() > 128
         || code.chars().any(|value| {
-            value.is_whitespace()
-                || value.is_control()
-                || matches!(value, '.' | '/' | '\\' | '?' | '#')
+            value.is_whitespace() || value.is_control() || matches!(value, '/' | '\\' | '?' | '#')
         })
     {
         return Err(ValuationDetailQueryError::InvalidQuery(format!(

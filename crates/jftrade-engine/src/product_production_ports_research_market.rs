@@ -10,8 +10,8 @@ use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Map, Value, json};
 
-use crate::product::product_query::QueryMap;
 use crate::product::ResearchReadSnapshotError;
+use crate::product::product_query::QueryMap;
 
 const DEFAULT_LIMIT: usize = 20;
 const MAX_LIMIT: usize = 100;
@@ -53,11 +53,23 @@ fn read_rankings(
     helper: &HelperClient,
     query: &QueryMap,
 ) -> Result<Value, ResearchReadSnapshotError> {
-    let operation = query.get_first("operation").unwrap_or("").trim().to_ascii_lowercase();
+    let operation = query
+        .get_first("operation")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     let (kind, feature_id) = match operation.as_str() {
         "top_movers" => {
-            let direction = query.get_first("direction").unwrap_or("up").trim().to_ascii_lowercase();
-            let kind = if direction == "down" { "losers" } else { "gainers" };
+            let direction = query
+                .get_first("direction")
+                .unwrap_or("up")
+                .trim()
+                .to_ascii_lowercase();
+            let kind = if direction == "down" {
+                "losers"
+            } else {
+                "gainers"
+            };
             (kind, "research.rankings")
         }
         "hot" => ("active", "research.rankings"),
@@ -74,7 +86,11 @@ fn read_rankings(
         helper,
         provider_name,
         &["rankings"],
-        vec![("market", market.clone()), ("kind", kind.to_owned()), ("limit", limit.to_string())],
+        vec![
+            ("market", market.clone()),
+            ("kind", kind.to_owned()),
+            ("limit", limit.to_string()),
+        ],
     )?;
     let (entries, source, _response_market) = ranking_entries(&payload, &market, kind)?;
     Ok(feature_result(
@@ -91,7 +107,11 @@ fn read_industries(
     helper: &HelperClient,
     query: &QueryMap,
 ) -> Result<Value, ResearchReadSnapshotError> {
-    let operation = query.get_first("operation").unwrap_or("").trim().to_ascii_lowercase();
+    let operation = query
+        .get_first("operation")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     match operation.as_str() {
         "plate_list" => read_industry_boards(provider, helper, query, "research.industry"),
         "plate_members" => read_industry_members(provider, helper, query),
@@ -151,8 +171,12 @@ fn read_industry_members(
         &["industries", board.as_str(), "members"],
         extra,
     )?;
-    let (entries, source, _response_market) =
-        member_entries(&payload, &board, &market, (!kind.is_empty()).then_some(kind))?;
+    let (entries, source, _response_market) = member_entries(
+        &payload,
+        &board,
+        &market,
+        (!kind.is_empty()).then_some(kind),
+    )?;
     Ok(feature_result(
         provider_name,
         "research.industry",
@@ -162,7 +186,9 @@ fn read_industry_members(
     ))
 }
 
-fn helper_provider(provider: MarketDataProvider) -> Result<&'static str, ResearchReadSnapshotError> {
+fn helper_provider(
+    provider: MarketDataProvider,
+) -> Result<&'static str, ResearchReadSnapshotError> {
     match provider {
         MarketDataProvider::Yfinance => Ok("yfinance"),
         MarketDataProvider::Akshare => Ok("akshare"),
@@ -182,7 +208,11 @@ fn requested_market(
     } else {
         "US"
     };
-    let market = query.get_first("market").unwrap_or(fallback).trim().to_ascii_uppercase();
+    let market = query
+        .get_first("market")
+        .unwrap_or(fallback)
+        .trim()
+        .to_ascii_uppercase();
     if market.is_empty() {
         return Err(invalid("market is required"));
     }
@@ -198,7 +228,9 @@ fn ensure_ranking_market(
         MarketDataProvider::Akshare => matches!(market, "CN" | "SH" | "SZ" | "HK"),
         MarketDataProvider::Futu => false,
     };
-    supported.then_some(()).ok_or_else(|| capability("research.rankings", market))
+    supported
+        .then_some(())
+        .ok_or_else(|| capability("research.rankings", market))
 }
 
 fn ensure_industry_market(market: &str) -> Result<(), ResearchReadSnapshotError> {
@@ -208,7 +240,13 @@ fn ensure_industry_market(market: &str) -> Result<(), ResearchReadSnapshotError>
 }
 
 fn board_kind(query: &QueryMap) -> Result<&'static str, ResearchReadSnapshotError> {
-    match query.get_first("plateType").unwrap_or("").trim().to_ascii_lowercase().as_str() {
+    match query
+        .get_first("plateType")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "" | "industry" => Ok("industry"),
         "concept" => Ok("concept"),
         value => Err(capability("research.industry", value)),
@@ -216,7 +254,13 @@ fn board_kind(query: &QueryMap) -> Result<&'static str, ResearchReadSnapshotErro
 }
 
 fn member_board_kind(query: &QueryMap) -> Result<&'static str, ResearchReadSnapshotError> {
-    match query.get_first("plateType").unwrap_or("").trim().to_ascii_lowercase().as_str() {
+    match query
+        .get_first("plateType")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "" => Ok(""),
         "industry" => Ok("industry"),
         "concept" => Ok("concept"),
@@ -225,8 +269,14 @@ fn member_board_kind(query: &QueryMap) -> Result<&'static str, ResearchReadSnaps
 }
 
 fn member_board(query: &QueryMap) -> Result<(String, String), ResearchReadSnapshotError> {
-    let instrument = query.get_first("instrumentId").map(str::trim).filter(|v| !v.is_empty());
-    let requested = query.get_first("market").map(str::trim).filter(|v| !v.is_empty());
+    let instrument = query
+        .get_first("instrumentId")
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let requested = query
+        .get_first("market")
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
     let (market, board) = if let Some(instrument) = instrument {
         let (market, board) = instrument
             .split_once('.')
@@ -238,7 +288,10 @@ fn member_board(query: &QueryMap) -> Result<(String, String), ResearchReadSnapsh
         .map(str::trim)
         .filter(|v| !v.is_empty())
     {
-        (requested.unwrap_or("CN").to_ascii_uppercase(), board.to_owned())
+        (
+            requested.unwrap_or("CN").to_ascii_uppercase(),
+            board.to_owned(),
+        )
     } else {
         return Err(invalid("plate_members requires a plate instrumentId"));
     };
@@ -254,18 +307,21 @@ fn member_board(query: &QueryMap) -> Result<(String, String), ResearchReadSnapsh
 }
 
 fn request_limit(query: &QueryMap) -> Result<usize, ResearchReadSnapshotError> {
-    let raw = query
-        .get_first("pageSize")
-        .or_else(|| query.get_first("limit"));
-    let Some(raw) = raw else { return Ok(DEFAULT_LIMIT) };
-    let parsed = raw
-        .trim()
-        .parse::<usize>()
-        .map_err(|_| invalid("pageSize must be an integer"))?;
-    if parsed == 0 {
-        return Ok(DEFAULT_LIMIT);
-    }
-    Ok(parsed.min(MAX_LIMIT).max(1))
+    // Go's embeddedRankingsLimit receives pageSize through strconv.Atoi and
+    // treats zero, negatives, and malformed values as "not supplied".  It
+    // then falls back to the legacy limit query before applying the default
+    // and the provider's [1, 100] bounds.  Keep the same precedence here so a
+    // stale pageSize cannot hide an explicitly supplied legacy limit.
+    let positive = |value: Option<&str>| {
+        value
+            .and_then(|value| value.trim().parse::<i64>().ok())
+            .filter(|value| *value > 0)
+            .and_then(|value| usize::try_from(value).ok())
+    };
+    let parsed = positive(query.get_first("pageSize"))
+        .or_else(|| positive(query.get_first("limit")))
+        .unwrap_or(DEFAULT_LIMIT);
+    Ok(parsed.clamp(1, MAX_LIMIT))
 }
 
 fn fetch_json(
@@ -298,7 +354,9 @@ fn fetch_json(
         ))
     })
     .join()
-    .map_err(|_| ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned()))?;
+    .map_err(|_| {
+        ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned())
+    })?;
     result.map_err(map_helper_error)
 }
 
@@ -314,7 +372,10 @@ fn ranking_entries(
         .get("entries")
         .and_then(Value::as_array)
         .ok_or_else(|| bad_gateway("market rankings response is missing entries"))?;
-    let projected = entries.iter().map(project_ranking_entry).collect::<Result<Vec<_>, _>>()?;
+    let projected = entries
+        .iter()
+        .map(project_ranking_entry)
+        .collect::<Result<Vec<_>, _>>()?;
     let market = object
         .get("market")
         .and_then(Value::as_str)
@@ -322,7 +383,9 @@ fn ranking_entries(
         .ok_or_else(|| bad_gateway("market rankings response is missing market"))?
         .to_ascii_uppercase();
     if market != expected_market {
-        return Err(bad_gateway("market rankings response market does not match request"));
+        return Err(bad_gateway(
+            "market rankings response market does not match request",
+        ));
     }
     let kind = object
         .get("kind")
@@ -331,7 +394,9 @@ fn ranking_entries(
         .filter(|v| !v.is_empty())
         .ok_or_else(|| bad_gateway("market rankings response is missing kind"))?;
     if !kind.eq_ignore_ascii_case(expected_kind) {
-        return Err(bad_gateway("market rankings response kind does not match request"));
+        return Err(bad_gateway(
+            "market rankings response kind does not match request",
+        ));
     }
     let source = object
         .get("source")
@@ -361,7 +426,9 @@ fn industry_board_entries(
         .ok_or_else(|| bad_gateway("industry response is missing market"))?
         .to_ascii_uppercase();
     if market != expected_market {
-        return Err(bad_gateway("industry response market does not match request"));
+        return Err(bad_gateway(
+            "industry response market does not match request",
+        ));
     }
     let kind = object
         .get("kind")
@@ -392,7 +459,12 @@ fn industry_board_entries(
         copy_field(object, &mut value, "turnover", "turnover");
         copy_field(object, &mut value, "volume", "volume");
         copy_field(object, &mut value, "leading_stock_name", "leadingStockName");
-        copy_field(object, &mut value, "leading_stock_change_rate", "leadingStockChangeRate");
+        copy_field(
+            object,
+            &mut value,
+            "leading_stock_change_rate",
+            "leadingStockChangeRate",
+        );
         projected.push(Value::Object(value));
     }
     let source = object_source(payload, "market-data-industries");
@@ -412,7 +484,10 @@ fn member_entries(
         .get("entries")
         .and_then(Value::as_array)
         .ok_or_else(|| bad_gateway("industry members response is missing entries"))?;
-    let projected = entries.iter().map(project_ranking_entry).collect::<Result<Vec<_>, _>>()?;
+    let projected = entries
+        .iter()
+        .map(project_ranking_entry)
+        .collect::<Result<Vec<_>, _>>()?;
     let market = object
         .get("market")
         .and_then(Value::as_str)
@@ -420,7 +495,9 @@ fn member_entries(
         .ok_or_else(|| bad_gateway("industry members response is missing market"))?
         .to_ascii_uppercase();
     if market != expected_market {
-        return Err(bad_gateway("industry members response market does not match request"));
+        return Err(bad_gateway(
+            "industry members response market does not match request",
+        ));
     }
     let response_kind = object
         .get("kind")
@@ -429,7 +506,9 @@ fn member_entries(
         .filter(|v| !v.is_empty())
         .ok_or_else(|| bad_gateway("industry members response is missing kind"))?;
     if expected_kind.is_some_and(|kind| !response_kind.eq_ignore_ascii_case(kind)) {
-        return Err(bad_gateway("industry members response kind does not match request"));
+        return Err(bad_gateway(
+            "industry members response kind does not match request",
+        ));
     }
     let board = object
         .get("board")
@@ -440,7 +519,11 @@ fn member_entries(
     if !board.eq_ignore_ascii_case(expected_board) {
         return Err(bad_gateway("industry members board does not match request"));
     }
-    Ok((projected, object_source(payload, "market-data-industries"), market))
+    Ok((
+        projected,
+        object_source(payload, "market-data-industries"),
+        market,
+    ))
 }
 
 fn project_ranking_entry(value: &Value) -> Result<Value, ResearchReadSnapshotError> {
@@ -543,7 +626,9 @@ fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
         code: "CAPABILITY_UNAVAILABLE".to_owned(),
-        message: format!("embedded market-data provider does not serve {feature} operation/market {operation:?}"),
+        message: format!(
+            "embedded market-data provider does not serve {feature} operation/market {operation:?}"
+        ),
         retry_after_seconds: None,
     }
 }
@@ -566,7 +651,11 @@ fn map_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
             retry_after_seconds,
         } => ResearchReadSnapshotError::Failed {
             status,
-            code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
+            code: if code.is_empty() {
+                "BAD_GATEWAY".to_owned()
+            } else {
+                code
+            },
             message,
             retry_after_seconds,
         },
@@ -583,5 +672,34 @@ fn map_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
             retry_after_seconds: None,
         },
         other => ResearchReadSnapshotError::Unavailable(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rankings_limit_prefers_positive_page_size() {
+        let query = QueryMap::parse("pageSize=40&limit=5").expect("query");
+        assert_eq!(request_limit(&query).expect("limit"), 40);
+    }
+
+    #[test]
+    fn rankings_limit_falls_back_to_legacy_limit_and_default() {
+        let zero = QueryMap::parse("pageSize=0&limit=5").expect("query");
+        assert_eq!(request_limit(&zero).expect("legacy fallback"), 5);
+
+        let malformed = QueryMap::parse("pageSize=bad&limit=-2").expect("query");
+        assert_eq!(request_limit(&malformed).expect("default"), DEFAULT_LIMIT);
+
+        let empty = QueryMap::parse("").expect("query");
+        assert_eq!(request_limit(&empty).expect("default"), DEFAULT_LIMIT);
+    }
+
+    #[test]
+    fn rankings_limit_clamps_to_provider_bounds() {
+        let query = QueryMap::parse("pageSize=10000").expect("query");
+        assert_eq!(request_limit(&query).expect("clamp"), MAX_LIMIT);
     }
 }

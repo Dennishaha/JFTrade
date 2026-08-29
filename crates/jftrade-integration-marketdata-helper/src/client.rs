@@ -22,9 +22,13 @@ pub struct HelperClientConfig {
 pub struct HelperHealth {
     pub provider: String,
     pub runtime_state: ProviderReadiness,
-    #[serde(default)]
+    #[serde(default, alias = "provider_version", alias = "yfinance_version")]
     pub version: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "warmup_error"
+    )]
     pub last_error: Option<String>,
 }
 
@@ -351,6 +355,19 @@ mod tests {
             Some("0123456789abcdef0123456789abcdef"),
         ))
         .expect("valid client");
+    }
+
+    #[test]
+    fn helper_health_accepts_sidecar_version_and_warmup_error_names() {
+        let health: HelperHealth = serde_json::from_value(serde_json::json!({
+            "provider": "yfinance",
+            "runtime_state": "failed",
+            "yfinance_version": "0.2.0",
+            "warmup_error": "network unavailable"
+        }))
+        .expect("sidecar health response");
+        assert_eq!(health.version, "0.2.0");
+        assert_eq!(health.last_error.as_deref(), Some("network unavailable"));
     }
 
     #[tokio::test]

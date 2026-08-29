@@ -2,10 +2,13 @@
 //!
 //! The module is intentionally independent from the derivative port wiring:
 //! callers provide an engine-neutral [`FutureInfoReadPort`] and this adapter
-//! handles URL query parsing, bounded pagination, and the normalized response
-//! envelope. Layout/runtime registration can then be composed separately.
+//! handles URL query parsing and the normalized response envelope. The
+//! underlying `Qot_GetFutureInfo` protocol has no pagination fields, so
+//! page-size/cursor query values are accepted for Go compatibility but do not
+//! alter the returned catalogue. Layout/runtime registration can then be
+//! composed separately.
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use serde_json::{Value, json};
 
@@ -27,9 +30,9 @@ pub(crate) fn read(
             "Futu futures reader is not ready".to_owned(),
         )
     })?;
-    let (request, page_size) = parse_request(query)?;
+    let request = parse_request(query)?;
     let mut items = reader.query(&request).map_err(map_reader_error)?;
-    project_items(request, page_size, &mut items)
+    project_items(request, &mut items)
 }
 
 /// Runtime-backed variant used by the production composition root.
@@ -51,14 +54,13 @@ pub(crate) fn read_runtime(
             "Futu futures reader is not ready".to_owned(),
         ));
     }
-    let (request, page_size) = parse_request(query)?;
+    let request = parse_request(query)?;
     let mut items = runtime.future_info(&request).map_err(map_reader_error)?;
-    project_items(request, page_size, &mut items)
+    project_items(request, &mut items)
 }
 
 fn project_items(
     request: jftrade_integration_futu::FutureInfoQuery,
-    page_size: Option<usize>,
     items: &mut Vec<jftrade_integration_futu::FutureInfo>,
 ) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
     if let Some(market) = request.market {
@@ -68,11 +70,11 @@ fn project_items(
                 .eq_ignore_ascii_case(market_label(market))
         });
     }
+    // Qot_GetFutureInfo has no page or cursor fields.  Keep the complete
+    // OpenD response in provider order: Go's advanced adapter forwards
+    // pageSize/cursor query values but does not apply local pagination for
+    // this protocol.
     let total = items.len();
-    let has_more = page_size.is_some_and(|limit| total > limit);
-    if let Some(limit) = page_size {
-        items.truncate(limit);
-    }
     let entries = std::mem::take(items)
         .into_iter()
         .map(|item| {
@@ -91,7 +93,7 @@ fn project_items(
         metadata.insert("market".to_owned(), json!(market_label(market)));
     }
     metadata.insert("requestedCount".to_owned(), json!(request.securities.len()));
-    Ok(json!({
+    let result = json!({
         "provider": {
             "brokerId": "futu",
             "securityFirm": "Futu/Moomoo via OpenD",
@@ -103,10 +105,11 @@ fn project_items(
         },
         "asOf": as_of,
         "entries": entries,
-        "hasMore": has_more,
+        "hasMore": false,
         "total": total,
         "metadata": Value::Object(metadata),
-    }))
+    });
+    Ok(result)
 }
 
 /// Keep this helper available for a future `MarketDataDerivativeReadSnapshotPort`
@@ -123,42 +126,35 @@ pub(crate) fn read_port(
 
 fn parse_request(
     query: &str,
-) -> Result<
-    (jftrade_integration_futu::FutureInfoQuery, Option<usize>),
-    MarketDataDerivativeReadSnapshotError,
-> {
+) -> Result<jftrade_integration_futu::FutureInfoQuery, MarketDataDerivativeReadSnapshotError> {
     let query_map = QueryMap::parse(query).map_err(|_| bad_request("invalid URL escape"))?;
+    if let Some(operation) = query_map.get_first("operation") {
+        let operation = operation.trim().to_ascii_lowercase();
+        if !operation.is_empty() && operation != "contracts" {
+            return Err(unsupported_operation(&operation));
+        }
+    }
     let market = query_map
         .get_first("market")
         .map(parse_market)
         .transpose()?;
-    let page_size = query_map
-        .get_first("pageSize")
-        .or_else(|| query_map.get_first("limit"))
-        .map(|value| {
-            value
-                .trim()
-                .parse::<usize>()
-                .map_err(|_| bad_request("pageSize must be between 1 and 1000"))
-                .and_then(|value| {
-                    if (1..=1000).contains(&value) {
-                        Ok(value)
-                    } else {
-                        Err(bad_request("pageSize must be between 1 and 1000"))
-                    }
-                })
-        })
-        .transpose()?;
-
     let mut securities = Vec::new();
+    let mut seen = HashSet::new();
     for key in ["instrumentId", "symbol", "symbols", "code"] {
-        for raw in query_map.get_all(key).into_iter().flatten() {
-            for token in raw
-                .split(',')
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-            {
-                securities.push(parse_security(token, market, key)?);
+        if let Some(values) = query_map.get_all(key) {
+            for raw in values {
+                if raw.trim().is_empty() {
+                    return Err(bad_request(&format!("{key} must not be empty")));
+                }
+                for token in raw.split(',').map(str::trim) {
+                    if token.is_empty() {
+                        return Err(bad_request(&format!("{key} contains an empty value")));
+                    }
+                    let security = parse_security(token, market, key)?;
+                    if seen.insert((security.market, security.code.clone())) {
+                        securities.push(security);
+                    }
+                }
             }
         }
     }
@@ -166,7 +162,7 @@ fn parse_request(
     request
         .validate()
         .map_err(|error| bad_request(&error.to_string()))?;
-    Ok((request, page_size))
+    Ok(request)
 }
 
 fn parse_security(
@@ -210,32 +206,14 @@ fn parse_market(value: &str) -> Result<i32, MarketDataDerivativeReadSnapshotErro
     match value.trim().to_ascii_uppercase().as_str() {
         "HK" => Ok(1),
         "US" => Ok(11),
-        "SH" => Ok(21),
-        "SZ" => Ok(22),
-        "SG" => Ok(31),
-        "JP" => Ok(41),
-        "AU" => Ok(51),
-        "MY" => Ok(61),
-        "CA" => Ok(71),
-        "FX" => Ok(81),
-        "CRYPTO" | "CC" => Ok(91),
         _ => Err(bad_request("future market is unsupported")),
     }
 }
 
 fn market_label(market: i32) -> &'static str {
     match market {
-        1 => "HK",
+        1 | 2 => "HK",
         11 => "US",
-        21 => "SH",
-        22 => "SZ",
-        31 => "SG",
-        41 => "JP",
-        51 => "AU",
-        61 => "MY",
-        71 => "CA",
-        81 => "FX",
-        91 => "CRYPTO",
         _ => "UNKNOWN",
     }
 }
@@ -246,6 +224,9 @@ fn map_reader_error(
     match error {
         jftrade_integration_futu::FutureInfoQueryError::InvalidQuery(message) => {
             bad_request(&message)
+        }
+        jftrade_integration_futu::FutureInfoQueryError::Session(error) => {
+            MarketDataDerivativeReadSnapshotError::Unavailable(error.to_string())
         }
         other => MarketDataDerivativeReadSnapshotError::Failed {
             status: 502,
@@ -260,6 +241,17 @@ fn bad_request(message: &str) -> MarketDataDerivativeReadSnapshotError {
         status: 400,
         code: "BAD_REQUEST".to_owned(),
         message: message.to_owned(),
+    }
+}
+
+fn unsupported_operation(operation: &str) -> MarketDataDerivativeReadSnapshotError {
+    // Go's Qot_GetFutureInfo adapter rejects unknown operations after protocol
+    // dispatch; the route maps that adapter error to BROKER_FEATURE_FAILED
+    // (502), rather than treating it as a transport-level malformed query.
+    MarketDataDerivativeReadSnapshotError::Failed {
+        status: 502,
+        code: "BROKER_FEATURE_FAILED".to_owned(),
+        message: format!("futu: unsupported derivatives.futures operation \"{operation}\""),
     }
 }
 
@@ -295,7 +287,7 @@ mod tests {
                 trade_market: market.to_owned(),
                 instrument_id: format!("{market}.{code}"),
             },
-            last_trade_time: "2026-12-18".to_owned(),
+            last_trade_time: Some("2026-12-18".to_owned()),
             last_trade_timestamp: None,
             owner: None,
             owner_other: "S&P 500".to_owned(),
@@ -318,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn projects_typed_futures_and_applies_market_page_size() {
+    fn projects_typed_futures_without_applying_unsupported_page_size() {
         let reader = FixtureReader {
             values: vec![sample("ESMAIN", "US"), sample("NQMAIN", "US")],
         };
@@ -329,10 +321,11 @@ mod tests {
         )
         .expect("futures projection");
         assert_eq!(value["provider"]["featureId"], "derivatives.futures");
-        assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+        assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
         assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.ESMAIN");
-        assert_eq!(value["hasMore"], true);
+        assert_eq!(value["hasMore"], false);
         assert_eq!(value["total"], 2);
+        assert!(value.get("nextCursor").is_none());
     }
 
     #[test]
@@ -364,6 +357,76 @@ mod tests {
             error,
             MarketDataDerivativeReadSnapshotError::Unavailable(message)
                 if message == "Futu futures reader is not ready"
+        ));
+    }
+
+    #[test]
+    fn forwards_opaque_cursor_without_local_pagination() {
+        let reader = FixtureReader {
+            values: vec![sample("NQMAIN", "US"), sample("ESMAIN", "US")],
+        };
+        let value = read(
+            Some(&reader),
+            "/api/v1/market-data/futures",
+            "market=US&instrumentId=US.ESmain&pageSize=1",
+        )
+        .expect("catalogue response");
+        assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
+        assert_eq!(value["entries"][0]["security"]["code"], "NQMAIN");
+        assert_eq!(value["entries"][1]["security"]["code"], "ESMAIN");
+        assert_eq!(value["hasMore"], false);
+        assert!(value.get("nextCursor").is_none());
+
+        let value = read(
+            Some(&reader),
+            "/api/v1/market-data/futures",
+            "market=US&instrumentId=US.ESmain&pageSize=garbage&cursor=opaque",
+        )
+        .expect("opaque pagination values are ignored");
+        assert_eq!(value["entries"].as_array().map(Vec::len), Some(2));
+        assert_eq!(value["total"], 2);
+    }
+
+    #[test]
+    fn rejects_unsupported_operation_empty_symbol_and_non_futu_market() {
+        let reader = FixtureReader { values: Vec::new() };
+        for query in [
+            "market=US&instrumentId=",
+            "market=SH",
+        ] {
+            assert!(matches!(
+                read(Some(&reader), "/api/v1/market-data/futures", query),
+                Err(MarketDataDerivativeReadSnapshotError::Failed { status: 400, .. }),
+            ), "query {query}");
+        }
+        let error = read(
+            Some(&reader),
+            "/api/v1/market-data/futures",
+            "market=US&operation=list",
+        )
+        .expect_err("unknown operation must fail");
+        assert!(matches!(
+            error,
+            MarketDataDerivativeReadSnapshotError::Failed {
+                status: 502,
+                ref code,
+                ref message,
+            } if code == "BROKER_FEATURE_FAILED"
+                && message.contains("unsupported derivatives.futures operation")
+        ));
+    }
+
+    #[test]
+    fn maps_closed_opend_session_to_unavailable() {
+        let error = map_reader_error(
+            jftrade_integration_futu::FutureInfoQueryError::Session(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ),
+        );
+        assert!(matches!(
+            error,
+            MarketDataDerivativeReadSnapshotError::Unavailable(message)
+                if message.contains("session coordinator is closed")
         ));
     }
 }

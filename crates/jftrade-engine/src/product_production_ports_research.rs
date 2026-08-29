@@ -12,6 +12,11 @@ use crate::product::product_research_preset_write_port::{ResearchPresetWriteMuta
 use crate::product::product_research_screen_write_port::{ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery};
 use crate::product::{ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, ResearchReadSnapshotError, ResearchReadSnapshotPort};
 use super::generate_strategy_id;
+
+#[path = "product_production_ports_research_company.rs"]
+mod company;
+use company::{project_research_payload, research_helper_request};
+
 #[derive(Debug)]
 pub(crate) struct ProductionResearchPresetPort {
     pub(crate) store: Arc<ResearchPresetStore>,
@@ -213,6 +218,18 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 "research provider is not configured".to_owned(),
             ));
         };
+        let query_map = QueryMap::parse(query)
+            .map_err(|_| ResearchReadSnapshotError::Invalid("invalid URL escape".to_owned()))?;
+        if !super::super::provider_request_matches(provider, &query_map) {
+            let requested = query_map
+                .get_first("brokerId")
+                .or_else(|| query_map.get_first("providerBrokerId"))
+                .unwrap_or_default();
+            return Err(capability(
+                "research",
+                &format!("requested broker {requested:?} does not match active provider"),
+            ));
+        }
         if matches!(path, "/api/v1/research/rankings" | "/api/v1/research/industries") {
             return super::read_market_research(provider, snapshot.helper_ready, self.helper.as_ref(), path, query);
         }
@@ -221,8 +238,9 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
         }
         if provider == jftrade_settings::MarketDataProvider::Futu {
             if !path.starts_with("/api/v1/research/valuation/") {
-                return Err(ResearchReadSnapshotError::Unavailable(
-                    "Futu research runtime currently supports valuation detail only".to_owned(),
+                return Err(capability(
+                    "research",
+                    "Futu research runtime currently supports valuation detail only",
                 ));
             }
             if !snapshot.opend_ready {
@@ -232,6 +250,7 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
             }
             return read_futu_valuation(self.trade_runtime.as_ref(), path, query);
         }
+        let (operation, market, symbol, extra_query) = research_helper_request(path, query)?;
         if !snapshot.helper_ready {
             return Err(ResearchReadSnapshotError::Unavailable(
                 "market-data helper is not ready".to_owned(),
@@ -242,12 +261,17 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
             jftrade_settings::MarketDataProvider::Akshare => "akshare",
             jftrade_settings::MarketDataProvider::Futu => unreachable!(),
         };
-        let (operation, market, symbol, extra_query) = research_helper_request(path, query)?;
         let Some(helper) = self.helper.clone() else {
             return Err(ResearchReadSnapshotError::Unavailable(
                 "market-data helper is not configured".to_owned(),
             ));
         };
+        let requested_market = market.clone();
+        let requested_symbol = symbol.clone();
+        let expected_statement = extra_query
+            .iter()
+            .find(|(key, _)| *key == "statement")
+            .map(|(_, value)| value.clone());
         let result = thread::spawn(move || {
             let query_refs = extra_query
                 .iter()
@@ -259,101 +283,22 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 .map_err(|error| HttpAdapterError::Unavailable(error.to_string()))?;
             runtime.block_on(helper.get_provider_json_with_query::<Value>(
                 provider,
-                &[operation, &market, &symbol],
+                &[operation, &requested_market, &requested_symbol],
                 &query_refs,
             ))
         })
         .join()
         .map_err(|_| ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned()))?;
         let payload = result.map_err(map_research_helper_error)?;
-        validate_research_payload(operation, payload)
+        project_research_payload(
+            operation,
+            payload,
+            &market,
+            &symbol,
+            provider,
+            expected_statement.as_deref(),
+        )
     }
-}
-
-type ResearchHelperRequest = (&'static str, String, String, Vec<(&'static str, String)>);
-
-fn research_helper_request(
-    path: &str,
-    query: &str,
-) -> Result<ResearchHelperRequest, ResearchReadSnapshotError> {
-    let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/research/financials/") {
-        ("financials", value)
-    } else if let Some(value) = path.strip_prefix("/api/v1/research/analyst/") {
-        ("analyst", value)
-    } else if let Some(value) = path.strip_prefix("/api/v1/research/ownership/") {
-        ("ownership", value)
-    } else if let Some(value) = path.strip_prefix("/api/v1/research/corporate-actions/") {
-        ("corporate-actions", value)
-    } else if let Some(value) = path.strip_prefix("/api/v1/research/instruments/") {
-        ("profile", value)
-    } else {
-        return Err(ResearchReadSnapshotError::Unavailable(
-            "research operation is not backed by the market-data helper".to_owned(),
-        ));
-    };
-    let instrument = suffix.trim();
-    let (raw_market, raw_symbol) = instrument
-        .split_once('.')
-        .ok_or_else(|| ResearchReadSnapshotError::Invalid(
-            "instrument must use MARKET.SYMBOL form".to_owned(),
-        ))?;
-    let market = raw_market.trim();
-    let symbol = raw_symbol.trim();
-    if market.is_empty()
-        || symbol.is_empty()
-        || market.contains('/')
-        || symbol.contains('/')
-        || symbol.contains('.')
-        || market.chars().any(char::is_whitespace)
-        || symbol.chars().any(char::is_whitespace)
-    {
-        return Err(ResearchReadSnapshotError::Invalid(
-            "research instrument path is invalid".to_owned(),
-        ));
-    }
-    let market = market.to_ascii_uppercase();
-    let symbol = symbol.to_ascii_uppercase();
-    let mut extra_query = Vec::new();
-    for pair in query.split('&').filter(|pair| !pair.is_empty()) {
-        let Some((key, value)) = pair.split_once('=') else { continue };
-        if operation == "financials" && key == "statement" {
-            extra_query.push(("statement", value.to_owned()));
-        } else if operation == "corporate-actions" && (key == "from" || key == "to") {
-            extra_query.push((if key == "from" { "from" } else { "to" }, value.to_owned()));
-        }
-    }
-    Ok((operation, market, symbol, extra_query))
-}
-
-fn validate_research_payload(
-    operation: &str,
-    payload: Value,
-) -> Result<Value, ResearchReadSnapshotError> {
-    let Some(object) = payload.as_object() else {
-        return Err(ResearchReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: "market-data helper returned a non-object research response".to_owned(),
-            retry_after_seconds: None,
-        });
-    };
-    let required = match operation {
-        "financials" => &["instrumentId", "statement", "fields", "periods"][..],
-        "analyst" => &["instrumentId"][..],
-        "ownership" => &["instrumentId", "groups"][..],
-        "corporate-actions" => &["market", "symbol", "instrumentId", "events", "source"][..],
-        "profile" => &["instrumentId"][..],
-        _ => &[][..],
-    };
-    if let Some(missing) = required.iter().find(|key| !object.contains_key(**key)) {
-        return Err(ResearchReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: format!("market-data helper response is missing {missing}"),
-            retry_after_seconds: None,
-        });
-    }
-    Ok(payload)
 }
 
 fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
@@ -385,6 +330,17 @@ fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotErr
     }
 }
 
+fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
+    ResearchReadSnapshotError::Failed {
+        status: 409,
+        code: "CAPABILITY_UNAVAILABLE".to_owned(),
+        message: format!(
+            "embedded market-data provider does not serve {feature} operation {operation:?}"
+        ),
+        retry_after_seconds: None,
+    }
+}
+
 fn read_futu_valuation(
     runtime: Option<&Arc<SharedTradeReadRuntime>>,
     path: &str,
@@ -409,7 +365,10 @@ fn read_futu_valuation(
     })?;
     let market = market.trim().to_ascii_uppercase();
     let code = code.trim().to_ascii_uppercase();
-    if market.is_empty() || code.is_empty() || code.contains('.') {
+    if market.is_empty()
+        || code.is_empty()
+        || code.chars().any(|value| value.is_whitespace() || value.is_control())
+    {
         return Err(ResearchReadSnapshotError::Invalid(
             "instrumentId must be MARKET.CODE".to_owned(),
         ));
@@ -620,8 +579,13 @@ mod research_helper_tests {
             assert_eq!(symbol, "AAPL");
             assert!(query.is_empty());
         }
+        let (_, market, symbol, _) =
+            research_helper_request("/api/v1/research/analyst/US.BRK.B", "")
+                .expect("dot-qualified US symbols remain valid");
+        assert_eq!(market, "US");
+        assert_eq!(symbol, "BRK.B");
         assert!(matches!(
-            research_helper_request("/api/v1/research/analyst/US.AAPL.extra", ""),
+            research_helper_request("/api/v1/research/analyst/US/AAPL", ""),
             Err(ResearchReadSnapshotError::Invalid(_))
         ));
     }

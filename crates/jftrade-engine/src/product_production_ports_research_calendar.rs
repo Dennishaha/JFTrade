@@ -11,8 +11,8 @@ use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Map, Value, json};
 
-use crate::product::product_query::QueryMap;
 use crate::product::ResearchReadSnapshotError;
+use crate::product::product_query::QueryMap;
 
 const DEFAULT_MACRO_LIMIT: usize = 100;
 const MAX_MACRO_LIMIT: usize = 500;
@@ -27,7 +27,9 @@ pub(crate) fn read_market_calendar(
     let query = QueryMap::parse(query)
         .map_err(|_| ResearchReadSnapshotError::Invalid("invalid URL escape".to_owned()))?;
     if provider == MarketDataProvider::Futu {
-        return Err(unavailable("Futu research calendar/macro runtime is not ready"));
+        return Err(unavailable(
+            "Futu research calendar/macro runtime is not ready",
+        ));
     }
     if provider != MarketDataProvider::Akshare {
         return Err(capability("research calendar/macro", "provider"));
@@ -47,7 +49,11 @@ fn read_calendar(
     helper: &HelperClient,
     query: &QueryMap,
 ) -> Result<Value, ResearchReadSnapshotError> {
-    let operation = query.get_first("operation").unwrap_or("").trim().to_ascii_lowercase();
+    let operation = query
+        .get_first("operation")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     match operation.as_str() {
         "earnings" => {
             let (begin, end) = date_window(query)?;
@@ -67,15 +73,15 @@ fn read_calendar(
                 copy_value(entry, &mut output, "price", "price");
                 Ok(Value::Object(output))
             })?;
-            Ok(feature_result("research.calendar", entries, "akshare-calendar"))
+            Ok(feature_result(
+                "research.calendar",
+                entries,
+                "akshare-calendar",
+            ))
         }
         "dividends" => {
             let date = required_date(query, "date")?;
-            let payload = fetch_json(
-                helper,
-                &["calendar", "dividends"],
-                vec![("date", date)],
-            )?;
+            let payload = fetch_json(helper, &["calendar", "dividends"], vec![("date", date)])?;
             let entries = calendar_entries(&payload, "dividends", |entry| {
                 let id = required_text(entry, "instrument_id")?;
                 let mut output = identity(entry, id);
@@ -87,7 +93,11 @@ fn read_calendar(
                 copy_text(entry, &mut output, "payable_date", "dividendPayableDate");
                 Ok(Value::Object(output))
             })?;
-            Ok(feature_result("research.calendar", entries, "akshare-calendar"))
+            Ok(feature_result(
+                "research.calendar",
+                entries,
+                "akshare-calendar",
+            ))
         }
         "economic" => {
             let (begin, end) = date_window(query)?;
@@ -132,7 +142,11 @@ fn read_calendar(
                 copy_value(entry, &mut output, "importance", "importance");
                 Ok(Value::Object(output))
             })?;
-            Ok(feature_result("research.calendar", entries, "akshare-calendar"))
+            Ok(feature_result(
+                "research.calendar",
+                entries,
+                "akshare-calendar",
+            ))
         }
         "ipos" => {
             let payload = fetch_json(helper, &["calendar", "ipos"], Vec::new())?;
@@ -153,18 +167,23 @@ fn read_calendar(
                 }
                 Ok(Value::Object(output))
             })?;
-            Ok(feature_result("research.calendar", entries, "akshare-calendar"))
+            Ok(feature_result(
+                "research.calendar",
+                entries,
+                "akshare-calendar",
+            ))
         }
         "trade_dates" => Err(capability("research.calendar", "trade_dates")),
         _ => Err(capability("research.calendar", &operation)),
     }
 }
 
-fn read_macro(
-    helper: &HelperClient,
-    query: &QueryMap,
-) -> Result<Value, ResearchReadSnapshotError> {
-    let operation = query.get_first("operation").unwrap_or("").trim().to_ascii_lowercase();
+fn read_macro(helper: &HelperClient, query: &QueryMap) -> Result<Value, ResearchReadSnapshotError> {
+    let operation = query
+        .get_first("operation")
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     match operation.as_str() {
         "indicators" => {
             let payload = fetch_json(helper, &["macro", "indicators"], Vec::new())?;
@@ -191,17 +210,18 @@ fn read_macro(
                         .as_object()
                         .ok_or_else(|| bad_gateway("macro indicator must be an object"))?;
                     let id = required_text(indicator, "indicator_id")?;
+                    let name = required_text(indicator, "name")?;
+                    let region = required_text(indicator, "region")?;
+                    let unit = required_text(indicator, "unit")?;
+                    let frequency = required_text(indicator, "frequency")?;
+                    let unit_type = required_integer(indicator, "unit_type")?;
                     let mut projected = Map::new();
                     projected.insert("indicatorId".to_owned(), json!(id));
-                    for (from, to) in [
-                        ("name", "name"),
-                        ("region", "region"),
-                        ("unit", "unit"),
-                        ("frequency", "frequency"),
-                    ] {
-                        copy_text(indicator, &mut projected, from, to);
-                    }
-                    copy_value(indicator, &mut projected, "unit_type", "unitType");
+                    projected.insert("name".to_owned(), json!(name));
+                    projected.insert("region".to_owned(), json!(region));
+                    projected.insert("unit".to_owned(), json!(unit));
+                    projected.insert("frequency".to_owned(), json!(frequency));
+                    projected.insert("unitType".to_owned(), json!(unit_type));
                     list.push(Value::Object(projected));
                 }
                 entries.push(json!({"categoryName": name, "indicatorList": list}));
@@ -213,19 +233,26 @@ fn read_macro(
                 .get_first("indicatorId")
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
-                .ok_or_else(|| capability("research.macro", "indicator_history (missing indicatorId)"))?;
+                .ok_or_else(|| {
+                    capability("research.macro", "indicator_history (missing indicatorId)")
+                })?;
             let limit = macro_limit(query)?;
             let payload = fetch_json(
                 helper,
                 &["macro", "indicator-history"],
-                vec![("indicator_id", indicator_id.to_owned()), ("limit", limit.to_string())],
+                vec![
+                    ("indicator_id", indicator_id.to_owned()),
+                    ("limit", limit.to_string()),
+                ],
             )?;
             let object = payload
                 .as_object()
                 .ok_or_else(|| bad_gateway("macro history response must be an object"))?;
             let echoed = required_text(object, "indicator_id")?;
             if echoed != indicator_id {
-                return Err(bad_gateway("macro history indicator_id does not match request"));
+                return Err(bad_gateway(
+                    "macro history indicator_id does not match request",
+                ));
             }
             let points = object
                 .get("entries")
@@ -238,22 +265,22 @@ fn read_macro(
                     .ok_or_else(|| bad_gateway("macro history entry must be an object"))?;
                 let mut projected = Map::new();
                 copy_text_required(point, &mut projected, "data_time", "dataTime")?;
+                let unit = required_text(point, "unit")?;
+                let unit_type = required_integer(point, "unit_type")?;
+                projected.insert("unit".to_owned(), json!(unit));
+                projected.insert("unitType".to_owned(), json!(unit_type));
                 for (from, to) in [
                     ("value", "value"),
                     ("predict_value", "predictValue"),
                     ("previous_value", "previousValue"),
-                    ("unit_type", "unitType"),
                 ] {
-                    copy_value(point, &mut projected, from, to);
+                    copy_optional_number(point, &mut projected, from, to)?;
                 }
-                copy_text(point, &mut projected, "unit", "unit");
                 entries.push(Value::Object(projected));
             }
             Ok(feature_result("research.macro", entries, "akshare-macro"))
         }
-        "fed_target_rate" | "fed_dot_plot" => {
-            Err(capability("research.macro", &operation))
-        }
+        "fed_target_rate" | "fed_dot_plot" => Err(capability("research.macro", &operation)),
         _ => Err(capability("research.macro", &operation)),
     }
 }
@@ -264,7 +291,10 @@ fn fetch_json(
     query: Vec<(&str, String)>,
 ) -> Result<Value, ResearchReadSnapshotError> {
     let helper = helper.clone();
-    let segments = segments.iter().map(|part| (*part).to_owned()).collect::<Vec<_>>();
+    let segments = segments
+        .iter()
+        .map(|part| (*part).to_owned())
+        .collect::<Vec<_>>();
     let query = query
         .into_iter()
         .map(|(key, value)| (key.to_owned(), value))
@@ -288,14 +318,21 @@ fn fetch_json(
 
 fn map_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
     match error {
-        HttpAdapterError::Remote { status, code, message, retry_after_seconds } => {
-            ResearchReadSnapshotError::Failed {
-                status,
-                code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
-                message,
-                retry_after_seconds,
-            }
-        }
+        HttpAdapterError::Remote {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => ResearchReadSnapshotError::Failed {
+            status,
+            code: if code.is_empty() {
+                "BAD_GATEWAY".to_owned()
+            } else {
+                code
+            },
+            message,
+            retry_after_seconds,
+        },
         HttpAdapterError::Timeout => ResearchReadSnapshotError::Failed {
             status: 504,
             code: "GATEWAY_TIMEOUT".to_owned(),
@@ -374,7 +411,9 @@ fn required_date(query: &QueryMap, key: &str) -> Result<String, ResearchReadSnap
         .get_first(key)
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| ResearchReadSnapshotError::Invalid(format!("{key} must be a YYYY-MM-DD date")))?;
+        .ok_or_else(|| {
+            ResearchReadSnapshotError::Invalid(format!("{key} must be a YYYY-MM-DD date"))
+        })?;
     let valid = if value.is_ascii()
         && value.len() == 10
         && value.as_bytes()[4] == b'-'
@@ -400,27 +439,66 @@ fn required_date(query: &QueryMap, key: &str) -> Result<String, ResearchReadSnap
     } else {
         false
     };
-    valid
-        .then(|| value.to_owned())
-        .ok_or_else(|| ResearchReadSnapshotError::Invalid(format!("{key} must be a YYYY-MM-DD date")))
+    valid.then(|| value.to_owned()).ok_or_else(|| {
+        ResearchReadSnapshotError::Invalid(format!("{key} must be a YYYY-MM-DD date"))
+    })
 }
 
 fn macro_limit(query: &QueryMap) -> Result<usize, ResearchReadSnapshotError> {
-    let Some(value) = query.get_first("limit") else { return Ok(DEFAULT_MACRO_LIMIT) };
-    let parsed = value
-        .trim()
-        .parse::<usize>()
-        .map_err(|_| ResearchReadSnapshotError::Invalid("limit must be an integer".to_owned()))?;
+    // The public Go handler treats a positive pageSize as authoritative.  A
+    // missing, zero, negative, or malformed pageSize falls back to the legacy
+    // limit parameter, then to the default.  Keep this compatibility behavior
+    // while still clamping the final value before it reaches the helper.
+    let positive = |value: Option<&str>| {
+        value
+            .and_then(|value| value.trim().parse::<i64>().ok())
+            .filter(|value| *value > 0)
+            .and_then(|value| usize::try_from(value).ok())
+    };
+    let parsed = positive(query.get_first("pageSize"))
+        .or_else(|| positive(query.get_first("limit")))
+        .unwrap_or(DEFAULT_MACRO_LIMIT);
     Ok(parsed.clamp(1, MAX_MACRO_LIMIT))
 }
 
-fn required_text<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, ResearchReadSnapshotError> {
+fn required_text<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, ResearchReadSnapshotError> {
     object
         .get(key)
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| bad_gateway(format!("research response is missing {key}")))
+}
+
+fn required_integer(
+    object: &Map<String, Value>,
+    key: &str,
+) -> Result<i64, ResearchReadSnapshotError> {
+    object
+        .get(key)
+        .and_then(Value::as_i64)
+        .ok_or_else(|| bad_gateway(format!("research response is missing or invalid {key}")))
+}
+
+fn copy_optional_number(
+    source: &Map<String, Value>,
+    target: &mut Map<String, Value>,
+    from: &str,
+    to: &str,
+) -> Result<(), ResearchReadSnapshotError> {
+    let Some(value) = source.get(from).filter(|value| !value.is_null()) else {
+        return Ok(());
+    };
+    if !value.is_number() {
+        return Err(bad_gateway(format!(
+            "research response field {from} must be numeric"
+        )));
+    }
+    target.insert(to.to_owned(), value.clone());
+    Ok(())
 }
 
 fn identity(entry: &Map<String, Value>, instrument_id: &str) -> Map<String, Value> {
@@ -437,7 +515,12 @@ fn identity(entry: &Map<String, Value>, instrument_id: &str) -> Map<String, Valu
 }
 
 fn copy_text(source: &Map<String, Value>, target: &mut Map<String, Value>, from: &str, to: &str) {
-    if let Some(value) = source.get(from).and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(value) = source
+        .get(from)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         target.insert(to.to_owned(), json!(value));
     }
 }
@@ -478,5 +561,49 @@ fn bad_gateway(message: impl Into<String>) -> ResearchReadSnapshotError {
         code: "BAD_GATEWAY".to_owned(),
         message: message.into(),
         retry_after_seconds: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn macro_history_uses_page_size_before_legacy_limit() {
+        let query = QueryMap::parse("pageSize=60&limit=5").expect("query");
+        assert_eq!(macro_limit(&query).expect("limit"), 60);
+    }
+
+    #[test]
+    fn macro_history_limit_is_bounded_and_defaults() {
+        let default = QueryMap::parse("").expect("query");
+        assert_eq!(macro_limit(&default).expect("default"), DEFAULT_MACRO_LIMIT);
+
+        let oversized = QueryMap::parse("pageSize=9999").expect("query");
+        assert_eq!(macro_limit(&oversized).expect("clamp"), MAX_MACRO_LIMIT);
+
+        let zero = QueryMap::parse("pageSize=0").expect("query");
+        assert_eq!(macro_limit(&zero).expect("default"), DEFAULT_MACRO_LIMIT);
+
+        let legacy = QueryMap::parse("pageSize=0&limit=5").expect("query");
+        assert_eq!(macro_limit(&legacy).expect("legacy fallback"), 5);
+    }
+
+    #[test]
+    fn macro_projection_rejects_missing_or_malformed_typed_fields() {
+        let mut indicator = Map::new();
+        indicator.insert("unit_type".to_owned(), json!("percent"));
+        assert!(matches!(
+            required_integer(&indicator, "unit_type"),
+            Err(ResearchReadSnapshotError::Failed { status: 502, .. })
+        ));
+
+        let mut point = Map::new();
+        point.insert("value".to_owned(), json!("1.2"));
+        let mut projected = Map::new();
+        assert!(matches!(
+            copy_optional_number(&point, &mut projected, "value", "value"),
+            Err(ResearchReadSnapshotError::Failed { status: 502, .. })
+        ));
     }
 }

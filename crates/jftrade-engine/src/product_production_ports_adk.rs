@@ -48,24 +48,63 @@ pub(crate) struct ProductionToolCatalog {
 }
 
 impl ProductionToolCatalog {
+    #[cfg(test)]
     pub(crate) fn from_bindings(
         bindings: &BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     ) -> Result<Self, String> {
+        // Callers that do not have the composition root's operation matrix
+        // must fail closed for the finer-grained research tools.  The legacy
+        // umbrella binding is intentionally not used as a readiness fallback.
+        let unavailable = ProductionAdapterBinding::ExternalUnavailable;
+        let research = BTreeMap::from([
+            ("instrument", unavailable),
+            ("financials", unavailable),
+            ("valuation", unavailable),
+            ("news", unavailable),
+        ]);
+        Self::from_bindings_with_research(bindings, &research)
+    }
+
+    /// Build the tool catalog with operation-level research readiness.
+    ///
+    /// Research HTTP routes share the `ResearchRead` adapter for compatibility,
+    /// but ADK tools are finer grained: helper-backed instrument/financials
+    /// operations may be callable while valuation (Futu-only) or news are not.
+    /// The composition root supplies those concrete readiness decisions here so
+    /// the catalog never advertises an umbrella adapter as universally ready.
+    pub(crate) fn from_bindings_with_research(
+        bindings: &BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
+        research_bindings: &BTreeMap<&'static str, ProductionAdapterBinding>,
+    ) -> Result<Self, String> {
         let mut tools = Vec::with_capacity(PRODUCTION_TOOL_DEFINITIONS.len());
         for definition in PRODUCTION_TOOL_DEFINITIONS {
-            if !bindings.contains_key(&definition.adapter) {
+            let binding = match definition.research_operation {
+                Some(operation) => research_bindings.get(operation).copied(),
+                None => bindings.get(&definition.adapter).copied(),
+            };
+            let Some(binding) = binding else {
                 return Err(format!(
                     "missing production adapter for ADK tool {}: {}",
                     definition.id,
                     definition.adapter.name()
                 ));
-            }
+            };
+            // Keep the descriptor in the catalog for wire compatibility, but
+            // do not advertise unavailable provider-backed operations as
+            // callable. An empty allowedModes set is the existing descriptor
+            // shape's explicit "not currently available" representation and
+            // avoids adding a new public field.
+            let allowed_modes = if binding == ProductionAdapterBinding::Ready {
+                json!(["approval", "less_approval", "all"])
+            } else {
+                json!([])
+            };
             tools.push(json!({
                 "id": definition.id,
                 "name": definition.id,
                 "category": definition.category,
                 "displayName": definition.display_name,
-                "allowedModes": ["approval", "less_approval", "all"],
+                "allowedModes": allowed_modes,
                 "requiresApprovalIn": [],
                 "riskLevel": "low",
                 "idempotencyMode": "replay_safe",
@@ -105,40 +144,43 @@ struct ProductionToolDefinition {
     category: &'static str,
     display_name: &'static str,
     adapter: ProductionRouteAdapter,
+    /// Optional operation-level readiness key.  This is used for research
+    /// tools whose public HTTP routes share the `ResearchRead` umbrella.
+    research_operation: Option<&'static str>,
 }
 
 const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
-    ProductionToolDefinition { id: "interaction.request_user", category: "interaction", display_name: "向用户提问", adapter: ProductionRouteAdapter::AdkChat },
-    ProductionToolDefinition { id: "workflow.wait", category: "workflow", display_name: "等待工作流", adapter: ProductionRouteAdapter::AdkChat },
-    ProductionToolDefinition { id: "tools.search", category: "system", display_name: "搜索工具", adapter: ProductionRouteAdapter::AdkChat },
-    ProductionToolDefinition { id: "models.list", category: "system", display_name: "查询可调用模型", adapter: ProductionRouteAdapter::AdkRead },
-    ProductionToolDefinition { id: "system.status", category: "system", display_name: "查询系统状态", adapter: ProductionRouteAdapter::SystemCore },
-    ProductionToolDefinition { id: "system.futu_opend", category: "system", display_name: "查询 OpenD 状态", adapter: ProductionRouteAdapter::SystemRead },
-    ProductionToolDefinition { id: "plugins.catalog", category: "plugins", display_name: "查询插件目录", adapter: ProductionRouteAdapter::PluginsRead },
-    ProductionToolDefinition { id: "market.capabilities", category: "market", display_name: "查询行情能力", adapter: ProductionRouteAdapter::MarketDataProviderRead },
-    ProductionToolDefinition { id: "market.search", category: "market", display_name: "搜索标的", adapter: ProductionRouteAdapter::MarketDataSearchRead },
-    ProductionToolDefinition { id: "market.snapshot", category: "market", display_name: "查询行情快照", adapter: ProductionRouteAdapter::MarketDataSnapshotsRead },
-    ProductionToolDefinition { id: "market.snapshots", category: "market", display_name: "批量查询行情快照", adapter: ProductionRouteAdapter::MarketDataBatchSnapshotsWrite },
-    ProductionToolDefinition { id: "market.candles", category: "market", display_name: "查询 K 线", adapter: ProductionRouteAdapter::MarketDataCandlesRead },
-    ProductionToolDefinition { id: "market.intraday", category: "market", display_name: "查询分时行情", adapter: ProductionRouteAdapter::MarketDataIntradayRead },
-    ProductionToolDefinition { id: "market.subscriptions", category: "market", display_name: "查询行情订阅", adapter: ProductionRouteAdapter::MarketDataSubscriptionRead },
-    ProductionToolDefinition { id: "watchlist.list", category: "watchlist", display_name: "查询自选列表", adapter: ProductionRouteAdapter::WatchlistRead },
-    ProductionToolDefinition { id: "research.instrument", category: "research", display_name: "查询标的信息", adapter: ProductionRouteAdapter::ResearchRead },
-    ProductionToolDefinition { id: "research.financials", category: "research", display_name: "查询财务数据", adapter: ProductionRouteAdapter::ResearchRead },
-    ProductionToolDefinition { id: "research.valuation", category: "research", display_name: "查询估值数据", adapter: ProductionRouteAdapter::ResearchRead },
-    ProductionToolDefinition { id: "research.news", category: "research", display_name: "查询研究新闻", adapter: ProductionRouteAdapter::ResearchRead },
-    ProductionToolDefinition { id: "research.screen", category: "research", display_name: "执行研究筛选", adapter: ProductionRouteAdapter::ResearchScreenWrite },
-    ProductionToolDefinition { id: "portfolio.accounts", category: "portfolio", display_name: "查询账户", adapter: ProductionRouteAdapter::PortfolioRead },
-    ProductionToolDefinition { id: "portfolio.overview", category: "portfolio", display_name: "查询组合概览", adapter: ProductionRouteAdapter::PortfolioRead },
-    ProductionToolDefinition { id: "portfolio.positions", category: "portfolio", display_name: "查询持仓", adapter: ProductionRouteAdapter::PortfolioRead },
-    ProductionToolDefinition { id: "account.orders", category: "account", display_name: "查询订单", adapter: ProductionRouteAdapter::ExecutionRead },
-    ProductionToolDefinition { id: "risk.state", category: "risk", display_name: "查询风控状态", adapter: ProductionRouteAdapter::SystemCore },
-    ProductionToolDefinition { id: "strategy.definitions", category: "strategy", display_name: "查询策略定义", adapter: ProductionRouteAdapter::StrategyDefinitionRead },
-    ProductionToolDefinition { id: "strategy.validate_pine", category: "strategy", display_name: "校验 Pine 策略", adapter: ProductionRouteAdapter::StrategyPine },
-    ProductionToolDefinition { id: "strategy.research_backtest", category: "strategy", display_name: "执行策略回测", adapter: ProductionRouteAdapter::BacktestStart },
-    ProductionToolDefinition { id: "backtest.runs", category: "backtest", display_name: "查询回测运行", adapter: ProductionRouteAdapter::BacktestRead },
-    ProductionToolDefinition { id: "backtest.result_view", category: "backtest", display_name: "查询回测结果", adapter: ProductionRouteAdapter::BacktestRead },
-    ProductionToolDefinition { id: "backtest.kline_sync_status", category: "backtest", display_name: "查询 K 线同步状态", adapter: ProductionRouteAdapter::BacktestSyncRead },
+    ProductionToolDefinition { id: "interaction.request_user", category: "interaction", display_name: "向用户提问", adapter: ProductionRouteAdapter::AdkChat, research_operation: None },
+    ProductionToolDefinition { id: "workflow.wait", category: "workflow", display_name: "等待工作流", adapter: ProductionRouteAdapter::AdkChat, research_operation: None },
+    ProductionToolDefinition { id: "tools.search", category: "system", display_name: "搜索工具", adapter: ProductionRouteAdapter::AdkChat, research_operation: None },
+    ProductionToolDefinition { id: "models.list", category: "system", display_name: "查询可调用模型", adapter: ProductionRouteAdapter::AdkRead, research_operation: None },
+    ProductionToolDefinition { id: "system.status", category: "system", display_name: "查询系统状态", adapter: ProductionRouteAdapter::SystemCore, research_operation: None },
+    ProductionToolDefinition { id: "system.futu_opend", category: "system", display_name: "查询 OpenD 状态", adapter: ProductionRouteAdapter::SystemRead, research_operation: None },
+    ProductionToolDefinition { id: "plugins.catalog", category: "plugins", display_name: "查询插件目录", adapter: ProductionRouteAdapter::PluginsRead, research_operation: None },
+    ProductionToolDefinition { id: "market.capabilities", category: "market", display_name: "查询行情能力", adapter: ProductionRouteAdapter::MarketDataProviderRead, research_operation: None },
+    ProductionToolDefinition { id: "market.search", category: "market", display_name: "搜索标的", adapter: ProductionRouteAdapter::MarketDataSearchRead, research_operation: None },
+    ProductionToolDefinition { id: "market.snapshot", category: "market", display_name: "查询行情快照", adapter: ProductionRouteAdapter::MarketDataSnapshotsRead, research_operation: None },
+    ProductionToolDefinition { id: "market.snapshots", category: "market", display_name: "批量查询行情快照", adapter: ProductionRouteAdapter::MarketDataBatchSnapshotsWrite, research_operation: None },
+    ProductionToolDefinition { id: "market.candles", category: "market", display_name: "查询 K 线", adapter: ProductionRouteAdapter::MarketDataCandlesRead, research_operation: None },
+    ProductionToolDefinition { id: "market.intraday", category: "market", display_name: "查询分时行情", adapter: ProductionRouteAdapter::MarketDataIntradayRead, research_operation: None },
+    ProductionToolDefinition { id: "market.subscriptions", category: "market", display_name: "查询行情订阅", adapter: ProductionRouteAdapter::MarketDataSubscriptionRead, research_operation: None },
+    ProductionToolDefinition { id: "watchlist.list", category: "watchlist", display_name: "查询自选列表", adapter: ProductionRouteAdapter::WatchlistRead, research_operation: None },
+    ProductionToolDefinition { id: "research.instrument", category: "research", display_name: "查询标的信息", adapter: ProductionRouteAdapter::ResearchRead, research_operation: Some("instrument") },
+    ProductionToolDefinition { id: "research.financials", category: "research", display_name: "查询财务数据", adapter: ProductionRouteAdapter::ResearchRead, research_operation: Some("financials") },
+    ProductionToolDefinition { id: "research.valuation", category: "research", display_name: "查询估值数据", adapter: ProductionRouteAdapter::ResearchRead, research_operation: Some("valuation") },
+    ProductionToolDefinition { id: "research.news", category: "research", display_name: "查询研究新闻", adapter: ProductionRouteAdapter::ResearchRead, research_operation: Some("news") },
+    ProductionToolDefinition { id: "research.screen", category: "research", display_name: "执行研究筛选", adapter: ProductionRouteAdapter::ResearchScreenWrite, research_operation: None },
+    ProductionToolDefinition { id: "portfolio.accounts", category: "portfolio", display_name: "查询账户", adapter: ProductionRouteAdapter::PortfolioRead, research_operation: None },
+    ProductionToolDefinition { id: "portfolio.overview", category: "portfolio", display_name: "查询组合概览", adapter: ProductionRouteAdapter::PortfolioRead, research_operation: None },
+    ProductionToolDefinition { id: "portfolio.positions", category: "portfolio", display_name: "查询持仓", adapter: ProductionRouteAdapter::PortfolioRead, research_operation: None },
+    ProductionToolDefinition { id: "account.orders", category: "account", display_name: "查询订单", adapter: ProductionRouteAdapter::ExecutionRead, research_operation: None },
+    ProductionToolDefinition { id: "risk.state", category: "risk", display_name: "查询风控状态", adapter: ProductionRouteAdapter::SystemCore, research_operation: None },
+    ProductionToolDefinition { id: "strategy.definitions", category: "strategy", display_name: "查询策略定义", adapter: ProductionRouteAdapter::StrategyDefinitionRead, research_operation: None },
+    ProductionToolDefinition { id: "strategy.validate_pine", category: "strategy", display_name: "校验 Pine 策略", adapter: ProductionRouteAdapter::StrategyPine, research_operation: None },
+    ProductionToolDefinition { id: "strategy.research_backtest", category: "strategy", display_name: "执行策略回测", adapter: ProductionRouteAdapter::BacktestStart, research_operation: None },
+    ProductionToolDefinition { id: "backtest.runs", category: "backtest", display_name: "查询回测运行", adapter: ProductionRouteAdapter::BacktestRead, research_operation: None },
+    ProductionToolDefinition { id: "backtest.result_view", category: "backtest", display_name: "查询回测结果", adapter: ProductionRouteAdapter::BacktestRead, research_operation: None },
+    ProductionToolDefinition { id: "backtest.kline_sync_status", category: "backtest", display_name: "查询 K 线同步状态", adapter: ProductionRouteAdapter::BacktestSyncRead, research_operation: None },
 ];
 
 impl From<AdkStoreError> for AdkReadSnapshotError {
@@ -561,6 +603,71 @@ impl ProductionAdkPort {
         }
         if dynamic_id(path, "/api/v1/adk/streams/", "").is_some() { return Err(not_found("stream not found")); }
         Err(not_found("path not found"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_catalog_marks_external_unavailable_tools_non_callable() {
+        let mut bindings = PRODUCTION_TOOL_DEFINITIONS
+            .iter()
+            .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+            .collect::<BTreeMap<_, _>>();
+        bindings.insert(
+            ProductionRouteAdapter::MarketDataSearchRead,
+            ProductionAdapterBinding::ExternalUnavailable,
+        );
+
+        let catalog = ProductionToolCatalog::from_bindings(&bindings).expect("complete bindings");
+        let market_search = catalog
+            .tools
+            .iter()
+            .find(|tool| tool["id"] == "market.search")
+            .expect("market search tool");
+        assert_eq!(market_search["allowedModes"], json!([]));
+
+        let system_status = catalog
+            .tools
+            .iter()
+            .find(|tool| tool["id"] == "system.status")
+            .expect("system status tool");
+        assert_eq!(
+            system_status["allowedModes"],
+            json!(["approval", "less_approval", "all"])
+        );
+    }
+
+    #[test]
+    fn research_tools_use_operation_specific_readiness() {
+        let bindings = PRODUCTION_TOOL_DEFINITIONS
+            .iter()
+            .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+            .collect::<BTreeMap<_, _>>();
+        let research = BTreeMap::from([
+            ("instrument", ProductionAdapterBinding::Ready),
+            ("financials", ProductionAdapterBinding::Ready),
+            ("valuation", ProductionAdapterBinding::ExternalUnavailable),
+            ("news", ProductionAdapterBinding::ExternalUnavailable),
+        ]);
+        let catalog = ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
+            .expect("complete bindings");
+
+        for (id, callable) in [
+            ("research.instrument", true),
+            ("research.financials", true),
+            ("research.valuation", false),
+            ("research.news", false),
+        ] {
+            let tool = catalog
+                .tools
+                .iter()
+                .find(|tool| tool["id"] == id)
+                .expect("research tool");
+            assert_eq!(tool["allowedModes"].as_array().is_some_and(|modes| !modes.is_empty()), callable, "{id}");
+        }
     }
 }
 

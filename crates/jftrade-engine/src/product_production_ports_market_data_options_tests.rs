@@ -890,6 +890,21 @@ fn analysis_projection_forwards_quote_query_and_neutral_wire() {
 }
 
 #[test]
+fn analysis_projection_defaults_to_underlying_overview_for_owner_instrument() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&indexOptionType=1",
+        )
+        .expect("default underlying overview response");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
+    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
+}
+
+#[test]
 fn analysis_projection_rejects_bad_operation_or_market() {
     for query in ["operation=greeks", "operation=quote&market=HK", "market=US"] {
         let error = ready_port()

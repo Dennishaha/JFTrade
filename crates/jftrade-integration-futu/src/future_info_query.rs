@@ -28,7 +28,9 @@ pub struct FutureInfoSecurity {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FutureTradeTime {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub begin: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub end: Option<f64>,
 }
 
@@ -38,7 +40,8 @@ pub struct FutureTradeTime {
 pub struct FutureInfo {
     pub name: String,
     pub security: FutureInfoSecurity,
-    pub last_trade_time: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_trade_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_trade_timestamp: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -138,6 +141,13 @@ fn validate_query(query: &FutureInfoQuery) -> Result<(), FutureInfoQueryError> {
     }
     for security in &query.securities {
         validate_market(security.market)?;
+        if let Some(market) = query.market
+            && market_label(market) != market_label(security.market)
+        {
+            return Err(FutureInfoQueryError::InvalidQuery(
+                "future info security market must match query market".to_owned(),
+            ));
+        }
         let code = security.code.trim();
         if code.is_empty()
             || code.len() > 128
@@ -156,10 +166,13 @@ fn validate_query(query: &FutureInfoQuery) -> Result<(), FutureInfoQueryError> {
 }
 
 fn validate_market(market: i32) -> Result<(), FutureInfoQueryError> {
-    if market_label(market).is_none() {
+    // Qot_GetFutureInfo is exposed by the Futu capability matrix only for
+    // Hong Kong and US futures.  OpenD still accepts the deprecated HK
+    // futures enum (2), so keep it as an input alias while normalising the
+    // request to the current HK security market below.
+    if !matches!(market, 1 | 2 | 11) {
         return Err(FutureInfoQueryError::InvalidQuery(
-            "future info market must be HK, US, SH, SZ, SG, JP, AU, MY, CA, FX, or crypto"
-                .to_owned(),
+            "future info market must be HK or US".to_owned(),
         ));
     }
     Ok(())
@@ -173,7 +186,14 @@ fn encode_request(query: &FutureInfoQuery) -> Vec<u8> {
                 .securities
                 .iter()
                 .map(|security| crate::trade_proto::qot_common::Security {
-                    market: security.market,
+                    // OpenD documents market 2 as deprecated; using market 1
+                    // keeps requests compatible with current servers while
+                    // validation still accepts legacy callers.
+                    market: if security.market == 2 {
+                        1
+                    } else {
+                        security.market
+                    },
                     code: security.code.trim().to_ascii_uppercase(),
                 })
                 .collect(),
@@ -217,7 +237,11 @@ fn map_future_info(
         .map(|value| map_security(value, "origin"))
         .transpose()?;
     let name = required_text(item.name, "name")?;
-    let last_trade_time = required_text(item.last_trade_time, "lastTradeTime")?;
+    // OpenD documents lastTradeTime as required in the protobuf schema, but
+    // omits it for main-continuous contracts.  Prost represents an omitted
+    // string field as an empty String, so normalize that wire representation
+    // to None while still rejecting no non-empty value that is present.
+    let last_trade_time = optional_text_field(item.last_trade_time, "lastTradeTime")?;
     let owner_other = required_text(item.owner_other, "ownerOther")?;
     let exchange = required_text(item.exchange, "exchange")?;
     let contract_type = required_text(item.contract_type, "contractType")?;
@@ -267,7 +291,6 @@ fn map_trade_time(
         || item
             .end
             .is_some_and(|end| !(0.0..=24.0 * 60.0).contains(&end))
-        || matches!((item.begin, item.end), (Some(begin), Some(end)) if begin > end)
     {
         return Err(FutureInfoQueryError::InvalidResponse(
             "future info tradeTime interval is invalid".to_owned(),
@@ -312,6 +335,22 @@ fn optional_text(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn optional_text_field(
+    value: String,
+    field: &'static str,
+) -> Result<Option<String>, FutureInfoQueryError> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value.chars().any(|character| character.is_control()) {
+        return Err(FutureInfoQueryError::InvalidResponse(format!(
+            "future info {field} contains control characters"
+        )));
+    }
+    Ok(Some(value.to_owned()))
+}
+
 fn validate_finite_positive(value: f64, field: &'static str) -> Result<(), FutureInfoQueryError> {
     if !value.is_finite() || value <= 0.0 {
         return Err(FutureInfoQueryError::InvalidResponse(format!(
@@ -335,17 +374,8 @@ fn validate_optional_finite(
 
 fn market_label(market: i32) -> Option<&'static str> {
     match market {
-        1 => Some("HK"),
+        1 | 2 => Some("HK"),
         11 => Some("US"),
-        21 => Some("SH"),
-        22 => Some("SZ"),
-        31 => Some("SG"),
-        41 => Some("JP"),
-        51 => Some("AU"),
-        61 => Some("MY"),
-        71 => Some("CA"),
-        81 => Some("FX"),
-        91 => Some("CRYPTO"),
         _ => None,
     }
 }
@@ -436,7 +466,32 @@ mod tests {
         assert_eq!(decoded.header.proto_id, 3218);
         let values = decode_response(&decoded.body).expect("future info");
         assert_eq!(values[0].security.instrument_id, "US.ESMAIN");
+        assert_eq!(values[0].last_trade_time.as_deref(), Some("2026-12-18"));
         assert_eq!(values[0].trade_time[0].end, Some(1_380.0));
+    }
+
+    #[test]
+    fn accepts_missing_last_trade_time_for_main_contracts() {
+        let mut future = wire_future();
+        future.last_trade_time.clear();
+        let response = Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(S2c {
+                future_info_list: vec![future],
+            }),
+        }
+        .encode_to_vec();
+        let decoded = decode_response(&response).expect("main contract without expiry");
+        assert_eq!(decoded[0].last_trade_time, None);
+        let json = serde_json::to_value(&decoded[0]).expect("future info JSON");
+        assert!(
+            !json
+                .as_object()
+                .expect("future info object")
+                .contains_key("lastTradeTime")
+        );
     }
 
     #[test]
@@ -511,5 +566,64 @@ mod tests {
             .validate()
             .is_err()
         );
+        assert!(matches!(
+            FutureInfoQuery {
+                market: Some(11),
+                securities: vec![FutureInfoSecurityQuery {
+                    market: 1,
+                    code: "HSI2607".to_owned(),
+                }],
+            }
+            .validate(),
+            Err(FutureInfoQueryError::InvalidQuery(message))
+                if message.contains("security market must match")
+        ));
+    }
+
+    #[test]
+    fn accepts_legacy_hk_future_market_and_preserves_cross_midnight_hours() {
+        let query = FutureInfoQuery {
+            market: Some(2),
+            securities: vec![FutureInfoSecurityQuery {
+                market: 2,
+                code: "HSI2607".to_owned(),
+            }],
+        };
+        query.validate().expect("legacy HK future market is valid");
+        let request = crate::trade_proto::qot_get_future_info::Request::decode(
+            encode_request(&query).as_slice(),
+        )
+        .expect("request");
+        assert_eq!(request.c2s.security_list[0].market, 1);
+
+        let mut future = wire_future();
+        future.security.market = 2;
+        future.trade_time = vec![WireTradeTime {
+            begin: Some(1_260.0),
+            end: Some(150.0),
+        }];
+        let response = Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(S2c {
+                future_info_list: vec![future],
+            }),
+        };
+        let decoded = decode_response(&response.encode_to_vec()).expect("future info");
+        assert_eq!(decoded[0].security.market, "HK");
+        assert_eq!(decoded[0].trade_time[0].begin, Some(1_260.0));
+        assert_eq!(decoded[0].trade_time[0].end, Some(150.0));
+    }
+
+    #[test]
+    fn omits_absent_optional_trade_time_values_from_json() {
+        let value = serde_json::to_value(FutureTradeTime {
+            begin: None,
+            end: Some(120.0),
+        })
+        .expect("trade time JSON");
+        assert!(!value.as_object().expect("object").contains_key("begin"));
+        assert_eq!(value["end"], 120.0);
     }
 }

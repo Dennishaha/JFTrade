@@ -389,11 +389,15 @@ fn read_underlying_rank(
 fn parse_operation(query: &str) -> Result<String, MarketDataOptionsReadSnapshotError> {
     let query_map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
-    query_map
+    Ok(query_map
         .get_first("operation")
         .filter(|value| !value.trim().is_empty())
         .map(str::to_owned)
-        .ok_or_else(|| bad_request("operation is required"))
+        // The Go feature adapter defaults option-analysis reads to the
+        // underlying overview operation. Keep the public route useful when
+        // callers omit (or send an empty) operation because the route itself
+        // already identifies the feature.
+        .unwrap_or_else(|| "underlying_overview".to_owned()))
 }
 
 fn parse_volatility_request(
@@ -506,6 +510,11 @@ fn parse_underlying_overview_request(
             .any(|value| value.is_whitespace() || (!value.is_ascii_alphanumeric() && value != '-'))
     {
         return Err(bad_request("option underlying overview code is invalid"));
+    }
+    if market == "US" && is_us_option_contract_code(code) {
+        return Err(bad_request(
+            "operation underlying_overview requires the underlying instrumentId",
+        ));
     }
     let query_map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
@@ -629,6 +638,40 @@ fn parse_rank_bool(value: &str) -> Result<bool, MarketDataOptionsReadSnapshotErr
     }
 }
 
+/// Match the broker service's US option-contract discriminator.  Underlying
+/// overview is intentionally an owner-level query; forwarding a concrete
+/// US contract to OpenD would produce a misleading empty/synthetic owner
+/// projection, so reject it at the HTTP adapter boundary.
+fn is_us_option_contract_code(value: &str) -> bool {
+    let code = value.trim().to_ascii_uppercase();
+    let bytes = code.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_uppercase() {
+        return false;
+    }
+    if bytes
+        .iter()
+        .any(|value| !value.is_ascii_uppercase() && !value.is_ascii_digit() && *value != b'.' && *value != b'-')
+    {
+        return false;
+    }
+    if bytes.len() < 8 {
+        return false;
+    }
+    for index in 0..=bytes.len() - 8 {
+        if !bytes[index..index + 6]
+            .iter()
+            .all(u8::is_ascii_digit)
+            || !matches!(bytes[index + 6], b'C' | b'P')
+            || bytes[index + 7..].is_empty()
+            || !bytes[index + 7..].iter().all(u8::is_ascii_digit)
+        {
+            continue;
+        }
+        return true;
+    }
+    false
+}
+
 fn parse_query_time_period(value: &str) -> Result<i32, MarketDataOptionsReadSnapshotError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "week" | "1w" | "1" => Ok(1),
@@ -737,5 +780,18 @@ fn map_underlying_rank_error(
             code: "BAD_GATEWAY".to_owned(),
             message: other.to_string(),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_us_option_contract_code;
+
+    #[test]
+    fn option_contract_detection_requires_a_strike_suffix() {
+        assert!(!is_us_option_contract_code("AAPL260918C"));
+        assert!(!is_us_option_contract_code("AAPL260918P"));
+        assert!(is_us_option_contract_code("AAPL260918C00100000"));
+        assert!(is_us_option_contract_code("AAPL260918P100"));
     }
 }

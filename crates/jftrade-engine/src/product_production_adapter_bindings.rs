@@ -116,6 +116,22 @@ impl ProductionPortBundle {
                 },
             );
         }
+        if adapter == ProductionRouteAdapter::MarketDataFuturesRead {
+            let snapshot = self.active_provider_state.snapshot();
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.future_info_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
+        }
         if adapter == ProductionRouteAdapter::MarketDataOptionsChainRead {
             let snapshot = self.active_provider_state.snapshot();
             return Some(
@@ -219,15 +235,93 @@ impl ProductionPortBundle {
                 jftrade_settings::MarketDataProvider::Yfinance => "yfinance",
                 jftrade_settings::MarketDataProvider::Akshare => "akshare",
             });
-            return production_adapter_bindings(&MarketDataCapabilityMatrix::new(
+            let binding = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
                 provider,
                 snapshot.helper_ready,
-                snapshot.opend_ready || snapshot.router_ready,
+                // Router readiness is an independent capability from the
+                // OpenD transport.  An OpenD session without the shared
+                // ProviderRouter must not make snapshot/subscription routes
+                // appear ready: those handlers have no demand/cache owner to
+                // serve the request.  External OpenD health is evaluated by
+                // the operation-specific adapter when it is required.
+                snapshot.router_ready,
             ))
             .get(&adapter)
             .copied();
+            // A logical ProviderRouter can exist before OpenD has completed
+            // its connection handshake. Futu snapshot/subscription adapters
+            // depend on both pieces: without a live OpenD session the router
+            // has no physical feed/cache owner and must remain unavailable.
+            return if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && !snapshot.opend_ready
+                && matches!(
+                    adapter,
+                    ProductionRouteAdapter::MarketDataSnapshotsRead
+                        | ProductionRouteAdapter::MarketDataBatchSnapshotsWrite
+                        | ProductionRouteAdapter::MarketDataSubscriptionRead
+                        | ProductionRouteAdapter::MarketDataSubscriptionAcquireWrite
+                        | ProductionRouteAdapter::MarketDataSubscriptionReleaseWrite
+                        | ProductionRouteAdapter::MarketDataSubscriptionClearWrite
+                        | ProductionRouteAdapter::MarketDataSubscriptionHeartbeatWrite
+                )
+            {
+                Some(ProductionAdapterBinding::ExternalUnavailable)
+            } else {
+                binding
+            };
         }
         self.bound_adapters.get(&adapter).copied()
+    }
+
+    /// Resolve readiness for an individual research operation.  The public
+    /// research surface is intentionally one `ResearchRead` adapter, but its
+    /// implementations are not uniform: helper-backed instrument routes and
+    /// the Futu valuation reader have independent prerequisites while the
+    /// remaining baseline routes are deliberately unavailable.  Keeping this
+    /// decision path-specific prevents a ready helper/OpenD runtime from
+    /// advertising unsupported research operations as ready.
+    pub(crate) fn research_operation_binding(
+        &self,
+        path: &str,
+    ) -> Option<ProductionAdapterBinding> {
+        let snapshot = self.active_provider_state.snapshot();
+        let helper_route = [
+            "/api/v1/research/instruments/",
+            "/api/v1/research/financials/",
+            "/api/v1/research/analyst/",
+            "/api/v1/research/ownership/",
+            "/api/v1/research/corporate-actions/",
+        ]
+        .iter()
+        .any(|prefix| {
+            path.strip_prefix(prefix)
+                .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
+        });
+        let valuation_route = path
+            .strip_prefix("/api/v1/research/valuation/")
+            .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
+        let ready = if helper_route {
+            snapshot.helper_ready
+                && matches!(
+                    snapshot.provider,
+                    Some(jftrade_settings::MarketDataProvider::Yfinance)
+                        | Some(jftrade_settings::MarketDataProvider::Akshare)
+                )
+        } else if valuation_route {
+            snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.valuation_detail_available())
+        } else {
+            false
+        };
+        Some(if ready {
+            ProductionAdapterBinding::Ready
+        } else {
+            ProductionAdapterBinding::ExternalUnavailable
+        })
     }
 }
 
@@ -280,6 +374,7 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataSubscriptionClearWrite
             | MarketDataSubscriptionHeartbeatWrite
             | MarketDataNewsActionsRead
+            | MarketDataNewsSearchRead
             | BacktestSyncStart
     )
 }
@@ -393,6 +488,7 @@ impl MarketDataCapabilityMatrix {
         matches!(
             self.active_provider,
             Some(ActiveMarketDataProvider::Yfinance)
+                | Some(ActiveMarketDataProvider::Akshare)
         ) && self.helper_ready
     }
 }
@@ -456,6 +552,7 @@ pub(crate) fn production_adapter_bindings(
         Adapter::BrokerWrite,
         Adapter::PortfolioRead,
         Adapter::MarketDataDerivativeRead,
+        Adapter::MarketDataFuturesRead,
         Adapter::MarketDataOptionsRead,
         Adapter::MarketDataOptionsChainRead,
         Adapter::MarketDataOptionsExpirationsRead,
@@ -467,7 +564,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::MarketDataOptionsZeroDteContractRead,
         Adapter::MarketDataOptionsEarningsRead,
         Adapter::MarketDataOptionsSellerRead,
-        Adapter::MarketDataNewsSearchRead,
         Adapter::MarketDataPredictionRead,
         Adapter::MarketDataDepthRead,
         Adapter::MarketDataTicksRead,
@@ -487,8 +583,10 @@ pub(crate) fn production_adapter_bindings(
 
     if matrix.can_search() {
         ready.push(Adapter::MarketDataSearchRead);
+        ready.push(Adapter::MarketDataNewsSearchRead);
     } else {
         unavailable.push(Adapter::MarketDataSearchRead);
+        unavailable.push(Adapter::MarketDataNewsSearchRead);
     }
 
     if matrix.can_read_candles() {
@@ -557,10 +655,19 @@ mod tests {
             ready.get(&ProductionRouteAdapter::MarketDataNewsActionsRead),
             Some(&ProductionAdapterBinding::Ready)
         );
+        let akshare_ready = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
+            Some("akshare"),
+            true,
+            false,
+        ));
+        assert_eq!(
+            akshare_ready.get(&ProductionRouteAdapter::MarketDataNewsActionsRead),
+            Some(&ProductionAdapterBinding::Ready)
+        );
 
         for matrix in [
             MarketDataCapabilityMatrix::new(Some("yfinance"), false, false),
-            MarketDataCapabilityMatrix::new(Some("akshare"), true, false),
+            MarketDataCapabilityMatrix::new(Some("akshare"), false, false),
             MarketDataCapabilityMatrix::new(Some("futu"), false, true),
         ] {
             let bindings = production_adapter_bindings(&matrix);

@@ -12,7 +12,6 @@ use jftrade_calendar::{
     CalendarManager, CalendarManagerSettings, CalendarSnapshotStore, CalendarSourcePolicy,
     CalendarSourceRegistry, CalendarManualOverride, CalendarSessionOverride,
 };
-use jftrade_api::WebSessionValidator;
 use jftrade_datamanagement::{
     DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST_RUNS,
     DATABASE_BACKTEST, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
@@ -35,19 +34,9 @@ use jftrade_store_sqlite::{
     STRATEGY_DEFINITION_PRODUCTION_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
     WATCHLIST_PRODUCTION_PROFILE, WatchlistStore,
 };
-use serde_json::Value;
-use crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPort;
-use crate::product::product_market_data_subscription_mutation_port::MarketDataSubscriptionMutationPort;
-use crate::product::product_research_screen_write_port::ResearchScreenWritePort;
-use crate::product::product_system_write_port::SystemWritePort;
-use crate::product::product_watchlist_remote_write_port::RemoteWatchlistWritePort;
-use crate::product::strategy_pine::StrategyPineAnalyzeSnapshotPort;
+use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::{
-    MarketDataDerivativeReadSnapshotPort, MarketDataNewsActionsReadSnapshotPort,
-    MarketDataNewsSearchReadSnapshotPort, MarketDataOptionsReadSnapshotPort,
-    MarketDataPredictionReadSnapshotPort, MarketDataQuoteReadSnapshotPort,
-    PortfolioSnapshotPort, RemoteWatchlistSnapshotPort,
-    ResearchReadSnapshotPort, WsLiveSnapshotPort,
+    ProductConfig, product_data_management,
 };
 
 #[path = "product_production_ports_plugins.rs"]
@@ -76,6 +65,8 @@ mod product_production_ports_adk;
 mod product_production_adapter_bindings;
 #[path = "product_production_database_leases.rs"]
 mod product_production_database_leases;
+#[path = "product_production_ports_types.rs"]
+mod product_production_ports_types;
 
 pub(crate) use product_production_ports_execution::{
     ProductionBacktestPort, ProductionExecutionPort,
@@ -112,6 +103,9 @@ pub(crate) use product_production_ports_watchlist::{
 };
 pub(crate) use product_production_database_leases::{
     ProductionDatabaseLeaseSnapshot, PRODUCTION_DATABASE_IDS,
+};
+pub(crate) use product_production_ports_types::{
+    provider_request_matches, research_tool_binding, ProductionAlertPort, ProductionPortBundle,
 };
 
 const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
@@ -171,189 +165,7 @@ pub(crate) fn calendar_manager_settings(input: ExchangeCalendarSettings) -> Cale
             .collect(),
     }
 }
-use crate::product::product_adk_chat_stream_port::AdkChatStreamPort;
-use crate::product::product_adk_mutation_port::AdkMutationPort;
-use crate::product::product_alerts_write_port::{
-    AlertWriteAction, AlertWritePort, AlertWritePortError, AlertWriteResolution, AlertWriteRoute,
-};
-use crate::product::product_auth_session_manager::{
-    AuthSessionInvalidationPort, ProductionAuthSessionManager,
-};
-use crate::product::product_backtests_write_port::BacktestsWritePort;
-use crate::product::product_brokers_write_port::BrokersWritePort;
-use crate::product::product_execution_write_port::ExecutionWritePort;
-use crate::product::product_plugins_write_port::PluginWritePort;
-use crate::product::product_research_preset_write_port::ResearchPresetWritePort;
-use crate::product::product_strategy_definition_write_port::StrategyDefinitionWritePort;
-use crate::product::product_strategy_runtime_write_port::StrategyRuntimeWritePort;
-use crate::product::product_watchlist_write_port::WatchlistWritePort;
-use crate::product::{
-    AdkReadSnapshotPort, AlertKind, AlertSnapshotError, AlertSnapshotPort,
-    AuthSessionSnapshotPort, AuthSessionWritePort, BacktestReadSnapshotPort,
-    BacktestSyncReadSnapshotPort, BrokerReadSnapshotPort,
-    ExecutionReadSnapshotPort,
-    MarketDataCatalogReadSnapshotPort,
-    MarketDataProviderReadSnapshotPort, PluginSnapshotPort,
-    PluginUninstallGuidanceSnapshotPort, ProductConfig, ResearchPresetReadSnapshotPort,
-    StrategyDefinitionSnapshotPort, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
-    SystemReadSnapshotPort, WatchlistMembershipSnapshotPort,
-    WatchlistReadSnapshotPort, product_data_management,
-};
-use crate::product::product_active_provider_state::ActiveProviderState;
-
-// Plugins, Brokers, Alerts, System
-
-#[derive(Clone, Debug)]
-pub(crate) struct ProductionAlertPort {
-    pub(crate) active_provider_state: Arc<ActiveProviderState>,
-}
-
-impl AlertSnapshotPort for ProductionAlertPort {
-    fn snapshot(
-        &self,
-        _kind: AlertKind,
-        _raw_query: &str,
-    ) -> Result<Value, AlertSnapshotError> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
-            return Err(AlertSnapshotError::Unavailable(
-                "alert provider runtime is not configured".to_owned(),
-            ));
-        }
-        Err(AlertSnapshotError::Unavailable(
-            "alert provider runtime is not configured".to_owned(),
-        ))
-    }
-}
-
-impl AlertWritePort for ProductionAlertPort {
-    fn resolve(
-        &self,
-        _route: AlertWriteRoute,
-        _broker_id: Option<&str>,
-        _account_id: Option<&str>,
-    ) -> Result<AlertWriteResolution, AlertWritePortError> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
-            return Err(AlertWritePortError::Unavailable(
-                "alert provider runtime is not configured".to_owned(),
-            ));
-        }
-        Err(AlertWritePortError::Unavailable(
-            "alert provider runtime is not configured".to_owned(),
-        ))
-    }
-
-    fn apply(
-        &self,
-        _resolution: &AlertWriteResolution,
-        _action: &AlertWriteAction,
-    ) -> Result<Option<Value>, AlertWritePortError> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
-            return Err(AlertWritePortError::Unavailable(
-                "alert provider runtime is not configured".to_owned(),
-            ));
-        }
-        Err(AlertWritePortError::Unavailable(
-            "alert provider runtime is not configured".to_owned(),
-        ))
-    }
-}
-
-// Bundle
-
-#[derive(Clone)]
-pub(crate) struct ProductionPortBundle {
-    pub(crate) active_provider_state: Arc<ActiveProviderState>,
-    // Lease evidence snapshot; consumed by test-support accessors and the
-    // system port so integrity reporting never invents "ok".
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) database_leases: ProductionDatabaseLeaseSnapshot,
-    pub database_lease_status: &'static str,
-    pub provider_status: &'static str,
-    pub opend_status: &'static str,
-    pub worker_status: &'static str,
-    pub calendar_manager: Arc<CalendarManager>,
-    pub auth_session: Arc<dyn AuthSessionSnapshotPort>,
-    pub auth_session_write: Arc<dyn AuthSessionWritePort>,
-    pub auth_session_validator: Arc<dyn WebSessionValidator>,
-    pub auth_session_invalidation: Arc<dyn AuthSessionInvalidationPort>,
-    pub watchlist: Arc<dyn WatchlistReadSnapshotPort>,
-    pub watchlist_memberships: Arc<dyn WatchlistMembershipSnapshotPort>,
-    pub watchlist_write: Arc<dyn WatchlistWritePort>,
-    pub catalog: Arc<dyn MarketDataCatalogReadSnapshotPort>,
-    pub provider: Arc<dyn MarketDataProviderReadSnapshotPort>,
-    pub plugins: Arc<dyn PluginSnapshotPort>,
-    pub plugin_guidance: Arc<dyn PluginUninstallGuidanceSnapshotPort>,
-    pub plugin_write: Arc<dyn PluginWritePort>,
-    pub broker: Arc<dyn BrokerReadSnapshotPort>,
-    pub brokers_write: Arc<dyn BrokersWritePort>,
-    pub strategy_definition: Arc<dyn StrategyDefinitionSnapshotPort>,
-    pub strategy_definition_write: Arc<dyn StrategyDefinitionWritePort>,
-    pub strategy_read: Arc<dyn StrategyReadSnapshotPort>,
-    pub strategy_runtime_status: Arc<dyn StrategyRuntimeStatusPort>,
-    pub strategy_runtime_write: Arc<dyn StrategyRuntimeWritePort>,
-    pub research_preset_read: Arc<dyn ResearchPresetReadSnapshotPort>,
-    pub research_preset_write: Arc<dyn ResearchPresetWritePort>,
-    pub backtest_read: Arc<dyn BacktestReadSnapshotPort>,
-    pub backtest_sync: Arc<dyn BacktestSyncReadSnapshotPort>,
-    pub backtests_write: Arc<dyn BacktestsWritePort>,
-    pub execution_read: Arc<dyn ExecutionReadSnapshotPort>,
-    pub execution_write: Arc<dyn ExecutionWritePort>,
-    pub adk_read: Arc<dyn AdkReadSnapshotPort>,
-    pub adk_mutation: Arc<dyn AdkMutationPort>,
-    pub adk_chat_stream: Arc<dyn AdkChatStreamPort>,
-    pub alert_snapshot: Arc<dyn AlertSnapshotPort>,
-    pub alert_write: Arc<dyn AlertWritePort>,
-    pub system_read: Arc<dyn SystemReadSnapshotPort>,
-    pub system_write: Arc<dyn SystemWritePort>,
-    pub portfolio: Arc<dyn PortfolioSnapshotPort>,
-    pub research_read: Arc<dyn ResearchReadSnapshotPort>,
-    pub market_data_derivative: Arc<dyn MarketDataDerivativeReadSnapshotPort>,
-    pub market_data_options: Arc<dyn MarketDataOptionsReadSnapshotPort>,
-    pub market_data_news_actions: Arc<dyn MarketDataNewsActionsReadSnapshotPort>,
-    pub market_data_news_search: Arc<dyn MarketDataNewsSearchReadSnapshotPort>,
-    pub market_data_quote: Arc<dyn MarketDataQuoteReadSnapshotPort>,
-    pub market_data_prediction: Arc<dyn MarketDataPredictionReadSnapshotPort>,
-    pub remote_watchlist: Arc<dyn RemoteWatchlistSnapshotPort>,
-    pub remote_watchlist_write: Arc<dyn RemoteWatchlistWritePort>,
-    pub market_data_subscription_mutation: Arc<dyn MarketDataSubscriptionMutationPort>,
-    pub market_data_provider_actions: Arc<dyn MarketDataProviderActionsPort>,
-    pub research_screen_write: Arc<dyn ResearchScreenWritePort>,
-    pub strategy_pine_analyze: Arc<dyn StrategyPineAnalyzeSnapshotPort>,
-    pub ws_live: Arc<dyn WsLiveSnapshotPort>,
-    pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
-    pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
-    pub(crate) backtest_execution_workers: Arc<BacktestExecutionTaskRegistry>,
-    /// Whether the production backtest port has a real execution boundary.
-    /// This remains false when no Pine worker was ready at composition time,
-    /// which keeps the write route fail-closed with its existing 503 result.
-    #[cfg(test)]
-    pub(crate) backtest_execution_ready: bool,
-    #[allow(dead_code)]
-    pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
-    #[allow(dead_code)]
-    pub(crate) trade_logged_in: Option<bool>,
-    #[allow(dead_code)]
-    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
-}
-
-impl ProductionPortBundle {
-    pub(crate) fn backtest_sync_workers(&self) -> Arc<BacktestSyncWorkerRegistry> {
-        Arc::clone(&self.backtest_sync_workers)
-    }
-
-    pub(crate) fn backtest_execution_workers(&self) -> Arc<BacktestExecutionTaskRegistry> {
-        Arc::clone(&self.backtest_execution_workers)
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn backtest_execution_ready(&self) -> bool {
-        self.backtest_execution_ready
-    }
-}
-
+use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
 use crate::product::ProductError;
 use crate::product::product_production_route_registry::ProductionRouteAdapter;
 
@@ -595,9 +407,90 @@ pub(crate) fn production_ports(
         has_helper,
         has_router,
     );
-    let bound_adapters = production_adapter_bindings(&capability_matrix);
+    let mut bound_adapters = production_adapter_bindings(&capability_matrix);
+    // ResearchRead is a shared adapter for helper-backed company research
+    // operations.  Reflect helper readiness in the ADK catalog; otherwise all
+    // research tools would remain non-callable even when the selected helper
+    // is healthy.  Futu keeps the conservative unavailable state because only
+    // valuation has an OpenD reader while the remaining operations do not.
+    if matches!(
+        active_provider,
+        Some(jftrade_settings::MarketDataProvider::Yfinance)
+            | Some(jftrade_settings::MarketDataProvider::Akshare)
+    ) {
+        bound_adapters.insert(
+            ProductionRouteAdapter::ResearchRead,
+            if provider_snapshot.helper_ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            },
+        );
+    }
+    // Keep the startup tool catalog aligned with the live transport state.
+    // `MarketDataCapabilityMatrix` intentionally models logical router
+    // capability for provider transitions, but a Futu snapshot/subscription
+    // route is not usable until OpenD has completed its handshake.  Apply the
+    // physical readiness gate before exposing the bound-adapter snapshot.
+    if active_provider == Some(jftrade_settings::MarketDataProvider::Futu)
+        && !provider_snapshot.opend_ready
+    {
+        for adapter in [
+            ProductionRouteAdapter::MarketDataSnapshotsRead,
+            ProductionRouteAdapter::MarketDataBatchSnapshotsWrite,
+            ProductionRouteAdapter::MarketDataSubscriptionRead,
+            ProductionRouteAdapter::MarketDataSubscriptionAcquireWrite,
+            ProductionRouteAdapter::MarketDataSubscriptionReleaseWrite,
+            ProductionRouteAdapter::MarketDataSubscriptionClearWrite,
+            ProductionRouteAdapter::MarketDataSubscriptionHeartbeatWrite,
+        ] {
+            bound_adapters.insert(adapter, ProductionAdapterBinding::ExternalUnavailable);
+        }
+    }
+    // Future contracts have a dedicated OpenD reader.  Keep the tool catalog
+    // in sync with the route registry's operation-level readiness instead of
+    // inheriting the generic derivatives (warrants) unavailable binding.
+    let futures_ready = active_provider == Some(jftrade_settings::MarketDataProvider::Futu)
+        && provider_snapshot.opend_ready
+        && config
+            .trade_runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.future_info_available());
+    bound_adapters.insert(
+        ProductionRouteAdapter::MarketDataFuturesRead,
+        if futures_ready {
+            ProductionAdapterBinding::Ready
+        } else {
+            ProductionAdapterBinding::ExternalUnavailable
+        },
+    );
+    // ADK research tools are more granular than the public HTTP route's
+    // compatibility umbrella. Derive readiness from the same operation-level
+    // checks used by the route registry so unsupported operations are never
+    // advertised as callable.
+    let research_tool_bindings = BTreeMap::from([
+        (
+            "instrument",
+            research_tool_binding(&provider_snapshot, config, "instrument"),
+        ),
+        (
+            "financials",
+            research_tool_binding(&provider_snapshot, config, "financials"),
+        ),
+        (
+            "valuation",
+            research_tool_binding(&provider_snapshot, config, "valuation"),
+        ),
+        (
+            "news",
+            bound_adapters
+                .get(&ProductionRouteAdapter::MarketDataNewsSearchRead)
+                .copied()
+                .unwrap_or(ProductionAdapterBinding::ExternalUnavailable),
+        ),
+    ]);
     let tool_catalog = Arc::new(
-        ProductionToolCatalog::from_bindings(&bound_adapters)
+        ProductionToolCatalog::from_bindings_with_research(&bound_adapters, &research_tool_bindings)
             .map_err(|adapter| ProductError::MissingProductionAdapter {
                 method: "GET".to_owned(),
                 path: "/api/v1/adk/tools".to_owned(),

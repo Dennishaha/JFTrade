@@ -77,6 +77,10 @@ pub(crate) enum ProductionRouteAdapter {
     MarketDataIntradayRead,
     MarketDataProfileRead,
     MarketDataDerivativeRead,
+    /// Futu/OpenD future-contract catalogue.  Warrants intentionally keep a
+    /// separate adapter so an unavailable warrant reader cannot mask a ready
+    /// futures reader (or vice versa).
+    MarketDataFuturesRead,
     MarketDataOptionsRead,
     MarketDataOptionsChainRead,
     MarketDataOptionsExpirationsRead,
@@ -176,6 +180,7 @@ impl ProductionRouteAdapter {
             Self::MarketDataIntradayRead => "market-data-intraday-read",
             Self::MarketDataProfileRead => "market-data-profile-read",
             Self::MarketDataDerivativeRead => "market-data-derivative-read",
+            Self::MarketDataFuturesRead => "market-data-futures-read",
             Self::MarketDataOptionsRead => "market-data-options-read",
             Self::MarketDataOptionsChainRead => "market-data-options-chain-read",
             Self::MarketDataOptionsExpirationsRead => "market-data-options-expirations-read",
@@ -225,7 +230,8 @@ pub(crate) struct ProductionRouteBinding {
     pub(crate) adapter: ProductionRouteAdapter,
     pub(crate) adapter_binding: ProductionAdapterBinding,
     /// Readiness for operations selected by query on a shared public route.
-    /// Currently populated for `/market-data/options/events` only.
+    /// Options/events and instrument research routes expose operation aliases
+    /// here so callers can inspect the same binding that dispatch will use.
     pub(crate) operation_bindings: BTreeMap<String, ProductionAdapterBinding>,
 }
 
@@ -286,7 +292,16 @@ impl ProductionRouteRegistry {
                     adapter: "unclassified-route".to_owned(),
                 }
             })?;
-            let adapter_binding = ports.adapter_binding(adapter).ok_or_else(|| {
+            let adapter_binding = if adapter == ProductionRouteAdapter::ResearchRead {
+                // ResearchRead is a compatibility umbrella for several
+                // operations. Resolve readiness from the concrete path so a
+                // helper-backed profile/financials route (or Futu valuation)
+                // is not hidden behind the umbrella's conservative default.
+                ports.research_operation_binding(&path)
+            } else {
+                ports.adapter_binding(adapter)
+            }
+            .ok_or_else(|| {
                 ProductError::MissingProductionAdapter {
                     method: method.clone(),
                     path: path.clone(),
@@ -308,6 +323,15 @@ impl ProductionRouteRegistry {
                         Ok(((*operation).to_owned(), binding))
                     })
                     .collect::<Result<BTreeMap<_, _>, ProductError>>()?
+            } else if adapter == ProductionRouteAdapter::ResearchRead {
+                let binding = ports.research_operation_binding(&path).ok_or_else(|| {
+                    ProductError::MissingProductionAdapter {
+                        method: method.clone(),
+                        path: path.clone(),
+                        adapter: adapter.name().to_owned(),
+                    }
+                })?;
+                research_operation_bindings(&path, binding)
             } else {
                 BTreeMap::new()
             };
@@ -366,6 +390,36 @@ impl ProductionRouteRegistry {
     pub(crate) fn digest(&self) -> &str {
         &self.digest
     }
+}
+
+fn research_operation_bindings(
+    path: &str,
+    binding: ProductionAdapterBinding,
+) -> BTreeMap<String, ProductionAdapterBinding> {
+    let mut bindings = BTreeMap::from([(path.to_owned(), binding)]);
+    let aliases: &[&str] = if path.starts_with("/api/v1/research/instruments/") {
+        &["profile"]
+    } else if path.starts_with("/api/v1/research/financials/") {
+        &["statements"]
+    } else if path.starts_with("/api/v1/research/valuation/") {
+        &["valuation", "detail"]
+    } else if path.starts_with("/api/v1/research/analyst/") {
+        &["consensus"]
+    } else if path.starts_with("/api/v1/research/ownership/") {
+        &["overview"]
+    } else if path.starts_with("/api/v1/research/corporate-actions/") {
+        &["dividends"]
+    } else if path.starts_with("/api/v1/research/short-interest/") {
+        &["daily_volume", "short_interest"]
+    } else if path.starts_with("/api/v1/research/technical-indicators/") {
+        &["technical", "technical_indicators"]
+    } else {
+        &[]
+    };
+    for alias in aliases {
+        bindings.insert((*alias).to_owned(), binding);
+    }
+    bindings
 }
 
 #[derive(Debug, Deserialize)]
@@ -600,8 +654,11 @@ fn market_data_adapter(method: &str, path: &str) -> Option<ProductionRouteAdapte
         {
             Some(ProductionRouteAdapter::MarketDataProfileRead)
         }
-        ("GET", "/api/v1/market-data/warrants") | ("GET", "/api/v1/market-data/futures") => {
+        ("GET", "/api/v1/market-data/warrants") => {
             Some(ProductionRouteAdapter::MarketDataDerivativeRead)
+        }
+        ("GET", "/api/v1/market-data/futures") => {
+            Some(ProductionRouteAdapter::MarketDataFuturesRead)
         }
         ("GET", p) if p.starts_with("/api/v1/market-data/options/") => {
             Some(if p.starts_with("/api/v1/market-data/options/chains/") {
