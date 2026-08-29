@@ -6,14 +6,13 @@ mod basic_quote_query;
 mod basic_quote_tick;
 mod frame;
 mod future_info_query;
-mod valuation_detail_query;
 mod health;
 mod history;
 mod managed_session;
 mod option_chain_query;
 mod option_contract_rank_query;
+mod option_earnings_screener_query;
 mod option_event_query;
-mod option_zero_dte_screener_query;
 mod option_exercise_probability_query;
 mod option_expiration_query;
 mod option_market_statistic_query;
@@ -27,6 +26,7 @@ mod option_underlying_his_volatility_query;
 mod option_underlying_overview_query;
 mod option_underlying_rank_query;
 mod option_volatility_query;
+mod option_zero_dte_screener_query;
 mod probe;
 mod provider;
 mod provider_runtime;
@@ -37,6 +37,7 @@ mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
+mod valuation_detail_query;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
 // rules because its field/enum names are dictated by the OpenD schema.
@@ -60,13 +61,6 @@ pub use future_info_query::{
     FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort, FutureInfoSecurity,
     FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
 };
-pub use valuation_detail_query::{
-    OpenDValuationDetailReader, ValuationDetailHistoricalItem, ValuationDetailMarketDistribution,
-    ValuationDetailPlateDistribution, ValuationDetailPlateStockItem, ValuationDetailProfitGrowth,
-    ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
-    ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
-    ValuationDetailTrend,
-};
 pub use health::{
     OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
     market_data_health_from_probe,
@@ -88,15 +82,14 @@ pub use option_contract_rank_query::{
     OptionContractRankQueryError, OptionContractRankReadPort, OptionContractRankSecurity,
     OptionContractRankSnapshot,
 };
+pub use option_earnings_screener_query::{
+    OpenDOptionEarningsScreenerReader, OptionEarningsScreenerItem, OptionEarningsScreenerPage,
+    OptionEarningsScreenerQuery, OptionEarningsScreenerQueryError, OptionEarningsScreenerReadPort,
+};
 pub use option_event_query::{
     EventIndicator, EventIndicatorValue, EventSort, OpenDOptionEventReader, OptionEvent,
     OptionEventCorporateAction, OptionEventPage, OptionEventQuery, OptionEventQueryError,
     OptionEventReadPort, OptionEventSecurity,
-};
-pub use option_zero_dte_screener_query::{
-    OpenDOptionZeroDteScreenerReader, OptionZeroDteChainInfo, OptionZeroDteScreenerItem,
-    OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
-    OptionZeroDteScreenerReadPort,
 };
 pub use option_exercise_probability_query::{
     OpenDOptionExerciseProbabilityReader, OptionExerciseProbabilityItem,
@@ -166,6 +159,11 @@ pub use option_volatility_query::{
     OptionVolatilityQueryError, OptionVolatilityReadPort, OptionVolatilitySecurity,
     OptionVolatilitySnapshot,
 };
+pub use option_zero_dte_screener_query::{
+    OpenDOptionZeroDteScreenerReader, OptionZeroDteChainInfo, OptionZeroDteScreenerItem,
+    OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
+    OptionZeroDteScreenerReadPort,
+};
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use provider_runtime::{
@@ -209,6 +207,13 @@ pub use trading::{
 pub use transport::{
     OpenDClient, OpenDFrameReader, OpenDTcpTransport, OpenDTransport, TcpTransportError,
     TransportError,
+};
+pub use valuation_detail_query::{
+    OpenDValuationDetailReader, ValuationDetailHistoricalItem, ValuationDetailMarketDistribution,
+    ValuationDetailPlateDistribution, ValuationDetailPlateStockItem, ValuationDetailProfitGrowth,
+    ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
+    ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
+    ValuationDetailTrend,
 };
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;

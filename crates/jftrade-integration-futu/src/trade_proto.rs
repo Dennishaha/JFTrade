@@ -108,8 +108,18 @@ pub mod qot_get_option_event {
     pub const PROTOCOL_ID: u32 = 3307;
 }
 pub mod qot_get_option_zero_dte_screener {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_option_zero_dte_screener.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_zero_dte_screener.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3311;
+}
+pub mod qot_get_option_earnings_screener {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_earnings_screener.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3313;
 }
 pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));

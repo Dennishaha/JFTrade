@@ -21,6 +21,7 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionRank.proto",
         "../../pkg/futu/proto/Qot_GetOptionEvent.proto",
         "../../pkg/futu/proto/Qot_GetOptionZeroDteScreener.proto",
+        "../../pkg/futu/proto/Qot_GetOptionEarningsScreener.proto",
         "../../pkg/futu/proto/Qot_OptionCommon.proto",
         "../../pkg/futu/proto/Qot_OptionScreen.proto",
         "../../pkg/futu/proto/Qot_RequestHistoryKL.proto",
