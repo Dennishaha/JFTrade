@@ -548,6 +548,7 @@ pub(crate) fn production_ports(
         sync_workers: Arc::clone(&backtest_sync_workers),
         execution: config.backtest_execution_port.clone(),
         execution_workers: Arc::clone(&backtest_execution_workers),
+        strategy_definitions: Arc::clone(&strategy_def_store),
     });
     let active_provider_str = match active_provider {
         Some(jftrade_settings::MarketDataProvider::Futu) => Some("futu"),

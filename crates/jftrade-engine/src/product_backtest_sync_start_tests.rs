@@ -82,6 +82,18 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
         )
         .expect("open market store"),
     );
+    let strategy_path = directory.path().join("strategy-definitions.db");
+    let connection = rusqlite::Connection::open(&strategy_path).expect("create strategy database");
+    jftrade_store_sqlite::initialize_current(&connection, "strategy")
+        .expect("initialize strategy database");
+    drop(connection);
+    let strategy_definitions = std::sync::Arc::new(
+        jftrade_store_sqlite::StrategyDefinitionStore::open_existing(
+            &strategy_path,
+            jftrade_store_sqlite::STRATEGY_DEFINITION_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy store"),
+    );
     (
         ProductionBacktestPort {
             store: runs,
@@ -94,6 +106,7 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
             execution: None,
             execution_workers: std::sync::Arc::new(BacktestExecutionTaskRegistry::default()),
+            strategy_definitions,
         },
         directory,
     )
@@ -258,6 +271,7 @@ async fn production_backtest_start_executes_fixture_and_persists_terminal_result
         .mutate(&BacktestsWriteInput::Start {
             payload: json!({
                 "definitionId": "fixture-definition",
+                "strategyScript": "strategy('fixture')",
                 "symbol": "US.AAPL",
                 "interval": "1m",
                 "startTime": "2025-06-23T13:00:00Z",
@@ -291,6 +305,7 @@ async fn production_backtest_start_rejects_missing_history_without_queuing() {
     let result = port.mutate(&BacktestsWriteInput::Start {
         payload: json!({
             "definitionId": "fixture-definition",
+            "strategyScript": "strategy('fixture')",
             "symbol": "US.MISSING",
             "interval": "1m",
             "startTime": "2025-06-23T13:00:00Z",
