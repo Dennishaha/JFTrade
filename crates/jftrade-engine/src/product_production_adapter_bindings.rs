@@ -83,6 +83,7 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataSubscriptionReleaseWrite
             | MarketDataSubscriptionClearWrite
             | MarketDataSubscriptionHeartbeatWrite
+            | MarketDataNewsActionsRead
             | BacktestSyncStart
     )
 }
@@ -187,6 +188,11 @@ impl MarketDataCapabilityMatrix {
             None => false,
         }
     }
+
+    pub(crate) fn can_read_news_actions(&self) -> bool {
+        matches!(self.active_provider, Some(ActiveMarketDataProvider::Yfinance))
+            && self.helper_ready
+    }
 }
 
 pub(crate) fn production_adapter_bindings(
@@ -245,7 +251,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::PortfolioRead,
         Adapter::MarketDataDerivativeRead,
         Adapter::MarketDataOptionsRead,
-        Adapter::MarketDataNewsActionsRead,
         Adapter::MarketDataNewsSearchRead,
         Adapter::MarketDataPredictionRead,
         Adapter::MarketDataDepthRead,
@@ -310,7 +315,43 @@ pub(crate) fn production_adapter_bindings(
         unavailable.push(Adapter::MarketDataSubscriptionHeartbeatWrite);
     }
 
+    if matrix.can_read_news_actions() {
+        ready.push(Adapter::MarketDataNewsActionsRead);
+    } else {
+        unavailable.push(Adapter::MarketDataNewsActionsRead);
+    }
+
     bind_adapters(&mut bindings, Ready, &ready);
     bind_adapters(&mut bindings, ExternalUnavailable, &unavailable);
     bindings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn news_actions_binding_requires_yfinance_helper_readiness() {
+        let ready = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
+            Some("yfinance"),
+            true,
+            false,
+        ));
+        assert_eq!(
+            ready.get(&ProductionRouteAdapter::MarketDataNewsActionsRead),
+            Some(&ProductionAdapterBinding::Ready)
+        );
+
+        for matrix in [
+            MarketDataCapabilityMatrix::new(Some("yfinance"), false, false),
+            MarketDataCapabilityMatrix::new(Some("akshare"), true, false),
+            MarketDataCapabilityMatrix::new(Some("futu"), false, true),
+        ] {
+            let bindings = production_adapter_bindings(&matrix);
+            assert_eq!(
+                bindings.get(&ProductionRouteAdapter::MarketDataNewsActionsRead),
+                Some(&ProductionAdapterBinding::ExternalUnavailable)
+            );
+        }
+    }
 }

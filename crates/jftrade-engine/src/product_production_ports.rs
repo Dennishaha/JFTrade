@@ -615,6 +615,7 @@ pub(crate) fn production_ports(
     });
     let market_data_news_port = Arc::new(ProductionMarketDataNewsPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        helper: config.market_data_helper.clone(),
     });
     let market_data_prediction_port = Arc::new(ProductionMarketDataPredictionPort {
         active_provider_state: Arc::clone(&active_provider_state),
