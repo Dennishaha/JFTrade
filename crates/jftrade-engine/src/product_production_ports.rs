@@ -576,6 +576,7 @@ pub(crate) fn production_ports(
     });
     let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
         store: strategy_runtime_store,
+        definitions: strategy_def_store.clone(),
     });
     let research_preset_port = Arc::new(ProductionResearchPresetPort {
         store: research_store,

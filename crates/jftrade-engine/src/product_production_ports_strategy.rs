@@ -513,6 +513,7 @@ fn map_strategy_store_error(error: StrategyDefinitionStoreError) -> StrategyDefi
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyRuntimePort {
     pub(crate) store: Arc<StrategyRuntimeStore>,
+    pub(crate) definitions: Arc<StrategyDefinitionStore>,
 }
 
 impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
@@ -524,8 +525,8 @@ impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
                     .map_err(|e| StrategyReadSnapshotError::Unavailable(e.to_string()))?;
                 let items = instances
                     .into_iter()
-                    .map(runtime_instance_wire)
-                    .collect::<Vec<_>>();
+                    .map(|instance| self.runtime_instance_wire(instance))
+                    .collect::<Result<Vec<_>, _>>()?;
                 return Ok(Some(Value::Array(items)));
         }
         let Some((instance_id, activity)) = strategy_activity_path(path) else {
@@ -549,6 +550,149 @@ impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
 }
 
 impl ProductionStrategyRuntimePort {
+    fn runtime_instance_wire(
+        &self,
+        instance: jftrade_store_sqlite::StoredRuntimeInstance,
+    ) -> Result<Value, StrategyReadSnapshotError> {
+        let observation = self
+            .store
+            .get_observation(&instance.id)
+            .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?;
+        let mut object = serde_json::Map::new();
+        object.insert("id".to_owned(), Value::String(instance.id.clone()));
+        object.insert("status".to_owned(), Value::String(instance.status.clone()));
+        object.insert("binding".to_owned(), instance.binding.clone());
+        object.insert("runtimeRisk".to_owned(), instance.runtime_risk.clone());
+        object.insert(
+            "definitionRevision".to_owned(),
+            Value::from(instance.definition_revision),
+        );
+        object.insert("runtimeActive".to_owned(), Value::Bool(instance.runtime_active));
+        if !instance.plugin_id.is_empty() {
+            object.insert("pluginId".to_owned(), Value::String(instance.plugin_id.clone()));
+        }
+        if let Some(created_at) = instance
+            .created_at
+            .clone()
+            .or_else(|| (!instance.updated_at.is_empty()).then_some(instance.updated_at.clone()))
+        {
+            object.insert("createdAt".to_owned(), Value::String(created_at));
+        }
+        if !instance.updated_at.is_empty() {
+            object.insert("updatedAt".to_owned(), Value::String(instance.updated_at.clone()));
+        }
+        // Older catalog rows may not have copied definition metadata into the
+        // operation payload. Recover the identity from the persisted binding
+        // before consulting the definition store; never invent a definition.
+        let definition_id = instance
+            .definition_id
+            .clone()
+            .or_else(|| binding_string_opt(&instance.binding, &["definitionId", "strategyId"]));
+        if let Some(definition_id) = definition_id {
+            let definition = self
+                .definitions
+                .get_definition(&definition_id, false)
+                .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?;
+            let definition_name = instance
+                .definition_name
+                .clone()
+                .or_else(|| binding_string_opt(&instance.binding, &["definitionName", "strategyName"]))
+                .unwrap_or_default();
+            let definition_version = instance
+                .definition_version
+                .clone()
+                .or_else(|| binding_string_opt(&instance.binding, &["definitionVersion", "version"]))
+                .unwrap_or_default();
+            object.insert(
+                "definition".to_owned(),
+                json!({
+                    "strategyId": definition_id,
+                    "name": definition
+                        .as_ref()
+                        .map(|item| item.name.clone())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or(definition_name),
+                    "version": definition
+                        .as_ref()
+                        .map(|item| item.version.clone())
+                        .filter(|version| !version.is_empty())
+                        .unwrap_or(definition_version),
+                }),
+            );
+            object.insert(
+                "definitionSync".to_owned(),
+                json!({
+                    "definitionId": definition_id,
+                    "appliedVersion": instance.definition_version.clone(),
+                    "latestVersion": definition.as_ref().map(|item| item.version.clone()).unwrap_or_default(),
+                    "isLatest": definition.as_ref().is_none_or(|item| Some(item.version.clone()) == instance.definition_version),
+                    "canApplyLatest": false,
+                }),
+            );
+        }
+        let runtime = instance
+            .binding
+            .get("runtime")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let source_format = instance
+            .binding
+            .get("sourceFormat")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if let Some(runtime) = runtime.as_deref() {
+            object.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
+        }
+        if let Some(source_format) = source_format.as_deref() {
+            object.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
+        }
+        object.insert(
+            "startable".to_owned(),
+            Value::Bool(runtime.is_some() && source_format.is_some()),
+        );
+        let mut params = serde_json::Map::new();
+        if let Some(definition_id) = instance.definition_id.as_deref() {
+            params.insert(
+                "definitionId".to_owned(),
+                Value::String(definition_id.to_owned()),
+            );
+        }
+        if let Some(runtime) = runtime.as_deref() {
+            params.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
+        }
+        if let Some(source_format) = source_format.as_deref() {
+            params.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
+        }
+        object.insert("params".to_owned(), Value::Object(params));
+        let logs = self
+            .store
+            .list_log_events(&instance.id)
+            .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?
+            .into_iter()
+            .take(20)
+            .map(|event| event.raw)
+            .collect::<Vec<_>>();
+        object.insert("logs".to_owned(), Value::Array(logs.into_iter().map(Value::String).collect()));
+        if let Some(observation) = observation {
+            object.insert(
+                "runtimeObservation".to_owned(),
+                json!({
+                    "actualStatus": observation.actual_status,
+                    "activeSymbols": observation.active_symbols,
+                    "lastClosedKlineAt": observation.last_closed_kline_at,
+                    "lastSignalAt": observation.last_signal_at,
+                    "lastOrderAt": observation.last_order_at,
+                    "lastErrorAt": observation.last_error_at,
+                    "lastError": observation.last_error,
+                    "updatedAt": observation.updated_at,
+                }),
+            );
+        }
+        Ok(Value::Object(object))
+    }
+
     fn logs(
         &self,
         instance_id: &str,
@@ -610,29 +754,6 @@ impl StrategyActivityQuery {
         self.from_ms.is_none_or(|from| at_ms >= from)
             && self.to_ms.is_none_or(|to| at_ms <= to)
     }
-}
-
-fn runtime_instance_wire(instance: jftrade_store_sqlite::StoredRuntimeInstance) -> Value {
-    let mut object = serde_json::Map::new();
-    object.insert("id".to_owned(), Value::String(instance.id));
-    object.insert("status".to_owned(), Value::String(instance.status));
-    object.insert("binding".to_owned(), instance.binding);
-    object.insert("runtimeRisk".to_owned(), instance.runtime_risk);
-    object.insert(
-        "definitionRevision".to_owned(),
-        Value::from(instance.definition_revision),
-    );
-    object.insert(
-        "runtimeActive".to_owned(),
-        Value::Bool(instance.runtime_active),
-    );
-    if !instance.plugin_id.is_empty() {
-        object.insert("pluginId".to_owned(), Value::String(instance.plugin_id));
-    }
-    if !instance.updated_at.is_empty() {
-        object.insert("updatedAt".to_owned(), Value::String(instance.updated_at));
-    }
-    Value::Object(object)
 }
 
 fn strategy_activity_path(path: &str) -> Option<(&str, &str)> {
@@ -820,6 +941,11 @@ fn binding_string(binding: &Value, keys: &[&str]) -> String {
         .find(|value| !value.is_empty())
         .unwrap_or_default()
         .to_owned()
+}
+
+fn binding_string_opt(binding: &Value, keys: &[&str]) -> Option<String> {
+    let value = binding_string(binding, keys);
+    (!value.is_empty()).then_some(value)
 }
 
 fn binding_symbols(binding: &Value) -> Option<Vec<String>> {
