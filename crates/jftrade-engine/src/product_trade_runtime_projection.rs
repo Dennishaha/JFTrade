@@ -38,6 +38,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_screens:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionScreenReadPort>>>>,
     pub(crate) option_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
+    pub(crate) option_volatility: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
 #[derive(Clone, Debug)]
@@ -49,7 +50,6 @@ pub(crate) struct TradeRuntimeConnection {
 }
 
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
-
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedTradeReadRuntime")

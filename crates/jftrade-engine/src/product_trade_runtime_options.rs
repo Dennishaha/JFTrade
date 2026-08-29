@@ -5,7 +5,8 @@ use jftrade_integration_futu::{
     OptionExpirationDate, OptionExpirationQuery, OptionExpirationQueryError,
     OptionExpirationReadPort, OptionScreenPage, OptionScreenQuery, OptionScreenQueryError,
     OptionScreenReadPort, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
-    OptionQuoteReadPort, OptionEventPage, OptionEventQuery, OptionEventQueryError,
+    OptionQuoteReadPort, OptionVolatilityQuery, OptionVolatilityQueryError,
+    OptionVolatilityReadPort, OptionEventPage, OptionEventQuery, OptionEventQueryError,
     OptionEventReadPort,
 };
 
@@ -134,6 +135,40 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionQuoteQueryError::InvalidQuery(
                     "Futu option quote runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_volatility(
+        &self,
+        reader: Option<Arc<dyn OptionVolatilityReadPort>>,
+    ) {
+        *self
+            .option_volatility
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_volatility_available(&self) -> bool {
+        self.option_volatility
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_volatility(
+        &self,
+        query: &OptionVolatilityQuery,
+    ) -> Result<jftrade_integration_futu::OptionVolatilitySnapshot, OptionVolatilityQueryError> {
+        let reader = self
+            .option_volatility
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionVolatilityQueryError::InvalidQuery(
+                    "Futu option volatility runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

@@ -111,6 +111,11 @@ pub async fn start_product_runtime(
                 trade_runtime.set_option_quotes(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionQuoteReader::new(runtime.coordinator()),
                 )));
+                trade_runtime.set_option_volatility(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionVolatilityReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_events(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionEventReader::new(runtime.coordinator()),
                 )));
@@ -172,6 +177,9 @@ pub async fn start_product_runtime(
         )));
         trade_runtime.set_option_quotes(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionQuoteReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_option_volatility(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionVolatilityReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_option_events(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionEventReader::new(Arc::clone(coordinator)),

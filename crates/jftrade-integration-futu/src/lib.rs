@@ -13,6 +13,7 @@ mod option_event_query;
 mod option_expiration_query;
 mod option_quote_query;
 mod option_screen_query;
+mod option_volatility_query;
 mod probe;
 mod provider;
 mod provider_runtime;
@@ -74,6 +75,11 @@ pub use option_quote_query::{
 pub use option_screen_query::{
     OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
     OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
+};
+pub use option_volatility_query::{
+    OpenDOptionVolatilityReader, OptionVolatilityItem, OptionVolatilityQuery,
+    OptionVolatilityQueryError, OptionVolatilityReadPort, OptionVolatilitySecurity,
+    OptionVolatilitySnapshot,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};

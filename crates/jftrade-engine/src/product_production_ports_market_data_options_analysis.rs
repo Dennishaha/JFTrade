@@ -15,15 +15,25 @@ pub(crate) fn read(
             "Futu option analysis runtime is not configured".to_owned(),
         )
     })?;
+    if !runtime.option_quotes_available() && !runtime.option_volatility_available() {
+        return Err(MarketDataOptionsReadSnapshotError::Unavailable(
+            "Futu option analysis readers are not ready".to_owned(),
+        ));
+    }
+    let operation = parse_operation(query)?;
+    if operation == "volatility" {
+        return read_volatility(runtime, path, query);
+    }
+    if operation != "quote" {
+        return Err(bad_request("operation must be quote or volatility"));
+    }
     if !runtime.option_quotes_available() {
         return Err(MarketDataOptionsReadSnapshotError::Unavailable(
             "Futu option quote reader is not ready".to_owned(),
         ));
     }
-    let request = parse_request(path, query)?;
-    let quotes = runtime
-        .option_quotes(&request)
-        .map_err(map_error)?;
+    let request = parse_quote_request(path, query)?;
+    let quotes = runtime.option_quotes(&request).map_err(map_quote_error)?;
     if quotes.is_empty() {
         return Err(MarketDataOptionsReadSnapshotError::Failed {
             status: 404,
@@ -31,18 +41,7 @@ pub(crate) fn read(
             message: "OpenD returned no option quote".to_owned(),
         });
     }
-    let entries = quotes
-        .into_iter()
-        .map(|quote| {
-            serde_json::to_value(quote).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!("failed to serialize OpenD option quote: {error}"),
-                }
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let entries = quotes.into_iter().map(serialize_quote).collect::<Result<Vec<_>, _>>()?;
     let total = entries.len();
     let as_of = super::super::provider_now_rfc3339();
     Ok(json!({
@@ -62,7 +61,7 @@ pub(crate) fn read(
     }))
 }
 
-fn parse_request(
+fn parse_quote_request(
     path: &str,
     query: &str,
 ) -> Result<jftrade_integration_futu::OptionQuoteQuery, MarketDataOptionsReadSnapshotError> {
@@ -88,12 +87,6 @@ fn parse_request(
     }
     let query_map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
-    if query_map
-        .get_first("operation")
-        .is_none_or(|operation| operation.trim() != "quote")
-    {
-        return Err(bad_request("operation must be quote"));
-    }
     if let Some(requested_market) = query_map.get_first("market")
         && !requested_market.trim().is_empty()
         && requested_market.trim().to_ascii_uppercase() != market
@@ -110,6 +103,162 @@ fn parse_request(
     Ok(request)
 }
 
+fn read_volatility(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    path: &str,
+    query: &str,
+) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    if !runtime.option_volatility_available() {
+        return Err(MarketDataOptionsReadSnapshotError::Unavailable(
+            "Futu option volatility reader is not ready".to_owned(),
+        ));
+    }
+    let request = parse_volatility_request(path, query)?;
+    let snapshot = runtime
+        .option_volatility(&request)
+        .map_err(map_volatility_error)?;
+    let jftrade_integration_futu::OptionVolatilitySnapshot {
+        security: _security,
+        items,
+        average_impvol,
+        impvol_status,
+        analysis,
+    } = snapshot;
+    let entries = items
+        .into_iter()
+        .map(|item| serde_json::to_value(item).map_err(|error| serialization_error("volatility", error)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let total = entries.len();
+    let as_of = super::super::provider_now_rfc3339();
+    let mut metadata = serde_json::Map::new();
+    if let Some(value) = average_impvol {
+        metadata.insert("averageImpvol".to_owned(), json!(value));
+    }
+    if let Some(value) = impvol_status {
+        metadata.insert("impvolStatus".to_owned(), json!(value));
+    }
+    if let Some(value) = analysis {
+        metadata.insert("analysis".to_owned(), json!(value));
+    }
+    let mut result = json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "derivatives.option_analysis",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "asOf": as_of,
+        "entries": entries,
+        "hasMore": false,
+        "total": total,
+    });
+    if !metadata.is_empty() {
+        result["metadata"] = Value::Object(metadata);
+    }
+    Ok(result)
+}
+
+fn parse_operation(query: &str) -> Result<String, MarketDataOptionsReadSnapshotError> {
+    let query_map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| bad_request("invalid URL escape"))?;
+    query_map
+        .get_first("operation")
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| bad_request("operation is required"))
+}
+
+fn parse_volatility_request(
+    path: &str,
+    query: &str,
+) -> Result<jftrade_integration_futu::OptionVolatilityQuery, MarketDataOptionsReadSnapshotError> {
+    let instrument = path
+        .strip_prefix("/api/v1/market-data/options/analysis/")
+        .filter(|value| !value.is_empty() && !value.contains('/'))
+        .ok_or_else(|| bad_request("unsupported options analysis route"))?;
+    let (market, code) = instrument
+        .split_once('.')
+        .filter(|(market, code)| !market.is_empty() && !code.is_empty() && !code.contains('.'))
+        .ok_or_else(|| bad_request("instrumentId must be MARKET.CODE"))?;
+    let market = market.trim().to_ascii_uppercase();
+    let market_code = match market.as_str() {
+        "HK" => 1,
+        "US" => 11,
+        _ => return Err(bad_request("option volatility market must be HK or US")),
+    };
+    let code = code.trim();
+    if code.is_empty()
+        || code.chars().any(char::is_whitespace)
+        || code.chars().any(|value| !value.is_ascii_alphanumeric() && value != '-')
+    {
+        return Err(bad_request("option volatility code is invalid"));
+    }
+    let query_map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| bad_request("invalid URL escape"))?;
+    if let Some(requested_market) = query_map.get_first("market")
+        && !requested_market.trim().is_empty()
+        && requested_market.trim().to_ascii_uppercase() != market
+    {
+        return Err(bad_request("market does not match instrumentId"));
+    }
+    let query_time_period = query_map
+        .get_first("queryTimePeriod")
+        .map(parse_query_time_period)
+        .transpose()?;
+    let hv_time_period = query_map
+        .get_first("hvTimePeriod")
+        .map(|value| {
+            value
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| bad_request("hvTimePeriod must be an integer"))
+        })
+        .transpose()?;
+    let request = jftrade_integration_futu::OptionVolatilityQuery {
+        market: market_code,
+        code: code.to_ascii_uppercase(),
+        query_time_period,
+        hv_time_period,
+    };
+    request
+        .validate()
+        .map_err(|error| bad_request(&error.to_string()))?;
+    Ok(request)
+}
+
+fn parse_query_time_period(
+    value: &str,
+) -> Result<i32, MarketDataOptionsReadSnapshotError> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "week" | "1w" | "1" => Ok(1),
+        "month" | "1m" | "2" => Ok(2),
+        "quarter" | "3m" | "3" => Ok(3),
+        "half_year" | "half-year" | "6m" | "4" => Ok(4),
+        "year" | "1y" | "5" => Ok(5),
+        _ => Err(bad_request("queryTimePeriod is unsupported")),
+    }
+}
+
+fn serialize_quote(
+    quote: jftrade_integration_futu::OptionQuote,
+) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    serde_json::to_value(quote).map_err(|error| serialization_error("quote", error))
+}
+
+fn serialization_error(
+    operation: &str,
+    error: serde_json::Error,
+) -> MarketDataOptionsReadSnapshotError {
+    MarketDataOptionsReadSnapshotError::Failed {
+        status: 502,
+        code: "BAD_GATEWAY".to_owned(),
+        message: format!("failed to serialize OpenD option {operation}: {error}"),
+    }
+}
+
 fn bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
     MarketDataOptionsReadSnapshotError::Failed {
         status: 400,
@@ -118,11 +267,26 @@ fn bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
     }
 }
 
-fn map_error(
+fn map_quote_error(
     error: jftrade_integration_futu::OptionQuoteQueryError,
 ) -> MarketDataOptionsReadSnapshotError {
     match error {
         jftrade_integration_futu::OptionQuoteQueryError::InvalidQuery(message) => {
+            bad_request(&message)
+        }
+        other => MarketDataOptionsReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: other.to_string(),
+        },
+    }
+}
+
+fn map_volatility_error(
+    error: jftrade_integration_futu::OptionVolatilityQueryError,
+) -> MarketDataOptionsReadSnapshotError {
+    match error {
+        jftrade_integration_futu::OptionVolatilityQueryError::InvalidQuery(message) => {
             bad_request(&message)
         }
         other => MarketDataOptionsReadSnapshotError::Failed {
