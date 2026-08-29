@@ -111,9 +111,10 @@ impl OpenDFutureInfoReader {
 impl FutureInfoReadPort for OpenDFutureInfoReader {
     fn query(&self, query: &FutureInfoQuery) -> Result<Vec<FutureInfo>, FutureInfoQueryError> {
         query.validate()?;
-        let coordinator = self.coordinator.lock().map_err(|_| {
-            FutureInfoQueryError::Session(OpenDSessionCoordinatorError::Closed)
-        })?;
+        let coordinator = self
+            .coordinator
+            .lock()
+            .map_err(|_| FutureInfoQueryError::Session(OpenDSessionCoordinatorError::Closed))?;
         let session = coordinator.session()?;
         let response = session
             .managed_session()
@@ -138,9 +139,14 @@ fn validate_query(query: &FutureInfoQuery) -> Result<(), FutureInfoQueryError> {
     for security in &query.securities {
         validate_market(security.market)?;
         let code = security.code.trim();
-        if code.is_empty() || code.len() > 128 || code.chars().any(|value| {
-            value.is_whitespace() || value.is_control() || matches!(value, '.' | '/' | '\\' | '?' | '#')
-        }) {
+        if code.is_empty()
+            || code.len() > 128
+            || code.chars().any(|value| {
+                value.is_whitespace()
+                    || value.is_control()
+                    || matches!(value, '.' | '/' | '\\' | '?' | '#')
+            })
+        {
             return Err(FutureInfoQueryError::InvalidQuery(
                 "future info security code is invalid".to_owned(),
             ));
@@ -152,7 +158,8 @@ fn validate_query(query: &FutureInfoQuery) -> Result<(), FutureInfoQueryError> {
 fn validate_market(market: i32) -> Result<(), FutureInfoQueryError> {
     if market_label(market).is_none() {
         return Err(FutureInfoQueryError::InvalidQuery(
-            "future info market must be HK, US, SH, SZ, SG, JP, AU, MY, CA, FX, or crypto".to_owned(),
+            "future info market must be HK, US, SH, SZ, SG, JP, AU, MY, CA, FX, or crypto"
+                .to_owned(),
         ));
     }
     Ok(())
@@ -366,15 +373,18 @@ pub enum FutureInfoQueryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::trade_proto::qot_common::Security;
     use crate::trade_proto::qot_get_future_info::{
         FutureInfo as WireFutureInfo, Response, S2c, TradeTime as WireTradeTime,
     };
-    use crate::trade_proto::qot_common::Security;
 
     fn wire_future() -> WireFutureInfo {
         WireFutureInfo {
             name: "E-mini S&P".to_owned(),
-            security: Security { market: 11, code: "ESmain".to_owned() },
+            security: Security {
+                market: 11,
+                code: "ESmain".to_owned(),
+            },
             last_trade_time: "2026-12-18".to_owned(),
             last_trade_timestamp: Some(1_797_667_200.0),
             owner: None,
@@ -387,7 +397,10 @@ mod tests {
             min_var: 0.25,
             min_var_unit: "index point".to_owned(),
             quote_unit: Some("point".to_owned()),
-            trade_time: vec![WireTradeTime { begin: Some(60.0), end: Some(1_380.0) }],
+            trade_time: vec![WireTradeTime {
+                begin: Some(60.0),
+                end: Some(1_380.0),
+            }],
             time_zone: "America/Chicago".to_owned(),
             exchange_format_url: "https://www.cmegroup.com".to_owned(),
             origin: None,
@@ -408,7 +421,9 @@ mod tests {
             ret_type: 0,
             ret_msg: None,
             err_code: None,
-            s2c: Some(S2c { future_info_list: vec![wire_future()] }),
+            s2c: Some(S2c {
+                future_info_list: vec![wire_future()],
+            }),
         }
         .encode_to_vec();
         let frame = crate::encode_frame(
@@ -432,10 +447,15 @@ mod tests {
             ret_type: 0,
             ret_msg: None,
             err_code: None,
-            s2c: Some(S2c { future_info_list: vec![missing] }),
+            s2c: Some(S2c {
+                future_info_list: vec![missing],
+            }),
         }
         .encode_to_vec();
-        assert!(matches!(decode_response(&response), Err(FutureInfoQueryError::InvalidResponse(_))));
+        assert!(matches!(
+            decode_response(&response),
+            Err(FutureInfoQueryError::InvalidResponse(_))
+        ));
 
         let mut invalid = wire_future();
         invalid.contract_size = f64::NAN;
@@ -443,10 +463,15 @@ mod tests {
             ret_type: 0,
             ret_msg: None,
             err_code: None,
-            s2c: Some(S2c { future_info_list: vec![invalid] }),
+            s2c: Some(S2c {
+                future_info_list: vec![invalid],
+            }),
         }
         .encode_to_vec();
-        assert!(matches!(decode_response(&response), Err(FutureInfoQueryError::InvalidResponse(_))));
+        assert!(matches!(
+            decode_response(&response),
+            Err(FutureInfoQueryError::InvalidResponse(_))
+        ));
 
         let response = Response {
             ret_type: 3,
@@ -455,17 +480,36 @@ mod tests {
             s2c: None,
         }
         .encode_to_vec();
-        assert!(matches!(decode_response(&response), Err(FutureInfoQueryError::Rejected { ret_type: 3, err_code: 42, .. })));
+        assert!(matches!(
+            decode_response(&response),
+            Err(FutureInfoQueryError::Rejected {
+                ret_type: 3,
+                err_code: 42,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn validates_market_and_security_code() {
-        assert!(FutureInfoQuery { market: Some(999), securities: Vec::new() }.validate().is_err());
-        assert!(FutureInfoQuery {
-            market: Some(11),
-            securities: vec![FutureInfoSecurityQuery { market: 11, code: "ES/main".to_owned() }],
-        }
-        .validate()
-        .is_err());
+        assert!(
+            FutureInfoQuery {
+                market: Some(999),
+                securities: Vec::new()
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            FutureInfoQuery {
+                market: Some(11),
+                securities: vec![FutureInfoSecurityQuery {
+                    market: 11,
+                    code: "ES/main".to_owned()
+                }],
+            }
+            .validate()
+            .is_err()
+        );
     }
 }

@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 
-use crate::product::product_query::QueryMap;
-use crate::product::MarketDataDerivativeReadSnapshotError;
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
+use crate::product::MarketDataDerivativeReadSnapshotError;
+use crate::product::product_query::QueryMap;
 
 /// Read the `/api/v1/market-data/futures` catalogue through a typed reader.
 pub(crate) fn read(
@@ -62,7 +62,11 @@ fn project_items(
     items: &mut Vec<jftrade_integration_futu::FutureInfo>,
 ) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
     if let Some(market) = request.market {
-        items.retain(|item| item.security.market.eq_ignore_ascii_case(market_label(market)));
+        items.retain(|item| {
+            item.security
+                .market
+                .eq_ignore_ascii_case(market_label(market))
+        });
     }
     let total = items.len();
     let has_more = page_size.is_some_and(|limit| total > limit);
@@ -149,7 +153,11 @@ fn parse_request(
     let mut securities = Vec::new();
     for key in ["instrumentId", "symbol", "symbols", "code"] {
         for raw in query_map.get_all(key).into_iter().flatten() {
-            for token in raw.split(',').map(str::trim).filter(|value| !value.is_empty()) {
+            for token in raw
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
                 securities.push(parse_security(token, market, key)?);
             }
         }
@@ -175,7 +183,9 @@ fn parse_security(
             }
             (market, code.trim())
         }
-        _ if requested_market.is_some() && !value.contains('.') => (requested_market.unwrap(), value),
+        _ if requested_market.is_some() && !value.contains('.') => {
+            (requested_market.unwrap(), value)
+        }
         _ => {
             return Err(bad_request(&format!("{key} must be MARKET.CODE")));
         }
@@ -297,7 +307,10 @@ mod tests {
             min_var: 0.25,
             min_var_unit: "point".to_owned(),
             quote_unit: Some("point".to_owned()),
-            trade_time: vec![FutureTradeTime { begin: Some(60.0), end: Some(1_380.0) }],
+            trade_time: vec![FutureTradeTime {
+                begin: Some(60.0),
+                end: Some(1_380.0),
+            }],
             time_zone: "America/Chicago".to_owned(),
             exchange_format_url: "https://www.cmegroup.com".to_owned(),
             origin: None,
@@ -334,15 +347,19 @@ mod tests {
             Err(MarketDataDerivativeReadSnapshotError::Failed { status: 400, .. })
         ));
         assert!(matches!(
-            read(Some(&reader), "/api/v1/market-data/futures", "market=US&instrumentId=HK.ES"),
+            read(
+                Some(&reader),
+                "/api/v1/market-data/futures",
+                "market=US&instrumentId=HK.ES"
+            ),
             Err(MarketDataDerivativeReadSnapshotError::Failed { status: 400, .. })
         ));
     }
 
     #[test]
     fn reports_reader_unavailable_without_invoking_query() {
-        let error = read(None, "/api/v1/market-data/futures", "market=US")
-            .expect_err("missing reader");
+        let error =
+            read(None, "/api/v1/market-data/futures", "market=US").expect_err("missing reader");
         assert!(matches!(
             error,
             MarketDataDerivativeReadSnapshotError::Unavailable(message)
