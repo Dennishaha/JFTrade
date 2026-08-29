@@ -33,6 +33,8 @@ pub(crate) struct SharedTradeReadRuntime {
     security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
     pub(crate) option_expirations:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionExpirationReadPort>>>>,
+    pub(crate) option_chains:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionChainReadPort>>>>,
 }
 
 #[derive(Clone, Debug)]

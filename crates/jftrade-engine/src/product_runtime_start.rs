@@ -64,53 +64,57 @@ pub async fn start_product_runtime(
             &live_hub,
         ))));
     }
-    let (market_data_opend_provider, market_data_router) =
-        if let Some(mut provider) = config.market_data_opend_provider.clone() {
-            let shared_router = Arc::clone(&provider.router);
-            if provider.task.event_listener.is_none() {
-                provider.task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(
-                    Arc::clone(&live_hub),
+    let (market_data_opend_provider, market_data_router) = if let Some(mut provider) =
+        config.market_data_opend_provider.clone()
+    {
+        let shared_router = Arc::clone(&provider.router);
+        if provider.task.event_listener.is_none() {
+            provider.task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(
+                Arc::clone(&live_hub),
+            )));
+        }
+        match OpenDProviderRuntime::start(provider) {
+            Ok(runtime) => {
+                let trade_logged_in = runtime.trade_logged_in();
+                let trade_read_port = runtime
+                    .coordinator()
+                    .lock()
+                    .ok()
+                    .and_then(|coordinator| {
+                        OpenDTradeReadClient::from_coordinator(&coordinator).ok()
+                    })
+                    .map(|client| Arc::new(client) as Arc<dyn TradeReadPort>);
+                let historical_reader = {
+                    let coordinator = runtime.coordinator();
+                    Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
+                        coordinator,
+                    ))
+                        as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
+                };
+                config.product = config
+                    .product
+                    .clone()
+                    .with_trade_read_port(trade_read_port, trade_logged_in);
+                trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
+                trade_runtime.set_historical_klines(Some(historical_reader));
+                trade_runtime.set_option_expirations(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionExpirationReader::new(
+                        runtime.coordinator(),
+                    ),
                 )));
+                trade_runtime.set_option_chains(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionChainReader::new(runtime.coordinator()),
+                )));
+                (Some(runtime), Some(shared_router))
             }
-            match OpenDProviderRuntime::start(provider) {
-                Ok(runtime) => {
-                    let trade_logged_in = runtime.trade_logged_in();
-                    let trade_read_port = runtime
-                        .coordinator()
-                        .lock()
-                        .ok()
-                        .and_then(|coordinator| {
-                            OpenDTradeReadClient::from_coordinator(&coordinator).ok()
-                        })
-                        .map(|client| Arc::new(client) as Arc<dyn TradeReadPort>);
-                    let historical_reader = {
-                        let coordinator = runtime.coordinator();
-                        Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
-                            coordinator,
-                        ))
-                            as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
-                    };
-                    config.product = config
-                        .product
-                        .clone()
-                        .with_trade_read_port(trade_read_port, trade_logged_in);
-                    trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
-                    trade_runtime.set_historical_klines(Some(historical_reader));
-                    trade_runtime.set_option_expirations(Some(Arc::new(
-                        jftrade_integration_futu::OpenDOptionExpirationReader::new(
-                            runtime.coordinator(),
-                        ),
-                    )));
-                    (Some(runtime), Some(shared_router))
-                }
-                Err(error) => {
-                    eprintln!("Warning: OpenD provider runtime failed to connect: {error}");
-                    (None, Some(shared_router))
-                }
+            Err(error) => {
+                eprintln!("Warning: OpenD provider runtime failed to connect: {error}");
+                (None, Some(shared_router))
             }
-        } else {
-            (None, market_data_router)
-        };
+        }
+    } else {
+        (None, market_data_router)
+    };
     let market_data_runtime_recorder = if let Some(provider) = market_data_opend_provider.as_ref() {
         Some(
             provider
@@ -150,6 +154,9 @@ pub async fn start_product_runtime(
     if let Some(coordinator) = market_data_opend.as_ref() {
         trade_runtime.set_option_expirations(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionExpirationReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_option_chains(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionChainReader::new(Arc::clone(coordinator)),
         )));
     }
     if let Some(recorder) = market_data_runtime_recorder.as_ref() {

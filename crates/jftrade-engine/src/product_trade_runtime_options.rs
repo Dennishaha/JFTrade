@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use jftrade_integration_futu::{
+    OptionChainDate, OptionChainQuery, OptionChainQueryError, OptionChainReadPort,
     OptionExpirationDate, OptionExpirationQuery, OptionExpirationQueryError,
     OptionExpirationReadPort,
 };
@@ -8,6 +9,37 @@ use jftrade_integration_futu::{
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
 
 impl SharedTradeReadRuntime {
+    pub(crate) fn set_option_chains(&self, reader: Option<Arc<dyn OptionChainReadPort>>) {
+        *self
+            .option_chains
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_chains_available(&self) -> bool {
+        self.option_chains
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_chains(
+        &self,
+        query: &OptionChainQuery,
+    ) -> Result<Vec<OptionChainDate>, OptionChainQueryError> {
+        let reader = self
+            .option_chains
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionChainQueryError::InvalidQuery(
+                    "Futu option chain runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
     pub(crate) fn set_option_expirations(
         &self,
         reader: Option<Arc<dyn OptionExpirationReadPort>>,

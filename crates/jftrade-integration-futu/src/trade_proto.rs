@@ -16,6 +16,10 @@ pub mod qot_get_option_expiration_date {
     ));
     pub const PROTOCOL_ID: u32 = 3224;
 }
+pub mod qot_get_option_chain {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_chain.rs"));
+    pub const PROTOCOL_ID: u32 = 3209;
+}
 pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }

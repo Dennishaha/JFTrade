@@ -8,6 +8,7 @@ mod frame;
 mod health;
 mod history;
 mod managed_session;
+mod option_chain_query;
 mod option_expiration_query;
 mod probe;
 mod provider;
@@ -48,6 +49,11 @@ pub use history::{
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
+};
+pub use option_chain_query::{
+    OpenDOptionChainReader, OptionChainDataFilter, OptionChainDate, OptionChainItem,
+    OptionChainQuery, OptionChainQueryError, OptionChainReadPort, OptionContract,
+    OptionContractBasic, OptionContractExData, OptionSecurity,
 };
 pub use option_expiration_query::{
     OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,

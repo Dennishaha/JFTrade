@@ -4,6 +4,7 @@ fn main() {
         "../../pkg/futu/proto/Qot_Common.proto",
         "../../pkg/futu/proto/Qot_GetSecuritySnapshot.proto",
         "../../pkg/futu/proto/Qot_GetOptionExpirationDate.proto",
+        "../../pkg/futu/proto/Qot_GetOptionChain.proto",
         "../../pkg/futu/proto/Qot_RequestHistoryKL.proto",
         "../../pkg/futu/proto/Trd_Common.proto",
         "../../pkg/futu/proto/Trd_GetAccList.proto",
