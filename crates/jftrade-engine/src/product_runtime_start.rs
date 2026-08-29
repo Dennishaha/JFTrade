@@ -131,6 +131,11 @@ pub async fn start_product_runtime(
                         runtime.coordinator(),
                     ),
                 )));
+                trade_runtime.set_option_strategy_spread(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionStrategySpreadReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_underlying_rank(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionUnderlyingRankReader::new(
                         runtime.coordinator(),
@@ -220,6 +225,9 @@ pub async fn start_product_runtime(
             jftrade_integration_futu::OpenDOptionUnderlyingHisVolatilityReader::new(Arc::clone(
                 coordinator,
             )),
+        )));
+        trade_runtime.set_option_strategy_spread(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionStrategySpreadReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_option_underlying_rank(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionUnderlyingRankReader::new(Arc::clone(coordinator)),

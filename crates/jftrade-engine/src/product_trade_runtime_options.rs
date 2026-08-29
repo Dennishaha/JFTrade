@@ -14,6 +14,8 @@ use jftrade_integration_futu::{
     OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSnapshot,
     OptionUnderlyingHisVolatilityQuery, OptionUnderlyingHisVolatilityQueryError,
     OptionUnderlyingHisVolatilityReadPort, OptionUnderlyingHisVolatilitySnapshot,
+    OptionStrategySpreadQuery, OptionStrategySpreadQueryError, OptionStrategySpreadReadPort,
+    OptionStrategySpreadSnapshot,
     OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort,
     OptionUnderlyingRankSnapshot,
     OptionContractRankQuery, OptionContractRankQueryError, OptionContractRankReadPort,
@@ -283,6 +285,40 @@ impl SharedTradeReadRuntime {
                 OptionUnderlyingHisVolatilityQueryError::InvalidQuery(
                     "Futu option underlying historical volatility runtime is unavailable"
                         .to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_strategy_spread(
+        &self,
+        reader: Option<Arc<dyn OptionStrategySpreadReadPort>>,
+    ) {
+        *self
+            .option_strategy_spread
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_strategy_spread_available(&self) -> bool {
+        self.option_strategy_spread
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_strategy_spread(
+        &self,
+        query: &OptionStrategySpreadQuery,
+    ) -> Result<OptionStrategySpreadSnapshot, OptionStrategySpreadQueryError> {
+        let reader = self
+            .option_strategy_spread
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionStrategySpreadQueryError::InvalidQuery(
+                    "Futu option strategy spread runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

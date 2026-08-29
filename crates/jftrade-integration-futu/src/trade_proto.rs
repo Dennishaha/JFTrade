@@ -45,6 +45,13 @@ pub mod qot_get_option_underlying_overview {
     ));
     pub const PROTOCOL_ID: u32 = 3303;
 }
+pub mod qot_get_option_strategy_spread {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_strategy_spread.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3258;
+}
 pub mod qot_get_option_underlying_his_volatility {
     include!(concat!(
         env!("OUT_DIR"),

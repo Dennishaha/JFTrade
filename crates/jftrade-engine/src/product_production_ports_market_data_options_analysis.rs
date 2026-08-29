@@ -20,6 +20,7 @@ pub(crate) fn read(
         && !runtime.option_exercise_probability_available()
         && !runtime.option_underlying_overview_available()
         && !runtime.option_underlying_his_volatility_available()
+        && !runtime.option_strategy_spread_available()
         && !runtime.option_underlying_rank_available()
         && !runtime.option_contract_rank_available()
     {
@@ -44,6 +45,13 @@ pub(crate) fn read(
             query,
         );
     }
+    if operation == "strategy_spread" {
+        return super::product_production_ports_market_data_options_strategy_spread::read(
+            Some(runtime),
+            path,
+            query,
+        );
+    }
     if operation == "underlying_rank" {
         return read_underlying_rank(runtime, path, query);
     }
@@ -56,7 +64,7 @@ pub(crate) fn read(
     }
     if operation != "quote" {
         return Err(bad_request(
-            "operation must be quote, volatility, exercise_probability, underlying_overview, historical_volatility, underlying_rank, or contract_rank",
+            "operation must be quote, volatility, exercise_probability, underlying_overview, historical_volatility, strategy_spread, underlying_rank, or contract_rank",
         ));
     }
     if !runtime.option_quotes_available() {

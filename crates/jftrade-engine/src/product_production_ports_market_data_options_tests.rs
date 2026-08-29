@@ -399,6 +399,34 @@ impl jftrade_integration_futu::OptionUnderlyingHisVolatilityReadPort
 }
 
 #[derive(Debug)]
+struct FixtureOptionStrategySpreadReader;
+
+impl jftrade_integration_futu::OptionStrategySpreadReadPort
+    for FixtureOptionStrategySpreadReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionStrategySpreadQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategySpreadSnapshot,
+        jftrade_integration_futu::OptionStrategySpreadQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL");
+        assert_eq!(query.option_strategy, 4);
+        assert_eq!(query.expire_time, "2026-09-18");
+        assert_eq!(query.far_expire_time, None);
+        assert_eq!(query.index_option_type, Some(1));
+        Ok(jftrade_integration_futu::OptionStrategySpreadSnapshot {
+            items: vec![
+                jftrade_integration_futu::OptionStrategySpreadItem { spread: 10.0 },
+                jftrade_integration_futu::OptionStrategySpreadItem { spread: 20.0 },
+            ],
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionContractRankReader;
 
 impl jftrade_integration_futu::OptionContractRankReadPort for FixtureOptionContractRankReader {
@@ -614,6 +642,7 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_underlying_his_volatility(Some(Arc::new(
         FixtureOptionUnderlyingHisVolatilityReader,
     )));
+    runtime.set_option_strategy_spread(Some(Arc::new(FixtureOptionStrategySpreadReader)));
     runtime.set_option_underlying_rank(Some(Arc::new(FixtureOptionUnderlyingRankReader)));
     runtime.set_option_contract_rank(Some(Arc::new(FixtureOptionContractRankReader)));
     runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
@@ -745,6 +774,23 @@ fn historical_volatility_projection_forwards_typed_query_and_paginates() {
     assert_eq!(value["hasMore"], true);
     assert_eq!(value["nextCursor"], "BAUG");
     assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn strategy_spread_projection_forwards_typed_query_and_lists_spreads() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=strategy_spread&optionStrategy=vertical&expireTime=2026-09-18&indexOptionType=1",
+        )
+        .expect("option strategy spread response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["spread"], 10.0);
+    assert_eq!(value["entries"][1]["spread"], 20.0);
+    assert_eq!(value["metadata"]["optionStrategy"], 4);
+    assert_eq!(value["metadata"]["expireTime"], "2026-09-18");
+    assert_eq!(value["hasMore"], false);
+    assert_eq!(value["total"], 2);
 }
 
 #[test]
