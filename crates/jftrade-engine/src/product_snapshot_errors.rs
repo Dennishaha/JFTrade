@@ -50,6 +50,7 @@ pub enum ResearchReadSnapshotError {
         status: u16,
         code: String,
         message: String,
+        retry_after_seconds: Option<u64>,
     },
 }
 

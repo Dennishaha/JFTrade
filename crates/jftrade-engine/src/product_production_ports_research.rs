@@ -325,6 +325,7 @@ fn validate_research_payload(
             status: 502,
             code: "BAD_GATEWAY".to_owned(),
             message: "market-data helper returned a non-object research response".to_owned(),
+            retry_after_seconds: None,
         });
     };
     let required = match operation {
@@ -340,6 +341,7 @@ fn validate_research_payload(
             status: 502,
             code: "BAD_GATEWAY".to_owned(),
             message: format!("market-data helper response is missing {missing}"),
+            retry_after_seconds: None,
         });
     }
     Ok(payload)
@@ -347,20 +349,28 @@ fn validate_research_payload(
 
 fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
     match error {
-        HttpAdapterError::Remote { status, code, message, .. } => ResearchReadSnapshotError::Failed {
+        HttpAdapterError::Remote {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => ResearchReadSnapshotError::Failed {
             status,
             code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
             message,
+            retry_after_seconds,
         },
         HttpAdapterError::Timeout => ResearchReadSnapshotError::Failed {
             status: 504,
             code: "GATEWAY_TIMEOUT".to_owned(),
             message: "market-data helper request timed out".to_owned(),
+            retry_after_seconds: None,
         },
         HttpAdapterError::InvalidResponse(message) => ResearchReadSnapshotError::Failed {
             status: 502,
             code: "BAD_GATEWAY".to_owned(),
             message,
+            retry_after_seconds: None,
         },
         other => ResearchReadSnapshotError::Unavailable(other.to_string()),
     }
@@ -441,7 +451,7 @@ mod research_helper_tests {
             let (mut stream, _) = listener.accept().await.expect("accept");
             let body = r#"{"error":{"code":"NOT_FOUND","message":"financials not found"}}"#;
             let response = format!(
-                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nRetry-After: 3\r\nConnection: close\r\n\r\n{}",
                 body.len(), body
             );
             stream.write_all(response.as_bytes()).await.expect("write");
@@ -456,9 +466,15 @@ mod research_helper_tests {
             active_provider_state: state,
             helper: Some(helper(format!("http://{address}"))),
         };
+        let result = port.read("/api/v1/research/analyst/US/AAPL", "");
         assert!(matches!(
-            port.read("/api/v1/research/analyst/US/AAPL", ""),
-            Err(ResearchReadSnapshotError::Failed { status: 404, ref code, .. }) if code == "NOT_FOUND"
+            result,
+            Err(ResearchReadSnapshotError::Failed {
+                status: 404,
+                ref code,
+                ref message,
+                retry_after_seconds: Some(3),
+            }) if code == "NOT_FOUND" && message == "financials not found"
         ));
         server.await.expect("server");
     }
