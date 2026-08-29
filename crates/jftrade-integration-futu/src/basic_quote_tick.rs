@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use jftrade_kernel::{DecimalText, Fixed8};
-use jftrade_marketdata::{Tick, TradeQuoteSnapshot};
+use jftrade_marketdata::{ExtendedQuoteSnapshot, Tick, TradeQuoteSnapshot};
 use thiserror::Error;
 
 use crate::{BasicQuote, Security};
@@ -68,6 +68,9 @@ pub fn basic_quote_ticks(
                     turnover: optional_decimal(quote.turnover),
                     update_time: quote.update_time,
                     status: quote.sec_status,
+                    pre_market: quote.pre_market.map(extended_snapshot),
+                    after_market: quote.after_market.map(extended_snapshot),
+                    overnight: quote.overnight.map(extended_snapshot),
                     ..Default::default()
                 }),
                 observed_at_ms,
@@ -88,6 +91,21 @@ fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
     value
         .filter(|value| value.is_finite())
         .and_then(|value| DecimalText::from_str(&value.to_string()).ok())
+}
+
+fn extended_snapshot(value: crate::PreAfterMarketData) -> ExtendedQuoteSnapshot {
+    ExtendedQuoteSnapshot {
+        price: optional_fixed8(value.price),
+        high_price: optional_fixed8(value.high_price),
+        low_price: optional_fixed8(value.low_price),
+        volume: value
+            .volume
+            .and_then(|v| DecimalText::from_str(&v.to_string()).ok()),
+        turnover: optional_decimal(value.turnover),
+        change: optional_decimal(value.change_value),
+        change_rate: optional_decimal(value.change_rate),
+        amplitude: optional_decimal(value.amplitude),
+    }
 }
 
 fn instrument_id_from_security(security: &Security) -> Option<String> {

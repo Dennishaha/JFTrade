@@ -12,7 +12,7 @@ mod snapshot_poll;
 pub use cache::{CacheLookup, TickCache};
 pub use demand::{DemandBook, DemandSnapshot};
 pub use model::{
-    BrokerSecuritySnapshot, HealthStatus, InstrumentRef, MarketDataError,
+    BrokerSecuritySnapshot, ExtendedQuoteSnapshot, HealthStatus, InstrumentRef, MarketDataError,
     PhysicalSubscriptionEntry, PhysicalSubscriptionSnapshot, PhysicalSubscriptionSnapshotPort,
     ProviderCapabilities, ProviderConstraints, ProviderDescriptor, ProviderReadiness, Tick,
     TradeQuoteSnapshot,

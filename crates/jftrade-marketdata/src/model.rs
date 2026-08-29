@@ -237,6 +237,25 @@ pub struct TradeQuoteSnapshot {
     pub pe_rate: Option<DecimalText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pb_rate: Option<DecimalText>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_market: Option<ExtendedQuoteSnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_market: Option<ExtendedQuoteSnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overnight: Option<ExtendedQuoteSnapshot>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtendedQuoteSnapshot {
+    pub price: Option<Fixed8>,
+    pub high_price: Option<Fixed8>,
+    pub low_price: Option<Fixed8>,
+    pub volume: Option<DecimalText>,
+    pub turnover: Option<DecimalText>,
+    pub change: Option<DecimalText>,
+    pub change_rate: Option<DecimalText>,
+    pub amplitude: Option<DecimalText>,
 }
 
 /// Security routes consume the same provider-neutral BasicQot row.  Keep the

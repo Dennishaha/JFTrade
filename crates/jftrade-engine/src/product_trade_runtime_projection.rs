@@ -327,7 +327,31 @@ fn insert_rich_quote_fields(
     if let Some(update_time) = rich.update_time.as_ref() {
         item.insert("marketTime".to_owned(), Value::String(update_time.clone()));
     }
+    for (key, value) in [
+        ("preMarket", rich.pre_market.as_ref()),
+        ("afterMarket", rich.after_market.as_ref()),
+        ("overnight", rich.overnight.as_ref()),
+    ] {
+        if let Some(value) = value {
+            item.insert(key.to_owned(), extended_value(value)?);
+        }
+    }
     Ok(())
+}
+
+fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<Value, String> {
+    let mut result = Map::new();
+    for (key, number) in [("price", value.price), ("highPrice", value.high_price), ("lowPrice", value.low_price)] {
+        if let Some(number) = number {
+            result.insert(key.to_owned(), json!(number.to_f64().map_err(|error| error.to_string())?));
+        }
+    }
+    for (key, number) in [("volume", value.volume.as_ref()), ("turnover", value.turnover.as_ref()), ("change", value.change.as_ref()), ("changeRate", value.change_rate.as_ref()), ("amplitude", value.amplitude.as_ref())] {
+        if let Some(number) = number {
+            result.insert(key.to_owned(), decimal_number(number)?);
+        }
+    }
+    Ok(Value::Object(result))
 }
 
 fn insert_rich_security_fields(

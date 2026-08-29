@@ -140,6 +140,7 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
             .equity_ex_data
             .as_ref()
             .and_then(|v| optional_decimal(Some(v.pb_rate))),
+        ..Default::default()
     })
 }
 
