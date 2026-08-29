@@ -6,6 +6,9 @@ pub mod common {
 pub mod qot_common {
     include!(concat!(env!("OUT_DIR"), "/qot_common.rs"));
 }
+pub mod qot_get_security_snapshot {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
+}
 pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }

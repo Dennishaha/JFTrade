@@ -13,6 +13,7 @@ mod provider;
 mod provider_runtime;
 mod quote_push;
 mod runtime_task;
+mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
@@ -60,6 +61,9 @@ pub use runtime_task::{
     OpenDSessionEventListener, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
     OpenDSessionRuntimeError, OpenDSessionRuntimeStatus,
 };
+pub use security_snapshot_query::{
+    OpenDSecuritySnapshotReader, SecuritySnapshotQueryError, SecuritySnapshotReadPort,
+};
 pub use session_coordinator::{
     OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
 };
@@ -95,6 +99,7 @@ pub const PROTO_KEEP_ALIVE: u32 = 1004;
 pub const PROTO_QOT_SUB: u32 = 3001;
 pub const PROTO_GET_SUB_INFO: u32 = 3003;
 pub const PROTO_GET_BASIC_QOT: u32 = 3004;
+pub const PROTO_GET_SECURITY_SNAPSHOT: u32 = 3203;
 pub const PROTO_UPDATE_BASIC_QOT: u32 = 3005;
 pub const PROTO_GET_KL: u32 = 3006;
 pub const PROTO_UPDATE_KL: u32 = 3007;

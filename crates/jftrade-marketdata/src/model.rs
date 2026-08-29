@@ -204,10 +204,21 @@ pub struct Tick {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TradeQuoteSnapshot {
+    pub symbol: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_suspended: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bid_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lot_size: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub security_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub market: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub open_price: Option<Fixed8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -222,6 +233,10 @@ pub struct TradeQuoteSnapshot {
     pub update_time: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pe_rate: Option<DecimalText>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pb_rate: Option<DecimalText>,
 }
 
 /// Security routes consume the same provider-neutral BasicQot row.  Keep the

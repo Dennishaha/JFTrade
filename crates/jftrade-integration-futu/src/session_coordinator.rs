@@ -285,6 +285,12 @@ impl OpenDSessionCoordinator {
         &self.lifecycle
     }
 
+    pub fn session_clone(&self) -> Result<OpenDInitializedSession, OpenDSessionCoordinatorError> {
+        self.session
+            .clone()
+            .ok_or(OpenDSessionCoordinatorError::Closed)
+    }
+
     /// Returns the recorder shared by the lifecycle and an explicitly
     /// composed ProviderRouter. Composition roots use pointer identity to
     /// reject a second runtime status owner before starting a task.

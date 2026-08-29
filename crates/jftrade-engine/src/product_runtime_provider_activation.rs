@@ -148,8 +148,23 @@ pub(super) fn provider_activation(
                         ))
                             as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
                     };
+                    let security_snapshot_reader = {
+                        let coordinator = provider.coordinator();
+                        Arc::new(jftrade_integration_futu::OpenDSecuritySnapshotReader::new(
+                            coordinator
+                                .lock()
+                                .map_err(|error| {
+                                    format!("failed to lock OpenD coordinator: {error}")
+                                })?
+                                .session_clone()
+                                .map_err(|error| error.to_string())?,
+                        ))
+                            as Arc<dyn jftrade_integration_futu::SecuritySnapshotReadPort>
+                    };
                     trade_runtime_for_activation.set(client, trade_logged_in);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    trade_runtime_for_activation
+                        .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
                 }
             }
@@ -180,6 +195,7 @@ pub(super) fn provider_activation(
                 {
                     trade_runtime_for_activation.clear();
                     trade_runtime_for_activation.set_historical_klines(None);
+                    trade_runtime_for_activation.set_security_snapshots(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }

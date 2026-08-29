@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, TradeReadPort,
-    TradeSecurity,
+    SecuritySnapshotReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -30,6 +30,7 @@ pub(crate) struct SharedTradeReadRuntime {
     live_connection_limit: Arc<RwLock<Option<usize>>>,
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
     historical_klines: Arc<RwLock<Option<Arc<dyn HistoricalKlineReadPort>>>>,
+    security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +105,13 @@ impl SharedTradeReadRuntime {
             .unwrap_or_else(|error| error.into_inner()) = reader;
     }
 
+    pub(crate) fn set_security_snapshots(
+        &self,
+        reader: Option<Arc<dyn SecuritySnapshotReadPort>>,
+    ) {
+        *self.security_snapshots.write().unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
     pub(crate) fn historical_klines(
         &self,
         query: &HistoricalKlineQuery,
@@ -121,6 +129,19 @@ impl SharedTradeReadRuntime {
         &self,
         securities: &[TradeSecurity],
     ) -> Result<Vec<Value>, String> {
+        if let Some(reader) = self
+            .security_snapshots
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+        {
+            let instruments = securities
+                .iter()
+                .filter_map(|security| qot_market_label(security.market).map(|market| format!("{market}.{}", security.code)))
+                .collect::<Vec<_>>();
+            let snapshots = reader.query(&instruments)?;
+            return snapshots.into_iter().map(security_snapshot_value).collect();
+        }
         let router = self
             .market_data_router
             .read()
@@ -332,6 +353,58 @@ fn insert_rich_security_fields(
     }
     item.remove("marketTime");
     Ok(())
+}
+
+fn security_snapshot_value(
+    snapshot: jftrade_marketdata::BrokerSecuritySnapshot,
+) -> Result<Value, String> {
+    let mut item = Map::new();
+    if let Some(symbol) = snapshot.symbol {
+        item.insert("symbol".to_owned(), Value::String(symbol));
+    }
+    if let Some(market) = snapshot.market {
+        item.insert("market".to_owned(), Value::String(market));
+    }
+    if let Some(name) = snapshot.name {
+        item.insert("name".to_owned(), Value::String(name));
+    }
+    for (key, value) in [
+        ("bidPrice", snapshot.bid_price),
+        ("askPrice", snapshot.ask_price),
+        ("openPrice", snapshot.open_price),
+        ("highPrice", snapshot.high_price),
+        ("lowPrice", snapshot.low_price),
+        ("previousClose", snapshot.previous_close),
+    ] {
+        if let Some(value) = value {
+            item.insert(key.to_owned(), json!(value.to_f64().map_err(|error| error.to_string())?));
+        }
+    }
+    if let Some(turnover) = snapshot.turnover.as_ref() {
+        item.insert("turnover".to_owned(), decimal_number(turnover)?);
+    }
+    if let Some(status) = snapshot.status {
+        item.insert("status".to_owned(), json!(status));
+    }
+    if let Some(value) = snapshot.is_suspended {
+        item.insert("isSuspended".to_owned(), Value::Bool(value));
+    }
+    if let Some(value) = snapshot.lot_size {
+        item.insert("lotSize".to_owned(), json!(value));
+    }
+    if let Some(value) = snapshot.security_type {
+        item.insert("securityType".to_owned(), Value::String(value));
+    }
+    if let Some(value) = snapshot.update_time {
+        item.insert("updateTime".to_owned(), Value::String(value));
+    }
+    if let Some(value) = snapshot.pe_rate.as_ref() {
+        item.insert("peRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = snapshot.pb_rate.as_ref() {
+        item.insert("pbRate".to_owned(), decimal_number(value)?);
+    }
+    Ok(Value::Object(item))
 }
 
 fn decimal_number(value: &jftrade_kernel::DecimalText) -> Result<Value, String> {

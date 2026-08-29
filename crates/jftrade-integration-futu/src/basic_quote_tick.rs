@@ -54,10 +54,11 @@ pub fn basic_quote_ticks(
         ticks.insert(
             instrument_id.clone(),
             Tick {
-                instrument_id,
+                instrument_id: instrument_id.clone(),
                 price,
                 volume,
                 snapshot: Some(TradeQuoteSnapshot {
+                    symbol: Some(instrument_id.clone()),
                     name: quote.name,
                     is_suspended: quote.is_suspended,
                     open_price: optional_fixed8(quote.open_price),
@@ -67,6 +68,7 @@ pub fn basic_quote_ticks(
                     turnover: optional_decimal(quote.turnover),
                     update_time: quote.update_time,
                     status: quote.sec_status,
+                    ..Default::default()
                 }),
                 observed_at_ms,
                 provider_generation,
