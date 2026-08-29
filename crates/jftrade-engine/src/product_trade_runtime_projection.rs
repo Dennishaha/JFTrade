@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
+    FutureInfoReadPort,
     OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
     OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
     OptionStrategySpreadReadPort, OptionStrategyReadPort, OptionStrategyAnalysisReadPort,
@@ -21,6 +22,10 @@ use super::super::product_production_ports_market_data::product_production_ports
 };
 use super::product_trade_margin_cache::MarginRatioCache;
 use super::qot_market_label;
+
+#[path = "product_trade_runtime_futures.rs"]
+mod product_trade_runtime_futures;
+
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
@@ -31,6 +36,7 @@ pub(crate) struct SharedTradeReadRuntime {
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
     historical_klines: Arc<RwLock<Option<Arc<dyn HistoricalKlineReadPort>>>>,
     security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
+    pub(crate) future_info: Arc<RwLock<Option<Arc<dyn FutureInfoReadPort>>>>,
     pub(crate) option_expirations:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionExpirationReadPort>>>>,
     pub(crate) option_chains:

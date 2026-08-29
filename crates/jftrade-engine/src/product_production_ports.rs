@@ -678,6 +678,7 @@ pub(crate) fn production_ports(
     });
     let market_data_derivative_port = Arc::new(ProductionMarketDataDerivativePort {
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let market_data_options_port = Arc::new(ProductionMarketDataOptionsPort {
         active_provider_state: Arc::clone(&active_provider_state),

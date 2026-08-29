@@ -59,18 +59,26 @@ use super::product_production_ports_trade::SharedTradeReadRuntime;
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataDerivativePort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl MarketDataDerivativeReadSnapshotPort for ProductionMarketDataDerivativePort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
+    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
         let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
+        if snapshot.provider != Some(MarketDataProvider::Futu) || !snapshot.opend_ready {
             return Err(MarketDataDerivativeReadSnapshotError::Unavailable(
-                "derivative market-data provider is not configured".to_owned(),
+                "Futu derivatives market-data provider is not ready".to_owned(),
             ));
         }
+        if path == "/api/v1/market-data/futures" {
+            return product_production_ports_market_data_futures::read_runtime(
+                self.trade_runtime.as_ref(),
+                path,
+                query,
+            );
+        }
         Err(MarketDataDerivativeReadSnapshotError::Unavailable(
-            "derivative market-data provider is not configured".to_owned(),
+            "Futu warrants market-data reader is not ready".to_owned(),
         ))
     }
 }

@@ -5,10 +5,13 @@
 //! handles URL query parsing, bounded pagination, and the normalized response
 //! envelope. Layout/runtime registration can then be composed separately.
 
+use std::sync::Arc;
+
 use serde_json::{Value, json};
 
 use crate::product::product_query::QueryMap;
 use crate::product::MarketDataDerivativeReadSnapshotError;
+use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 
 /// Read the `/api/v1/market-data/futures` catalogue through a typed reader.
 pub(crate) fn read(
@@ -26,6 +29,38 @@ pub(crate) fn read(
     })?;
     let (request, page_size) = parse_request(query)?;
     let mut items = reader.query(&request).map_err(map_reader_error)?;
+    project_items(request, page_size, &mut items)
+}
+
+/// Runtime-backed variant used by the production composition root.
+pub(crate) fn read_runtime(
+    runtime: Option<&Arc<SharedTradeReadRuntime>>,
+    path: &str,
+    query: &str,
+) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
+    if path != "/api/v1/market-data/futures" {
+        return Err(bad_request("unsupported futures route"));
+    }
+    let runtime = runtime.ok_or_else(|| {
+        MarketDataDerivativeReadSnapshotError::Unavailable(
+            "Futu futures runtime is not configured".to_owned(),
+        )
+    })?;
+    if !runtime.future_info_available() {
+        return Err(MarketDataDerivativeReadSnapshotError::Unavailable(
+            "Futu futures reader is not ready".to_owned(),
+        ));
+    }
+    let (request, page_size) = parse_request(query)?;
+    let mut items = runtime.future_info(&request).map_err(map_reader_error)?;
+    project_items(request, page_size, &mut items)
+}
+
+fn project_items(
+    request: jftrade_integration_futu::FutureInfoQuery,
+    page_size: Option<usize>,
+    items: &mut Vec<jftrade_integration_futu::FutureInfo>,
+) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
     if let Some(market) = request.market {
         items.retain(|item| item.security.market.eq_ignore_ascii_case(market_label(market)));
     }
@@ -34,7 +69,7 @@ pub(crate) fn read(
     if let Some(limit) = page_size {
         items.truncate(limit);
     }
-    let entries = items
+    let entries = std::mem::take(items)
         .into_iter()
         .map(|item| {
             serde_json::to_value(item).map_err(|error| {

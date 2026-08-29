@@ -5,6 +5,7 @@
 mod basic_quote_query;
 mod basic_quote_tick;
 mod frame;
+mod future_info_query;
 mod health;
 mod history;
 mod managed_session;
@@ -51,6 +52,10 @@ mod transport;
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
 pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
+pub use future_info_query::{
+    FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort,
+    FutureInfoSecurity, FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
+};
 pub use health::{
     OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
     market_data_health_from_probe,

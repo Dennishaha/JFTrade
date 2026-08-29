@@ -3,6 +3,7 @@ fn main() {
         "../../pkg/futu/proto/Common.proto",
         "../../pkg/futu/proto/Qot_Common.proto",
         "../../pkg/futu/proto/Qot_GetSecuritySnapshot.proto",
+        "../../pkg/futu/proto/Qot_GetFutureInfo.proto",
         "../../pkg/futu/proto/Qot_GetOptionExpirationDate.proto",
         "../../pkg/futu/proto/Qot_GetOptionChain.proto",
         "../../pkg/futu/proto/Qot_GetOptionQuote.proto",

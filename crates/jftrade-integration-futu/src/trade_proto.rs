@@ -12,6 +12,10 @@ pub mod qot_option_common {
 pub mod qot_get_security_snapshot {
     include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
 }
+pub mod qot_get_future_info {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_future_info.rs"));
+    pub const PROTOCOL_ID: u32 = 3218;
+}
 pub mod qot_get_option_expiration_date {
     include!(concat!(
         env!("OUT_DIR"),
