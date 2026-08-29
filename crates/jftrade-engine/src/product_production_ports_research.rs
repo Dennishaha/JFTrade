@@ -7,6 +7,8 @@ use jftrade_store_sqlite::{ResearchPresetMutation, ResearchPresetStore, Research
 use serde_json::{Value, json};
 use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
 use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_production_ports::SharedTradeReadRuntime;
+use crate::product::product_query::QueryMap;
 use crate::product::product_research_preset_write_port::{ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError};
 use crate::product::product_research_screen_write_port::{ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery};
 use crate::product::{ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, ResearchReadSnapshotError, ResearchReadSnapshotPort};
@@ -203,6 +205,7 @@ fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchP
 pub(crate) struct ProductionResearchPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
     pub(crate) helper: Option<HelperClient>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl std::fmt::Debug for ProductionResearchPort {
@@ -222,6 +225,19 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 "research provider is not configured".to_owned(),
             ));
         };
+        if provider == jftrade_settings::MarketDataProvider::Futu {
+            if !path.starts_with("/api/v1/research/valuation/") {
+                return Err(ResearchReadSnapshotError::Unavailable(
+                    "Futu research runtime currently supports valuation detail only".to_owned(),
+                ));
+            }
+            if !snapshot.opend_ready {
+                return Err(ResearchReadSnapshotError::Unavailable(
+                    "Futu OpenD research runtime is not ready".to_owned(),
+                ));
+            }
+            return read_futu_valuation(self.trade_runtime.as_ref(), path, query);
+        }
         if !snapshot.helper_ready {
             return Err(ResearchReadSnapshotError::Unavailable(
                 "market-data helper is not ready".to_owned(),
@@ -230,11 +246,7 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
         let provider = match provider {
             jftrade_settings::MarketDataProvider::Yfinance => "yfinance",
             jftrade_settings::MarketDataProvider::Akshare => "akshare",
-            jftrade_settings::MarketDataProvider::Futu => {
-                return Err(ResearchReadSnapshotError::Unavailable(
-                    "research helper does not support the Futu provider".to_owned(),
-                ));
-            }
+            jftrade_settings::MarketDataProvider::Futu => unreachable!(),
         };
         let (operation, market, symbol, extra_query) = research_helper_request(path, query)?;
         let Some(helper) = self.helper.clone() else {
@@ -379,6 +391,195 @@ fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotErr
     }
 }
 
+fn read_futu_valuation(
+    runtime: Option<&Arc<SharedTradeReadRuntime>>,
+    path: &str,
+    query: &str,
+) -> Result<Value, ResearchReadSnapshotError> {
+    let runtime = runtime.ok_or_else(|| {
+        ResearchReadSnapshotError::Unavailable(
+            "Futu valuation detail runtime is not configured".to_owned(),
+        )
+    })?;
+    if !runtime.valuation_detail_available() {
+        return Err(ResearchReadSnapshotError::Unavailable(
+            "Futu valuation detail reader is not ready".to_owned(),
+        ));
+    }
+    let instrument = path
+        .strip_prefix("/api/v1/research/valuation/")
+        .filter(|value| !value.is_empty() && !value.contains('/'))
+        .ok_or_else(|| ResearchReadSnapshotError::Invalid("unsupported valuation route".to_owned()))?;
+    let (market, code) = instrument.split_once('.').ok_or_else(|| {
+        ResearchReadSnapshotError::Invalid("instrumentId must be MARKET.CODE".to_owned())
+    })?;
+    let market = market.trim().to_ascii_uppercase();
+    let code = code.trim().to_ascii_uppercase();
+    if market.is_empty() || code.is_empty() || code.contains('.') {
+        return Err(ResearchReadSnapshotError::Invalid(
+            "instrumentId must be MARKET.CODE".to_owned(),
+        ));
+    }
+    let market_code = valuation_market_code(&market).ok_or_else(|| {
+        ResearchReadSnapshotError::Invalid("valuation detail market is unsupported".to_owned())
+    })?;
+    let query_map = QueryMap::parse(query)
+        .map_err(|_| ResearchReadSnapshotError::Invalid("invalid URL escape".to_owned()))?;
+    for key in valuation_query_keys(query)? {
+        if !matches!(
+            key.as_str(),
+            "brokerId" | "accountId" | "market" | "operation" | "valuationType" | "intervalType"
+        ) {
+            return Err(ResearchReadSnapshotError::Invalid(format!(
+                "unsupported valuation query parameter {key}"
+            )));
+        }
+    }
+    if let Some(requested_market) = query_map.get_first("market")
+        && !requested_market.trim().is_empty()
+        && requested_market.trim().to_ascii_uppercase() != market
+    {
+        return Err(ResearchReadSnapshotError::Invalid(
+            "market does not match instrumentId".to_owned(),
+        ));
+    }
+    if let Some(operation) = query_map.get_first("operation")
+        && !operation.trim().is_empty()
+        && !matches!(operation.trim(), "valuation" | "detail")
+    {
+        return Err(ResearchReadSnapshotError::Invalid(
+            "valuation operation must be valuation or detail".to_owned(),
+        ));
+    }
+    let valuation_type = parse_optional_i32(&query_map, "valuationType")?;
+    let interval_type = parse_optional_i32(&query_map, "intervalType")?;
+    let request = jftrade_integration_futu::ValuationDetailQuery {
+        market: market_code,
+        code,
+        valuation_type,
+        interval_type,
+    };
+    let snapshot = runtime
+        .valuation_detail(&request)
+        .map_err(map_valuation_error)?;
+    let entry = serde_json::to_value(snapshot)
+        .map_err(|error| ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: format!("serialize Futu valuation detail response: {error}"),
+            retry_after_seconds: None,
+        })?;
+    let as_of = crate::product::product_production_ports::provider_now_rfc3339();
+    Ok(json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "research.valuation",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "asOf": as_of,
+        "entries": [entry],
+        "hasMore": false,
+        "total": 1,
+    }))
+}
+
+fn valuation_query_keys(query: &str) -> Result<Vec<String>, ResearchReadSnapshotError> {
+    let mut keys = Vec::new();
+    for pair in query.trim().trim_start_matches('?').split('&') {
+        if pair.is_empty() {
+            continue;
+        }
+        let raw_key = pair.split_once('=').map_or(pair, |(key, _)| key);
+        let key = crate::product::product_query::decode_query_component(raw_key)
+            .map_err(|_| ResearchReadSnapshotError::Invalid("invalid URL escape".to_owned()))?;
+        keys.push(key);
+    }
+    Ok(keys)
+}
+
+fn parse_optional_i32(
+    query: &QueryMap,
+    key: &str,
+) -> Result<Option<i32>, ResearchReadSnapshotError> {
+    let Some(value) = query.get_first(key) else {
+        return Ok(None);
+    };
+    if value.trim().is_empty() {
+        return Err(ResearchReadSnapshotError::Invalid(format!(
+            "{key} must be an integer"
+        )));
+    }
+    value.trim().parse::<i32>().map(Some).map_err(|_| {
+        ResearchReadSnapshotError::Invalid(format!("{key} must be an integer"))
+    })
+}
+
+fn map_valuation_error(
+    error: jftrade_integration_futu::ValuationDetailQueryError,
+) -> ResearchReadSnapshotError {
+    use jftrade_integration_futu::ValuationDetailQueryError;
+    match error {
+        ValuationDetailQueryError::InvalidQuery(message)
+            if message.contains("runtime is unavailable") =>
+        {
+            ResearchReadSnapshotError::Unavailable(message)
+        }
+        ValuationDetailQueryError::InvalidQuery(message) => {
+            ResearchReadSnapshotError::Invalid(message)
+        }
+        ValuationDetailQueryError::Rejected {
+            ret_type,
+            err_code,
+            message,
+        } => ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "FUTU_VALUATION_REJECTED".to_owned(),
+            message: format!("OpenD valuation detail retType={ret_type} errCode={err_code}: {message}"),
+            retry_after_seconds: None,
+        },
+        ValuationDetailQueryError::Session(error) => ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: error.to_string(),
+            retry_after_seconds: None,
+        },
+        ValuationDetailQueryError::Decode(error) => ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: error.to_string(),
+            retry_after_seconds: None,
+        },
+        ValuationDetailQueryError::MissingS2c
+        | ValuationDetailQueryError::InvalidResponse(_) => ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: error.to_string(),
+            retry_after_seconds: None,
+        },
+    }
+}
+
+fn valuation_market_code(market: &str) -> Option<i32> {
+    match market {
+        "HK" => Some(1),
+        "US" => Some(11),
+        "SH" => Some(21),
+        "SZ" => Some(22),
+        "SG" => Some(31),
+        "JP" => Some(41),
+        "AU" => Some(51),
+        "MY" => Some(61),
+        "CA" => Some(71),
+        "FX" => Some(81),
+        "CRYPTO" => Some(91),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod research_helper_tests {
     use super::*;
@@ -457,6 +658,7 @@ mod research_helper_tests {
         let port = ProductionResearchPort {
             active_provider_state: state,
             helper: Some(helper(format!("http://{address}"))),
+            trade_runtime: None,
         };
         let value = port
             .read(
@@ -490,6 +692,7 @@ mod research_helper_tests {
         let port = ProductionResearchPort {
             active_provider_state: state,
             helper: Some(helper(format!("http://{address}"))),
+            trade_runtime: None,
         };
         let result = port.read("/api/v1/research/analyst/US.AAPL", "");
         assert!(matches!(
@@ -502,6 +705,78 @@ mod research_helper_tests {
             }) if code == "NOT_FOUND" && message == "financials not found"
         ));
         server.await.expect("server");
+    }
+
+    #[derive(Debug)]
+    struct FixtureValuationReader;
+
+    impl jftrade_integration_futu::ValuationDetailReadPort for FixtureValuationReader {
+        fn query(
+            &self,
+            query: &jftrade_integration_futu::ValuationDetailQuery,
+        ) -> Result<jftrade_integration_futu::ValuationDetailSnapshot, jftrade_integration_futu::ValuationDetailQueryError> {
+            assert_eq!(query.market, 11);
+            assert_eq!(query.code, "AAPL");
+            assert_eq!(query.valuation_type, Some(1));
+            assert_eq!(query.interval_type, Some(2));
+            Ok(jftrade_integration_futu::ValuationDetailSnapshot {
+                security: jftrade_integration_futu::ValuationDetailSecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL".to_owned(),
+                    instrument_id: "US.AAPL".to_owned(),
+                },
+                valuation_type: Some(1),
+                last_update_time: None,
+                last_update_time_str: None,
+                trend: None,
+                market_distribution: None,
+                plate_distribution: None,
+                profit_growth_rate: None,
+            })
+        }
+    }
+
+    #[test]
+    fn futu_valuation_route_projects_typed_reader_and_query() {
+        let state = Arc::new(ActiveProviderState::new(Some(
+            jftrade_settings::MarketDataProvider::Futu,
+        )));
+        state.set_readiness(false, true, false);
+        let runtime = Arc::new(SharedTradeReadRuntime::default());
+        runtime.set_valuation_detail(Some(Arc::new(FixtureValuationReader)));
+        let port = ProductionResearchPort {
+            active_provider_state: state,
+            helper: None,
+            trade_runtime: Some(runtime),
+        };
+        let value = port
+            .read(
+                "/api/v1/research/valuation/US.AAPL",
+                "brokerId=futu&operation=detail&valuationType=1&intervalType=2",
+            )
+            .expect("valuation response");
+        assert_eq!(value["provider"]["brokerId"], "futu");
+        assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
+        assert_eq!(value["entries"][0]["valuationType"], 1);
+        assert_eq!(value["hasMore"], false);
+    }
+
+    #[test]
+    fn futu_valuation_route_fails_closed_when_reader_is_missing() {
+        let state = Arc::new(ActiveProviderState::new(Some(
+            jftrade_settings::MarketDataProvider::Futu,
+        )));
+        state.set_readiness(false, true, false);
+        let port = ProductionResearchPort {
+            active_provider_state: state,
+            helper: None,
+            trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
+        };
+        assert!(matches!(
+            port.read("/api/v1/research/valuation/US.AAPL", ""),
+            Err(ResearchReadSnapshotError::Unavailable(message))
+                if message == "Futu valuation detail reader is not ready"
+        ));
     }
 }
 

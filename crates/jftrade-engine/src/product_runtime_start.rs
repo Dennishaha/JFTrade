@@ -100,6 +100,11 @@ pub async fn start_product_runtime(
                 trade_runtime.set_future_info(Some(Arc::new(
                     jftrade_integration_futu::OpenDFutureInfoReader::new(runtime.coordinator()),
                 )));
+                trade_runtime.set_valuation_detail(Some(Arc::new(
+                    jftrade_integration_futu::OpenDValuationDetailReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_expirations(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionExpirationReader::new(
                         runtime.coordinator(),
@@ -219,6 +224,9 @@ pub async fn start_product_runtime(
     if let Some(coordinator) = market_data_opend.as_ref() {
         trade_runtime.set_future_info(Some(Arc::new(
             jftrade_integration_futu::OpenDFutureInfoReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_valuation_detail(Some(Arc::new(
+            jftrade_integration_futu::OpenDValuationDetailReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_option_expirations(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionExpirationReader::new(Arc::clone(coordinator)),

@@ -665,6 +665,7 @@ pub(crate) fn production_ports(
     let research_port = Arc::new(ProductionResearchPort {
         active_provider_state: Arc::clone(&active_provider_state),
         helper: config.market_data_helper.clone(),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let research_screen_port = Arc::new(ProductionResearchScreenPort {
         active_provider_state: Arc::clone(&active_provider_state),

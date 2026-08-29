@@ -10,6 +10,7 @@ use jftrade_integration_futu::{
     OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
     OptionStrategySpreadReadPort, OptionStrategyReadPort, OptionStrategyAnalysisReadPort,
     OptionMarketStatisticReadPort, OptionUnderlyingHisStatisticReadPort,
+    ValuationDetailReadPort,
     TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -28,6 +29,8 @@ use super::qot_market_label;
 mod product_trade_runtime_candles;
 #[path = "product_trade_runtime_futures.rs"]
 mod product_trade_runtime_futures;
+#[path = "product_trade_runtime_valuation.rs"]
+mod product_trade_runtime_valuation;
 #[path = "product_trade_runtime_projection_values.rs"]
 mod product_trade_runtime_projection_values;
 
@@ -75,6 +78,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
     pub(crate) option_events:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
+    pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct TradeRuntimeConnection {
