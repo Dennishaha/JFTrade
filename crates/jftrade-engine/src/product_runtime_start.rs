@@ -96,6 +96,11 @@ pub async fn start_product_runtime(
                         .with_trade_read_port(trade_read_port, trade_logged_in);
                     trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                     trade_runtime.set_historical_klines(Some(historical_reader));
+                    trade_runtime.set_option_expirations(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionExpirationReader::new(
+                            runtime.coordinator(),
+                        ),
+                    )));
                     (Some(runtime), Some(shared_router))
                 }
                 Err(error) => {
@@ -141,6 +146,11 @@ pub async fn start_product_runtime(
             .product
             .clone()
             .with_trade_read_port(Some(Arc::new(client)), None);
+    }
+    if let Some(coordinator) = market_data_opend.as_ref() {
+        trade_runtime.set_option_expirations(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionExpirationReader::new(Arc::clone(coordinator)),
+        )));
     }
     if let Some(recorder) = market_data_runtime_recorder.as_ref() {
         config.product = config

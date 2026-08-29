@@ -46,6 +46,20 @@ impl ProductionPortBundle {
         if adapter == ProductionRouteAdapter::WebSocketLive && !self.ws_live.enabled() {
             return None;
         }
+        if adapter == ProductionRouteAdapter::MarketDataOptionsExpirationsRead {
+            let snapshot = self.active_provider_state.snapshot();
+            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.option_expirations_available())
+            {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
         // Market-data capability is provider-dependent and can change at
         // runtime. Recompute those bindings from the shared snapshot instead
         // of exposing the startup matrix after a provider transition.
@@ -251,6 +265,7 @@ pub(crate) fn production_adapter_bindings(
         Adapter::PortfolioRead,
         Adapter::MarketDataDerivativeRead,
         Adapter::MarketDataOptionsRead,
+        Adapter::MarketDataOptionsExpirationsRead,
         Adapter::MarketDataNewsSearchRead,
         Adapter::MarketDataPredictionRead,
         Adapter::MarketDataDepthRead,

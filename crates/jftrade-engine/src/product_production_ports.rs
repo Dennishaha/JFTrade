@@ -36,7 +36,6 @@ use jftrade_store_sqlite::{
     WATCHLIST_PRODUCTION_PROFILE, WatchlistStore,
 };
 use serde_json::Value;
-
 use crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPort;
 use crate::product::product_market_data_subscription_mutation_port::MarketDataSubscriptionMutationPort;
 use crate::product::product_research_screen_write_port::ResearchScreenWritePort;
@@ -682,6 +681,7 @@ pub(crate) fn production_ports(
     });
     let market_data_options_port = Arc::new(ProductionMarketDataOptionsPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let market_data_news_port = Arc::new(ProductionMarketDataNewsPort {
         active_provider_state: Arc::clone(&active_provider_state),

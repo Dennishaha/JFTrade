@@ -163,6 +163,11 @@ pub(super) fn provider_activation(
                     };
                     trade_runtime_for_activation.set(client, trade_logged_in);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    trade_runtime_for_activation.set_option_expirations(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionExpirationReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation
                         .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
@@ -196,6 +201,7 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.clear();
                     trade_runtime_for_activation.set_historical_klines(None);
                     trade_runtime_for_activation.set_security_snapshots(None);
+                    trade_runtime_for_activation.set_option_expirations(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }

@@ -8,6 +8,7 @@ mod frame;
 mod health;
 mod history;
 mod managed_session;
+mod option_expiration_query;
 mod probe;
 mod provider;
 mod provider_runtime;
@@ -47,6 +48,10 @@ pub use history::{
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
+};
+pub use option_expiration_query::{
+    OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,
+    OptionExpirationQueryError, OptionExpirationReadPort,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};

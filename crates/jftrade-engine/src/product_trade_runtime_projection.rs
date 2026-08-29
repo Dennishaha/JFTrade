@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
-    HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, TradeReadPort,
-    SecuritySnapshotReadPort, TradeSecurity,
+    HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
+    TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -31,6 +31,8 @@ pub(crate) struct SharedTradeReadRuntime {
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
     historical_klines: Arc<RwLock<Option<Arc<dyn HistoricalKlineReadPort>>>>,
     security_snapshots: Arc<RwLock<Option<Arc<dyn SecuritySnapshotReadPort>>>>,
+    pub(crate) option_expirations:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionExpirationReadPort>>>>,
 }
 
 #[derive(Clone, Debug)]

@@ -32,6 +32,7 @@ use crate::product::{
     MarketDataOptionsReadSnapshotError, MarketDataOptionsReadSnapshotPort,
     MarketDataPredictionReadSnapshotError, MarketDataPredictionReadSnapshotPort,
 };
+use super::product_production_ports_trade::SharedTradeReadRuntime;
 
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataDerivativePort {
@@ -55,19 +56,159 @@ impl MarketDataDerivativeReadSnapshotPort for ProductionMarketDataDerivativePort
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataOptionsPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl MarketDataOptionsReadSnapshotPort for ProductionMarketDataOptionsPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataOptionsReadSnapshotError> {
         let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || !snapshot.opend_ready {
+        if snapshot.provider != Some(MarketDataProvider::Futu) || !snapshot.opend_ready {
             return Err(MarketDataOptionsReadSnapshotError::Unavailable(
-                "options market-data provider is not configured".to_owned(),
+                "Futu options market-data provider is not ready".to_owned(),
             ));
         }
-        Err(MarketDataOptionsReadSnapshotError::Unavailable(
-            "options market-data provider is not configured".to_owned(),
-        ))
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataOptionsReadSnapshotError::Unavailable(
+                "Futu options market-data runtime is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.option_expirations_available() {
+            return Err(MarketDataOptionsReadSnapshotError::Unavailable(
+                "Futu option expiration reader is not ready".to_owned(),
+            ));
+        }
+        let request = parse_option_expiration_request(path, query)?;
+        let dates = runtime
+            .option_expirations(&request)
+            .map_err(map_option_expiration_error)?;
+        if dates.is_empty() {
+            return Err(MarketDataOptionsReadSnapshotError::Failed {
+                status: 404,
+                code: "OPTION_EXPIRATIONS_NOT_FOUND".to_owned(),
+                message: "OpenD returned no option expiration dates".to_owned(),
+            });
+        }
+        Ok(option_expiration_result(dates))
+    }
+}
+
+fn parse_option_expiration_request(
+    path: &str,
+    query: &str,
+) -> Result<jftrade_integration_futu::OptionExpirationQuery, MarketDataOptionsReadSnapshotError>
+{
+    let instrument = path
+        .strip_prefix("/api/v1/market-data/options/expirations/")
+        .filter(|value| !value.is_empty() && !value.contains('/'))
+        .ok_or_else(|| options_bad_request("unsupported options route"))?;
+    let (market, symbol) = instrument
+        .split_once('.')
+        .filter(|(market, symbol)| !market.is_empty() && !symbol.is_empty() && !symbol.contains('.'))
+        .ok_or_else(|| options_bad_request("instrumentId must be MARKET.CODE"))?;
+    let market = market.trim().to_ascii_uppercase();
+    let market_code = match market.as_str() {
+        "HK" => 1,
+        "US" => 11,
+        _ => return Err(options_bad_request("option expiration market must be HK or US")),
+    };
+    let symbol = symbol.trim();
+    if symbol.is_empty() || symbol.chars().any(char::is_whitespace) {
+        return Err(options_bad_request("option expiration symbol is invalid"));
+    }
+    let query_map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| options_bad_request("invalid URL escape"))?;
+    if let Some(operation) = query_map.get_first("operation")
+        && !operation.trim().is_empty()
+        && operation.trim() != "expirations"
+    {
+        return Err(options_bad_request("operation must be expirations"));
+    }
+    if let Some(requested_market) = query_map.get_first("market")
+        && !requested_market.trim().is_empty()
+        && requested_market.trim().to_ascii_uppercase() != market
+    {
+        return Err(options_bad_request("market does not match instrumentId"));
+    }
+    let index_option_type = query_map
+        .get_first("indexOptionType")
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| {
+            value.trim().parse::<i32>().ok().filter(|value| (0..=2).contains(value)).ok_or_else(|| {
+                options_bad_request("indexOptionType must be 0, 1, or 2")
+            })
+        })
+        .transpose()?;
+    Ok(jftrade_integration_futu::OptionExpirationQuery {
+        market: market_code,
+        symbol: symbol.to_ascii_uppercase(),
+        index_option_type,
+    })
+}
+
+fn option_expiration_result(
+    dates: Vec<jftrade_integration_futu::OptionExpirationDate>,
+) -> Value {
+    let as_of = super::provider_now_rfc3339();
+    let entries = dates
+        .iter()
+        .map(|date| {
+            let mut entry = serde_json::Map::new();
+            if let Some(strike_time) = date.strike_time.as_ref() {
+                entry.insert("strikeTime".to_owned(), Value::String(strike_time.clone()));
+            }
+            if let Some(strike_timestamp) = date.strike_timestamp {
+                entry.insert("strikeTimestamp".to_owned(), serde_json::json!(strike_timestamp));
+            }
+            entry.insert(
+                "optionExpiryDateDistance".to_owned(),
+                serde_json::json!(date.expiry_date_distance),
+            );
+            if let Some(cycle) = date.cycle {
+                entry.insert("cycle".to_owned(), serde_json::json!(cycle));
+            }
+            entry
+        })
+        .map(Value::Object)
+        .collect::<Vec<_>>();
+    let count = entries.len();
+    let broker_id = "futu";
+    serde_json::json!({
+        "provider": {
+            "brokerId": broker_id,
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "derivatives.option_chain",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "asOf": as_of,
+        "entries": entries,
+        "hasMore": false,
+        "total": count,
+    })
+}
+
+fn options_bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
+    MarketDataOptionsReadSnapshotError::Failed {
+        status: 400,
+        code: "BAD_REQUEST".to_owned(),
+        message: message.to_owned(),
+    }
+}
+
+fn map_option_expiration_error(
+    error: jftrade_integration_futu::OptionExpirationQueryError,
+) -> MarketDataOptionsReadSnapshotError {
+    match error {
+        jftrade_integration_futu::OptionExpirationQueryError::InvalidQuery(message) => {
+            options_bad_request(&message)
+        }
+        other => MarketDataOptionsReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: other.to_string(),
+        },
     }
 }
 
@@ -378,6 +519,85 @@ mod news_actions_tests {
             .expect_err("helper failure");
         assert!(matches!(result, MarketDataNewsActionsReadSnapshotError::Failed { status: 502, ref code, .. } if code == "upstream_error"));
         server.await.expect("server");
+    }
+}
+
+#[cfg(test)]
+mod option_expiration_tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct FixtureOptionExpirationReader;
+
+    impl jftrade_integration_futu::OptionExpirationReadPort for FixtureOptionExpirationReader {
+        fn query(
+            &self,
+            query: &jftrade_integration_futu::OptionExpirationQuery,
+        ) -> Result<Vec<jftrade_integration_futu::OptionExpirationDate>, jftrade_integration_futu::OptionExpirationQueryError> {
+            assert_eq!(query.market, 11);
+            assert_eq!(query.symbol, "AAPL");
+            Ok(vec![jftrade_integration_futu::OptionExpirationDate {
+                strike_time: Some("2026-09-18".to_owned()),
+                strike_timestamp: Some(1_789_000_000.0),
+                expiry_date_distance: 21,
+                cycle: Some(1),
+            }])
+        }
+    }
+
+    fn ready_port() -> ProductionMarketDataOptionsPort {
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        state.set_readiness(false, true, true);
+        let runtime = Arc::new(SharedTradeReadRuntime::default());
+        runtime.set_option_expirations(Some(Arc::new(FixtureOptionExpirationReader)));
+        ProductionMarketDataOptionsPort {
+            active_provider_state: state,
+            trade_runtime: Some(runtime),
+        }
+    }
+
+    #[test]
+    fn expiration_projection_uses_typed_reader_and_neutral_wire() {
+        let value = ready_port()
+            .read(
+                "/api/v1/market-data/options/expirations/US.AAPL",
+                "market=US&operation=expirations",
+            )
+            .expect("expiration response");
+        assert_eq!(value["provider"]["featureId"], "derivatives.option_chain");
+        assert_eq!(value["entries"][0]["strikeTime"], "2026-09-18");
+        assert_eq!(value["entries"][0]["optionExpiryDateDistance"], 21);
+        assert_eq!(value["hasMore"], false);
+        assert_eq!(value["total"], 1);
+    }
+
+    #[test]
+    fn expiration_projection_rejects_mismatched_market_before_opend() {
+        let error = ready_port()
+            .read(
+                "/api/v1/market-data/options/expirations/US.AAPL",
+                "market=HK",
+            )
+            .expect_err("mismatched market");
+        assert!(matches!(
+            error,
+            MarketDataOptionsReadSnapshotError::Failed { status: 400, ref code, .. }
+                if code == "BAD_REQUEST"
+        ));
+    }
+
+    #[test]
+    fn expiration_projection_is_unavailable_without_typed_reader() {
+        let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+        state.set_readiness(false, true, true);
+        let port = ProductionMarketDataOptionsPort {
+            active_provider_state: state,
+            trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
+        };
+        assert!(matches!(
+            port.read("/api/v1/market-data/options/expirations/US.AAPL", ""),
+            Err(MarketDataOptionsReadSnapshotError::Unavailable(_))
+        ));
     }
 }
 
