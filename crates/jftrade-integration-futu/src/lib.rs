@@ -13,6 +13,7 @@ mod managed_session;
 mod option_chain_query;
 mod option_contract_rank_query;
 mod option_event_query;
+mod option_zero_dte_screener_query;
 mod option_exercise_probability_query;
 mod option_expiration_query;
 mod option_market_statistic_query;
@@ -91,6 +92,11 @@ pub use option_event_query::{
     EventIndicator, EventIndicatorValue, EventSort, OpenDOptionEventReader, OptionEvent,
     OptionEventCorporateAction, OptionEventPage, OptionEventQuery, OptionEventQueryError,
     OptionEventReadPort, OptionEventSecurity,
+};
+pub use option_zero_dte_screener_query::{
+    OpenDOptionZeroDteScreenerReader, OptionZeroDteChainInfo, OptionZeroDteScreenerItem,
+    OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
+    OptionZeroDteScreenerReadPort,
 };
 pub use option_exercise_probability_query::{
     OpenDOptionExerciseProbabilityReader, OptionExerciseProbabilityItem,

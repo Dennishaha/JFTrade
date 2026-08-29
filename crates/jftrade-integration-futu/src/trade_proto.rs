@@ -107,6 +107,10 @@ pub mod qot_get_option_event {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_event.rs"));
     pub const PROTOCOL_ID: u32 = 3307;
 }
+pub mod qot_get_option_zero_dte_screener {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_zero_dte_screener.rs"));
+    pub const PROTOCOL_ID: u32 = 3311;
+}
 pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));
     pub const PROTOCOL_ID: u32 = 3253;
