@@ -10,6 +10,7 @@ use jftrade_integration_futu::{
     OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
     OptionStrategySpreadReadPort, OptionStrategyReadPort, OptionStrategyAnalysisReadPort,
     OptionMarketStatisticReadPort, OptionUnderlyingHisStatisticReadPort,
+    OptionZeroDteScreenerReadPort, OptionEarningsScreenerReadPort,
     ValuationDetailReadPort,
     TradeReadPort, TradeSecurity,
 };
@@ -78,6 +79,10 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
     pub(crate) option_events:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
+    pub(crate) option_zero_dte_screener:
+        Arc<RwLock<Option<Arc<dyn OptionZeroDteScreenerReadPort>>>>,
+    pub(crate) option_earnings_screener:
+        Arc<RwLock<Option<Arc<dyn OptionEarningsScreenerReadPort>>>>,
     pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
 }
 #[derive(Clone, Debug)]

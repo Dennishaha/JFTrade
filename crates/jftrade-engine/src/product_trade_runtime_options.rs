@@ -23,6 +23,9 @@ use jftrade_integration_futu::{
     OptionUnderlyingOverviewSnapshot, OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError,
     OptionUnderlyingRankReadPort, OptionUnderlyingRankSnapshot, OptionVolatilityQuery,
     OptionVolatilityQueryError, OptionVolatilityReadPort,
+    OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
+    OptionZeroDteScreenerReadPort, OptionEarningsScreenerPage, OptionEarningsScreenerQuery,
+    OptionEarningsScreenerQueryError, OptionEarningsScreenerReadPort,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -549,6 +552,74 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionEventQueryError::InvalidQuery(
                     "Futu option event runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_zero_dte_screener(
+        &self,
+        reader: Option<Arc<dyn OptionZeroDteScreenerReadPort>>,
+    ) {
+        *self
+            .option_zero_dte_screener
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_zero_dte_screener_available(&self) -> bool {
+        self.option_zero_dte_screener
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_zero_dte_screener(
+        &self,
+        query: &OptionZeroDteScreenerQuery,
+    ) -> Result<OptionZeroDteScreenerPage, OptionZeroDteScreenerQueryError> {
+        let reader = self
+            .option_zero_dte_screener
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionZeroDteScreenerQueryError::InvalidQuery(
+                    "Futu 0DTE screener runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_earnings_screener(
+        &self,
+        reader: Option<Arc<dyn OptionEarningsScreenerReadPort>>,
+    ) {
+        *self
+            .option_earnings_screener
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_earnings_screener_available(&self) -> bool {
+        self.option_earnings_screener
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_earnings_screener(
+        &self,
+        query: &OptionEarningsScreenerQuery,
+    ) -> Result<OptionEarningsScreenerPage, OptionEarningsScreenerQueryError> {
+        let reader = self
+            .option_earnings_screener
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionEarningsScreenerQueryError::InvalidQuery(
+                    "Futu earnings screener runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

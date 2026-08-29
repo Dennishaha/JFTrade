@@ -257,6 +257,16 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
+                    trade_runtime_for_activation.set_option_zero_dte_screener(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionZeroDteScreenerReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
+                    trade_runtime_for_activation.set_option_earnings_screener(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionEarningsScreenerReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation
                         .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
@@ -308,6 +318,8 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set_option_underlying_rank(None);
                     trade_runtime_for_activation.set_option_contract_rank(None);
                     trade_runtime_for_activation.set_option_events(None);
+                    trade_runtime_for_activation.set_option_zero_dte_screener(None);
+                    trade_runtime_for_activation.set_option_earnings_screener(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }

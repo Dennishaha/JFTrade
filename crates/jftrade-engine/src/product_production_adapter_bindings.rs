@@ -132,7 +132,11 @@ impl ProductionPortBundle {
                     && self
                         .trade_runtime
                         .as_ref()
-                        .is_some_and(|runtime| runtime.option_events_available())
+                        .is_some_and(|runtime| {
+                            runtime.option_events_available()
+                                || runtime.option_zero_dte_screener_available()
+                                || runtime.option_earnings_screener_available()
+                        })
                 {
                     ProductionAdapterBinding::Ready
                 } else {
