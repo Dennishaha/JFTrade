@@ -264,10 +264,12 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
     }
 }
 
+type ResearchHelperRequest = (&'static str, String, String, Vec<(&'static str, String)>);
+
 fn research_helper_request(
     path: &str,
     query: &str,
-) -> Result<(&'static str, String, String, Vec<(&'static str, String)>), ResearchReadSnapshotError> {
+) -> Result<ResearchHelperRequest, ResearchReadSnapshotError> {
     let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/research/financials/") {
         ("financials", value)
     } else if let Some(value) = path.strip_prefix("/api/v1/research/analyst/") {
@@ -479,5 +481,4 @@ impl ResearchScreenWritePort for ProductionResearchScreenPort {
         Err(ResearchScreenWritePortError::Unavailable)
     }
 }
-
 

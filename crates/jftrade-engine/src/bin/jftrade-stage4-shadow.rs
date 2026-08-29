@@ -110,7 +110,7 @@ enum MarketDataOperation {
         ttl_ms: i64,
     },
     CacheInsert {
-        tick: Tick,
+        tick: Box<Tick>,
     },
     CacheLookup {
         #[serde(rename = "instrumentId")]
@@ -264,7 +264,7 @@ fn run_marketdata(
             }),
             MarketDataOperation::CacheInsert { tick } => {
                 let generation = assembly.marketdata.generation();
-                let result = assembly.marketdata.cache_mut().insert(tick, generation);
+                let result = assembly.marketdata.cache_mut().insert(*tick, generation);
                 result_value(
                     "cache_insert",
                     result.map(|()| {

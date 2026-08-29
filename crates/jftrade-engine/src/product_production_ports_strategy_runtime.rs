@@ -141,10 +141,10 @@ impl ProductionStrategyRuntimePort {
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty());
-        if let Some(runtime) = runtime.as_deref() {
+        if let Some(runtime) = runtime {
             object.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
         }
-        if let Some(source_format) = source_format.as_deref() {
+        if let Some(source_format) = source_format {
             object.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
         }
         object.insert(
@@ -158,10 +158,10 @@ impl ProductionStrategyRuntimePort {
                 Value::String(definition_id.to_owned()),
             );
         }
-        if let Some(runtime) = runtime.as_deref() {
+        if let Some(runtime) = runtime {
             params.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
         }
-        if let Some(source_format) = source_format.as_deref() {
+        if let Some(source_format) = source_format {
             params.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
         }
         object.insert("params".to_owned(), Value::Object(params));
@@ -556,6 +556,5 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
         }
     }
 }
-
 
 

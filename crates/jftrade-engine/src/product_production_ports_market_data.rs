@@ -140,10 +140,12 @@ impl MarketDataNewsSearchReadSnapshotPort for ProductionMarketDataNewsPort {
     }
 }
 
+type NewsActionsHelperRequest = (&'static str, String, String, Vec<(&'static str, String)>);
+
 fn news_actions_helper_request(
     path: &str,
     query: &str,
-) -> Result<(&'static str, String, String, Vec<(&'static str, String)>), MarketDataNewsActionsReadSnapshotError> {
+) -> Result<NewsActionsHelperRequest, MarketDataNewsActionsReadSnapshotError> {
     let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/market-data/news/") {
         ("news", value)
     } else if let Some(value) = path.strip_prefix("/api/v1/market-data/corporate-actions/") {

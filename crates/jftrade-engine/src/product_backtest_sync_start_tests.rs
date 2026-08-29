@@ -1,4 +1,7 @@
 use super::*;
+use super::product_backtest_sync_request::parse_sync_request;
+use jftrade_settings::MarketDataProvider;
+use jftrade_store_sqlite::{StoredBacktestCandle, StoredBacktestSyncTask};
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
 
