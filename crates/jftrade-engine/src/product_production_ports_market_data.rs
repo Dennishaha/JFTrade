@@ -21,12 +21,16 @@ mod product_production_ports_market_data_options_analysis;
 mod product_production_ports_market_data_options_historical_volatility;
 #[path = "product_production_ports_market_data_options_strategy_spread.rs"]
 mod product_production_ports_market_data_options_strategy_spread;
+#[path = "product_production_ports_market_data_options_strategy.rs"]
+mod product_production_ports_market_data_options_strategy;
 #[path = "product_production_ports_market_data_options_contract_rank.rs"]
 mod product_production_ports_market_data_options_contract_rank;
 #[path = "product_production_ports_market_data_options_events.rs"]
 mod product_production_ports_market_data_options_events;
 #[path = "product_production_ports_market_data_prediction.rs"]
 mod product_production_ports_market_data_prediction;
+#[path = "product_production_ports_market_data_futures.rs"]
+mod product_production_ports_market_data_futures;
 #[cfg(test)]
 #[path = "product_production_ports_market_data_options_tests.rs"]
 mod product_production_ports_market_data_options_tests;
