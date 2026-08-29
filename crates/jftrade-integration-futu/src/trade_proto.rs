@@ -16,6 +16,10 @@ pub mod qot_get_future_info {
     include!(concat!(env!("OUT_DIR"), "/qot_get_future_info.rs"));
     pub const PROTOCOL_ID: u32 = 3218;
 }
+pub mod qot_get_valuation_detail {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_valuation_detail.rs"));
+    pub const PROTOCOL_ID: u32 = 3232;
+}
 pub mod qot_get_option_expiration_date {
     include!(concat!(
         env!("OUT_DIR"),

@@ -6,6 +6,7 @@ mod basic_quote_query;
 mod basic_quote_tick;
 mod frame;
 mod future_info_query;
+mod valuation_detail_query;
 mod health;
 mod history;
 mod managed_session;
@@ -57,6 +58,13 @@ pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use future_info_query::{
     FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort, FutureInfoSecurity,
     FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
+};
+pub use valuation_detail_query::{
+    OpenDValuationDetailReader, ValuationDetailHistoricalItem, ValuationDetailMarketDistribution,
+    ValuationDetailPlateDistribution, ValuationDetailPlateStockItem, ValuationDetailProfitGrowth,
+    ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
+    ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
+    ValuationDetailTrend,
 };
 pub use health::{
     OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
