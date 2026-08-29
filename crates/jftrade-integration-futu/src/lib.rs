@@ -10,6 +10,7 @@ mod history;
 mod managed_session;
 mod option_chain_query;
 mod option_expiration_query;
+mod option_screen_query;
 mod probe;
 mod provider;
 mod provider_runtime;
@@ -58,6 +59,10 @@ pub use option_chain_query::{
 pub use option_expiration_query::{
     OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,
     OptionExpirationQueryError, OptionExpirationReadPort,
+};
+pub use option_screen_query::{
+    OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
+    OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};

@@ -13,6 +13,8 @@ pub(crate) mod product_production_ports_market_data_projection;
 mod product_production_ports_market_data_quote;
 #[path = "product_production_ports_market_data_subscription.rs"]
 mod product_production_ports_market_data_subscription;
+#[path = "product_production_ports_market_data_options_screen.rs"]
+mod product_production_ports_market_data_options_screen;
 #[cfg(test)]
 #[path = "product_production_ports_market_data_options_tests.rs"]
 mod product_production_ports_market_data_options_tests;
@@ -75,6 +77,9 @@ impl MarketDataOptionsReadSnapshotPort for ProductionMarketDataOptionsPort {
                 "Futu options market-data runtime is not configured".to_owned(),
             )
         })?;
+        if path == "/api/v1/market-data/options/screens" {
+            return product_production_ports_market_data_options_screen::read(Some(runtime), query);
+        }
         if path.starts_with("/api/v1/market-data/options/chains/") {
             if !runtime.option_chains_available() {
                 return Err(MarketDataOptionsReadSnapshotError::Unavailable(

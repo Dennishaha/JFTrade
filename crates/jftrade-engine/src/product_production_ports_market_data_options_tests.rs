@@ -90,12 +90,86 @@ impl jftrade_integration_futu::OptionExpirationReadPort for FixtureOptionExpirat
     }
 }
 
+#[derive(Debug)]
+struct FixtureOptionScreenReader;
+
+impl jftrade_integration_futu::OptionScreenReadPort for FixtureOptionScreenReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionScreenQuery,
+    ) -> Result<jftrade_integration_futu::OptionScreenPage, jftrade_integration_futu::OptionScreenQueryError>
+    {
+        assert_eq!(query.market_categories, vec![0]);
+        assert_eq!(query.page_count, Some(50));
+        Ok(jftrade_integration_futu::OptionScreenPage {
+            last_page: true,
+            all_count: 1,
+            items: vec![jftrade_integration_futu::OptionScreenItem {
+                security: jftrade_integration_futu::OptionScreenSecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL260918C00100000".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL260918C00100000".to_owned(),
+                },
+                option_name: Some("AAPL Call".to_owned()),
+                strike_price: Some(100.0),
+                strike_date: Some(20260918),
+                option_type: Some(1),
+                exercise_type: None,
+                expiration_type: None,
+                in_the_money: None,
+                left_day: Some(20),
+                price: Some(1.25),
+                mid_price: None,
+                bid_price: None,
+                ask_price: None,
+                bid_ask_spread: None,
+                bid_volume: None,
+                ask_volume: None,
+                change_rate: None,
+                volume: None,
+                turnover: None,
+                open_interest: None,
+                bid_ask_volume_ratio: None,
+                open_interest_market_cap: None,
+                vol_oi_ratio: None,
+                premium: None,
+                implied_volatility: Some(0.2),
+                delta: Some(0.5),
+                gamma: None,
+                vega: None,
+                theta: None,
+                rho: None,
+                leverage_ratio: None,
+                effective_gearing: None,
+                itm_probability: None,
+                underlying_info: None,
+                history_volatility: None,
+                iv_hv_ratio: None,
+                buy_to_bep: None,
+                sell_to_bep: None,
+                buy_profit_probability: None,
+                sell_profit_probability: None,
+                intrinsic_value_per: None,
+                time_value_per: None,
+                itm_degree: None,
+                otm_degree: None,
+                otm_probability: None,
+                sell_annualized_return: None,
+                interval_return: None,
+            }],
+        })
+    }
+}
+
 fn ready_port() -> ProductionMarketDataOptionsPort {
     let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     state.set_readiness(false, true, true);
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set_option_expirations(Some(Arc::new(FixtureOptionExpirationReader)));
     runtime.set_option_chains(Some(Arc::new(FixtureOptionChainReader)));
+    runtime.set_option_screens(Some(Arc::new(FixtureOptionScreenReader)));
     ProductionMarketDataOptionsPort {
         active_provider_state: state,
         trade_runtime: Some(runtime),
@@ -115,6 +189,50 @@ fn chain_projection_forwards_typed_query_and_neutral_wire() {
     assert_eq!(value["entries"][0]["option"].as_array().map(Vec::len), Some(0));
     assert_eq!(value["hasMore"], false);
     assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn screen_projection_forwards_typed_query_and_neutral_wire() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/screens",
+            "market=US&operation=screen&pageSize=50",
+        )
+        .expect("option screen response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_screen");
+    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(value["entries"][0]["strikeDate"], 20260918);
+    assert_eq!(value["hasMore"], false);
+    assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn screen_projection_rejects_bad_query_before_reader() {
+    let error = ready_port()
+        .read(
+            "/api/v1/market-data/options/screens",
+            "market=CN&pageSize=50",
+        )
+        .expect_err("unsupported market");
+    assert!(matches!(
+        error,
+        MarketDataOptionsReadSnapshotError::Failed { status: 400, ref code, .. }
+            if code == "BAD_REQUEST"
+    ));
+}
+
+#[test]
+fn screen_projection_is_unavailable_without_typed_reader() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
+    };
+    assert!(matches!(
+        port.read("/api/v1/market-data/options/screens", "market=US"),
+        Err(MarketDataOptionsReadSnapshotError::Unavailable(_))
+    ));
 }
 
 #[test]

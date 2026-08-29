@@ -173,6 +173,11 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
+                    trade_runtime_for_activation.set_option_screens(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionScreenReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation
                         .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
@@ -208,6 +213,7 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set_security_snapshots(None);
                     trade_runtime_for_activation.set_option_expirations(None);
                     trade_runtime_for_activation.set_option_chains(None);
+                    trade_runtime_for_activation.set_option_screens(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }
