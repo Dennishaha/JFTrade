@@ -214,21 +214,60 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "positions": positions }))
             }
             "orders" => {
+                let history = request
+                    .history_scope()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
                 let resolved = request
                     .resolve_account(client.as_ref())
                     .map_err(map_broker_header_error)?;
-                let orders = client
-                    .read_orders(resolved.header.clone(), request.filter(), Vec::new(), request.refresh_cache())
-                    .map_err(session_error)?;
+                let filter = request
+                    .trade_filter(history)
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let statuses = request
+                    .status_codes()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let orders = if history {
+                    client.read_history_orders(
+                        resolved.header.clone(),
+                        filter,
+                        statuses,
+                        request.refresh_cache(),
+                    )
+                } else {
+                    client.read_orders(
+                        resolved.header.clone(),
+                        request.filter(),
+                        Vec::new(),
+                        request.refresh_cache(),
+                    )
+                }
+                .map_err(session_error)?;
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "orders": orders.into_iter().map(|v| order_value(&resolved, v)).collect::<Vec<_>>() }))
             }
             "fills" => {
+                let history = request
+                    .history_scope()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
                 let resolved = request
                     .resolve_account(client.as_ref())
                     .map_err(map_broker_header_error)?;
-                let fills = client
-                    .read_fills(resolved.header.clone(), request.filter(), request.refresh_cache())
-                    .map_err(session_error)?;
+                let filter = request
+                    .trade_filter(history)
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let fills = if history {
+                    client.read_history_fills(
+                        resolved.header.clone(),
+                        filter,
+                        request.refresh_cache(),
+                    )
+                } else {
+                    client.read_fills(
+                        resolved.header.clone(),
+                        request.filter(),
+                        request.refresh_cache(),
+                    )
+                }
+                .map_err(session_error)?;
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fills": fills.into_iter().map(|v| fill_value(&resolved, v)).collect::<Vec<_>>() }))
             }
             _ => Err(unavailable(format!("Futu broker resource '{}' is unavailable", request.resource))),
@@ -696,7 +735,56 @@ impl TradeRequest {
     }
 
     fn filter(&self) -> Option<TradeFilter> {
-        self.query.get_first("symbol").map(|symbol| TradeFilter { code_list: vec![symbol.rsplit('.').next().unwrap_or(symbol).to_owned()], ..TradeFilter::default() })
+        self.query.get_first("symbol").map(|symbol| TradeFilter { code_list: vec![symbol.trim().to_ascii_uppercase()], ..TradeFilter::default() })
+    }
+
+    fn history_scope(&self) -> Result<bool, String> {
+        match self.query.get_first("scope").map(str::trim).unwrap_or("").to_ascii_uppercase().as_str() {
+            "" | "CURRENT" => Ok(false),
+            "HISTORY" => Ok(true),
+            _ => Err("query parameter scope is invalid".to_owned()),
+        }
+    }
+
+    fn trade_filter(&self, history: bool) -> Result<Option<TradeFilter>, String> {
+        let symbol = self.query.get_first("symbol").map(str::trim).filter(|value| !value.is_empty());
+        let begin_time = if history { self.query.get_first("startTime").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned) } else { None };
+        let end_time = if history { self.query.get_first("endTime").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned) } else { None };
+        if !history && (self.query.get_first("startTime").is_some() || self.query.get_first("endTime").is_some()) {
+            return Ok(symbol.map(|code| TradeFilter { code_list: vec![code.to_ascii_uppercase()], ..TradeFilter::default() }));
+        }
+        let has_filter = symbol.is_some() || begin_time.is_some() || end_time.is_some();
+        Ok(has_filter.then(|| TradeFilter {
+            code_list: symbol.map(|code| vec![code.to_ascii_uppercase()]).unwrap_or_default(),
+            begin_time,
+            end_time,
+            ..TradeFilter::default()
+        }))
+    }
+
+    fn status_codes(&self) -> Result<Vec<i32>, String> {
+        let mut values = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for raw in self.query.get_all("status").into_iter().flatten().chain(self.query.get_all("statuses").into_iter().flatten()) {
+            for token in raw.split(',').map(str::trim).filter(|token| !token.is_empty()) {
+                if let Some(code) = order_status_code(token) && seen.insert(code) {
+                    values.push(code);
+                }
+            }
+        }
+        Ok(values)
+    }
+}
+
+fn order_status_code(value: &str) -> Option<i32> {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "UNKNOWN" => Some(-1), "UNSUBMITTED" => Some(0), "WAITINGSUBMIT" => Some(1),
+        "SUBMITTING" => Some(2), "SUBMITFAILED" => Some(3), "TIMEOUT" => Some(4),
+        "SUBMITTED" => Some(5), "FILLEDPART" | "FILLED_PART" => Some(10),
+        "FILLEDALL" | "FILLED_ALL" => Some(11), "CANCELLINGPART" | "CANCELLING_PART" => Some(12),
+        "CANCELLINGALL" | "CANCELLING_ALL" => Some(13), "CANCELLEDPART" | "CANCELLED_PART" => Some(14),
+        "CANCELLEDALL" | "CANCELLED_ALL" => Some(15), "FAILED" => Some(21), "DISABLED" => Some(22),
+        "DELETED" => Some(23), "FILLCANCELLED" | "FILL_CANCELLED" => Some(24), _ => None,
     }
 }
 

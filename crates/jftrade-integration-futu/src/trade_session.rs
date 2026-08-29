@@ -84,12 +84,31 @@ pub trait TradeReadPort: Send + Sync {
         refresh_cache: Option<bool>,
     ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError>;
 
+    fn read_history_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        filter_status_list: Vec<i32>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        self.read_orders(header, filter, filter_status_list, refresh_cache)
+    }
+
     fn read_fills(
         &self,
         header: TradeHeader,
         filter: Option<TradeFilter>,
         refresh_cache: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError>;
+
+    fn read_history_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        self.read_fills(header, filter, refresh_cache)
+    }
 }
 
 #[derive(Debug, Error)]
@@ -180,6 +199,28 @@ impl OpenDTradeReadClient {
     ) -> Result<trd_get_order_fill_list::S2c, TradeSessionError> {
         let body = self.call(
             trd_get_order_fill_list::PROTOCOL_ID,
+            &trd_get_order_fill_list::encode_request(&request),
+        )?;
+        Ok(trd_get_order_fill_list::decode_response(&body)?)
+    }
+
+    pub(crate) fn get_history_order_list(
+        &self,
+        request: trd_get_order_list::Request,
+    ) -> Result<trd_get_order_list::S2c, TradeSessionError> {
+        let body = self.call(
+            crate::trading::TradeProtocol::GetHistoryOrderList.id(),
+            &trd_get_order_list::encode_request(&request),
+        )?;
+        Ok(trd_get_order_list::decode_response(&body)?)
+    }
+
+    pub(crate) fn get_history_order_fill_list(
+        &self,
+        request: trd_get_order_fill_list::Request,
+    ) -> Result<trd_get_order_fill_list::S2c, TradeSessionError> {
+        let body = self.call(
+            crate::trading::TradeProtocol::GetHistoryOrderFillList.id(),
             &trd_get_order_fill_list::encode_request(&request),
         )?;
         Ok(trd_get_order_fill_list::decode_response(&body)?)
@@ -343,6 +384,40 @@ impl OpenDTradeReadClient {
         refresh_cache: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         let payload = self.get_order_fill_list(trd_get_order_fill_list::Request {
+            c2s: trd_get_order_fill_list::C2s {
+                header: header.into(),
+                filter_conditions: filter.map(Into::into),
+                refresh_cache,
+            },
+        })?;
+        Ok(fills_projection(payload))
+    }
+
+    pub fn read_history_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        filter_status_list: Vec<i32>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        let payload = self.get_history_order_list(trd_get_order_list::Request {
+            c2s: trd_get_order_list::C2s {
+                header: header.into(),
+                filter_conditions: filter.map(Into::into),
+                filter_status_list,
+                refresh_cache,
+            },
+        })?;
+        Ok(orders_projection(payload))
+    }
+
+    pub fn read_history_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        let payload = self.get_history_order_fill_list(trd_get_order_fill_list::Request {
             c2s: trd_get_order_fill_list::C2s {
                 header: header.into(),
                 filter_conditions: filter.map(Into::into),
@@ -555,6 +630,31 @@ impl TradeReadPort for OpenDTradeReadClient {
         refresh_cache: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         OpenDTradeReadClient::read_fills(self, header, filter, refresh_cache)
+    }
+
+    fn read_history_orders(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        filter_status_list: Vec<i32>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        OpenDTradeReadClient::read_history_orders(
+            self,
+            header,
+            filter,
+            filter_status_list,
+            refresh_cache,
+        )
+    }
+
+    fn read_history_fills(
+        &self,
+        header: TradeHeader,
+        filter: Option<TradeFilter>,
+        refresh_cache: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        OpenDTradeReadClient::read_history_fills(self, header, filter, refresh_cache)
     }
 }
 
