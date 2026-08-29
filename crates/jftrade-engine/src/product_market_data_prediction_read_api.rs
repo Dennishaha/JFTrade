@@ -48,6 +48,9 @@ fn market_data_prediction_read_snapshot_failure(
     error: MarketDataPredictionReadSnapshotError,
 ) -> jftrade_api::ApiFailure {
     match error {
+        MarketDataPredictionReadSnapshotError::Invalid(message) => {
+            jftrade_api::ApiFailure::new(400, "MARKET_DATA_PREDICTION_READ_INVALID", message)
+        }
         MarketDataPredictionReadSnapshotError::Unavailable(message) => {
             jftrade_api::ApiFailure::new(503, "MARKET_DATA_PREDICTION_READ_UNAVAILABLE", message)
         }
