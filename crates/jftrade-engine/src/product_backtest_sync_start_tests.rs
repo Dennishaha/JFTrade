@@ -132,3 +132,68 @@ fn production_sync_cancel_matches_not_found_for_terminal_task() {
     });
     assert_eq!(result, Ok(BacktestsWritePortResult::SyncCancelled(false)));
 }
+
+#[test]
+fn production_backtest_read_routes_project_store_state() {
+    let (port, _directory) = production_port();
+    port.store
+        .save_run(
+            jftrade_store_sqlite::StoredBacktestRun {
+                id: "run-production".to_owned(),
+                status: "completed".to_owned(),
+                request_json: r#"{"symbol":"US.AAPL","period":"1d"}"#.to_owned(),
+                result_json: r#"{"pnl":12.5,"marketDataProvider":"yfinance"}"#.to_owned(),
+                created_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:01:00Z".to_owned(),
+            },
+            "2026-08-29T00:01:00Z",
+        )
+        .expect("persist run");
+
+    let listed = port.list().expect("list runs");
+    assert_eq!(listed["runs"][0]["id"], "run-production");
+    assert_eq!(listed["runs"][0]["marketDataProvider"], "yfinance");
+
+    let status = port
+        .status("run-production")
+        .expect("status")
+        .expect("run exists");
+    assert_eq!(status["status"], "completed");
+
+    let result = port
+        .result("run-production")
+        .expect("result")
+        .expect("run exists");
+    assert_eq!(result["result"]["pnl"], 12.5);
+
+    let deleted = port
+        .mutate(&BacktestsWriteInput::Delete {
+            run_id: "run-production".to_owned(),
+        })
+        .expect("delete run");
+    assert_eq!(
+        deleted,
+        BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Deleted)
+    );
+    assert!(port.status("run-production").expect("status").is_none());
+}
+
+#[test]
+fn production_backtest_read_rejects_corrupted_request_json() {
+    let (port, _directory) = production_port();
+    port.store
+        .save_run(
+            jftrade_store_sqlite::StoredBacktestRun {
+                id: "run-corrupt".to_owned(),
+                status: "queued".to_owned(),
+                request_json: "{not-json".to_owned(),
+                result_json: String::new(),
+                created_at: "2026-08-29T00:00:00Z".to_owned(),
+                updated_at: "2026-08-29T00:00:00Z".to_owned(),
+            },
+            "2026-08-29T00:00:00Z",
+        )
+        .expect("persist corrupt fixture");
+    let error = port.list().expect_err("corrupt request must fail closed");
+    assert!(error.to_string().contains("invalid JSON"));
+}
