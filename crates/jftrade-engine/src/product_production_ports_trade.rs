@@ -802,6 +802,12 @@ fn normalize_history_time(value: &str, market: &str) -> Result<String, String> {
         "US" => "America/New_York",
         "HK" => "Asia/Hong_Kong",
         "CN" | "SH" | "SZ" => "Asia/Shanghai",
+        "SG" => "Asia/Singapore",
+        "JP" => "Asia/Tokyo",
+        "AU" => "Australia/Sydney",
+        "MY" => "Asia/Kuala_Lumpur",
+        "CA" => "America/Toronto",
+        "FUTURES" | "CRYPTO" => "UTC",
         _ => "UTC",
     };
     let local = timestamp
@@ -857,7 +863,16 @@ fn environment_label_from_code(code: i32) -> &'static str {
 
 fn market_code(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
-        "HK" => Ok(1), "US" => Ok(2), "SH" | "SZ" | "CN" => Ok(3),
+        "HK" => Ok(1),
+        "US" => Ok(2),
+        "SH" | "SZ" | "CN" => Ok(3),
+        "FUTURES" => Ok(5),
+        "SG" => Ok(6),
+        "CRYPTO" => Ok(7),
+        "AU" => Ok(8),
+        "JP" => Ok(15),
+        "MY" => Ok(111),
+        "CA" => Ok(112),
         value => Err(format!("invalid market: {value}")),
     }
 }

@@ -811,6 +811,50 @@ fn history_query_converts_hk_rfc3339_to_local_wall_clock() {
 }
 
 #[test]
+fn history_query_converts_supported_trade_markets_to_local_wall_clock() {
+    let cases = [
+        ("SG", "2026-08-01T00:00:00Z", "2026-08-01 08:00:00"),
+        ("JP", "2026-08-01T00:00:00Z", "2026-08-01 09:00:00"),
+        ("AU", "2026-01-01T00:00:00Z", "2026-01-01 11:00:00"),
+        ("MY", "2026-08-01T00:00:00Z", "2026-08-01 08:00:00"),
+        ("CA", "2026-08-01T00:00:00Z", "2026-07-31 20:00:00"),
+        ("FUTURES", "2026-08-01T00:00:00Z", "2026-08-01 00:00:00"),
+        ("CRYPTO", "2026-08-01T00:00:00Z", "2026-08-01 00:00:00"),
+    ];
+    for (market, start_time, expected) in cases {
+        let request = TradeRequest::parse(
+            "/api/v1/brokers/futu/orders",
+            &format!("scope=HISTORY&startTime={start_time}"),
+        )
+        .expect("request");
+        let filter = request
+            .trade_filter(true, market)
+            .expect("filter")
+            .expect("filter present");
+        assert_eq!(filter.begin_time.as_deref(), Some(expected), "market={market}");
+    }
+}
+
+#[test]
+fn trade_market_code_supports_all_futu_trade_markets() {
+    for (market, expected) in [
+        ("HK", 1),
+        ("US", 2),
+        ("CN", 3),
+        ("FUTURES", 5),
+        ("SG", 6),
+        ("CRYPTO", 7),
+        ("AU", 8),
+        ("JP", 15),
+        ("MY", 111),
+        ("CA", 112),
+    ] {
+        assert_eq!(market_code(market).expect("market code"), expected, "market={market}");
+    }
+    assert!(market_code("MARS").is_err());
+}
+
+#[test]
 fn invalid_order_scope_is_rejected_before_opend_call() {
     let request = TradeRequest::parse("/api/v1/brokers/futu/fills", "scope=archive")
         .expect("request");
