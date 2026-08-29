@@ -285,25 +285,28 @@ fn research_helper_request(
             "research operation is not backed by the market-data helper".to_owned(),
         ));
     };
-    let mut parts = suffix.splitn(2, '/');
-    let first = parts.next().unwrap_or_default().trim();
-    let second = parts.next().unwrap_or_default().trim();
-    let (market, symbol) = if operation == "profile" {
-        first.split_once('.').ok_or_else(|| ResearchReadSnapshotError::Invalid(
+    let instrument = suffix.trim();
+    let (raw_market, raw_symbol) = instrument
+        .split_once('.')
+        .ok_or_else(|| ResearchReadSnapshotError::Invalid(
             "instrument must use MARKET.SYMBOL form".to_owned(),
-        ))?
-    } else if !first.is_empty() && !second.is_empty() && !second.contains('/') {
-        (first, second)
-    } else {
-        return Err(ResearchReadSnapshotError::Invalid(
-            "research instrument path is invalid".to_owned(),
-        ));
-    };
-    if market.is_empty() || symbol.is_empty() || market.contains('.') {
+        ))?;
+    let market = raw_market.trim();
+    let symbol = raw_symbol.trim();
+    if market.is_empty()
+        || symbol.is_empty()
+        || market.contains('/')
+        || symbol.contains('/')
+        || symbol.contains('.')
+        || market.chars().any(char::is_whitespace)
+        || symbol.chars().any(char::is_whitespace)
+    {
         return Err(ResearchReadSnapshotError::Invalid(
             "research instrument path is invalid".to_owned(),
         ));
     }
+    let market = market.to_ascii_uppercase();
+    let symbol = symbol.to_ascii_uppercase();
     let mut extra_query = Vec::new();
     for pair in query.split('&').filter(|pair| !pair.is_empty()) {
         let Some((key, value)) = pair.split_once('=') else { continue };
@@ -313,7 +316,7 @@ fn research_helper_request(
             extra_query.push((if key == "from" { "from" } else { "to" }, value.to_owned()));
         }
     }
-    Ok((operation, market.to_owned(), symbol.to_owned(), extra_query))
+    Ok((operation, market, symbol, extra_query))
 }
 
 fn validate_research_payload(
@@ -401,7 +404,29 @@ mod research_helper_tests {
             Err(ResearchReadSnapshotError::Unavailable(_))
         ));
         assert!(matches!(
-            research_helper_request("/api/v1/research/financials/US", ""),
+            research_helper_request("/api/v1/research/financials/US/AAPL", ""),
+            Err(ResearchReadSnapshotError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn research_helper_request_parses_canonical_instrument_ids() {
+        for (path, operation) in [
+            ("/api/v1/research/instruments/us.aapl", "profile"),
+            ("/api/v1/research/financials/us.aapl", "financials"),
+            ("/api/v1/research/analyst/us.aapl", "analyst"),
+            ("/api/v1/research/ownership/us.aapl", "ownership"),
+            ("/api/v1/research/corporate-actions/us.aapl", "corporate-actions"),
+        ] {
+            let (actual_operation, market, symbol, query) =
+                research_helper_request(path, "").expect("canonical instrument");
+            assert_eq!(actual_operation, operation);
+            assert_eq!(market, "US");
+            assert_eq!(symbol, "AAPL");
+            assert!(query.is_empty());
+        }
+        assert!(matches!(
+            research_helper_request("/api/v1/research/analyst/US.AAPL.extra", ""),
             Err(ResearchReadSnapshotError::Invalid(_))
         ));
     }
@@ -435,7 +460,7 @@ mod research_helper_tests {
         };
         let value = port
             .read(
-                "/api/v1/research/financials/US/AAPL",
+                "/api/v1/research/financials/US.AAPL",
                 "statement=balance",
             )
             .expect("research response");
@@ -466,7 +491,7 @@ mod research_helper_tests {
             active_provider_state: state,
             helper: Some(helper(format!("http://{address}"))),
         };
-        let result = port.read("/api/v1/research/analyst/US/AAPL", "");
+        let result = port.read("/api/v1/research/analyst/US.AAPL", "");
         assert!(matches!(
             result,
             Err(ResearchReadSnapshotError::Failed {
