@@ -39,6 +39,12 @@ struct WatchlistReadQuery {
     limit: usize,
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+struct RemoteWatchlistReadQuery {
+    operation: String,
+    remote_group_id: String,
+}
+
 fn watchlist_store_error(error: WatchlistStoreError) -> WatchlistWritePortError {
     let message = error.to_string();
     let (status, code) = match error {
@@ -164,6 +170,54 @@ fn source_id_from_path(path: &str) -> Option<String> {
         .decode_utf8()
         .ok()
         .map(|value| value.into_owned())
+}
+
+fn parse_remote_read_query(
+    query: &str,
+) -> Result<RemoteWatchlistReadQuery, RemoteWatchlistSnapshotError> {
+    let mut parsed = RemoteWatchlistReadQuery {
+        operation: "groups".to_owned(),
+        ..RemoteWatchlistReadQuery::default()
+    };
+    for pair in query.split('&').filter(|pair| !pair.is_empty()) {
+        let (raw_key, raw_value) = pair.split_once('=').unwrap_or((pair, ""));
+        let key_input = raw_key.replace('+', " ");
+        let value_input = raw_value.replace('+', " ");
+        let key = percent_decode_str(&key_input)
+            .decode_utf8()
+            .map_err(|_| RemoteWatchlistSnapshotError::Invalid(
+                "invalid remote watchlist query encoding".to_owned(),
+            ))?;
+        let value = percent_decode_str(&value_input)
+            .decode_utf8()
+            .map_err(|_| RemoteWatchlistSnapshotError::Invalid(
+                "invalid remote watchlist query encoding".to_owned(),
+            ))?;
+        match key.as_ref() {
+            "operation" => {
+                let operation = value.trim().to_ascii_lowercase();
+                if !matches!(operation.as_str(), "groups" | "members") {
+                    return Err(RemoteWatchlistSnapshotError::Invalid(
+                        "operation must be groups or members".to_owned(),
+                    ));
+                }
+                parsed.operation = operation;
+            }
+            "remoteGroupId" => parsed.remote_group_id = value.trim().to_owned(),
+            _ => {}
+        }
+    }
+    if parsed.operation == "members" && parsed.remote_group_id.is_empty() {
+        return Err(RemoteWatchlistSnapshotError::Invalid(
+            "remoteGroupId is required for members operation".to_owned(),
+        ));
+    }
+    if parsed.remote_group_id.len() > 512 || parsed.remote_group_id.chars().any(char::is_control) {
+        return Err(RemoteWatchlistSnapshotError::Invalid(
+            "remoteGroupId is invalid".to_owned(),
+        ));
+    }
+    Ok(parsed)
 }
 
 impl WatchlistMembershipSnapshotPort for ProductionWatchlistPort {
@@ -544,7 +598,8 @@ pub(crate) struct ProductionRemoteWatchlistPort {
 }
 
 impl RemoteWatchlistSnapshotPort for ProductionRemoteWatchlistPort {
-    fn read(&self, _query: &str) -> Result<Value, RemoteWatchlistSnapshotError> {
+    fn read(&self, query: &str) -> Result<Value, RemoteWatchlistSnapshotError> {
+        let _query = parse_remote_read_query(query)?;
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider.is_none() || !snapshot.opend_ready {
             return Err(RemoteWatchlistSnapshotError::Unavailable(
@@ -588,5 +643,45 @@ impl RemoteWatchlistWritePort for ProductionRemoteWatchlistPort {
         Err(RemoteWatchlistWritePortError::Unavailable(
             "remote watchlist provider is not configured".to_owned(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod remote_watchlist_tests {
+    use super::*;
+
+    #[test]
+    fn remote_read_query_defaults_to_groups() {
+        let query = parse_remote_read_query("brokerId=futu&sourceId=futu%3Adefault")
+            .expect("groups query");
+        assert_eq!(query.operation, "groups");
+        assert!(query.remote_group_id.is_empty());
+    }
+
+    #[test]
+    fn remote_read_query_requires_group_for_members() {
+        assert!(matches!(
+            parse_remote_read_query("operation=members"),
+            Err(RemoteWatchlistSnapshotError::Invalid(message))
+                if message == "remoteGroupId is required for members operation"
+        ));
+        let query = parse_remote_read_query("operation=MEMBERS&remoteGroupId=futu-group%3Aabc")
+            .expect("members query");
+        assert_eq!(query.operation, "members");
+        assert_eq!(query.remote_group_id, "futu-group:abc");
+    }
+
+    #[test]
+    fn remote_read_query_rejects_unknown_operation_and_bad_encoding() {
+        assert!(matches!(
+            parse_remote_read_query("operation=modify"),
+            Err(RemoteWatchlistSnapshotError::Invalid(message))
+                if message == "operation must be groups or members"
+        ));
+        assert!(matches!(
+            parse_remote_read_query("operation=%FF"),
+            Err(RemoteWatchlistSnapshotError::Invalid(message))
+                if message == "invalid remote watchlist query encoding"
+        ));
     }
 }

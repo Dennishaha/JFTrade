@@ -5,6 +5,8 @@ pub trait RemoteWatchlistSnapshotPort: Send + Sync + std::fmt::Debug {
 
 #[derive(Clone, Debug, Error)]
 pub enum RemoteWatchlistSnapshotError {
+    #[error("remote watchlist snapshot request is invalid: {0}")]
+    Invalid(String),
     #[error("remote watchlist snapshot is unavailable: {0}")]
     Unavailable(String),
 }
@@ -14,8 +16,13 @@ impl ProductApi {
         let port = self.remote_watchlist_snapshot_port.as_ref().ok_or_else(|| {
             ApiFailure::new(503, "WATCHLIST_UNAVAILABLE", "remote watchlist snapshot is not configured")
         })?;
-        port.read(query).map(ApiOutput::Json).map_err(|error| {
-            ApiFailure::new(503, "WATCHLIST_UNAVAILABLE", error.to_string())
+        port.read(query).map(ApiOutput::Json).map_err(|error| match error {
+            RemoteWatchlistSnapshotError::Invalid(message) => {
+                ApiFailure::new(400, "WATCHLIST_INVALID", message)
+            }
+            RemoteWatchlistSnapshotError::Unavailable(message) => {
+                ApiFailure::new(503, "WATCHLIST_UNAVAILABLE", message)
+            }
         })
     }
 }
