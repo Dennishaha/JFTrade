@@ -125,6 +125,66 @@ impl SharedTradeReadRuntime {
         Ok(snapshots)
     }
 
+    pub(crate) fn quote_snapshot(
+        &self,
+        securities: &[TradeSecurity],
+        account_id: &str,
+    ) -> Result<Value, String> {
+        let router = self
+            .market_data_router
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu market-data router is unavailable".to_owned())?;
+        let now_ms = current_unix_millis();
+        let router_guard = router
+            .lock()
+            .map_err(|error| format!("failed to lock market-data router: {error}"))?;
+        let cache = router_guard.cache_handle();
+        let cache_guard = cache
+            .lock()
+            .map_err(|error| format!("failed to lock market-data cache: {error}"))?;
+        let mut quotes = Vec::with_capacity(securities.len());
+        for security in securities {
+            let market = qot_market_label(security.market)
+                .ok_or_else(|| format!("invalid market code {}", security.market))?;
+            let instrument_id = format!("{market}.{}", security.code);
+            let tick = match cache_guard.lookup(&instrument_id, now_ms, 30_000) {
+                CacheLookup::Fresh(tick) | CacheLookup::Stale(tick) => tick,
+                CacheLookup::Missing => {
+                    return Err(format!("no cached quote available for {instrument_id}"));
+                }
+            };
+            let last_price = tick
+                .price
+                .to_f64()
+                .map_err(|error| format!("invalid cached price for {instrument_id}: {error}"))?;
+            let volume = tick
+                .volume
+                .as_str()
+                .parse::<serde_json::Number>()
+                .map_err(|error| format!("invalid cached volume for {instrument_id}: {error}"))?;
+            quotes.push(json!({
+                "symbol": tick.instrument_id,
+                "lastPrice": last_price,
+                "volume": Value::Number(volume),
+                "quoteAt": format_unix_millis_rfc3339(tick.observed_at_ms),
+            }));
+        }
+        let first = quotes
+            .first()
+            .cloned()
+            .ok_or_else(|| "query parameter symbol is required".to_owned())?;
+        Ok(json!({
+            "accountId": account_id,
+            "symbol": first["symbol"],
+            "lastPrice": first["lastPrice"],
+            "volume": first["volume"],
+            "quoteAt": first["quoteAt"],
+            "quotes": quotes,
+        }))
+    }
+
     pub(crate) fn connection_snapshot(&self) -> Option<TradeRuntimeConnection> {
         self.connection
             .read()
@@ -169,5 +229,50 @@ impl SharedTradeReadRuntime {
                     trade_logged_in: Some(*logged),
                 },
             )
+    }
+}
+
+impl super::ProductionBrokerPort {
+    pub(super) fn read_securities_route(
+        &self,
+        request: &super::TradeRequest,
+    ) -> Result<Value, super::BrokerReadSnapshotError> {
+        let securities = request
+            .securities()
+            .map_err(super::BrokerReadSnapshotError::Invalid)?;
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            super::unavailable("Futu market-data runtime is unavailable")
+        })?;
+        let snapshots = runtime
+            .security_snapshots(&securities)
+            .map_err(super::unavailable)?;
+        Ok(json!({
+            "checkedAt": super::checked_at(),
+            "connectivity": "connected",
+            "securities": {
+                "accountId": request.account_id().unwrap_or_default(),
+                "snapshots": snapshots,
+            },
+        }))
+    }
+
+    pub(super) fn read_quote_route(
+        &self,
+        request: &super::TradeRequest,
+    ) -> Result<Value, super::BrokerReadSnapshotError> {
+        let securities = request
+            .securities()
+            .map_err(super::BrokerReadSnapshotError::Invalid)?;
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            super::unavailable("Futu market-data runtime is unavailable")
+        })?;
+        let quote = runtime
+            .quote_snapshot(&securities, request.account_id().unwrap_or_default())
+            .map_err(super::unavailable)?;
+        Ok(json!({
+            "checkedAt": super::checked_at(),
+            "connectivity": "connected",
+            "quote": quote,
+        }))
     }
 }

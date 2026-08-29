@@ -103,23 +103,10 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 }))
             }
             "securities" => {
-                let securities = request
-                    .securities()
-                    .map_err(BrokerReadSnapshotError::Invalid)?;
-                let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-                    unavailable("Futu market-data runtime is unavailable")
-                })?;
-                let snapshots = runtime
-                    .security_snapshots(&securities)
-                    .map_err(unavailable)?;
-                Ok(json!({
-                    "checkedAt": checked_at(),
-                    "connectivity": "connected",
-                    "securities": {
-                        "accountId": request.account_id().unwrap_or_default(),
-                        "snapshots": snapshots,
-                    },
-                }))
+                self.read_securities_route(&request)
+            }
+            "quote" => {
+                self.read_quote_route(&request)
             }
             "funds" => {
                 let resolved = request

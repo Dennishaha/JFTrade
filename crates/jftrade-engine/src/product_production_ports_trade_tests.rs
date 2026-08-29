@@ -557,6 +557,119 @@ fn broker_securities_requires_symbol_query() {
 }
 
 #[test]
+fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(8)));
+    router
+        .lock()
+        .expect("router lock")
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "US.AAPL".to_owned(),
+                price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
+                volume: "1000".parse().expect("decimal volume"),
+                observed_at_ms: 1_700_000_000_000,
+                provider_generation: 0,
+            },
+            0,
+        )
+        .expect("insert AAPL");
+    router
+        .lock()
+        .expect("router lock")
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "US.MSFT".to_owned(),
+                price: jftrade_kernel::Fixed8::from_scaled(20_000_000_000),
+                volume: "2000".parse().expect("decimal volume"),
+                observed_at_ms: 1_700_000_000_100,
+                provider_generation: 0,
+            },
+            0,
+        )
+        .expect("insert MSFT");
+    runtime.set_market_data_router(Some(router));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/quote",
+            "accountId=42&symbol=US.AAPL&symbols=US.MSFT",
+        )
+        .expect("quote snapshot");
+    assert_eq!(value["quote"]["accountId"], "42");
+    assert_eq!(value["quote"]["symbol"], "US.AAPL");
+    assert_eq!(value["quote"]["lastPrice"], 123.45);
+    assert_eq!(value["quote"]["volume"], 1000);
+    assert_eq!(value["quote"]["quotes"].as_array().unwrap().len(), 2);
+    assert_eq!(value["quote"]["quotes"][1]["symbol"], "US.MSFT");
+}
+
+#[test]
+fn broker_quote_requires_every_requested_symbol_in_real_cache() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
+        ProviderRouter::new(8),
+    ))));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read(
+            "/api/v1/brokers/futu/quote",
+            "symbol=US.AAPL&symbols=US.MSFT",
+        )
+        .expect_err("missing cached quote");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("US.AAPL")));
+}
+
+#[test]
+fn broker_quote_fails_closed_without_market_data_runtime() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/quote", "symbol=US.AAPL")
+        .expect_err("missing market-data router");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("runtime") || message.contains("router")));
+}
+
+#[test]
+fn broker_quote_requires_symbol_query() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
+        ProviderRouter::new(8),
+    ))));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/quote", "")
+        .expect_err("missing symbol");
+    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+}
+
+#[test]
 fn generated_trade_enum_values_are_preserved() {
     assert_eq!(order_type_label(5), "ABSOLUTELIMIT");
     assert_eq!(order_type_label(6), "AUCTION");
