@@ -6,7 +6,9 @@ use jftrade_integration_futu::{
     OpenDSessionRuntimeConfig, OpenDTradeReadClient, TradeReadPort,
 };
 use jftrade_integration_marketdata_helper::ProcessError;
-use jftrade_integration_pine::PineProcessError;
+use jftrade_integration_pine::{
+    GrpcPineExecutionPort, PineBacktestExecutionAdapter, PineExecutionConfig, PineProcessError,
+};
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
 use jftrade_settings::{
     MarketDataProvider, MarketDataProviderSettingsStorePort, normalize_market_data_provider,
@@ -64,8 +66,9 @@ pub struct ProductRuntimeConfig {
     /// activation and runtime task as one composition unit.
     pub market_data_opend_provider: Option<OpenDProviderRuntimeConfig>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
-    /// Explicit strategy/Pine/backtest execution adapter.  It is intentionally
-    /// opt-in; absent configuration makes POST /api/v1/backtests fail closed.
+    /// Explicit strategy/Pine/backtest execution adapter. When absent, a
+    /// healthy configured Pine worker is composed into this port at startup;
+    /// absent worker configuration keeps POST /api/v1/backtests fail closed.
     pub backtest_execution_port: Option<Arc<dyn crate::product::BacktestExecutionPort>>,
     pub(crate) shutdown_recorder: Option<product_runtime_supervisor::ShutdownEventRecorder>,
     #[cfg(test)]
@@ -229,6 +232,14 @@ impl ProductRuntimeHandle {
     #[cfg(test)]
     pub(crate) fn helper_health(&self) -> Option<Arc<HelperHealthMonitor>> {
         self.supervisor.helper_health.clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn backtest_execution_ready(&self) -> Option<bool> {
+        self.supervisor
+            .production_ports
+            .as_ref()
+            .map(|ports| ports.backtest_execution_ready())
     }
 
     #[cfg(test)]
@@ -527,9 +538,6 @@ pub async fn start_product_runtime(
     if let Some(registry) = config.strategy_runtime_registry.take() {
         config.product = config.product.with_strategy_runtime_status_port(registry);
     }
-    if let Some(port) = config.backtest_execution_port.take() {
-        config.product = config.product.with_backtest_execution_port(port);
-    }
     let state = ProductRuntimeState::configured(&config);
     let mut supervisor = if let Some(recorder) = config.shutdown_recorder.take() {
         ProductShutdownSupervisor::with_recorder(recorder)
@@ -551,6 +559,19 @@ pub async fn start_product_runtime(
         }
     }
 
+    let pine_execution_config = if config.backtest_execution_port.is_none() {
+        config.pine_workers.first().map(|worker| {
+            (
+                worker.spec.clone(),
+                worker.process.bearer_token.clone(),
+                worker.process.max_message_bytes,
+                worker.connect_timeout,
+                worker.request_timeout,
+            )
+        })
+    } else {
+        None
+    };
     for worker in std::mem::take(&mut config.pine_workers) {
         let result = start_pine_worker(worker).await;
         match result {
@@ -562,6 +583,34 @@ pub async fn start_product_runtime(
                 return Err(ProductRuntimeError::Pine(error));
             }
         }
+    }
+
+    // A healthy retained Pine worker is the only production composition that
+    // can satisfy backtest execution.  Keep explicit test/embedding ports as
+    // the highest-precedence override; otherwise bind the adapter to the
+    // first worker that passed the real gRPC readiness probe.  No worker means
+    // no execution port, preserving the HTTP layer's 503 fail-closed result.
+    if config.backtest_execution_port.is_none()
+        && let Some((spec, bearer_token, max_message_bytes, connect_timeout, request_timeout)) =
+            pine_execution_config
+    {
+        let mut execution =
+            PineExecutionConfig::for_worker(&spec, bearer_token, connect_timeout, request_timeout);
+        if let Some(max_message_bytes) = max_message_bytes {
+            execution.max_message_bytes = max_message_bytes;
+        }
+        let port = match GrpcPineExecutionPort::new(execution) {
+            Ok(port) => port,
+            Err(error) => {
+                let _ = supervisor.execute_shutdown().await;
+                return Err(ProductRuntimeError::PineExecution(error.to_string()));
+            }
+        };
+        config.backtest_execution_port =
+            Some(Arc::new(PineBacktestExecutionAdapter::new(Arc::new(port))));
+    }
+    if let Some(port) = config.backtest_execution_port.take() {
+        config.product = config.product.with_backtest_execution_port(port);
     }
 
     let helper_process = if let Some(helper) = config.marketdata_helper.take() {
@@ -764,6 +813,8 @@ pub enum ProductRuntimeError {
     Product(#[from] ProductError),
     #[error("start PineTS worker: {0}")]
     Pine(#[source] PineProcessError),
+    #[error("configure PineTS backtest execution port: {0}")]
+    PineExecution(String),
     #[error("configure market-data helper client: {0}")]
     HelperClient(#[from] jftrade_integration_marketdata_helper::HttpAdapterError),
     #[error("manage market-data helper: {0}")]

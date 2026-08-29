@@ -301,6 +301,11 @@ pub(crate) struct ProductionPortBundle {
     pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
     pub(crate) backtest_execution_workers: Arc<BacktestExecutionTaskRegistry>,
+    /// Whether the production backtest port has a real execution boundary.
+    /// This remains false when no Pine worker was ready at composition time,
+    /// which keeps the write route fail-closed with its existing 503 result.
+    #[cfg(test)]
+    pub(crate) backtest_execution_ready: bool,
     #[allow(dead_code)]
     pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
     #[allow(dead_code)]
@@ -316,6 +321,11 @@ impl ProductionPortBundle {
 
     pub(crate) fn backtest_execution_workers(&self) -> Arc<BacktestExecutionTaskRegistry> {
         Arc::clone(&self.backtest_execution_workers)
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn backtest_execution_ready(&self) -> bool {
+        self.backtest_execution_ready
     }
 }
 
@@ -707,6 +717,8 @@ pub(crate) fn production_ports(
         bound_adapters,
         backtest_sync_workers,
         backtest_execution_workers,
+        #[cfg(test)]
+        backtest_execution_ready: config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),

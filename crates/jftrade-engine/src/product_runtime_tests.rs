@@ -43,6 +43,7 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
     };
     let snapshot = ProductRuntimeState::configured(&config).snapshot();
     let runtime = start_product_runtime(config).await.expect("start runtime");
+    assert_eq!(runtime.backtest_execution_ready(), None);
     assert_eq!(runtime.startup_record().owned_routes, 26);
     assert_eq!(snapshot.resources.len(), 11);
     assert_eq!(snapshot.resources[0].id, "settings-file");
@@ -583,6 +584,7 @@ async fn test_product_runtime_ordered_shutdown_explicit() {
     let handle = start_product_runtime(config)
         .await
         .expect("start product runtime");
+    assert_eq!(handle.backtest_execution_ready(), Some(true));
 
     let lease_snapshot = handle.database_leases().expect("production leases");
     assert_eq!(lease_snapshot.expected, 9);
