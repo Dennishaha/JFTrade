@@ -8,6 +8,16 @@ mod product_production_assembly_tests {
 
     use jftrade_api::AccessPolicy;
     use jftrade_datamanagement::{DATABASE_ADK, DATABASE_WATCHLIST};
+    use jftrade_integration_futu::{
+        HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
+        HistoricalKlineResult, HistoricalSecurity, TradeAccountSnapshot, TradeCashFlowSnapshot,
+        TradeFillSnapshot, TradeFilter, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
+        TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot,
+        TradeOrderSnapshot, TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
+    };
+    use jftrade_kernel::Fixed8;
+    use jftrade_marketdata::{ProviderRouter, Tick};
+    use jftrade_settings::MarketDataProvider;
     use serde_json::{Value, json};
     use tempfile::TempDir;
 
@@ -60,6 +70,314 @@ mod product_production_assembly_tests {
         config.production = true;
 
         (temp_dir, settings_path, config, security)
+    }
+
+    #[derive(Debug)]
+    struct HttpTradeRead;
+
+    impl TradeReadPort for HttpTradeRead {
+        fn read_accounts(
+            &self,
+            _: u64,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+            Ok(vec![TradeAccountSnapshot {
+                trd_env: 1,
+                acc_id: 42,
+                trd_market_auth_list: vec![1, 2],
+                acc_type: None,
+                card_num: None,
+                security_firm: None,
+                sim_acc_type: None,
+                uni_card_num: None,
+                acc_status: None,
+                acc_role: None,
+                jp_acc_type: Vec::new(),
+                competition_acc_name: None,
+            }])
+        }
+
+        fn read_funds(
+            &self,
+            _: TradeHeader,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+        ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+            Err(TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+        fn read_cash_flows(
+            &self,
+            _: TradeHeader,
+            _: String,
+            _: Option<i32>,
+        ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+        fn read_order_fees(
+            &self,
+            _: TradeHeader,
+            _: Vec<String>,
+        ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+        fn read_margin_ratios(
+            &self,
+            _: TradeHeader,
+            _: Vec<TradeSecurity>,
+        ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+        fn read_max_trade_quantity(
+            &self,
+            _: TradeMaxTradeQuantityRequest,
+        ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+            Err(TradeSessionError::Coordinator(
+                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+            ))
+        }
+        fn read_positions(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<f64>,
+            _: Option<f64>,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+        fn read_orders(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Vec<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+        fn read_fills(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[derive(Debug)]
+    struct HttpHistory {
+        result: Result<HistoricalKlineResult, String>,
+    }
+
+    #[derive(Debug)]
+    struct HttpRuntimeStatus;
+
+    impl crate::product::MarketDataRuntimeStatusPort for HttpRuntimeStatus {
+        fn snapshot(&self) -> crate::product::MarketDataRuntimeState {
+            crate::product::MarketDataRuntimeState {
+                connected: true,
+                generation: 1,
+                ..Default::default()
+            }
+        }
+    }
+
+    impl HistoricalKlineReadPort for HttpHistory {
+        fn query(
+            &self,
+            _: &HistoricalKlineQuery,
+        ) -> Result<HistoricalKlineResult, HistoricalKlineError> {
+            self.result
+                .clone()
+                .map_err(|message| HistoricalKlineError::Rejected {
+                    ret_type: 1,
+                    err_code: 429,
+                    message,
+                })
+        }
+    }
+
+    fn http_product_config(
+        directory: &TempDir,
+        runtime: Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
+        router: Option<Arc<std::sync::Mutex<ProviderRouter>>>,
+    ) -> ProductConfig {
+        let mut config = ProductConfig::desktop_production(
+            "127.0.0.1:0".parse().expect("bind address"),
+            directory.path().join("settings.json"),
+            "a".repeat(32),
+        )
+        .expect("product config");
+        let state = Arc::new(crate::product::ActiveProviderState::new(Some(
+            MarketDataProvider::Futu,
+        )));
+        state.set_readiness(false, true, router.is_some());
+        config = config
+            .with_active_provider_state(state)
+            .with_trade_runtime(runtime);
+        config = config.with_market_data_runtime_status_port(Arc::new(HttpRuntimeStatus));
+        if let Some(router) = router {
+            config = config.with_market_data_router(router);
+        }
+        config
+    }
+
+    async fn http_get(address: SocketAddr, path: &str) -> (u16, String) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let mut stream = tokio::net::TcpStream::connect(address)
+            .await
+            .expect("connect product");
+        let request = format!(
+            "GET {path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {}\r\nConnection: close\r\n\r\n",
+            "a".repeat(32)
+        );
+        stream
+            .write_all(request.as_bytes())
+            .await
+            .expect("write request");
+        let mut response = Vec::new();
+        stream
+            .read_to_end(&mut response)
+            .await
+            .expect("read response");
+        let text = String::from_utf8_lossy(&response);
+        let (head, body) = text.split_once("\r\n\r\n").unwrap_or((&text, ""));
+        let status = head
+            .lines()
+            .next()
+            .and_then(|line| line.split_whitespace().nth(1))
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_default();
+        (status, body.to_owned())
+    }
+
+    #[tokio::test]
+    async fn production_http_broker_projection_uses_runtime_router_and_history_ports() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set_historical_klines(Some(Arc::new(HttpHistory {
+            result: Ok(HistoricalKlineResult {
+                security: HistoricalSecurity {
+                    market: 11,
+                    code: "AAPL".to_owned(),
+                },
+                name: Some("Apple".to_owned()),
+                klines: vec![HistoricalKline {
+                    time: "2026-08-29 09:30:00".to_owned(),
+                    is_blank: false,
+                    high_price: Some(11.0),
+                    open_price: Some(10.0),
+                    low_price: Some(9.0),
+                    close_price: Some(10.5),
+                    volume: Some(100),
+                    turnover: None,
+                    change_rate: None,
+                }],
+                next_req_key: Vec::new(),
+            }),
+        })));
+        let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(8)));
+        router
+            .lock()
+            .expect("router")
+            .cache_mut()
+            .insert(
+                Tick {
+                    instrument_id: "US.AAPL".to_owned(),
+                    price: Fixed8::from_scaled(1_234_000_000),
+                    volume: "100".parse().expect("volume"),
+                    observed_at_ms: 1_700_000_000_000,
+                    provider_generation: 0,
+                },
+                0,
+            )
+            .expect("tick");
+        let handle =
+            crate::product::start_product(http_product_config(&directory, runtime, Some(router)))
+                .await
+                .expect("start product");
+        let address = handle.startup_record().address;
+        let (status, body) = http_get(address, "/api/v1/brokers/futu/quote?symbol=US.AAPL").await;
+        assert_eq!(status, 200);
+        let body: Value = serde_json::from_str(&body).expect("quote body");
+        assert_eq!(body["data"]["quote"]["symbol"], "US.AAPL");
+        let (status, body) =
+            http_get(address, "/api/v1/brokers/futu/securities?symbol=US.MSFT").await;
+        assert_eq!(status, 200);
+        let body: Value = serde_json::from_str(&body).expect("securities body");
+        assert_eq!(body["data"]["securities"]["snapshots"], json!([]));
+        let (status, body) = http_get(
+            address,
+            "/api/v1/brokers/futu/klines?symbol=US.AAPL&period=1d&limit=1",
+        )
+        .await;
+        assert_eq!(status, 200);
+        let body: Value = serde_json::from_str(&body).expect("klines body");
+        assert_eq!(body["data"]["klines"]["klines"][0]["close"], 10.5);
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    #[tokio::test]
+    async fn production_http_broker_projection_fails_closed_and_validates_before_runtime() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        let handle = crate::product::start_product(http_product_config(&directory, runtime, None))
+            .await
+            .expect("start product");
+        let address = handle.startup_record().address;
+        let (status, body) = http_get(address, "/api/v1/brokers/futu/quote?symbol=US.AAPL").await;
+        assert_eq!(status, 503);
+        assert!(body.contains("BROKER_READ_UNAVAILABLE"));
+        handle.shutdown().await.expect("shutdown");
+
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(1)));
+        let handle =
+            crate::product::start_product(http_product_config(&directory, runtime, Some(router)))
+                .await
+                .expect("start product with router");
+        let address = handle.startup_record().address;
+        let (status, body) = http_get(address, "/api/v1/brokers/futu/quote").await;
+        assert_eq!(status, 400);
+        assert!(body.contains("query parameter symbol is required"));
+        handle.shutdown().await.expect("shutdown");
+    }
+
+    #[tokio::test]
+    async fn production_http_broker_klines_maps_typed_opend_error_to_unavailable() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        runtime.set(Some(Arc::new(HttpTradeRead)), Some(true));
+        runtime.set_historical_klines(Some(Arc::new(HttpHistory {
+            result: Err("history rate limited".to_owned()),
+        })));
+        let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(1)));
+        let handle =
+            crate::product::start_product(http_product_config(&directory, runtime, Some(router)))
+                .await
+                .expect("start product");
+        let (status, body) = http_get(
+            handle.startup_record().address,
+            "/api/v1/brokers/futu/klines?symbol=US.AAPL&period=1d",
+        )
+        .await;
+        assert_eq!(status, 503);
+        assert!(body.contains("history rate limited"));
+        handle.shutdown().await.expect("shutdown");
     }
 
     #[tokio::test]
