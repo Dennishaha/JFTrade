@@ -782,18 +782,32 @@ fn cleared_trade_runtime_cannot_fall_back_to_static_client() {
 fn history_query_builds_time_and_status_filters() {
     let request = TradeRequest::parse(
         "/api/v1/brokers/futu/orders",
-        "scope=history&symbol=US.AAPL&startTime=2026-08-01T00:00:00Z&endTime=2026-08-02T00:00:00Z&status=Submitted,Filled_Part&statuses=SUBMITTED",
+        "scope=history&symbol=US.AAPL&startTime=2026-08-01T00:00:00Z&endTime=2026-08-02T00:00:00Z&status=Submitted,Filled_Part,bogus&statuses=SUBMITTED",
     )
     .expect("request");
     assert!(request.history_scope().expect("scope"));
     let filter = request
-        .trade_filter(true)
+        .trade_filter(true, "US")
         .expect("filter")
         .expect("filter present");
     assert_eq!(filter.code_list, vec!["US.AAPL"]);
-    assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01 00:00:00"));
-    assert_eq!(filter.end_time.as_deref(), Some("2026-08-02 00:00:00"));
+    assert_eq!(filter.begin_time.as_deref(), Some("2026-07-31 20:00:00"));
+    assert_eq!(filter.end_time.as_deref(), Some("2026-08-01 20:00:00"));
     assert_eq!(request.status_codes().expect("statuses"), vec![5, 10]);
+}
+
+#[test]
+fn history_query_converts_hk_rfc3339_to_local_wall_clock() {
+    let request = TradeRequest::parse(
+        "/api/v1/brokers/futu/fills",
+        "scope=HISTORY&startTime=2026-08-01T00:00:00Z",
+    )
+    .expect("request");
+    let filter = request
+        .trade_filter(true, "HK")
+        .expect("filter")
+        .expect("filter present");
+    assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01 08:00:00"));
 }
 
 #[test]
@@ -813,6 +827,6 @@ fn invalid_history_time_is_rejected_before_opend_call() {
         "scope=HISTORY&startTime=not-a-time",
     )
     .expect("request");
-    let error = request.trade_filter(true).expect_err("invalid time");
+    let error = request.trade_filter(true, "US").expect_err("invalid time");
     assert!(error.contains("invalid history time"));
 }

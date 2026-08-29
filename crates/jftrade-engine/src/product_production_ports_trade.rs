@@ -224,7 +224,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .resolve_account(client.as_ref())
                     .map_err(map_broker_header_error)?;
                 let filter = request
-                    .trade_filter(history)
+                    .trade_filter(history, &resolved.market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
                 let statuses = request
                     .status_codes()
@@ -255,7 +255,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .resolve_account(client.as_ref())
                     .map_err(map_broker_header_error)?;
                 let filter = request
-                    .trade_filter(history)
+                    .trade_filter(history, &resolved.market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
                 let fills = if history {
                     client.read_history_fills(
@@ -749,10 +749,10 @@ impl TradeRequest {
         }
     }
 
-    fn trade_filter(&self, history: bool) -> Result<Option<TradeFilter>, String> {
+    fn trade_filter(&self, history: bool, market: &str) -> Result<Option<TradeFilter>, String> {
         let symbol = self.query.get_first("symbol").map(str::trim).filter(|value| !value.is_empty());
-        let begin_time = if history { self.query.get_first("startTime").map(normalize_history_time).transpose()? } else { None };
-        let end_time = if history { self.query.get_first("endTime").map(normalize_history_time).transpose()? } else { None };
+        let begin_time = if history { self.query.get_first("startTime").map(|value| normalize_history_time(value, market)).transpose()? } else { None };
+        let end_time = if history { self.query.get_first("endTime").map(|value| normalize_history_time(value, market)).transpose()? } else { None };
         if !history && (self.query.get_first("startTime").is_some() || self.query.get_first("endTime").is_some()) {
             return Ok(symbol.map(|code| TradeFilter { code_list: vec![code.to_ascii_uppercase()], ..TradeFilter::default() }));
         }
@@ -779,7 +779,7 @@ impl TradeRequest {
     }
 }
 
-fn normalize_history_time(value: &str) -> Result<String, String> {
+fn normalize_history_time(value: &str, market: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return Ok(String::new());
@@ -787,13 +787,32 @@ fn normalize_history_time(value: &str) -> Result<String, String> {
     let normalized = crate::product::product_query::normalize_optional_query_time(trimmed)
         .map_err(|_| "invalid history time; expected RFC3339 timestamp".to_owned())?
         .ok_or_else(|| "invalid history time; expected RFC3339 timestamp".to_owned())?;
+    if !trimmed.contains('T') && !trimmed.ends_with('Z') && !trimmed.contains('+') {
+        if trimmed.len() == 10 {
+            return Ok(format!("{trimmed} 00:00:00"));
+        }
+        return Ok(trimmed.to_owned());
+    }
     let parsed = OffsetDateTime::parse(&normalized, &Rfc3339)
         .map_err(|_| "invalid history time; expected RFC3339 timestamp".to_owned())?;
+    let timestamp: jiff::Timestamp = normalized
+        .parse()
+        .map_err(|_| "invalid history time; expected RFC3339 timestamp".to_owned())?;
+    let timezone = match market.trim().to_ascii_uppercase().as_str() {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "CN" | "SH" | "SZ" => "Asia/Shanghai",
+        _ => "UTC",
+    };
+    let local = timestamp
+        .to_zoned(jiff::tz::TimeZone::get(timezone).map_err(|error| error.to_string())?);
+    let wall_clock = local.strftime("%Y-%m-%d %H:%M:%S").to_string();
     let format: &[FormatItem<'_>] = &parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]:[second]")
         .map_err(|_| "invalid history time format".to_owned())?;
     parsed
         .format(format)
         .map_err(|_| "invalid history time format".to_owned())
+        .map(|_| wall_clock)
 }
 
 fn order_status_code(value: &str) -> Option<i32> {
