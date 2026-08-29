@@ -670,6 +670,74 @@ fn broker_quote_requires_symbol_query() {
 }
 
 #[test]
+fn broker_klines_valid_request_fails_closed_without_historical_source() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read(
+            "/api/v1/brokers/futu/klines",
+            "symbol=US.AAPL&period=1d&limit=10",
+        )
+        .expect_err("historical source is not wired");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("historical klines")));
+}
+
+#[test]
+fn broker_klines_rejects_invalid_period_and_time_combinations() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let invalid_period = port
+        .read(
+            "/api/v1/brokers/futu/klines",
+            "symbol=US.AAPL&period=2h",
+        )
+        .expect_err("invalid period");
+    assert!(matches!(invalid_period, BrokerReadSnapshotError::Invalid(message) if message.contains("period")));
+    let conflicting = port
+        .read(
+            "/api/v1/brokers/futu/klines",
+            "symbol=US.AAPL&before=2026-08-29T00:00:00Z&fromTime=2026-08-28",
+        )
+        .expect_err("before/from conflict");
+    assert!(matches!(conflicting, BrokerReadSnapshotError::Invalid(message) if message.contains("combined")));
+}
+
+#[test]
+fn broker_klines_requires_symbol_and_valid_before_timestamp() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let missing_symbol = port
+        .read("/api/v1/brokers/futu/klines", "period=1d")
+        .expect_err("missing symbol");
+    assert!(matches!(missing_symbol, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+    let invalid_before = port
+        .read(
+            "/api/v1/brokers/futu/klines",
+            "symbol=US.AAPL&before=not-a-time",
+        )
+        .expect_err("invalid before");
+    assert!(matches!(invalid_before, BrokerReadSnapshotError::Invalid(message) if message.contains("RFC3339")));
+}
+
+#[test]
 fn generated_trade_enum_values_are_preserved() {
     assert_eq!(order_type_label(5), "ABSOLUTELIMIT");
     assert_eq!(order_type_label(6), "AUCTION");

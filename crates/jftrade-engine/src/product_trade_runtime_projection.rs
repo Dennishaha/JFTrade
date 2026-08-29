@@ -8,6 +8,10 @@ use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Value, json};
 
+use crate::product::product_query::{
+    normalize_candle_period, normalize_optional_query_time, parse_candle_before_time,
+};
+
 use super::super::product_production_ports_market_data::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339,
 };
@@ -274,5 +278,51 @@ impl super::ProductionBrokerPort {
             "connectivity": "connected",
             "quote": quote,
         }))
+    }
+
+    pub(super) fn read_klines_route(
+        &self,
+        request: &super::TradeRequest,
+    ) -> Result<Value, super::BrokerReadSnapshotError> {
+        let symbol = request
+            .query
+            .get_first("symbol")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| super::BrokerReadSnapshotError::Invalid(
+                "query parameter symbol is required".to_owned(),
+            ))?;
+        let period = request.query.get_first("period").unwrap_or("1d");
+        normalize_candle_period(period).map_err(|error| {
+            super::BrokerReadSnapshotError::Invalid(format!("invalid candle period: {error:?}"))
+        })?;
+        let before = request.query.get_first("before").unwrap_or("");
+        let from = request.query.get_first("fromTime").unwrap_or("");
+        let to = request.query.get_first("toTime").unwrap_or("");
+        if !before.trim().is_empty() && (!from.trim().is_empty() || !to.trim().is_empty()) {
+            return Err(super::BrokerReadSnapshotError::Invalid(
+                "beforeTime cannot be combined with fromTime or toTime".to_owned(),
+            ));
+        }
+        if !before.trim().is_empty() {
+            parse_candle_before_time(before).map_err(|_| {
+                super::BrokerReadSnapshotError::Invalid(
+                    "before must be an RFC3339 timestamp".to_owned(),
+                )
+            })?;
+        }
+        for value in [from, to] {
+            if !value.trim().is_empty() {
+                normalize_optional_query_time(value).map_err(|_| {
+                    super::BrokerReadSnapshotError::Invalid(
+                        "fromTime and toTime must be valid timestamps".to_owned(),
+                    )
+                })?;
+            }
+        }
+        let _ = symbol;
+        Err(super::unavailable(
+            "Futu historical klines runtime is unavailable",
+        ))
     }
 }

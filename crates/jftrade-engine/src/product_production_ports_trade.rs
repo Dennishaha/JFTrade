@@ -108,6 +108,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
             "quote" => {
                 self.read_quote_route(&request)
             }
+            "klines" => self.read_klines_route(&request),
             "funds" => {
                 let resolved = request
                     .resolve_account(client.as_ref())
