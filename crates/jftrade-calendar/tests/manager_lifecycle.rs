@@ -6,9 +6,9 @@ use std::thread;
 use std::time::{Duration as StdDuration, Instant};
 
 use jftrade_calendar::{
-    CalendarCancellationToken, CalendarManager, CalendarManagerError, CalendarManagerSettings,
-    CalendarManualOverride, CalendarPersistencePort, CalendarRefreshResult,
-    CalendarSessionOverride, CalendarSnapshot, CalendarSnapshotLoadResult,
+    BUILTIN_SOURCE_ID, CalendarCancellationToken, CalendarManager, CalendarManagerError,
+    CalendarManagerSettings, CalendarManualOverride, CalendarPersistencePort,
+    CalendarRefreshResult, CalendarSessionOverride, CalendarSnapshot, CalendarSnapshotLoadResult,
     CalendarSourceDescriptor, CalendarSourceError, CalendarSourcePolicy, CalendarSourcePort,
     CalendarSourceRegistry, ManagerLifecycleState, TradingDaySchedule,
 };
@@ -266,6 +266,84 @@ fn registry_snapshot_manual_and_builtin_policy_order_is_stable() {
         .expect("schedule");
     assert_eq!(schedule.source_id, "builtin_rules");
     assert_eq!(schedule.status, "open");
+    manager.close().expect("close manager");
+}
+
+#[test]
+fn restored_snapshot_is_served_while_source_adapter_is_temporarily_absent() {
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-01T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let persistence = Arc::new(FixturePersistence {
+        loaded: CalendarSnapshotLoadResult {
+            snapshots: vec![snapshot("official", "restored")],
+            errors: Vec::new(),
+        },
+        fail_save: AtomicBool::new(false),
+        saved: Mutex::new(Vec::new()),
+    });
+    let manager = CalendarManager::with_clock(
+        CalendarSourceRegistry::default(),
+        Some(persistence),
+        settings("official"),
+        Arc::new(move || *now.lock().expect("fixture clock")),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T00:00:00Z"))
+        .expect("schedule")
+        .expect("restored schedule");
+    assert_eq!(schedule.source_id, "official");
+    assert_eq!(schedule.reason, "restored");
+    manager.close().expect("close manager");
+}
+
+#[test]
+fn disabled_preferred_source_snapshot_is_not_served() {
+    let now = Arc::new(Mutex::new(
+        OffsetDateTime::parse(
+            "2026-06-01T00:00:00Z",
+            &time::format_description::well_known::Rfc3339,
+        )
+        .expect("clock"),
+    ));
+    let persistence = Arc::new(FixturePersistence {
+        loaded: CalendarSnapshotLoadResult {
+            snapshots: vec![snapshot("official", "restored")],
+            errors: Vec::new(),
+        },
+        fail_save: AtomicBool::new(false),
+        saved: Mutex::new(Vec::new()),
+    });
+    let mut policy = settings("official");
+    policy.source_policies[0].enabled_source_ids = vec![BUILTIN_SOURCE_ID.to_owned()];
+    let manager = CalendarManager::with_clock(
+        CalendarSourceRegistry::default(),
+        Some(persistence),
+        policy,
+        Arc::new(move || *now.lock().expect("fixture clock")),
+    )
+    .expect("create manager");
+    manager.start().expect("start manager");
+
+    let schedule = manager
+        .schedule("US", timestamp("2026-06-19T00:00:00Z"))
+        .expect("schedule")
+        .expect("builtin schedule");
+    assert_eq!(schedule.source_id, BUILTIN_SOURCE_ID);
+    assert_eq!(schedule.status, "open");
+    let status = manager.status_snapshot().expect("status");
+    assert!(
+        !status.markets[0]
+            .fallback_chain
+            .contains(&"official".to_owned())
+    );
     manager.close().expect("close manager");
 }
 

@@ -8,7 +8,10 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use jftrade_calendar::{CalendarManager, CalendarManagerSettings, CalendarSourceRegistry};
+use jftrade_calendar::{
+    CalendarManager, CalendarManagerSettings, CalendarSnapshotStore, CalendarSourcePolicy,
+    CalendarSourceRegistry, CalendarManualOverride, CalendarSessionOverride,
+};
 use jftrade_api::WebSessionValidator;
 use jftrade_datamanagement::{
     DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST_RUNS,
@@ -18,6 +21,7 @@ use jftrade_datamanagement::{
 use jftrade_settings::{
     BrokerSettingsStorePort, InterfaceSettingsStorePort,
     MarketDataProviderSettingsStorePort, SecuritySettingsService,
+    ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort,
     normalize_live_websocket_connection_limit, normalize_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
@@ -106,6 +110,63 @@ pub(crate) use product_production_ports_watchlist::{
     ProductionRemoteWatchlistPort, ProductionWatchlistPort,
 };
 
+const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
+
+fn exchange_calendar_snapshot_root(settings_path: &std::path::Path) -> PathBuf {
+    std::env::var_os(EXCHANGE_CALENDAR_DIR_ENV)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            settings_path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .map_or_else(
+                    || PathBuf::from("exchange-calendars"),
+                    |parent| parent.join("exchange-calendars"),
+                )
+        })
+}
+
+pub(crate) fn calendar_manager_settings(input: ExchangeCalendarSettings) -> CalendarManagerSettings {
+    CalendarManagerSettings {
+        auto_refresh_enabled: input.auto_refresh_enabled,
+        error_notifications_enabled: input.error_notifications_enabled,
+        refresh_interval_hours: input.refresh_interval_hours,
+        warmup_markets: input.warmup_markets,
+        source_policies: input
+            .source_policies
+            .into_iter()
+            .map(|policy| CalendarSourcePolicy {
+                market: policy.market,
+                preferred_source_ids: policy.preferred_source_ids,
+                enabled_source_ids: policy.enabled_source_ids,
+                fallback_to_builtin: policy.fallback_to_builtin,
+                require_official: policy.require_official,
+                stale_after_hours: policy.stale_after_hours,
+            })
+            .collect(),
+        manual_overrides: input
+            .manual_overrides
+            .into_iter()
+            .map(|override_| CalendarManualOverride {
+                market: override_.market,
+                date: override_.date,
+                status: override_.status,
+                sessions: override_
+                    .sessions
+                    .into_iter()
+                    .map(|session| CalendarSessionOverride {
+                        kind: session.kind,
+                        start_minute: session.start_minute,
+                        end_minute: session.end_minute,
+                    })
+                    .collect(),
+                reason: override_.reason,
+                observed: override_.observed,
+            })
+            .collect(),
+    }
+}
 use crate::product::product_adk_chat_stream_port::AdkChatStreamPort;
 use crate::product::product_adk_mutation_port::AdkMutationPort;
 use crate::product::product_alerts_write_port::{
@@ -486,6 +547,15 @@ pub(crate) fn production_ports(
             ))
         })?,
     );
+    let calendar_settings = market_data_settings
+        .load_exchange_calendars()
+        .map_err(|error| {
+            ProductError::Storage(format!(
+                "failed to load exchange calendar settings: {error}"
+            ))
+        })?
+        .map(jftrade_settings::normalize_exchange_calendar_settings)
+        .unwrap_or_default();
     // Broker runtime projections must be sourced from the same persisted
     // settings document used by the rest of the production composition.  A
     // malformed settings file is a startup error; never manufacture a
@@ -634,8 +704,10 @@ pub(crate) fn production_ports(
     let calendar_manager = Arc::new(
         CalendarManager::new(
             CalendarSourceRegistry::default(),
-            None,
-            CalendarManagerSettings::default(),
+            Some(Arc::new(CalendarSnapshotStore::new(
+                exchange_calendar_snapshot_root(config.settings_path()),
+            ))),
+            calendar_manager_settings(calendar_settings),
         )
         .map_err(ProductError::Calendar)?,
     );

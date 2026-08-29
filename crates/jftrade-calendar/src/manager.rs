@@ -497,8 +497,13 @@ impl ManagerInner {
             .snapshots
             .read()
             .map_err(|_| CalendarManagerError::StateUnavailable)?;
-        for source in self.registry.ordered_sources(&market, &policy) {
-            let source_id = source.descriptor().id;
+        let mut source_ids = self.registry.ordered_source_ids(&market, &policy);
+        for source_id in policy_source_ids(&policy) {
+            if !source_ids.iter().any(|candidate| candidate == &source_id) {
+                source_ids.push(source_id);
+            }
+        }
+        for source_id in source_ids {
             for candidate in candidate_markets(&market) {
                 let Some(snapshot) = snapshots.get(&snapshot_key(&source_id, candidate, year))
                 else {
@@ -624,6 +629,35 @@ pub(crate) fn policy_for_market(
             fallback_to_builtin: true,
             ..CalendarSourcePolicy::default()
         })
+}
+
+/// Returns policy-selected source IDs that would be eligible for refresh if a
+/// live adapter were registered.  Persisted snapshots use the same enabled
+/// filter so a preferred-but-disabled source cannot bypass policy while its
+/// transport is absent.
+pub(crate) fn policy_source_ids(policy: &CalendarSourcePolicy) -> Vec<String> {
+    let enabled = policy
+        .enabled_source_ids
+        .iter()
+        .map(|source_id| source_id.trim())
+        .filter(|source_id| !source_id.is_empty())
+        .collect::<Vec<_>>();
+    let mut source_ids = Vec::new();
+    for source_id in policy
+        .preferred_source_ids
+        .iter()
+        .chain(policy.enabled_source_ids.iter())
+        .map(|source_id| source_id.trim())
+        .filter(|source_id| !source_id.is_empty())
+    {
+        if !enabled.is_empty() && !enabled.contains(&source_id) {
+            continue;
+        }
+        if !source_ids.iter().any(|candidate| candidate == source_id) {
+            source_ids.push(source_id.to_owned());
+        }
+    }
+    source_ids
 }
 
 pub(crate) fn fetch_window(

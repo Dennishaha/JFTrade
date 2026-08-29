@@ -7,6 +7,7 @@ mod product_production_assembly_tests {
     use std::sync::Arc;
 
     use jftrade_api::AccessPolicy;
+    use jftrade_calendar::{CalendarSnapshot, CalendarSnapshotStore, TradingDaySchedule};
     use jftrade_datamanagement::{DATABASE_ADK, DATABASE_WATCHLIST};
     use jftrade_integration_futu::{
         HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
@@ -15,7 +16,7 @@ mod product_production_assembly_tests {
         TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot,
         TradeOrderSnapshot, TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
     };
-    use jftrade_kernel::Fixed8;
+    use jftrade_kernel::{Fixed8, WireTimestamp};
     use jftrade_marketdata::{ProviderRouter, Tick};
     use jftrade_settings::MarketDataProvider;
     use serde_json::{Value, json};
@@ -43,7 +44,10 @@ mod product_production_assembly_tests {
         product_production_ports::{ProductionAdapterBinding, production_ports},
         start_product,
     };
-    use jftrade_settings::SecuritySettingsService;
+    use jftrade_settings::{
+        ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort, ExchangeCalendarSourcePolicy,
+        SecuritySettingsService,
+    };
     use jftrade_store_settings_file::SettingsFileStore;
     use jftrade_store_sqlite::{ADK_PRODUCTION_PROFILE, AdkStore, CreateAdkRunParams};
 
@@ -1434,6 +1438,122 @@ mod product_production_assembly_tests {
             )
             .expect_err("alert write apply must fail-closed without configured provider");
         assert!(matches!(alert_err, AlertWritePortError::Unavailable(_)));
+    }
+
+    #[test]
+    fn production_calendar_manager_restores_settings_and_snapshots() {
+        let (temp_dir, settings_path, config, security) = setup_test_env();
+        let settings_store = SettingsFileStore::open(&settings_path).expect("open settings");
+        settings_store
+            .save_exchange_calendars(&ExchangeCalendarSettings {
+                auto_refresh_enabled: false,
+                refresh_interval_hours: 6,
+                warmup_markets: vec!["US".to_owned()],
+                source_policies: vec![ExchangeCalendarSourcePolicy {
+                    market: "US".to_owned(),
+                    preferred_source_ids: vec!["nyse_official".to_owned()],
+                    enabled_source_ids: vec![
+                        "nyse_official".to_owned(),
+                        "builtin_rules".to_owned(),
+                    ],
+                    fallback_to_builtin: true,
+                    ..ExchangeCalendarSourcePolicy::default()
+                }],
+                ..ExchangeCalendarSettings::default()
+            })
+            .expect("save exchange calendar settings");
+
+        let timestamp = |value: &str| value.parse::<WireTimestamp>().expect("timestamp");
+        CalendarSnapshotStore::new(temp_dir.path().join("exchange-calendars"))
+            .save(&CalendarSnapshot {
+                market_code: "US".to_owned(),
+                source_id: "nyse_official".to_owned(),
+                from: timestamp("2026-01-01T00:00:00Z"),
+                to: timestamp("2026-12-31T23:59:59Z"),
+                schedules: vec![TradingDaySchedule {
+                    market_code: "US".to_owned(),
+                    date: timestamp("2026-06-19T00:00:00Z"),
+                    status: "closed".to_owned(),
+                    sessions: Vec::new(),
+                    reason: "persisted_holiday".to_owned(),
+                    source_id: "nyse_official".to_owned(),
+                    observed: false,
+                    updated_at: None,
+                }],
+                fetched_at: timestamp("2026-01-02T00:00:00Z"),
+                valid_until: timestamp("2026-12-31T23:59:59Z"),
+                checksum: "persisted-calendar".to_owned(),
+            })
+            .expect("persist calendar snapshot");
+
+        let ports = production_ports(&config, &security).expect("production ports");
+        ports
+            .calendar_manager
+            .start()
+            .expect("start calendar manager");
+        let status = ports
+            .calendar_manager
+            .status_snapshot()
+            .expect("calendar status");
+        assert!(!status.auto_refresh_enabled);
+        assert_eq!(status.refresh_interval_hours, 6);
+        assert_eq!(status.warmup_markets, ["US"]);
+        assert_eq!(status.snapshots.len(), 1);
+        assert_eq!(status.snapshots[0].checksum, "persisted-calendar");
+        assert!(
+            status.markets[0]
+                .fallback_chain
+                .contains(&"nyse_official".to_owned())
+        );
+
+        let schedule = ports
+            .calendar_manager
+            .schedule("US", timestamp("2026-06-19T00:00:00Z"))
+            .expect("calendar schedule")
+            .expect("persisted schedule");
+        assert_eq!(schedule.source_id, "nyse_official");
+        assert_eq!(schedule.reason, "persisted_holiday");
+        ports
+            .calendar_manager
+            .close()
+            .expect("close calendar manager");
+    }
+
+    #[tokio::test]
+    async fn production_calendar_settings_write_reloads_running_manager() {
+        let (_temp_dir, _settings_path, config, _security) = setup_test_env();
+        let handle = start_product(config).await.expect("start product");
+        let address = handle.startup_record().address;
+        let authorization = "Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let (write_status, write_response) = request_json_with_status(
+            address,
+            "PUT",
+            "/api/v1/settings/exchange-calendars",
+            Some(
+                r#"{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":6,"warmupMarkets":[" us "]}}"#,
+            ),
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(write_status, 200, "write response: {write_response}");
+        assert_eq!(
+            write_response["data"]["exchangeCalendars"]["refreshIntervalHours"],
+            6
+        );
+
+        let (status_code, status_response) = request_json_with_status(
+            address,
+            "GET",
+            "/api/v1/system/exchange-calendars/status",
+            None,
+            &[("Authorization", authorization)],
+        )
+        .await;
+        assert_eq!(status_code, 200, "status response: {status_response}");
+        assert_eq!(status_response["data"]["autoRefreshEnabled"], false);
+        assert_eq!(status_response["data"]["refreshIntervalHours"], 6);
+        assert_eq!(status_response["data"]["warmupMarkets"], json!(["US"]));
+        handle.shutdown().await.expect("shutdown product");
     }
 
     #[test]

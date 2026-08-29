@@ -66,6 +66,22 @@ impl CalendarSourceRegistry {
             .collect()
     }
 
+    /// Returns the registered source IDs in the same precedence order as
+    /// [`Self::ordered_sources`].  The manager uses this list for refreshes;
+    /// cached snapshots may still be served for a configured source whose
+    /// transport adapter is temporarily absent, so callers append policy IDs
+    /// separately when resolving the read path.
+    pub(crate) fn ordered_source_ids(
+        &self,
+        market: &str,
+        policy: &CalendarSourcePolicy,
+    ) -> Vec<String> {
+        self.ordered_sources(market, policy)
+            .into_iter()
+            .map(|source| source.descriptor().id.trim().to_owned())
+            .collect()
+    }
+
     pub(crate) fn lifecycle_sources(&self) -> Vec<Arc<dyn CalendarSourcePort>> {
         self.order.iter().filter_map(|id| self.source(id)).collect()
     }

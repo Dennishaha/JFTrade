@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::manager::{normalize_market, normalized_markets, policy_for_market, wire_text};
+use crate::manager::{
+    normalize_market, normalized_markets, policy_for_market, policy_source_ids, wire_text,
+};
 use crate::{
     BUILTIN_SOURCE_ID, CalendarManager, CalendarManagerError, CalendarMarketStatus,
     CalendarSampleSchedule, CalendarSampleSession, CalendarSnapshot, CalendarSnapshotSummary,
@@ -174,15 +176,20 @@ fn market_status<'a>(
     };
     let policy = policy_for_market(settings, market);
     let mut fallback_chain = vec![MANUAL_OVERRIDE_SOURCE_ID.to_owned()];
-    fallback_chain.extend(
-        manager
-            .inner
-            .registry
-            .ordered_sources(market, &policy)
-            .into_iter()
-            .map(|source| source.descriptor().id),
-    );
-    if policy.fallback_to_builtin || fallback_chain.len() == 1 {
+    fallback_chain.extend(manager.inner.registry.ordered_source_ids(market, &policy));
+    for source_id in policy_source_ids(&policy) {
+        if !fallback_chain
+            .iter()
+            .any(|candidate| candidate == &source_id)
+        {
+            fallback_chain.push(source_id);
+        }
+    }
+    if (policy.fallback_to_builtin || fallback_chain.len() == 1)
+        && !fallback_chain
+            .iter()
+            .any(|source| source == BUILTIN_SOURCE_ID)
+    {
         fallback_chain.push(BUILTIN_SOURCE_ID.to_owned());
     }
     let enabled_external = fallback_chain.iter().any(|source| {

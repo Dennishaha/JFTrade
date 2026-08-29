@@ -40,7 +40,9 @@ mod product_trade_runtime_projection;
 pub(crate) use product_trade_runtime_projection::SharedTradeReadRuntime;
 #[path = "product_production_ports_trade_requests.rs"]
 mod product_production_ports_trade_requests;
-pub(crate) use product_production_ports_trade_requests::{TradeRequest, ResolvedTradeRequest, account_identity, checked_at, environment_label_from_code, market_code, normalize_history_time, qot_market_label, quote_market_code};
+pub(crate) use product_production_ports_trade_requests::{TradeRequest, ResolvedTradeRequest, account_identity, checked_at, environment_label_from_code, normalize_history_time, qot_market_label, quote_market_code};
+#[cfg(test)]
+pub(crate) use product_production_ports_trade_requests::market_code;
 #[path = "trade_projection.rs"]
 mod trade_projection;
 #[allow(unused_imports)]

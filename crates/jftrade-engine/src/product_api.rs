@@ -708,10 +708,26 @@ impl ProductApi {
         let payload: ExchangeCalendarWriteRequest = serde_json::from_slice(body).map_err(|_| {
             ApiFailure::new(400, "BAD_REQUEST", "invalid exchange calendar payload")
         })?;
-        self.settings
+        let settings = self
+            .settings
             .exchange_calendars
             .save(payload.exchange_calendars.into())
-            .map(|settings| ApiOutput::Json(json!({"exchangeCalendars": settings})))
-            .map_err(settings_failure)
+            .map_err(settings_failure)?;
+        if let Some(manager) = &self.calendar_manager {
+            manager
+                .reload_settings(
+                    crate::product::product_production_ports::calendar_manager_settings(
+                        settings.clone(),
+                    ),
+                )
+                .map_err(|error| {
+                    ApiFailure::new(
+                        503,
+                        "EXCHANGE_CALENDAR_SETTINGS_UNAVAILABLE",
+                        error.to_string(),
+                    )
+                })?;
+        }
+        Ok(ApiOutput::Json(json!({"exchangeCalendars": settings})))
     }
 }
