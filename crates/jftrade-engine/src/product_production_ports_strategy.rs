@@ -420,11 +420,19 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                         message: message.to_owned(),
                     });
                 }
-                let instance_id = format!("inst_{}", generate_strategy_id());
+                let instance_id = generate_instance_id(definition_id);
                 let binding = input.binding.clone().unwrap_or_else(|| json!({}));
                 let runtime = StrategyRuntimeStore::from_definition_store(&self.store);
                 runtime
-                    .seed_instance_with_binding(&instance_id, "STOPPED", binding.clone(), &timestamp)
+                    .seed_instance_with_definition(
+                        &instance_id,
+                        "STOPPED",
+                        binding.clone(),
+                        definition_id,
+                        &current.name,
+                        &current.version,
+                        &timestamp,
+                    )
                     .map_err(|error| StrategyDefinitionWritePortError::Failed {
                         status: 400,
                         code: "STRATEGY_RUNTIME_ERROR".to_owned(),
@@ -450,6 +458,18 @@ fn generate_strategy_id() -> String {
     let id = COUNTER.fetch_add(1, Ordering::Relaxed);
     let timestamp = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
     format!("{timestamp:x}_{id}")
+}
+
+fn generate_instance_id(definition_id: &str) -> String {
+    let timestamp = time::OffsetDateTime::now_utc();
+    let format = time::format_description::parse_borrowed::<1>(
+        "[year][month][day][hour][minute][second].[subsecond digits:9]",
+    )
+    .expect("valid strategy instance id format");
+    let suffix = timestamp
+        .format(&format)
+        .unwrap_or_else(|_| generate_strategy_id());
+    format!("{}-{}", definition_id.trim(), suffix)
 }
 
 fn map_strategy_store_error(error: StrategyDefinitionStoreError) -> StrategyDefinitionWritePortError {
@@ -742,10 +762,10 @@ impl StrategyRuntimeStatusPort for ProductionStrategyRuntimePort {
                     };
                 }
             };
-            let binding_definition_name = binding_string(
-                &instance.binding,
-                &["definitionName", "strategyName"],
-            );
+            let binding_definition_name = instance
+                .definition_name
+                .clone()
+                .unwrap_or_else(|| binding_string(&instance.binding, &["definitionName", "strategyName"]));
             let binding_symbols = binding_symbols(&instance.binding);
             let actual_status = observation
                 .as_ref()

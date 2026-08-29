@@ -426,7 +426,7 @@ mod product_production_assembly_tests {
                 binding_error: None,
             })
             .expect("create def");
-        strat_def_port
+        let instance = strat_def_port
             .mutate(&StrategyDefinitionWriteInput {
                 operation: StrategyDefinitionWriteOperation::Instantiate,
                 definition_id: Some("strat-beta".to_owned()),
@@ -435,6 +435,13 @@ mod product_production_assembly_tests {
                 binding_error: None,
             })
             .expect("instantiate strategy");
+        let instance_id = instance["id"]
+            .as_str()
+            .expect("persisted instance id")
+            .to_owned();
+        assert!(instance_id.starts_with("strat-beta-"));
+        assert_eq!(instance["definitionId"], "strat-beta");
+        assert_eq!(instance["definition"]["name"], "RSI Strategy");
 
         let runtime_read = ports.strategy_read;
         let instances = runtime_read
@@ -442,13 +449,26 @@ mod product_production_assembly_tests {
             .expect("list runtime instances")
             .expect("strategy list response");
         assert_eq!(instances.as_array().expect("strategy array").len(), 1);
+        let runtime_write = ports.strategy_runtime_write.clone();
+        runtime_write
+            .mutate(&StrategyRuntimeWriteInput {
+                operation: StrategyRuntimeWriteOperation::Start,
+                instance_id: instance_id.clone(),
+                binding: None,
+                runtime_risk: None,
+            })
+            .expect("start persisted instance");
+        let summary = ports.strategy_runtime_status.snapshot();
+        assert_eq!(summary.active_strategies, 1);
+        assert_eq!(summary.active_instances[0].definition_name, "RSI Strategy");
         assert!(matches!(
-            runtime_read.read("/api/v1/strategies/inst_strat-beta/logs", "limit=bad"),
+            runtime_read.read(
+                &format!("/api/v1/strategies/{instance_id}/logs"),
+                "limit=bad",
+            ),
             Err(crate::product::StrategyReadSnapshotError::Invalid(message))
                 if message == "invalid logs query"
         ));
-
-        let runtime_write = ports.strategy_runtime_write;
 
         // Non-existent instance update should fail with not found
         let update_res = runtime_write.mutate(&StrategyRuntimeWriteInput {

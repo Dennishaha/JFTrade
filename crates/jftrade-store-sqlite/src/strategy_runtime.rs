@@ -25,6 +25,9 @@ pub struct StoredRuntimeInstance {
     pub runtime_active: bool,
     pub deleted: bool,
     pub updated_at: String,
+    pub definition_id: Option<String>,
+    pub definition_name: Option<String>,
+    pub definition_version: Option<String>,
 }
 
 /// Persisted runtime observation for a strategy instance.
@@ -169,6 +172,40 @@ impl StrategyRuntimeStore {
         binding: Value,
         timestamp: &str,
     ) -> Result<(), StrategyRuntimeStoreError> {
+        self.seed_instance_with_metadata(instance_id, status, binding, None, None, None, timestamp)
+    }
+
+    pub fn seed_instance_with_definition(
+        &self,
+        instance_id: &str,
+        status: &str,
+        binding: Value,
+        definition_id: &str,
+        definition_name: &str,
+        definition_version: &str,
+        timestamp: &str,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        self.seed_instance_with_metadata(
+            instance_id,
+            status,
+            binding,
+            Some(definition_id),
+            Some(definition_name),
+            Some(definition_version),
+            timestamp,
+        )
+    }
+
+    fn seed_instance_with_metadata(
+        &self,
+        instance_id: &str,
+        status: &str,
+        binding: Value,
+        definition_id: Option<&str>,
+        definition_name: Option<&str>,
+        definition_version: Option<&str>,
+        timestamp: &str,
+    ) -> Result<(), StrategyRuntimeStoreError> {
         validate_rfc3339_timestamp(timestamp)?;
         let mut connection = self.lock()?;
         let transaction = connection
@@ -185,6 +222,9 @@ impl StrategyRuntimeStore {
             "definitionRevision": 0,
             "runtimeActive": is_running,
             "deleted": false,
+            "definitionId": definition_id,
+            "definitionName": definition_name,
+            "definitionVersion": definition_version,
         });
 
         transaction
@@ -398,13 +438,7 @@ impl StrategyRuntimeStore {
         instance.runtime_active = new_status == "RUNNING";
         instance.updated_at = timestamp.to_owned();
 
-        let payload = json!({
-            "binding": instance.binding,
-            "runtimeRisk": instance.runtime_risk,
-            "definitionRevision": instance.definition_revision,
-            "runtimeActive": instance.runtime_active,
-            "deleted": instance.deleted,
-        });
+        let payload = instance_payload(&instance);
 
         transaction
             .execute(
@@ -466,13 +500,7 @@ impl StrategyRuntimeStore {
         instance.binding = binding;
         instance.updated_at = timestamp.to_owned();
 
-        let payload = json!({
-            "binding": instance.binding,
-            "runtimeRisk": instance.runtime_risk,
-            "definitionRevision": instance.definition_revision,
-            "runtimeActive": instance.runtime_active,
-            "deleted": instance.deleted,
-        });
+        let payload = instance_payload(&instance);
 
         transaction
             .execute(
@@ -511,13 +539,7 @@ impl StrategyRuntimeStore {
         instance.runtime_risk = risk;
         instance.updated_at = timestamp.to_owned();
 
-        let payload = json!({
-            "binding": instance.binding,
-            "runtimeRisk": instance.runtime_risk,
-            "definitionRevision": instance.definition_revision,
-            "runtimeActive": instance.runtime_active,
-            "deleted": instance.deleted,
-        });
+        let payload = instance_payload(&instance);
 
         transaction
             .execute(
@@ -556,13 +578,7 @@ impl StrategyRuntimeStore {
         instance.runtime_active = false;
         instance.updated_at = timestamp.to_owned();
 
-        let payload = json!({
-            "binding": instance.binding,
-            "runtimeRisk": instance.runtime_risk,
-            "definitionRevision": instance.definition_revision,
-            "runtimeActive": false,
-            "deleted": true,
-        });
+        let payload = instance_payload(&instance);
 
         transaction
             .execute(
@@ -607,13 +623,7 @@ impl StrategyRuntimeStore {
         instance.definition_revision += 1;
         instance.updated_at = timestamp.to_owned();
 
-        let payload = json!({
-            "binding": instance.binding,
-            "runtimeRisk": instance.runtime_risk,
-            "definitionRevision": instance.definition_revision,
-            "runtimeActive": instance.runtime_active,
-            "deleted": instance.deleted,
-        });
+        let payload = instance_payload(&instance);
 
         transaction
             .execute(
@@ -695,6 +705,14 @@ fn decode_instance(
         .get("deleted")
         .and_then(Value::as_bool)
         .unwrap_or(status == "DELETED");
+    let optional_string = |key: &str| {
+        object
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+    };
     Ok(StoredRuntimeInstance {
         id,
         plugin_id,
@@ -705,6 +723,22 @@ fn decode_instance(
         runtime_active,
         deleted,
         updated_at,
+        definition_id: optional_string("definitionId"),
+        definition_name: optional_string("definitionName"),
+        definition_version: optional_string("definitionVersion"),
+    })
+}
+
+fn instance_payload(instance: &StoredRuntimeInstance) -> Value {
+    json!({
+        "binding": instance.binding,
+        "runtimeRisk": instance.runtime_risk,
+        "definitionRevision": instance.definition_revision,
+        "runtimeActive": instance.runtime_active,
+        "deleted": instance.deleted,
+        "definitionId": instance.definition_id,
+        "definitionName": instance.definition_name,
+        "definitionVersion": instance.definition_version,
     })
 }
 
@@ -771,6 +805,27 @@ impl StrategyRuntimeTestCutoverStore {
     ) -> Result<(), StrategyRuntimeStoreError> {
         self.inner
             .seed_instance_with_binding(instance_id, status, binding, timestamp)
+    }
+
+    pub fn seed_instance_with_definition(
+        &self,
+        instance_id: &str,
+        status: &str,
+        binding: Value,
+        definition_id: &str,
+        definition_name: &str,
+        definition_version: &str,
+        timestamp: &str,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        self.inner.seed_instance_with_definition(
+            instance_id,
+            status,
+            binding,
+            definition_id,
+            definition_name,
+            definition_version,
+            timestamp,
+        )
     }
 
     pub fn list_instances(&self) -> Result<Vec<StoredRuntimeInstance>, StrategyRuntimeStoreError> {

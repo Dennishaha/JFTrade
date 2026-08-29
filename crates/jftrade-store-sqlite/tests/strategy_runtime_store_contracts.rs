@@ -177,8 +177,40 @@ fn strategy_runtime_reads_observation_projection_and_rejects_corrupt_symbols() {
     seed_go_strategy_schema(&path);
     let store = open_store(&path);
     store
-        .seed_instance("inst-observation", "RUNNING", TIMESTAMP_1)
+        .seed_instance_with_definition(
+            "inst-observation",
+            "RUNNING",
+            json!({"symbols":["US.AAPL"]}),
+            "definition-1",
+            "Momentum",
+            "1.2.0",
+            TIMESTAMP_1,
+        )
         .expect("seed instance");
+
+    let instance = store
+        .get_instance("inst-observation")
+        .expect("read instance")
+        .expect("instance exists");
+    assert_eq!(instance.definition_id.as_deref(), Some("definition-1"));
+    assert_eq!(instance.definition_name.as_deref(), Some("Momentum"));
+    assert_eq!(instance.definition_version.as_deref(), Some("1.2.0"));
+    store
+        .update_status("inst-observation", "RUNNING", TIMESTAMP_2)
+        .expect("preserve definition metadata on status update");
+    let persisted = store
+        .get_instance("inst-observation")
+        .expect("read updated instance")
+        .expect("updated instance exists");
+    assert_eq!(persisted.definition_name.as_deref(), Some("Momentum"));
+    drop(store);
+    let store = open_store(&path);
+    let reopened = store
+        .get_instance("inst-observation")
+        .expect("read restarted instance")
+        .expect("restarted instance exists");
+    assert_eq!(reopened.definition_id.as_deref(), Some("definition-1"));
+    assert_eq!(reopened.definition_name.as_deref(), Some("Momentum"));
 
     let connection = Connection::open(&path).expect("open observation writer");
     connection
