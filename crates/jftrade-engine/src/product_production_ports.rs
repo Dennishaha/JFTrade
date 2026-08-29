@@ -637,6 +637,9 @@ pub(crate) fn production_ports(
         config.market_data_runtime_status_port.is_some(),
         config.market_data_router.is_some(),
     );
+    if let Some(trade_runtime) = config.trade_runtime.as_ref() {
+        trade_runtime.set_market_data_router(config.market_data_router.clone());
+    }
     let provider_snapshot = active_provider_state.snapshot();
     let active_provider = provider_snapshot.provider;
     let has_helper = provider_snapshot.helper_ready;

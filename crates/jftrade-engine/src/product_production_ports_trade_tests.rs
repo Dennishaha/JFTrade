@@ -1,4 +1,5 @@
 use super::*;
+use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     ResponseError,
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds,
@@ -6,6 +7,8 @@ use jftrade_integration_futu::{
     TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
     TradePositionSnapshot, TradeSessionError,
 };
+use jftrade_marketdata::ProviderRouter;
+use jftrade_settings::FutuIntegrationConfig;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
@@ -457,6 +460,100 @@ fn broker_runtime_projects_configured_connection_and_live_hub() {
     assert_eq!(value["session"]["liveWebSocketClients"]["limit"], 7);
     assert_eq!(value["session"]["liveWebSocketClients"]["atLimit"], false);
     drop(connection);
+}
+
+#[test]
+fn broker_securities_projects_real_futu_tick_cache() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(8)));
+    router
+        .lock()
+        .expect("router lock")
+        .cache_mut()
+        .insert(
+            jftrade_marketdata::Tick {
+                instrument_id: "US.AAPL".to_owned(),
+                price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
+                volume: "1000".parse().expect("decimal volume"),
+                observed_at_ms: 1_700_000_000_000,
+                provider_generation: 0,
+            },
+            0,
+        )
+        .expect("insert tick");
+    runtime.set_market_data_router(Some(router));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/securities",
+            "symbol=US.AAPL&symbols=US.MSFT,US.AAPL",
+        )
+        .expect("securities snapshot");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["securities"]["snapshots"].as_array().unwrap().len(), 1);
+    assert_eq!(value["securities"]["snapshots"][0]["symbol"], "US.AAPL");
+    assert_eq!(value["securities"]["snapshots"][0]["lastPrice"], 123.45);
+    assert_eq!(value["securities"]["snapshots"][0]["volume"], 1000);
+}
+
+#[test]
+fn broker_securities_returns_real_empty_result_when_cache_has_no_symbol() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
+        ProviderRouter::new(8),
+    ))));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/securities", "symbol=US.MSFT")
+        .expect("empty securities snapshot");
+    assert_eq!(value["securities"]["snapshots"], json!([]));
+}
+
+#[test]
+fn broker_securities_fails_closed_without_market_data_router() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/securities", "symbol=US.AAPL")
+        .expect_err("missing router");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data runtime") || message.contains("router")));
+}
+
+#[test]
+fn broker_securities_requires_symbol_query() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
+        ProviderRouter::new(8),
+    ))));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/securities", "")
+        .expect_err("missing symbol");
+    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
 }
 
 #[test]

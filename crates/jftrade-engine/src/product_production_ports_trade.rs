@@ -4,7 +4,7 @@
 //! generated OpenD protobuf type crosses this module boundary.  Execution
 //! writes and the durable execution ledger remain owned by the local store.
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
@@ -12,8 +12,7 @@ use jftrade_integration_futu::{
     TradeSecurity,
     trade_header,
 };
-use jftrade_api::LiveHub;
-use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider};
+use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
 
 use super::ActiveProviderState;
@@ -25,11 +24,11 @@ use crate::product::product_query::QueryMap;
 
 #[path = "product_trade_margin_cache.rs"]
 mod product_trade_margin_cache;
-use product_trade_margin_cache::MarginRatioCache;
-
 #[path = "product_trade_margin_route.rs"]
 mod product_trade_margin_route;
-
+#[path = "product_trade_runtime_projection.rs"]
+mod product_trade_runtime_projection;
+pub(crate) use product_trade_runtime_projection::SharedTradeReadRuntime;
 #[path = "trade_projection.rs"]
 mod trade_projection;
 #[allow(unused_imports)]
@@ -101,6 +100,25 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     "accounts": accounts.into_iter().map(account_value).collect::<Vec<_>>(),
                     "descriptor": descriptor,
                     "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": runtime.snapshot().trade_logged_in == Some(true), "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": connection.host, "apiPort": connection.api_port, "websocketPort": connection.websocket_port, "port": connection.api_port, "useEncryption": connection.use_encryption, "marketDataTransport": "bbgo-opend-tcp-api"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": live_clients.0, "limit": live_clients.1, "atLimit": live_clients.0 >= live_clients.1}}
+                }))
+            }
+            "securities" => {
+                let securities = request
+                    .securities()
+                    .map_err(BrokerReadSnapshotError::Invalid)?;
+                let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+                    unavailable("Futu market-data runtime is unavailable")
+                })?;
+                let snapshots = runtime
+                    .security_snapshots(&securities)
+                    .map_err(unavailable)?;
+                Ok(json!({
+                    "checkedAt": checked_at(),
+                    "connectivity": "connected",
+                    "securities": {
+                        "accountId": request.account_id().unwrap_or_default(),
+                        "snapshots": snapshots,
+                    },
                 }))
             }
             "funds" => {
@@ -343,91 +361,6 @@ fn portfolio_cash_balance_values(
         }));
     }
     balances
-}
-
-#[derive(Clone, Default)]
-pub(crate) struct SharedTradeReadRuntime {
-    state: Arc<RwLock<TradeRuntimeState>>,
-    margin_ratio_cache: MarginRatioCache,
-    connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
-    live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,
-    live_connection_limit: Arc<RwLock<Option<usize>>>,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct TradeRuntimeConnection {
-    host: String,
-    api_port: i32,
-    websocket_port: i32,
-    use_encryption: bool,
-}
-
-type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
-
-impl std::fmt::Debug for SharedTradeReadRuntime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.debug_struct("SharedTradeReadRuntime").field("ready", &self.snapshot().is_ready()).finish() }
-}
-
-#[derive(Clone)]
-pub(crate) struct TradeReadRuntimeSnapshot { pub client: Option<Arc<dyn TradeReadPort>>, pub trade_logged_in: Option<bool> }
-
-impl TradeReadRuntimeSnapshot {
-    pub(crate) fn is_ready(&self) -> bool {
-        self.client.is_some() && self.trade_logged_in == Some(true)
-    }
-}
-
-impl SharedTradeReadRuntime {
-    pub(crate) fn set_runtime_projection(
-        &self,
-        config: &FutuIntegrationConfig,
-        live_hub: Option<Arc<LiveHub>>,
-        live_connection_limit: usize,
-    ) {
-        *self.connection.write().unwrap_or_else(|e| e.into_inner()) =
-            Some(TradeRuntimeConnection {
-                host: config.host.clone(),
-                api_port: config.api_port,
-                websocket_port: config.websocket_port,
-                use_encryption: config.use_encryption,
-            });
-        *self.live_hub.write().unwrap_or_else(|e| e.into_inner()) = live_hub;
-        *self
-            .live_connection_limit
-            .write()
-            .unwrap_or_else(|e| e.into_inner()) = Some(live_connection_limit.max(1));
-    }
-
-    pub(crate) fn connection_snapshot(&self) -> Option<TradeRuntimeConnection> {
-        self.connection
-            .read()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-    }
-
-    pub(crate) fn live_clients_snapshot(&self) -> Option<(usize, usize)> {
-        let hub = self
-            .live_hub
-            .read()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()?;
-        let limit = (*self
-            .live_connection_limit
-            .read()
-            .unwrap_or_else(|e| e.into_inner()))?;
-        Some((hub.snapshot().connected, limit))
-    }
-
-    pub(crate) fn set(&self, client: Option<Arc<dyn TradeReadPort>>, logged_in: Option<bool>) {
-        *self.state.write().unwrap_or_else(|e| e.into_inner()) =
-            client.map(|c| (c, logged_in == Some(true)));
-    }
-    pub(crate) fn clear(&self) {
-        *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
-    }
-    pub(crate) fn snapshot(&self) -> TradeReadRuntimeSnapshot {
-        self.state.read().unwrap_or_else(|e| e.into_inner()).as_ref().map_or(TradeReadRuntimeSnapshot { client: None, trade_logged_in: None }, |(c, logged)| TradeReadRuntimeSnapshot { client: Some(Arc::clone(c)), trade_logged_in: Some(*logged) })
-    }
 }
 
 #[derive(Debug)]
