@@ -137,6 +137,7 @@ mod tests {
             instrument_id: "US.AAPL".to_owned(),
             price: Fixed8::from_scaled(18_850_000_000),
             volume: "10".parse().expect("volume"),
+            snapshot: None,
             observed_at_ms: 100,
             provider_generation: 2,
         };

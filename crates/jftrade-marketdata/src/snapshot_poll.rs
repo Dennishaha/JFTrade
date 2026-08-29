@@ -241,6 +241,7 @@ mod tests {
             instrument_id: instrument_id.to_owned(),
             price: Fixed8::from_scaled(18_850_000_000),
             volume: "10".parse().expect("volume"),
+            snapshot: None,
             observed_at_ms,
             provider_generation: generation,
         }

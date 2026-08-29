@@ -192,9 +192,42 @@ pub struct Tick {
     pub price: Fixed8,
     #[serde(serialize_with = "serialize_decimal_number")]
     pub volume: DecimalText,
+    /// Optional fields preserved from a typed provider snapshot.  Keeping
+    /// this broker-neutral lets consumers project rich quote/securities
+    /// responses without reaching back into a concrete OpenD protocol.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<TradeQuoteSnapshot>,
     pub observed_at_ms: i64,
     pub provider_generation: u64,
 }
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TradeQuoteSnapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_suspended: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub open_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub high_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub low_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_close: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turnover: Option<DecimalText>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update_time: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<i32>,
+}
+
+/// Security routes consume the same provider-neutral BasicQot row.  Keep the
+/// semantic name available to adapters without introducing a second cache or
+/// a broker-specific protocol type.
+pub type BrokerSecuritySnapshot = TradeQuoteSnapshot;
 
 fn serialize_decimal_number<S>(value: &DecimalText, serializer: S) -> Result<S::Ok, S::Error>
 where

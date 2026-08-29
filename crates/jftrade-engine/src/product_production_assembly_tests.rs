@@ -295,6 +295,7 @@ mod product_production_assembly_tests {
                     instrument_id: "US.AAPL".to_owned(),
                     price: Fixed8::from_scaled(1_234_000_000),
                     volume: "100".parse().expect("volume"),
+                    snapshot: None,
                     observed_at_ms: 1_700_000_000_000,
                     provider_generation: 0,
                 },

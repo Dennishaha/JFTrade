@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use jftrade_kernel::{DecimalText, Fixed8};
-use jftrade_marketdata::Tick;
+use jftrade_marketdata::{Tick, TradeQuoteSnapshot};
 use thiserror::Error;
 
 use crate::{BasicQuote, Security};
@@ -57,12 +57,35 @@ pub fn basic_quote_ticks(
                 instrument_id,
                 price,
                 volume,
+                snapshot: Some(TradeQuoteSnapshot {
+                    name: quote.name,
+                    is_suspended: quote.is_suspended,
+                    open_price: optional_fixed8(quote.open_price),
+                    high_price: optional_fixed8(quote.high_price),
+                    low_price: optional_fixed8(quote.low_price),
+                    previous_close: optional_fixed8(quote.last_close_price),
+                    turnover: optional_decimal(quote.turnover),
+                    update_time: quote.update_time,
+                    status: quote.sec_status,
+                }),
                 observed_at_ms,
                 provider_generation,
             },
         );
     }
     Ok(ticks.into_values().collect())
+}
+
+fn optional_fixed8(value: Option<f64>) -> Option<Fixed8> {
+    value
+        .filter(|value| value.is_finite())
+        .and_then(|value| Fixed8::from_str(&value.to_string()).ok())
+}
+
+fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
+    value
+        .filter(|value| value.is_finite())
+        .and_then(|value| DecimalText::from_str(&value.to_string()).ok())
 }
 
 fn instrument_id_from_security(security: &Security) -> Option<String> {
@@ -248,6 +271,38 @@ mod tests {
         fractional_volume.hp_volume = Some(1.5);
         let ticks = basic_quote_ticks(vec![fractional_volume], 0, 1).expect("fractional volume");
         assert_eq!(ticks[0].volume.to_string(), "1.5");
+    }
+
+    #[test]
+    fn preserves_basic_quote_display_and_market_fields_in_neutral_snapshot() {
+        let mut value = quote(11, "AAPL", 189.25, 1_000);
+        value.name = Some("Apple Inc.".to_owned());
+        value.is_suspended = Some(false);
+        value.open_price = Some(188.5);
+        value.high_price = Some(190.0);
+        value.low_price = Some(187.75);
+        value.last_close_price = Some(187.0);
+        value.turnover = Some(123_456.5);
+        value.update_time = Some("15:59:59".to_owned());
+        value.sec_status = Some(3);
+
+        let ticks = basic_quote_ticks(vec![value], 42, 1).expect("rich tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("rich snapshot");
+        assert_eq!(snapshot.name.as_deref(), Some("Apple Inc."));
+        assert_eq!(snapshot.is_suspended, Some(false));
+        assert_eq!(snapshot.open_price.expect("open").to_string(), "188.5");
+        assert_eq!(snapshot.high_price.expect("high").to_string(), "190");
+        assert_eq!(snapshot.low_price.expect("low").to_string(), "187.75");
+        assert_eq!(
+            snapshot.previous_close.expect("previous close").to_string(),
+            "187"
+        );
+        assert_eq!(
+            snapshot.turnover.as_ref().expect("turnover").to_string(),
+            "123456.5"
+        );
+        assert_eq!(snapshot.update_time.as_deref(), Some("15:59:59"));
+        assert_eq!(snapshot.status, Some(3));
     }
 
     #[test]

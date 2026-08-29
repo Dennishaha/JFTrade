@@ -9,7 +9,7 @@ use jftrade_integration_futu::{
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::product::product_query::{
     normalize_candle_period, normalize_optional_query_time, parse_candle_before_time, QueryMap,
@@ -90,6 +90,13 @@ impl SharedTradeReadRuntime {
             .unwrap_or_else(|error| error.into_inner()) = router;
     }
 
+    pub(crate) fn market_data_reader_available(&self) -> bool {
+        self.market_data_router
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
     pub(crate) fn set_historical_klines(&self, reader: Option<Arc<dyn HistoricalKlineReadPort>>) {
         *self
             .historical_klines
@@ -143,12 +150,16 @@ impl SharedTradeReadRuntime {
                 .as_str()
                 .parse::<serde_json::Number>()
                 .map_err(|error| format!("invalid cached volume for {instrument_id}: {error}"))?;
-            snapshots.push(json!({
-                "symbol": tick.instrument_id,
-                "lastPrice": tick.price,
-                "volume": Value::Number(volume),
-                "observedAt": format_unix_millis_rfc3339(tick.observed_at_ms),
-            }));
+            let mut snapshot = Map::from_iter([
+                ("symbol".to_owned(), Value::String(tick.instrument_id)),
+                ("lastPrice".to_owned(), json!(tick.price.to_f64().map_err(|error| error.to_string())?)),
+                ("volume".to_owned(), Value::Number(volume)),
+                ("observedAt".to_owned(), Value::String(format_unix_millis_rfc3339(tick.observed_at_ms))),
+            ]);
+            if let Some(rich) = tick.snapshot {
+                insert_rich_security_fields(&mut snapshot, &rich)?;
+            }
+            snapshots.push(Value::Object(snapshot));
         }
         Ok(snapshots)
     }
@@ -192,25 +203,37 @@ impl SharedTradeReadRuntime {
                 .as_str()
                 .parse::<serde_json::Number>()
                 .map_err(|error| format!("invalid cached volume for {instrument_id}: {error}"))?;
-            quotes.push(json!({
-                "symbol": tick.instrument_id,
-                "lastPrice": last_price,
-                "volume": Value::Number(volume),
-                "quoteAt": format_unix_millis_rfc3339(tick.observed_at_ms),
-            }));
+            let mut item = Map::from_iter([
+                ("symbol".to_owned(), Value::String(tick.instrument_id)),
+                ("lastPrice".to_owned(), json!(last_price)),
+                ("volume".to_owned(), Value::Number(volume)),
+                ("quoteAt".to_owned(), Value::String(format_unix_millis_rfc3339(tick.observed_at_ms))),
+            ]);
+            if let Some(rich) = tick.snapshot {
+                insert_rich_quote_fields(&mut item, &rich)?;
+            }
+            quotes.push(Value::Object(item));
         }
         let first = quotes
             .first()
             .cloned()
             .ok_or_else(|| "query parameter symbol is required".to_owned())?;
-        Ok(json!({
+        let mut result = json!({
             "accountId": account_id,
             "symbol": first["symbol"],
             "lastPrice": first["lastPrice"],
             "volume": first["volume"],
             "quoteAt": first["quoteAt"],
             "quotes": quotes,
-        }))
+        });
+        if let Some(object) = result.as_object_mut() {
+            for key in ["symbolName", "openPrice", "highPrice", "lowPrice", "lastClose", "turnover", "marketTime"] {
+                if let Some(value) = first.get(key).filter(|value| !value.is_null()) {
+                    object.insert(key.to_owned(), value.clone());
+                }
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn connection_snapshot(&self) -> Option<TradeRuntimeConnection> {
@@ -258,6 +281,65 @@ impl SharedTradeReadRuntime {
                 },
             )
     }
+}
+
+fn insert_rich_quote_fields(
+    item: &mut Map<String, Value>,
+    rich: &jftrade_marketdata::TradeQuoteSnapshot,
+) -> Result<(), String> {
+    if let Some(name) = rich.name.as_ref() {
+        item.insert("symbolName".to_owned(), Value::String(name.clone()));
+    }
+    for (key, value) in [
+        ("openPrice", rich.open_price),
+        ("highPrice", rich.high_price),
+        ("lowPrice", rich.low_price),
+        ("lastClose", rich.previous_close),
+    ] {
+        if let Some(value) = value {
+            item.insert(key.to_owned(), json!(value.to_f64().map_err(|error| error.to_string())?));
+        }
+    }
+    if let Some(turnover) = rich.turnover.as_ref() {
+        item.insert("turnover".to_owned(), decimal_number(turnover)?);
+    }
+    if let Some(update_time) = rich.update_time.as_ref() {
+        item.insert("marketTime".to_owned(), Value::String(update_time.clone()));
+    }
+    Ok(())
+}
+
+fn insert_rich_security_fields(
+    item: &mut Map<String, Value>,
+    rich: &jftrade_marketdata::TradeQuoteSnapshot,
+) -> Result<(), String> {
+    insert_rich_quote_fields(item, rich)?;
+    if let Some(name) = rich.name.as_ref() {
+        item.remove("symbolName");
+        item.insert("name".to_owned(), Value::String(name.clone()));
+    }
+    if let Some(previous_close) = item.remove("lastClose") {
+        item.insert("previousClose".to_owned(), previous_close);
+    }
+    if let Some(value) = rich.is_suspended {
+        item.insert("isSuspended".to_owned(), Value::Bool(value));
+    }
+    if let Some(status) = rich.status {
+        item.insert("status".to_owned(), json!(status));
+    }
+    if let Some(update_time) = rich.update_time.as_ref() {
+        item.insert("updateTime".to_owned(), Value::String(update_time.clone()));
+    }
+    item.remove("marketTime");
+    Ok(())
+}
+
+fn decimal_number(value: &jftrade_kernel::DecimalText) -> Result<Value, String> {
+    value
+        .as_str()
+        .parse::<serde_json::Number>()
+        .map(Value::Number)
+        .map_err(|error| format!("invalid cached decimal {}: {error}", value.as_str()))
 }
 
 impl super::ProductionBrokerPort {

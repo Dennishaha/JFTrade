@@ -699,14 +699,14 @@ mod tests {
             }
         );
         assert_eq!(cache.instrument_count(), 1);
-        assert_eq!(
-            cache
-                .require_fresh("US.AAPL", observed_at_ms, 1_500)
-                .expect("fresh tick")
-                .price
-                .to_string(),
-            "189.5"
-        );
+        let tick = cache
+            .require_fresh("US.AAPL", observed_at_ms, 1_500)
+            .expect("fresh tick");
+        assert_eq!(tick.price.to_string(), "189.5");
+        let rich = tick.snapshot.as_ref().expect("basic quote metadata");
+        assert_eq!(rich.open_price.expect("open").to_string(), "188");
+        assert_eq!(rich.previous_close.expect("close").to_string(), "187.5");
+        assert_eq!(rich.update_time.as_deref(), Some("2026-08-24 09:30:00"));
 
         let fresh = SnapshotPollExecutor::default().execute(
             &recorder,

@@ -84,6 +84,7 @@ fn fixture_tick(
         instrument_id: instrument_id.to_owned(),
         price: price.parse().expect("fixture price"),
         volume: "10.5".parse().expect("fixture volume"),
+        snapshot: None,
         observed_at_ms,
         provider_generation,
     }

@@ -66,6 +66,12 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, BrokerReadSnapshotError> {
         if path == "/api/v1/brokers/capabilities" {
             self.ensure_ready()?;
+            let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+                unavailable("Futu market-data reader is unavailable")
+            })?;
+            if !runtime.market_data_reader_available() {
+                return Err(unavailable("Futu market-data reader is unavailable"));
+            }
             let descriptor = serde_json::to_value(jftrade_integration_futu::broker_descriptor())
                 .map_err(|error| unavailable(error.to_string()))?;
             return Ok(json!({

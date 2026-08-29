@@ -476,6 +476,17 @@ fn broker_securities_projects_real_futu_tick_cache() {
                 instrument_id: "US.AAPL".to_owned(),
                 price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
                 volume: "1000".parse().expect("decimal volume"),
+                snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+                    name: Some("Apple Inc.".to_owned()),
+                    is_suspended: Some(false),
+                    open_price: Some("120".parse().expect("open")),
+                    high_price: Some("124".parse().expect("high")),
+                    low_price: Some("121".parse().expect("low")),
+                    previous_close: Some("122".parse().expect("previous close")),
+                    turnover: Some("123456.5".parse().expect("turnover")),
+                    update_time: Some("15:59:59".to_owned()),
+                    status: Some(3),
+                }),
                 observed_at_ms: 1_700_000_000_000,
                 provider_generation: 0,
             },
@@ -500,6 +511,12 @@ fn broker_securities_projects_real_futu_tick_cache() {
     assert_eq!(value["securities"]["snapshots"][0]["symbol"], "US.AAPL");
     assert_eq!(value["securities"]["snapshots"][0]["lastPrice"], 123.45);
     assert_eq!(value["securities"]["snapshots"][0]["volume"], 1000);
+    assert_eq!(value["securities"]["snapshots"][0]["name"], "Apple Inc.");
+    assert_eq!(value["securities"]["snapshots"][0]["openPrice"], 120.0);
+    assert_eq!(value["securities"]["snapshots"][0]["previousClose"], 122.0);
+    assert_eq!(value["securities"]["snapshots"][0]["turnover"], 123456.5);
+    assert_eq!(value["securities"]["snapshots"][0]["updateTime"], "15:59:59");
+    assert_eq!(value["securities"]["snapshots"][0]["status"], 3);
 }
 
 #[test]
@@ -570,6 +587,16 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
                 instrument_id: "US.AAPL".to_owned(),
                 price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
                 volume: "1000".parse().expect("decimal volume"),
+                snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+                    name: Some("Apple Inc.".to_owned()),
+                    open_price: Some("120".parse().expect("open")),
+                    high_price: Some("124".parse().expect("high")),
+                    low_price: Some("121".parse().expect("low")),
+                    previous_close: Some("122".parse().expect("previous close")),
+                    turnover: Some("123456.5".parse().expect("turnover")),
+                    update_time: Some("15:59:59".to_owned()),
+                    ..Default::default()
+                }),
                 observed_at_ms: 1_700_000_000_000,
                 provider_generation: 0,
             },
@@ -585,6 +612,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
                 instrument_id: "US.MSFT".to_owned(),
                 price: jftrade_kernel::Fixed8::from_scaled(20_000_000_000),
                 volume: "2000".parse().expect("decimal volume"),
+                snapshot: None,
                 observed_at_ms: 1_700_000_000_100,
                 provider_generation: 0,
             },
@@ -608,6 +636,11 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
     assert_eq!(value["quote"]["symbol"], "US.AAPL");
     assert_eq!(value["quote"]["lastPrice"], 123.45);
     assert_eq!(value["quote"]["volume"], 1000);
+    assert_eq!(value["quote"]["symbolName"], "Apple Inc.");
+    assert_eq!(value["quote"]["openPrice"], 120.0);
+    assert_eq!(value["quote"]["lastClose"], 122.0);
+    assert_eq!(value["quote"]["turnover"], 123456.5);
+    assert_eq!(value["quote"]["marketTime"], "15:59:59");
     assert_eq!(value["quote"]["quotes"].as_array().unwrap().len(), 2);
     assert_eq!(value["quote"]["quotes"][1]["symbol"], "US.MSFT");
 }
@@ -648,6 +681,22 @@ fn broker_quote_fails_closed_without_market_data_runtime() {
         .read("/api/v1/brokers/futu/quote", "symbol=US.AAPL")
         .expect_err("missing market-data router");
     assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("runtime") || message.contains("router")));
+}
+
+#[test]
+fn broker_capabilities_fail_closed_without_a_market_data_reader() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect_err("capabilities require market-data reader");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data reader")));
 }
 
 #[test]
