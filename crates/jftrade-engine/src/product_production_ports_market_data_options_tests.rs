@@ -1348,7 +1348,7 @@ fn event_projection_forwards_unusual_query_and_paginates() {
 #[test]
 fn event_projection_rejects_unsupported_operation_market_and_product_class() {
     for query in [
-        "operation=seller",
+        "operation=unknown",
         "operation=unusual&market=CN",
         "operation=unusual&underlyingProductClass=option_chain",
         "operation=unusual&underlying=HK.AAPL",

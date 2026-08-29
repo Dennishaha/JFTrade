@@ -228,6 +228,25 @@ mod product_production_assembly_tests {
         }
     }
 
+    #[derive(Debug)]
+    struct EmptyOptionZeroDteScreenerReader;
+
+    impl jftrade_integration_futu::OptionZeroDteScreenerReadPort for EmptyOptionZeroDteScreenerReader {
+        fn query(
+            &self,
+            _query: &jftrade_integration_futu::OptionZeroDteScreenerQuery,
+        ) -> Result<
+            jftrade_integration_futu::OptionZeroDteScreenerPage,
+            jftrade_integration_futu::OptionZeroDteScreenerQueryError,
+        > {
+            Ok(jftrade_integration_futu::OptionZeroDteScreenerPage {
+                items: Vec::new(),
+                next_page: None,
+                update_timestamp: None,
+            })
+        }
+    }
+
     fn http_product_config(
         directory: &TempDir,
         runtime: Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
@@ -1352,6 +1371,12 @@ mod product_production_assembly_tests {
             Some(ProductionAdapterBinding::ExternalUnavailable)
         );
         runtime.set_option_events(Some(Arc::new(EmptyOptionEventReader)));
+        assert_eq!(
+            ports.adapter_binding(adapter),
+            Some(ProductionAdapterBinding::Ready)
+        );
+        runtime.set_option_events(None);
+        runtime.set_option_zero_dte_screener(Some(Arc::new(EmptyOptionZeroDteScreenerReader)));
         assert_eq!(
             ports.adapter_binding(adapter),
             Some(ProductionAdapterBinding::Ready)

@@ -265,10 +265,12 @@ impl ProductionMarketDataProviderActionsPort {
             })?
             .to_ascii_uppercase();
         if market != "US" {
-            return Err(action_bad_request(
-                "BAD_REQUEST",
-                "0DTE option research is available only in US market",
-            ));
+            return Err(MarketDataProviderActionsPortError::Failed {
+                status: 422,
+                code: "OPTION_ZERO_DTE_UNAVAILABLE".to_owned(),
+                message: "0DTE option research is available only in the US market".to_owned(),
+                retry_after_seconds: None,
+            });
         }
         let owner = parse_zero_dte_owner(body.underlying_instrument_id.as_deref())?;
         let expiry = body.expiry_timestamp.unwrap_or_default();

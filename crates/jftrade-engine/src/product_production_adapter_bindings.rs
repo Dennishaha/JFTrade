@@ -146,6 +146,22 @@ impl ProductionPortBundle {
                 },
             );
         }
+        if adapter == ProductionRouteAdapter::MarketDataZeroDteWrite {
+            let snapshot = self.active_provider_state.snapshot();
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_zero_dte_contract_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
+        }
         // Market-data capability is provider-dependent and can change at
         // runtime. Recompute those bindings from the shared snapshot instead
         // of exposing the startup matrix after a provider transition.
