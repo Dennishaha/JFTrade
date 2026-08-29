@@ -410,6 +410,56 @@ fn account_projection_matches_broker_runtime_contract() {
 }
 
 #[test]
+fn broker_runtime_requires_real_projection_sources() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/runtime", "")
+        .expect_err("runtime projection must not use fixture values");
+    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("projection") || message.contains("connection settings")));
+}
+
+#[test]
+fn broker_runtime_projects_configured_connection_and_live_hub() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    let hub = Arc::new(LiveHub::default());
+    let connection = hub.connect();
+    let mut config = FutuIntegrationConfig::current_default();
+    config.host = "10.0.0.8".to_owned();
+    config.api_port = 21_110;
+    config.websocket_port = 21_111;
+    config.use_encryption = true;
+    runtime.set_runtime_projection(&config, Some(Arc::clone(&hub)), 7);
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/runtime", "")
+        .expect("runtime projection");
+    assert_eq!(value["session"]["tradeLoggedIn"], true);
+    assert_eq!(value["session"]["connection"]["host"], "10.0.0.8");
+    assert_eq!(value["session"]["connection"]["apiPort"], 21_110);
+    assert_eq!(value["session"]["connection"]["websocketPort"], 21_111);
+    assert_eq!(value["session"]["connection"]["port"], 21_110);
+    assert_eq!(value["session"]["connection"]["useEncryption"], true);
+    assert_eq!(value["session"]["connection"]["marketDataTransport"], "bbgo-opend-tcp-api");
+    assert_eq!(value["session"]["liveWebSocketClients"]["connected"], 1);
+    assert_eq!(value["session"]["liveWebSocketClients"]["limit"], 7);
+    assert_eq!(value["session"]["liveWebSocketClients"]["atLimit"], false);
+    drop(connection);
+}
+
+#[test]
 fn generated_trade_enum_values_are_preserved() {
     assert_eq!(order_type_label(5), "ABSOLUTELIMIT");
     assert_eq!(order_type_label(6), "AUCTION");

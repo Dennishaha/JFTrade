@@ -16,8 +16,9 @@ use jftrade_datamanagement::{
     DATABASE_WATCHLIST,
 };
 use jftrade_settings::{
-    MarketDataProvider, MarketDataProviderSettingsStorePort, SecuritySettingsService,
-    normalize_market_data_provider,
+    BrokerSettingsStorePort, InterfaceSettingsStorePort, MarketDataProvider,
+    MarketDataProviderSettingsStorePort, SecuritySettingsService,
+    normalize_live_websocket_connection_limit, normalize_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{
@@ -592,6 +593,31 @@ pub(crate) fn production_ports(
             ))
         })?,
     );
+    // Broker runtime projections must be sourced from the same persisted
+    // settings document used by the rest of the production composition.  A
+    // malformed settings file is a startup error; never manufacture a
+    // connection or websocket status from defaults in a production route.
+    let broker_settings = market_data_settings
+        .load_broker_settings_inputs()
+        .map_err(|error| {
+            ProductError::Storage(format!(
+                "failed to load broker runtime settings: {error}"
+            ))
+        })?;
+    let interface_settings = market_data_settings
+        .load_interface_settings()
+        .map_err(|error| {
+            ProductError::Storage(format!(
+                "failed to load interface runtime settings: {error}"
+            ))
+        })?;
+    if let Some(trade_runtime) = config.trade_runtime.as_ref() {
+        trade_runtime.set_runtime_projection(
+            &broker_settings.effective_config,
+            config.live_hub.clone(),
+            normalize_live_websocket_connection_limit(interface_settings.as_ref()),
+        );
+    }
     let active_provider_state = if let Some(state) = config.active_provider_state.as_ref() {
         Arc::clone(state)
     } else {

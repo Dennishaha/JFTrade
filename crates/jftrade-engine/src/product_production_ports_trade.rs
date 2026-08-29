@@ -12,7 +12,8 @@ use jftrade_integration_futu::{
     TradeSecurity,
     trade_header,
 };
-use jftrade_settings::MarketDataProvider;
+use jftrade_api::LiveHub;
+use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider};
 use serde_json::{Value, json};
 
 use super::ActiveProviderState;
@@ -81,6 +82,15 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
             .ok_or_else(|| unavailable("Futu trade read client is unavailable"))?;
         match request.resource.as_str() {
             "runtime" => {
+                let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+                    unavailable("Futu trade runtime projection is unavailable")
+                })?;
+                let connection = runtime.connection_snapshot().ok_or_else(|| {
+                    unavailable("Futu OpenD connection settings are unavailable")
+                })?;
+                let live_clients = runtime.live_clients_snapshot().ok_or_else(|| {
+                    unavailable("live websocket client metrics are unavailable")
+                })?;
                 let accounts = client
                     .read_accounts(0, None, None)
                     .map_err(session_error)?;
@@ -90,7 +100,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 Ok(json!({
                     "accounts": accounts.into_iter().map(account_value).collect::<Vec<_>>(),
                     "descriptor": descriptor,
-                    "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": true, "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": "", "apiPort": 0, "websocketPort": 0, "port": 0, "useEncryption": false, "marketDataTransport": "opend-tcp"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": 0, "limit": 0, "atLimit": false}}
+                    "session": {"brokerId": request.broker_id, "displayName": "Futu", "accountsDiscovered": accounts_discovered, "tradeLoggedIn": runtime.snapshot().trade_logged_in == Some(true), "connectivity": "connected", "checkedAt": checked_at(), "connection": {"host": connection.host, "apiPort": connection.api_port, "websocketPort": connection.websocket_port, "port": connection.api_port, "useEncryption": connection.use_encryption, "marketDataTransport": "bbgo-opend-tcp-api"}, "globalState": null, "lastError": null, "liveWebSocketClients": {"connected": live_clients.0, "limit": live_clients.1, "atLimit": live_clients.0 >= live_clients.1}}
                 }))
             }
             "funds" => {
@@ -339,6 +349,17 @@ fn portfolio_cash_balance_values(
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
     margin_ratio_cache: MarginRatioCache,
+    connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
+    live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,
+    live_connection_limit: Arc<RwLock<Option<usize>>>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct TradeRuntimeConnection {
+    host: String,
+    api_port: i32,
+    websocket_port: i32,
+    use_encryption: bool,
 }
 
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
@@ -357,6 +378,46 @@ impl TradeReadRuntimeSnapshot {
 }
 
 impl SharedTradeReadRuntime {
+    pub(crate) fn set_runtime_projection(
+        &self,
+        config: &FutuIntegrationConfig,
+        live_hub: Option<Arc<LiveHub>>,
+        live_connection_limit: usize,
+    ) {
+        *self.connection.write().unwrap_or_else(|e| e.into_inner()) =
+            Some(TradeRuntimeConnection {
+                host: config.host.clone(),
+                api_port: config.api_port,
+                websocket_port: config.websocket_port,
+                use_encryption: config.use_encryption,
+            });
+        *self.live_hub.write().unwrap_or_else(|e| e.into_inner()) = live_hub;
+        *self
+            .live_connection_limit
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = Some(live_connection_limit.max(1));
+    }
+
+    pub(crate) fn connection_snapshot(&self) -> Option<TradeRuntimeConnection> {
+        self.connection
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn live_clients_snapshot(&self) -> Option<(usize, usize)> {
+        let hub = self
+            .live_hub
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()?;
+        let limit = (*self
+            .live_connection_limit
+            .read()
+            .unwrap_or_else(|e| e.into_inner()))?;
+        Some((hub.snapshot().connected, limit))
+    }
+
     pub(crate) fn set(&self, client: Option<Arc<dyn TradeReadPort>>, logged_in: Option<bool>) {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) =
             client.map(|c| (c, logged_in == Some(true)));
