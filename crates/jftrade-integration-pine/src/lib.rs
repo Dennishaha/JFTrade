@@ -12,7 +12,7 @@ mod process;
 pub use asset::{PineBundle, PineBundleError};
 pub use backtest::{
     BacktestExecutionCandle, BacktestExecutionError, BacktestExecutionPort,
-    BacktestExecutionRequest, RunJsonBacktestExecutionPort,
+    BacktestExecutionRequest, PineBacktestExecutionAdapter, RunJsonBacktestExecutionPort,
 };
 pub use execution::{
     GrpcPineExecutionPort, PineAlert, PineCandle, PineDiagnostic, PineExecutionConfig,
