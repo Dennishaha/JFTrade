@@ -7,6 +7,7 @@ use std::time::Duration;
 use prost::Message;
 
 use super::*;
+use crate::TradeProtocol;
 use crate::{decode_frame, encode_frame};
 
 fn read_frame(stream: &mut std::net::TcpStream) -> crate::Frame {
@@ -219,6 +220,122 @@ fn calls_after_session_close_surface_closed_error() {
     session.close().expect("close");
     let result = client.call(trd_get_acc_list::PROTOCOL_ID, &[]);
     assert!(matches!(result, Err(TradeSessionError::Session(_))));
+    server.join().expect("server");
+}
+
+#[test]
+fn history_order_call_uses_history_protocol_and_forwards_filters() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(
+            request.header.proto_id,
+            TradeProtocol::GetHistoryOrderList.id()
+        );
+        let decoded =
+            trd_get_order_list::Request::decode(request.body.as_slice()).expect("request");
+        let filter = decoded.c2s.filter_conditions.expect("filter");
+        assert_eq!(filter.code_list, vec!["US.AAPL"]);
+        assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01 00:00:00"));
+        assert_eq!(filter.end_time.as_deref(), Some("2026-08-02 00:00:00"));
+        assert_eq!(decoded.c2s.filter_status_list, vec![5, 10]);
+        let response = trd_get_order_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_list::S2c {
+                header: trade_header(0, 42, 2).into(),
+                order_list: vec![],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 7).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let orders = client
+        .read_history_orders(
+            trade_header(0, 42, 2),
+            Some(TradeFilter {
+                code_list: vec!["US.AAPL".to_owned()],
+                begin_time: Some("2026-08-01 00:00:00".to_owned()),
+                end_time: Some("2026-08-02 00:00:00".to_owned()),
+                ..TradeFilter::default()
+            }),
+            vec![5, 10],
+            None,
+        )
+        .expect("orders");
+    assert!(orders.is_empty());
+    session.close().expect("close");
+    server.join().expect("server");
+}
+
+#[test]
+fn history_fill_call_uses_history_protocol_and_forwards_time_filter() {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+    let address = listener.local_addr().expect("address");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        let request = read_frame(&mut stream);
+        assert_eq!(
+            request.header.proto_id,
+            TradeProtocol::GetHistoryOrderFillList.id()
+        );
+        let decoded =
+            trd_get_order_fill_list::Request::decode(request.body.as_slice()).expect("request");
+        let filter = decoded.c2s.filter_conditions.expect("filter");
+        assert_eq!(filter.code_list, vec!["HK.00700"]);
+        assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01 00:00:00"));
+        let response = trd_get_order_fill_list::Response {
+            ret_type: 0,
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(trd_get_order_fill_list::S2c {
+                header: trade_header(0, 42, 1).into(),
+                order_fill_list: vec![],
+            }),
+        };
+        stream
+            .write_all(
+                &encode_frame(
+                    request.header.proto_id,
+                    request.header.serial_no,
+                    &response.encode_to_vec(),
+                )
+                .expect("response"),
+            )
+            .expect("write response");
+    });
+    let session = Arc::new(
+        OpenDManagedSession::connect(address, Duration::from_millis(500), 8).expect("session"),
+    );
+    let client = OpenDTradeReadClient::from_managed_session(Arc::clone(&session));
+    let fills = client
+        .read_history_fills(
+            trade_header(0, 42, 1),
+            Some(TradeFilter {
+                code_list: vec!["HK.00700".to_owned()],
+                begin_time: Some("2026-08-01 00:00:00".to_owned()),
+                ..TradeFilter::default()
+            }),
+            None,
+        )
+        .expect("fills");
+    assert!(fills.is_empty());
+    session.close().expect("close");
     server.join().expect("server");
 }
 

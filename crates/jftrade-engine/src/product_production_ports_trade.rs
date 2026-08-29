@@ -14,6 +14,9 @@ use jftrade_integration_futu::{
 };
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
+use time::format_description::{FormatItem, parse_borrowed};
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 use super::ActiveProviderState;
 use crate::product::{
@@ -748,8 +751,8 @@ impl TradeRequest {
 
     fn trade_filter(&self, history: bool) -> Result<Option<TradeFilter>, String> {
         let symbol = self.query.get_first("symbol").map(str::trim).filter(|value| !value.is_empty());
-        let begin_time = if history { self.query.get_first("startTime").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned) } else { None };
-        let end_time = if history { self.query.get_first("endTime").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned) } else { None };
+        let begin_time = if history { self.query.get_first("startTime").map(normalize_history_time).transpose()? } else { None };
+        let end_time = if history { self.query.get_first("endTime").map(normalize_history_time).transpose()? } else { None };
         if !history && (self.query.get_first("startTime").is_some() || self.query.get_first("endTime").is_some()) {
             return Ok(symbol.map(|code| TradeFilter { code_list: vec![code.to_ascii_uppercase()], ..TradeFilter::default() }));
         }
@@ -774,6 +777,23 @@ impl TradeRequest {
         }
         Ok(values)
     }
+}
+
+fn normalize_history_time(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(String::new());
+    }
+    let normalized = crate::product::product_query::normalize_optional_query_time(trimmed)
+        .map_err(|_| "invalid history time; expected RFC3339 timestamp".to_owned())?
+        .ok_or_else(|| "invalid history time; expected RFC3339 timestamp".to_owned())?;
+    let parsed = OffsetDateTime::parse(&normalized, &Rfc3339)
+        .map_err(|_| "invalid history time; expected RFC3339 timestamp".to_owned())?;
+    let format: &[FormatItem<'_>] = &parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]:[second]")
+        .map_err(|_| "invalid history time format".to_owned())?;
+    parsed
+        .format(format)
+        .map_err(|_| "invalid history time format".to_owned())
 }
 
 fn order_status_code(value: &str) -> Option<i32> {

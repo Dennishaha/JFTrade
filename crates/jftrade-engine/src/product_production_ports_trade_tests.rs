@@ -791,8 +791,8 @@ fn history_query_builds_time_and_status_filters() {
         .expect("filter")
         .expect("filter present");
     assert_eq!(filter.code_list, vec!["US.AAPL"]);
-    assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01T00:00:00Z"));
-    assert_eq!(filter.end_time.as_deref(), Some("2026-08-02T00:00:00Z"));
+    assert_eq!(filter.begin_time.as_deref(), Some("2026-08-01 00:00:00"));
+    assert_eq!(filter.end_time.as_deref(), Some("2026-08-02 00:00:00"));
     assert_eq!(request.status_codes().expect("statuses"), vec![5, 10]);
 }
 
@@ -804,4 +804,15 @@ fn invalid_order_scope_is_rejected_before_opend_call() {
         request.history_scope().expect_err("invalid scope"),
         "query parameter scope is invalid"
     );
+}
+
+#[test]
+fn invalid_history_time_is_rejected_before_opend_call() {
+    let request = TradeRequest::parse(
+        "/api/v1/brokers/futu/orders",
+        "scope=HISTORY&startTime=not-a-time",
+    )
+    .expect("request");
+    let error = request.trade_filter(true).expect_err("invalid time");
+    assert!(error.contains("invalid history time"));
 }
