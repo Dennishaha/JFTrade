@@ -136,6 +136,8 @@ impl ProductionPortBundle {
                             runtime.option_events_available()
                                 || runtime.option_zero_dte_screener_available()
                                 || runtime.option_earnings_screener_available()
+                                || runtime.option_zero_dte_contract_available()
+                                || runtime.option_seller_screener_available()
                         })
                 {
                     ProductionAdapterBinding::Ready

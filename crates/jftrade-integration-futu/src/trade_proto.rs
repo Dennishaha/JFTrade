@@ -114,12 +114,26 @@ pub mod qot_get_option_zero_dte_screener {
     ));
     pub const PROTOCOL_ID: u32 = 3311;
 }
+pub mod qot_get_option_zero_dte_contract {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_zero_dte_contract.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3312;
+}
 pub mod qot_get_option_earnings_screener {
     include!(concat!(
         env!("OUT_DIR"),
         "/qot_get_option_earnings_screener.rs"
     ));
     pub const PROTOCOL_ID: u32 = 3313;
+}
+pub mod qot_get_option_seller_screener {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_seller_screener.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3314;
 }
 pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));

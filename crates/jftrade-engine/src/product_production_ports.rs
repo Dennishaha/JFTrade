@@ -689,9 +689,10 @@ pub(crate) fn production_ports(
         config.market_data_router.clone(),
         config.physical_subscription_port.clone(),
     ));
-    let market_data_actions_port = Arc::new(ProductionMarketDataProviderActionsPort::new(Some(
-        market_data_quote_port.clone(),
-    )));
+    let market_data_actions_port = Arc::new(
+        ProductionMarketDataProviderActionsPort::new(Some(market_data_quote_port.clone()))
+            .with_trade_runtime(config.trade_runtime.clone()),
+    );
 
     Ok(ProductionPortBundle {
         active_provider_state: Arc::clone(&active_provider_state),

@@ -18,6 +18,7 @@ mod option_expiration_query;
 mod option_market_statistic_query;
 mod option_quote_query;
 mod option_screen_query;
+mod option_seller_screener_query;
 mod option_strategy_analysis_query;
 mod option_strategy_query;
 mod option_strategy_spread_query;
@@ -26,6 +27,7 @@ mod option_underlying_his_volatility_query;
 mod option_underlying_overview_query;
 mod option_underlying_rank_query;
 mod option_volatility_query;
+mod option_zero_dte_contract_query;
 mod option_zero_dte_screener_query;
 mod probe;
 mod provider;
@@ -115,6 +117,10 @@ pub use option_screen_query::{
     OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
     OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
 };
+pub use option_seller_screener_query::{
+    OpenDOptionSellerScreenerReader, OptionSellerScreenerItem, OptionSellerScreenerQuery,
+    OptionSellerScreenerQueryError, OptionSellerScreenerReadPort,
+};
 pub use option_strategy_analysis_query::{
     OpenDOptionStrategyAnalysisReader, OptionStrategyAnalysisQuery,
     OptionStrategyAnalysisQueryError, OptionStrategyAnalysisReadPort,
@@ -158,6 +164,10 @@ pub use option_volatility_query::{
     OpenDOptionVolatilityReader, OptionVolatilityItem, OptionVolatilityQuery,
     OptionVolatilityQueryError, OptionVolatilityReadPort, OptionVolatilitySecurity,
     OptionVolatilitySnapshot,
+};
+pub use option_zero_dte_contract_query::{
+    OpenDOptionZeroDteContractReader, OptionZeroDteContractItem, OptionZeroDteContractQuery,
+    OptionZeroDteContractQueryError, OptionZeroDteContractReadPort,
 };
 pub use option_zero_dte_screener_query::{
     OpenDOptionZeroDteScreenerReader, OptionZeroDteChainInfo, OptionZeroDteScreenerItem,

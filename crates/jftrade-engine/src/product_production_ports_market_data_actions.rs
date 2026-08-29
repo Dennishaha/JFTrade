@@ -11,10 +11,12 @@ use crate::product::product_market_data_provider_actions_port::{
     ZERO_DTE_CONTRACTS_PATH, is_market_data_provider_action_path,
 };
 use crate::product::{MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort};
+use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 
 #[derive(Clone, Default)]
 pub(crate) struct ProductionMarketDataProviderActionsPort {
     quote_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
+    trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
@@ -22,13 +24,25 @@ impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
         formatter
             .debug_struct("ProductionMarketDataProviderActionsPort")
             .field("has_quote_port", &self.quote_port.is_some())
+            .field("has_trade_runtime", &self.trade_runtime.is_some())
             .finish()
     }
 }
 
 impl ProductionMarketDataProviderActionsPort {
     pub(crate) fn new(quote_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>) -> Self {
-        Self { quote_port }
+        Self {
+            quote_port,
+            trade_runtime: None,
+        }
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
+        self
     }
 }
 
@@ -50,6 +64,133 @@ struct BatchSnapshotsRequestBody {
     instruments: Option<Vec<String>>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ZeroDteContractsRequest {
+    market: Option<String>,
+    underlying_instrument_id: Option<String>,
+    expiry_timestamp: Option<i64>,
+    chain: Option<ZeroDteChainLocator>,
+    sort: Option<String>,
+    option_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ZeroDteChainLocator {
+    product_code: String,
+    multiplier: Option<f64>,
+    contract_size: Option<f64>,
+    expiration_type: Option<i32>,
+}
+
+fn parse_zero_dte_owner(
+    value: Option<&str>,
+) -> Result<jftrade_integration_futu::OptionEventSecurity, MarketDataProviderActionsPortError> {
+    let value = value.ok_or_else(|| {
+        action_bad_request(
+            "OPTION_CHAIN_CONTEXT_REQUIRED",
+            "invalid 0DTE chain context",
+        )
+    })?;
+    let (market, code) = value.trim().split_once('.').ok_or_else(|| {
+        action_bad_request(
+            "OPTION_CHAIN_CONTEXT_REQUIRED",
+            "invalid 0DTE chain context",
+        )
+    })?;
+    let market = market.trim().to_ascii_uppercase();
+    let code = code.trim().to_ascii_uppercase();
+    if market != "US" || code.is_empty() || code.contains('.') || code.chars().any(char::is_whitespace)
+    {
+        return Err(action_bad_request(
+            "OPTION_CHAIN_CONTEXT_REQUIRED",
+            "invalid 0DTE chain context",
+        ));
+    }
+    Ok(jftrade_integration_futu::OptionEventSecurity {
+        market: market.clone(),
+        code: code.clone(),
+        quote_market: market.clone(),
+        trade_market: market.clone(),
+        instrument_id: format!("{market}.{code}"),
+    })
+}
+
+fn parse_zero_dte_contract_sort(
+    value: Option<&str>,
+) -> Result<Option<i32>, MarketDataProviderActionsPortError> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    let sort = match value.to_ascii_lowercase().as_str() {
+        "default" => return Ok(None),
+        "volume" => 1,
+        "open_interest" | "oi" => 2,
+        "iv" => 3,
+        "delta" => 4,
+        _ => {
+            return Err(action_bad_request(
+                "BAD_REQUEST",
+                "unsupported 0DTE contract sort",
+            ));
+        }
+    };
+    Ok(Some(sort))
+}
+
+fn parse_zero_dte_option_type(
+    value: Option<&str>,
+) -> Result<Vec<jftrade_integration_futu::EventIndicator>, MarketDataProviderActionsPortError> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(Vec::new());
+    };
+    let option_type = match value.to_ascii_lowercase().as_str() {
+        "all" => return Ok(Vec::new()),
+        "call" => 1,
+        "put" => 2,
+        _ => {
+            return Err(action_bad_request(
+                "BAD_REQUEST",
+                "optionType must be all, call, or put",
+            ));
+        }
+    };
+    Ok(vec![jftrade_integration_futu::EventIndicator {
+        indicator_type: 1,
+        value: Some(jftrade_integration_futu::EventIndicatorValue {
+            value_list: vec![option_type],
+            value_interval: None,
+            string_value_list: Vec::new(),
+            security_list: Vec::new(),
+        }),
+    }])
+}
+
+fn action_bad_request(code: &str, message: &str) -> MarketDataProviderActionsPortError {
+    MarketDataProviderActionsPortError::Failed {
+        status: 400,
+        code: code.to_owned(),
+        message: message.to_owned(),
+        retry_after_seconds: None,
+    }
+}
+
+fn map_zero_dte_contract_action_error(
+    error: jftrade_integration_futu::OptionZeroDteContractQueryError,
+) -> MarketDataProviderActionsPortError {
+    use jftrade_integration_futu::OptionZeroDteContractQueryError as Error;
+    match error {
+        Error::InvalidQuery(message) => action_bad_request("BAD_REQUEST", &message),
+        other => MarketDataProviderActionsPortError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: other.to_string(),
+            retry_after_seconds: None,
+        },
+    }
+}
+
 impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
     fn dispatch<'a>(
         &'a self,
@@ -68,6 +209,9 @@ impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
                 || path == OPTION_ANALYSIS_PATH
                 || path.starts_with("/api/v1/market-data/options/analysis/")
             {
+                if path == ZERO_DTE_CONTRACTS_PATH {
+                    return self.zero_dte_contracts(request);
+                }
                 return Err(MarketDataProviderActionsPortError::Unavailable(
                     "options analysis provider is not configured".to_owned(),
                 ));
@@ -92,6 +236,100 @@ impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
 }
 
 impl ProductionMarketDataProviderActionsPort {
+    fn zero_dte_contracts(
+        &self,
+        request: &MarketDataProviderActionsRequest,
+    ) -> Result<Value, MarketDataProviderActionsPortError> {
+        let body: ZeroDteContractsRequest = serde_json::from_slice(&request.body).map_err(|_| {
+            action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
+        })?;
+        let market = body
+            .market
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("US")
+            .to_ascii_uppercase();
+        if market != "US" {
+            return Err(action_bad_request(
+                "BAD_REQUEST",
+                "0DTE option research is available only in US market",
+            ));
+        }
+        let owner = parse_zero_dte_owner(body.underlying_instrument_id.as_deref())?;
+        let expiry = body.expiry_timestamp.unwrap_or_default();
+        let locator = body.chain.ok_or_else(|| {
+            action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
+        })?;
+        let product_code = locator.product_code.trim().to_owned();
+        if expiry <= 0 || product_code.is_empty() {
+            return Err(action_bad_request(
+                "OPTION_CHAIN_CONTEXT_REQUIRED",
+                "invalid 0DTE chain context",
+            ));
+        }
+        let sort_type = parse_zero_dte_contract_sort(body.sort.as_deref())?;
+        let filters = parse_zero_dte_option_type(body.option_type.as_deref())?;
+        let query = jftrade_integration_futu::OptionZeroDteContractQuery {
+            owner: owner.clone(),
+            strike_date_timestamp: expiry,
+            chain_info: jftrade_integration_futu::OptionZeroDteChainInfo {
+                strike_date_timestamp: Some(expiry),
+                product_code: Some(product_code),
+                multiplier: locator.multiplier,
+                contract_share_size: locator.contract_size,
+                expiration_type: locator.expiration_type,
+                underlying: Some(owner),
+            },
+            sort_type,
+            is_asc: None,
+            filters,
+        };
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataProviderActionsPortError::Unavailable(
+                "Futu 0DTE contract reader is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.option_zero_dte_contract_available() {
+            return Err(MarketDataProviderActionsPortError::Unavailable(
+                "Futu 0DTE contract reader is not ready".to_owned(),
+            ));
+        }
+        let items = runtime
+            .option_zero_dte_contract(&query)
+            .map_err(map_zero_dte_contract_action_error)?;
+        let entries = items
+            .into_iter()
+            .map(|item| {
+                serde_json::to_value(item).map_err(|error| {
+                    MarketDataProviderActionsPortError::Failed {
+                        status: 502,
+                        code: "BAD_GATEWAY".to_owned(),
+                        message: format!("failed to serialize OpenD 0DTE contracts: {error}"),
+                        retry_after_seconds: None,
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let total = entries.len();
+        let as_of = super::super::provider_now_rfc3339();
+        Ok(json!({
+            "provider": {
+                "brokerId": "futu",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "featureId": "derivatives.option_events",
+                "capability": "available",
+                "selectionReason": "adapter_request",
+                "resolvedAt": as_of,
+                "asOf": as_of,
+            },
+            "asOf": as_of,
+            "entries": entries,
+            "hasMore": false,
+            "total": total,
+        }))
+    }
+
     fn normalize_instrument(
         &self,
         request: &MarketDataProviderActionsRequest,
