@@ -194,7 +194,22 @@ fn encode_value(
 {
     Ok(crate::trade_proto::qot_option_common::IndicatorValue {
         value_list: value.value_list.clone(),
-        value_interval: None,
+        value_interval: value.value_interval.as_ref().map(|interval| {
+            crate::trade_proto::qot_option_common::Interval {
+                filter_min: interval.filter_min.as_ref().map(|boundary| {
+                    crate::trade_proto::qot_option_common::Boundary {
+                        value: boundary.value,
+                        includes: boundary.includes,
+                    }
+                }),
+                filter_max: interval.filter_max.as_ref().map(|boundary| {
+                    crate::trade_proto::qot_option_common::Boundary {
+                        value: boundary.value,
+                        includes: boundary.includes,
+                    }
+                }),
+            }
+        }),
         string_value_list: value.string_value_list.clone(),
         security_list: value
             .security_list
