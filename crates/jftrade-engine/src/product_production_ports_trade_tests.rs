@@ -221,6 +221,26 @@ fn broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_val
 }
 
 #[test]
+fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty() {
+    let funds = FakeTradeRead
+        .read_funds(trade_header(1, 42, 2), None, None, None)
+        .expect("funds")
+        .funds;
+    let resolved = ResolvedTradeRequest {
+        account_id: "42".to_owned(),
+        environment: "REAL".to_owned(),
+        market: "US".to_owned(),
+        header: trade_header(1, 42, 2),
+    };
+    let balances = portfolio_cash_balance_values("futu", &resolved, &funds);
+    assert_eq!(balances.len(), 1);
+    assert_eq!(balances[0]["brokerId"], "futu");
+    assert_eq!(balances[0]["currency"], "HKD");
+    assert_eq!(balances[0]["cashBalance"], 3.0);
+    assert!(balances[0]["updatedAt"].as_str().is_some());
+}
+
+#[test]
 fn margin_ratios_require_symbols() {
     let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
     let error = port

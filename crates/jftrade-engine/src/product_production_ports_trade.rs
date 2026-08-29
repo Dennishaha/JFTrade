@@ -8,7 +8,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
-    TradeFilter, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort, TradeSecurity,
+    TradeFilter, TradeFunds, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort,
+    TradeSecurity,
     trade_header,
 };
 use jftrade_settings::MarketDataProvider;
@@ -289,26 +290,49 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
                 let funds = client
                     .read_funds(resolved.header.clone(), request.refresh_cache(), None, None)
                     .map_err(|e| unavailable_portfolio(e.to_string()))?;
-                let balances = funds.funds.cash_info_list.into_iter().map(|cash| json!({
-                    "currency": cash.currency,
-                    "cash": cash.cash,
-                    "availableBalance": cash.available_balance,
-                    "netCashPower": cash.net_cash_power,
-                })).collect::<Vec<_>>();
-                let balances = balances.into_iter().map(|balance| json!({
-                    "brokerId": request.broker_id,
-                    "tradingEnvironment": resolved.environment,
-                    "accountId": resolved.account_id,
-                    "currency": balance["currency"],
-                    "cashBalance": balance["cash"],
-                    "updatedAt": checked_at(),
-                    "createdAt": checked_at(),
-                })).collect::<Vec<_>>();
+                let balances = portfolio_cash_balance_values(&request.broker_id, &resolved, &funds.funds);
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "balances": balances }))
             }
             _ => Err(unavailable_portfolio(format!("Futu portfolio resource '{}' is unavailable", request.resource))),
         }
     }
+}
+
+fn portfolio_cash_balance_values(
+    broker_id: &str,
+    resolved: &ResolvedTradeRequest,
+    funds: &TradeFunds,
+) -> Vec<Value> {
+    let timestamp = checked_at();
+    let mut balances = funds
+        .cash_info_list
+        .iter()
+        .map(|cash| {
+            json!({
+                "brokerId": broker_id,
+                "tradingEnvironment": resolved.environment,
+                "accountId": resolved.account_id,
+                "currency": currency_label(cash.currency),
+                "cashBalance": cash.cash,
+                "updatedAt": timestamp,
+                "createdAt": timestamp,
+            })
+        })
+        .collect::<Vec<_>>();
+    if balances.is_empty()
+        && let Some(currency) = currency_label(funds.currency)
+    {
+        balances.push(json!({
+            "brokerId": broker_id,
+            "tradingEnvironment": resolved.environment,
+            "accountId": resolved.account_id,
+            "currency": currency,
+            "cashBalance": funds.cash,
+            "updatedAt": timestamp,
+            "createdAt": timestamp,
+        }));
+    }
+    balances
 }
 
 #[derive(Clone, Default)]
