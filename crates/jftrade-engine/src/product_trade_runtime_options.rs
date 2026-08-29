@@ -12,6 +12,8 @@ use jftrade_integration_futu::{
     OptionExerciseProbabilitySnapshot,
     OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
     OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSnapshot,
+    OptionUnderlyingHisVolatilityQuery, OptionUnderlyingHisVolatilityQueryError,
+    OptionUnderlyingHisVolatilityReadPort, OptionUnderlyingHisVolatilitySnapshot,
     OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort,
     OptionUnderlyingRankSnapshot,
     OptionContractRankQuery, OptionContractRankQueryError, OptionContractRankReadPort,
@@ -245,6 +247,42 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionUnderlyingOverviewQueryError::InvalidQuery(
                     "Futu option underlying overview runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_underlying_his_volatility(
+        &self,
+        reader: Option<Arc<dyn OptionUnderlyingHisVolatilityReadPort>>,
+    ) {
+        *self
+            .option_underlying_his_volatility
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_underlying_his_volatility_available(&self) -> bool {
+        self.option_underlying_his_volatility
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_underlying_his_volatility(
+        &self,
+        query: &OptionUnderlyingHisVolatilityQuery,
+    ) -> Result<OptionUnderlyingHisVolatilitySnapshot, OptionUnderlyingHisVolatilityQueryError>
+    {
+        let reader = self
+            .option_underlying_his_volatility
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionUnderlyingHisVolatilityQueryError::InvalidQuery(
+                    "Futu option underlying historical volatility runtime is unavailable"
+                        .to_owned(),
                 )
             })?;
         reader.query(query)

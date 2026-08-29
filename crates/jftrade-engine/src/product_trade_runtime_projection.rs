@@ -6,22 +6,20 @@ use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
     OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
-    OptionUnderlyingRankReadPort, OptionContractRankReadPort, TradeReadPort, TradeSecurity,
+    OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
+    TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Map, Value, json};
-
 use crate::product::product_query::{
     normalize_candle_period, normalize_optional_query_time, parse_candle_before_time, QueryMap,
 };
-
 use super::super::product_production_ports_market_data::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339,
 };
 use super::product_trade_margin_cache::MarginRatioCache;
 use super::qot_market_label;
-
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
@@ -42,6 +40,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_volatility: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
     pub(crate) option_exercise_probability: Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
     pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
+    pub(crate) option_underlying_his_volatility: Arc<RwLock<Option<OptionUnderlyingHisVolatilityPort>>>,
     pub(crate) option_underlying_rank: Arc<RwLock<Option<Arc<dyn OptionUnderlyingRankReadPort>>>>,
     pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
@@ -54,6 +53,7 @@ pub(crate) struct TradeRuntimeConnection {
     pub(crate) use_encryption: bool,
 }
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
+type OptionUnderlyingHisVolatilityPort = Arc<dyn OptionUnderlyingHisVolatilityReadPort>;
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedTradeReadRuntime")

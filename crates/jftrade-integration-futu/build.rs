@@ -9,6 +9,7 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionVolatility.proto",
         "../../pkg/futu/proto/Qot_GetOptionExerciseProbability.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingOverview.proto",
+        "../../pkg/futu/proto/Qot_GetOptionUnderlyingHisVolatility.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingRank.proto",
         "../../pkg/futu/proto/Qot_GetOptionRank.proto",
         "../../pkg/futu/proto/Qot_GetOptionEvent.proto",

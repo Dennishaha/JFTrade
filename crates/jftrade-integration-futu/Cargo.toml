@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
+base64.workspace = true
 jftrade-broker.workspace = true
 jftrade-kernel.workspace = true
 jftrade-marketdata.workspace = true
