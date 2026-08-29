@@ -481,4 +481,3 @@ impl ResearchScreenWritePort for ProductionResearchScreenPort {
         Err(ResearchScreenWritePortError::Unavailable)
     }
 }
-

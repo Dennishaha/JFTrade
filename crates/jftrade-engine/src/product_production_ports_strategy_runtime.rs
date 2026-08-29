@@ -556,5 +556,3 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
         }
     }
 }
-
-
