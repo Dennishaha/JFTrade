@@ -198,6 +198,11 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
+                    trade_runtime_for_activation.set_option_underlying_rank(Some(Arc::new(
+                        jftrade_integration_futu::OpenDOptionUnderlyingRankReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_option_events(Some(Arc::new(
                         jftrade_integration_futu::OpenDOptionEventReader::new(
                             provider.coordinator(),
@@ -243,6 +248,7 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set_option_volatility(None);
                     trade_runtime_for_activation.set_option_exercise_probability(None);
                     trade_runtime_for_activation.set_option_underlying_overview(None);
+                    trade_runtime_for_activation.set_option_underlying_rank(None);
                     trade_runtime_for_activation.set_option_events(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }

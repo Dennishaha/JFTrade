@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
-    OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort, TradeReadPort,
+    OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
+    OptionUnderlyingRankReadPort, TradeReadPort,
     TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -42,6 +43,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_volatility: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
     pub(crate) option_exercise_probability: Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
     pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
+    pub(crate) option_underlying_rank: Arc<RwLock<Option<Arc<dyn OptionUnderlyingRankReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
 #[derive(Clone, Debug)]
@@ -64,13 +66,11 @@ pub(crate) struct TradeReadRuntimeSnapshot {
     pub(crate) client: Option<Arc<dyn TradeReadPort>>,
     pub(crate) trade_logged_in: Option<bool>,
 }
-
 impl TradeReadRuntimeSnapshot {
     pub(crate) fn is_ready(&self) -> bool {
         self.client.is_some() && self.trade_logged_in == Some(true)
     }
 }
-
 impl SharedTradeReadRuntime {
     pub(crate) fn set_runtime_projection(
         &self,

@@ -12,6 +12,8 @@ use jftrade_integration_futu::{
     OptionExerciseProbabilitySnapshot,
     OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
     OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSnapshot,
+    OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort,
+    OptionUnderlyingRankSnapshot,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -241,6 +243,40 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionUnderlyingOverviewQueryError::InvalidQuery(
                     "Futu option underlying overview runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_underlying_rank(
+        &self,
+        reader: Option<Arc<dyn OptionUnderlyingRankReadPort>>,
+    ) {
+        *self
+            .option_underlying_rank
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_underlying_rank_available(&self) -> bool {
+        self.option_underlying_rank
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_underlying_rank(
+        &self,
+        query: &OptionUnderlyingRankQuery,
+    ) -> Result<OptionUnderlyingRankSnapshot, OptionUnderlyingRankQueryError> {
+        let reader = self
+            .option_underlying_rank
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionUnderlyingRankQueryError::InvalidQuery(
+                    "Futu option underlying rank runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)
