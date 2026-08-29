@@ -393,6 +393,7 @@ fn security_snapshot_value(
         item.insert("name".to_owned(), Value::String(name));
     }
     for (key, value) in [
+        ("lastPrice", snapshot.last_price),
         ("bidPrice", snapshot.bid_price),
         ("askPrice", snapshot.ask_price),
         ("openPrice", snapshot.open_price),
@@ -406,6 +407,9 @@ fn security_snapshot_value(
     }
     if let Some(turnover) = snapshot.turnover.as_ref() {
         item.insert("turnover".to_owned(), decimal_number(turnover)?);
+    }
+    if let Some(volume) = snapshot.volume.as_ref() {
+        item.insert("volume".to_owned(), decimal_number(volume)?);
     }
     if let Some(status) = snapshot.status {
         item.insert("status".to_owned(), json!(status));

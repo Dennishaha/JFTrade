@@ -56,11 +56,13 @@ pub fn basic_quote_ticks(
             Tick {
                 instrument_id: instrument_id.clone(),
                 price,
-                volume,
+                volume: volume.clone(),
                 snapshot: Some(TradeQuoteSnapshot {
                     symbol: Some(instrument_id.clone()),
                     name: quote.name,
                     is_suspended: quote.is_suspended,
+                    last_price: Some(price),
+                    volume: Some(volume.clone()),
                     open_price: optional_fixed8(quote.open_price),
                     high_price: optional_fixed8(quote.high_price),
                     low_price: optional_fixed8(quote.low_price),

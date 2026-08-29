@@ -123,6 +123,8 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
         is_suspended: Some(basic.is_suspend),
         bid_price: optional_fixed8(basic.bid_price),
         ask_price: optional_fixed8(basic.ask_price),
+        last_price: optional_fixed8(Some(basic.cur_price)),
+        volume: optional_decimal(Some(basic.volume as f64)),
         lot_size: Some(basic.lot_size),
         security_type: Some(security_type(basic.r#type).to_owned()),
         open_price: optional_fixed8(Some(basic.open_price)),

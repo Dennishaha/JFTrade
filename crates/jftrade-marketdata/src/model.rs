@@ -214,6 +214,10 @@ pub struct TradeQuoteSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ask_price: Option<Fixed8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_price: Option<Fixed8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume: Option<DecimalText>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lot_size: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub security_type: Option<String>,
