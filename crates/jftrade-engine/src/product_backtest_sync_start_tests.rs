@@ -197,3 +197,17 @@ fn production_backtest_read_rejects_corrupted_request_json() {
     let error = port.list().expect_err("corrupt request must fail closed");
     assert!(error.to_string().contains("invalid JSON"));
 }
+
+#[test]
+fn production_backtest_start_without_worker_fails_before_persisting_run() {
+    let (port, _directory) = production_port();
+    let result = port.mutate(&BacktestsWriteInput::Start {
+        payload: json!({"symbol": "US.AAPL", "period": "1d"}),
+    });
+    assert!(matches!(
+        result,
+        Err(BacktestsWritePortError::Unavailable(message))
+            if message.contains("worker runtime")
+    ));
+    assert_eq!(port.store.run_count().expect("run count"), 0);
+}
