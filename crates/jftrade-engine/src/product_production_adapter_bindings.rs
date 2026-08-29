@@ -28,6 +28,30 @@ impl ProductionPortBundle {
     ) -> Option<ProductionAdapterBinding> {
         if matches!(
             adapter,
+            ProductionRouteAdapter::ResearchRankingsRead
+                | ProductionRouteAdapter::ResearchIndustriesRead
+        ) {
+            let snapshot = self.active_provider_state.snapshot();
+            let ready = snapshot.helper_ready
+                && match adapter {
+                    ProductionRouteAdapter::ResearchRankingsRead => matches!(
+                        snapshot.provider,
+                        Some(jftrade_settings::MarketDataProvider::Yfinance)
+                            | Some(jftrade_settings::MarketDataProvider::Akshare)
+                    ),
+                    ProductionRouteAdapter::ResearchIndustriesRead => {
+                        snapshot.provider == Some(jftrade_settings::MarketDataProvider::Akshare)
+                    }
+                    _ => false,
+                };
+            return Some(if ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
+        if matches!(
+            adapter,
             ProductionRouteAdapter::BrokerRead | ProductionRouteAdapter::PortfolioRead
         ) {
             let snapshot = self.active_provider_state.snapshot();
@@ -129,16 +153,11 @@ impl ProductionPortBundle {
             return Some(
                 if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
                     && snapshot.opend_ready
-                    && self
-                        .trade_runtime
-                        .as_ref()
-                        .is_some_and(|runtime| {
-                            runtime.option_events_available()
-                                || runtime.option_zero_dte_screener_available()
-                                || runtime.option_earnings_screener_available()
-                                || runtime.option_zero_dte_contract_available()
-                                || runtime.option_seller_screener_available()
-                        })
+                    // The route is shared by five operations.  Its concrete
+                    // reader is selected from the query at request time, so
+                    // startup readiness only asserts that the shared runtime
+                    // exists; each reader then fails closed independently.
+                    && self.trade_runtime.is_some()
                 {
                     ProductionAdapterBinding::Ready
                 } else {
@@ -365,6 +384,8 @@ pub(crate) fn production_adapter_bindings(
         Adapter::RemoteWatchlistWrite,
         Adapter::StrategyPine,
         Adapter::ResearchRead,
+        Adapter::ResearchRankingsRead,
+        Adapter::ResearchIndustriesRead,
         Adapter::ResearchScreenWrite,
         Adapter::BacktestStart,
         Adapter::ExecutionWrite,

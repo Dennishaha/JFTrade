@@ -18,6 +18,9 @@ pub(crate) fn read(
     if operation == "zero_dte" {
         return read_zero_dte(runtime, query);
     }
+    if operation == "zero_dte_contract" {
+        return read_zero_dte_contract(runtime, query);
+    }
     if operation == "earnings" {
         return read_earnings(runtime, query);
     }
@@ -26,7 +29,7 @@ pub(crate) fn read(
     }
     if operation != "unusual" {
         return Err(bad_request(
-            "operation must be unusual, zero_dte, earnings, or seller",
+            "operation must be unusual, zero_dte, zero_dte_contract, earnings, or seller",
         ));
     }
     let request = parse_request(query)?;
@@ -87,12 +90,13 @@ fn read_zero_dte(
     runtime: &super::super::product_production_ports_trade::SharedTradeReadRuntime,
     query: &str,
 ) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    let (option_market, sort_type, is_asc, count, page, filters) =
+        parse_screener_common(query, true)?;
     if !runtime.option_zero_dte_screener_available() {
         return Err(MarketDataOptionsReadSnapshotError::Unavailable(
             "Futu 0DTE screener reader is not ready".to_owned(),
         ));
     }
-    let (option_market, sort_type, is_asc, count, page, filters) = parse_screener_common(query, true)?;
     let request = jftrade_integration_futu::OptionZeroDteScreenerQuery { option_market, sort_type, is_asc, count, page, filters };
     let page = runtime
         .option_zero_dte_screener(&request)
@@ -121,6 +125,25 @@ fn read_zero_dte(
         entries.push(value);
     }
     screener_result(entries, page.next_page, page.update_timestamp, None)
+}
+
+fn read_zero_dte_contract(
+    runtime: &super::super::product_production_ports_trade::SharedTradeReadRuntime,
+    query: &str,
+) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    let request = parse_zero_dte_contract_query(query)?;
+    if !runtime.option_zero_dte_contract_available() {
+        return Err(MarketDataOptionsReadSnapshotError::Unavailable(
+            "Futu 0DTE contract reader is not ready".to_owned(),
+        ));
+    }
+    let entries = runtime
+        .option_zero_dte_contract(&request)
+        .map_err(map_zero_dte_contract_error)?
+        .into_iter()
+        .map(|item| serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string())))
+        .collect::<Result<Vec<_>, _>>()?;
+    screener_result(entries, None, None, None)
 }
 
 fn read_earnings(
@@ -201,6 +224,9 @@ fn parse_seller_query(
         .as_deref()
         .is_some_and(|value| !value.is_empty() && value != "equity" && value != "option")
     {
+        // Qot_GetOptionSellerScreener's generated contract accepts only
+        // US_Security/HK_Security (optionMarket 1/3); unlike the generic
+        // option-event defaulting path, index markets are not valid here.
         return Err(bad_request(
             "seller screener supports security options only",
         ));
@@ -297,7 +323,8 @@ fn parse_screener_common(
         ("US", "index", true) => 2,
         ("US", "equity" | "option" | "", false) => 1,
         ("HK", "equity" | "option" | "", false) => 3,
-        _ if zero_dte => return Err(bad_request("0DTE option research is available only in US market")),
+        ("HK", "index", false) => 4,
+        _ if zero_dte => return Err(zero_dte_market_unavailable()),
         _ => return Err(bad_request("earnings screener supports US/HK security options only")),
     };
     let count = map.get_first("pageSize").or_else(|| map.get_first("count")).map(|value| parse_i32(value, "pageSize")).transpose()?.unwrap_or(50);
@@ -349,6 +376,117 @@ fn parse_screener_common(
     let owner = map.get_first("underlying").or_else(|| map.get_first("instrumentId")).or_else(|| map.get_first("code"));
     let filters = owner.filter(|value| !value.trim().is_empty()).map(|value| parse_owner(value, &market)).transpose()?.map(|owner| vec![jftrade_integration_futu::EventIndicator { indicator_type: 1, value: Some(jftrade_integration_futu::EventIndicatorValue { value_list: Vec::new(), value_interval: None, string_value_list: Vec::new(), security_list: vec![owner] }) }]).unwrap_or_default();
     Ok((option_market, sort_type, is_asc, count, page, filters))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ZeroDteChainLocatorQuery {
+    product_code: String,
+    multiplier: Option<f64>,
+    contract_size: Option<f64>,
+    expiration_type: Option<i32>,
+}
+
+fn parse_zero_dte_contract_query(
+    query: &str,
+) -> Result<jftrade_integration_futu::OptionZeroDteContractQuery, MarketDataOptionsReadSnapshotError>
+{
+    let map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| bad_request("invalid URL escape"))?;
+    let instrument_value = map
+        .get_first("instrumentId")
+        .or_else(|| map.get_first("underlying"))
+        .or_else(|| map.get_first("code"));
+    let market = map
+        .get_first("market")
+        .map(|value| value.trim().to_ascii_uppercase())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            instrument_value.and_then(|value| {
+                value
+                    .split_once('.')
+                    .map(|(market, _)| market.trim().to_ascii_uppercase())
+                    .filter(|market| matches!(market.as_str(), "US" | "HK"))
+            })
+        })
+        .unwrap_or_default();
+    if market != "US" {
+        return Err(zero_dte_market_unavailable());
+    }
+    let instrument_id = instrument_value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(chain_context_required)?;
+    let owner = parse_owner(instrument_id, "US")
+        .map_err(|_| chain_context_required())?;
+    let expiry = map
+        .get_first("expiryTimestamp")
+        .ok_or_else(chain_context_required)?
+        .trim()
+        .parse::<i64>()
+        .ok()
+        .filter(|value| *value > 0)
+        .ok_or_else(chain_context_required)?;
+    let locator_value = map
+        .get_first("chainLocator")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(chain_context_required)?;
+    let locator = serde_json::from_str::<ZeroDteChainLocatorQuery>(locator_value)
+        .map_err(|_| chain_context_required())?;
+    let product_code = locator.product_code.trim().to_owned();
+    if product_code.is_empty() {
+        return Err(chain_context_required());
+    }
+    let sort_type = match map
+        .get_first("sort")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        None | Some("") | Some("default") => None,
+        Some("volume") => Some(1),
+        Some("open_interest") => Some(2),
+        Some("iv") => Some(3),
+        Some("delta") => Some(4),
+        Some(_) => return Err(bad_request("unsupported 0DTE contract sort")),
+    };
+    let filters = match map
+        .get_first("optionType")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        None | Some("") | Some("all") => Vec::new(),
+        Some("call") => vec![zero_dte_option_type_filter(1)],
+        Some("put") => vec![zero_dte_option_type_filter(2)],
+        Some(_) => return Err(bad_request("optionType must be all, call, or put")),
+    };
+    Ok(jftrade_integration_futu::OptionZeroDteContractQuery {
+        owner: owner.clone(),
+        strike_date_timestamp: expiry,
+        chain_info: jftrade_integration_futu::OptionZeroDteChainInfo {
+            strike_date_timestamp: Some(expiry),
+            product_code: Some(product_code),
+            multiplier: locator.multiplier,
+            contract_share_size: locator.contract_size,
+            expiration_type: locator.expiration_type,
+            underlying: Some(owner),
+        },
+        sort_type,
+        is_asc: None,
+        filters,
+    })
+}
+
+fn zero_dte_option_type_filter(option_type: i64) -> jftrade_integration_futu::EventIndicator {
+    jftrade_integration_futu::EventIndicator {
+        indicator_type: 1,
+        value: Some(jftrade_integration_futu::EventIndicatorValue {
+            value_list: vec![option_type],
+            value_interval: None,
+            string_value_list: Vec::new(),
+            security_list: Vec::new(),
+        }),
+    }
 }
 
 fn parse_request(
@@ -502,6 +640,26 @@ fn bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
     }
 }
 
+fn context_bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
+    MarketDataOptionsReadSnapshotError::Failed {
+        status: 400,
+        code: "OPTION_CHAIN_CONTEXT_REQUIRED".to_owned(),
+        message: message.to_owned(),
+    }
+}
+
+fn chain_context_required() -> MarketDataOptionsReadSnapshotError {
+    context_bad_request("0DTE option chain context is required")
+}
+
+fn zero_dte_market_unavailable() -> MarketDataOptionsReadSnapshotError {
+    MarketDataOptionsReadSnapshotError::Failed {
+        status: 422,
+        code: "OPTION_ZERO_DTE_UNAVAILABLE".to_owned(),
+        message: "0DTE option research is available only in the US market".to_owned(),
+    }
+}
+
 fn map_error(
     error: jftrade_integration_futu::OptionEventQueryError,
 ) -> MarketDataOptionsReadSnapshotError {
@@ -543,6 +701,16 @@ fn map_seller_error(
     use jftrade_integration_futu::OptionSellerScreenerQueryError as Error;
     match error {
         Error::InvalidQuery(message) => bad_request(&message),
+        other => bad_gateway(other.to_string()),
+    }
+}
+
+fn map_zero_dte_contract_error(
+    error: jftrade_integration_futu::OptionZeroDteContractQueryError,
+) -> MarketDataOptionsReadSnapshotError {
+    use jftrade_integration_futu::OptionZeroDteContractQueryError as Error;
+    match error {
+        Error::InvalidQuery(message) => context_bad_request(&message),
         other => bad_gateway(other.to_string()),
     }
 }

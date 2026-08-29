@@ -1,5 +1,4 @@
 //! Production research preset and read adapters.
-
 use std::sync::Arc;
 use std::thread;
 use jftrade_research::normalize_definition_v2;
@@ -13,12 +12,10 @@ use crate::product::product_research_preset_write_port::{ResearchPresetWriteMuta
 use crate::product::product_research_screen_write_port::{ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery};
 use crate::product::{ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, ResearchReadSnapshotError, ResearchReadSnapshotPort};
 use super::generate_strategy_id;
-
 #[derive(Debug)]
 pub(crate) struct ProductionResearchPresetPort {
     pub(crate) store: Arc<ResearchPresetStore>,
 }
-
 impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
     fn read(&self, path: &str, _query: &str) -> Result<Value, ResearchPresetReadSnapshotError> {
         if path == "/api/v1/research/screens/presets" {
@@ -34,7 +31,6 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
                 .collect::<Result<Vec<_>, _>>()?;
             return Ok(json!({ "presets": items }));
         }
-
         if let Some(id) = path.strip_prefix("/api/v1/research/screens/presets/") {
             if id.is_empty() || id.contains('/') {
                 return Err(ResearchPresetReadSnapshotError::NotFound);
@@ -49,11 +45,9 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
             return serde_json::to_value(&preset)
                 .map_err(|error| ResearchPresetReadSnapshotError::Unavailable(error.to_string()));
         }
-
         Err(ResearchPresetReadSnapshotError::NotFound)
     }
 }
-
 impl ResearchPresetWritePort for ProductionResearchPresetPort {
     fn mutate(
         &self,
@@ -148,7 +142,6 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
         }
     }
 }
-
 fn normalized_preset_name(value: Option<&Value>) -> Result<String, ResearchPresetWritePortError> {
     let name = value
         .and_then(Value::as_str)
@@ -160,21 +153,18 @@ fn normalized_preset_name(value: Option<&Value>) -> Result<String, ResearchPrese
     }
     Ok(name.to_owned())
 }
-
 fn normalized_preset_definition(value: Option<&Value>) -> Result<Value, ResearchPresetWritePortError> {
     let value = value
         .cloned()
         .ok_or_else(|| invalid_preset("definition is required"))?;
     normalize_definition_v2(value).map_err(|error| invalid_preset(error.to_string()))
 }
-
 fn invalid_preset(message: impl Into<String>) -> ResearchPresetWritePortError {
     ResearchPresetWritePortError::Invalid(format!(
         "invalid research screen preset: {}",
         message.into()
     ))
 }
-
 fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchPresetWritePortError {
     match error {
         ResearchPresetStoreError::NotFound => {
@@ -201,13 +191,11 @@ fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchP
 // ---------------------------------------------------------------------------
 // Research Read & Screen Write
 // ---------------------------------------------------------------------------
-
 pub(crate) struct ProductionResearchPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
     pub(crate) helper: Option<HelperClient>,
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
-
 impl std::fmt::Debug for ProductionResearchPort {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -225,6 +213,18 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 "research provider is not configured".to_owned(),
             ));
         };
+        if matches!(
+            path,
+            "/api/v1/research/rankings" | "/api/v1/research/industries"
+        ) {
+            return super::read_market_research(
+                provider,
+                snapshot.helper_ready,
+                self.helper.as_ref(),
+                path,
+                query,
+            );
+        }
         if provider == jftrade_settings::MarketDataProvider::Futu {
             if !path.starts_with("/api/v1/research/valuation/") {
                 return Err(ResearchReadSnapshotError::Unavailable(

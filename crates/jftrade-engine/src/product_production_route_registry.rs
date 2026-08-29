@@ -32,6 +32,8 @@ pub(crate) enum ProductionRouteAdapter {
     StrategyPine,
     ResearchCatalog,
     ResearchRead,
+    ResearchRankingsRead,
+    ResearchIndustriesRead,
     ResearchPresetRead,
     ResearchPresetWrite,
     ResearchScreenWrite,
@@ -116,6 +118,8 @@ impl ProductionRouteAdapter {
             Self::StrategyPine => "strategy-pine",
             Self::ResearchCatalog => "research-catalog",
             Self::ResearchRead => "research-read",
+            Self::ResearchRankingsRead => "research-rankings-read",
+            Self::ResearchIndustriesRead => "research-industries-read",
             Self::ResearchPresetRead => "research-preset-read",
             Self::ResearchPresetWrite => "research-preset-write",
             Self::ResearchScreenWrite => "research-screen-write",
@@ -412,6 +416,12 @@ fn research_adapter(method: &str, path: &str) -> Option<ProductionRouteAdapter> 
     }
     if method == "POST" && path == "/api/v1/research/screens" {
         return Some(ProductionRouteAdapter::ResearchScreenWrite);
+    }
+    if method == "GET" && path == "/api/v1/research/rankings" {
+        return Some(ProductionRouteAdapter::ResearchRankingsRead);
+    }
+    if method == "GET" && path == "/api/v1/research/industries" {
+        return Some(ProductionRouteAdapter::ResearchIndustriesRead);
     }
     (method == "GET").then_some(ProductionRouteAdapter::ResearchRead)
 }
