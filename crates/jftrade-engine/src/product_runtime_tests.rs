@@ -36,6 +36,7 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
         market_data_opend_task: None,
         market_data_opend_provider: None,
         strategy_runtime_registry: None,
+        backtest_execution_port: None,
         shutdown_recorder: None,
         #[cfg(test)]
         inject_startup_failure: false,
@@ -75,6 +76,7 @@ async fn opend_runtime_task_requires_explicit_session_composition() {
         market_data_opend_task: Some(OpenDSessionRuntimeConfig::default()),
         market_data_opend_provider: None,
         strategy_runtime_registry: None,
+        backtest_execution_port: None,
         shutdown_recorder: None,
         #[cfg(test)]
         inject_startup_failure: false,
@@ -553,6 +555,7 @@ async fn build_test_runtime_config(
         market_data_opend_task: None,
         market_data_opend_provider: Some(provider_config),
         strategy_runtime_registry: None,
+        backtest_execution_port: None,
         shutdown_recorder: Some(recorder),
         #[cfg(test)]
         inject_startup_failure: inject_fault,

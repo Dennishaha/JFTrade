@@ -2156,6 +2156,7 @@ dependencies = [
  "getrandom 0.4.3",
  "jftrade-api",
  "jftrade-assistant",
+ "jftrade-backtest",
  "jftrade-calendar",
  "jftrade-datamanagement",
  "jftrade-integration-futu",

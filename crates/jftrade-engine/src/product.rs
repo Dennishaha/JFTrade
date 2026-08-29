@@ -129,8 +129,14 @@ use product_watchlist_write_port::{
     WatchlistWritePort, WatchlistWriteRequest, WatchlistWriteResponse, dispatch_watchlist_write,
     watchlist_write_routes,
 };
+#[path = "product_backtest_execution.rs"]
+mod product_backtest_execution;
 #[path = "product_backtests_write_port.rs"]
 mod product_backtests_write_port;
+pub use product_backtest_execution::{
+    BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest,
+    RunJsonBacktestExecutionPort,
+};
 #[cfg(test)]
 #[path = "product_backtests_write_test_cutover.rs"]
 mod product_backtests_write_test_cutover;
@@ -358,6 +364,7 @@ pub struct ProductConfig {
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
+    pub(crate) backtest_execution_port: Option<Arc<dyn BacktestExecutionPort>>,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     strategy_runtime_status_port: Option<Arc<dyn StrategyRuntimeStatusPort>>,
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
@@ -460,6 +467,7 @@ impl ProductConfig {
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
             backtests_write_port: None,
+            backtest_execution_port: None,
             strategy_read_snapshot_port: None,
             strategy_runtime_status_port: None,
             strategy_runtime_write_port: None,

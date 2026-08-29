@@ -191,6 +191,40 @@ impl BacktestRunStore {
         })
     }
 
+    /// Update a run only if it is still in `expected_status`.  Run workers use
+    /// this compare-and-set boundary for completion, failure and cancellation
+    /// so a late result cannot overwrite a newer terminal state.
+    pub fn update_run_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        run: StoredBacktestRun,
+        timestamp: &str,
+    ) -> Result<bool, BacktestRunStoreError> {
+        validate_rfc3339_timestamp(timestamp)?;
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(BacktestRunStoreError::Query)?;
+        let changed = transaction
+            .execute(
+                "UPDATE backtest_runs SET status = ?2, request_json = ?3,
+                 result_json = ?4, updated_at = ?5
+                 WHERE id = ?1 AND status = ?6",
+                params![
+                    id,
+                    run.status,
+                    run.request_json,
+                    run.result_json,
+                    timestamp,
+                    expected_status,
+                ],
+            )
+            .map_err(BacktestRunStoreError::Query)?;
+        transaction.commit().map_err(BacktestRunStoreError::Query)?;
+        Ok(changed == 1)
+    }
+
     pub fn get_run(&self, id: &str) -> Result<Option<StoredBacktestRun>, BacktestRunStoreError> {
         let connection = self.lock()?;
         let row = connection
@@ -319,6 +353,17 @@ impl BacktestRunTestCutoverStore {
 
     pub fn get_run(&self, id: &str) -> Result<Option<StoredBacktestRun>, BacktestRunStoreError> {
         self.inner.get_run(id)
+    }
+
+    pub fn update_run_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        run: StoredBacktestRun,
+        timestamp: &str,
+    ) -> Result<bool, BacktestRunStoreError> {
+        self.inner
+            .update_run_if_status(id, expected_status, run, timestamp)
     }
 
     pub fn run_count(&self) -> Result<u64, BacktestRunStoreError> {

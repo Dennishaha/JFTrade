@@ -1,6 +1,7 @@
 //! Backtests, Execution Orders, Brokers, and ADK production ports.
 
 use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::time::Duration;
 use jftrade_integration_marketdata_helper::{HelperCandlesResponse, HelperClient};
 use jftrade_settings::MarketDataProvider;
 use jftrade_store_sqlite::{
@@ -10,6 +11,10 @@ use jftrade_store_sqlite::{
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_backtest_execution::{
+    BacktestExecutionPort, BacktestExecutionRequest,
+    BacktestExecutionTaskRegistry, EXECUTION_TIMEOUT, next_run_id, now_timestamp,
+};
 use super::BacktestSyncWorkerRegistry;
 use crate::product::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
@@ -38,6 +43,8 @@ pub(crate) struct ProductionBacktestPort {
     pub(crate) helper: Option<HelperClient>,
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
     pub(crate) sync_workers: Arc<BacktestSyncWorkerRegistry>,
+    pub(crate) execution: Option<Arc<dyn BacktestExecutionPort>>,
+    pub(crate) execution_workers: Arc<BacktestExecutionTaskRegistry>,
 }
 
 impl std::fmt::Debug for ProductionBacktestPort {
@@ -45,6 +52,7 @@ impl std::fmt::Debug for ProductionBacktestPort {
         formatter
             .debug_struct("ProductionBacktestPort")
             .field("has_helper", &self.helper.is_some())
+            .field("has_execution", &self.execution.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -159,11 +167,7 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
 impl BacktestsWritePort for ProductionBacktestPort {
     fn mutate(&self, input: &BacktestsWriteInput) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
         match input {
-            BacktestsWriteInput::Start { .. } => {
-                Err(BacktestsWritePortError::Unavailable(
-                    "backtest worker runtime is not configured".to_owned(),
-                ))
-            }
+            BacktestsWriteInput::Start { payload } => self.start_backtest(payload),
             BacktestsWriteInput::Sync { payload } => {
                 self.start_sync_task(payload)
             }
@@ -189,6 +193,118 @@ impl BacktestsWritePort for ProductionBacktestPort {
 }
 
 impl ProductionBacktestPort {
+    #[allow(dead_code)]
+    pub(crate) fn cancel_backtest(&self, run_id: &str) -> bool {
+        let Some(run) = self.store.get_run(run_id).ok().flatten() else {
+            return false;
+        };
+        if matches!(run.status.as_str(), "completed" | "failed" | "cancelled") {
+            return false;
+        }
+        let timestamp = now_timestamp();
+        let cancelled = jftrade_store_sqlite::StoredBacktestRun {
+            status: "cancelled".to_owned(),
+            result_json: json!({"error": "backtest cancelled"}).to_string(),
+            updated_at: timestamp.clone(),
+            ..run
+        };
+        if !self
+            .store
+            .update_run_if_status(run_id, "queued", cancelled.clone(), &timestamp)
+            .unwrap_or(false)
+            && !self
+                .store
+                .update_run_if_status(run_id, "running", cancelled, &timestamp)
+                .unwrap_or(false)
+        {
+            return false;
+        }
+        let _ = self.execution_workers.cancel(run_id);
+        true
+    }
+
+    fn start_backtest(
+        &self,
+        payload: &Value,
+    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
+        let execution = self.execution.clone().ok_or_else(|| {
+            BacktestsWritePortError::Unavailable("backtest worker runtime is not configured".to_owned())
+        })?;
+        let provider = self.active_provider_state.get().ok_or_else(|| {
+            BacktestsWritePortError::Unavailable(
+                "active market-data provider is not configured".to_owned(),
+            )
+        })?;
+        let provider_id = provider_id(provider);
+        let request = parse_start_request(payload)?;
+        let candles = self
+            ._market_data_store
+            .read_candles(
+                provider_id,
+                &request.symbol,
+                &request.interval,
+                &request.rehab_type,
+                &request.session_scope,
+                request.start_time_ms,
+                request.end_time_ms,
+            )
+            .map_err(|error| {
+                BacktestsWritePortError::Unavailable(format!(
+                    "backtest K-line data is not ready: {error}"
+                ))
+            })?;
+        if candles.is_empty() {
+            return Err(BacktestsWritePortError::Unavailable(
+                "backtest K-line data is not ready".to_owned(),
+            ));
+        }
+        let runtime = tokio::runtime::Handle::try_current().map_err(|_| {
+            BacktestsWritePortError::Unavailable("backtest execution runtime is not available".to_owned())
+        })?;
+        let run_id = next_run_id();
+        let timestamp = now_timestamp();
+        let run = jftrade_store_sqlite::StoredBacktestRun {
+            id: run_id.clone(),
+            status: "queued".to_owned(),
+            request_json: payload.to_string(),
+            result_json: String::new(),
+            created_at: timestamp.clone(),
+            updated_at: timestamp.clone(),
+        };
+        self.store
+            .save_run(run, &timestamp)
+            .map_err(|error| BacktestsWritePortError::Failed(format!("persist backtest run: {error}")))?;
+
+        let worker_request = BacktestExecutionRequest {
+            run_id: run_id.clone(),
+            payload: payload.clone(),
+            market_data_provider: provider_id.to_owned(),
+            candles,
+        };
+        let store = Arc::clone(&self.store);
+        let registry = Arc::clone(&self.execution_workers);
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+        let handle = runtime.spawn(async move {
+            let _ = execute_backtest_task(
+                store,
+                execution,
+                worker_request,
+                cancel_rx,
+                EXECUTION_TIMEOUT,
+            )
+            .await;
+        });
+        registry.register(run_id.clone(), Arc::clone(&self.store), handle, cancel_tx);
+        Ok(BacktestsWritePortResult::Data(json!({
+            "id": run_id,
+            "status": "queued",
+            "request": payload,
+            "createdAt": timestamp,
+            "updatedAt": timestamp,
+            "marketDataProvider": provider_id,
+        })))
+    }
+
     fn start_sync_task(
         &self,
         payload: &Value,
@@ -311,6 +427,232 @@ impl ProductionBacktestPort {
         }
     }
 
+}
+
+#[derive(Clone, Debug)]
+struct ParsedBacktestStart {
+    symbol: String,
+    interval: String,
+    rehab_type: String,
+    session_scope: String,
+    start_time_ms: i64,
+    end_time_ms: i64,
+}
+
+fn provider_id(provider: MarketDataProvider) -> &'static str {
+    match provider {
+        MarketDataProvider::Futu => "futu",
+        MarketDataProvider::Yfinance => "yfinance",
+        MarketDataProvider::Akshare => "akshare",
+    }
+}
+
+fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart, BacktestsWritePortError> {
+    let object = payload.as_object().ok_or_else(|| {
+        BacktestsWritePortError::BadRequest("invalid backtest request".to_owned())
+    })?;
+    let corpus_case = payload
+        .get("corpus")
+        .and_then(|value| value.get("cases"))
+        .and_then(Value::as_array)
+        .and_then(|cases| cases.first());
+    let text = |name: &str| {
+        object
+            .get(name)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    };
+    if payload.get("corpus").is_none() && text("definitionId").is_none() {
+        return Err(BacktestsWritePortError::BadRequest(
+            "definitionId is required".to_owned(),
+        ));
+    }
+    let symbol = if let Some(symbol) = text("symbol") {
+        symbol.to_owned()
+    } else if let (Some(market), Some(code)) = (text("market"), text("code")) {
+        format!("{market}.{code}")
+    } else if let Some(symbol) = corpus_case
+        .and_then(|case| case.get("symbol"))
+        .and_then(Value::as_str)
+    {
+        symbol.to_owned()
+    } else {
+        return Err(BacktestsWritePortError::BadRequest(
+            "symbol is required".to_owned(),
+        ));
+    };
+    let interval = text("interval").unwrap_or("1m").to_owned();
+    if !matches!(interval.as_str(), "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1w" | "1mo") {
+        return Err(BacktestsWritePortError::BadRequest(
+            "invalid interval".to_owned(),
+        ));
+    }
+    let rehab_type = text("rehabType").unwrap_or("forward").to_ascii_lowercase();
+    if !matches!(rehab_type.as_str(), "forward" | "backward" | "none") {
+        return Err(BacktestsWritePortError::BadRequest(
+            "invalid rehabType".to_owned(),
+        ));
+    }
+    let session_scope = if object
+        .get("useExtendedHours")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        "extended"
+    } else {
+        "regular"
+    }
+    .to_owned();
+    let start = text("startTime")
+        .or_else(|| text("startDate"))
+        .map(parse_start_timestamp)
+        .transpose()?;
+    let end = text("endTime")
+        .or_else(|| text("endDate"))
+        .map(parse_end_timestamp)
+        .transpose()?;
+    let (start_time_ms, end_time_ms) = match (start, end) {
+        (Some(start), Some(end)) => (start, end),
+        _ => {
+            let candles = corpus_case
+                .and_then(|case| case.get("candles"))
+                .and_then(Value::as_array)
+                .filter(|candles| !candles.is_empty())
+                .ok_or_else(|| {
+                    BacktestsWritePortError::BadRequest(
+                        "startTime and endTime are required".to_owned(),
+                    )
+                })?;
+            let start = candles
+                .first()
+                .and_then(|candle| candle.get("start"))
+                .and_then(Value::as_str)
+                .map(parse_start_timestamp)
+                .transpose()?
+                .ok_or_else(|| BacktestsWritePortError::BadRequest("invalid candle start".to_owned()))?;
+            let end = candles
+                .last()
+                .and_then(|candle| candle.get("end"))
+                .and_then(Value::as_str)
+                .map(parse_end_timestamp)
+                .transpose()?
+                .ok_or_else(|| BacktestsWritePortError::BadRequest("invalid candle end".to_owned()))?;
+            (start, end)
+        }
+    };
+    if end_time_ms <= start_time_ms {
+        return Err(BacktestsWritePortError::BadRequest(
+            "endTime must be after startTime".to_owned(),
+        ));
+    }
+    Ok(ParsedBacktestStart {
+        symbol,
+        interval,
+        rehab_type,
+        session_scope,
+        start_time_ms,
+        end_time_ms,
+    })
+}
+
+fn parse_start_timestamp(value: &str) -> Result<i64, BacktestsWritePortError> {
+    parse_backtest_timestamp(value, false)
+}
+
+fn parse_end_timestamp(value: &str) -> Result<i64, BacktestsWritePortError> {
+    parse_backtest_timestamp(value, true)
+}
+
+fn parse_backtest_timestamp(value: &str, date_end: bool) -> Result<i64, BacktestsWritePortError> {
+    let value = value.trim();
+    let parsed = if let Ok(parsed) = time::OffsetDateTime::parse(
+        value,
+        &time::format_description::well_known::Rfc3339,
+    ) {
+        parsed
+    } else {
+        let format = time::format_description::parse_borrowed::<2>("[year]-[month]-[day]")
+            .map_err(|_| BacktestsWritePortError::BadRequest("invalid backtest time".to_owned()))?;
+        let mut date = time::Date::parse(value, &format)
+            .map_err(|_| BacktestsWritePortError::BadRequest("invalid backtest time".to_owned()))?;
+        if date_end {
+            date = date.next_day().ok_or_else(|| {
+                BacktestsWritePortError::BadRequest("backtest time is out of range".to_owned())
+            })?;
+        }
+        time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT).assume_utc()
+    };
+    parsed
+        .unix_timestamp_nanos()
+        .checked_div(1_000_000)
+        .and_then(|value| i64::try_from(value).ok())
+        .ok_or_else(|| BacktestsWritePortError::BadRequest("backtest time is out of range".to_owned()))
+}
+
+async fn execute_backtest_task(
+    store: Arc<BacktestRunStore>,
+    execution: Arc<dyn BacktestExecutionPort>,
+    request: BacktestExecutionRequest,
+    mut cancel_rx: oneshot::Receiver<()>,
+    timeout: Duration,
+) {
+    let timestamp = now_timestamp();
+    let Some(run) = store.get_run(&request.run_id).ok().flatten() else {
+        return;
+    };
+    let running = jftrade_store_sqlite::StoredBacktestRun {
+        status: "running".to_owned(),
+        updated_at: timestamp.clone(),
+        ..run.clone()
+    };
+    if !store
+        .update_run_if_status(&request.run_id, "queued", running, &timestamp)
+        .unwrap_or(false)
+    {
+        return;
+    }
+    let execution_request = request.clone();
+    let join = tokio::task::spawn_blocking(move || execution.execute(execution_request));
+    let outcome = tokio::select! {
+        _ = &mut cancel_rx => TaskOutcome::Cancelled,
+        _ = tokio::time::sleep(timeout) => TaskOutcome::TimedOut,
+        result = join => match result {
+            Ok(Ok(value)) => TaskOutcome::Completed(value),
+            Ok(Err(error)) => TaskOutcome::Failed(error.to_string()),
+            Err(error) if error.is_panic() => TaskOutcome::Failed("backtest worker panicked".to_owned()),
+            Err(error) => TaskOutcome::Failed(error.to_string()),
+        },
+    };
+    let (status, result) = match outcome {
+        TaskOutcome::Completed(mut value) => {
+            if value.is_object() && value.get("marketDataProvider").is_none() {
+                value["marketDataProvider"] = Value::String(request.market_data_provider.clone());
+            }
+            ("completed", value)
+        }
+        TaskOutcome::Cancelled => ("cancelled", json!({"error": "backtest cancelled"})),
+        TaskOutcome::TimedOut => ("failed", json!({"error": "backtest execution timed out"})),
+        TaskOutcome::Failed(message) => ("failed", json!({"error": message})),
+    };
+    let timestamp = now_timestamp();
+    let Some(run) = store.get_run(&request.run_id).ok().flatten() else {
+        return;
+    };
+    let terminal = jftrade_store_sqlite::StoredBacktestRun {
+        status: status.to_owned(),
+        result_json: result.to_string(),
+        updated_at: timestamp.clone(),
+        ..run
+    };
+    let _ = store.update_run_if_status(&request.run_id, "running", terminal, &timestamp);
+}
+
+enum TaskOutcome {
+    Completed(Value),
+    Cancelled,
+    TimedOut,
+    Failed(String),
 }
 
 

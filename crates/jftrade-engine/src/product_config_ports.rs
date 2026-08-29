@@ -288,6 +288,17 @@ impl ProductConfig {
         self
     }
 
+    /// Injects the strategy/Pine/backtest execution adapter.  No adapter is
+    /// installed by the default desktop composition, so production Start
+    /// remains unavailable until an explicit worker boundary is configured.
+    pub fn with_backtest_execution_port(
+        mut self,
+        port: Arc<dyn crate::product::BacktestExecutionPort>,
+    ) -> Self {
+        self.backtest_execution_port = Some(port);
+        self
+    }
+
     #[cfg(test)]
     fn with_plugin_uninstall_guidance_snapshot_port(
         mut self,

@@ -226,6 +226,60 @@ impl BacktestMarketDataStore {
             .map_err(BacktestMarketDataStoreError::Query)?;
         Ok(candles.len())
     }
+
+    /// Read candles for a single instrument/interval in ascending start-time
+    /// order.  The dynamic table name is derived by the same canonicalizer as
+    /// `insert_candles`, preventing a caller from injecting SQL identifiers.
+    #[allow(clippy::too_many_arguments)]
+    pub fn read_candles(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+    ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        if end_time_ms <= start_time_ms {
+            return Err(BacktestMarketDataStoreError::Validation(
+                "candle query end_time must be after start_time".to_owned(),
+            ));
+        }
+        let table = kline_table_name(provider_id, symbol, interval, rehab_type, session_scope)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?;
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT start_time, end_time, open, high, low, close, volume
+                 FROM \"{table}\"
+                 WHERE start_time >= ?1 AND start_time < ?2
+                 ORDER BY start_time ASC, end_time ASC"
+            ))
+            .map_err(BacktestMarketDataStoreError::Query)?;
+        let rows = statement
+            .query_map(rusqlite::params![start_time_ms, end_time_ms], |row| {
+                Ok(StoredBacktestCandle {
+                    start_time: row.get(0)?,
+                    end_time: row.get(1)?,
+                    open: row.get(2)?,
+                    high: row.get(3)?,
+                    low: row.get(4)?,
+                    close: row.get(5)?,
+                    volume: row.get(6)?,
+                })
+            })
+            .map_err(BacktestMarketDataStoreError::Query)?;
+        let mut candles = Vec::new();
+        for row in rows {
+            let candle = row.map_err(BacktestMarketDataStoreError::Query)?;
+            validate_candle(&candle)?;
+            candles.push(candle);
+        }
+        Ok(candles)
+    }
 }
 
 fn validate_kline_table_schema(

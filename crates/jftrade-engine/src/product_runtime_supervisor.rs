@@ -16,7 +16,9 @@ use jftrade_integration_pine::PineProcess;
 use std::sync::{Arc, Mutex};
 
 use super::ProductRuntimeError;
-use crate::product::product_production_ports::{BacktestSyncWorkerRegistry, ProductionPortBundle};
+use crate::product::product_production_ports::{
+    BacktestExecutionTaskRegistry, BacktestSyncWorkerRegistry, ProductionPortBundle,
+};
 use crate::product::{ActiveProviderState, ProductHandle};
 use crate::product_runtime::product_runtime_composition::SharedOpenDProviderRuntime;
 
@@ -57,6 +59,7 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) pine_workers: Vec<PineProcess>,
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) backtest_sync_workers: Option<Arc<BacktestSyncWorkerRegistry>>,
+    pub(crate) backtest_execution_workers: Option<Arc<BacktestExecutionTaskRegistry>>,
     pub(crate) recorder: ShutdownEventRecorder,
 }
 
@@ -90,6 +93,7 @@ impl ProductShutdownSupervisor {
             pine_workers: Vec::new(),
             production_ports: None,
             backtest_sync_workers: None,
+            backtest_execution_workers: None,
             recorder,
         }
     }
@@ -106,6 +110,7 @@ impl ProductShutdownSupervisor {
                 .is_some_and(|h| h.lock().is_ok_and(|g| g.is_some()))
             || !self.pine_workers.is_empty()
             || self.backtest_sync_workers.is_some()
+            || self.backtest_execution_workers.is_some()
             || self.production_ports.is_some()
     }
 
@@ -167,6 +172,9 @@ impl ProductShutdownSupervisor {
         }
         // 5. Stop market-data helper (health monitor first, then process)
         if let Some(workers) = self.backtest_sync_workers.take() {
+            workers.shutdown().await;
+        }
+        if let Some(workers) = self.backtest_execution_workers.take() {
             workers.shutdown().await;
         }
         if let Some(monitor) = self.helper_health.take() {
@@ -253,6 +261,9 @@ impl ProductShutdownSupervisor {
         }
         // 4. Terminate helper (health monitor first, then process)
         if let Some(workers) = self.backtest_sync_workers.take() {
+            workers.terminate();
+        }
+        if let Some(workers) = self.backtest_execution_workers.take() {
             workers.terminate();
         }
         if let Some(monitor) = self.helper_health.take() {

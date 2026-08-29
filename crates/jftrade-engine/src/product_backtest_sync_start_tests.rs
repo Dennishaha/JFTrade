@@ -1,4 +1,22 @@
 use super::*;
+use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
+use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
+
+#[derive(Debug)]
+struct FixtureExecution;
+
+impl BacktestExecutionPort for FixtureExecution {
+    fn execute(
+        &self,
+        request: BacktestExecutionRequest,
+    ) -> Result<Value, BacktestExecutionError> {
+        Ok(json!({
+            "runId": request.run_id,
+            "bars": request.candles.len(),
+            "marketDataProvider": request.market_data_provider,
+        }))
+    }
+}
 
 #[test]
 fn sync_request_rejects_invalid_ranges_and_intervals() {
@@ -74,6 +92,8 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
                 ActiveProviderState::new(Some(MarketDataProvider::Yfinance)),
             ),
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
+            execution: None,
+            execution_workers: std::sync::Arc::new(BacktestExecutionTaskRegistry::default()),
         },
         directory,
     )
@@ -208,6 +228,80 @@ fn production_backtest_start_without_worker_fails_before_persisting_run() {
         result,
         Err(BacktestsWritePortError::Unavailable(message))
             if message.contains("worker runtime")
+    ));
+    assert_eq!(port.store.run_count().expect("run count"), 0);
+}
+
+#[tokio::test]
+async fn production_backtest_start_executes_fixture_and_persists_terminal_result() {
+    let (mut port, _directory) = production_port();
+    port._market_data_store
+        .insert_candles(
+            "yfinance",
+            "US.AAPL",
+            "1m",
+            "forward",
+            "regular",
+            &[StoredBacktestCandle {
+                start_time: 1_750_683_600_000,
+                end_time: 1_750_683_659_999,
+                open: "100".to_owned(),
+                high: "101".to_owned(),
+                low: "99".to_owned(),
+                close: "100".to_owned(),
+                volume: "10".to_owned(),
+            }],
+        )
+        .expect("seed candles");
+    port.execution = Some(std::sync::Arc::new(FixtureExecution));
+    let response = port
+        .mutate(&BacktestsWriteInput::Start {
+            payload: json!({
+                "definitionId": "fixture-definition",
+                "symbol": "US.AAPL",
+                "interval": "1m",
+                "startTime": "2025-06-23T13:00:00Z",
+                "endTime": "2025-06-23T13:01:00Z",
+                "rehabType": "forward"
+            }),
+        })
+        .expect("start fixture backtest");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected start response");
+    };
+    let run_id = data["id"].as_str().expect("run id").to_owned();
+    for _ in 0..50 {
+        if let Some(run) = port.store.get_run(&run_id).expect("load run")
+            && run.status == "completed"
+        {
+            let result: Value = serde_json::from_str(&run.result_json).expect("result json");
+            assert_eq!(result["bars"], 1);
+            assert_eq!(result["marketDataProvider"], "yfinance");
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("fixture backtest did not complete");
+}
+
+#[tokio::test]
+async fn production_backtest_start_rejects_missing_history_without_queuing() {
+    let (mut port, _directory) = production_port();
+    port.execution = Some(std::sync::Arc::new(FixtureExecution));
+    let result = port.mutate(&BacktestsWriteInput::Start {
+        payload: json!({
+            "definitionId": "fixture-definition",
+            "symbol": "US.MISSING",
+            "interval": "1m",
+            "startTime": "2025-06-23T13:00:00Z",
+            "endTime": "2025-06-23T13:01:00Z",
+            "rehabType": "forward"
+        }),
+    });
+    assert!(matches!(
+        result,
+        Err(BacktestsWritePortError::Unavailable(message))
+            if message.contains("K-line data")
     ));
     assert_eq!(port.store.run_count().expect("run count"), 0);
 }

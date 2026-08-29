@@ -64,6 +64,9 @@ pub struct ProductRuntimeConfig {
     /// activation and runtime task as one composition unit.
     pub market_data_opend_provider: Option<OpenDProviderRuntimeConfig>,
     pub strategy_runtime_registry: Option<Arc<StrategyRuntimeRegistry>>,
+    /// Explicit strategy/Pine/backtest execution adapter.  It is intentionally
+    /// opt-in; absent configuration makes POST /api/v1/backtests fail closed.
+    pub backtest_execution_port: Option<Arc<dyn crate::product::BacktestExecutionPort>>,
     pub(crate) shutdown_recorder: Option<product_runtime_supervisor::ShutdownEventRecorder>,
     #[cfg(test)]
     pub inject_startup_failure: bool,
@@ -120,6 +123,7 @@ impl ProductRuntimeConfig {
             market_data_opend_task: None,
             market_data_opend_provider: None,
             strategy_runtime_registry: None,
+            backtest_execution_port: None,
             shutdown_recorder: None,
             #[cfg(test)]
             inject_startup_failure: false,
@@ -175,6 +179,14 @@ impl ProductRuntimeConfig {
         registry: Arc<StrategyRuntimeRegistry>,
     ) -> Self {
         self.strategy_runtime_registry = Some(registry);
+        self
+    }
+
+    pub fn with_backtest_execution_port(
+        mut self,
+        port: Arc<dyn crate::product::BacktestExecutionPort>,
+    ) -> Self {
+        self.backtest_execution_port = Some(port);
         self
     }
 }
@@ -515,6 +527,9 @@ pub async fn start_product_runtime(
     if let Some(registry) = config.strategy_runtime_registry.take() {
         config.product = config.product.with_strategy_runtime_status_port(registry);
     }
+    if let Some(port) = config.backtest_execution_port.take() {
+        config.product = config.product.with_backtest_execution_port(port);
+    }
     let state = ProductRuntimeState::configured(&config);
     let mut supervisor = if let Some(recorder) = config.shutdown_recorder.take() {
         ProductShutdownSupervisor::with_recorder(recorder)
@@ -688,6 +703,9 @@ pub async fn start_product_runtime(
         supervisor.backtest_sync_workers = ports.as_ref().map(
             crate::product::product_production_ports::ProductionPortBundle::backtest_sync_workers,
         );
+        supervisor.backtest_execution_workers = ports.as_ref().map(
+            crate::product::product_production_ports::ProductionPortBundle::backtest_execution_workers,
+        );
         supervisor.production_ports = ports;
         let _ = supervisor.execute_shutdown().await;
         return Err(ProductError::RouteRegistry(
@@ -703,6 +721,9 @@ pub async fn start_product_runtime(
             supervisor.backtest_sync_workers = ports
                 .as_ref()
                 .map(crate::product::product_production_ports::ProductionPortBundle::backtest_sync_workers);
+            supervisor.backtest_execution_workers = ports
+                .as_ref()
+                .map(crate::product::product_production_ports::ProductionPortBundle::backtest_execution_workers);
             supervisor.production_ports = ports;
             supervisor.product = Some(product);
         }
