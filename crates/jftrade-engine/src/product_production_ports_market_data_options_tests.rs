@@ -193,6 +193,94 @@ impl jftrade_integration_futu::OptionQuoteReadPort for FixtureOptionQuoteReader 
     }
 }
 
+#[derive(Debug)]
+struct FixtureOptionEventReader {
+    result: Result<jftrade_integration_futu::OptionEventPage, String>,
+}
+
+impl jftrade_integration_futu::OptionEventReadPort for FixtureOptionEventReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionEventQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionEventPage,
+        jftrade_integration_futu::OptionEventQueryError,
+    > {
+        if query.owner.is_some() {
+            assert_eq!(query.market, 1);
+            assert_eq!(query.underlying_product_class, Some(1));
+            assert_eq!(
+                query.owner.as_ref().map(|owner| owner.instrument_id.as_str()),
+                Some("US.AAPL")
+            );
+            assert_eq!(query.count, 25);
+            assert_eq!(query.page.as_deref(), Some("next"));
+            assert_eq!(query.sort.map(|sort| sort.indicator_type), Some(302));
+        }
+        self.result.clone().map_err(|message| {
+            jftrade_integration_futu::OptionEventQueryError::Rejected {
+                ret_type: 1,
+                err_code: 429,
+                message,
+            }
+        })
+    }
+}
+
+fn sample_option_event() -> jftrade_integration_futu::OptionEvent {
+    let security = jftrade_integration_futu::OptionEventSecurity {
+        market: "US".to_owned(),
+        code: "AAPL260918C00100000".to_owned(),
+        quote_market: "US".to_owned(),
+        trade_market: "US".to_owned(),
+        instrument_id: "US.AAPL260918C00100000".to_owned(),
+    };
+    let owner = jftrade_integration_futu::OptionEventSecurity {
+        market: "US".to_owned(),
+        code: "AAPL".to_owned(),
+        quote_market: "US".to_owned(),
+        trade_market: "US".to_owned(),
+        instrument_id: "US.AAPL".to_owned(),
+    };
+    jftrade_integration_futu::OptionEvent {
+        option: security,
+        owner,
+        symbol: Some("AAPL".to_owned()),
+        fill_time: Some("2026-08-29 14:30:00".to_owned()),
+        fill_timestamp: Some(1_756_000_000.0),
+        ticker_type: Some(1),
+        price: Some(1.25),
+        volume: Some(100),
+        turnover: Some(125.0),
+        option_type: Some(1),
+        strike_price: Some(100.0),
+        strike_time: Some("2026-09-18".to_owned()),
+        strike_timestamp: None,
+        dte: Some(20),
+        underlying_price: Some(225.0),
+        otm: Some(0.1),
+        bid_price: Some(1.2),
+        ask_price: Some(1.3),
+        iv: Some(0.2),
+        total_volume: Some(1000),
+        total_open_interest: Some(500),
+        vo_ratio: Some(2.0),
+        delta: Some(0.5),
+        gamma: Some(0.01),
+        vega: Some(0.2),
+        theta: Some(-0.1),
+        rho: Some(0.05),
+        sentiment: Some(1),
+        order_type_list: vec![1],
+        strategy_type: Some(1),
+        earnings_time: Some("2026-10-01".to_owned()),
+        earnings_pub_type: Some(1),
+        corporate_action_list: Vec::new(),
+        industry_plate_list: Vec::new(),
+        concept_plate_list: Vec::new(),
+    }
+}
+
 fn empty_option_quote() -> jftrade_integration_futu::OptionQuote {
     jftrade_integration_futu::OptionQuote {
         security: jftrade_integration_futu::OptionQuoteSecurity {
@@ -251,6 +339,14 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_chains(Some(Arc::new(FixtureOptionChainReader)));
     runtime.set_option_screens(Some(Arc::new(FixtureOptionScreenReader)));
     runtime.set_option_quotes(Some(Arc::new(FixtureOptionQuoteReader)));
+    runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
+        result: Ok(jftrade_integration_futu::OptionEventPage {
+            events: vec![sample_option_event()],
+            next_page: Some("next-2".to_owned()),
+            all_count: Some(2),
+            update_timestamp: Some(1_756_000_001.0),
+        }),
+    })));
     ProductionMarketDataOptionsPort {
         active_provider_state: state,
         trade_runtime: Some(runtime),
@@ -473,4 +569,101 @@ fn chain_projection_is_unavailable_without_typed_reader() {
         ),
         Err(MarketDataOptionsReadSnapshotError::Unavailable(_))
     ));
+}
+
+#[test]
+fn event_projection_forwards_unusual_query_and_paginates() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/events",
+            "operation=unusual&market=US&underlyingProductClass=equity&underlying=US.AAPL&pageSize=25&cursor=next&sort=volume&sortAsc=true",
+        )
+        .expect("option event response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_events");
+    assert_eq!(value["entries"][0]["option"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(value["entries"][0]["owner"]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["price"], 1.25);
+    assert_eq!(value["hasMore"], true);
+    assert_eq!(value["total"], 2);
+    assert_eq!(value["nextCursor"], "next-2");
+}
+
+#[test]
+fn event_projection_rejects_unsupported_operation_market_and_product_class() {
+    for query in [
+        "operation=earnings",
+        "operation=unusual&market=CN",
+        "operation=unusual&underlyingProductClass=option_chain",
+        "operation=unusual&underlying=HK.AAPL",
+    ] {
+        let error = ready_port()
+            .read("/api/v1/market-data/options/events", query)
+            .expect_err("invalid option event query");
+        assert!(matches!(
+            error,
+            MarketDataOptionsReadSnapshotError::Failed { status: 400, ref code, .. }
+                if code == "BAD_REQUEST"
+        ));
+    }
+}
+
+#[test]
+fn event_projection_is_unavailable_without_typed_reader() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
+    };
+    assert!(matches!(
+        port.read("/api/v1/market-data/options/events", "operation=unusual"),
+        Err(MarketDataOptionsReadSnapshotError::Unavailable(_))
+    ));
+}
+
+#[test]
+fn event_projection_maps_reader_failure_to_bad_gateway() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
+        result: Err("OpenD rate limited".to_owned()),
+    })));
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(runtime),
+    };
+    let error = port
+        .read("/api/v1/market-data/options/events", "operation=unusual")
+        .expect_err("reader failure");
+    assert!(matches!(
+        error,
+        MarketDataOptionsReadSnapshotError::Failed { status: 502, ref code, .. }
+            if code == "BAD_GATEWAY"
+    ));
+}
+
+#[test]
+fn event_projection_accepts_empty_valid_result() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
+        result: Ok(jftrade_integration_futu::OptionEventPage {
+            events: Vec::new(),
+            next_page: None,
+            all_count: Some(0),
+            update_timestamp: None,
+        }),
+    })));
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/market-data/options/events", "operation=unusual")
+        .expect("empty event response");
+    assert_eq!(value["entries"], serde_json::json!([]));
+    assert_eq!(value["hasMore"], false);
+    assert_eq!(value["total"], 0);
 }

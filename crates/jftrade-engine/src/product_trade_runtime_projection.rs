@@ -38,8 +38,8 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_screens:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionScreenReadPort>>>>,
     pub(crate) option_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
+    pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
-
 #[derive(Clone, Debug)]
 pub(crate) struct TradeRuntimeConnection {
     pub(crate) host: String,

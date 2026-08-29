@@ -65,6 +65,7 @@ pub(crate) enum ProductionRouteAdapter {
     MarketDataOptionsExpirationsRead,
     MarketDataOptionsScreenRead,
     MarketDataOptionsAnalysisRead,
+    MarketDataOptionsEventsRead,
     MarketDataNewsActionsRead,
     MarketDataNewsSearchRead,
     MarketDataPredictionRead,
@@ -148,6 +149,7 @@ impl ProductionRouteAdapter {
             Self::MarketDataOptionsExpirationsRead => "market-data-options-expirations-read",
             Self::MarketDataOptionsScreenRead => "market-data-options-screen-read",
             Self::MarketDataOptionsAnalysisRead => "market-data-options-analysis-read",
+            Self::MarketDataOptionsEventsRead => "market-data-options-events-read",
             Self::MarketDataNewsActionsRead => "market-data-news-actions-read",
             Self::MarketDataNewsSearchRead => "market-data-news-search-read",
             Self::MarketDataPredictionRead => "market-data-prediction-read",
@@ -526,6 +528,8 @@ fn market_data_adapter(method: &str, path: &str) -> Option<ProductionRouteAdapte
                 ProductionRouteAdapter::MarketDataOptionsScreenRead
             } else if p.starts_with("/api/v1/market-data/options/analysis/") {
                 ProductionRouteAdapter::MarketDataOptionsAnalysisRead
+            } else if p == "/api/v1/market-data/options/events" {
+                ProductionRouteAdapter::MarketDataOptionsEventsRead
             } else {
                 ProductionRouteAdapter::MarketDataOptionsRead
             })

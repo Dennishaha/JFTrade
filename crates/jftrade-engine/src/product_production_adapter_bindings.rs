@@ -102,6 +102,20 @@ impl ProductionPortBundle {
                 ProductionAdapterBinding::ExternalUnavailable
             });
         }
+        if adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead {
+            let snapshot = self.active_provider_state.snapshot();
+            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.option_events_available())
+            {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
         // Market-data capability is provider-dependent and can change at
         // runtime. Recompute those bindings from the shared snapshot instead
         // of exposing the startup matrix after a provider transition.
@@ -311,6 +325,7 @@ pub(crate) fn production_adapter_bindings(
         Adapter::MarketDataOptionsExpirationsRead,
         Adapter::MarketDataOptionsScreenRead,
         Adapter::MarketDataOptionsAnalysisRead,
+        Adapter::MarketDataOptionsEventsRead,
         Adapter::MarketDataNewsSearchRead,
         Adapter::MarketDataPredictionRead,
         Adapter::MarketDataDepthRead,
@@ -432,6 +447,10 @@ mod tests {
         );
         assert_eq!(
             bindings.get(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead),
+            Some(&ProductionAdapterBinding::ExternalUnavailable)
+        );
+        assert_eq!(
+            bindings.get(&ProductionRouteAdapter::MarketDataOptionsEventsRead),
             Some(&ProductionAdapterBinding::ExternalUnavailable)
         );
     }

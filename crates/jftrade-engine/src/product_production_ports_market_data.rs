@@ -17,6 +17,8 @@ mod product_production_ports_market_data_subscription;
 mod product_production_ports_market_data_options_screen;
 #[path = "product_production_ports_market_data_options_analysis.rs"]
 mod product_production_ports_market_data_options_analysis;
+#[path = "product_production_ports_market_data_options_events.rs"]
+mod product_production_ports_market_data_options_events;
 #[cfg(test)]
 #[path = "product_production_ports_market_data_options_tests.rs"]
 mod product_production_ports_market_data_options_tests;
@@ -86,6 +88,12 @@ impl MarketDataOptionsReadSnapshotPort for ProductionMarketDataOptionsPort {
             return product_production_ports_market_data_options_analysis::read(
                 Some(runtime),
                 path,
+                query,
+            );
+        }
+        if path == "/api/v1/market-data/options/events" {
+            return product_production_ports_market_data_options_events::read(
+                Some(runtime),
                 query,
             );
         }

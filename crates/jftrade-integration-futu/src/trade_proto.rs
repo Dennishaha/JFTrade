@@ -6,6 +6,9 @@ pub mod common {
 pub mod qot_common {
     include!(concat!(env!("OUT_DIR"), "/qot_common.rs"));
 }
+pub mod qot_option_common {
+    include!(concat!(env!("OUT_DIR"), "/qot_option_common.rs"));
+}
 pub mod qot_get_security_snapshot {
     include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
 }
@@ -23,6 +26,10 @@ pub mod qot_get_option_chain {
 pub mod qot_get_option_quote {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_quote.rs"));
     pub const PROTOCOL_ID: u32 = 3255;
+}
+pub mod qot_get_option_event {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_event.rs"));
+    pub const PROTOCOL_ID: u32 = 3307;
 }
 pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));

@@ -9,6 +9,7 @@ mod health;
 mod history;
 mod managed_session;
 mod option_chain_query;
+mod option_event_query;
 mod option_expiration_query;
 mod option_quote_query;
 mod option_screen_query;
@@ -56,6 +57,11 @@ pub use option_chain_query::{
     OpenDOptionChainReader, OptionChainDataFilter, OptionChainDate, OptionChainItem,
     OptionChainQuery, OptionChainQueryError, OptionChainReadPort, OptionContract,
     OptionContractBasic, OptionContractExData, OptionSecurity,
+};
+pub use option_event_query::{
+    EventIndicator, EventIndicatorValue, EventSort, OpenDOptionEventReader, OptionEvent,
+    OptionEventCorporateAction, OptionEventPage, OptionEventQuery, OptionEventQueryError,
+    OptionEventReadPort, OptionEventSecurity,
 };
 pub use option_expiration_query::{
     OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,

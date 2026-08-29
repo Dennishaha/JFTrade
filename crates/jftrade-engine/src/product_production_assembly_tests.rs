@@ -208,6 +208,26 @@ mod product_production_assembly_tests {
         }
     }
 
+    #[derive(Debug)]
+    struct EmptyOptionEventReader;
+
+    impl jftrade_integration_futu::OptionEventReadPort for EmptyOptionEventReader {
+        fn query(
+            &self,
+            _query: &jftrade_integration_futu::OptionEventQuery,
+        ) -> Result<
+            jftrade_integration_futu::OptionEventPage,
+            jftrade_integration_futu::OptionEventQueryError,
+        > {
+            Ok(jftrade_integration_futu::OptionEventPage {
+                events: Vec::new(),
+                next_page: None,
+                all_count: Some(0),
+                update_timestamp: None,
+            })
+        }
+    }
+
     fn http_product_config(
         directory: &TempDir,
         runtime: Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
@@ -1275,6 +1295,13 @@ mod product_production_assembly_tests {
                 && binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable
         }));
         assert!(registry.bindings().iter().any(|binding| {
+            binding.method == "GET"
+                && binding.path == "/api/v1/market-data/options/events"
+                && binding.adapter
+                    == crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataOptionsEventsRead
+                && binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable
+        }));
+        assert!(registry.bindings().iter().any(|binding| {
             binding.method == "DELETE"
                 && binding.path == "/api/v1/backtests/{runId}"
                 && binding.adapter_binding == ProductionAdapterBinding::Ready
@@ -1304,6 +1331,31 @@ mod product_production_assembly_tests {
                 && binding.path == "/api/v1/system/futu-opend/manual-retry"
                 && binding.adapter_binding == ProductionAdapterBinding::ExternalUnavailable
         }));
+    }
+
+    #[test]
+    fn production_option_events_binding_tracks_runtime_reader_readiness() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let state = Arc::new(crate::product::ActiveProviderState::new(Some(
+            MarketDataProvider::Futu,
+        )));
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        let config = config
+            .with_active_provider_state(state)
+            .with_market_data_runtime_status_port(Arc::new(HttpRuntimeStatus))
+            .with_trade_runtime(Arc::clone(&runtime));
+        let ports = production_ports(&config, &security).expect("production ports");
+        let adapter = crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataOptionsEventsRead;
+        assert_eq!(
+            ports.adapter_binding(adapter),
+            Some(ProductionAdapterBinding::ExternalUnavailable)
+        );
+        runtime.set_option_events(Some(Arc::new(EmptyOptionEventReader)));
+        assert_eq!(
+            ports.adapter_binding(adapter),
+            Some(ProductionAdapterBinding::Ready)
+        );
     }
 
     #[test]

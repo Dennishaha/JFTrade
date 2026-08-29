@@ -6,6 +6,8 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionExpirationDate.proto",
         "../../pkg/futu/proto/Qot_GetOptionChain.proto",
         "../../pkg/futu/proto/Qot_GetOptionQuote.proto",
+        "../../pkg/futu/proto/Qot_GetOptionEvent.proto",
+        "../../pkg/futu/proto/Qot_OptionCommon.proto",
         "../../pkg/futu/proto/Qot_OptionScreen.proto",
         "../../pkg/futu/proto/Qot_RequestHistoryKL.proto",
         "../../pkg/futu/proto/Trd_Common.proto",
