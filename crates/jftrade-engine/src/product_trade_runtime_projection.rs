@@ -16,7 +16,7 @@ use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Map, Value, json};
 use crate::product::product_query::{
-    normalize_candle_period, normalize_optional_query_time, parse_candle_before_time, QueryMap,
+    normalize_candle_period, normalize_optional_query_time, parse_candle_before_time,
 };
 use super::super::product_production_ports_market_data::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339,
@@ -24,8 +24,19 @@ use super::super::product_production_ports_market_data::product_production_ports
 use super::product_trade_margin_cache::MarginRatioCache;
 use super::qot_market_label;
 
+#[path = "product_trade_runtime_candles.rs"]
+mod product_trade_runtime_candles;
 #[path = "product_trade_runtime_futures.rs"]
 mod product_trade_runtime_futures;
+#[path = "product_trade_runtime_projection_values.rs"]
+mod product_trade_runtime_projection_values;
+
+use product_trade_runtime_projection_values::{
+    insert_rich_quote_fields, insert_rich_security_fields, security_snapshot_value,
+};
+use product_trade_runtime_candles::{
+    canonical_candle_time, historical_snapshot, parse_requested_sessions,
+};
 
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
@@ -357,164 +368,6 @@ impl SharedTradeReadRuntime {
     }
 }
 
-fn insert_rich_quote_fields(
-    item: &mut Map<String, Value>,
-    rich: &jftrade_marketdata::TradeQuoteSnapshot,
-) -> Result<(), String> {
-    if let Some(name) = rich.name.as_ref() {
-        item.insert("symbolName".to_owned(), Value::String(name.clone()));
-    }
-    for (key, value) in [
-        ("openPrice", rich.open_price),
-        ("highPrice", rich.high_price),
-        ("lowPrice", rich.low_price),
-        ("lastClose", rich.previous_close),
-    ] {
-        if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
-        }
-    }
-    if let Some(turnover) = rich.turnover.as_ref() {
-        item.insert("turnover".to_owned(), decimal_number(turnover)?);
-    }
-    if let Some(update_time) = rich.update_time.as_ref() {
-        item.insert("marketTime".to_owned(), Value::String(update_time.clone()));
-    }
-    for (key, value) in [
-        ("preMarket", rich.pre_market.as_ref()),
-        ("afterMarket", rich.after_market.as_ref()),
-        ("overnight", rich.overnight.as_ref()),
-    ] {
-        if let Some(value) = value {
-            item.insert(key.to_owned(), extended_value(value)?);
-        }
-    }
-    Ok(())
-}
-
-fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<Value, String> {
-    let mut result = Map::new();
-    for (key, number) in [
-        ("price", value.price),
-        ("highPrice", value.high_price),
-        ("lowPrice", value.low_price),
-    ] {
-        if let Some(number) = number {
-            result.insert(
-                key.to_owned(),
-                json!(number.to_f64().map_err(|error| error.to_string())?),
-            );
-        }
-    }
-    for (key, number) in [
-        ("volume", value.volume.as_ref()),
-        ("turnover", value.turnover.as_ref()),
-        ("change", value.change.as_ref()),
-        ("changeRate", value.change_rate.as_ref()),
-        ("amplitude", value.amplitude.as_ref()),
-    ] {
-        if let Some(number) = number {
-            result.insert(key.to_owned(), decimal_number(number)?);
-        }
-    }
-    Ok(Value::Object(result))
-}
-
-fn insert_rich_security_fields(
-    item: &mut Map<String, Value>,
-    rich: &jftrade_marketdata::TradeQuoteSnapshot,
-) -> Result<(), String> {
-    insert_rich_quote_fields(item, rich)?;
-    if let Some(name) = rich.name.as_ref() {
-        item.remove("symbolName");
-        item.insert("name".to_owned(), Value::String(name.clone()));
-    }
-    if let Some(previous_close) = item.remove("lastClose") {
-        item.insert("previousClose".to_owned(), previous_close);
-    }
-    if let Some(value) = rich.is_suspended {
-        item.insert("isSuspended".to_owned(), Value::Bool(value));
-    }
-    if let Some(status) = rich.status {
-        item.insert("status".to_owned(), json!(status));
-    }
-    if let Some(update_time) = rich.update_time.as_ref() {
-        item.insert("updateTime".to_owned(), Value::String(update_time.clone()));
-    }
-    item.remove("marketTime");
-    Ok(())
-}
-
-fn security_snapshot_value(
-    snapshot: jftrade_marketdata::BrokerSecuritySnapshot,
-) -> Result<Value, String> {
-    let mut item = Map::new();
-    if let Some(symbol) = snapshot.symbol {
-        item.insert("symbol".to_owned(), Value::String(symbol));
-    }
-    if let Some(market) = snapshot.market {
-        item.insert("market".to_owned(), Value::String(market));
-    }
-    if let Some(name) = snapshot.name {
-        item.insert("name".to_owned(), Value::String(name));
-    }
-    for (key, value) in [
-        ("lastPrice", snapshot.last_price),
-        ("bidPrice", snapshot.bid_price),
-        ("askPrice", snapshot.ask_price),
-        ("openPrice", snapshot.open_price),
-        ("highPrice", snapshot.high_price),
-        ("lowPrice", snapshot.low_price),
-        ("previousClose", snapshot.previous_close),
-    ] {
-        if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
-        }
-    }
-    if let Some(turnover) = snapshot.turnover.as_ref() {
-        item.insert("turnover".to_owned(), decimal_number(turnover)?);
-    }
-    if let Some(volume) = snapshot.volume.as_ref() {
-        item.insert("volume".to_owned(), decimal_number(volume)?);
-    }
-    if let Some(status) = snapshot.status {
-        item.insert("status".to_owned(), json!(status));
-    }
-    if let Some(value) = snapshot.is_suspended {
-        item.insert("isSuspended".to_owned(), Value::Bool(value));
-    }
-    if let Some(value) = snapshot.lot_size {
-        item.insert("lotSize".to_owned(), json!(value));
-    }
-    if let Some(value) = snapshot.security_type {
-        item.insert("securityType".to_owned(), Value::String(value));
-    }
-    if let Some(value) = snapshot.update_time {
-        item.insert("updateTime".to_owned(), Value::String(value));
-    }
-    if let Some(value) = snapshot.pe_rate.as_ref() {
-        item.insert("peRate".to_owned(), decimal_number(value)?);
-    }
-    if let Some(value) = snapshot.pb_rate.as_ref() {
-        item.insert("pbRate".to_owned(), decimal_number(value)?);
-    }
-    Ok(Value::Object(item))
-}
-
-fn decimal_number(value: &jftrade_kernel::DecimalText) -> Result<Value, String> {
-    value
-        .as_str()
-        .parse::<serde_json::Number>()
-        .map(Value::Number)
-        .map_err(|error| format!("invalid cached decimal {}: {error}", value.as_str()))
-}
-
 impl super::ProductionBrokerPort {
     pub(super) fn read_securities_route(
         &self,
@@ -766,140 +619,6 @@ impl EmptyTime for String {
             self
         }
     }
-}
-
-fn historical_snapshot(
-    request: &super::TradeRequest,
-    result: &HistoricalKlineResult,
-    period: &str,
-    extended_hours: bool,
-    sessions: &[&str],
-    requested_limit: Option<i32>,
-) -> Value {
-    let mut rows = Vec::with_capacity(result.klines.len());
-    for candle in &result.klines {
-        if candle.is_blank {
-            continue;
-        }
-        let mut row = serde_json::Map::new();
-        let market = super::qot_market_label(result.security.market).unwrap_or("UTC");
-        row.insert(
-            "time".to_owned(),
-            json!(canonical_candle_time(&candle.time, market)),
-        );
-        if let Some(value) = candle.open_price {
-            row.insert("open".to_owned(), json!(value));
-        }
-        if let Some(value) = candle.close_price {
-            row.insert("close".to_owned(), json!(value));
-        }
-        if let Some(value) = candle.high_price {
-            row.insert("high".to_owned(), json!(value));
-        }
-        if let Some(value) = candle.low_price {
-            row.insert("low".to_owned(), json!(value));
-        }
-        if let Some(value) = candle.volume {
-            row.insert("volume".to_owned(), json!(value as f64));
-        }
-        if let Some(value) = candle.turnover {
-            row.insert("turnover".to_owned(), json!(value));
-        }
-        if let Some(value) = candle.change_rate {
-            row.insert("changeRate".to_owned(), json!(value));
-        }
-        rows.push(Value::Object(row));
-    }
-    if let Some(limit) = requested_limit {
-        let limit = usize::try_from(limit).unwrap_or(0);
-        if rows.len() > limit {
-            rows = rows.split_off(rows.len() - limit);
-        }
-    }
-    let next_before = rows
-        .first()
-        .and_then(|row| row["time"].as_str())
-        .map(str::to_owned);
-    let bounded = request
-        .query
-        .get_first("fromTime")
-        .is_some_and(|v| !v.trim().is_empty())
-        || request
-            .query
-            .get_first("toTime")
-            .is_some_and(|v| !v.trim().is_empty());
-    let has_more = !bounded && !result.next_req_key.is_empty();
-    let pagination = if has_more {
-        json!({"hasMore": true, "nextBefore": next_before})
-    } else {
-        json!({"hasMore": false})
-    };
-    json!({
-        "accountId": request.account_id().unwrap_or_default(),
-        "symbol": format!("{}.{}", super::qot_market_label(result.security.market).unwrap_or("UNKNOWN"), result.security.code),
-        "period": period,
-        "klines": rows,
-        "pagination": pagination,
-        "extendedHours": extended_hours,
-        "session": if sessions.len() == 1 { sessions[0] } else if extended_hours { "all" } else { "regular" },
-        "sessions": sessions,
-    })
-}
-
-fn canonical_candle_time(value: &str, market: &str) -> String {
-    if value.contains('T') || value.ends_with('Z') {
-        return value.to_owned();
-    }
-    let timezone = match market {
-        "US" => "America/New_York",
-        "HK" => "Asia/Hong_Kong",
-        "SH" | "SZ" | "CN" => "Asia/Shanghai",
-        "JP" => "Asia/Tokyo",
-        _ => "UTC",
-    };
-    let Ok(local) = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", value) else {
-        return value.to_owned();
-    };
-    let Ok(zoned) = local.in_tz(timezone) else {
-        return value.to_owned();
-    };
-    zoned.timestamp().to_string()
-}
-
-fn parse_requested_sessions(
-    query: &QueryMap,
-    extended_hours: bool,
-) -> Result<Vec<&'static str>, String> {
-    let mut values = Vec::new();
-    for key in ["sessions", "session"] {
-        if let Some(items) = query.get_all(key) {
-            values.extend(items.iter().flat_map(|item| item.split(',')));
-        }
-    }
-    if values.is_empty() {
-        return Ok(if extended_hours {
-            vec!["regular", "extended", "overnight"]
-        } else {
-            vec!["regular"]
-        });
-    }
-    let mut result = Vec::new();
-    for value in values {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "regular" if !result.contains(&"regular") => result.push("regular"),
-            "extended" if extended_hours && !result.contains(&"extended") => {
-                result.push("extended")
-            }
-            "overnight" if extended_hours && !result.contains(&"overnight") => {
-                result.push("overnight")
-            }
-            "regular" | "extended" | "overnight" => {
-                return Err("requested session is unsupported for this period or market".to_owned());
-            }
-            other => return Err(format!("invalid candle session {other:?}")),
-        }
-    }
-    Ok(result)
 }
 
 #[cfg(test)]
