@@ -596,6 +596,58 @@ mod product_production_assembly_tests {
     }
 
     #[test]
+    fn production_watchlist_conflicts_are_409_and_malformed_revisions_are_400() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let ports = production_ports(&config, &security).expect("production ports");
+        let watchlist = ports.watchlist_write;
+
+        watchlist
+            .mutate(&WatchlistWriteMutation {
+                value: json!({"route": "create-group", "name": "Conflict Group"}),
+            })
+            .expect("create group");
+        let duplicate = watchlist
+            .mutate(&WatchlistWriteMutation {
+                value: json!({"route": "create-group", "name": " conflict group "}),
+            })
+            .expect_err("duplicate group name must conflict");
+        assert_eq!(duplicate.status, 409);
+        assert_eq!(duplicate.code, "WATCHLIST_CONFLICT");
+
+        let group = watchlist
+            .mutate(&WatchlistWriteMutation {
+                value: json!({"route": "create-group", "name": "CAS Group"}),
+            })
+            .expect("create CAS group");
+        let group_id = group["groupId"].as_str().expect("group id");
+        let stale = watchlist
+            .mutate(&WatchlistWriteMutation {
+                value: json!({
+                    "route": "update-group",
+                    "groupId": group_id,
+                    "name": "stale",
+                    "expectedRevision": 0
+                }),
+            })
+            .expect_err("stale CAS revision must conflict");
+        assert_eq!(stale.status, 409);
+        assert_eq!(stale.code, "WATCHLIST_CONFLICT");
+
+        let malformed = watchlist
+            .mutate(&WatchlistWriteMutation {
+                value: json!({
+                    "route": "update-group",
+                    "groupId": group_id,
+                    "name": "bad revision",
+                    "expectedRevision": "not-a-number"
+                }),
+            })
+            .expect_err("non-numeric revision must be invalid");
+        assert_eq!(malformed.status, 400);
+        assert_eq!(malformed.code, "WATCHLIST_INVALID");
+    }
+
+    #[test]
     fn production_watchlist_read_uses_real_pages_and_remote_catalog() {
         let (_temp_dir, settings_path, config, security) = setup_test_env();
         let descriptors =

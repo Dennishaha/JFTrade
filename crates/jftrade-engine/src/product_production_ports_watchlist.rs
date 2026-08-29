@@ -348,11 +348,10 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                     .value
                     .get("expectedRevision")
                     .and_then(Value::as_i64)
-                    .filter(|r| *r >= 1)
                     .ok_or_else(|| WatchlistWritePortError {
                         status: 400,
                         code: "WATCHLIST_INVALID".to_owned(),
-                        message: "expectedRevision must be positive".to_owned(),
+                        message: "expectedRevision is required".to_owned(),
                     })?;
                 let group = self
                     .store
