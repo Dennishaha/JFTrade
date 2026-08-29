@@ -296,6 +296,13 @@ impl super::ProductionBrokerPort {
         normalize_candle_period(period).map_err(|error| {
             super::BrokerReadSnapshotError::Invalid(format!("invalid candle period: {error:?}"))
         })?;
+        if let Some(raw_limit) = request.query.get_first("limit") {
+            raw_limit.trim().parse::<i32>().map_err(|_| {
+                super::BrokerReadSnapshotError::Invalid(
+                    "query parameter limit is invalid".to_owned(),
+                )
+            })?;
+        }
         let before = request.query.get_first("before").unwrap_or("");
         let from = request.query.get_first("fromTime").unwrap_or("");
         let to = request.query.get_first("toTime").unwrap_or("");

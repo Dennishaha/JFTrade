@@ -735,6 +735,13 @@ fn broker_klines_requires_symbol_and_valid_before_timestamp() {
         )
         .expect_err("invalid before");
     assert!(matches!(invalid_before, BrokerReadSnapshotError::Invalid(message) if message.contains("RFC3339")));
+    let invalid_limit = port
+        .read(
+            "/api/v1/brokers/futu/klines",
+            "symbol=US.AAPL&limit=not-a-number",
+        )
+        .expect_err("invalid limit");
+    assert!(matches!(invalid_limit, BrokerReadSnapshotError::Invalid(message) if message.contains("limit")));
 }
 
 #[test]
