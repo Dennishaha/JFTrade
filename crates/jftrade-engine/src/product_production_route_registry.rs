@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::Deserialize;
 
 use super::product_production_ports::{ProductionAdapterBinding, ProductionPortBundle};
@@ -8,6 +10,17 @@ const EXPECTED_PRODUCTION_ROUTE_DIGEST: &str =
     "afa112435ed280dd24d43bb4acaa0f7ca2ab45c01e4e5701efc5ce149e5b85b2";
 const CANONICAL_ROUTE_LEDGER: &str =
     include_str!("../../../tests/fixtures/rust-migration/stage9/route-ownership.json");
+
+const OPTION_EVENT_OPERATION_ADAPTERS: &[(&str, ProductionRouteAdapter)] = &[
+    ("unusual", ProductionRouteAdapter::MarketDataOptionsUnusualRead),
+    ("zero_dte", ProductionRouteAdapter::MarketDataOptionsZeroDteRead),
+    (
+        "zero_dte_contract",
+        ProductionRouteAdapter::MarketDataOptionsZeroDteContractRead,
+    ),
+    ("earnings", ProductionRouteAdapter::MarketDataOptionsEarningsRead),
+    ("seller", ProductionRouteAdapter::MarketDataOptionsSellerRead),
+];
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum ProductionRouteAdapter {
@@ -34,6 +47,8 @@ pub(crate) enum ProductionRouteAdapter {
     ResearchRead,
     ResearchRankingsRead,
     ResearchIndustriesRead,
+    ResearchCalendarRead,
+    ResearchMacroRead,
     ResearchPresetRead,
     ResearchPresetWrite,
     ResearchScreenWrite,
@@ -68,6 +83,17 @@ pub(crate) enum ProductionRouteAdapter {
     MarketDataOptionsScreenRead,
     MarketDataOptionsAnalysisRead,
     MarketDataOptionsEventsRead,
+    /// Operation-level readers behind GET /market-data/options/events.
+    ///
+    /// The public HTTP route is intentionally shared for compatibility, but
+    /// each query operation has an independent production capability.  Keep
+    /// these adapters distinct so a missing reader cannot be hidden by the
+    /// presence of the shared trade runtime.
+    MarketDataOptionsUnusualRead,
+    MarketDataOptionsZeroDteRead,
+    MarketDataOptionsZeroDteContractRead,
+    MarketDataOptionsEarningsRead,
+    MarketDataOptionsSellerRead,
     MarketDataNewsActionsRead,
     MarketDataNewsSearchRead,
     MarketDataPredictionRead,
@@ -120,6 +146,8 @@ impl ProductionRouteAdapter {
             Self::ResearchRead => "research-read",
             Self::ResearchRankingsRead => "research-rankings-read",
             Self::ResearchIndustriesRead => "research-industries-read",
+            Self::ResearchCalendarRead => "research-calendar-read",
+            Self::ResearchMacroRead => "research-macro-read",
             Self::ResearchPresetRead => "research-preset-read",
             Self::ResearchPresetWrite => "research-preset-write",
             Self::ResearchScreenWrite => "research-screen-write",
@@ -154,6 +182,13 @@ impl ProductionRouteAdapter {
             Self::MarketDataOptionsScreenRead => "market-data-options-screen-read",
             Self::MarketDataOptionsAnalysisRead => "market-data-options-analysis-read",
             Self::MarketDataOptionsEventsRead => "market-data-options-events-read",
+            Self::MarketDataOptionsUnusualRead => "market-data-options-unusual-read",
+            Self::MarketDataOptionsZeroDteRead => "market-data-options-zero-dte-read",
+            Self::MarketDataOptionsZeroDteContractRead => {
+                "market-data-options-zero-dte-contract-read"
+            },
+            Self::MarketDataOptionsEarningsRead => "market-data-options-earnings-read",
+            Self::MarketDataOptionsSellerRead => "market-data-options-seller-read",
             Self::MarketDataNewsActionsRead => "market-data-news-actions-read",
             Self::MarketDataNewsSearchRead => "market-data-news-search-read",
             Self::MarketDataPredictionRead => "market-data-prediction-read",
@@ -189,6 +224,20 @@ pub(crate) struct ProductionRouteBinding {
     pub(crate) route_group: String,
     pub(crate) adapter: ProductionRouteAdapter,
     pub(crate) adapter_binding: ProductionAdapterBinding,
+    /// Readiness for operations selected by query on a shared public route.
+    /// Currently populated for `/market-data/options/events` only.
+    pub(crate) operation_bindings: BTreeMap<String, ProductionAdapterBinding>,
+}
+
+impl ProductionRouteBinding {
+    #[allow(dead_code)]
+    pub(crate) fn operation_binding(
+        &self,
+        operation: &str,
+    ) -> Option<ProductionAdapterBinding> {
+        let normalized = operation.trim().to_ascii_lowercase();
+        self.operation_bindings.get(&normalized).copied()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -244,12 +293,31 @@ impl ProductionRouteRegistry {
                     adapter: adapter.name().to_owned(),
                 }
             })?;
+            let operation_bindings = if adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead
+            {
+                OPTION_EVENT_OPERATION_ADAPTERS
+                    .iter()
+                    .map(|(operation, operation_adapter)| {
+                        let binding = ports.adapter_binding(*operation_adapter).ok_or_else(|| {
+                            ProductError::MissingProductionAdapter {
+                                method: method.clone(),
+                                path: path.clone(),
+                                adapter: operation_adapter.name().to_owned(),
+                            }
+                        })?;
+                        Ok(((*operation).to_owned(), binding))
+                    })
+                    .collect::<Result<BTreeMap<_, _>, ProductError>>()?
+            } else {
+                BTreeMap::new()
+            };
             bindings.push(ProductionRouteBinding {
                 method,
                 path,
                 route_group: operation.capability,
                 adapter,
                 adapter_binding,
+                operation_bindings,
             });
         }
         Self::finish(bindings, canonical_digest)
@@ -422,6 +490,12 @@ fn research_adapter(method: &str, path: &str) -> Option<ProductionRouteAdapter> 
     }
     if method == "GET" && path == "/api/v1/research/industries" {
         return Some(ProductionRouteAdapter::ResearchIndustriesRead);
+    }
+    if method == "GET" && path == "/api/v1/research/calendars" {
+        return Some(ProductionRouteAdapter::ResearchCalendarRead);
+    }
+    if method == "GET" && path == "/api/v1/research/macro" {
+        return Some(ProductionRouteAdapter::ResearchMacroRead);
     }
     (method == "GET").then_some(ProductionRouteAdapter::ResearchRead)
 }

@@ -252,6 +252,31 @@ impl ProductionMarketDataProviderActionsPort {
         &self,
         request: &MarketDataProviderActionsRequest,
     ) -> Result<Value, MarketDataProviderActionsPortError> {
+        // Resolve provider availability before validating the operation
+        // payload.  A configured route whose external OpenD reader is down
+        // must preserve the baseline 503 envelope; otherwise an empty or
+        // incomplete body would incorrectly turn an unavailable dependency
+        // into a client-side 400.
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataProviderActionsPortError::Unavailable(
+                "Futu 0DTE contract reader is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.option_zero_dte_contract_available() {
+            return Err(MarketDataProviderActionsPortError::Unavailable(
+                "Futu 0DTE contract reader is not ready".to_owned(),
+            ));
+        }
+        if let Some(active_provider_state) = self.active_provider_state.as_ref() {
+            let snapshot = active_provider_state.snapshot();
+            if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
+                || !snapshot.opend_ready
+            {
+                return Err(MarketDataProviderActionsPortError::Unavailable(
+                    "Futu 0DTE contract provider is not ready".to_owned(),
+                ));
+            }
+        }
         let body: ZeroDteContractsRequest = serde_json::from_slice(&request.body).map_err(|_| {
             action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
         })?;
@@ -301,26 +326,6 @@ impl ProductionMarketDataProviderActionsPort {
             is_asc: None,
             filters,
         };
-        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-            MarketDataProviderActionsPortError::Unavailable(
-                "Futu 0DTE contract reader is not configured".to_owned(),
-            )
-        })?;
-        if !runtime.option_zero_dte_contract_available() {
-            return Err(MarketDataProviderActionsPortError::Unavailable(
-                "Futu 0DTE contract reader is not ready".to_owned(),
-            ));
-        }
-        if let Some(active_provider_state) = self.active_provider_state.as_ref() {
-            let snapshot = active_provider_state.snapshot();
-            if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
-                || !snapshot.opend_ready
-            {
-                return Err(MarketDataProviderActionsPortError::Unavailable(
-                    "Futu 0DTE contract provider is not ready".to_owned(),
-                ));
-            }
-        }
         let items = runtime
             .option_zero_dte_contract(&query)
             .map_err(map_zero_dte_contract_action_error)?;

@@ -26,10 +26,31 @@ impl ProductionPortBundle {
         &self,
         adapter: ProductionRouteAdapter,
     ) -> Option<ProductionAdapterBinding> {
+        if let Some(operation) = option_event_operation(adapter) {
+            let snapshot = self.active_provider_state.snapshot();
+            let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self.trade_runtime.as_ref().is_some_and(|runtime| match operation {
+                    OptionEventOperation::Unusual => runtime.option_events_available(),
+                    OptionEventOperation::ZeroDte => runtime.option_zero_dte_screener_available(),
+                    OptionEventOperation::ZeroDteContract => {
+                        runtime.option_zero_dte_contract_available()
+                    }
+                    OptionEventOperation::Earnings => runtime.option_earnings_screener_available(),
+                    OptionEventOperation::Seller => runtime.option_seller_screener_available(),
+                });
+            return Some(if ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
         if matches!(
             adapter,
             ProductionRouteAdapter::ResearchRankingsRead
                 | ProductionRouteAdapter::ResearchIndustriesRead
+                | ProductionRouteAdapter::ResearchCalendarRead
+                | ProductionRouteAdapter::ResearchMacroRead
         ) {
             let snapshot = self.active_provider_state.snapshot();
             let ready = snapshot.helper_ready
@@ -40,6 +61,10 @@ impl ProductionPortBundle {
                             | Some(jftrade_settings::MarketDataProvider::Akshare)
                     ),
                     ProductionRouteAdapter::ResearchIndustriesRead => {
+                        snapshot.provider == Some(jftrade_settings::MarketDataProvider::Akshare)
+                    }
+                    ProductionRouteAdapter::ResearchCalendarRead
+                    | ProductionRouteAdapter::ResearchMacroRead => {
                         snapshot.provider == Some(jftrade_settings::MarketDataProvider::Akshare)
                     }
                     _ => false,
@@ -150,14 +175,17 @@ impl ProductionPortBundle {
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead {
             let snapshot = self.active_provider_state.snapshot();
+            let operation_ready = OPTION_EVENT_OPERATION_ADAPTERS.iter().any(|(_, operation)| {
+                self.adapter_binding(*operation) == Some(ProductionAdapterBinding::Ready)
+            });
             return Some(
                 if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
                     && snapshot.opend_ready
-                    // The route is shared by five operations.  Its concrete
-                    // reader is selected from the query at request time, so
-                    // startup readiness only asserts that the shared runtime
-                    // exists; each reader then fails closed independently.
-                    && self.trade_runtime.is_some()
+                    // The public route is shared by five query operations;
+                    // it is ready only when at least one concrete operation
+                    // adapter is installed. Each operation remains exposed
+                    // independently through operation_binding().
+                    && operation_ready
                 {
                     ProductionAdapterBinding::Ready
                 } else {
@@ -201,6 +229,39 @@ impl ProductionPortBundle {
         }
         self.bound_adapters.get(&adapter).copied()
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OptionEventOperation {
+    Unusual,
+    ZeroDte,
+    ZeroDteContract,
+    Earnings,
+    Seller,
+}
+
+pub(crate) const OPTION_EVENT_OPERATION_ADAPTERS: &[(&str, ProductionRouteAdapter)] = &[
+    ("unusual", ProductionRouteAdapter::MarketDataOptionsUnusualRead),
+    ("zero_dte", ProductionRouteAdapter::MarketDataOptionsZeroDteRead),
+    (
+        "zero_dte_contract",
+        ProductionRouteAdapter::MarketDataOptionsZeroDteContractRead,
+    ),
+    ("earnings", ProductionRouteAdapter::MarketDataOptionsEarningsRead),
+    ("seller", ProductionRouteAdapter::MarketDataOptionsSellerRead),
+];
+
+fn option_event_operation(adapter: ProductionRouteAdapter) -> Option<OptionEventOperation> {
+    Some(match adapter {
+        ProductionRouteAdapter::MarketDataOptionsUnusualRead => OptionEventOperation::Unusual,
+        ProductionRouteAdapter::MarketDataOptionsZeroDteRead => OptionEventOperation::ZeroDte,
+        ProductionRouteAdapter::MarketDataOptionsZeroDteContractRead => {
+            OptionEventOperation::ZeroDteContract
+        }
+        ProductionRouteAdapter::MarketDataOptionsEarningsRead => OptionEventOperation::Earnings,
+        ProductionRouteAdapter::MarketDataOptionsSellerRead => OptionEventOperation::Seller,
+        _ => return None,
+    })
 }
 
 fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
@@ -386,6 +447,8 @@ pub(crate) fn production_adapter_bindings(
         Adapter::ResearchRead,
         Adapter::ResearchRankingsRead,
         Adapter::ResearchIndustriesRead,
+        Adapter::ResearchCalendarRead,
+        Adapter::ResearchMacroRead,
         Adapter::ResearchScreenWrite,
         Adapter::BacktestStart,
         Adapter::ExecutionWrite,
@@ -399,6 +462,11 @@ pub(crate) fn production_adapter_bindings(
         Adapter::MarketDataOptionsScreenRead,
         Adapter::MarketDataOptionsAnalysisRead,
         Adapter::MarketDataOptionsEventsRead,
+        Adapter::MarketDataOptionsUnusualRead,
+        Adapter::MarketDataOptionsZeroDteRead,
+        Adapter::MarketDataOptionsZeroDteContractRead,
+        Adapter::MarketDataOptionsEarningsRead,
+        Adapter::MarketDataOptionsSellerRead,
         Adapter::MarketDataNewsSearchRead,
         Adapter::MarketDataPredictionRead,
         Adapter::MarketDataDepthRead,

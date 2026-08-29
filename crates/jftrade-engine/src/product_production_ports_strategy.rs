@@ -20,8 +20,11 @@ use crate::product::{
 mod product_production_ports_research;
 #[path = "product_production_ports_research_market.rs"]
 mod product_production_ports_research_market;
+#[path = "product_production_ports_research_calendar.rs"]
+mod product_production_ports_research_calendar;
 pub(crate) use product_production_ports_research::{ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort};
 pub(crate) use product_production_ports_research_market::read_market_research;
+pub(crate) use product_production_ports_research_calendar::read_market_calendar;
 
 #[path = "product_production_ports_strategy_runtime.rs"]
 mod product_production_ports_strategy_runtime;

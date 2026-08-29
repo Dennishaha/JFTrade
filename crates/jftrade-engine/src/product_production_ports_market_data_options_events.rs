@@ -9,12 +9,16 @@ pub(crate) fn read(
     runtime: Option<&Arc<SharedTradeReadRuntime>>,
     query: &str,
 ) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    // Decode the operation before resolving the runtime. This keeps malformed
+    // operation values as deterministic 400 responses even when the external
+    // Futu runtime is unavailable, while each valid operation below checks its
+    // own concrete reader and fails closed with 503 independently.
+    let operation = operation(query)?;
     let runtime = runtime.ok_or_else(|| {
         MarketDataOptionsReadSnapshotError::Unavailable(
             "Futu option event runtime is not configured".to_owned(),
         )
     })?;
-    let operation = operation(query)?;
     if operation == "zero_dte" {
         return read_zero_dte(runtime, query);
     }

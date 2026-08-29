@@ -213,17 +213,11 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 "research provider is not configured".to_owned(),
             ));
         };
-        if matches!(
-            path,
-            "/api/v1/research/rankings" | "/api/v1/research/industries"
-        ) {
-            return super::read_market_research(
-                provider,
-                snapshot.helper_ready,
-                self.helper.as_ref(),
-                path,
-                query,
-            );
+        if matches!(path, "/api/v1/research/rankings" | "/api/v1/research/industries") {
+            return super::read_market_research(provider, snapshot.helper_ready, self.helper.as_ref(), path, query);
+        }
+        if matches!(path, "/api/v1/research/calendars" | "/api/v1/research/macro") {
+            return super::read_market_calendar(provider, snapshot.helper_ready, self.helper.as_ref(), path, query);
         }
         if provider == jftrade_settings::MarketDataProvider::Futu {
             if !path.starts_with("/api/v1/research/valuation/") {
