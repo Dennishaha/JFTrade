@@ -3,6 +3,9 @@ fn research_read_snapshot_failure(error: ResearchReadSnapshotError) -> ApiFailur
         ResearchReadSnapshotError::Invalid(message) => {
             ApiFailure::new(400, "BAD_REQUEST", message)
         }
+        ResearchReadSnapshotError::Failed { status, code, message } => {
+            ApiFailure::new(status, code, message)
+        }
         ResearchReadSnapshotError::Unavailable(message) => {
             ApiFailure::new(503, "RESEARCH_UNAVAILABLE", message)
         }

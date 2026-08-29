@@ -1,6 +1,7 @@
 //! Strategy and Research Presets production ports.
 
 use std::sync::Arc;
+use std::thread;
 
 use jftrade_research::normalize_definition_v2;
 use jftrade_store_sqlite::{
@@ -8,6 +9,7 @@ use jftrade_store_sqlite::{
     StrategyDefinitionStoreError, StrategyRuntimeStore,
 };
 use serde_json::{Value, json};
+use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
 
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_research_preset_write_port::{
@@ -1250,22 +1252,265 @@ fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchP
 // Research Read & Screen Write
 // ---------------------------------------------------------------------------
 
-#[derive(Debug)]
 pub(crate) struct ProductionResearchPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) helper: Option<HelperClient>,
+}
+
+impl std::fmt::Debug for ProductionResearchPort {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionResearchPort")
+            .field("helper", &self.helper.is_some())
+            .finish()
+    }
 }
 
 impl ResearchReadSnapshotPort for ProductionResearchPort {
-    fn read(&self, _path: &str, _query: &str) -> Result<Value, ResearchReadSnapshotError> {
+    fn read(&self, path: &str, query: &str) -> Result<Value, ResearchReadSnapshotError> {
         let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider.is_none() || (!snapshot.helper_ready && !snapshot.opend_ready) {
+        let Some(provider) = snapshot.provider else {
             return Err(ResearchReadSnapshotError::Unavailable(
                 "research provider is not configured".to_owned(),
             ));
+        };
+        if !snapshot.helper_ready {
+            return Err(ResearchReadSnapshotError::Unavailable(
+                "market-data helper is not ready".to_owned(),
+            ));
         }
-        Err(ResearchReadSnapshotError::Unavailable(
-            "research provider is not configured".to_owned(),
-        ))
+        let provider = match provider {
+            jftrade_settings::MarketDataProvider::Yfinance => "yfinance",
+            jftrade_settings::MarketDataProvider::Akshare => "akshare",
+            jftrade_settings::MarketDataProvider::Futu => {
+                return Err(ResearchReadSnapshotError::Unavailable(
+                    "research helper does not support the Futu provider".to_owned(),
+                ));
+            }
+        };
+        let (operation, market, symbol, extra_query) = research_helper_request(path, query)?;
+        let Some(helper) = self.helper.clone() else {
+            return Err(ResearchReadSnapshotError::Unavailable(
+                "market-data helper is not configured".to_owned(),
+            ));
+        };
+        let result = thread::spawn(move || {
+            let query_refs = extra_query
+                .iter()
+                .map(|(key, value)| (*key, value.as_str()))
+                .collect::<Vec<_>>();
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| HttpAdapterError::Unavailable(error.to_string()))?;
+            runtime.block_on(helper.get_provider_json_with_query::<Value>(
+                provider,
+                &[operation, &market, &symbol],
+                &query_refs,
+            ))
+        })
+        .join()
+        .map_err(|_| ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned()))?;
+        let payload = result.map_err(map_research_helper_error)?;
+        validate_research_payload(operation, payload)
+    }
+}
+
+fn research_helper_request(
+    path: &str,
+    query: &str,
+) -> Result<(&'static str, String, String, Vec<(&'static str, String)>), ResearchReadSnapshotError> {
+    let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/research/financials/") {
+        ("financials", value)
+    } else if let Some(value) = path.strip_prefix("/api/v1/research/analyst/") {
+        ("analyst", value)
+    } else if let Some(value) = path.strip_prefix("/api/v1/research/ownership/") {
+        ("ownership", value)
+    } else if let Some(value) = path.strip_prefix("/api/v1/research/corporate-actions/") {
+        ("corporate-actions", value)
+    } else if let Some(value) = path.strip_prefix("/api/v1/research/instruments/") {
+        ("profile", value)
+    } else {
+        return Err(ResearchReadSnapshotError::Unavailable(
+            "research operation is not backed by the market-data helper".to_owned(),
+        ));
+    };
+    let mut parts = suffix.splitn(2, '/');
+    let first = parts.next().unwrap_or_default().trim();
+    let second = parts.next().unwrap_or_default().trim();
+    let (market, symbol) = if operation == "profile" {
+        first.split_once('.').ok_or_else(|| ResearchReadSnapshotError::Invalid(
+            "instrument must use MARKET.SYMBOL form".to_owned(),
+        ))?
+    } else if !first.is_empty() && !second.is_empty() && !second.contains('/') {
+        (first, second)
+    } else {
+        return Err(ResearchReadSnapshotError::Invalid(
+            "research instrument path is invalid".to_owned(),
+        ));
+    };
+    if market.is_empty() || symbol.is_empty() || market.contains('.') {
+        return Err(ResearchReadSnapshotError::Invalid(
+            "research instrument path is invalid".to_owned(),
+        ));
+    }
+    let mut extra_query = Vec::new();
+    for pair in query.split('&').filter(|pair| !pair.is_empty()) {
+        let Some((key, value)) = pair.split_once('=') else { continue };
+        if operation == "financials" && key == "statement" {
+            extra_query.push(("statement", value.to_owned()));
+        } else if operation == "corporate-actions" && (key == "from" || key == "to") {
+            extra_query.push((if key == "from" { "from" } else { "to" }, value.to_owned()));
+        }
+    }
+    Ok((operation, market.to_owned(), symbol.to_owned(), extra_query))
+}
+
+fn validate_research_payload(
+    operation: &str,
+    payload: Value,
+) -> Result<Value, ResearchReadSnapshotError> {
+    let Some(object) = payload.as_object() else {
+        return Err(ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: "market-data helper returned a non-object research response".to_owned(),
+        });
+    };
+    let required = match operation {
+        "financials" => &["instrumentId", "statement", "fields", "periods"][..],
+        "analyst" => &["instrumentId"][..],
+        "ownership" => &["instrumentId", "groups"][..],
+        "corporate-actions" => &["market", "symbol", "instrumentId", "events", "source"][..],
+        "profile" => &["instrumentId"][..],
+        _ => &[][..],
+    };
+    if let Some(missing) = required.iter().find(|key| !object.contains_key(**key)) {
+        return Err(ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: format!("market-data helper response is missing {missing}"),
+        });
+    }
+    Ok(payload)
+}
+
+fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
+    match error {
+        HttpAdapterError::Remote { status, code, message, .. } => ResearchReadSnapshotError::Failed {
+            status,
+            code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
+            message,
+        },
+        HttpAdapterError::Timeout => ResearchReadSnapshotError::Failed {
+            status: 504,
+            code: "GATEWAY_TIMEOUT".to_owned(),
+            message: "market-data helper request timed out".to_owned(),
+        },
+        HttpAdapterError::InvalidResponse(message) => ResearchReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message,
+        },
+        other => ResearchReadSnapshotError::Unavailable(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod research_helper_tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    fn helper(base_url: String) -> HelperClient {
+        HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
+            base_url,
+            bearer_token: None,
+            request_timeout: Duration::from_secs(1),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("helper client")
+    }
+
+    #[test]
+    fn research_helper_request_rejects_unsupported_or_malformed_paths() {
+        assert!(matches!(
+            research_helper_request("/api/v1/research/technical-indicators/US.AAPL", ""),
+            Err(ResearchReadSnapshotError::Unavailable(_))
+        ));
+        assert!(matches!(
+            research_helper_request("/api/v1/research/financials/US", ""),
+            Err(ResearchReadSnapshotError::Invalid(_))
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn production_research_port_forwards_financials_to_helper() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let mut request = vec![0_u8; 4096];
+            let read = stream.read(&mut request).await.expect("read");
+            let request = String::from_utf8_lossy(&request[..read]);
+            assert!(request.starts_with(
+                "GET /providers/yfinance/financials/US/AAPL?statement=balance HTTP/1.1\r\n"
+            ));
+            let body = r#"{"instrumentId":"US.AAPL","statement":"balance","fields":[],"periods":[]}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            stream.write_all(response.as_bytes()).await.expect("write");
+        });
+        let state = Arc::new(ActiveProviderState::new(Some(
+            jftrade_settings::MarketDataProvider::Yfinance,
+        )));
+        state.set_readiness(true, false, false);
+        let port = ProductionResearchPort {
+            active_provider_state: state,
+            helper: Some(helper(format!("http://{address}"))),
+        };
+        let value = port
+            .read(
+                "/api/v1/research/financials/US/AAPL",
+                "statement=balance",
+            )
+            .expect("research response");
+        assert_eq!(value["statement"], "balance");
+        server.await.expect("server");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn production_research_port_preserves_helper_http_errors() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+        let address = listener.local_addr().expect("address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let body = r#"{"error":{"code":"NOT_FOUND","message":"financials not found"}}"#;
+            let response = format!(
+                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            stream.write_all(response.as_bytes()).await.expect("write");
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).await;
+        });
+        let state = Arc::new(ActiveProviderState::new(Some(
+            jftrade_settings::MarketDataProvider::Yfinance,
+        )));
+        state.set_readiness(true, false, false);
+        let port = ProductionResearchPort {
+            active_provider_state: state,
+            helper: Some(helper(format!("http://{address}"))),
+        };
+        assert!(matches!(
+            port.read("/api/v1/research/analyst/US/AAPL", ""),
+            Err(ResearchReadSnapshotError::Failed { status: 404, ref code, .. }) if code == "NOT_FOUND"
+        ));
+        server.await.expect("server");
     }
 }
 

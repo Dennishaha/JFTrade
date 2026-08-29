@@ -45,6 +45,12 @@ pub enum ResearchReadSnapshotError {
     Unavailable(String),
     #[error("research read snapshot request is invalid: {0}")]
     Invalid(String),
+    #[error("research read snapshot failed with {status}: [{code}] {message}")]
+    Failed {
+        status: u16,
+        code: String,
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, Error)]

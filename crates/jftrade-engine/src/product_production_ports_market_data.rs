@@ -119,4 +119,3 @@ impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort
         ))
     }
 }
-
