@@ -727,37 +727,94 @@ impl StrategyRuntimeStatusPort for ProductionStrategyRuntimePort {
         } else {
             "idle".to_owned()
         };
+        let mut active_instances = Vec::new();
+        for instance in instances.into_iter().filter(|instance| {
+            instance.runtime_active || instance.status.eq_ignore_ascii_case("RUNNING")
+        }) {
+            let observation = match self.store.get_observation(&instance.id) {
+                Ok(observation) => observation,
+                Err(_) => {
+                    return StrategyRuntimeSummary {
+                        status: "failed".to_owned(),
+                        active_strategies: 0,
+                        supports_backtest_parity: true,
+                        active_instances: Vec::new(),
+                    };
+                }
+            };
+            let binding_definition_name = binding_string(
+                &instance.binding,
+                &["definitionName", "strategyName"],
+            );
+            let binding_symbols = binding_symbols(&instance.binding);
+            let actual_status = observation
+                .as_ref()
+                .map(|item| item.actual_status.trim())
+                .filter(|status| !status.is_empty())
+                .unwrap_or(instance.status.trim())
+                .to_ascii_lowercase();
+            active_instances.push(crate::product::StrategyRuntimeActiveInstance {
+                instance_id: instance.id,
+                definition_name: binding_definition_name,
+                actual_status,
+                active_symbols: observation
+                    .as_ref()
+                    .map(|item| item.active_symbols.clone())
+                    .or(binding_symbols),
+                last_closed_kline_at: observation
+                    .as_ref()
+                    .and_then(|item| item.last_closed_kline_at.clone()),
+                last_signal_at: observation
+                    .as_ref()
+                    .and_then(|item| item.last_signal_at.clone()),
+                last_order_at: observation
+                    .as_ref()
+                    .and_then(|item| item.last_order_at.clone()),
+                last_error_at: observation
+                    .as_ref()
+                    .and_then(|item| item.last_error_at.clone()),
+                last_error: observation
+                    .as_ref()
+                    .and_then(|item| item.last_error.clone()),
+                updated_at: observation
+                    .as_ref()
+                    .and_then(|item| item.updated_at.clone())
+                    .or_else(|| {
+                        (!instance.updated_at.is_empty()).then_some(instance.updated_at.clone())
+                    }),
+            });
+        }
         StrategyRuntimeSummary {
             status,
             active_strategies,
             supports_backtest_parity: true,
-            active_instances: instances
-                .into_iter()
-                .filter(|instance| {
-                    instance.runtime_active || instance.status.eq_ignore_ascii_case("RUNNING")
-                })
-                .map(|i| {
-                    let actual_status = i.status.to_ascii_lowercase();
-                    crate::product::StrategyRuntimeActiveInstance {
-                        instance_id: i.id,
-                        definition_name: "".to_owned(),
-                        actual_status,
-                        active_symbols: None,
-                        last_closed_kline_at: None,
-                        last_signal_at: None,
-                        last_order_at: None,
-                        last_error_at: None,
-                        last_error: None,
-                        updated_at: if i.updated_at.is_empty() {
-                            None
-                        } else {
-                            Some(i.updated_at)
-                        },
-                    }
-                })
-                .collect(),
+            active_instances,
         }
     }
+}
+
+fn binding_string(binding: &Value, keys: &[&str]) -> String {
+    keys.iter()
+        .filter_map(|key| binding.get(*key).and_then(Value::as_str))
+        .map(str::trim)
+        .find(|value| !value.is_empty())
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn binding_symbols(binding: &Value) -> Option<Vec<String>> {
+    ["activeSymbols", "symbols"].iter().find_map(|key| {
+        let values = binding.get(*key)?.as_array()?;
+        Some(
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect(),
+        )
+    })
 }
 
 impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {

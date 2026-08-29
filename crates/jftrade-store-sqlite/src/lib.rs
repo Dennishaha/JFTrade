@@ -63,8 +63,9 @@ pub use strategy_definition::{
 };
 pub use strategy_runtime::{
     STRATEGY_RUNTIME_PRODUCTION_PROFILE, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE,
-    StoredRuntimeInstance, StoredStrategyAuditEvent, StoredStrategyLogEvent, StrategyRuntimeStore,
-    StrategyRuntimeStoreError, StrategyRuntimeTestCutoverStore,
+    StoredRuntimeInstance, StoredRuntimeObservation, StoredStrategyAuditEvent,
+    StoredStrategyLogEvent, StrategyRuntimeStore, StrategyRuntimeStoreError,
+    StrategyRuntimeTestCutoverStore,
 };
 pub use watchlist::{
     StoredBinding, StoredGroup, StoredImportPreview, StoredImportRun, StoredRemoteGroup,

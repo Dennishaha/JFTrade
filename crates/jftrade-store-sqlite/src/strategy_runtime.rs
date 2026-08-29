@@ -27,6 +27,24 @@ pub struct StoredRuntimeInstance {
     pub updated_at: String,
 }
 
+/// Persisted runtime observation for a strategy instance.
+///
+/// The observation table is written by the runtime worker and is deliberately
+/// kept separate from the catalog operation payload.  Production status
+/// projections must read this record instead of manufacturing empty values.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StoredRuntimeObservation {
+    pub instance_id: String,
+    pub actual_status: String,
+    pub active_symbols: Vec<String>,
+    pub last_closed_kline_at: Option<String>,
+    pub last_signal_at: Option<String>,
+    pub last_order_at: Option<String>,
+    pub last_error_at: Option<String>,
+    pub last_error: Option<String>,
+    pub updated_at: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StoredStrategyLogEvent {
     pub raw: String,
@@ -232,6 +250,80 @@ impl StrategyRuntimeStore {
     ) -> Result<Option<StoredRuntimeInstance>, StrategyRuntimeStoreError> {
         let connection = self.lock()?;
         get_instance_query(&connection, instance_id)
+    }
+
+    pub fn get_observation(
+        &self,
+        instance_id: &str,
+    ) -> Result<Option<StoredRuntimeObservation>, StrategyRuntimeStoreError> {
+        let connection = self.lock()?;
+        let row: Option<(
+            String,
+            String,
+            String,
+            Option<i64>,
+            Option<i64>,
+            Option<i64>,
+            Option<i64>,
+            Option<String>,
+            Option<i64>,
+        )> = connection
+            .query_row(
+                "SELECT instance_id, actual_status_snapshot, active_symbols_json,
+                        last_closed_kline_at_ms, last_signal_at_ms, last_order_at_ms,
+                        last_error_at_ms, last_error, updated_at_ms
+                 FROM strategy_runtime_observations WHERE instance_id = ?1",
+                params![instance_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                        row.get(8)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(StrategyRuntimeStoreError::Query)?;
+
+        row.map(|(
+            instance_id,
+            actual_status,
+            active_symbols_json,
+            last_closed_kline_at_ms,
+            last_signal_at_ms,
+            last_order_at_ms,
+            last_error_at_ms,
+            last_error,
+            updated_at_ms,
+        )| {
+            let active_symbols = serde_json::from_str::<Vec<String>>(&active_symbols_json)
+                .map_err(|error| {
+                    StrategyRuntimeStoreError::Incompatible(format!(
+                        "strategy runtime observation {instance_id:?} contains invalid active symbols JSON: {error}"
+                    ))
+                })?;
+            Ok(StoredRuntimeObservation {
+                instance_id,
+                actual_status,
+                active_symbols,
+                last_closed_kline_at: observation_timestamp(last_closed_kline_at_ms)?,
+                last_signal_at: observation_timestamp(last_signal_at_ms)?,
+                last_order_at: observation_timestamp(last_order_at_ms)?,
+                last_error_at: observation_timestamp(last_error_at_ms)?,
+                last_error: last_error.and_then(|value| {
+                    let value = value.trim().to_owned();
+                    (!value.is_empty()).then_some(value)
+                }),
+                updated_at: observation_timestamp(updated_at_ms)?,
+            })
+        })
+        .transpose()
     }
 
     pub fn list_log_events(
@@ -626,6 +718,23 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), StrategyRuntimeStor
         })
 }
 
+fn observation_timestamp(value: Option<i64>) -> Result<Option<String>, StrategyRuntimeStoreError> {
+    let Some(value) = value.filter(|value| *value > 0) else {
+        return Ok(None);
+    };
+    let timestamp = OffsetDateTime::from_unix_timestamp_nanos(i128::from(value) * 1_000_000)
+        .map_err(|error| {
+            StrategyRuntimeStoreError::Incompatible(format!(
+                "strategy runtime observation timestamp is out of range: {error}"
+            ))
+        })?;
+    timestamp.format(&Rfc3339).map(Some).map_err(|error| {
+        StrategyRuntimeStoreError::Incompatible(format!(
+            "format strategy runtime observation timestamp: {error}"
+        ))
+    })
+}
+
 #[derive(Debug)]
 pub struct StrategyRuntimeTestCutoverStore {
     inner: StrategyRuntimeStore,
@@ -673,6 +782,13 @@ impl StrategyRuntimeTestCutoverStore {
         instance_id: &str,
     ) -> Result<Option<StoredRuntimeInstance>, StrategyRuntimeStoreError> {
         self.inner.get_instance(instance_id)
+    }
+
+    pub fn get_observation(
+        &self,
+        instance_id: &str,
+    ) -> Result<Option<StoredRuntimeObservation>, StrategyRuntimeStoreError> {
+        self.inner.get_observation(instance_id)
     }
 
     pub fn list_log_events(

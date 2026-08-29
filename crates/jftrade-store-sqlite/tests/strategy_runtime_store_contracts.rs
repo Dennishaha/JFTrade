@@ -170,6 +170,56 @@ fn strategy_runtime_rejects_corrupt_payload_and_reads_persisted_activity() {
     ));
 }
 
+#[test]
+fn strategy_runtime_reads_observation_projection_and_rejects_corrupt_symbols() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("strategy.db");
+    seed_go_strategy_schema(&path);
+    let store = open_store(&path);
+    store
+        .seed_instance("inst-observation", "RUNNING", TIMESTAMP_1)
+        .expect("seed instance");
+
+    let connection = Connection::open(&path).expect("open observation writer");
+    connection
+        .execute(
+            "UPDATE strategy_runtime_observations
+             SET actual_status_snapshot = 'recovering', active_symbols_json = '[\"US.AAPL\",\"HK.00700\"]',
+                 last_signal_at_ms = 1724486580123, last_error = ' worker exited ', updated_at_ms = 1724486700000
+             WHERE instance_id = 'inst-observation'",
+            [],
+        )
+        .expect("write observation");
+
+    let observation = store
+        .get_observation("inst-observation")
+        .expect("read observation")
+        .expect("observation exists");
+    assert_eq!(observation.actual_status, "recovering");
+    assert_eq!(observation.active_symbols, vec!["US.AAPL", "HK.00700"]);
+    assert_eq!(
+        observation.last_signal_at.as_deref(),
+        Some("2024-08-24T08:03:00.123Z")
+    );
+    assert_eq!(observation.last_error.as_deref(), Some("worker exited"));
+    assert_eq!(
+        observation.updated_at.as_deref(),
+        Some("2024-08-24T08:05:00Z")
+    );
+
+    connection
+        .execute(
+            "UPDATE strategy_runtime_observations SET active_symbols_json = '{bad-json}' WHERE instance_id = 'inst-observation'",
+            [],
+        )
+        .expect("corrupt observation");
+    assert!(matches!(
+        store.get_observation("inst-observation"),
+        Err(StrategyRuntimeStoreError::Incompatible(message))
+            if message.contains("invalid active symbols JSON")
+    ));
+}
+
 fn open_store(path: &Path) -> StrategyRuntimeTestCutoverStore {
     StrategyRuntimeTestCutoverStore::open_existing(path, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE)
         .expect("open strategy runtime test-cutover store")
