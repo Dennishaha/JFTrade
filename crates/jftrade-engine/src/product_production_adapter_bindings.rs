@@ -101,6 +101,7 @@ impl ProductionPortBundle {
                             || runtime.option_exercise_probability_available()
                             || runtime.option_underlying_overview_available()
                             || runtime.option_underlying_rank_available()
+                            || runtime.option_contract_rank_available()
                     })
             {
                 ProductionAdapterBinding::Ready

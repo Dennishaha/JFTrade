@@ -131,6 +131,11 @@ pub async fn start_product_runtime(
                         runtime.coordinator(),
                     ),
                 )));
+                trade_runtime.set_option_contract_rank(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionContractRankReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_events(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionEventReader::new(runtime.coordinator()),
                 )));
@@ -208,6 +213,9 @@ pub async fn start_product_runtime(
         )));
         trade_runtime.set_option_underlying_rank(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionUnderlyingRankReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_option_contract_rank(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionContractRankReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_option_events(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionEventReader::new(Arc::clone(coordinator)),

@@ -6,8 +6,7 @@ use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
     OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
-    OptionUnderlyingRankReadPort, TradeReadPort,
-    TradeSecurity,
+    OptionUnderlyingRankReadPort, OptionContractRankReadPort, TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -44,6 +43,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_exercise_probability: Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
     pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
     pub(crate) option_underlying_rank: Arc<RwLock<Option<Arc<dyn OptionUnderlyingRankReadPort>>>>,
+    pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
 #[derive(Clone, Debug)]

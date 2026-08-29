@@ -358,6 +358,66 @@ impl jftrade_integration_futu::OptionUnderlyingRankReadPort for FixtureOptionUnd
 }
 
 #[derive(Debug)]
+struct FixtureOptionContractRankReader;
+
+impl jftrade_integration_futu::OptionContractRankReadPort for FixtureOptionContractRankReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionContractRankQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionContractRankSnapshot,
+        jftrade_integration_futu::OptionContractRankQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.sort_type, 10);
+        assert_eq!(query.count, Some(25));
+        assert_eq!(query.trading_date.as_deref(), Some("2026-08-29"));
+        assert_eq!(query.is_asc, Some(true));
+        assert_eq!(query.page.as_deref(), Some("next"));
+        Ok(jftrade_integration_futu::OptionContractRankSnapshot {
+            market: "US".to_owned(),
+            sort_type: 10,
+            trading_date: Some("2026-08-29".to_owned()),
+            trading_timestamp: Some(1_756_000_000.0),
+            items: vec![jftrade_integration_futu::OptionContractRankItem {
+                security: jftrade_integration_futu::OptionContractRankSecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL260918C00100000".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL260918C00100000".to_owned(),
+                },
+                name: Some("AAPL Call".to_owned()),
+                option_type: Some(1),
+                oi_increment: Some(20),
+                oi_decrement: None,
+                oi_market_cap_increment: None,
+                oi_market_cap_decrement: None,
+                volume: Some(1200),
+                turnover: Some(1500.0),
+                open_interest: Some(900),
+                open_interest_market_cap: None,
+                iv: Some(25.0),
+                option_price: Some(1.25),
+                change_rate: Some(5.0),
+                mid_price: Some(1.24),
+                bid_price: Some(1.2),
+                bid_volume: Some(10),
+                ask_price: Some(1.3),
+                ask_volume: Some(12),
+                delta: Some(0.5),
+                gamma: Some(0.01),
+                theta: Some(-0.1),
+                vega: Some(0.2),
+                rho: Some(0.05),
+            }],
+            next_page: Some("next-2".to_owned()),
+            all_count: Some(42),
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionEventReader {
     result: Result<jftrade_integration_futu::OptionEventPage, String>,
 }
@@ -511,6 +571,7 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
         FixtureOptionUnderlyingOverviewReader,
     )));
     runtime.set_option_underlying_rank(Some(Arc::new(FixtureOptionUnderlyingRankReader)));
+    runtime.set_option_contract_rank(Some(Arc::new(FixtureOptionContractRankReader)));
     runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
         result: Ok(jftrade_integration_futu::OptionEventPage {
             events: vec![sample_option_event()],
@@ -618,6 +679,23 @@ fn underlying_rank_projection_forwards_typed_query_and_paginates() {
     assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
     assert_eq!(value["entries"][0]["totalVolume"], 1200);
     assert_eq!(value["metadata"]["sortType"], 7);
+    assert_eq!(value["hasMore"], true);
+    assert_eq!(value["nextCursor"], "next-2");
+    assert_eq!(value["total"], 42);
+}
+
+#[test]
+fn contract_rank_projection_forwards_typed_query_and_paginates() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=contract_rank&sortType=10&isAsc=true&count=25&tradingDate=2026-08-29&page=next",
+        )
+        .expect("option contract rank response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(value["entries"][0]["optionPrice"], 1.25);
+    assert_eq!(value["metadata"]["sortType"], 10);
     assert_eq!(value["hasMore"], true);
     assert_eq!(value["nextCursor"], "next-2");
     assert_eq!(value["total"], 42);

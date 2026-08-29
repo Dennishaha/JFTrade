@@ -17,6 +17,8 @@ mod product_production_ports_market_data_subscription;
 mod product_production_ports_market_data_options_screen;
 #[path = "product_production_ports_market_data_options_analysis.rs"]
 mod product_production_ports_market_data_options_analysis;
+#[path = "product_production_ports_market_data_options_contract_rank.rs"]
+mod product_production_ports_market_data_options_contract_rank;
 #[path = "product_production_ports_market_data_options_events.rs"]
 mod product_production_ports_market_data_options_events;
 #[cfg(test)]

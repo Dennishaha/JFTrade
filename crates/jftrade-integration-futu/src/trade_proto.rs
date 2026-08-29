@@ -52,6 +52,10 @@ pub mod qot_get_option_underlying_rank {
     ));
     pub const PROTOCOL_ID: u32 = 3305;
 }
+pub mod qot_get_option_rank {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_rank.rs"));
+    pub const PROTOCOL_ID: u32 = 3306;
+}
 pub mod qot_get_option_event {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_event.rs"));
     pub const PROTOCOL_ID: u32 = 3307;

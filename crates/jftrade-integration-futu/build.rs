@@ -10,6 +10,7 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionExerciseProbability.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingOverview.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingRank.proto",
+        "../../pkg/futu/proto/Qot_GetOptionRank.proto",
         "../../pkg/futu/proto/Qot_GetOptionEvent.proto",
         "../../pkg/futu/proto/Qot_OptionCommon.proto",
         "../../pkg/futu/proto/Qot_OptionScreen.proto",

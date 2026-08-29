@@ -20,6 +20,7 @@ pub(crate) fn read(
         && !runtime.option_exercise_probability_available()
         && !runtime.option_underlying_overview_available()
         && !runtime.option_underlying_rank_available()
+        && !runtime.option_contract_rank_available()
     {
         return Err(MarketDataOptionsReadSnapshotError::Unavailable(
             "Futu option analysis readers are not ready".to_owned(),
@@ -38,9 +39,16 @@ pub(crate) fn read(
     if operation == "underlying_rank" {
         return read_underlying_rank(runtime, path, query);
     }
+    if operation == "contract_rank" {
+        return super::product_production_ports_market_data_options_contract_rank::read(
+            Some(runtime),
+            path,
+            query,
+        );
+    }
     if operation != "quote" {
         return Err(bad_request(
-            "operation must be quote, volatility, exercise_probability, underlying_overview, or underlying_rank",
+            "operation must be quote, volatility, exercise_probability, underlying_overview, underlying_rank, or contract_rank",
         ));
     }
     if !runtime.option_quotes_available() {
