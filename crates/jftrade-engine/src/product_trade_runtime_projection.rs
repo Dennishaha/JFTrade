@@ -37,6 +37,7 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionChainReadPort>>>>,
     pub(crate) option_screens:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionScreenReadPort>>>>,
+    pub(crate) option_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
 }
 
 #[derive(Clone, Debug)]

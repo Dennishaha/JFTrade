@@ -163,6 +163,86 @@ impl jftrade_integration_futu::OptionScreenReadPort for FixtureOptionScreenReade
     }
 }
 
+#[derive(Debug)]
+struct FixtureOptionQuoteReader;
+
+impl jftrade_integration_futu::OptionQuoteReadPort for FixtureOptionQuoteReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionQuoteQuery,
+    ) -> Result<
+        Vec<jftrade_integration_futu::OptionQuote>,
+        jftrade_integration_futu::OptionQuoteQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL260918C00100000");
+        Ok(vec![jftrade_integration_futu::OptionQuote {
+            security: jftrade_integration_futu::OptionQuoteSecurity {
+                market: "US".to_owned(),
+                code: query.code.clone(),
+                quote_market: "US".to_owned(),
+                trade_market: "US".to_owned(),
+                instrument_id: format!("US.{}", query.code),
+            },
+            price: Some(1.25),
+            implied_volatility: Some(0.2),
+            option_type: Some(1),
+            expire_time: Some("2026-09-18".to_owned()),
+            ..empty_option_quote()
+        }])
+    }
+}
+
+fn empty_option_quote() -> jftrade_integration_futu::OptionQuote {
+    jftrade_integration_futu::OptionQuote {
+        security: jftrade_integration_futu::OptionQuoteSecurity {
+            market: "US".to_owned(),
+            code: "AAPL260918C00100000".to_owned(),
+            quote_market: "US".to_owned(),
+            trade_market: "US".to_owned(),
+            instrument_id: "US.AAPL260918C00100000".to_owned(),
+        },
+        price: None,
+        chg: None,
+        chg_rate: None,
+        vol: None,
+        turnover: None,
+        high: None,
+        low: None,
+        mid: None,
+        open: None,
+        pre_close: None,
+        open_interest: None,
+        premium: None,
+        implied_volatility: None,
+        delta: None,
+        gamma: None,
+        vega: None,
+        theta: None,
+        rho: None,
+        option_type: None,
+        expire_time: None,
+        strike: None,
+        contract_size: None,
+        contract_multiplier: None,
+        exercise_type: None,
+        days_to_expiry: None,
+        net_open_interest: None,
+        contract_value: None,
+        equal_underlying: None,
+        index_option_type: None,
+        intrinsic_value: None,
+        time_value: None,
+        breakeven_point: None,
+        dist_to_breakeven: None,
+        prob_of_profit: None,
+        seller_roi: None,
+        mark_price: None,
+        leverage_ratio: None,
+        effective_gearing: None,
+    }
+}
+
 fn ready_port() -> ProductionMarketDataOptionsPort {
     let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
     state.set_readiness(false, true, true);
@@ -170,10 +250,78 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_expirations(Some(Arc::new(FixtureOptionExpirationReader)));
     runtime.set_option_chains(Some(Arc::new(FixtureOptionChainReader)));
     runtime.set_option_screens(Some(Arc::new(FixtureOptionScreenReader)));
+    runtime.set_option_quotes(Some(Arc::new(FixtureOptionQuoteReader)));
     ProductionMarketDataOptionsPort {
         active_provider_state: state,
         trade_runtime: Some(runtime),
     }
+}
+
+#[test]
+fn analysis_projection_forwards_quote_query_and_neutral_wire() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL260918C00100000",
+            "market=US&operation=quote",
+        )
+        .expect("option quote response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["entries"][0]["security"]["instrumentId"],
+        "US.AAPL260918C00100000"
+    );
+    assert_eq!(value["entries"][0]["price"], 1.25);
+    assert_eq!(value["entries"][0]["impliedVolatility"], 0.2);
+    assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn analysis_projection_rejects_bad_operation_or_market() {
+    for query in ["operation=volatility", "operation=quote&market=HK", "market=US"] {
+        let error = ready_port()
+            .read(
+                "/api/v1/market-data/options/analysis/US.AAPL260918C00100000",
+                query,
+            )
+            .expect_err("invalid analysis query");
+        assert!(matches!(
+            error,
+            MarketDataOptionsReadSnapshotError::Failed { status: 400, ref code, .. }
+                if code == "BAD_REQUEST"
+        ));
+    }
+}
+
+#[test]
+fn analysis_projection_rejects_underlying_instrument() {
+    let error = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "operation=quote",
+        )
+        .expect_err("underlying must not be treated as quote");
+    assert!(matches!(
+        error,
+        MarketDataOptionsReadSnapshotError::Failed { status: 400, ref code, .. }
+            if code == "BAD_REQUEST"
+    ));
+}
+
+#[test]
+fn analysis_projection_is_unavailable_without_typed_reader() {
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, true, true);
+    let port = ProductionMarketDataOptionsPort {
+        active_provider_state: state,
+        trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
+    };
+    assert!(matches!(
+        port.read(
+            "/api/v1/market-data/options/analysis/US.AAPL260918C00100000",
+            "operation=quote",
+        ),
+        Err(MarketDataOptionsReadSnapshotError::Unavailable(_))
+    ));
 }
 
 #[test]

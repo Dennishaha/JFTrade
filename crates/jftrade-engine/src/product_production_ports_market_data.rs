@@ -15,6 +15,8 @@ mod product_production_ports_market_data_quote;
 mod product_production_ports_market_data_subscription;
 #[path = "product_production_ports_market_data_options_screen.rs"]
 mod product_production_ports_market_data_options_screen;
+#[path = "product_production_ports_market_data_options_analysis.rs"]
+mod product_production_ports_market_data_options_analysis;
 #[cfg(test)]
 #[path = "product_production_ports_market_data_options_tests.rs"]
 mod product_production_ports_market_data_options_tests;
@@ -79,6 +81,13 @@ impl MarketDataOptionsReadSnapshotPort for ProductionMarketDataOptionsPort {
         })?;
         if path == "/api/v1/market-data/options/screens" {
             return product_production_ports_market_data_options_screen::read(Some(runtime), query);
+        }
+        if path.starts_with("/api/v1/market-data/options/analysis/") {
+            return product_production_ports_market_data_options_analysis::read(
+                Some(runtime),
+                path,
+                query,
+            );
         }
         if path.starts_with("/api/v1/market-data/options/chains/") {
             if !runtime.option_chains_available() {

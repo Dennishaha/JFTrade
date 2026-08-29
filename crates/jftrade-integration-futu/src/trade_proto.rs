@@ -20,6 +20,10 @@ pub mod qot_get_option_chain {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_chain.rs"));
     pub const PROTOCOL_ID: u32 = 3209;
 }
+pub mod qot_get_option_quote {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_quote.rs"));
+    pub const PROTOCOL_ID: u32 = 3255;
+}
 pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));
     pub const PROTOCOL_ID: u32 = 3253;

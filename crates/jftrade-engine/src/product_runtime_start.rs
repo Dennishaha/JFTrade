@@ -108,6 +108,9 @@ pub async fn start_product_runtime(
                 trade_runtime.set_option_screens(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionScreenReader::new(runtime.coordinator()),
                 )));
+                trade_runtime.set_option_quotes(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionQuoteReader::new(runtime.coordinator()),
+                )));
                 (Some(runtime), Some(shared_router))
             }
             Err(error) => {
@@ -163,6 +166,9 @@ pub async fn start_product_runtime(
         )));
         trade_runtime.set_option_screens(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionScreenReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_option_quotes(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionQuoteReader::new(Arc::clone(coordinator)),
         )));
     }
     if let Some(recorder) = market_data_runtime_recorder.as_ref() {

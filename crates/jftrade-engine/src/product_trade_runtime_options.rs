@@ -4,7 +4,8 @@ use jftrade_integration_futu::{
     OptionChainDate, OptionChainQuery, OptionChainQueryError, OptionChainReadPort,
     OptionExpirationDate, OptionExpirationQuery, OptionExpirationQueryError,
     OptionExpirationReadPort, OptionScreenPage, OptionScreenQuery, OptionScreenQueryError,
-    OptionScreenReadPort,
+    OptionScreenReadPort, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
+    OptionQuoteReadPort,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -101,6 +102,37 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionScreenQueryError::InvalidQuery(
                     "Futu option screen runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_quotes(&self, reader: Option<Arc<dyn OptionQuoteReadPort>>) {
+        *self
+            .option_quotes
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_quotes_available(&self) -> bool {
+        self.option_quotes
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_quotes(
+        &self,
+        query: &OptionQuoteQuery,
+    ) -> Result<Vec<OptionQuote>, OptionQuoteQueryError> {
+        let reader = self
+            .option_quotes
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionQuoteQueryError::InvalidQuery(
+                    "Futu option quote runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)
