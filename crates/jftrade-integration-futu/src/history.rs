@@ -104,7 +104,7 @@ impl HistoricalKlineReadPort for OpenDHistoricalKlineReader {
         let body = session
             .managed_session()
             .call(PROTO_REQUEST_HISTORY_KL, &body)
-            .map_err(|error| OpenDSessionCoordinatorError::Session(error))?;
+            .map_err(OpenDSessionCoordinatorError::Session)?;
         let response = HistoryResponse::decode(body.as_slice())?;
         let ret_type = response.ret_type.unwrap_or(-400);
         if ret_type != 0 {

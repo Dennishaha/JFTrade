@@ -49,6 +49,18 @@ pub struct StoredRuntimeObservation {
     pub updated_at: Option<String>,
 }
 
+type RuntimeObservationRow = (
+    String,
+    String,
+    String,
+    Option<i64>,
+    Option<i64>,
+    Option<i64>,
+    Option<i64>,
+    Option<String>,
+    Option<i64>,
+);
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StoredStrategyLogEvent {
     pub raw: String,
@@ -176,6 +188,7 @@ impl StrategyRuntimeStore {
         self.seed_instance_with_metadata(instance_id, status, binding, None, None, None, timestamp)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn seed_instance_with_definition(
         &self,
         instance_id: &str,
@@ -197,6 +210,7 @@ impl StrategyRuntimeStore {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn seed_instance_with_metadata(
         &self,
         instance_id: &str,
@@ -299,17 +313,7 @@ impl StrategyRuntimeStore {
         instance_id: &str,
     ) -> Result<Option<StoredRuntimeObservation>, StrategyRuntimeStoreError> {
         let connection = self.lock()?;
-        let row: Option<(
-            String,
-            String,
-            String,
-            Option<i64>,
-            Option<i64>,
-            Option<i64>,
-            Option<i64>,
-            Option<String>,
-            Option<i64>,
-        )> = connection
+        let row: Option<RuntimeObservationRow> = connection
             .query_row(
                 "SELECT instance_id, actual_status_snapshot, active_symbols_json,
                         last_closed_kline_at_ms, last_signal_at_ms, last_order_at_ms,
@@ -811,6 +815,7 @@ impl StrategyRuntimeTestCutoverStore {
             .seed_instance_with_binding(instance_id, status, binding, timestamp)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn seed_instance_with_definition(
         &self,
         instance_id: &str,
