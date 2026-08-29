@@ -14,11 +14,13 @@ mod option_contract_rank_query;
 mod option_event_query;
 mod option_exercise_probability_query;
 mod option_expiration_query;
+mod option_market_statistic_query;
 mod option_quote_query;
 mod option_screen_query;
 mod option_strategy_analysis_query;
 mod option_strategy_query;
 mod option_strategy_spread_query;
+mod option_underlying_his_statistic_query;
 mod option_underlying_his_volatility_query;
 mod option_underlying_overview_query;
 mod option_underlying_rank_query;
@@ -53,8 +55,8 @@ pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
 pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use future_info_query::{
-    FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort,
-    FutureInfoSecurity, FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
+    FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort, FutureInfoSecurity,
+    FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
 };
 pub use health::{
     OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
@@ -92,6 +94,12 @@ pub use option_expiration_query::{
     OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,
     OptionExpirationQueryError, OptionExpirationReadPort,
 };
+pub use option_market_statistic_query::{
+    OpenDOptionMarketStatisticReader, OptionMarketStatisticItem, OptionMarketStatisticQuery,
+    OptionMarketStatisticQueryError, OptionMarketStatisticReadPort, OptionMarketStatisticSnapshot,
+    decode_next_page_key as decode_option_market_statistic_cursor,
+    encode_next_page_key as encode_option_market_statistic_cursor,
+};
 pub use option_quote_query::{
     OpenDOptionQuoteReader, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
     OptionQuoteReadPort, OptionQuoteSecurity,
@@ -113,6 +121,14 @@ pub use option_strategy_query::{
 pub use option_strategy_spread_query::{
     OpenDOptionStrategySpreadReader, OptionStrategySpreadItem, OptionStrategySpreadQuery,
     OptionStrategySpreadQueryError, OptionStrategySpreadReadPort, OptionStrategySpreadSnapshot,
+};
+pub use option_underlying_his_statistic_query::{
+    OpenDOptionUnderlyingHisStatisticReader, OptionUnderlyingHisStatisticItem,
+    OptionUnderlyingHisStatisticQuery, OptionUnderlyingHisStatisticQueryError,
+    OptionUnderlyingHisStatisticReadPort, OptionUnderlyingHisStatisticSecurity,
+    OptionUnderlyingHisStatisticSnapshot,
+    decode_next_page_key as decode_option_underlying_his_statistic_cursor,
+    encode_next_page_key as encode_option_underlying_his_statistic_cursor,
 };
 pub use option_underlying_his_volatility_query::{
     OpenDOptionUnderlyingHisVolatilityReader, OptionUnderlyingHisVolatilityItem,

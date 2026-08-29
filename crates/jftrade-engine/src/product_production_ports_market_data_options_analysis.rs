@@ -5,6 +5,9 @@ use serde_json::{Value, json};
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::MarketDataOptionsReadSnapshotError;
 
+#[path = "product_production_ports_market_data_options_statistics.rs"]
+mod product_production_ports_market_data_options_statistics;
+
 pub(crate) fn read(
     runtime: Option<&Arc<SharedTradeReadRuntime>>,
     path: &str,
@@ -20,6 +23,8 @@ pub(crate) fn read(
         && !runtime.option_exercise_probability_available()
         && !runtime.option_underlying_overview_available()
         && !runtime.option_underlying_his_volatility_available()
+        && !runtime.option_market_statistic_available()
+        && !runtime.option_underlying_his_statistic_available()
         && !runtime.option_strategy_available()
         && !runtime.option_strategy_analysis_available()
         && !runtime.option_strategy_spread_available()
@@ -39,6 +44,16 @@ pub(crate) fn read(
     }
     if operation == "underlying_overview" {
         return read_underlying_overview(runtime, path, query);
+    }
+    if operation == "market_statistics" {
+        return product_production_ports_market_data_options_statistics::read_market_statistics(
+            runtime, path, query,
+        );
+    }
+    if operation == "historical_statistics" {
+        return product_production_ports_market_data_options_statistics::read_historical_statistics(
+            runtime, path, query,
+        );
     }
     if operation == "historical_volatility" {
         return super::product_production_ports_market_data_options_historical_volatility::read(
@@ -80,7 +95,7 @@ pub(crate) fn read(
     }
     if operation != "quote" {
         return Err(bad_request(
-            "operation must be quote, volatility, exercise_probability, strategy, strategy_analysis, underlying_overview, historical_volatility, strategy_spread, underlying_rank, or contract_rank",
+            "operation must be quote, volatility, exercise_probability, strategy, strategy_analysis, underlying_overview, market_statistics, historical_statistics, historical_volatility, strategy_spread, underlying_rank, or contract_rank",
         ));
     }
     if !runtime.option_quotes_available() {
@@ -97,7 +112,10 @@ pub(crate) fn read(
             message: "OpenD returned no option quote".to_owned(),
         });
     }
-    let entries = quotes.into_iter().map(serialize_quote).collect::<Result<Vec<_>, _>>()?;
+    let entries = quotes
+        .into_iter()
+        .map(serialize_quote)
+        .collect::<Result<Vec<_>, _>>()?;
     let total = entries.len();
     let as_of = super::super::provider_now_rfc3339();
     Ok(json!({
@@ -127,9 +145,7 @@ fn parse_quote_request(
         .ok_or_else(|| bad_request("unsupported options analysis route"))?;
     let (market, code) = instrument
         .split_once('.')
-        .filter(|(market, code)| {
-            !market.is_empty() && !code.is_empty() && !code.contains('.')
-        })
+        .filter(|(market, code)| !market.is_empty() && !code.is_empty() && !code.contains('.'))
         .ok_or_else(|| bad_request("instrumentId must be MARKET.CODE"))?;
     let market = market.trim().to_ascii_uppercase();
     let market_code = match market.as_str() {
@@ -182,7 +198,9 @@ fn read_volatility(
     } = snapshot;
     let entries = items
         .into_iter()
-        .map(|item| serde_json::to_value(item).map_err(|error| serialization_error("volatility", error)))
+        .map(|item| {
+            serde_json::to_value(item).map_err(|error| serialization_error("volatility", error))
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let total = entries.len();
     let as_of = super::super::provider_now_rfc3339();
@@ -399,7 +417,9 @@ fn parse_volatility_request(
     let code = code.trim();
     if code.is_empty()
         || code.chars().any(char::is_whitespace)
-        || code.chars().any(|value| !value.is_ascii_alphanumeric() && value != '-')
+        || code
+            .chars()
+            .any(|value| !value.is_ascii_alphanumeric() && value != '-')
     {
         return Err(bad_request("option volatility code is invalid"));
     }
@@ -473,13 +493,17 @@ fn parse_underlying_overview_request(
     let market_code = match market.as_str() {
         "HK" => 1,
         "US" => 11,
-        _ => return Err(bad_request("option underlying overview market must be HK or US")),
+        _ => {
+            return Err(bad_request(
+                "option underlying overview market must be HK or US",
+            ));
+        }
     };
     let code = code.trim();
     if code.is_empty()
-        || code.chars().any(|value| {
-            value.is_whitespace() || (!value.is_ascii_alphanumeric() && value != '-')
-        })
+        || code
+            .chars()
+            .any(|value| value.is_whitespace() || (!value.is_ascii_alphanumeric() && value != '-'))
     {
         return Err(bad_request("option underlying overview code is invalid"));
     }
@@ -514,10 +538,8 @@ fn parse_underlying_overview_request(
 fn parse_underlying_rank_request(
     path: &str,
     query: &str,
-) -> Result<
-    jftrade_integration_futu::OptionUnderlyingRankQuery,
-    MarketDataOptionsReadSnapshotError,
-> {
+) -> Result<jftrade_integration_futu::OptionUnderlyingRankQuery, MarketDataOptionsReadSnapshotError>
+{
     let instrument = path
         .strip_prefix("/api/v1/market-data/options/analysis/")
         .filter(|value| !value.is_empty() && !value.contains('/'))
@@ -530,7 +552,11 @@ fn parse_underlying_rank_request(
     let market_code = match market.as_str() {
         "HK" => 1,
         "US" => 11,
-        _ => return Err(bad_request("option underlying rank market must be HK or US")),
+        _ => {
+            return Err(bad_request(
+                "option underlying rank market must be HK or US",
+            ));
+        }
     };
     let code = code.trim();
     if code.is_empty()
@@ -603,9 +629,7 @@ fn parse_rank_bool(value: &str) -> Result<bool, MarketDataOptionsReadSnapshotErr
     }
 }
 
-fn parse_query_time_period(
-    value: &str,
-) -> Result<i32, MarketDataOptionsReadSnapshotError> {
+fn parse_query_time_period(value: &str) -> Result<i32, MarketDataOptionsReadSnapshotError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "week" | "1w" | "1" => Ok(1),
         "month" | "1m" | "2" => Ok(2),

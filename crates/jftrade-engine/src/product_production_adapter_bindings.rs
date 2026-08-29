@@ -26,104 +26,119 @@ impl ProductionPortBundle {
         &self,
         adapter: ProductionRouteAdapter,
     ) -> Option<ProductionAdapterBinding> {
-        if matches!(adapter, ProductionRouteAdapter::BrokerRead | ProductionRouteAdapter::PortfolioRead) {
+        if matches!(
+            adapter,
+            ProductionRouteAdapter::BrokerRead | ProductionRouteAdapter::PortfolioRead
+        ) {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && (self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.snapshot().is_ready())
-                    || (self.trade_runtime.is_none()
-                        && self.trade_logged_in == Some(true)
-                        && self.trade_read_port.is_some()))
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && (self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.snapshot().is_ready())
+                        || (self.trade_runtime.is_none()
+                            && self.trade_logged_in == Some(true)
+                            && self.trade_read_port.is_some()))
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         if adapter == ProductionRouteAdapter::WebSocketLive && !self.ws_live.enabled() {
             return None;
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsExpirationsRead {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.option_expirations_available())
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_expirations_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsChainRead {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.option_chains_available())
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_chains_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsScreenRead {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.option_screens_available())
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_screens_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsAnalysisRead {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| {
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self.trade_runtime.as_ref().is_some_and(|runtime| {
                         runtime.option_quotes_available()
                             || runtime.option_volatility_available()
                             || runtime.option_exercise_probability_available()
                             || runtime.option_underlying_overview_available()
                             || runtime.option_underlying_his_volatility_available()
+                            || runtime.option_market_statistic_available()
+                            || runtime.option_underlying_his_statistic_available()
                             || runtime.option_strategy_spread_available()
+                            || runtime.option_strategy_analysis_available()
                             || runtime.option_underlying_rank_available()
                             || runtime.option_contract_rank_available()
                     })
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead {
             let snapshot = self.active_provider_state.snapshot();
-            return Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.option_events_available())
-            {
-                ProductionAdapterBinding::Ready
-            } else {
-                ProductionAdapterBinding::ExternalUnavailable
-            });
+            return Some(
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_events_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                },
+            );
         }
         // Market-data capability is provider-dependent and can change at
         // runtime. Recompute those bindings from the shared snapshot instead
@@ -198,7 +213,11 @@ impl MarketDataCapabilityMatrix {
         helper_ready: bool,
         router_ready: bool,
     ) -> Self {
-        let active_provider = match active_provider.map(str::trim).map(str::to_ascii_lowercase).as_deref() {
+        let active_provider = match active_provider
+            .map(str::trim)
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
             Some("futu") => Some(ActiveMarketDataProvider::Futu),
             Some("yfinance") => Some(ActiveMarketDataProvider::Yfinance),
             Some("akshare") => Some(ActiveMarketDataProvider::Akshare),
@@ -269,8 +288,10 @@ impl MarketDataCapabilityMatrix {
     }
 
     pub(crate) fn can_read_news_actions(&self) -> bool {
-        matches!(self.active_provider, Some(ActiveMarketDataProvider::Yfinance))
-            && self.helper_ready
+        matches!(
+            self.active_provider,
+            Some(ActiveMarketDataProvider::Yfinance)
+        ) && self.helper_ready
     }
 }
 

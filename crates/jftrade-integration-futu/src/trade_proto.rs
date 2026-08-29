@@ -60,6 +60,20 @@ pub mod qot_get_option_underlying_overview {
     ));
     pub const PROTOCOL_ID: u32 = 3303;
 }
+pub mod qot_get_option_market_statistic {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_market_statistic.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3301;
+}
+pub mod qot_get_option_underlying_his_statistic {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_underlying_his_statistic.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3302;
+}
 pub mod qot_get_option_strategy_spread {
     include!(concat!(
         env!("OUT_DIR"),

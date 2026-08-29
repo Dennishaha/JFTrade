@@ -9,6 +9,7 @@ use jftrade_integration_futu::{
     OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
     OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
     OptionStrategySpreadReadPort, OptionStrategyReadPort, OptionStrategyAnalysisReadPort,
+    OptionMarketStatisticReadPort, OptionUnderlyingHisStatisticReadPort,
     TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -43,17 +44,26 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionChainReadPort>>>>,
     pub(crate) option_screens:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionScreenReadPort>>>>,
-    pub(crate) option_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
-    pub(crate) option_volatility: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
-    pub(crate) option_exercise_probability: Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
-    pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
-    pub(crate) option_underlying_his_volatility: Arc<RwLock<Option<OptionUnderlyingHisVolatilityPort>>>,
+    pub(crate) option_quotes:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
+    pub(crate) option_volatility:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
+    pub(crate) option_exercise_probability:
+        Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
+    pub(crate) option_underlying_overview:
+        Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
+    pub(crate) option_underlying_his_volatility:
+        Arc<RwLock<Option<OptionUnderlyingHisVolatilityPort>>>,
+    pub(crate) option_market_statistic: Arc<RwLock<Option<OptionMarketStatisticPort>>>,
+    pub(crate) option_underlying_his_statistic:
+        Arc<RwLock<Option<OptionUnderlyingHisStatisticPort>>>,
     pub(crate) option_strategy_spread: Arc<RwLock<Option<OptionStrategySpreadPort>>>,
     pub(crate) option_strategy: Arc<RwLock<Option<OptionStrategyPort>>>,
     pub(crate) option_strategy_analysis: Arc<RwLock<Option<OptionStrategyAnalysisPort>>>,
     pub(crate) option_underlying_rank: Arc<RwLock<Option<Arc<dyn OptionUnderlyingRankReadPort>>>>,
     pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
-    pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
+    pub(crate) option_events:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct TradeRuntimeConnection {
@@ -64,6 +74,8 @@ pub(crate) struct TradeRuntimeConnection {
 }
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
 type OptionUnderlyingHisVolatilityPort = Arc<dyn OptionUnderlyingHisVolatilityReadPort>;
+type OptionMarketStatisticPort = Arc<dyn OptionMarketStatisticReadPort>;
+type OptionUnderlyingHisStatisticPort = Arc<dyn OptionUnderlyingHisStatisticReadPort>;
 type OptionStrategySpreadPort = Arc<dyn OptionStrategySpreadReadPort>;
 type OptionStrategyPort = Arc<dyn OptionStrategyReadPort>;
 type OptionStrategyAnalysisPort = Arc<dyn OptionStrategyAnalysisReadPort>;
@@ -126,11 +138,11 @@ impl SharedTradeReadRuntime {
             .unwrap_or_else(|error| error.into_inner()) = reader;
     }
 
-    pub(crate) fn set_security_snapshots(
-        &self,
-        reader: Option<Arc<dyn SecuritySnapshotReadPort>>,
-    ) {
-        *self.security_snapshots.write().unwrap_or_else(|error| error.into_inner()) = reader;
+    pub(crate) fn set_security_snapshots(&self, reader: Option<Arc<dyn SecuritySnapshotReadPort>>) {
+        *self
+            .security_snapshots
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
     }
 
     pub(crate) fn historical_klines(
@@ -158,7 +170,10 @@ impl SharedTradeReadRuntime {
         {
             let instruments = securities
                 .iter()
-                .filter_map(|security| qot_market_label(security.market).map(|market| format!("{market}.{}", security.code)))
+                .filter_map(|security| {
+                    qot_market_label(security.market)
+                        .map(|market| format!("{market}.{}", security.code))
+                })
                 .collect::<Vec<_>>();
             let snapshots = reader.query(&instruments)?;
             return snapshots.into_iter().map(security_snapshot_value).collect();
@@ -194,9 +209,15 @@ impl SharedTradeReadRuntime {
                 .map_err(|error| format!("invalid cached volume for {instrument_id}: {error}"))?;
             let mut snapshot = Map::from_iter([
                 ("symbol".to_owned(), Value::String(tick.instrument_id)),
-                ("lastPrice".to_owned(), json!(tick.price.to_f64().map_err(|error| error.to_string())?)),
+                (
+                    "lastPrice".to_owned(),
+                    json!(tick.price.to_f64().map_err(|error| error.to_string())?),
+                ),
                 ("volume".to_owned(), Value::Number(volume)),
-                ("observedAt".to_owned(), Value::String(format_unix_millis_rfc3339(tick.observed_at_ms))),
+                (
+                    "observedAt".to_owned(),
+                    Value::String(format_unix_millis_rfc3339(tick.observed_at_ms)),
+                ),
             ]);
             if let Some(rich) = tick.snapshot {
                 insert_rich_security_fields(&mut snapshot, &rich)?;
@@ -249,7 +270,10 @@ impl SharedTradeReadRuntime {
                 ("symbol".to_owned(), Value::String(tick.instrument_id)),
                 ("lastPrice".to_owned(), json!(last_price)),
                 ("volume".to_owned(), Value::Number(volume)),
-                ("quoteAt".to_owned(), Value::String(format_unix_millis_rfc3339(tick.observed_at_ms))),
+                (
+                    "quoteAt".to_owned(),
+                    Value::String(format_unix_millis_rfc3339(tick.observed_at_ms)),
+                ),
             ]);
             if let Some(rich) = tick.snapshot {
                 insert_rich_quote_fields(&mut item, &rich)?;
@@ -269,7 +293,15 @@ impl SharedTradeReadRuntime {
             "quotes": quotes,
         });
         if let Some(object) = result.as_object_mut() {
-            for key in ["symbolName", "openPrice", "highPrice", "lowPrice", "lastClose", "turnover", "marketTime"] {
+            for key in [
+                "symbolName",
+                "openPrice",
+                "highPrice",
+                "lowPrice",
+                "lastClose",
+                "turnover",
+                "marketTime",
+            ] {
                 if let Some(value) = first.get(key).filter(|value| !value.is_null()) {
                     object.insert(key.to_owned(), value.clone());
                 }
@@ -339,7 +371,10 @@ fn insert_rich_quote_fields(
         ("lastClose", rich.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(key.to_owned(), json!(value.to_f64().map_err(|error| error.to_string())?));
+            item.insert(
+                key.to_owned(),
+                json!(value.to_f64().map_err(|error| error.to_string())?),
+            );
         }
     }
     if let Some(turnover) = rich.turnover.as_ref() {
@@ -362,12 +397,25 @@ fn insert_rich_quote_fields(
 
 fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<Value, String> {
     let mut result = Map::new();
-    for (key, number) in [("price", value.price), ("highPrice", value.high_price), ("lowPrice", value.low_price)] {
+    for (key, number) in [
+        ("price", value.price),
+        ("highPrice", value.high_price),
+        ("lowPrice", value.low_price),
+    ] {
         if let Some(number) = number {
-            result.insert(key.to_owned(), json!(number.to_f64().map_err(|error| error.to_string())?));
+            result.insert(
+                key.to_owned(),
+                json!(number.to_f64().map_err(|error| error.to_string())?),
+            );
         }
     }
-    for (key, number) in [("volume", value.volume.as_ref()), ("turnover", value.turnover.as_ref()), ("change", value.change.as_ref()), ("changeRate", value.change_rate.as_ref()), ("amplitude", value.amplitude.as_ref())] {
+    for (key, number) in [
+        ("volume", value.volume.as_ref()),
+        ("turnover", value.turnover.as_ref()),
+        ("change", value.change.as_ref()),
+        ("changeRate", value.change_rate.as_ref()),
+        ("amplitude", value.amplitude.as_ref()),
+    ] {
         if let Some(number) = number {
             result.insert(key.to_owned(), decimal_number(number)?);
         }
@@ -423,7 +471,10 @@ fn security_snapshot_value(
         ("previousClose", snapshot.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(key.to_owned(), json!(value.to_f64().map_err(|error| error.to_string())?));
+            item.insert(
+                key.to_owned(),
+                json!(value.to_f64().map_err(|error| error.to_string())?),
+            );
         }
     }
     if let Some(turnover) = snapshot.turnover.as_ref() {
@@ -472,9 +523,10 @@ impl super::ProductionBrokerPort {
         let securities = request
             .securities()
             .map_err(super::BrokerReadSnapshotError::Invalid)?;
-        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-            super::unavailable("Futu market-data runtime is unavailable")
-        })?;
+        let runtime = self
+            .trade_runtime
+            .as_ref()
+            .ok_or_else(|| super::unavailable("Futu market-data runtime is unavailable"))?;
         let snapshots = runtime
             .security_snapshots(&securities)
             .map_err(super::unavailable)?;
@@ -495,9 +547,10 @@ impl super::ProductionBrokerPort {
         let securities = request
             .securities()
             .map_err(super::BrokerReadSnapshotError::Invalid)?;
-        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-            super::unavailable("Futu market-data runtime is unavailable")
-        })?;
+        let runtime = self
+            .trade_runtime
+            .as_ref()
+            .ok_or_else(|| super::unavailable("Futu market-data runtime is unavailable"))?;
         let quote = runtime
             .quote_snapshot(&securities, request.account_id().unwrap_or_default())
             .map_err(super::unavailable)?;
@@ -517,9 +570,11 @@ impl super::ProductionBrokerPort {
             .get_first("symbol")
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| super::BrokerReadSnapshotError::Invalid(
-                "query parameter symbol is required".to_owned(),
-            ))?;
+            .ok_or_else(|| {
+                super::BrokerReadSnapshotError::Invalid(
+                    "query parameter symbol is required".to_owned(),
+                )
+            })?;
         let period = request.query.get_first("period").unwrap_or("1d");
         normalize_candle_period(period).map_err(|error| {
             super::BrokerReadSnapshotError::Invalid(format!("invalid candle period: {error:?}"))
@@ -555,9 +610,10 @@ impl super::ProductionBrokerPort {
                 })?;
             }
         }
-        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
-            super::unavailable("Futu historical klines runtime is unavailable")
-        })?;
+        let runtime = self
+            .trade_runtime
+            .as_ref()
+            .ok_or_else(|| super::unavailable("Futu historical klines runtime is unavailable"))?;
         let (market, code) = symbol.split_once('.').ok_or_else(|| {
             super::BrokerReadSnapshotError::Invalid("symbol must be MARKET.CODE".to_owned())
         })?;
@@ -575,57 +631,101 @@ impl super::ProductionBrokerPort {
             .filter(|value| *value > 0)
             .map(|value| value.min(1000));
         let limit = requested_limit.map_or(500, |value| value.max(200));
-        let extended_hours = market == "US" && crate::product::product_query::is_intraday_candle_period(period);
+        let extended_hours =
+            market == "US" && crate::product::product_query::is_intraday_candle_period(period);
         let sessions = parse_requested_sessions(&request.query, extended_hours)
             .map_err(super::BrokerReadSnapshotError::Invalid)?;
         let before = request.query.get_first("before").unwrap_or("").trim();
         let begin = request.query.get_first("fromTime").unwrap_or("").trim();
         let end = request.query.get_first("toTime").unwrap_or("").trim();
         let (begin_time, end_time) = if !before.is_empty() {
-            ("1970-01-01 00:00:00".to_owned(), super::normalize_history_time(before, &market).map_err(super::BrokerReadSnapshotError::Invalid)?)
+            (
+                "1970-01-01 00:00:00".to_owned(),
+                super::normalize_history_time(before, &market)
+                    .map_err(super::BrokerReadSnapshotError::Invalid)?,
+            )
         } else {
             (
-                super::normalize_history_time(&begin.to_owned().if_empty_then("1970-01-01 00:00:00"), &market).map_err(super::BrokerReadSnapshotError::Invalid)?,
-                super::normalize_history_time(&end.to_owned().if_empty_then("2999-12-31 23:59:59"), &market).map_err(super::BrokerReadSnapshotError::Invalid)?,
+                super::normalize_history_time(
+                    &begin.to_owned().if_empty_then("1970-01-01 00:00:00"),
+                    &market,
+                )
+                .map_err(super::BrokerReadSnapshotError::Invalid)?,
+                super::normalize_history_time(
+                    &end.to_owned().if_empty_then("2999-12-31 23:59:59"),
+                    &market,
+                )
+                .map_err(super::BrokerReadSnapshotError::Invalid)?,
             )
         };
-        let session_code = if !extended_hours { None } else if sessions.len() == 1 {
-            Some(match sessions[0] { "regular" => 1, "extended" => 2, _ => 3 })
-        } else { Some(3) };
+        let session_code = if !extended_hours {
+            None
+        } else if sessions.len() == 1 {
+            Some(match sessions[0] {
+                "regular" => 1,
+                "extended" => 2,
+                _ => 3,
+            })
+        } else {
+            Some(3)
+        };
         let adjustment = match request.query.get_first("adjustment").unwrap_or("forward") {
             "none" => 0,
             "backward" => 2,
             "forward" | "" => 1,
-            other => return Err(super::BrokerReadSnapshotError::Invalid(format!("invalid candle adjustment {other:?}"))),
+            other => {
+                return Err(super::BrokerReadSnapshotError::Invalid(format!(
+                    "invalid candle adjustment {other:?}"
+                )));
+            }
         };
         let mut historical = HistoricalKlineResult {
-            security: jftrade_integration_futu::HistoricalSecurity { market: market_code, code: code.trim().to_ascii_uppercase() },
+            security: jftrade_integration_futu::HistoricalSecurity {
+                market: market_code,
+                code: code.trim().to_ascii_uppercase(),
+            },
             name: None,
             klines: Vec::new(),
             next_req_key: Vec::new(),
         };
         let plans = if extended_hours && sessions.len() > 1 {
-            sessions.iter().map(|session| Some(match *session { "regular" => 1, "extended" => 2, _ => 3 })).collect::<Vec<_>>()
-        } else { vec![session_code] };
+            sessions
+                .iter()
+                .map(|session| {
+                    Some(match *session {
+                        "regular" => 1,
+                        "extended" => 2,
+                        _ => 3,
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            vec![session_code]
+        };
         for plan in plans {
             let mut cursor = Vec::new();
             let mut exhausted = false;
             for _page_number in 0..32 {
-                let page = runtime.historical_klines(&HistoricalKlineQuery {
-                    market: market_code,
-                    symbol: code.trim().to_ascii_uppercase(),
-                    period: period.to_owned(),
-                    adjustment,
-                    begin_time: begin_time.clone(),
-                    end_time: end_time.clone(),
-                    max_ack_kl_num: Some(limit),
-                    next_req_key: cursor.clone(),
-                    extended_time: extended_hours.then_some(true),
-                    session: plan,
-                }).map_err(super::unavailable)?;
+                let page = runtime
+                    .historical_klines(&HistoricalKlineQuery {
+                        market: market_code,
+                        symbol: code.trim().to_ascii_uppercase(),
+                        period: period.to_owned(),
+                        adjustment,
+                        begin_time: begin_time.clone(),
+                        end_time: end_time.clone(),
+                        max_ack_kl_num: Some(limit),
+                        next_req_key: cursor.clone(),
+                        extended_time: extended_hours.then_some(true),
+                        session: plan,
+                    })
+                    .map_err(super::unavailable)?;
                 historical.name = historical.name.or(page.name);
                 historical.klines.extend(page.klines);
-                if page.next_req_key.is_empty() { exhausted = true; break; }
+                if page.next_req_key.is_empty() {
+                    exhausted = true;
+                    break;
+                }
                 cursor = page.next_req_key;
                 if historical.klines.len() >= usize::try_from(limit).unwrap_or(usize::MAX) {
                     historical.next_req_key = cursor.clone();
@@ -635,11 +735,17 @@ impl super::ProductionBrokerPort {
                 historical.next_req_key = cursor.clone();
             }
             if !exhausted && !cursor.is_empty() {
-                return Err(super::unavailable("Futu historical klines pagination exceeded 32 pages"));
+                return Err(super::unavailable(
+                    "Futu historical klines pagination exceeded 32 pages",
+                ));
             }
         }
-        historical.klines.sort_by(|left, right| left.time.cmp(&right.time));
-        historical.klines.dedup_by(|left, right| left.time == right.time);
+        historical
+            .klines
+            .sort_by(|left, right| left.time.cmp(&right.time));
+        historical
+            .klines
+            .dedup_by(|left, right| left.time == right.time);
         Ok(json!({
             "checkedAt": super::checked_at(),
             "connectivity": "connected",
@@ -654,7 +760,11 @@ trait EmptyTime {
 
 impl EmptyTime for String {
     fn if_empty_then(self, fallback: &str) -> String {
-        if self.is_empty() { fallback.to_owned() } else { self }
+        if self.is_empty() {
+            fallback.to_owned()
+        } else {
+            self
+        }
     }
 }
 
@@ -668,17 +778,36 @@ fn historical_snapshot(
 ) -> Value {
     let mut rows = Vec::with_capacity(result.klines.len());
     for candle in &result.klines {
-        if candle.is_blank { continue; }
+        if candle.is_blank {
+            continue;
+        }
         let mut row = serde_json::Map::new();
         let market = super::qot_market_label(result.security.market).unwrap_or("UTC");
-        row.insert("time".to_owned(), json!(canonical_candle_time(&candle.time, market)));
-        if let Some(value) = candle.open_price { row.insert("open".to_owned(), json!(value)); }
-        if let Some(value) = candle.close_price { row.insert("close".to_owned(), json!(value)); }
-        if let Some(value) = candle.high_price { row.insert("high".to_owned(), json!(value)); }
-        if let Some(value) = candle.low_price { row.insert("low".to_owned(), json!(value)); }
-        if let Some(value) = candle.volume { row.insert("volume".to_owned(), json!(value as f64)); }
-        if let Some(value) = candle.turnover { row.insert("turnover".to_owned(), json!(value)); }
-        if let Some(value) = candle.change_rate { row.insert("changeRate".to_owned(), json!(value)); }
+        row.insert(
+            "time".to_owned(),
+            json!(canonical_candle_time(&candle.time, market)),
+        );
+        if let Some(value) = candle.open_price {
+            row.insert("open".to_owned(), json!(value));
+        }
+        if let Some(value) = candle.close_price {
+            row.insert("close".to_owned(), json!(value));
+        }
+        if let Some(value) = candle.high_price {
+            row.insert("high".to_owned(), json!(value));
+        }
+        if let Some(value) = candle.low_price {
+            row.insert("low".to_owned(), json!(value));
+        }
+        if let Some(value) = candle.volume {
+            row.insert("volume".to_owned(), json!(value as f64));
+        }
+        if let Some(value) = candle.turnover {
+            row.insert("turnover".to_owned(), json!(value));
+        }
+        if let Some(value) = candle.change_rate {
+            row.insert("changeRate".to_owned(), json!(value));
+        }
         rows.push(Value::Object(row));
     }
     if let Some(limit) = requested_limit {
@@ -687,9 +816,18 @@ fn historical_snapshot(
             rows = rows.split_off(rows.len() - limit);
         }
     }
-    let next_before = rows.first().and_then(|row| row["time"].as_str()).map(str::to_owned);
-    let bounded = request.query.get_first("fromTime").is_some_and(|v| !v.trim().is_empty())
-        || request.query.get_first("toTime").is_some_and(|v| !v.trim().is_empty());
+    let next_before = rows
+        .first()
+        .and_then(|row| row["time"].as_str())
+        .map(str::to_owned);
+    let bounded = request
+        .query
+        .get_first("fromTime")
+        .is_some_and(|v| !v.trim().is_empty())
+        || request
+            .query
+            .get_first("toTime")
+            .is_some_and(|v| !v.trim().is_empty());
     let has_more = !bounded && !result.next_req_key.is_empty();
     let pagination = if has_more {
         json!({"hasMore": true, "nextBefore": next_before})
@@ -722,7 +860,9 @@ fn canonical_candle_time(value: &str, market: &str) -> String {
     let Ok(local) = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", value) else {
         return value.to_owned();
     };
-    let Ok(zoned) = local.in_tz(timezone) else { return value.to_owned(); };
+    let Ok(zoned) = local.in_tz(timezone) else {
+        return value.to_owned();
+    };
     zoned.timestamp().to_string()
 }
 
@@ -737,15 +877,25 @@ fn parse_requested_sessions(
         }
     }
     if values.is_empty() {
-        return Ok(if extended_hours { vec!["regular", "extended", "overnight"] } else { vec!["regular"] });
+        return Ok(if extended_hours {
+            vec!["regular", "extended", "overnight"]
+        } else {
+            vec!["regular"]
+        });
     }
     let mut result = Vec::new();
     for value in values {
         match value.trim().to_ascii_lowercase().as_str() {
             "regular" if !result.contains(&"regular") => result.push("regular"),
-            "extended" if extended_hours && !result.contains(&"extended") => result.push("extended"),
-            "overnight" if extended_hours && !result.contains(&"overnight") => result.push("overnight"),
-            "regular" | "extended" | "overnight" => return Err("requested session is unsupported for this period or market".to_owned()),
+            "extended" if extended_hours && !result.contains(&"extended") => {
+                result.push("extended")
+            }
+            "overnight" if extended_hours && !result.contains(&"overnight") => {
+                result.push("overnight")
+            }
+            "regular" | "extended" | "overnight" => {
+                return Err("requested session is unsupported for this period or market".to_owned());
+            }
             other => return Err(format!("invalid candle session {other:?}")),
         }
     }

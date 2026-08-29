@@ -2,27 +2,27 @@ use std::sync::Arc;
 
 use jftrade_integration_futu::{
     OptionChainDate, OptionChainQuery, OptionChainQueryError, OptionChainReadPort,
-    OptionExpirationDate, OptionExpirationQuery, OptionExpirationQueryError,
-    OptionExpirationReadPort, OptionScreenPage, OptionScreenQuery, OptionScreenQueryError,
-    OptionScreenReadPort, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
-    OptionQuoteReadPort, OptionVolatilityQuery, OptionVolatilityQueryError,
-    OptionVolatilityReadPort, OptionEventPage, OptionEventQuery, OptionEventQueryError,
-    OptionEventReadPort, OptionExerciseProbabilityQuery,
-    OptionExerciseProbabilityQueryError, OptionExerciseProbabilityReadPort,
-    OptionExerciseProbabilitySnapshot,
-    OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
-    OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSnapshot,
-    OptionUnderlyingHisVolatilityQuery, OptionUnderlyingHisVolatilityQueryError,
-    OptionUnderlyingHisVolatilityReadPort, OptionUnderlyingHisVolatilitySnapshot,
-    OptionStrategySpreadQuery, OptionStrategySpreadQueryError, OptionStrategySpreadReadPort,
-    OptionStrategySpreadSnapshot,
-    OptionStrategyAnalysisQuery, OptionStrategyAnalysisQueryError,
-    OptionStrategyAnalysisReadPort, OptionStrategyAnalysisSnapshot,
-    OptionStrategyQuery, OptionStrategyQueryError, OptionStrategyReadPort, OptionStrategySnapshot,
-    OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort,
-    OptionUnderlyingRankSnapshot,
     OptionContractRankQuery, OptionContractRankQueryError, OptionContractRankReadPort,
-    OptionContractRankSnapshot,
+    OptionContractRankSnapshot, OptionEventPage, OptionEventQuery, OptionEventQueryError,
+    OptionEventReadPort, OptionExerciseProbabilityQuery, OptionExerciseProbabilityQueryError,
+    OptionExerciseProbabilityReadPort, OptionExerciseProbabilitySnapshot, OptionExpirationDate,
+    OptionExpirationQuery, OptionExpirationQueryError, OptionExpirationReadPort,
+    OptionMarketStatisticQuery, OptionMarketStatisticQueryError, OptionMarketStatisticReadPort,
+    OptionMarketStatisticSnapshot, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
+    OptionQuoteReadPort, OptionScreenPage, OptionScreenQuery, OptionScreenQueryError,
+    OptionScreenReadPort, OptionStrategyAnalysisQuery, OptionStrategyAnalysisQueryError,
+    OptionStrategyAnalysisReadPort, OptionStrategyAnalysisSnapshot, OptionStrategyQuery,
+    OptionStrategyQueryError, OptionStrategyReadPort, OptionStrategySnapshot,
+    OptionStrategySpreadQuery, OptionStrategySpreadQueryError, OptionStrategySpreadReadPort,
+    OptionStrategySpreadSnapshot, OptionUnderlyingHisStatisticQuery,
+    OptionUnderlyingHisStatisticQueryError, OptionUnderlyingHisStatisticReadPort,
+    OptionUnderlyingHisStatisticSnapshot, OptionUnderlyingHisVolatilityQuery,
+    OptionUnderlyingHisVolatilityQueryError, OptionUnderlyingHisVolatilityReadPort,
+    OptionUnderlyingHisVolatilitySnapshot, OptionUnderlyingOverviewQuery,
+    OptionUnderlyingOverviewQueryError, OptionUnderlyingOverviewReadPort,
+    OptionUnderlyingOverviewSnapshot, OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError,
+    OptionUnderlyingRankReadPort, OptionUnderlyingRankSnapshot, OptionVolatilityQuery,
+    OptionVolatilityQueryError, OptionVolatilityReadPort,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -59,10 +59,7 @@ impl SharedTradeReadRuntime {
         reader.query(query)
     }
 
-    pub(crate) fn set_option_expirations(
-        &self,
-        reader: Option<Arc<dyn OptionExpirationReadPort>>,
-    ) {
+    pub(crate) fn set_option_expirations(&self, reader: Option<Arc<dyn OptionExpirationReadPort>>) {
         *self
             .option_expirations
             .write()
@@ -155,10 +152,7 @@ impl SharedTradeReadRuntime {
         reader.query(query)
     }
 
-    pub(crate) fn set_option_volatility(
-        &self,
-        reader: Option<Arc<dyn OptionVolatilityReadPort>>,
-    ) {
+    pub(crate) fn set_option_volatility(&self, reader: Option<Arc<dyn OptionVolatilityReadPort>>) {
         *self
             .option_volatility
             .write()
@@ -175,7 +169,8 @@ impl SharedTradeReadRuntime {
     pub(crate) fn option_volatility(
         &self,
         query: &OptionVolatilityQuery,
-    ) -> Result<jftrade_integration_futu::OptionVolatilitySnapshot, OptionVolatilityQueryError> {
+    ) -> Result<jftrade_integration_futu::OptionVolatilitySnapshot, OptionVolatilityQueryError>
+    {
         let reader = self
             .option_volatility
             .read()
@@ -293,6 +288,74 @@ impl SharedTradeReadRuntime {
         reader.query(query)
     }
 
+    pub(crate) fn set_option_market_statistic(
+        &self,
+        reader: Option<Arc<dyn OptionMarketStatisticReadPort>>,
+    ) {
+        *self
+            .option_market_statistic
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_market_statistic_available(&self) -> bool {
+        self.option_market_statistic
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_market_statistic(
+        &self,
+        query: &OptionMarketStatisticQuery,
+    ) -> Result<OptionMarketStatisticSnapshot, OptionMarketStatisticQueryError> {
+        let reader = self
+            .option_market_statistic
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionMarketStatisticQueryError::InvalidQuery(
+                    "Futu option market statistic runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_underlying_his_statistic(
+        &self,
+        reader: Option<Arc<dyn OptionUnderlyingHisStatisticReadPort>>,
+    ) {
+        *self
+            .option_underlying_his_statistic
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_underlying_his_statistic_available(&self) -> bool {
+        self.option_underlying_his_statistic
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_underlying_his_statistic(
+        &self,
+        query: &OptionUnderlyingHisStatisticQuery,
+    ) -> Result<OptionUnderlyingHisStatisticSnapshot, OptionUnderlyingHisStatisticQueryError> {
+        let reader = self
+            .option_underlying_his_statistic
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionUnderlyingHisStatisticQueryError::InvalidQuery(
+                    "Futu option underlying historical statistic runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
     pub(crate) fn set_option_strategy_spread(
         &self,
         reader: Option<Arc<dyn OptionStrategySpreadReadPort>>,
@@ -327,10 +390,7 @@ impl SharedTradeReadRuntime {
         reader.query(query)
     }
 
-    pub(crate) fn set_option_strategy(
-        &self,
-        reader: Option<Arc<dyn OptionStrategyReadPort>>,
-    ) {
+    pub(crate) fn set_option_strategy(&self, reader: Option<Arc<dyn OptionStrategyReadPort>>) {
         *self
             .option_strategy
             .write()

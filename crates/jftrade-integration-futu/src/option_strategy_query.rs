@@ -411,8 +411,7 @@ fn validate_strategy_code(value: &str) -> Option<String> {
     if value.is_empty()
         || value.chars().any(|character| {
             character.is_whitespace()
-                || (!character.is_ascii_alphanumeric()
-                    && !matches!(character, '-' | '/' | '_'))
+                || (!character.is_ascii_alphanumeric() && !matches!(character, '-' | '/' | '_'))
         })
     {
         return None;

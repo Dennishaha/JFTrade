@@ -12,6 +12,8 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionStrategy.proto",
         "../../pkg/futu/proto/Qot_GetOptionStrategyAnalysis.proto",
         "../../pkg/futu/proto/Qot_GetOptionStrategySpread.proto",
+        "../../pkg/futu/proto/Qot_GetOptionMarketStatistic.proto",
+        "../../pkg/futu/proto/Qot_GetOptionUnderlyingHisStatistic.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingOverview.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingHisVolatility.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingRank.proto",

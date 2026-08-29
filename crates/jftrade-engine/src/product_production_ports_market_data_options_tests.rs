@@ -4,9 +4,7 @@ use jftrade_settings::MarketDataProvider;
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use super::{ActiveProviderState, ProductionMarketDataOptionsPort};
-use crate::product::{
-    MarketDataOptionsReadSnapshotError, MarketDataOptionsReadSnapshotPort,
-};
+use crate::product::{MarketDataOptionsReadSnapshotError, MarketDataOptionsReadSnapshotPort};
 
 #[derive(Debug)]
 struct FixtureOptionChainReader;
@@ -97,8 +95,10 @@ impl jftrade_integration_futu::OptionScreenReadPort for FixtureOptionScreenReade
     fn query(
         &self,
         query: &jftrade_integration_futu::OptionScreenQuery,
-    ) -> Result<jftrade_integration_futu::OptionScreenPage, jftrade_integration_futu::OptionScreenQueryError>
-    {
+    ) -> Result<
+        jftrade_integration_futu::OptionScreenPage,
+        jftrade_integration_futu::OptionScreenQueryError,
+    > {
         assert_eq!(query.market_categories, vec![0]);
         assert_eq!(query.page_count, Some(50));
         Ok(jftrade_integration_futu::OptionScreenPage {
@@ -200,8 +200,10 @@ impl jftrade_integration_futu::OptionVolatilityReadPort for FixtureOptionVolatil
     fn query(
         &self,
         query: &jftrade_integration_futu::OptionVolatilityQuery,
-    ) -> Result<jftrade_integration_futu::OptionVolatilitySnapshot, jftrade_integration_futu::OptionVolatilityQueryError>
-    {
+    ) -> Result<
+        jftrade_integration_futu::OptionVolatilitySnapshot,
+        jftrade_integration_futu::OptionVolatilityQueryError,
+    > {
         assert_eq!(query.market, 11);
         assert_eq!(query.code, "AAPL");
         assert_eq!(query.query_time_period, Some(2));
@@ -243,21 +245,23 @@ impl jftrade_integration_futu::OptionExerciseProbabilityReadPort
     > {
         assert_eq!(query.market, 11);
         assert_eq!(query.code, "AAPL260918C00100000");
-        Ok(jftrade_integration_futu::OptionExerciseProbabilitySnapshot {
-            security: jftrade_integration_futu::OptionExerciseProbabilitySecurity {
-                market: "US".to_owned(),
-                code: query.code.clone(),
-                quote_market: "US".to_owned(),
-                trade_market: "US".to_owned(),
-                instrument_id: format!("US.{}", query.code),
+        Ok(
+            jftrade_integration_futu::OptionExerciseProbabilitySnapshot {
+                security: jftrade_integration_futu::OptionExerciseProbabilitySecurity {
+                    market: "US".to_owned(),
+                    code: query.code.clone(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: format!("US.{}", query.code),
+                },
+                items: vec![jftrade_integration_futu::OptionExerciseProbabilityItem {
+                    timestamp: Some(1_756_000_000),
+                    timestamp_str: Some("2026-08-29".to_owned()),
+                    security_price: Some(225.0),
+                    strike_probability: Some(41.869),
+                }],
             },
-            items: vec![jftrade_integration_futu::OptionExerciseProbabilityItem {
-                timestamp: Some(1_756_000_000),
-                timestamp_str: Some("2026-08-29".to_owned()),
-                security_price: Some(225.0),
-                strike_probability: Some(41.869),
-            }],
-        })
+        )
     }
 }
 
@@ -376,22 +380,61 @@ impl jftrade_integration_futu::OptionUnderlyingHisVolatilityReadPort
         assert_eq!(query.begin_time, "2025-08-29");
         assert_eq!(query.end_time, "2026-08-29");
         assert_eq!(query.next_page_key, vec![1, 2, 3]);
-        Ok(jftrade_integration_futu::OptionUnderlyingHisVolatilitySnapshot {
-            security: jftrade_integration_futu::OptionUnderlyingHisVolatilitySecurity {
-                market: "US".to_owned(),
-                code: "AAPL".to_owned(),
-                quote_market: "US".to_owned(),
-                trade_market: "US".to_owned(),
-                instrument_id: "US.AAPL".to_owned(),
+        Ok(
+            jftrade_integration_futu::OptionUnderlyingHisVolatilitySnapshot {
+                security: jftrade_integration_futu::OptionUnderlyingHisVolatilitySecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL".to_owned(),
+                },
+                code: Some("AAPL".to_owned()),
+                name: Some("Apple".to_owned()),
+                items: vec![
+                    jftrade_integration_futu::OptionUnderlyingHisVolatilityItem {
+                        time: "2026-08-29".to_owned(),
+                        timestamp: Some(1_756_000_000.0),
+                        iv: Some(25.0),
+                        hv: Some(20.0),
+                        underlying_price: Some(225.0),
+                    },
+                ],
+                next_page_key: vec![4, 5, 6],
             },
-            code: Some("AAPL".to_owned()),
-            name: Some("Apple".to_owned()),
-            items: vec![jftrade_integration_futu::OptionUnderlyingHisVolatilityItem {
+        )
+    }
+}
+
+#[derive(Debug)]
+struct FixtureOptionMarketStatisticReader;
+
+impl jftrade_integration_futu::OptionMarketStatisticReadPort
+    for FixtureOptionMarketStatisticReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionMarketStatisticQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionMarketStatisticSnapshot,
+        jftrade_integration_futu::OptionMarketStatisticQueryError,
+    > {
+        assert_eq!(query.option_market, 1);
+        assert_eq!(query.data_type, 0);
+        assert_eq!(query.begin_time, "2026-08-01");
+        assert_eq!(query.end_time, "2026-08-29");
+        assert_eq!(query.next_page_key, vec![1, 2, 3]);
+        Ok(jftrade_integration_futu::OptionMarketStatisticSnapshot {
+            option_market: 1,
+            market: "US".to_owned(),
+            data_type: 0,
+            items: vec![jftrade_integration_futu::OptionMarketStatisticItem {
                 time: "2026-08-29".to_owned(),
                 timestamp: Some(1_756_000_000.0),
-                iv: Some(25.0),
-                hv: Some(20.0),
-                underlying_price: Some(225.0),
+                call_value: 100,
+                put_value: 80,
+                total_value: Some(180),
+                ratio: Some(0.8),
             }],
             next_page_key: vec![4, 5, 6],
         })
@@ -399,11 +442,58 @@ impl jftrade_integration_futu::OptionUnderlyingHisVolatilityReadPort
 }
 
 #[derive(Debug)]
+struct FixtureOptionUnderlyingHisStatisticReader;
+
+impl jftrade_integration_futu::OptionUnderlyingHisStatisticReadPort
+    for FixtureOptionUnderlyingHisStatisticReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionUnderlyingHisStatisticQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionUnderlyingHisStatisticSnapshot,
+        jftrade_integration_futu::OptionUnderlyingHisStatisticQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL");
+        assert_eq!(query.index_option_type, Some(1));
+        assert_eq!(query.begin_time, "2025-08-29");
+        assert_eq!(query.end_time, "2026-08-29");
+        assert_eq!(query.next_page_key, vec![1, 2, 3]);
+        Ok(
+            jftrade_integration_futu::OptionUnderlyingHisStatisticSnapshot {
+                security: jftrade_integration_futu::OptionUnderlyingHisStatisticSecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL".to_owned(),
+                },
+                code: Some("AAPL".to_owned()),
+                name: Some("Apple".to_owned()),
+                items: vec![jftrade_integration_futu::OptionUnderlyingHisStatisticItem {
+                    time: "2026-08-29".to_owned(),
+                    timestamp: Some(1_754_000_000.0),
+                    option_volume: Some(180),
+                    call_volume: 100,
+                    put_volume: 80,
+                    put_call_volume_ratio: Some(0.8),
+                    option_open_interest: Some(1_600),
+                    call_open_interest: 900,
+                    put_open_interest: 700,
+                    put_call_open_interest_ratio: Some(0.777),
+                    underlying_price: Some(225.0),
+                }],
+                next_page_key: vec![4, 5, 6],
+            },
+        )
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionStrategySpreadReader;
 
-impl jftrade_integration_futu::OptionStrategySpreadReadPort
-    for FixtureOptionStrategySpreadReader
-{
+impl jftrade_integration_futu::OptionStrategySpreadReadPort for FixtureOptionStrategySpreadReader {
     fn query(
         &self,
         query: &jftrade_integration_futu::OptionStrategySpreadQuery,
@@ -485,7 +575,10 @@ impl jftrade_integration_futu::OptionStrategyAnalysisReadPort
         jftrade_integration_futu::OptionStrategyAnalysisQueryError,
     > {
         assert_eq!(query.multi_legs.len(), 2);
-        assert_eq!(query.multi_legs[0].security.instrument_id, "US.AAPL260918C00100000");
+        assert_eq!(
+            query.multi_legs[0].security.instrument_id,
+            "US.AAPL260918C00100000"
+        );
         assert_eq!(query.multi_legs[1].side, Some(2));
         Ok(jftrade_integration_futu::OptionStrategyAnalysisSnapshot {
             code: "AAPL260918C/P100".to_owned(),
@@ -580,7 +673,10 @@ impl jftrade_integration_futu::OptionEventReadPort for FixtureOptionEventReader 
             assert_eq!(query.market, 1);
             assert_eq!(query.underlying_product_class, Some(1));
             assert_eq!(
-                query.owner.as_ref().map(|owner| owner.instrument_id.as_str()),
+                query
+                    .owner
+                    .as_ref()
+                    .map(|owner| owner.instrument_id.as_str()),
                 Some("US.AAPL")
             );
             assert_eq!(query.count, 25);
@@ -710,14 +806,14 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_screens(Some(Arc::new(FixtureOptionScreenReader)));
     runtime.set_option_quotes(Some(Arc::new(FixtureOptionQuoteReader)));
     runtime.set_option_volatility(Some(Arc::new(FixtureOptionVolatilityReader)));
-    runtime.set_option_exercise_probability(Some(Arc::new(
-        FixtureOptionExerciseProbabilityReader,
-    )));
-    runtime.set_option_underlying_overview(Some(Arc::new(
-        FixtureOptionUnderlyingOverviewReader,
-    )));
+    runtime.set_option_exercise_probability(Some(Arc::new(FixtureOptionExerciseProbabilityReader)));
+    runtime.set_option_underlying_overview(Some(Arc::new(FixtureOptionUnderlyingOverviewReader)));
     runtime.set_option_underlying_his_volatility(Some(Arc::new(
         FixtureOptionUnderlyingHisVolatilityReader,
+    )));
+    runtime.set_option_market_statistic(Some(Arc::new(FixtureOptionMarketStatisticReader)));
+    runtime.set_option_underlying_his_statistic(Some(Arc::new(
+        FixtureOptionUnderlyingHisStatisticReader,
     )));
     runtime.set_option_strategy_spread(Some(Arc::new(FixtureOptionStrategySpreadReader)));
     runtime.set_option_strategy(Some(Arc::new(FixtureOptionStrategyReader)));
@@ -746,7 +842,10 @@ fn analysis_projection_forwards_quote_query_and_neutral_wire() {
             "market=US&operation=quote",
         )
         .expect("option quote response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(
         value["entries"][0]["security"]["instrumentId"],
         "US.AAPL260918C00100000"
@@ -781,7 +880,10 @@ fn volatility_projection_forwards_typed_query_and_preserves_summary() {
             "market=US&operation=volatility&queryTimePeriod=month&hvTimePeriod=30",
         )
         .expect("option volatility response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["timestampStr"], "2026-08-29");
     assert_eq!(value["entries"][0]["impliedVolatility"], 25.0);
     assert_eq!(value["metadata"]["averageImpvol"], 25.0);
@@ -797,7 +899,10 @@ fn exercise_probability_projection_forwards_typed_query_and_metrics() {
             "market=US&operation=exercise_probability",
         )
         .expect("option exercise probability response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["timestampStr"], "2026-08-29");
     assert_eq!(value["entries"][0]["securityPrice"], 225.0);
     assert_eq!(value["entries"][0]["strikeProbability"], 41.869);
@@ -812,7 +917,10 @@ fn underlying_overview_projection_forwards_typed_query_and_metrics() {
             "market=US&operation=underlying_overview&indexOptionType=1",
         )
         .expect("option underlying overview response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
     assert_eq!(value["entries"][0]["iv"], 25.0);
     assert_eq!(value["entries"][0]["hvList"][0]["hv"], 20.0);
@@ -827,7 +935,10 @@ fn underlying_rank_projection_forwards_typed_query_and_paginates() {
             "market=US&operation=underlying_rank&sortType=7&isAsc=true&count=25&tradingDate=2026-08-29&page=next",
         )
         .expect("option underlying rank response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
     assert_eq!(value["entries"][0]["totalVolume"], 1200);
     assert_eq!(value["metadata"]["sortType"], 7);
@@ -844,7 +955,10 @@ fn historical_volatility_projection_forwards_typed_query_and_paginates() {
             "market=US&operation=historical_volatility&indexOptionType=1&beginTime=2025-08-29&endTime=2026-08-29&cursor=AQID",
         )
         .expect("option historical volatility response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["time"], "2026-08-29");
     assert_eq!(value["entries"][0]["iv"], 25.0);
     assert_eq!(value["entries"][0]["hv"], 20.0);
@@ -856,6 +970,46 @@ fn historical_volatility_projection_forwards_typed_query_and_paginates() {
 }
 
 #[test]
+fn market_statistics_projection_forwards_scope_and_paginates() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=market_statistics&optionMarket=1&dataType=0&beginTime=2026-08-01&endTime=2026-08-29&cursor=AQID",
+        )
+        .expect("option market statistic response");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
+    assert_eq!(value["entries"][0]["callValue"], 100);
+    assert_eq!(value["entries"][0]["putValue"], 80);
+    assert_eq!(value["metadata"]["optionMarket"], 1);
+    assert_eq!(value["metadata"]["dataType"], 0);
+    assert_eq!(value["hasMore"], true);
+    assert_eq!(value["nextCursor"], "BAUG");
+}
+
+#[test]
+fn historical_statistics_projection_forwards_owner_and_paginates() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=historical_statistics&indexOptionType=1&beginTime=2025-08-29&endTime=2026-08-29&cursor=AQID",
+        )
+        .expect("option underlying historical statistic response");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
+    assert_eq!(value["entries"][0]["optionVolume"], 180);
+    assert_eq!(value["entries"][0]["putCallOpenInterestRatio"], 0.777);
+    assert_eq!(value["metadata"]["code"], "AAPL");
+    assert_eq!(value["metadata"]["name"], "Apple");
+    assert_eq!(value["hasMore"], true);
+    assert_eq!(value["nextCursor"], "BAUG");
+}
+
+#[test]
 fn strategy_spread_projection_forwards_typed_query_and_lists_spreads() {
     let value = ready_port()
         .read(
@@ -863,7 +1017,10 @@ fn strategy_spread_projection_forwards_typed_query_and_lists_spreads() {
             "market=US&operation=strategy_spread&optionStrategy=vertical&expireTime=2026-09-18&indexOptionType=1",
         )
         .expect("option strategy spread response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["spread"], 10.0);
     assert_eq!(value["entries"][1]["spread"], 20.0);
     assert_eq!(value["metadata"]["optionStrategy"], 4);
@@ -880,7 +1037,10 @@ fn strategy_projection_forwards_filters_and_lists_combinations() {
             "market=US&operation=strategy&optionStrategy=vertical&expireTime=2026-09-18&spread=10&optionType=1&strikePrice=100&indexOptionType=1",
         )
         .expect("option strategy response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["code"], "AAPL260918C/P100");
     assert_eq!(value["entries"][0]["stockOwner"]["instrumentId"], "US.AAPL");
     assert_eq!(value["entries"][0]["multiLegs"][0]["qtyRatio"], 1.0);
@@ -905,7 +1065,10 @@ fn strategy_analysis_projection_forwards_combo_legs_and_metrics() {
             ),
         )
         .expect("option strategy analysis response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
     assert_eq!(value["entries"][0]["optionStrategy"], 4);
     assert_eq!(value["entries"][0]["bid1"], 1.0);
     assert_eq!(value["entries"][0]["breakevenPoints"][0], 100.0);
@@ -921,8 +1084,14 @@ fn contract_rank_projection_forwards_typed_query_and_paginates() {
             "market=US&operation=contract_rank&sortType=10&isAsc=true&count=25&tradingDate=2026-08-29&page=next",
         )
         .expect("option contract rank response");
-    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
-    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(
+        value["provider"]["featureId"],
+        "derivatives.option_analysis"
+    );
+    assert_eq!(
+        value["entries"][0]["security"]["instrumentId"],
+        "US.AAPL260918C00100000"
+    );
     assert_eq!(value["entries"][0]["optionPrice"], 1.25);
     assert_eq!(value["metadata"]["sortType"], 10);
     assert_eq!(value["hasMore"], true);
@@ -972,7 +1141,10 @@ fn chain_projection_forwards_typed_query_and_neutral_wire() {
         .expect("chain response");
     assert_eq!(value["provider"]["featureId"], "derivatives.option_chain");
     assert_eq!(value["entries"][0]["strikeTime"], "2026-09-18");
-    assert_eq!(value["entries"][0]["option"].as_array().map(Vec::len), Some(0));
+    assert_eq!(
+        value["entries"][0]["option"].as_array().map(Vec::len),
+        Some(0)
+    );
     assert_eq!(value["hasMore"], false);
     assert_eq!(value["total"], 1);
 }
@@ -986,7 +1158,10 @@ fn screen_projection_forwards_typed_query_and_neutral_wire() {
         )
         .expect("option screen response");
     assert_eq!(value["provider"]["featureId"], "derivatives.option_screen");
-    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(
+        value["entries"][0]["security"]["instrumentId"],
+        "US.AAPL260918C00100000"
+    );
     assert_eq!(value["entries"][0]["strikeDate"], 20260918);
     assert_eq!(value["hasMore"], false);
     assert_eq!(value["total"], 1);
@@ -1034,7 +1209,10 @@ fn chain_projection_defaults_omitted_date_range_for_opend_compatibility() {
     let value = port
         .read("/api/v1/market-data/options/chains/US.AAPL", "")
         .expect("default chain date range");
-    assert_eq!(value["entries"][0]["option"].as_array().map(Vec::len), Some(0));
+    assert_eq!(
+        value["entries"][0]["option"].as_array().map(Vec::len),
+        Some(0)
+    );
 }
 
 #[test]
@@ -1122,7 +1300,10 @@ fn event_projection_forwards_unusual_query_and_paginates() {
         )
         .expect("option event response");
     assert_eq!(value["provider"]["featureId"], "derivatives.option_events");
-    assert_eq!(value["entries"][0]["option"]["instrumentId"], "US.AAPL260918C00100000");
+    assert_eq!(
+        value["entries"][0]["option"]["instrumentId"],
+        "US.AAPL260918C00100000"
+    );
     assert_eq!(value["entries"][0]["owner"]["instrumentId"], "US.AAPL");
     assert_eq!(value["entries"][0]["price"], 1.25);
     assert_eq!(value["hasMore"], true);

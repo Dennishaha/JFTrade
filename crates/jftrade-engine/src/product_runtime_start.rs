@@ -134,6 +134,16 @@ pub async fn start_product_runtime(
                         runtime.coordinator(),
                     ),
                 )));
+                trade_runtime.set_option_market_statistic(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionMarketStatisticReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
+                trade_runtime.set_option_underlying_his_statistic(Some(Arc::new(
+                    jftrade_integration_futu::OpenDOptionUnderlyingHisStatisticReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_strategy_spread(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionStrategySpreadReader::new(
                         runtime.coordinator(),
@@ -237,6 +247,16 @@ pub async fn start_product_runtime(
         )));
         trade_runtime.set_option_underlying_his_volatility(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionUnderlyingHisVolatilityReader::new(Arc::clone(
+                coordinator,
+            )),
+        )));
+        trade_runtime.set_option_market_statistic(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionMarketStatisticReader::new(Arc::clone(
+                coordinator,
+            )),
+        )));
+        trade_runtime.set_option_underlying_his_statistic(Some(Arc::new(
+            jftrade_integration_futu::OpenDOptionUnderlyingHisStatisticReader::new(Arc::clone(
                 coordinator,
             )),
         )));
