@@ -11,12 +11,14 @@ use crate::product::product_market_data_provider_actions_port::{
     ZERO_DTE_CONTRACTS_PATH, is_market_data_provider_action_path,
 };
 use crate::product::{MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort};
+use crate::product::product_active_provider_state::ActiveProviderState;
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 
 #[derive(Clone, Default)]
 pub(crate) struct ProductionMarketDataProviderActionsPort {
     quote_port: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    active_provider_state: Option<Arc<ActiveProviderState>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
@@ -25,6 +27,7 @@ impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
             .debug_struct("ProductionMarketDataProviderActionsPort")
             .field("has_quote_port", &self.quote_port.is_some())
             .field("has_trade_runtime", &self.trade_runtime.is_some())
+            .field("has_active_provider_state", &self.active_provider_state.is_some())
             .finish()
     }
 }
@@ -34,6 +37,7 @@ impl ProductionMarketDataProviderActionsPort {
         Self {
             quote_port,
             trade_runtime: None,
+            active_provider_state: None,
         }
     }
 
@@ -42,6 +46,14 @@ impl ProductionMarketDataProviderActionsPort {
         trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     ) -> Self {
         self.trade_runtime = trade_runtime;
+        self
+    }
+
+    pub(crate) fn with_active_provider_state(
+        mut self,
+        active_provider_state: Option<Arc<ActiveProviderState>>,
+    ) -> Self {
+        self.active_provider_state = active_provider_state;
         self
     }
 }
@@ -248,7 +260,9 @@ impl ProductionMarketDataProviderActionsPort {
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or("US")
+            .ok_or_else(|| {
+                action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
+            })?
             .to_ascii_uppercase();
         if market != "US" {
             return Err(action_bad_request(
@@ -294,6 +308,16 @@ impl ProductionMarketDataProviderActionsPort {
             return Err(MarketDataProviderActionsPortError::Unavailable(
                 "Futu 0DTE contract reader is not ready".to_owned(),
             ));
+        }
+        if let Some(active_provider_state) = self.active_provider_state.as_ref() {
+            let snapshot = active_provider_state.snapshot();
+            if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
+                || !snapshot.opend_ready
+            {
+                return Err(MarketDataProviderActionsPortError::Unavailable(
+                    "Futu 0DTE contract provider is not ready".to_owned(),
+                ));
+            }
         }
         let items = runtime
             .option_zero_dte_contract(&query)
