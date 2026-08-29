@@ -404,21 +404,35 @@ impl super::ProductionBrokerPort {
             sessions.iter().map(|session| Some(match *session { "regular" => 1, "extended" => 2, _ => 3 })).collect::<Vec<_>>()
         } else { vec![session_code] };
         for plan in plans {
-            let page = runtime.historical_klines(&HistoricalKlineQuery {
-                market: market_code,
-                symbol: code.trim().to_ascii_uppercase(),
-                period: period.to_owned(),
-                adjustment,
-                begin_time: begin_time.clone(),
-                end_time: end_time.clone(),
-                max_ack_kl_num: Some(limit),
-                next_req_key: Vec::new(),
-                extended_time: extended_hours.then_some(true),
-                session: plan,
-            }).map_err(super::unavailable)?;
-            historical.name = historical.name.or(page.name);
-            historical.next_req_key.extend(page.next_req_key);
-            historical.klines.extend(page.klines);
+            let mut cursor = Vec::new();
+            let mut exhausted = false;
+            for _page_number in 0..32 {
+                let page = runtime.historical_klines(&HistoricalKlineQuery {
+                    market: market_code,
+                    symbol: code.trim().to_ascii_uppercase(),
+                    period: period.to_owned(),
+                    adjustment,
+                    begin_time: begin_time.clone(),
+                    end_time: end_time.clone(),
+                    max_ack_kl_num: Some(limit),
+                    next_req_key: cursor.clone(),
+                    extended_time: extended_hours.then_some(true),
+                    session: plan,
+                }).map_err(super::unavailable)?;
+                historical.name = historical.name.or(page.name);
+                historical.klines.extend(page.klines);
+                if page.next_req_key.is_empty() { exhausted = true; break; }
+                cursor = page.next_req_key;
+                if historical.klines.len() >= usize::try_from(limit).unwrap_or(usize::MAX) {
+                    historical.next_req_key = cursor.clone();
+                    exhausted = true;
+                    break;
+                }
+                historical.next_req_key = cursor.clone();
+            }
+            if !exhausted && !cursor.is_empty() {
+                return Err(super::unavailable("Futu historical klines pagination exceeded 32 pages"));
+            }
         }
         historical.klines.sort_by(|left, right| left.time.cmp(&right.time));
         historical.klines.dedup_by(|left, right| left.time == right.time);
