@@ -486,6 +486,7 @@ fn broker_securities_projects_real_futu_tick_cache() {
                     turnover: Some("123456.5".parse().expect("turnover")),
                     update_time: Some("15:59:59".to_owned()),
                     status: Some(3),
+                    ..Default::default()
                 }),
                 observed_at_ms: 1_700_000_000_000,
                 provider_generation: 0,
