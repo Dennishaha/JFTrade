@@ -7,7 +7,9 @@ use jftrade_integration_futu::{
     OptionScreenReadPort, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
     OptionQuoteReadPort, OptionVolatilityQuery, OptionVolatilityQueryError,
     OptionVolatilityReadPort, OptionEventPage, OptionEventQuery, OptionEventQueryError,
-    OptionEventReadPort,
+    OptionEventReadPort, OptionExerciseProbabilityQuery,
+    OptionExerciseProbabilityQueryError, OptionExerciseProbabilityReadPort,
+    OptionExerciseProbabilitySnapshot,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -169,6 +171,40 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionVolatilityQueryError::InvalidQuery(
                     "Futu option volatility runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_exercise_probability(
+        &self,
+        reader: Option<Arc<dyn OptionExerciseProbabilityReadPort>>,
+    ) {
+        *self
+            .option_exercise_probability
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_exercise_probability_available(&self) -> bool {
+        self.option_exercise_probability
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_exercise_probability(
+        &self,
+        query: &OptionExerciseProbabilityQuery,
+    ) -> Result<OptionExerciseProbabilitySnapshot, OptionExerciseProbabilityQueryError> {
+        let reader = self
+            .option_exercise_probability
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionExerciseProbabilityQueryError::InvalidQuery(
+                    "Futu option exercise probability runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

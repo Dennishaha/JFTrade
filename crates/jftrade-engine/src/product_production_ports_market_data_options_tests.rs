@@ -229,6 +229,39 @@ impl jftrade_integration_futu::OptionVolatilityReadPort for FixtureOptionVolatil
 }
 
 #[derive(Debug)]
+struct FixtureOptionExerciseProbabilityReader;
+
+impl jftrade_integration_futu::OptionExerciseProbabilityReadPort
+    for FixtureOptionExerciseProbabilityReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionExerciseProbabilityQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionExerciseProbabilitySnapshot,
+        jftrade_integration_futu::OptionExerciseProbabilityQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL260918C00100000");
+        Ok(jftrade_integration_futu::OptionExerciseProbabilitySnapshot {
+            security: jftrade_integration_futu::OptionExerciseProbabilitySecurity {
+                market: "US".to_owned(),
+                code: query.code.clone(),
+                quote_market: "US".to_owned(),
+                trade_market: "US".to_owned(),
+                instrument_id: format!("US.{}", query.code),
+            },
+            items: vec![jftrade_integration_futu::OptionExerciseProbabilityItem {
+                timestamp: Some(1_756_000_000),
+                timestamp_str: Some("2026-08-29".to_owned()),
+                security_price: Some(225.0),
+                strike_probability: Some(41.869),
+            }],
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionEventReader {
     result: Result<jftrade_integration_futu::OptionEventPage, String>,
 }
@@ -375,6 +408,9 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_screens(Some(Arc::new(FixtureOptionScreenReader)));
     runtime.set_option_quotes(Some(Arc::new(FixtureOptionQuoteReader)));
     runtime.set_option_volatility(Some(Arc::new(FixtureOptionVolatilityReader)));
+    runtime.set_option_exercise_probability(Some(Arc::new(
+        FixtureOptionExerciseProbabilityReader,
+    )));
     runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
         result: Ok(jftrade_integration_futu::OptionEventPage {
             events: vec![sample_option_event()],
@@ -437,6 +473,21 @@ fn volatility_projection_forwards_typed_query_and_preserves_summary() {
     assert_eq!(value["entries"][0]["impliedVolatility"], 25.0);
     assert_eq!(value["metadata"]["averageImpvol"], 25.0);
     assert_eq!(value["metadata"]["impvolStatus"], "ImpvolOvervalued");
+    assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn exercise_probability_projection_forwards_typed_query_and_metrics() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL260918C00100000",
+            "market=US&operation=exercise_probability",
+        )
+        .expect("option exercise probability response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["timestampStr"], "2026-08-29");
+    assert_eq!(value["entries"][0]["securityPrice"], 225.0);
+    assert_eq!(value["entries"][0]["strikeProbability"], 41.869);
     assert_eq!(value["total"], 1);
 }
 

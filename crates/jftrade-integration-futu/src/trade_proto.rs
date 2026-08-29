@@ -31,6 +31,13 @@ pub mod qot_get_option_volatility {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_volatility.rs"));
     pub const PROTOCOL_ID: u32 = 3250;
 }
+pub mod qot_get_option_exercise_probability {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_exercise_probability.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3251;
+}
 pub mod qot_get_option_event {
     include!(concat!(env!("OUT_DIR"), "/qot_get_option_event.rs"));
     pub const PROTOCOL_ID: u32 = 3307;

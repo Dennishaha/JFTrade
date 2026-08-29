@@ -15,7 +15,10 @@ pub(crate) fn read(
             "Futu option analysis runtime is not configured".to_owned(),
         )
     })?;
-    if !runtime.option_quotes_available() && !runtime.option_volatility_available() {
+    if !runtime.option_quotes_available()
+        && !runtime.option_volatility_available()
+        && !runtime.option_exercise_probability_available()
+    {
         return Err(MarketDataOptionsReadSnapshotError::Unavailable(
             "Futu option analysis readers are not ready".to_owned(),
         ));
@@ -24,8 +27,13 @@ pub(crate) fn read(
     if operation == "volatility" {
         return read_volatility(runtime, path, query);
     }
+    if operation == "exercise_probability" {
+        return read_exercise_probability(runtime, path, query);
+    }
     if operation != "quote" {
-        return Err(bad_request("operation must be quote or volatility"));
+        return Err(bad_request(
+            "operation must be quote, volatility, or exercise_probability",
+        ));
     }
     if !runtime.option_quotes_available() {
         return Err(MarketDataOptionsReadSnapshotError::Unavailable(
@@ -161,6 +169,50 @@ fn read_volatility(
     Ok(result)
 }
 
+fn read_exercise_probability(
+    runtime: &Arc<SharedTradeReadRuntime>,
+    path: &str,
+    query: &str,
+) -> Result<Value, MarketDataOptionsReadSnapshotError> {
+    if !runtime.option_exercise_probability_available() {
+        return Err(MarketDataOptionsReadSnapshotError::Unavailable(
+            "Futu option exercise probability reader is not ready".to_owned(),
+        ));
+    }
+    let request = parse_exercise_probability_request(path, query)?;
+    let snapshot = runtime
+        .option_exercise_probability(&request)
+        .map_err(map_exercise_probability_error)?;
+    let jftrade_integration_futu::OptionExerciseProbabilitySnapshot {
+        security: _security,
+        items,
+    } = snapshot;
+    let entries = items
+        .into_iter()
+        .map(|item| {
+            serde_json::to_value(item)
+                .map_err(|error| serialization_error("exercise probability", error))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let total = entries.len();
+    let as_of = super::super::provider_now_rfc3339();
+    Ok(json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "derivatives.option_analysis",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "asOf": as_of,
+        "entries": entries,
+        "hasMore": false,
+        "total": total,
+    }))
+}
+
 fn parse_operation(query: &str) -> Result<String, MarketDataOptionsReadSnapshotError> {
     let query_map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
@@ -229,6 +281,24 @@ fn parse_volatility_request(
     Ok(request)
 }
 
+fn parse_exercise_probability_request(
+    path: &str,
+    query: &str,
+) -> Result<
+    jftrade_integration_futu::OptionExerciseProbabilityQuery,
+    MarketDataOptionsReadSnapshotError,
+> {
+    let request = parse_quote_request(path, query)?;
+    let request = jftrade_integration_futu::OptionExerciseProbabilityQuery {
+        market: request.market,
+        code: request.code,
+    };
+    request
+        .validate()
+        .map_err(|error| bad_request(&error.to_string()))?;
+    Ok(request)
+}
+
 fn parse_query_time_period(
     value: &str,
 ) -> Result<i32, MarketDataOptionsReadSnapshotError> {
@@ -287,6 +357,21 @@ fn map_volatility_error(
 ) -> MarketDataOptionsReadSnapshotError {
     match error {
         jftrade_integration_futu::OptionVolatilityQueryError::InvalidQuery(message) => {
+            bad_request(&message)
+        }
+        other => MarketDataOptionsReadSnapshotError::Failed {
+            status: 502,
+            code: "BAD_GATEWAY".to_owned(),
+            message: other.to_string(),
+        },
+    }
+}
+
+fn map_exercise_probability_error(
+    error: jftrade_integration_futu::OptionExerciseProbabilityQueryError,
+) -> MarketDataOptionsReadSnapshotError {
+    match error {
+        jftrade_integration_futu::OptionExerciseProbabilityQueryError::InvalidQuery(message) => {
             bad_request(&message)
         }
         other => MarketDataOptionsReadSnapshotError::Failed {

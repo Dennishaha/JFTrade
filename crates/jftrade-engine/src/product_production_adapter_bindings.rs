@@ -96,7 +96,9 @@ impl ProductionPortBundle {
                     .trade_runtime
                     .as_ref()
                     .is_some_and(|runtime| {
-                        runtime.option_quotes_available() || runtime.option_volatility_available()
+                        runtime.option_quotes_available()
+                            || runtime.option_volatility_available()
+                            || runtime.option_exercise_probability_available()
                     })
             {
                 ProductionAdapterBinding::Ready
