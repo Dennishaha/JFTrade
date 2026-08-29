@@ -6,7 +6,7 @@ use jftrade_integration_marketdata_helper::{HelperCandlesResponse, HelperClient}
 use jftrade_settings::MarketDataProvider;
 use jftrade_store_sqlite::{
     BacktestMarketDataStore, BacktestRunStore, BacktestSyncTaskStore, StoredBacktestCandle,
-    CancelBacktestSyncResult, ExecutionOrderStore, StoredBacktestSyncTask,
+    CancelBacktestSyncResult, StoredBacktestSyncTask,
 };
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
@@ -20,21 +20,23 @@ use crate::product::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
     BacktestsWritePortResult,
 };
-use crate::product::product_brokers_write_port::{
-    BrokersWriteInput, BrokersWritePort, BrokersWritePortError,
-};
-use crate::product::product_execution_write_port::{
-    ExecutionWriteInput, ExecutionWritePort, ExecutionWritePortError,
-};
 use crate::product::{
     BacktestReadSnapshotError,
     BacktestReadSnapshotPort, BacktestSyncReadSnapshotError, BacktestSyncReadSnapshotPort,
-    ExecutionReadSnapshotError, ExecutionReadSnapshotPort,
 };
 
 #[path = "product_backtest_sync_request.rs"]
 mod product_backtest_sync_request;
 use product_backtest_sync_request::{SyncRequest, format_timestamp, parse_sync_request, parse_timestamp};
+#[path = "product_production_ports_backtest_parse.rs"]
+mod product_production_ports_backtest_parse;
+use product_production_ports_backtest_parse::{ParsedBacktestStart, parse_end_timestamp, parse_start_timestamp, provider_id};
+#[path = "product_production_ports_backtest_sync_projection.rs"]
+mod product_production_ports_backtest_sync_projection;
+use product_production_ports_backtest_sync_projection::sync_task_projection;
+#[path = "product_production_ports_execution_orders.rs"]
+mod product_production_ports_execution_orders;
+pub(crate) use product_production_ports_execution_orders::ProductionExecutionPort;
 
 pub(crate) struct ProductionBacktestPort {
     pub(crate) store: Arc<BacktestRunStore>,
@@ -429,24 +431,6 @@ impl ProductionBacktestPort {
 
 }
 
-#[derive(Clone, Debug)]
-struct ParsedBacktestStart {
-    symbol: String,
-    interval: String,
-    rehab_type: String,
-    session_scope: String,
-    start_time_ms: i64,
-    end_time_ms: i64,
-}
-
-fn provider_id(provider: MarketDataProvider) -> &'static str {
-    match provider {
-        MarketDataProvider::Futu => "futu",
-        MarketDataProvider::Yfinance => "yfinance",
-        MarketDataProvider::Akshare => "akshare",
-    }
-}
-
 fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart, BacktestsWritePortError> {
     let object = payload.as_object().ok_or_else(|| {
         BacktestsWritePortError::BadRequest("invalid backtest request".to_owned())
@@ -556,39 +540,6 @@ fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart, Backtests
     })
 }
 
-fn parse_start_timestamp(value: &str) -> Result<i64, BacktestsWritePortError> {
-    parse_backtest_timestamp(value, false)
-}
-
-fn parse_end_timestamp(value: &str) -> Result<i64, BacktestsWritePortError> {
-    parse_backtest_timestamp(value, true)
-}
-
-fn parse_backtest_timestamp(value: &str, date_end: bool) -> Result<i64, BacktestsWritePortError> {
-    let value = value.trim();
-    let parsed = if let Ok(parsed) = time::OffsetDateTime::parse(
-        value,
-        &time::format_description::well_known::Rfc3339,
-    ) {
-        parsed
-    } else {
-        let format = time::format_description::parse_borrowed::<2>("[year]-[month]-[day]")
-            .map_err(|_| BacktestsWritePortError::BadRequest("invalid backtest time".to_owned()))?;
-        let mut date = time::Date::parse(value, &format)
-            .map_err(|_| BacktestsWritePortError::BadRequest("invalid backtest time".to_owned()))?;
-        if date_end {
-            date = date.next_day().ok_or_else(|| {
-                BacktestsWritePortError::BadRequest("backtest time is out of range".to_owned())
-            })?;
-        }
-        time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT).assume_utc()
-    };
-    parsed
-        .unix_timestamp_nanos()
-        .checked_div(1_000_000)
-        .and_then(|value| i64::try_from(value).ok())
-        .ok_or_else(|| BacktestsWritePortError::BadRequest("backtest time is out of range".to_owned()))
-}
 
 async fn execute_backtest_task(
     store: Arc<BacktestRunStore>,
@@ -827,142 +778,6 @@ fn persist_task(tasks: &BacktestSyncTaskStore, task: &mut StoredBacktestSyncTask
     }
 }
 
-fn sync_task_projection(task: &StoredBacktestSyncTask) -> Result<Value, BacktestSyncReadSnapshotError> {
-    if task.task_id.trim().is_empty() || task.status.trim().is_empty() {
-        return Err(BacktestSyncReadSnapshotError::Unavailable(
-            "stored sync task has invalid identity".to_owned(),
-        ));
-    }
-    let mut value = json!({
-        "completedBatches": task.completed_batches,
-        "completedIntervals": task.completed_intervals,
-        "currentInterval": task.current_interval,
-        "marketDataProvider": task.market_data_provider,
-        "retries": task.retries,
-        "startedAt": task.started_at,
-        "status": task.status,
-        "symbol": task.symbol,
-        "taskId": task.task_id,
-        "totalBatches": task.total_batches,
-        "totalIntervals": task.total_intervals,
-        "updatedAt": task.updated_at,
-    });
-    if let Some(error) = &task.error {
-        value["error"] = Value::String(error.clone());
-    }
-    Ok(value)
-}
-
 #[cfg(test)]
 #[path = "product_backtest_sync_start_tests.rs"]
 mod sync_start_tests;
-
-#[derive(Debug)]
-pub(crate) struct ProductionExecutionPort {
-    pub(crate) store: Arc<ExecutionOrderStore>,
-}
-
-impl ExecutionReadSnapshotPort for ProductionExecutionPort {
-    fn read(&self, path: &str, _query: &str) -> Result<Value, ExecutionReadSnapshotError> {
-        if path == "/api/v1/execution/orders" {
-            let orders = self
-                .store
-                .list_orders()
-                .map_err(|e| ExecutionReadSnapshotError::Unavailable(e.to_string()))?;
-            let items: Vec<Value> = orders
-                .into_iter()
-                .map(|o| json!({
-                    "internalOrderId": o.internal_order_id,
-                    "brokerId": o.broker_id,
-                    "brokerOrderId": o.broker_order_id,
-                    "status": o.status,
-                    "symbol": o.symbol,
-                    "side": o.side,
-                    "orderType": o.order_type,
-                    "requestedQuantity": o.requested_quantity,
-                    "requestedPrice": o.requested_price,
-                    "filledQuantity": o.filled_quantity,
-                    "filledAveragePrice": o.filled_average_price,
-                    "createdAt": o.created_at,
-                    "updatedAt": o.updated_at,
-                }))
-                .collect();
-            return Ok(json!({ "orders": items }));
-        }
-
-        if let Some(id) = path
-            .strip_prefix("/api/v1/execution/orders/")
-            .and_then(|suffix| suffix.strip_suffix("/events"))
-        {
-            if id.is_empty() || id.contains('/') {
-                return Err(ExecutionReadSnapshotError::NotFound);
-            }
-            let events = self
-                .store
-                .list_order_events(id)
-                .map_err(|e| ExecutionReadSnapshotError::Unavailable(e.to_string()))?
-                .into_iter()
-                .map(|event| {
-                    json!({
-                        "id": event.id,
-                        "internalOrderId": event.internal_order_id,
-                        "eventType": event.event_type,
-                        "previousStatus": event.previous_status,
-                        "nextStatus": event.next_status,
-                        "payloadJson": event.payload_json,
-                        "createdAt": event.created_at,
-                    })
-                })
-                .collect::<Vec<_>>();
-            return Ok(json!({"internalOrderId": id, "events": events}));
-        }
-
-        if let Some(id) = path.strip_prefix("/api/v1/execution/orders/") {
-            if id.is_empty() || id.contains('/') {
-                return Err(ExecutionReadSnapshotError::NotFound);
-            }
-            let order = self
-                .store
-                .get_order(id)
-                .map_err(|e| ExecutionReadSnapshotError::Unavailable(e.to_string()))?;
-            if let Some(o) = order {
-                return Ok(json!({
-                    "internalOrderId": o.internal_order_id,
-                    "brokerId": o.broker_id,
-                    "brokerOrderId": o.broker_order_id,
-                    "status": o.status,
-                    "symbol": o.symbol,
-                    "side": o.side,
-                    "orderType": o.order_type,
-                    "requestedQuantity": o.requested_quantity,
-                    "requestedPrice": o.requested_price,
-                    "filledQuantity": o.filled_quantity,
-                    "filledAveragePrice": o.filled_average_price,
-                    "createdAt": o.created_at,
-                    "updatedAt": o.updated_at,
-                }));
-            }
-            return Err(ExecutionReadSnapshotError::NotFound);
-        }
-
-        Err(ExecutionReadSnapshotError::NotFound)
-    }
-}
-
-impl ExecutionWritePort for ProductionExecutionPort {
-    fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
-        let _ = input;
-        Err(ExecutionWritePortError::Unavailable(
-            "execution broker/OpenD runtime is not configured".to_owned(),
-        ))
-    }
-}
-
-impl BrokersWritePort for ProductionExecutionPort {
-    fn mutate(&self, input: &BrokersWriteInput) -> Result<Value, BrokersWritePortError> {
-        let _ = input;
-        Err(BrokersWritePortError::Unavailable(
-            "broker/OpenD runtime is not configured".to_owned(),
-        ))
-    }
-}
