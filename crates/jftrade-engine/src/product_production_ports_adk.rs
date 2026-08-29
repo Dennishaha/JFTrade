@@ -496,7 +496,9 @@ impl ProductionAdkPort {
                 return Err(not_found("session not found"));
             }
             if let Some(state) = self.store.get_session_context(id)? { return Ok(AdkReadSnapshot::Json(payload(&state.payload_json, "session context", [("sessionId", id.into())])?)); }
-            return Ok(AdkReadSnapshot::Json(json!({"sessionId": id, "status": "ok", "rawEventCount": self.session_store.list_events(id).map_err(|e| AdkReadSnapshotError::Unavailable(e.to_string()))?.len(), "retainedRecentUserCount": 0, "activeHandoffCount": 0, "currentInputTokens": 0, "projectedNextTurnTokens": 0, "contextWindowTokens": 0, "usageRatio": 0.0, "breakdown": {}})));
+            return Err(AdkReadSnapshotError::Unavailable(
+                "session context is not persisted".to_owned(),
+            ));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "") {
             let Some(session) = self.store.get_session(id)? else { return Err(not_found("session not found")); };
