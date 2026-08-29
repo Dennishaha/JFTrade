@@ -139,12 +139,16 @@ impl AuthSessionSnapshotPort for ProductionAuthSessionManager {
         &self,
         request: AuthSessionSnapshotRequest,
     ) -> Result<Value, AuthSessionSnapshotError> {
-        let authenticated = request.desktop_trusted || request.browser_authenticated;
-        let csrf_token = if request.browser_authenticated {
+        let browser_authenticated = request.browser_authenticated
+            && request
+                .session_cookie
+                .as_deref()
+                .is_some_and(|cookie| self.is_session_valid(cookie));
+        let authenticated = request.desktop_trusted || browser_authenticated;
+        let csrf_token = if browser_authenticated {
             request
                 .session_cookie
                 .as_deref()
-                .filter(|cookie| self.is_session_valid(cookie))
                 .map(derive_csrf_token)
                 .map(Value::String)
                 .unwrap_or(Value::Null)
@@ -155,7 +159,7 @@ impl AuthSessionSnapshotPort for ProductionAuthSessionManager {
         Ok(json!({
             "authenticated": authenticated,
             "desktop": request.desktop_trusted,
-            "browser": request.browser_authenticated,
+            "browser": browser_authenticated,
             "csrfToken": csrf_token
         }))
     }
@@ -456,6 +460,19 @@ mod tests {
             })
             .expect("snapshot");
         assert_eq!(snap["authenticated"], false);
+
+        let invalid_browser = manager
+            .session(AuthSessionSnapshotRequest {
+                desktop_trusted: false,
+                browser_authenticated: true,
+                session_cookie: Some("stale-cookie".to_owned()),
+                origin_provided: true,
+                origin_allowed: true,
+            })
+            .expect("snapshot with stale cookie");
+        assert_eq!(invalid_browser["authenticated"], false);
+        assert_eq!(invalid_browser["browser"], false);
+        assert!(invalid_browser["csrfToken"].is_null());
 
         // 2. Login with wrong password
         let err = manager.mutate(&AuthSessionWriteInput::Login {
