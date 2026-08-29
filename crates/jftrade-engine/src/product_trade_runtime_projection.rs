@@ -7,7 +7,8 @@ use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
     OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort,
     OptionUnderlyingRankReadPort, OptionContractRankReadPort, OptionUnderlyingHisVolatilityReadPort,
-    OptionStrategySpreadReadPort, TradeReadPort, TradeSecurity,
+    OptionStrategySpreadReadPort, OptionStrategyReadPort, OptionStrategyAnalysisReadPort,
+    TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -42,6 +43,8 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
     pub(crate) option_underlying_his_volatility: Arc<RwLock<Option<OptionUnderlyingHisVolatilityPort>>>,
     pub(crate) option_strategy_spread: Arc<RwLock<Option<OptionStrategySpreadPort>>>,
+    pub(crate) option_strategy: Arc<RwLock<Option<OptionStrategyPort>>>,
+    pub(crate) option_strategy_analysis: Arc<RwLock<Option<OptionStrategyAnalysisPort>>>,
     pub(crate) option_underlying_rank: Arc<RwLock<Option<Arc<dyn OptionUnderlyingRankReadPort>>>>,
     pub(crate) option_contract_rank: Arc<RwLock<Option<Arc<dyn OptionContractRankReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
@@ -56,6 +59,8 @@ pub(crate) struct TradeRuntimeConnection {
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
 type OptionUnderlyingHisVolatilityPort = Arc<dyn OptionUnderlyingHisVolatilityReadPort>;
 type OptionStrategySpreadPort = Arc<dyn OptionStrategySpreadReadPort>;
+type OptionStrategyPort = Arc<dyn OptionStrategyReadPort>;
+type OptionStrategyAnalysisPort = Arc<dyn OptionStrategyAnalysisReadPort>;
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedTradeReadRuntime")

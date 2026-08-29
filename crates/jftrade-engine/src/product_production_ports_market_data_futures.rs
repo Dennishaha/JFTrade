@@ -46,7 +46,7 @@ pub(crate) fn read(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let as_of = super::provider_now_rfc3339();
+    let as_of = super::super::provider_now_rfc3339();
     let mut metadata = serde_json::Map::new();
     if let Some(market) = request.market {
         metadata.insert("market".to_owned(), json!(market_label(market)));

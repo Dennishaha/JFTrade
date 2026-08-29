@@ -427,6 +427,83 @@ impl jftrade_integration_futu::OptionStrategySpreadReadPort
 }
 
 #[derive(Debug)]
+struct FixtureOptionStrategyReader;
+
+impl jftrade_integration_futu::OptionStrategyReadPort for FixtureOptionStrategyReader {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionStrategyQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategySnapshot,
+        jftrade_integration_futu::OptionStrategyQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL");
+        assert_eq!(query.option_strategy, 4);
+        assert_eq!(query.expire_time.as_deref(), Some("2026-09-18"));
+        assert_eq!(query.far_expire_time, None);
+        assert_eq!(query.spread, Some(10.0));
+        assert_eq!(query.option_type, Some(1));
+        assert_eq!(query.strike_price, Some(100.0));
+        assert_eq!(query.index_option_type, Some(1));
+        let security = jftrade_integration_futu::OptionStrategySecurity {
+            market: "US".to_owned(),
+            code: "AAPL".to_owned(),
+            quote_market: "US".to_owned(),
+            trade_market: "US".to_owned(),
+            instrument_id: "US.AAPL".to_owned(),
+        };
+        Ok(jftrade_integration_futu::OptionStrategySnapshot {
+            items: vec![jftrade_integration_futu::OptionStrategyItem {
+                code: "AAPL260918C/P100".to_owned(),
+                name: "AAPL vertical".to_owned(),
+                option_strategy: 4,
+                stock_owner: security.clone(),
+                multi_legs: vec![jftrade_integration_futu::OptionStrategyLeg {
+                    security,
+                    side: Some(1),
+                    qty_ratio: Some(1.0),
+                    position_id: None,
+                    pred_side: None,
+                }],
+            }],
+        })
+    }
+}
+
+#[derive(Debug)]
+struct FixtureOptionStrategyAnalysisReader;
+
+impl jftrade_integration_futu::OptionStrategyAnalysisReadPort
+    for FixtureOptionStrategyAnalysisReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionStrategyAnalysisQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionStrategyAnalysisSnapshot,
+        jftrade_integration_futu::OptionStrategyAnalysisQueryError,
+    > {
+        assert_eq!(query.multi_legs.len(), 2);
+        assert_eq!(query.multi_legs[0].security.instrument_id, "US.AAPL260918C00100000");
+        assert_eq!(query.multi_legs[1].side, Some(2));
+        Ok(jftrade_integration_futu::OptionStrategyAnalysisSnapshot {
+            code: "AAPL260918C/P100".to_owned(),
+            name: "AAPL vertical".to_owned(),
+            option_strategy: 4,
+            bid1: Some(1.0),
+            ask1: Some(2.0),
+            max_profit: Some(100.0),
+            max_loss: Some(-100.0),
+            breakeven_points: vec![100.0],
+            prob_of_profit: Some(0.5),
+            delta: Some(0.1),
+            theta: Some(-0.2),
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionContractRankReader;
 
 impl jftrade_integration_futu::OptionContractRankReadPort for FixtureOptionContractRankReader {
@@ -643,6 +720,8 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
         FixtureOptionUnderlyingHisVolatilityReader,
     )));
     runtime.set_option_strategy_spread(Some(Arc::new(FixtureOptionStrategySpreadReader)));
+    runtime.set_option_strategy(Some(Arc::new(FixtureOptionStrategyReader)));
+    runtime.set_option_strategy_analysis(Some(Arc::new(FixtureOptionStrategyAnalysisReader)));
     runtime.set_option_underlying_rank(Some(Arc::new(FixtureOptionUnderlyingRankReader)));
     runtime.set_option_contract_rank(Some(Arc::new(FixtureOptionContractRankReader)));
     runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
@@ -791,6 +870,47 @@ fn strategy_spread_projection_forwards_typed_query_and_lists_spreads() {
     assert_eq!(value["metadata"]["expireTime"], "2026-09-18");
     assert_eq!(value["hasMore"], false);
     assert_eq!(value["total"], 2);
+}
+
+#[test]
+fn strategy_projection_forwards_filters_and_lists_combinations() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=strategy&optionStrategy=vertical&expireTime=2026-09-18&spread=10&optionType=1&strikePrice=100&indexOptionType=1",
+        )
+        .expect("option strategy response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["code"], "AAPL260918C/P100");
+    assert_eq!(value["entries"][0]["stockOwner"]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["multiLegs"][0]["qtyRatio"], 1.0);
+    assert_eq!(value["metadata"]["optionStrategy"], 4);
+    assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn strategy_analysis_projection_forwards_combo_legs_and_metrics() {
+    use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+
+    let legs = serde_json::json!([
+        {"security":{"market":"US","code":"AAPL260918C00100000"},"side":1,"qtyRatio":1},
+        {"security":{"market":"US","code":"AAPL260918C00110000"},"side":2,"qtyRatio":1}
+    ]);
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            &format!(
+                "market=US&operation=strategy_analysis&multiLegs={}",
+                utf8_percent_encode(&legs.to_string(), NON_ALPHANUMERIC)
+            ),
+        )
+        .expect("option strategy analysis response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["optionStrategy"], 4);
+    assert_eq!(value["entries"][0]["bid1"], 1.0);
+    assert_eq!(value["entries"][0]["breakevenPoints"][0], 100.0);
+    assert_eq!(value["metadata"]["multiLegCount"], 2);
+    assert_eq!(value["total"], 1);
 }
 
 #[test]

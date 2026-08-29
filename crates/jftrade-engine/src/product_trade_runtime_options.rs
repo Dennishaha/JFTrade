@@ -16,6 +16,9 @@ use jftrade_integration_futu::{
     OptionUnderlyingHisVolatilityReadPort, OptionUnderlyingHisVolatilitySnapshot,
     OptionStrategySpreadQuery, OptionStrategySpreadQueryError, OptionStrategySpreadReadPort,
     OptionStrategySpreadSnapshot,
+    OptionStrategyAnalysisQuery, OptionStrategyAnalysisQueryError,
+    OptionStrategyAnalysisReadPort, OptionStrategyAnalysisSnapshot,
+    OptionStrategyQuery, OptionStrategyQueryError, OptionStrategyReadPort, OptionStrategySnapshot,
     OptionUnderlyingRankQuery, OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort,
     OptionUnderlyingRankSnapshot,
     OptionContractRankQuery, OptionContractRankQueryError, OptionContractRankReadPort,
@@ -319,6 +322,74 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionStrategySpreadQueryError::InvalidQuery(
                     "Futu option strategy spread runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_strategy(
+        &self,
+        reader: Option<Arc<dyn OptionStrategyReadPort>>,
+    ) {
+        *self
+            .option_strategy
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_strategy_available(&self) -> bool {
+        self.option_strategy
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_strategy(
+        &self,
+        query: &OptionStrategyQuery,
+    ) -> Result<OptionStrategySnapshot, OptionStrategyQueryError> {
+        let reader = self
+            .option_strategy
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionStrategyQueryError::InvalidQuery(
+                    "Futu option strategy runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_strategy_analysis(
+        &self,
+        reader: Option<Arc<dyn OptionStrategyAnalysisReadPort>>,
+    ) {
+        *self
+            .option_strategy_analysis
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_strategy_analysis_available(&self) -> bool {
+        self.option_strategy_analysis
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_strategy_analysis(
+        &self,
+        query: &OptionStrategyAnalysisQuery,
+    ) -> Result<OptionStrategyAnalysisSnapshot, OptionStrategyAnalysisQueryError> {
+        let reader = self
+            .option_strategy_analysis
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionStrategyAnalysisQueryError::InvalidQuery(
+                    "Futu option strategy analysis runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

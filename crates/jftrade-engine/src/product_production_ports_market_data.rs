@@ -23,6 +23,8 @@ mod product_production_ports_market_data_options_historical_volatility;
 mod product_production_ports_market_data_options_strategy_spread;
 #[path = "product_production_ports_market_data_options_strategy.rs"]
 mod product_production_ports_market_data_options_strategy;
+#[path = "product_production_ports_market_data_options_strategy_analysis.rs"]
+mod product_production_ports_market_data_options_strategy_analysis;
 #[path = "product_production_ports_market_data_options_contract_rank.rs"]
 mod product_production_ports_market_data_options_contract_rank;
 #[path = "product_production_ports_market_data_options_events.rs"]

@@ -8,6 +8,8 @@ fn main() {
         "../../pkg/futu/proto/Qot_GetOptionQuote.proto",
         "../../pkg/futu/proto/Qot_GetOptionVolatility.proto",
         "../../pkg/futu/proto/Qot_GetOptionExerciseProbability.proto",
+        "../../pkg/futu/proto/Qot_GetOptionStrategy.proto",
+        "../../pkg/futu/proto/Qot_GetOptionStrategyAnalysis.proto",
         "../../pkg/futu/proto/Qot_GetOptionStrategySpread.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingOverview.proto",
         "../../pkg/futu/proto/Qot_GetOptionUnderlyingHisVolatility.proto",

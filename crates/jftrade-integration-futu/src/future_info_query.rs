@@ -273,12 +273,9 @@ fn map_trade_time(
 }
 
 fn map_security(
-    value: Option<crate::trade_proto::qot_common::Security>,
+    value: crate::trade_proto::qot_common::Security,
     field: &'static str,
 ) -> Result<FutureInfoSecurity, FutureInfoQueryError> {
-    let value = value.ok_or_else(|| {
-        FutureInfoQueryError::InvalidResponse(format!("future info {field} is missing"))
-    })?;
     let market = market_label(value.market).ok_or_else(|| {
         FutureInfoQueryError::InvalidResponse(format!("future info {field} market is unsupported"))
     })?;
@@ -377,7 +374,7 @@ mod tests {
     fn wire_future() -> WireFutureInfo {
         WireFutureInfo {
             name: "E-mini S&P".to_owned(),
-            security: Some(Security { market: 11, code: "ESmain".to_owned() }),
+            security: Security { market: 11, code: "ESmain".to_owned() },
             last_trade_time: "2026-12-18".to_owned(),
             last_trade_timestamp: Some(1_797_667_200.0),
             owner: None,
@@ -430,7 +427,7 @@ mod tests {
     #[test]
     fn rejects_missing_security_non_finite_values_and_bad_return_code() {
         let mut missing = wire_future();
-        missing.security = None;
+        missing.security = Security::default();
         let response = Response {
             ret_type: 0,
             ret_msg: None,
