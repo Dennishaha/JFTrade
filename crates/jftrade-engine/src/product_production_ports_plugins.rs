@@ -86,9 +86,18 @@ impl ProductionPluginPort {
             let marker: Value = serde_json::from_slice(&marker).map_err(|error| {
                 PluginSnapshotError::Unavailable(format!("decode plugin marker {}: {error}", path.display()))
             })?;
-            let descriptor = marker.get("descriptor").cloned().unwrap_or_else(|| {
-                json!({"id": id, "type": "strategy-go-plugin", "displayName": id, "version": "0.1.0", "description": "", "keywords": []})
-            });
+            let descriptor = marker.get("descriptor").cloned().ok_or_else(|| {
+                PluginSnapshotError::Unavailable(format!(
+                    "plugin marker {} is missing descriptor",
+                    path.display()
+                ))
+            })?;
+            if !descriptor.is_object() {
+                return Err(PluginSnapshotError::Unavailable(format!(
+                    "plugin marker {} descriptor must be an object",
+                    path.display()
+                )));
+            }
             let install_path = self.root.join(format!("{id}.so"));
             let installation = marker
                 .get("installation")
@@ -525,4 +534,25 @@ fn timestamp_suffix() -> u128 {
         .ok()
         .map(|duration| duration.as_nanos())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn catalog_rejects_marker_without_descriptor() {
+        let dir = tempdir().expect("temp plugin directory");
+        let settings = dir.path().join("settings.json");
+        std::fs::write(&settings, b"{}").expect("settings");
+        let plugin_dir = dir.path().join("plugins");
+        std::fs::create_dir_all(&plugin_dir).expect("plugins");
+        std::fs::write(plugin_dir.join("broken.json"), br#"{"installation":{}}"#)
+            .expect("marker");
+
+        let port = ProductionPluginPort::open(&settings).expect("open plugin port");
+        let error = port.catalog().expect_err("malformed marker must fail closed");
+        assert!(error.to_string().contains("missing descriptor"));
+    }
 }
