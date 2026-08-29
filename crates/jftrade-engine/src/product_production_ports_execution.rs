@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use tokio::sync::oneshot;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_backtest_execution::{
-    BacktestExecutionPort, BacktestExecutionRequest,
+    BacktestExecutionCandle, BacktestExecutionPort, BacktestExecutionRequest,
     BacktestExecutionTaskRegistry, EXECUTION_TIMEOUT, next_run_id, now_timestamp,
 };
 use super::BacktestSyncWorkerRegistry;
@@ -63,6 +63,7 @@ static SYNC_TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 impl BacktestReadSnapshotPort for ProductionBacktestPort {
     fn list(&self) -> Result<Value, BacktestReadSnapshotError> {
+        self.execution_workers.reap_finished();
         let runs = self
             .store
             .list_runs()
@@ -96,6 +97,7 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
     }
 
     fn status(&self, run_id: &str) -> Result<Option<Value>, BacktestReadSnapshotError> {
+        self.execution_workers.reap_finished();
         let run = self
             .store
             .get_run(run_id)
@@ -109,6 +111,7 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
     }
 
     fn result(&self, run_id: &str) -> Result<Option<Value>, BacktestReadSnapshotError> {
+        self.execution_workers.reap_finished();
         let run = self
             .store
             .get_run(run_id)
@@ -281,7 +284,18 @@ impl ProductionBacktestPort {
             run_id: run_id.clone(),
             payload: payload.clone(),
             market_data_provider: provider_id.to_owned(),
-            candles,
+            candles: candles
+                .into_iter()
+                .map(|candle| BacktestExecutionCandle {
+                    start_time: candle.start_time,
+                    end_time: candle.end_time,
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                    volume: candle.volume,
+                })
+                .collect(),
         };
         let store = Arc::clone(&self.store);
         let registry = Arc::clone(&self.execution_workers);

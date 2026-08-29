@@ -134,8 +134,8 @@ mod product_backtest_execution;
 #[path = "product_backtests_write_port.rs"]
 mod product_backtests_write_port;
 pub use product_backtest_execution::{
-    BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest,
-    RunJsonBacktestExecutionPort,
+    BacktestExecutionCandle, BacktestExecutionError, BacktestExecutionPort,
+    BacktestExecutionRequest, RunJsonBacktestExecutionPort,
 };
 #[cfg(test)]
 #[path = "product_backtests_write_test_cutover.rs"]

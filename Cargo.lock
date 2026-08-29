@@ -2156,7 +2156,6 @@ dependencies = [
  "getrandom 0.4.3",
  "jftrade-api",
  "jftrade-assistant",
- "jftrade-backtest",
  "jftrade-calendar",
  "jftrade-datamanagement",
  "jftrade-integration-futu",
@@ -2224,10 +2223,13 @@ dependencies = [
 name = "jftrade-integration-pine"
 version = "0.1.0"
 dependencies = [
+ "jftrade-backtest",
  "prost",
  "serde",
+ "serde_json",
  "sha2 0.11.0",
  "thiserror 2.0.20",
+ "time",
  "tokio",
  "tokio-stream",
  "tonic",

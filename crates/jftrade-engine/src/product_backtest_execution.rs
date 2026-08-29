@@ -1,10 +1,10 @@
 //! Rust-owned asynchronous backtest execution boundary.
 //!
 //! The HTTP adapter deliberately knows nothing about PineTS, strategy
-//! definitions, or the matching engine.  Those concerns are supplied through
-//! [`BacktestExecutionPort`].  This keeps the default production composition
-//! fail-closed while allowing a fixture/worker adapter to exercise the real
-//! `jftrade-backtest::run_json` boundary in explicit compositions.
+//! definitions, or the matching engine. Those concerns are supplied through
+//! the worker-owned [`BacktestExecutionPort`] adapter. This keeps the default
+//! production composition fail-closed while allowing fixture/worker
+//! compositions to opt into deterministic execution.
 
 use std::sync::{
     Arc, Mutex,
@@ -12,101 +12,15 @@ use std::sync::{
 };
 use std::time::Duration;
 
-use jftrade_store_sqlite::{BacktestRunStore, StoredBacktestCandle, StoredBacktestRun};
-use serde_json::{Value, json};
-use thiserror::Error;
+use jftrade_store_sqlite::{BacktestRunStore, StoredBacktestRun};
+use serde_json::json;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-/// Input handed to a strategy/Pine/backtest adapter after request and history
-/// validation.  The raw request is retained so adapters can preserve fields
-/// that are not part of the Rust domain model yet.
-#[derive(Clone, Debug)]
-pub struct BacktestExecutionRequest {
-    pub run_id: String,
-    pub payload: Value,
-    pub market_data_provider: String,
-    pub candles: Vec<StoredBacktestCandle>,
-}
-
-#[derive(Debug, Error, Clone, Eq, PartialEq)]
-pub enum BacktestExecutionError {
-    #[error("backtest execution is unavailable: {0}")]
-    Unavailable(String),
-    #[error("invalid backtest execution input: {0}")]
-    Invalid(String),
-    #[error("backtest execution failed: {0}")]
-    Failed(String),
-}
-
-/// Narrow adapter contract for strategy/PineTS and the deterministic Rust
-/// matcher.  Implementations may perform blocking work; the task registry
-/// runs them behind `spawn_blocking` and fences the resulting write with a
-/// status CAS.
-pub trait BacktestExecutionPort: Send + Sync + std::fmt::Debug {
-    fn execute(&self, request: BacktestExecutionRequest) -> Result<Value, BacktestExecutionError>;
-}
-
-/// Explicit adapter used by fixtures and local rehearsals.  It invokes the
-/// existing `jftrade-backtest::run_json` corpus boundary and returns its
-/// decoded JSON output.  A normal StartRequest is not itself a corpus; callers
-/// must provide a `corpus` object (or a corpus-shaped payload) produced by the
-/// strategy/Pine adapter.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct RunJsonBacktestExecutionPort;
-
-impl BacktestExecutionPort for RunJsonBacktestExecutionPort {
-    fn execute(&self, request: BacktestExecutionRequest) -> Result<Value, BacktestExecutionError> {
-        let mut corpus = request
-            .payload
-            .get("corpus")
-            .cloned()
-            .unwrap_or_else(|| request.payload.clone());
-        // A strategy adapter may provide only corpus metadata while history is
-        // resolved by the production market-data store.  Fill an explicitly
-        // empty first case from that validated history; never overwrite
-        // worker-provided candles.
-        if let Some(case) = corpus
-            .get_mut("cases")
-            .and_then(Value::as_array_mut)
-            .and_then(|cases| cases.first_mut())
-            && case
-                .get("candles")
-                .and_then(Value::as_array)
-                .is_none_or(Vec::is_empty)
-        {
-            case["candles"] = Value::Array(request.candles.iter().map(candle_wire).collect());
-        }
-        let bytes = serde_json::to_vec(&corpus)
-            .map_err(|error| BacktestExecutionError::Invalid(error.to_string()))?;
-        let output = jftrade_backtest::run_json(&bytes)
-            .map_err(|error| BacktestExecutionError::Failed(error.to_string()))?;
-        serde_json::from_slice(&output)
-            .map_err(|error| BacktestExecutionError::Failed(error.to_string()))
-    }
-}
-
-fn candle_wire(candle: &StoredBacktestCandle) -> Value {
-    let timestamp = |millis: i64| {
-        time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(millis) * 1_000_000)
-            .ok()
-            .and_then(|value| {
-                value
-                    .format(&time::format_description::well_known::Rfc3339)
-                    .ok()
-            })
-            .unwrap_or_else(|| "1970-01-01T00:00:00Z".to_owned())
-    };
-    json!({
-        "start": timestamp(candle.start_time),
-        "end": timestamp(candle.end_time),
-        "open": candle.open,
-        "high": candle.high,
-        "low": candle.low,
-        "close": candle.close,
-        "volume": candle.volume,
-    })
-}
+pub use jftrade_integration_pine::{
+    BacktestExecutionCandle, BacktestExecutionError, BacktestExecutionPort,
+    BacktestExecutionRequest, RunJsonBacktestExecutionPort,
+};
 
 /// Lifecycle registry for asynchronous run workers.  It owns every join
 /// handle and cancellation sender, and marks a non-terminal record failed if
@@ -161,19 +75,22 @@ impl BacktestExecutionTaskRegistry {
 
     #[allow(dead_code)]
     pub(crate) fn cancel(&self, run_id: &str) -> bool {
-        let mut workers = self
-            .workers
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        let Some(worker) = workers.iter_mut().find(|worker| worker.run_id == run_id) else {
-            return false;
+        let (store, cancel) = {
+            let mut workers = self
+                .workers
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let Some(worker) = workers.iter_mut().find(|worker| worker.run_id == run_id) else {
+                return false;
+            };
+            let Some(cancel) = worker.cancel.take() else {
+                return false;
+            };
+            (Arc::clone(&worker.store), cancel)
         };
-        if let Some(cancel) = worker.cancel.take() {
-            let _ = cancel.send(());
-            true
-        } else {
-            false
-        }
+        mark_run_cancelled(&store, run_id);
+        let _ = cancel.send(());
+        true
     }
 
     pub(crate) fn reap_finished(&self) {
@@ -210,17 +127,21 @@ impl BacktestExecutionTaskRegistry {
     }
 
     pub(crate) async fn shutdown(&self) {
-        let workers = self.take_workers();
-        for mut worker in workers {
+        let mut workers = self.take_workers();
+        for worker in &mut workers {
+            mark_run_cancelled(&worker.store, &worker.run_id);
             if let Some(cancel) = worker.cancel.take() {
                 let _ = cancel.send(());
             }
+        }
+        for worker in workers {
             let _ = worker.handle.await;
         }
     }
 
     pub(crate) fn terminate(&self) {
         for mut worker in self.take_workers() {
+            mark_run_cancelled(&worker.store, &worker.run_id);
             if let Some(cancel) = worker.cancel.take() {
                 let _ = cancel.send(());
             }
@@ -246,6 +167,24 @@ impl BacktestExecutionTaskRegistry {
     }
 }
 
+fn mark_run_cancelled(store: &BacktestRunStore, run_id: &str) {
+    let Ok(Some(run)) = store.get_run(run_id) else {
+        return;
+    };
+    if !matches!(run.status.as_str(), "queued" | "running") {
+        return;
+    }
+    let timestamp = now_timestamp();
+    let expected = run.status.clone();
+    let cancelled = StoredBacktestRun {
+        status: "cancelled".to_owned(),
+        result_json: json!({"error": "backtest cancelled"}).to_string(),
+        updated_at: timestamp.clone(),
+        ..run
+    };
+    let _ = store.update_run_if_status(run_id, &expected, cancelled, &timestamp);
+}
+
 static RUN_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 pub(crate) fn next_run_id() -> String {
@@ -260,3 +199,102 @@ pub(crate) fn now_timestamp() -> String {
 }
 
 pub(crate) const EXECUTION_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use tempfile::TempDir;
+
+    fn run_store() -> (Arc<BacktestRunStore>, TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("backtest-runs.db");
+        let connection = Connection::open(&path).expect("create runs database");
+        jftrade_store_sqlite::initialize_current(&connection, "backtest-runs")
+            .expect("initialize runs database");
+        drop(connection);
+        let store = BacktestRunStore::open_existing(
+            &path,
+            jftrade_store_sqlite::BACKTEST_RUNS_PRODUCTION_PROFILE,
+        )
+        .expect("open runs store");
+        (Arc::new(store), directory)
+    }
+
+    fn seed_run(store: &BacktestRunStore, run_id: &str, status: &str) {
+        let timestamp = "2026-08-29T00:00:00Z";
+        store
+            .save_run(
+                StoredBacktestRun {
+                    id: run_id.to_owned(),
+                    status: status.to_owned(),
+                    request_json: "{}".to_owned(),
+                    result_json: String::new(),
+                    created_at: timestamp.to_owned(),
+                    updated_at: timestamp.to_owned(),
+                },
+                timestamp,
+            )
+            .expect("seed run");
+    }
+
+    #[tokio::test]
+    async fn reap_finished_marks_nonterminal_worker_failed() {
+        let (store, _directory) = run_store();
+        seed_run(&store, "run-crash", "running");
+        let registry = BacktestExecutionTaskRegistry::default();
+        let (cancel, _receiver) = oneshot::channel();
+        let handle = tokio::spawn(async {});
+        registry.register("run-crash".to_owned(), Arc::clone(&store), handle, cancel);
+        tokio::task::yield_now().await;
+        registry.reap_finished();
+
+        let run = store.get_run("run-crash").expect("load run").expect("run");
+        assert_eq!(run.status, "failed");
+        assert!(run.result_json.contains("unexpectedly"));
+        assert_eq!(registry.worker_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn cancel_persists_cancelled_state_before_signalling_worker() {
+        let (store, _directory) = run_store();
+        seed_run(&store, "run-cancel", "queued");
+        let registry = BacktestExecutionTaskRegistry::default();
+        let (cancel, receiver) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            let _ = receiver.await;
+        });
+        registry.register("run-cancel".to_owned(), Arc::clone(&store), handle, cancel);
+
+        assert!(registry.cancel("run-cancel"));
+        let run = store.get_run("run-cancel").expect("load run").expect("run");
+        assert_eq!(run.status, "cancelled");
+        registry.shutdown().await;
+        assert_eq!(registry.worker_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn shutdown_persists_cancelled_state_before_joining_workers() {
+        let (store, _directory) = run_store();
+        seed_run(&store, "run-shutdown", "running");
+        let registry = BacktestExecutionTaskRegistry::default();
+        let (cancel, receiver) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            let _ = receiver.await;
+        });
+        registry.register(
+            "run-shutdown".to_owned(),
+            Arc::clone(&store),
+            handle,
+            cancel,
+        );
+
+        registry.shutdown().await;
+        let run = store
+            .get_run("run-shutdown")
+            .expect("load run")
+            .expect("run");
+        assert_eq!(run.status, "cancelled");
+        assert_eq!(registry.worker_count(), 0);
+    }
+}

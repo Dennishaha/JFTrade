@@ -177,7 +177,7 @@
       "rustOwner": "jftrade-integration-pine",
       "cutover": "jftrade-engine owns the authenticated loopback worker pool while workers/pineworker retains PineTS execution",
       "goDeleteWhen": "gRPC behavior, session pinning, restart recovery, asset verification and packaged worker lifecycle pass all native targets",
-      "allowedWorkspaceDependencies": []
+      "allowedWorkspaceDependencies": ["jftrade-backtest"]
     },
     {
       "name": "jftrade-integration-futu",

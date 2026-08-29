@@ -340,6 +340,7 @@ jftrade-kernel / jftrade-broker
 - [x] provider 显式切换要求 connected + ready；启动恢复可保留 warming，但 unknown 健康、poll-only 承担 managed streaming demand、managed demand 下切换均拒绝；成功切换递增 generation 并清空旧 cache。
 - [x] 建立 `jftrade-integration-marketdata-helper`：SHA-256 资产校验、loopback/显式端口、可选强 Bearer、受限 Reqwest、Retry-After/有界退避、进程启动到 ready、提前退出检测和限时停止；Python 仍拥有 yfinance/AKShare 语义。
 - [x] 建立 `jftrade-integration-pine`：SHA-256 bundle 校验、loopback/端口/token 边界、受管 Node 进程、ready probe/兼容退避策略、健康池、round-robin、live session pin、失败回滚和 restart 后 session 失效；Node worker 仍拥有 PineTS 执行。
+- [x] 将显式注入的 `BacktestExecutionPort`、中性执行 request/error/candle DTO 和 `RunJsonBacktestExecutionPort` 放在 `jftrade-integration-pine`；该适配器仅委托 `jftrade-backtest` 纯计算，不接入 Go/fallback 或改变公开契约。默认 product 不配置 execution worker，`POST /api/v1/backtests` 继续返回 503 且不创建 queued run。
 - [x] 建立 `jftrade-integration-futu`：OpenD FT frame/SHA-1/长度防护、protocol/serial matching、market-data protocol ID、logical→physical 订阅计划、60 秒最小退订、5/10/20/30 秒失败退避、connection generation 重订阅和 quote-login fail-closed probe。
 - [x] 增加只读 OpenD TCP health adapter：Rust 通过 deadline-bound framed TCP transport 完成 `InitConnect` 与 `GetGlobalState` protobuf decode、retType/version fail-closed、登录状态、四市场状态、程序状态和 UTC 时间映射；仅由本地 mock listener 验证，尚未接入 ProviderRouter 或默认产品 composition。
 - [x] retained Python/Node worker 增加向后兼容的可选 Bearer；当前 Go 启动不设置令牌时行为不变，未来 Rust composition 启动时必须设置每进程强令牌；二者继续拒绝公共监听。

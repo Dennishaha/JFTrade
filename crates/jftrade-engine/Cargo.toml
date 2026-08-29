@@ -15,7 +15,6 @@ axum.workspace = true
 getrandom.workspace = true
 jftrade-api.workspace = true
 jftrade-assistant.workspace = true
-jftrade-backtest.workspace = true
 jftrade-calendar.workspace = true
 jftrade-datamanagement.workspace = true
 jftrade-integration-futu.workspace = true
