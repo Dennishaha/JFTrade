@@ -427,11 +427,19 @@ pub async fn start_product_runtime(
                             OpenDTradeReadClient::from_coordinator(&coordinator).ok()
                         })
                         .map(|client| Arc::new(client) as Arc<dyn TradeReadPort>);
+                    let historical_reader = {
+                        let coordinator = runtime.coordinator();
+                        Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
+                            coordinator,
+                        ))
+                            as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
+                    };
                     config.product = config
                         .product
                         .clone()
                         .with_trade_read_port(trade_read_port, trade_logged_in);
                     trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
+                    trade_runtime.set_historical_klines(Some(historical_reader));
                     (Some(runtime), Some(shared_router))
                 }
                 Err(error) => {

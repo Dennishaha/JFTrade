@@ -6,6 +6,7 @@ mod basic_quote_query;
 mod basic_quote_tick;
 mod frame;
 mod health;
+mod history;
 mod managed_session;
 mod probe;
 mod provider;
@@ -38,6 +39,10 @@ pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use health::{
     OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
     market_data_health_from_probe,
+};
+pub use history::{
+    HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult,
+    OpenDHistoricalKlineReader,
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,

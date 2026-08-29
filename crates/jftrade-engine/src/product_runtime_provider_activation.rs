@@ -141,7 +141,15 @@ pub(super) fn provider_activation(
                         .map(|client| {
                             Arc::new(client) as Arc<dyn jftrade_integration_futu::TradeReadPort>
                         });
+                    let historical_reader = {
+                        let coordinator = provider.coordinator();
+                        Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
+                            coordinator,
+                        ))
+                            as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
+                    };
                     trade_runtime_for_activation.set(client, trade_logged_in);
+                    trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
                     *runtime = Some(provider);
                 }
             }
@@ -171,6 +179,7 @@ pub(super) fn provider_activation(
                     && let Some(opend) = runtime.take()
                 {
                     trade_runtime_for_activation.clear();
+                    trade_runtime_for_activation.set_historical_klines(None);
                     opend.shutdown().map_err(|error| error.to_string())?;
                 }
             }

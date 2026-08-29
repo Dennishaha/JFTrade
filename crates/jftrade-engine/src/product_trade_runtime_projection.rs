@@ -3,7 +3,10 @@
 use std::sync::{Arc, Mutex, RwLock};
 
 use jftrade_api::LiveHub;
-use jftrade_integration_futu::{TradeReadPort, TradeSecurity};
+use jftrade_integration_futu::{
+    HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, TradeReadPort,
+    TradeSecurity,
+};
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Value, json};
@@ -26,6 +29,7 @@ pub(crate) struct SharedTradeReadRuntime {
     live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,
     live_connection_limit: Arc<RwLock<Option<usize>>>,
     market_data_router: Arc<RwLock<Option<Arc<Mutex<ProviderRouter>>>>>,
+    historical_klines: Arc<RwLock<Option<Arc<dyn HistoricalKlineReadPort>>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -84,6 +88,26 @@ impl SharedTradeReadRuntime {
             .market_data_router
             .write()
             .unwrap_or_else(|error| error.into_inner()) = router;
+    }
+
+    pub(crate) fn set_historical_klines(&self, reader: Option<Arc<dyn HistoricalKlineReadPort>>) {
+        *self
+            .historical_klines
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn historical_klines(
+        &self,
+        query: &HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, String> {
+        let reader = self
+            .historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
+        reader.query(query).map_err(|error| error.to_string())
     }
 
     pub(crate) fn security_snapshots(
@@ -327,9 +351,103 @@ impl super::ProductionBrokerPort {
                 })?;
             }
         }
-        let _ = symbol;
-        Err(super::unavailable(
-            "Futu historical klines runtime is unavailable",
-        ))
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            super::unavailable("Futu historical klines runtime is unavailable")
+        })?;
+        let (market, code) = symbol.split_once('.').ok_or_else(|| {
+            super::BrokerReadSnapshotError::Invalid("symbol must be MARKET.CODE".to_owned())
+        })?;
+        let market = market.trim().to_ascii_uppercase();
+        let market_code = super::quote_market_code(&market).ok_or_else(|| {
+            super::BrokerReadSnapshotError::Invalid("symbol market is unsupported".to_owned())
+        })?;
+        let period = normalize_candle_period(period).map_err(|error| {
+            super::BrokerReadSnapshotError::Invalid(format!("invalid candle period: {error:?}"))
+        })?;
+        let limit = request
+            .query
+            .get_first("limit")
+            .and_then(|raw| raw.trim().parse::<i32>().ok())
+            .filter(|value| *value > 0)
+            .map(|value| value.min(1000));
+        let before = request.query.get_first("before").unwrap_or("").trim();
+        let begin = request.query.get_first("fromTime").unwrap_or("").trim();
+        let end = request.query.get_first("toTime").unwrap_or("").trim();
+        let (begin_time, end_time) = if !before.is_empty() {
+            ("1970-01-01 00:00:00".to_owned(), before.to_owned())
+        } else {
+            (
+                begin.to_owned().if_empty_then("1970-01-01 00:00:00"),
+                end.to_owned().if_empty_then("2999-12-31 23:59:59"),
+            )
+        };
+        let historical = runtime.historical_klines(&HistoricalKlineQuery {
+            market: market_code,
+            symbol: code.trim().to_ascii_uppercase(),
+            period: period.to_owned(),
+            adjustment: match request.query.get_first("adjustment").unwrap_or("forward") {
+                "none" => 0,
+                "backward" => 2,
+                _ => 1,
+            },
+            begin_time,
+            end_time,
+            max_ack_kl_num: limit,
+            next_req_key: Vec::new(),
+            extended_time: None,
+            session: None,
+        }).map_err(super::unavailable)?;
+        Ok(json!({
+            "checkedAt": super::checked_at(),
+            "connectivity": "connected",
+            "klines": historical_snapshot(request, &historical, period),
+        }))
     }
+}
+
+trait EmptyTime {
+    fn if_empty_then(self, fallback: &str) -> String;
+}
+
+impl EmptyTime for String {
+    fn if_empty_then(self, fallback: &str) -> String {
+        if self.is_empty() { fallback.to_owned() } else { self }
+    }
+}
+
+fn historical_snapshot(
+    request: &super::TradeRequest,
+    result: &HistoricalKlineResult,
+    period: &str,
+) -> Value {
+    let mut rows = Vec::with_capacity(result.klines.len());
+    for candle in &result.klines {
+        if candle.is_blank { continue; }
+        let mut row = serde_json::Map::new();
+        row.insert("time".to_owned(), json!(candle.time));
+        if let Some(value) = candle.open_price { row.insert("open".to_owned(), json!(value)); }
+        if let Some(value) = candle.close_price { row.insert("close".to_owned(), json!(value)); }
+        if let Some(value) = candle.high_price { row.insert("high".to_owned(), json!(value)); }
+        if let Some(value) = candle.low_price { row.insert("low".to_owned(), json!(value)); }
+        if let Some(value) = candle.volume { row.insert("volume".to_owned(), json!(value as f64)); }
+        if let Some(value) = candle.turnover { row.insert("turnover".to_owned(), json!(value)); }
+        if let Some(value) = candle.change_rate { row.insert("changeRate".to_owned(), json!(value)); }
+        rows.push(Value::Object(row));
+    }
+    let next_before = rows.first().and_then(|row| row["time"].as_str()).map(str::to_owned);
+    let has_more = !result.next_req_key.is_empty();
+    let pagination = if has_more {
+        json!({"hasMore": true, "nextBefore": next_before})
+    } else {
+        json!({"hasMore": false})
+    };
+    json!({
+        "accountId": request.account_id().unwrap_or_default(),
+        "symbol": format!("{}.{}", super::qot_market_label(result.security.market).unwrap_or("UNKNOWN"), result.security.code),
+        "period": period,
+        "klines": rows,
+        "pagination": pagination,
+        "extendedHours": false,
+        "session": "regular",
+    })
 }
