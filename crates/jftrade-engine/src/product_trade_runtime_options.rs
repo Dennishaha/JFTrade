@@ -10,6 +10,8 @@ use jftrade_integration_futu::{
     OptionEventReadPort, OptionExerciseProbabilityQuery,
     OptionExerciseProbabilityQueryError, OptionExerciseProbabilityReadPort,
     OptionExerciseProbabilitySnapshot,
+    OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
+    OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSnapshot,
 };
 
 use super::product_trade_runtime_projection::SharedTradeReadRuntime;
@@ -205,6 +207,40 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| {
                 OptionExerciseProbabilityQueryError::InvalidQuery(
                     "Futu option exercise probability runtime is unavailable".to_owned(),
+                )
+            })?;
+        reader.query(query)
+    }
+
+    pub(crate) fn set_option_underlying_overview(
+        &self,
+        reader: Option<Arc<dyn OptionUnderlyingOverviewReadPort>>,
+    ) {
+        *self
+            .option_underlying_overview
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn option_underlying_overview_available(&self) -> bool {
+        self.option_underlying_overview
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn option_underlying_overview(
+        &self,
+        query: &OptionUnderlyingOverviewQuery,
+    ) -> Result<OptionUnderlyingOverviewSnapshot, OptionUnderlyingOverviewQueryError> {
+        let reader = self
+            .option_underlying_overview
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| {
+                OptionUnderlyingOverviewQueryError::InvalidQuery(
+                    "Futu option underlying overview runtime is unavailable".to_owned(),
                 )
             })?;
         reader.query(query)

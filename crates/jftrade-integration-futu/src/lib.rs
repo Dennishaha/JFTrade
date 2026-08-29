@@ -14,6 +14,7 @@ mod option_exercise_probability_query;
 mod option_expiration_query;
 mod option_quote_query;
 mod option_screen_query;
+mod option_underlying_overview_query;
 mod option_volatility_query;
 mod probe;
 mod provider;
@@ -82,6 +83,12 @@ pub use option_quote_query::{
 pub use option_screen_query::{
     OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
     OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
+};
+pub use option_underlying_overview_query::{
+    OpenDOptionUnderlyingOverviewReader, OptionUnderlyingHvItem, OptionUnderlyingOverviewItem,
+    OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
+    OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSecurity,
+    OptionUnderlyingOverviewSnapshot,
 };
 pub use option_volatility_query::{
     OpenDOptionVolatilityReader, OptionVolatilityItem, OptionVolatilityQuery,

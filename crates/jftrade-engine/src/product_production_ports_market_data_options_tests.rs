@@ -262,6 +262,51 @@ impl jftrade_integration_futu::OptionExerciseProbabilityReadPort
 }
 
 #[derive(Debug)]
+struct FixtureOptionUnderlyingOverviewReader;
+
+impl jftrade_integration_futu::OptionUnderlyingOverviewReadPort
+    for FixtureOptionUnderlyingOverviewReader
+{
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::OptionUnderlyingOverviewQuery,
+    ) -> Result<
+        jftrade_integration_futu::OptionUnderlyingOverviewSnapshot,
+        jftrade_integration_futu::OptionUnderlyingOverviewQueryError,
+    > {
+        assert_eq!(query.market, 11);
+        assert_eq!(query.code, "AAPL");
+        assert_eq!(query.index_option_type, Some(1));
+        Ok(jftrade_integration_futu::OptionUnderlyingOverviewSnapshot {
+            items: vec![jftrade_integration_futu::OptionUnderlyingOverviewItem {
+                security: jftrade_integration_futu::OptionUnderlyingOverviewSecurity {
+                    market: "US".to_owned(),
+                    code: "AAPL".to_owned(),
+                    quote_market: "US".to_owned(),
+                    trade_market: "US".to_owned(),
+                    instrument_id: "US.AAPL".to_owned(),
+                },
+                code: Some("AAPL".to_owned()),
+                name: Some("Apple".to_owned()),
+                call_volume: Some(120),
+                put_volume: Some(80),
+                call_open_interest: Some(900),
+                put_open_interest: Some(700),
+                iv: Some(25.0),
+                iv_rank: Some(60.0),
+                iv_percentile: Some(55.0),
+                hv_list: vec![jftrade_integration_futu::OptionUnderlyingHvItem {
+                    time_range: 1,
+                    hv: 20.0,
+                    hv_percentile: Some(45.0),
+                }],
+                pre_iv: Some(24.0),
+            }],
+        })
+    }
+}
+
+#[derive(Debug)]
 struct FixtureOptionEventReader {
     result: Result<jftrade_integration_futu::OptionEventPage, String>,
 }
@@ -411,6 +456,9 @@ fn ready_port() -> ProductionMarketDataOptionsPort {
     runtime.set_option_exercise_probability(Some(Arc::new(
         FixtureOptionExerciseProbabilityReader,
     )));
+    runtime.set_option_underlying_overview(Some(Arc::new(
+        FixtureOptionUnderlyingOverviewReader,
+    )));
     runtime.set_option_events(Some(Arc::new(FixtureOptionEventReader {
         result: Ok(jftrade_integration_futu::OptionEventPage {
             events: vec![sample_option_event()],
@@ -488,6 +536,21 @@ fn exercise_probability_projection_forwards_typed_query_and_metrics() {
     assert_eq!(value["entries"][0]["timestampStr"], "2026-08-29");
     assert_eq!(value["entries"][0]["securityPrice"], 225.0);
     assert_eq!(value["entries"][0]["strikeProbability"], 41.869);
+    assert_eq!(value["total"], 1);
+}
+
+#[test]
+fn underlying_overview_projection_forwards_typed_query_and_metrics() {
+    let value = ready_port()
+        .read(
+            "/api/v1/market-data/options/analysis/US.AAPL",
+            "market=US&operation=underlying_overview&indexOptionType=1",
+        )
+        .expect("option underlying overview response");
+    assert_eq!(value["provider"]["featureId"], "derivatives.option_analysis");
+    assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
+    assert_eq!(value["entries"][0]["iv"], 25.0);
+    assert_eq!(value["entries"][0]["hvList"][0]["hv"], 20.0);
     assert_eq!(value["total"], 1);
 }
 

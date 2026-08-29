@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
     HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult, SecuritySnapshotReadPort,
-    OptionExerciseProbabilityReadPort, TradeReadPort, TradeSecurity,
+    OptionExerciseProbabilityReadPort, OptionUnderlyingOverviewReadPort, TradeReadPort,
+    TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -40,6 +41,7 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_quotes: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionQuoteReadPort>>>>,
     pub(crate) option_volatility: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionVolatilityReadPort>>>>,
     pub(crate) option_exercise_probability: Arc<RwLock<Option<Arc<dyn OptionExerciseProbabilityReadPort>>>>,
+    pub(crate) option_underlying_overview: Arc<RwLock<Option<Arc<dyn OptionUnderlyingOverviewReadPort>>>>,
     pub(crate) option_events: Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::OptionEventReadPort>>>>,
 }
 #[derive(Clone, Debug)]
@@ -49,7 +51,6 @@ pub(crate) struct TradeRuntimeConnection {
     pub(crate) websocket_port: i32,
     pub(crate) use_encryption: bool,
 }
-
 type TradeRuntimeState = Option<(Arc<dyn TradeReadPort>, bool)>;
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,7 +59,6 @@ impl std::fmt::Debug for SharedTradeReadRuntime {
             .finish()
     }
 }
-
 #[derive(Clone)]
 pub(crate) struct TradeReadRuntimeSnapshot {
     pub(crate) client: Option<Arc<dyn TradeReadPort>>,
