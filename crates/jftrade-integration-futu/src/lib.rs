@@ -41,8 +41,8 @@ pub use health::{
     market_data_health_from_probe,
 };
 pub use history::{
-    HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult,
-    OpenDHistoricalKlineReader,
+    HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
+    HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,

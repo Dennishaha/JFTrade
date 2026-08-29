@@ -12,7 +12,7 @@ use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Value, json};
 
 use crate::product::product_query::{
-    normalize_candle_period, normalize_optional_query_time, parse_candle_before_time,
+    normalize_candle_period, normalize_optional_query_time, parse_candle_before_time, QueryMap,
 };
 
 use super::super::product_production_ports_market_data::product_production_ports_market_data_projection::{
@@ -370,17 +370,23 @@ impl super::ProductionBrokerPort {
             .and_then(|raw| raw.trim().parse::<i32>().ok())
             .filter(|value| *value > 0)
             .map(|value| value.min(1000));
+        let extended_hours = market == "US" && crate::product::product_query::is_intraday_candle_period(period);
+        let sessions = parse_requested_sessions(&request.query, extended_hours)
+            .map_err(super::BrokerReadSnapshotError::Invalid)?;
         let before = request.query.get_first("before").unwrap_or("").trim();
         let begin = request.query.get_first("fromTime").unwrap_or("").trim();
         let end = request.query.get_first("toTime").unwrap_or("").trim();
         let (begin_time, end_time) = if !before.is_empty() {
-            ("1970-01-01 00:00:00".to_owned(), before.to_owned())
+            ("1970-01-01 00:00:00".to_owned(), format_opend_time(before, &market))
         } else {
             (
-                begin.to_owned().if_empty_then("1970-01-01 00:00:00"),
-                end.to_owned().if_empty_then("2999-12-31 23:59:59"),
+                format_opend_time(&begin.to_owned().if_empty_then("1970-01-01 00:00:00"), &market),
+                format_opend_time(&end.to_owned().if_empty_then("2999-12-31 23:59:59"), &market),
             )
         };
+        let session_code = if !extended_hours { None } else if sessions.len() == 1 {
+            Some(match sessions[0] { "regular" => 1, "extended" => 2, _ => 3 })
+        } else { Some(3) };
         let historical = runtime.historical_klines(&HistoricalKlineQuery {
             market: market_code,
             symbol: code.trim().to_ascii_uppercase(),
@@ -394,13 +400,13 @@ impl super::ProductionBrokerPort {
             end_time,
             max_ack_kl_num: limit,
             next_req_key: Vec::new(),
-            extended_time: None,
-            session: None,
+            extended_time: extended_hours.then_some(true),
+            session: session_code,
         }).map_err(super::unavailable)?;
         Ok(json!({
             "checkedAt": super::checked_at(),
             "connectivity": "connected",
-            "klines": historical_snapshot(request, &historical, period),
+            "klines": historical_snapshot(request, &historical, period, extended_hours, &sessions),
         }))
     }
 }
@@ -419,6 +425,8 @@ fn historical_snapshot(
     request: &super::TradeRequest,
     result: &HistoricalKlineResult,
     period: &str,
+    extended_hours: bool,
+    sessions: &[&str],
 ) -> Value {
     let mut rows = Vec::with_capacity(result.klines.len());
     for candle in &result.klines {
@@ -447,7 +455,96 @@ fn historical_snapshot(
         "period": period,
         "klines": rows,
         "pagination": pagination,
-        "extendedHours": false,
-        "session": "regular",
+        "extendedHours": extended_hours,
+        "session": if sessions.len() == 1 { sessions[0] } else if extended_hours { "all" } else { "regular" },
+        "sessions": sessions,
     })
+}
+
+fn parse_requested_sessions(
+    query: &QueryMap,
+    extended_hours: bool,
+) -> Result<Vec<&'static str>, String> {
+    let mut values = Vec::new();
+    for key in ["sessions", "session"] {
+        if let Some(items) = query.get_all(key) {
+            values.extend(items.iter().flat_map(|item| item.split(',')));
+        }
+    }
+    if values.is_empty() {
+        return Ok(if extended_hours { vec!["regular", "extended", "overnight"] } else { vec!["regular"] });
+    }
+    let mut result = Vec::new();
+    for value in values {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "regular" if !result.contains(&"regular") => result.push("regular"),
+            "extended" if extended_hours && !result.contains(&"extended") => result.push("extended"),
+            "overnight" if extended_hours && !result.contains(&"overnight") => result.push("overnight"),
+            "regular" | "extended" | "overnight" => return Err("requested session is unsupported for this period or market".to_owned()),
+            other => return Err(format!("invalid candle session {other:?}")),
+        }
+    }
+    Ok(result)
+}
+
+fn format_opend_time(value: &str, market: &str) -> String {
+    let trimmed = value.trim();
+    if let Ok(parsed) = time::OffsetDateTime::parse(trimmed, &time::format_description::well_known::Rfc3339) {
+        let offset = market_offset(market, parsed.month() as u8);
+        return parsed.to_offset(offset).format(&time::format_description::parse_borrowed::<1>("[year]-[month]-[day] [hour]:[minute]:[second]").expect("time format")).unwrap_or_else(|_| trimmed.to_owned());
+    }
+    trimmed.replace('T', " ").split('.').next().unwrap_or(trimmed).to_owned()
+}
+
+fn market_offset(market: &str, month: u8) -> time::UtcOffset {
+    let seconds = match market {
+        "US" => if (3..=10).contains(&month) { -4 * 3600 } else { -5 * 3600 },
+        "HK" | "SH" | "SZ" | "CN" => 8 * 3600,
+        _ => 0,
+    };
+    time::UtcOffset::from_whole_seconds(seconds).unwrap_or(time::UtcOffset::UTC)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jftrade_integration_futu::{HistoricalKline, HistoricalKlineResult};
+
+    fn request(query: &str) -> super::super::TradeRequest {
+        super::super::TradeRequest::parse("/api/v1/brokers/futu/klines", query).expect("request")
+    }
+
+    #[test]
+    fn sessions_default_and_validation_follow_go_extended_hours_rules() {
+        let regular = request("symbol=HK.00700&period=1d");
+        assert_eq!(parse_requested_sessions(&regular.query, false).expect("sessions"), vec!["regular"]);
+        let extended = request("symbol=US.AAPL&period=5m");
+        assert_eq!(parse_requested_sessions(&extended.query, true).expect("sessions"), vec!["regular", "extended", "overnight"]);
+        let invalid = request("symbol=HK.00700&period=1d&sessions=extended");
+        assert!(parse_requested_sessions(&invalid.query, false).is_err());
+    }
+
+    #[test]
+    fn market_time_conversion_uses_exchange_wall_clock() {
+        assert_eq!(format_opend_time("2026-08-01T00:00:00Z", "HK"), "2026-08-01 08:00:00");
+        assert_eq!(format_opend_time("2026-01-01T12:00:00Z", "US"), "2026-01-01 07:00:00");
+    }
+
+    #[test]
+    fn snapshot_pagination_requires_next_key_and_uses_earliest_candle() {
+        let req = request("symbol=US.AAPL&period=5m");
+        let result = HistoricalKlineResult {
+            security: jftrade_integration_futu::HistoricalSecurity { market: 11, code: "AAPL".to_owned() },
+            name: None,
+            klines: vec![HistoricalKline {
+                time: "2026-08-01 09:30:00".to_owned(), is_blank: false,
+                high_price: Some(3.0), open_price: Some(2.0), low_price: Some(1.0), close_price: Some(2.5),
+                volume: Some(10), turnover: Some(20.0), change_rate: None,
+            }], next_req_key: vec![1],
+        };
+        let snapshot = historical_snapshot(&req, &result, "5m", true, &["regular"]);
+        assert_eq!(snapshot["pagination"]["hasMore"], true);
+        assert_eq!(snapshot["pagination"]["nextBefore"], "2026-08-01 09:30:00");
+        assert_eq!(snapshot["klines"][0]["open"], 2.0);
+    }
 }

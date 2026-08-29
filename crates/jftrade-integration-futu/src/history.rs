@@ -5,8 +5,26 @@ use std::sync::{Arc, Mutex};
 use prost::Message;
 use thiserror::Error;
 
-use crate::trade_proto::qot_common::{KLine, Security};
 use crate::{OpenDSessionCoordinator, OpenDSessionCoordinatorError, PROTO_REQUEST_HISTORY_KL};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoricalSecurity {
+    pub market: i32,
+    pub code: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct HistoricalKline {
+    pub time: String,
+    pub is_blank: bool,
+    pub high_price: Option<f64>,
+    pub open_price: Option<f64>,
+    pub low_price: Option<f64>,
+    pub close_price: Option<f64>,
+    pub volume: Option<i64>,
+    pub turnover: Option<f64>,
+    pub change_rate: Option<f64>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HistoricalKlineQuery {
@@ -24,9 +42,9 @@ pub struct HistoricalKlineQuery {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HistoricalKlineResult {
-    pub security: Security,
+    pub security: HistoricalSecurity,
     pub name: Option<String>,
-    pub klines: Vec<KLine>,
+    pub klines: Vec<HistoricalKline>,
     pub next_req_key: Vec<u8>,
 }
 
@@ -100,16 +118,36 @@ impl HistoricalKlineReadPort for OpenDHistoricalKlineReader {
         }
         let s2c = response.s2c.ok_or(HistoricalKlineError::MissingS2c)?;
         Ok(HistoricalKlineResult {
-            security: s2c.security.unwrap_or_else(|| query_security(query)),
+            security: s2c
+                .security
+                .map(|security| HistoricalSecurity {
+                    market: security.market,
+                    code: security.code,
+                })
+                .unwrap_or_else(|| query_security(query)),
             name: s2c.name,
-            klines: s2c.kl_list,
+            klines: s2c
+                .kl_list
+                .into_iter()
+                .map(|kline| HistoricalKline {
+                    time: kline.time,
+                    is_blank: kline.is_blank,
+                    high_price: kline.high_price,
+                    open_price: kline.open_price,
+                    low_price: kline.low_price,
+                    close_price: kline.close_price,
+                    volume: kline.volume,
+                    turnover: kline.turnover,
+                    change_rate: kline.change_rate,
+                })
+                .collect(),
             next_req_key: s2c.next_req_key.unwrap_or_default(),
         })
     }
 }
 
-fn query_security(query: &HistoricalKlineQuery) -> Security {
-    Security {
+fn query_security(query: &HistoricalKlineQuery) -> HistoricalSecurity {
+    HistoricalSecurity {
         market: query.market,
         code: query.symbol.clone(),
     }
@@ -136,7 +174,10 @@ fn encode_request(query: &HistoricalKlineQuery) -> Vec<u8> {
         c2s: Some(HistoryC2s {
             rehab_type: Some(query.adjustment),
             kl_type: Some(period_code(&query.period)),
-            security: Some(query_security(query)),
+            security: Some(crate::trade_proto::qot_common::Security {
+                market: query.market,
+                code: query.symbol.clone(),
+            }),
             begin_time: Some(query.begin_time.clone()),
             end_time: Some(query.end_time.clone()),
             max_ack_kl_num: query.max_ack_kl_num,
@@ -163,7 +204,7 @@ struct HistoryC2s {
     #[prost(int32, optional, tag = "2")]
     kl_type: Option<i32>,
     #[prost(message, optional, tag = "3")]
-    security: Option<Security>,
+    security: Option<crate::trade_proto::qot_common::Security>,
     #[prost(string, optional, tag = "4")]
     begin_time: Option<String>,
     #[prost(string, optional, tag = "5")]
@@ -197,9 +238,9 @@ struct HistoryResponse {
 #[derive(Clone, PartialEq, Message)]
 struct HistoryS2c {
     #[prost(message, optional, tag = "1")]
-    security: Option<Security>,
+    security: Option<crate::trade_proto::qot_common::Security>,
     #[prost(message, repeated, tag = "2")]
-    kl_list: Vec<KLine>,
+    kl_list: Vec<crate::trade_proto::qot_common::KLine>,
     #[prost(bytes, optional, tag = "3")]
     next_req_key: Option<Vec<u8>>,
     #[prost(string, optional, tag = "4")]
@@ -246,5 +287,29 @@ mod tests {
             HistoryResponse::decode(response.encode_to_vec().as_slice()).expect("response");
         assert_eq!(decoded.ret_type, Some(-1));
         assert!(decoded.s2c.is_none());
+    }
+
+    #[test]
+    fn history_wire_frame_keeps_protocol_and_serial_for_mock_opend() {
+        let body = HistoryResponse {
+            ret_type: Some(0),
+            ret_msg: None,
+            err_code: None,
+            s2c: Some(HistoryS2c {
+                security: None,
+                kl_list: Vec::new(),
+                next_req_key: Some(vec![9]),
+                name: Some("Apple".to_owned()),
+            }),
+        }
+        .encode_to_vec();
+        let frame = crate::decode_frame(
+            &crate::encode_frame(PROTO_REQUEST_HISTORY_KL, 7, &body).expect("frame"),
+        )
+        .expect("decode frame");
+        assert_eq!(frame.header.proto_id, PROTO_REQUEST_HISTORY_KL);
+        assert_eq!(frame.header.serial_no, 7);
+        let decoded = HistoryResponse::decode(frame.body.as_slice()).expect("response");
+        assert_eq!(decoded.s2c.expect("s2c").next_req_key, Some(vec![9]));
     }
 }
