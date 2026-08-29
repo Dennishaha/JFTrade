@@ -15,6 +15,8 @@ mod option_exercise_probability_query;
 mod option_expiration_query;
 mod option_quote_query;
 mod option_screen_query;
+mod option_strategy_analysis_query;
+mod option_strategy_query;
 mod option_strategy_spread_query;
 mod option_underlying_his_volatility_query;
 mod option_underlying_overview_query;
@@ -92,6 +94,16 @@ pub use option_quote_query::{
 pub use option_screen_query::{
     OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
     OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
+};
+pub use option_strategy_analysis_query::{
+    OpenDOptionStrategyAnalysisReader, OptionStrategyAnalysisQuery,
+    OptionStrategyAnalysisQueryError, OptionStrategyAnalysisReadPort,
+    OptionStrategyAnalysisSnapshot,
+};
+pub use option_strategy_query::{
+    OpenDOptionStrategyReader, OptionStrategyItem, OptionStrategyLeg, OptionStrategyQuery,
+    OptionStrategyQueryError, OptionStrategyReadPort, OptionStrategySecurity,
+    OptionStrategySnapshot,
 };
 pub use option_strategy_spread_query::{
     OpenDOptionStrategySpreadReader, OptionStrategySpreadItem, OptionStrategySpreadQuery,

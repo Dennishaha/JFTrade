@@ -38,6 +38,17 @@ pub mod qot_get_option_exercise_probability {
     ));
     pub const PROTOCOL_ID: u32 = 3251;
 }
+pub mod qot_get_option_strategy {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_strategy.rs"));
+    pub const PROTOCOL_ID: u32 = 3256;
+}
+pub mod qot_get_option_strategy_analysis {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_option_strategy_analysis.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3257;
+}
 pub mod qot_get_option_underlying_overview {
     include!(concat!(
         env!("OUT_DIR"),
