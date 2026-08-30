@@ -454,6 +454,21 @@ pub(crate) fn production_ports(
     let capability_matrix =
         MarketDataCapabilityMatrix::new(active_provider_str, has_helper, has_router);
     let mut bound_adapters = production_adapter_bindings(&capability_matrix);
+    // Backtest execution is assembled after the PineTS readiness probe.  The
+    // capability matrix intentionally has no worker input, so project the
+    // concrete startup state here as soon as the verified execution port is
+    // present; current_binding() continues to refresh this decision after
+    // provider transitions.  BacktestStart reads only the local historical
+    // candle store at request time, so helper/OpenD/router health is not a
+    // prerequisite for this binding.
+    bound_adapters.insert(
+        ProductionRouteAdapter::BacktestStart,
+        if config.backtest_execution_port.is_some() && active_provider.is_some() {
+            ProductionAdapterBinding::Ready
+        } else {
+            ProductionAdapterBinding::ExternalUnavailable
+        },
+    );
     bound_adapters.insert(
         ProductionRouteAdapter::StrategyPine,
         if config.strategy_pine_worker_port.is_some() {
@@ -554,7 +569,8 @@ pub(crate) fn production_ports(
             adapter,
         })?
         .with_active_provider_state(Arc::clone(&active_provider_state))
-        .with_trade_runtime(config.trade_runtime.clone()),
+        .with_trade_runtime(config.trade_runtime.clone())
+        .with_backtest_execution_ready(config.backtest_execution_port.is_some()),
     );
     let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
@@ -753,7 +769,6 @@ pub(crate) fn production_ports(
         backtest_sync_workers,
         backtest_execution_workers,
         execution_reconciliation_worker,
-        #[cfg(test)]
         backtest_execution_ready: config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),
         trade_write_port: config.trade_write_port.clone(),

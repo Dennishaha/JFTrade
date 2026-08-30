@@ -6,6 +6,7 @@ use super::product_production_ports::{
     runtime_scoped_adapter, ProductionAdapterBinding, ProductionPortBundle,
     OPTION_ANALYSIS_OPERATIONS,
 };
+use crate::product::product_adk_mutation_port::adk_mutation_operation_for_route;
 use super::*;
 
 const EXPECTED_PRODUCTION_ROUTE_COUNT: usize = 278;
@@ -321,6 +322,9 @@ impl ProductionRouteRegistry {
                 ports
                     .execution_operation_binding(&path)
                     .or_else(|| ports.adapter_binding(adapter))
+            } else if adapter == ProductionRouteAdapter::AdkMutation {
+                adk_mutation_operation_for_route(&method, &path)
+                    .and_then(|operation| ports.adk_mutation_operation_binding(operation))
             } else {
                 Some(ports.adapter_binding_or_missing(adapter))
             }
@@ -377,6 +381,25 @@ impl ProductionRouteRegistry {
                     });
                 }
                 research_operation_bindings(&path, binding)
+            } else if adapter == ProductionRouteAdapter::AdkMutation {
+                let operation = adk_mutation_operation_for_route(&method, &path).ok_or_else(|| {
+                    ProductError::MissingProductionAdapter {
+                        method: method.clone(),
+                        path: path.clone(),
+                        adapter: adapter.name().to_owned(),
+                    }
+                })?;
+                let binding = ports
+                    .adk_mutation_operation_binding(operation)
+                    .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter);
+                if binding == ProductionAdapterBinding::MissingInternalAdapter {
+                    return Err(ProductError::MissingProductionAdapter {
+                        method: method.clone(),
+                        path: path.clone(),
+                        adapter: adapter.name().to_owned(),
+                    });
+                }
+                BTreeMap::from([(operation.name().to_owned(), binding)])
             } else {
                 BTreeMap::new()
             };
@@ -489,6 +512,9 @@ impl ProductionRouteRegistry {
             ports
                 .execution_operation_binding(&binding.path)
                 .or_else(|| ports.adapter_binding(binding.adapter))
+        } else if binding.adapter == ProductionRouteAdapter::AdkMutation {
+            adk_mutation_operation_for_route(&binding.method, &binding.path)
+                .and_then(|operation| ports.adk_mutation_operation_binding(operation))
         } else {
             ports.adapter_binding(binding.adapter)
         };

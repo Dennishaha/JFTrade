@@ -173,6 +173,10 @@ pub(crate) fn production_adapter_bindings(
         Adapter::ResearchCalendarRead,
         Adapter::ResearchMacroRead,
         Adapter::ResearchScreenWrite,
+        // Backtest execution is installed only after the PineTS worker has
+        // passed its real readiness probe.  Keep the startup projection
+        // unavailable; the production bundle re-evaluates this adapter from
+        // the verified execution port and live provider state at dispatch.
         Adapter::BacktestStart,
         Adapter::BrokerRead,
         Adapter::BrokerWrite,

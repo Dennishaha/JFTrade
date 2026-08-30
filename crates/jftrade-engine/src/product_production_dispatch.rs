@@ -77,7 +77,14 @@ impl ProductApi {
         // Buying-power and combo previews have product-rule readers that
         // cannot be represented by the generic execution writer; keep their
         // unavailable status at the registry boundary even though ordinary
-        // order routes use handler mappings.
+        // order routes use handler mappings.  BacktestStart deliberately
+        // reaches the backtests writer so its unavailable path preserves the
+        // public BACKTESTS_WRITE_UNAVAILABLE envelope.
+        // ADK mutation readiness is resolved per operation by the route
+        // registry.  Local entity/session/task/workflow mutations must reach
+        // the production store even while model-backed continuation
+        // operations are unavailable; those operations return the canonical
+        // ADK 503 envelope from `ProductionAdkPort` itself.
         (binding.adapter == Target::AdkChat && self.adk_chat_stream_port.is_none())
             || matches!(
                 request.path.as_str(),

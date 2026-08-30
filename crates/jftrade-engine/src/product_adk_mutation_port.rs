@@ -149,6 +149,21 @@ pub fn adk_mutation_routes() -> &'static [(&'static str, &'static str); 37] {
     &ADK_MUTATION_ROUTES
 }
 
+/// Resolve the operation represented by a canonical production route
+/// template.  The production registry uses the same parser as the request
+/// boundary so operation-level readiness cannot drift from route dispatch.
+/// Placeholder segments (for example `{sessionId}`) are intentionally
+/// accepted by `parse_route`: they are non-empty identifiers and are never
+/// exposed to a real mutation request.
+pub(crate) fn adk_mutation_operation_for_route(
+    method: &str,
+    path: &str,
+) -> Option<AdkMutationOperation> {
+    parse_route(method, path)
+        .ok()
+        .map(|(operation, _)| operation)
+}
+
 pub fn dispatch_adk_mutation(
     request: &AdkMutationRequest,
     port: Option<&dyn AdkMutationPort>,

@@ -62,6 +62,7 @@ pub(crate) struct ProductionToolCatalog {
     research_bindings: BTreeMap<&'static str, ProductionAdapterBinding>,
     active_provider_state: Option<Arc<ActiveProviderState>>,
     trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    backtest_execution_ready: bool,
 }
 
 impl ProductionToolCatalog {
@@ -133,6 +134,7 @@ impl ProductionToolCatalog {
             research_bindings: research_bindings.clone(),
             active_provider_state: None,
             trade_runtime: None,
+            backtest_execution_ready: false,
         })
     }
 
@@ -161,6 +163,15 @@ impl ProductionToolCatalog {
         trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     ) -> Self {
         self.trade_runtime = trade_runtime;
+        self
+    }
+
+    /// Attach the verified PineTS execution readiness used by the
+    /// `strategy.research_backtest` descriptor. Provider state remains
+    /// dynamic; this flag only records that the composition root installed a
+    /// worker that passed its real startup probe.
+    pub(crate) fn with_backtest_execution_ready(mut self, ready: bool) -> Self {
+        self.backtest_execution_ready = ready;
         self
     }
 
@@ -274,6 +285,17 @@ impl ProductionToolCatalog {
             // updating the binding table.
             return ProductionAdapterBinding::ExternalUnavailable;
         };
+        if definition.adapter == ProductionRouteAdapter::BacktestStart {
+            // Backtests consume the verified PineTS worker and local candle
+            // store.  Live helper/OpenD/router availability is checked only
+            // by other market-data routes; an empty local range is mapped by
+            // the backtest handler to BACKTESTS_WRITE_UNAVAILABLE.
+            return if self.backtest_execution_ready && snapshot.provider.is_some() {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            };
+        }
         if !is_provider_dynamic_adapter(definition.adapter) {
             return startup_binding;
         }

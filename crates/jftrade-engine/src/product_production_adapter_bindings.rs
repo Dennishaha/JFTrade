@@ -1,6 +1,7 @@
 //! Explicit production route-adapter binding states.
 
 use super::{ProductionPortBundle, ProductionRouteAdapter};
+use crate::product::product_adk_mutation_port::AdkMutationOperation;
 
 /// Query operations accepted by the shared `/options/analysis` endpoint.
 /// Keep this list in lock-step with `parse_operation` in the production
@@ -34,6 +35,45 @@ pub(crate) enum ProductionAdapterBinding {
 }
 
 impl ProductionPortBundle {
+    /// Resolve readiness for one ADK mutation operation.  The public route
+    /// registry keeps a single `AdkMutation` adapter for compatibility, but
+    /// persistence-only operations are local and can be served without the
+    /// assistant model runtime.  Runtime-dependent operations remain
+    /// explicitly unavailable until a concrete runtime capability is wired;
+    /// dispatch then returns the canonical 503 envelope instead of reaching a
+    /// synthetic fallback.
+    pub(crate) fn adk_mutation_operation_binding(
+        &self,
+        operation: AdkMutationOperation,
+    ) -> Option<ProductionAdapterBinding> {
+        let adapter = ProductionRouteAdapter::AdkMutation;
+        if !self.installed_adapters.contains(&adapter)
+            || !self.bound_adapters.contains_key(&adapter)
+        {
+            return None;
+        }
+        if self.bound_adapters.get(&adapter)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return Some(ProductionAdapterBinding::MissingInternalAdapter);
+        }
+        let external_runtime_operation = matches!(
+            operation,
+            AdkMutationOperation::TestProvider
+                | AdkMutationOperation::RespondToInput
+                | AdkMutationOperation::CompactSessionContext
+                | AdkMutationOperation::InstallSkill
+                | AdkMutationOperation::RunWorkflowTrigger
+                | AdkMutationOperation::RunWorkflowWebhook
+                | AdkMutationOperation::RunWorkflow
+        );
+        Some(if external_runtime_operation {
+            ProductionAdapterBinding::ExternalUnavailable
+        } else {
+            ProductionAdapterBinding::Ready
+        })
+    }
+
     /// Resolve readiness for execution routes that require more than the
     /// generic order writer.  The public execution adapter also owns plain
     /// order placement/cancellation, but buying-power and combo previews have
@@ -225,6 +265,21 @@ impl ProductionPortBundle {
                 && snapshot.opend_ready
                 && trade_ready;
             return Some(if ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
+        if adapter == ProductionRouteAdapter::BacktestStart {
+            // BacktestStart is backed by the verified PineTS execution worker
+            // and the local historical-candle store.  It does not call the
+            // live helper/OpenD/router on the request path; missing candles
+            // remain a request-level BACKTESTS_WRITE_UNAVAILABLE response.
+            // Keep only the provider-selection guard here so a corrupted or
+            // unset active provider cannot produce a synthetic run.
+            return Some(if self.backtest_execution_ready
+                && self.active_provider_state.get().is_some()
+            {
                 ProductionAdapterBinding::Ready
             } else {
                 ProductionAdapterBinding::ExternalUnavailable

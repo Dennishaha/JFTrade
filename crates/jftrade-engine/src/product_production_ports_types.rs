@@ -384,7 +384,6 @@ pub(crate) struct ProductionPortBundle {
     pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
     pub(crate) backtest_execution_workers: Arc<BacktestExecutionTaskRegistry>,
     pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
-    #[cfg(test)]
     pub(crate) backtest_execution_ready: bool,
     #[allow(dead_code)]
     pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
