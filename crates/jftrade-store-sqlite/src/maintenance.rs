@@ -11,7 +11,7 @@ use jftrade_datamanagement::{
     RebuildResult, verify_execute,
 };
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, WriterLeaseError};
-use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, MAIN_DB, OpenFlags, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tempfile::Builder;
@@ -127,8 +127,7 @@ impl ManagedDatabaseMaintenanceStore {
             ));
         }
         let source = open_read_write(Path::new(&descriptor.path))?;
-        let quoted = backup_path.to_string_lossy().replace('\'', "''");
-        if let Err(error) = source.execute_batch(&format!("VACUUM INTO '{quoted}'")) {
+        if let Err(error) = source.backup(MAIN_DB, &backup_path, None) {
             let _ = fs::remove_file(&backup_path);
             return Err(failed(error));
         }

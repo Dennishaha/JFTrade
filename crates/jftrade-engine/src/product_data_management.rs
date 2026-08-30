@@ -14,7 +14,7 @@ use jftrade_store_sqlite::{
     ManagedDatabaseCleanupCandidateStore, ManagedDatabaseMaintenanceStore,
     ManagedDatabaseOverviewStore, initialize_current,
 };
-use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior};
+use rusqlite::{Connection, MAIN_DB, OpenFlags, Transaction, TransactionBehavior};
 
 const REBUILD_MARKER_FILENAME: &str = "database-rebuild.json";
 
@@ -77,7 +77,32 @@ pub fn initialize_production_databases(settings_path: &Path) -> Result<(), Strin
             fs::create_dir_all(parent)
                 .map_err(|error| format!("create {}: {error}", parent.display()))?;
         }
-        let existed = path.is_file();
+        let existed = match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err(format!(
+                    "managed database {} is not a regular file",
+                    path.display()
+                ));
+            }
+            Ok(_) => true,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+            Err(error) => {
+                return Err(format!(
+                    "inspect managed database {}: {error}",
+                    path.display()
+                ));
+            }
+        };
+        let _writer_lease = WriterLease::acquire(
+            path,
+            &OwnerDiagnostic::current("rust", "production-migration.v1"),
+        )
+        .map_err(|error| {
+            format!(
+                "acquire startup writer lease for {}: {error}",
+                path.display()
+            )
+        })?;
         let connection = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
@@ -130,16 +155,15 @@ fn migrate_legacy_schema(
     from_version: i64,
     expected_version: i64,
 ) -> Result<(), String> {
-    let _migration_lease = WriterLease::acquire(
-        Path::new(path),
-        &OwnerDiagnostic::current("rust", "production-migration.v1"),
-    )
-    .map_err(|error| format!("acquire migration writer lease for {path}: {error}"))?;
-    checkpoint_wal(connection, path)?;
+    create_verified_migration_backup(
+        connection,
+        path,
+        &format!("{path}.pre-migration.bak"),
+        component,
+        from_version,
+    )?;
     let transaction = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)
         .map_err(|error| format!("begin immediate schema migration: {error}"))?;
-    let backup_path = format!("{path}.pre-migration.bak");
-    create_verified_migration_backup(&transaction, path, &backup_path, component, from_version)?;
     jftrade_store_sqlite::migrate_legacy_schema(
         &transaction,
         path,
@@ -157,24 +181,6 @@ fn migrate_legacy_schema(
     transaction
         .commit()
         .map_err(|error| format!("commit metadata migration: {error}"))?;
-    Ok(())
-}
-
-fn checkpoint_wal(connection: &Connection, path: &str) -> Result<(), String> {
-    let (busy, _log_frames, _checkpointed_frames) = connection
-        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, i64>(2)?,
-            ))
-        })
-        .map_err(|error| format!("checkpoint migration source {path}: {error}"))?;
-    if busy != 0 {
-        return Err(format!(
-            "checkpoint migration source {path}: another SQLite connection is active"
-        ));
-    }
     Ok(())
 }
 
@@ -196,12 +202,14 @@ fn create_verified_migration_backup(
             parent.display()
         )
     })?;
-    fs::copy(path, temporary.path()).map_err(|error| {
-        format!(
-            "copy migration source {path} to {}: {error}",
-            temporary.path().display()
-        )
-    })?;
+    source
+        .backup(MAIN_DB, temporary.path(), None)
+        .map_err(|error| {
+            format!(
+                "backup migration source {path} to {}: {error}",
+                temporary.path().display()
+            )
+        })?;
     temporary
         .as_file()
         .sync_all()
@@ -357,6 +365,7 @@ impl CleanupPreviewIdPort for SystemCleanupPreviewIds {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::Arc;
 
@@ -589,6 +598,78 @@ mod tests {
             Some(descriptor.expected_version)
         );
         assert!(std::path::Path::new(&(descriptor.path.clone() + ".pre-migration.bak")).is_file());
+    }
+
+    #[test]
+    fn production_database_startup_leases_before_creating_database() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("settings");
+        let descriptor = database_descriptors(&settings_path, |_| None)
+            .0
+            .into_iter()
+            .find(|descriptor| descriptor.id == DATABASE_BACKTEST)
+            .expect("backtest descriptor");
+        let path = Path::new(&descriptor.path);
+        let _lease = WriterLease::acquire(path, &OwnerDiagnostic::current("test", "startup-lease"))
+            .expect("hold startup lease");
+
+        let error = initialize_production_databases(&settings_path)
+            .expect_err("startup must reject a held writer lease");
+        assert!(error.contains("acquire startup writer lease"));
+        assert!(
+            !path.exists(),
+            "database must not be created before leasing"
+        );
+    }
+
+    #[test]
+    fn failed_production_migration_preserves_wal_and_shm_bytes() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let settings_path = directory.path().join("settings.json");
+        fs::write(&settings_path, b"{}").expect("settings");
+        initialize_production_databases(&settings_path).expect("initialize databases");
+        let descriptor = database_descriptors(&settings_path, |_| None)
+            .0
+            .into_iter()
+            .find(|descriptor| descriptor.id == DATABASE_STRATEGY)
+            .expect("strategy descriptor");
+        let path = Path::new(&descriptor.path);
+        let anchor = Connection::open(path).expect("open strategy database");
+        anchor
+            .execute_batch(
+                "PRAGMA journal_mode = WAL;
+                 PRAGMA wal_autocheckpoint = 0;
+                 DROP TRIGGER trg_strategy_definition_versions_immutable;
+                 DROP INDEX idx_strategy_definition_versions_saved_at;
+                 DROP TABLE strategy_definition_versions;
+                 CREATE TABLE strategy_definition_versions (broken TEXT);
+                 UPDATE jftrade_schema_meta SET version = 1 WHERE component_id = 'strategy';",
+            )
+            .expect("shape malformed WAL schema");
+        let sidecars = ["", "-wal", "-shm"]
+            .into_iter()
+            .map(|suffix| {
+                let sidecar = PathBuf::from(format!("{}{suffix}", path.display()));
+                (
+                    sidecar.clone(),
+                    fs::read(&sidecar).expect("read source bytes"),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let error = initialize_production_databases(&settings_path)
+            .expect_err("malformed migration must fail");
+        assert!(error.contains("migration failed"));
+        for (sidecar, before) in sidecars {
+            assert_eq!(
+                fs::read(&sidecar).expect("read source bytes after failure"),
+                before,
+                "migration failure changed {}",
+                sidecar.display()
+            );
+        }
+        drop(anchor);
     }
 
     #[derive(Debug, Default)]
