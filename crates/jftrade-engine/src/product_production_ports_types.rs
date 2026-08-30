@@ -7,6 +7,7 @@ use jftrade_settings::MarketDataProvider;
 use serde_json::Value;
 
 use super::product_backtest_sync_registry::BacktestSyncWorkerRegistry;
+use super::product_production_ports_execution::ExecutionReconciliationWorker;
 use super::product_production_adapter_bindings::ProductionAdapterBinding;
 use super::product_production_database_leases::ProductionDatabaseLeaseSnapshot;
 use super::product_production_ports_strategy::StrategyRuntimeManager;
@@ -377,6 +378,7 @@ pub(crate) struct ProductionPortBundle {
     pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
     pub(crate) backtest_execution_workers: Arc<BacktestExecutionTaskRegistry>,
+    pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
     #[cfg(test)]
     pub(crate) backtest_execution_ready: bool,
     #[allow(dead_code)]
@@ -394,11 +396,25 @@ impl ProductionPortBundle {
         self.strategy_runtime_manager.shutdown();
     }
 
+    /// Stop assistant provider calls and join approval continuations before
+    /// the ADK SQLite leases are dropped.  The port owns the concrete runtime
+    /// behind the trait object, so the supervisor does not need to know its
+    /// implementation details.
+    pub(crate) fn shutdown_adk_runtime(&self) {
+        self.adk_chat_stream.shutdown();
+    }
+
     pub(crate) fn backtest_sync_workers(&self) -> Arc<BacktestSyncWorkerRegistry> {
         Arc::clone(&self.backtest_sync_workers)
     }
     pub(crate) fn backtest_execution_workers(&self) -> Arc<BacktestExecutionTaskRegistry> {
         Arc::clone(&self.backtest_execution_workers)
+    }
+
+    pub(crate) fn execution_reconciliation_worker(
+        &self,
+    ) -> Option<Arc<ExecutionReconciliationWorker>> {
+        self.execution_reconciliation_worker.clone()
     }
     #[cfg(test)]
     pub(crate) const fn backtest_execution_ready(&self) -> bool {

@@ -103,6 +103,9 @@ use product_auth_session_write_port::{
 #[path = "product_auth_session_manager.rs"]
 pub mod product_auth_session_manager;
 pub use product_auth_session_manager::ProductionAuthSessionManager;
+#[path = "product_router_demand_listener.rs"]
+mod product_router_demand_listener;
+use product_router_demand_listener::RouterDemandListener;
 include!("product_snapshot_errors.rs");
 #[path = "product_alerts_write_port.rs"]
 mod product_alerts_write_port;

@@ -8,17 +8,31 @@ impl ProductionAdkChatRuntime {
         cancellation: Arc<AtomicBool>,
     ) {
         const MAX_TOOL_ROUNDS: usize = 8;
+        let owner_id = lease_owner_id(&chat.run_id);
+        let run_lease = match RunLeaseGuard::acquire(
+            Arc::clone(&self.store),
+            &chat.run_id,
+            &owner_id,
+        ) {
+            Ok(lease) => lease,
+            Err(AdkChatPortError::Conflict(_)) => return,
+            Err(_) => return,
+        };
         for _round in 0..MAX_TOOL_ROUNDS {
-            if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
+            if run_lease.is_lost()
+                || cancellation.load(Ordering::Acquire)
+                || self.run_is_cancelled(&chat.run_id)
+            {
                 let error = cancellation_error();
-                let _ = self.persist_cancelled(&chat, &error);
+                let _ = self.persist_cancelled(&chat, &error, &run_lease);
                 return;
             }
             let run = match self.store.get_run(&chat.run_id) {
                 Ok(Some(run)) => run,
                 Ok(None) => return,
                 Err(error) => {
-                    let _ = self.persist_failure(&chat, &storage_unavailable(error));
+                    let _ =
+                        self.persist_failure(&chat, &storage_unavailable(error), &run_lease);
                     return;
                 }
             };
@@ -29,15 +43,20 @@ impl ProductionAdkChatRuntime {
                 Ok(payload) => payload,
                 Err(error) => {
                     let failure = storage_unavailable(error);
-                    let _ = self.persist_failure(&chat, &failure);
+                    let _ = self.persist_failure(&chat, &failure, &run_lease);
                     return;
                 }
             };
             let calls = executable_tool_calls(&payload);
             for call in calls {
+                if run_lease.is_lost() {
+                    let error = unavailable("assistant run execution lease was lost");
+                    let _ = self.persist_failure(&chat, &error, &run_lease);
+                    return;
+                }
                 if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
                     let error = cancellation_error();
-                    let _ = self.persist_cancelled(&chat, &error);
+                    let _ = self.persist_cancelled(&chat, &error, &run_lease);
                     return;
                 }
                 let call_id = call
@@ -57,7 +76,7 @@ impl ProductionAdkChatRuntime {
                 let arguments = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
                 if call_id.is_empty() || name.is_empty() {
                     let error = tool_unavailable("malformed assistant tool call");
-                    let _ = self.persist_failure(&chat, &error);
+                    let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
                 let idempotency_key = call_id.clone();
@@ -65,7 +84,7 @@ impl ProductionAdkChatRuntime {
                     Ok(input_json) => input_json,
                     Err(error) => {
                         let failure = storage_unavailable(error);
-                        let _ = self.persist_failure(&chat, &failure);
+                        let _ = self.persist_failure(&chat, &failure, &run_lease);
                         return;
                     }
                 };
@@ -77,7 +96,7 @@ impl ProductionAdkChatRuntime {
                     Ok(None) => return,
                     Err(error) => {
                         let failure = storage_unavailable(error);
-                        let _ = self.persist_failure(&chat, &failure);
+                        let _ = self.persist_failure(&chat, &failure, &run_lease);
                         return;
                     }
                 };
@@ -88,7 +107,8 @@ impl ProductionAdkChatRuntime {
                     &input_json,
                     "RUNNING",
                     &claim_run.updated_at,
-                    "rust-adk-runtime",
+                    &owner_id,
+                    run_lease.token(),
                     // The production model timeout is capped at ten minutes;
                     // keep the claim alive longer than that bound.
                     Duration::from_secs(15 * 60),
@@ -119,7 +139,7 @@ impl ProductionAdkChatRuntime {
                     ),
                     Err(error) => (
                         Err(storage_unavailable(error)),
-                        "rust-adk-runtime".to_owned(),
+                        owner_id.clone(),
                         0,
                     ),
                 };
@@ -133,8 +153,9 @@ impl ProductionAdkChatRuntime {
                             "SUCCEEDED",
                             &claim_owner,
                             claim_fencing_token,
+                            run_lease.token(),
                         ) {
-                            let _ = self.persist_failure(&chat, &error);
+                            let _ = self.persist_failure(&chat, &error, &run_lease);
                             return;
                         }
                     }
@@ -157,8 +178,9 @@ impl ProductionAdkChatRuntime {
                             "FAILED",
                             &claim_owner,
                             claim_fencing_token,
+                            run_lease.token(),
                         );
-                        let _ = self.persist_failure(&chat, &error);
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
                         return;
                     }
                 }
@@ -169,7 +191,7 @@ impl ProductionAdkChatRuntime {
                 Ok(None) => return,
                 Err(error) => {
                     let failure = storage_unavailable(error);
-                    let _ = self.persist_failure(&chat, &failure);
+                    let _ = self.persist_failure(&chat, &failure, &run_lease);
                     return;
                 }
             };
@@ -180,7 +202,7 @@ impl ProductionAdkChatRuntime {
                 Ok(payload) => payload,
                 Err(error) => {
                     let failure = storage_unavailable(error);
-                    let _ = self.persist_failure(&chat, &failure);
+                    let _ = self.persist_failure(&chat, &failure, &run_lease);
                     return;
                 }
             };
@@ -189,26 +211,31 @@ impl ProductionAdkChatRuntime {
                 latest_payload.as_object().unwrap_or(&empty),
             );
             let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+            if run_lease.is_lost() {
+                let error = unavailable("assistant run execution lease was lost");
+                let _ = self.persist_failure(&chat, &error, &run_lease);
+                return;
+            }
             if cancellation.load(Ordering::Acquire) {
                 let error = cancellation_error();
-                let _ = self.persist_cancelled(&chat, &error);
+                let _ = self.persist_cancelled(&chat, &error, &run_lease);
                 return;
             }
             match result {
                 Ok(response) if !response.tool_calls.is_empty() => {
-                    if let Err(error) = self.persist_tool_calls(&chat, &response) {
-                        let _ = self.persist_failure(&chat, &error);
+                    if let Err(error) = self.persist_tool_calls(&chat, &response, &run_lease) {
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
                     }
                     return;
                 }
                 Ok(response) => {
-                    if let Err(error) = self.persist_success(&chat, response) {
-                        let _ = self.persist_failure(&chat, &error);
+                    if let Err(error) = self.persist_success(&chat, response, &run_lease) {
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
                     }
                     return;
                 }
                 Err(error) => {
-                    let _ = self.persist_failure(&chat, &error);
+                    let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
             }
@@ -218,7 +245,7 @@ impl ProductionAdkChatRuntime {
             code: "ADK_TOOL_LOOP_LIMIT".to_owned(),
             message: "assistant tool loop exceeded the production limit".to_owned(),
         };
-        let _ = self.persist_failure(&chat, &error);
+        let _ = self.persist_failure(&chat, &error, &run_lease);
     }
 
     fn persist_tool_result(
@@ -230,6 +257,7 @@ impl ProductionAdkChatRuntime {
         status: &str,
         owner_id: &str,
         fencing_token: i64,
+        run_lease_token: i64,
     ) -> Result<(), AdkChatPortError> {
         let run = self
             .store
@@ -262,11 +290,16 @@ impl ProductionAdkChatRuntime {
                 .is_some_and(|id| id == call_id)
         }) {
             results.push(json!({
+                "runId": chat.run_id,
                 "callId": call_id,
+                "functionCallId": call_id,
                 "name": tool_name,
+                "toolName": tool_name,
                 "arguments": input,
                 "status": status,
                 "output": output,
+                "createdAt": run.created_at,
+                "updatedAt": run.updated_at,
             }));
         }
         if let Some(Value::Array(tool_calls)) = object.get_mut("toolCalls") {
@@ -280,7 +313,14 @@ impl ProductionAdkChatRuntime {
                     item.insert("output".to_owned(), output.clone());
                     item.insert("completedAt".to_owned(), Value::String(run.updated_at.clone()));
                     if status != "SUCCEEDED" {
-                        item.insert("errorCode".to_owned(), Value::String("ADK_TOOL_UNAVAILABLE".to_owned()));
+                        item.insert(
+                            "errorCode".to_owned(),
+                            Value::String(if status == "UNKNOWN" {
+                                "ADK_TOOL_OUTCOME_UNKNOWN".to_owned()
+                            } else {
+                                "ADK_TOOL_UNAVAILABLE".to_owned()
+                            }),
+                        );
                     }
                 }
             }
@@ -315,6 +355,7 @@ impl ProductionAdkChatRuntime {
                 status,
                 owner_id,
                 fencing_token,
+                run_lease_token,
                 self.session_store.path(),
                 &event,
             )

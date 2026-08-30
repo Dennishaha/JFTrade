@@ -17,7 +17,8 @@ use std::sync::{Arc, Mutex};
 
 use super::ProductRuntimeError;
 use crate::product::product_production_ports::{
-    BacktestExecutionTaskRegistry, BacktestSyncWorkerRegistry, ProductionPortBundle,
+    BacktestExecutionTaskRegistry, BacktestSyncWorkerRegistry, ExecutionReconciliationWorker,
+    ProductionPortBundle,
 };
 use crate::product::{ActiveProviderState, ProductHandle};
 use crate::product_runtime::product_runtime_composition::SharedOpenDProviderRuntime;
@@ -60,6 +61,7 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) backtest_sync_workers: Option<Arc<BacktestSyncWorkerRegistry>>,
     pub(crate) backtest_execution_workers: Option<Arc<BacktestExecutionTaskRegistry>>,
+    pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
     pub(crate) recorder: ShutdownEventRecorder,
 }
 
@@ -94,6 +96,7 @@ impl ProductShutdownSupervisor {
             production_ports: None,
             backtest_sync_workers: None,
             backtest_execution_workers: None,
+            execution_reconciliation_worker: None,
             recorder,
         }
     }
@@ -111,6 +114,7 @@ impl ProductShutdownSupervisor {
             || !self.pine_workers.is_empty()
             || self.backtest_sync_workers.is_some()
             || self.backtest_execution_workers.is_some()
+            || self.execution_reconciliation_worker.is_some()
             || self.production_ports.is_some()
     }
 
@@ -130,6 +134,7 @@ impl ProductShutdownSupervisor {
         // stop and join them before tearing down provider workers or stores.
         if let Some(ports) = self.production_ports.as_ref() {
             ports.shutdown_strategy_runtime();
+            ports.shutdown_adk_runtime();
         }
         // 2. Release provider demand & bridge
         let mut had_provider = false;
@@ -182,6 +187,10 @@ impl ProductShutdownSupervisor {
         if let Some(workers) = self.backtest_execution_workers.take() {
             workers.shutdown().await;
         }
+        if let Some(worker) = self.execution_reconciliation_worker.take() {
+            worker.shutdown().await;
+            self.recorder.record("execution_reconciliation_worker");
+        }
         if let Some(monitor) = self.helper_health.take() {
             monitor.stop();
         }
@@ -232,6 +241,7 @@ impl ProductShutdownSupervisor {
         }
         if let Some(ports) = self.production_ports.as_ref() {
             ports.shutdown_strategy_runtime();
+            ports.shutdown_adk_runtime();
         }
         // 2. Release provider demand & bridge
         let mut had_provider = false;
@@ -273,6 +283,10 @@ impl ProductShutdownSupervisor {
         }
         if let Some(workers) = self.backtest_execution_workers.take() {
             workers.terminate();
+        }
+        if let Some(worker) = self.execution_reconciliation_worker.take() {
+            worker.terminate();
+            self.recorder.record("execution_reconciliation_worker");
         }
         if let Some(monitor) = self.helper_health.take() {
             monitor.stop();

@@ -99,6 +99,12 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
             "assistant approval continuation is unavailable".to_owned(),
         ))
     }
+
+    /// Stops provider calls and joins any continuation workers owned by this
+    /// port.  The default is intentionally a no-op for stateless rehearsal
+    /// ports; production adapters override it so their SQLite stores are not
+    /// released while a background continuation still holds an `Arc`.
+    fn shutdown(&self) {}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

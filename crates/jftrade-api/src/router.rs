@@ -15,13 +15,16 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Response, StatusCod
 use axum::middleware::{self, Next};
 use axum::routing::get;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio_stream::wrappers::ReceiverStream;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
 use crate::envelope::{body_response, empty_response, error_response, success_response};
-use crate::websocket::{LiveHub, LiveHubConnection, LiveHubLifecycle};
+use crate::websocket::{
+    LiveDepthSubscription, LiveHub, LiveHubConnection, LiveHubLifecycle, LiveSecuritySubscription,
+    LiveSubscriptionSnapshot,
+};
 use crate::{
     AccessPolicy, ApiFailure, ApiOutput, ApiPort, ApiRequest, AssetBundle, Clock,
     LiveConnectionMetrics, RouteCatalog, SseEvent, SystemClock, TransportMetrics, encode_event,
@@ -460,7 +463,16 @@ async fn websocket_handler(
     };
     let timestamp = state.clock.now_rfc3339();
     let live_market_data_status = state.live_market_data_status.clone();
-    let live_hub_connection = state.live_hub.connect();
+    let Some(live_hub_connection) = state.live_hub.try_connect() else {
+        return error_response(
+            &state.clock,
+            ApiFailure::new(
+                503,
+                "LIVE_WS_UNAVAILABLE",
+                "live websocket hub is not accepting connections",
+            ),
+        );
+    };
     let shutdown = state.live_hub.subscribe_shutdown();
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
@@ -481,6 +493,29 @@ async fn websocket_handler(
 struct LiveClientSubscriptions {
     provider_broker_id: String,
     active_instruments: Vec<String>,
+    #[serde(default)]
+    security_details: Vec<LiveClientSecurityDetails>,
+    #[serde(default)]
+    depth: Vec<LiveClientDepth>,
+    #[serde(default)]
+    console_refresh: bool,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct LiveClientSecurityDetails {
+    market: String,
+    symbol: String,
+    instrument_id: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct LiveClientDepth {
+    market: String,
+    symbol: String,
+    instrument_id: String,
+    num: i64,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -508,7 +543,11 @@ async fn websocket_session(
             .await;
         return;
     }
-    let heartbeat = live_heartbeat(&timestamp, live_market_data_status.as_deref());
+    let heartbeat = live_heartbeat_with_subscription(
+        &timestamp,
+        live_market_data_status.as_deref(),
+        &live_hub_connection,
+    );
     if socket
         .send(Message::Text(heartbeat.to_string().into()))
         .await
@@ -523,7 +562,11 @@ async fn websocket_session(
         tokio::select! {
             _ = interval.tick() => {
                 let timestamp = crate::SystemClock.now_rfc3339();
-                let hb = live_heartbeat(&timestamp, live_market_data_status.as_deref());
+                let hb = live_heartbeat_with_subscription(
+                    &timestamp,
+                    live_market_data_status.as_deref(),
+                    &live_hub_connection,
+                );
                 if socket.send(Message::Text(hb.to_string().into())).await.is_err() {
                     break;
                 }
@@ -535,20 +578,37 @@ async fn websocket_session(
                 let Ok(message) = message else {
                     break;
                 };
-                match live_subscription_update(&message) {
-                    Ok(Some(active_instruments)) => {
+                match live_subscription_snapshot(&message) {
+                    Ok(Some(snapshot)) => {
+                        let mut active_instruments = snapshot.active_instruments.clone();
+                        active_instruments.extend(
+                            snapshot
+                                .security_details
+                                .iter()
+                                .map(|item| item.instrument_id.clone()),
+                        );
+                        active_instruments.extend(
+                            snapshot.depth.iter().map(|item| item.instrument_id.clone()),
+                        );
+                        active_instruments.sort();
+                        active_instruments.dedup();
                         connection_permit.set_active_instruments(&active_instruments);
-                        if let Ok(Some((provider_broker_id, _))) =
-                            live_subscription_details(&message)
-                        {
-                            live_hub_connection.set_subscription(
-                                &provider_broker_id,
-                                &active_instruments,
-                            );
-                        }
+                        live_hub_connection.set_subscription_snapshot(&snapshot);
                     }
                     Ok(None) => {}
-                    Err(()) => break,
+                    Err(code) => {
+                        let reason = match code {
+                            1007 => "invalid subscription payload",
+                            _ => "subscription policy violation",
+                        };
+                        let _ = socket
+                            .send(Message::Close(Some(CloseFrame {
+                                code,
+                                reason: reason.into(),
+                            })))
+                            .await;
+                        break;
+                    }
                 }
             }
             event = live_hub_connection.recv() => {
@@ -574,11 +634,48 @@ async fn websocket_session(
     }
 }
 
+#[cfg(test)]
 fn live_heartbeat(
     timestamp: &str,
     status: Option<&dyn LiveMarketDataStatusPort>,
 ) -> serde_json::Value {
     let stale = status.is_some_and(|port| !port.snapshot().connected);
+    live_heartbeat_payload(timestamp, stale, "", 0)
+}
+
+fn live_heartbeat_with_subscription(
+    timestamp: &str,
+    status: Option<&dyn LiveMarketDataStatusPort>,
+    connection: &LiveHubConnection,
+) -> serde_json::Value {
+    let stale = status.is_some_and(|port| !port.snapshot().connected);
+    live_heartbeat_payload(
+        timestamp,
+        stale,
+        &connection.provider_broker_id(),
+        connection.active_instrument_count(),
+    )
+}
+
+fn live_heartbeat_payload(
+    timestamp: &str,
+    stale: bool,
+    provider_broker_id: &str,
+    active_instruments: usize,
+) -> serde_json::Value {
+    // Go's live backend marks any explicitly selected non-Futu broker as a
+    // polling transport, even when the shared runtime itself is healthy.
+    // Keep that distinction in the heartbeat so helper-backed clients do not
+    // advertise a push stream they cannot receive.
+    let polling_provider =
+        !provider_broker_id.trim().is_empty() && !provider_broker_id.eq_ignore_ascii_case("futu");
+    let transport_mode = if polling_provider {
+        "snapshot-poll-fallback"
+    } else if stale {
+        "idle"
+    } else {
+        "push-stream"
+    };
     json!({
         "eventId": format!("heartbeat|live-websocket|{timestamp}"),
         "type": "heartbeat",
@@ -589,15 +686,32 @@ fn live_heartbeat(
             "type": "heartbeat",
             "at": timestamp,
             "intervalMs": 15000,
+            "providerBrokerId": provider_broker_id,
             "stale": stale,
+            "staleReasons": if stale { vec!["provider_unavailable"] } else { Vec::<&str>::new() },
+            "transport": {
+                "mode": transport_mode,
+                "activeInstruments": active_instruments,
+                "freshInstruments": if stale { 0 } else { active_instruments },
+                "staleInstruments": if stale { active_instruments } else { 0 },
+            },
+            "liveStream": {
+                "connected": !stale,
+                "backoffActive": stale,
+                "retryAfter": Value::Null,
+                "failureCount": if stale { 1 } else { 0 },
+                "lastError": if stale { Value::String("provider unavailable".to_owned()) } else { Value::Null },
+            },
         },
     })
 }
 
+#[cfg(test)]
 fn live_subscription_update(message: &Message) -> Result<Option<Vec<String>>, ()> {
     Ok(live_subscription_details(message)?.map(|(_, instruments)| instruments))
 }
 
+#[cfg(test)]
 fn live_subscription_details(message: &Message) -> Result<Option<(String, Vec<String>)>, ()> {
     let payload = match message {
         Message::Text(payload) => payload.as_bytes(),
@@ -618,6 +732,99 @@ fn live_subscription_details(message: &Message) -> Result<Option<(String, Vec<St
         message.subscriptions.provider_broker_id,
         message.subscriptions.active_instruments,
     )))
+}
+
+fn live_subscription_snapshot(message: &Message) -> Result<Option<LiveSubscriptionSnapshot>, u16> {
+    let payload = match message {
+        Message::Text(payload) => payload.as_bytes(),
+        Message::Binary(payload) => payload.as_ref(),
+        Message::Close(_) => return Err(1000u16),
+        _ => return Ok(None),
+    };
+    let Ok(message) = serde_json::from_slice::<LiveClientMessage>(payload) else {
+        // Go's read loop ignores malformed/non-JSON messages and keeps the
+        // connection alive.  Only a valid subscribe message can replace the
+        // current demand snapshot.
+        return Ok(None);
+    };
+    if message.event_type != "subscribe" {
+        return Ok(None);
+    }
+    if message.subscriptions.provider_broker_id.trim().is_empty() {
+        return Err(1008u16);
+    }
+    let active_instruments = message
+        .subscriptions
+        .active_instruments
+        .into_iter()
+        .map(|value| value.trim().to_ascii_uppercase())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let mut security_details = message
+        .subscriptions
+        .security_details
+        .into_iter()
+        .map(normalize_security_details)
+        .flatten()
+        .collect::<Vec<_>>();
+    security_details.sort_by(|left, right| left.instrument_id.cmp(&right.instrument_id));
+    security_details.dedup_by(|left, right| left.instrument_id == right.instrument_id);
+    let mut depth = message
+        .subscriptions
+        .depth
+        .into_iter()
+        .map(normalize_depth)
+        .flatten()
+        .collect::<Vec<_>>();
+    depth.sort_by(|left, right| {
+        left.instrument_id
+            .cmp(&right.instrument_id)
+            .then(left.num.cmp(&right.num))
+    });
+    depth
+        .dedup_by(|left, right| left.instrument_id == right.instrument_id && left.num == right.num);
+    Ok(Some(LiveSubscriptionSnapshot {
+        provider_broker_id: message
+            .subscriptions
+            .provider_broker_id
+            .trim()
+            .to_ascii_lowercase(),
+        active_instruments,
+        security_details,
+        depth,
+        console_refresh: message.subscriptions.console_refresh,
+    }))
+}
+
+fn normalize_security_details(item: LiveClientSecurityDetails) -> Option<LiveSecuritySubscription> {
+    let market = item.market.trim().to_ascii_uppercase();
+    let symbol = item.symbol.trim().to_ascii_uppercase();
+    let instrument_id = item.instrument_id.trim().to_ascii_uppercase();
+    if market.is_empty() || symbol.is_empty() || instrument_id.is_empty() {
+        return None;
+    }
+    Some(LiveSecuritySubscription {
+        market,
+        symbol,
+        instrument_id,
+    })
+}
+
+fn normalize_depth(item: LiveClientDepth) -> Option<LiveDepthSubscription> {
+    let market = item.market.trim().to_ascii_uppercase();
+    let symbol = item.symbol.trim().to_ascii_uppercase();
+    let instrument_id = item.instrument_id.trim().to_ascii_uppercase();
+    if market.is_empty() || symbol.is_empty() || instrument_id.is_empty() {
+        return None;
+    }
+    Some(LiveDepthSubscription {
+        market,
+        symbol,
+        instrument_id,
+        num: item.num.clamp(1, 50),
+    })
 }
 
 #[cfg(test)]

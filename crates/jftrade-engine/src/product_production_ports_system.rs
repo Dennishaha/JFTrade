@@ -19,16 +19,17 @@ use crate::product::product_system_write_port::{
     RealTradeHardStopCommand, RealTradeKillSwitchCommand, RealTradeRuntimeRiskCommand,
     SystemWriteInput, SystemWriteOperation, SystemWritePort, SystemWritePortError,
 };
+use super::product_production_ports_execution::ExecutionReconciliationWorker;
 use crate::product::{
     MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
     SystemReadSnapshotPort,
 };
-
 pub(crate) struct ProductionSystemPort {
     pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
     pub(crate) settings: Arc<SettingsFileStore>,
     pub(crate) opend_status: ProductionRuntimeStatus,
     pub(crate) worker_status: ProductionRuntimeStatus,
+    pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
     pub(crate) database_leases:
         crate::product::product_production_ports::ProductionDatabaseLeaseSnapshot,
 }
@@ -82,15 +83,23 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
     fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
         match path {
             "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
-            // There is no production broker-order update worker wired into
-            // the Rust composition yet.  Returning Go's default `{}` here
-            // would make an unowned capability look healthy and would hide
-            // a missing lifecycle owner.  Keep the route registered, but
-            // fail closed until a concrete worker snapshot port is injected.
+            // Keep the route fail-closed when the runtime was assembled
+            // outside the async production owner (for example, a synchronous
+            // composition test).  A real runtime injects the worker below so
+            // its status remains observable without broker side effects in a
+            // GET request.
             "/api/v1/system/worker/broker-order-updates" => {
-                Err(SystemReadSnapshotError::Unavailable(
-                    "broker order updates worker is not configured".to_owned(),
-                ))
+                let Some(worker) = self.execution_reconciliation_worker.as_ref() else {
+                    return Err(SystemReadSnapshotError::Unavailable(
+                        "broker order updates worker is not configured".to_owned(),
+                    ));
+                };
+                Ok(json!({
+                    "subscriptions": [],
+                    "recentInvalidations": [],
+                    "brokers": [],
+                    "runtime": worker.status(),
+                }))
             }
             "/api/v1/system/info" => Ok(json!({
                 "version": env!("CARGO_PKG_VERSION"),

@@ -1,18 +1,24 @@
 impl ProductionExecutionPort {
-    fn reconcile_pending_orders(&self) {
+    fn reconcile_pending_orders(&self) -> Result<usize, String> {
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
             || !snapshot.opend_ready
         {
-            return;
+            return Err("Futu OpenD runtime is not ready".to_owned());
         }
-        let Some(reader) = self.trade_read_port.clone() else {
-            return;
-        };
-        let candidates = match self.store.list_reconciliation_candidates() {
-            Ok(candidates) => candidates,
-            Err(_) => return,
-        };
+        let reader = self
+            .trade_runtime
+            .as_ref()
+            .map(|runtime| runtime.snapshot().client)
+            .flatten()
+            .or_else(|| self.trade_read_port.clone())
+            .ok_or_else(|| "Futu trade read runtime is unavailable".to_owned())?;
+        let candidates = self
+            .store
+            .list_reconciliation_candidates()
+            .map_err(|error| format!("list execution reconciliation candidates: {error}"))?;
+        let mut failures = Vec::new();
+        let mut reconciled = 0;
         for order in candidates {
             let broker_id = order
                 .broker_order_id
@@ -36,19 +42,40 @@ impl ProductionExecutionPort {
                         "broker order identity is unavailable for reconciliation",
                     );
                     let now = crate::product::product_production_ports::provider_now_rfc3339();
-                    let _ = self.persist_unknown(&mut unknown, &error, "reconcile_unknown", &now);
+                    if let Err(error) =
+                        self.persist_unknown(&mut unknown, &error, "reconcile_unknown", &now)
+                    {
+                        failures.push(format!(
+                            "{}: persist unknown state: {error:?}",
+                            order.internal_order_id
+                        ));
+                    }
                 }
                 continue;
             }
             let Ok(header) = header_from_order(&order) else {
+                failures.push(format!("{}: invalid trade header", order.internal_order_id));
                 continue;
             };
-            let Ok(expected_revision) = self.store.order_revision(&order.internal_order_id) else {
-                continue;
+            let expected_revision = match self.store.order_revision(&order.internal_order_id) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(format!(
+                        "{}: read order revision: {error}",
+                        order.internal_order_id
+                    ));
+                    continue;
+                }
             };
             let snapshots = match reader.read_orders(header.clone(), None, Vec::new(), Some(true)) {
                 Ok(value) => value,
-                Err(_) => Vec::new(),
+                Err(error) => {
+                    failures.push(format!(
+                        "{}: read active broker orders: {error}",
+                        order.internal_order_id
+                    ));
+                    Vec::new()
+                }
             };
             let matches_order = |candidate: &jftrade_integration_futu::TradeOrderSnapshot| {
                 broker_id.is_some_and(|id| candidate.order_id == id)
@@ -56,16 +83,29 @@ impl ProductionExecutionPort {
             };
             let mut matched = snapshots.into_iter().find(matches_order);
             if matched.is_none() {
-                matched = reader
-                    .read_history_orders(header, None, Vec::new(), Some(true))
-                    .unwrap_or_default()
-                    .into_iter()
-                    .find(matches_order);
+                match reader.read_history_orders(header, None, Vec::new(), Some(true)) {
+                    Ok(history) => matched = history.into_iter().find(matches_order),
+                    Err(error) => failures.push(format!(
+                        "{}: read broker order history: {error}",
+                        order.internal_order_id
+                    )),
+                }
             }
             let Some(matched) = matched else {
                 continue;
             };
-            let _ = self.apply_broker_snapshot(&order, &matched, expected_revision);
+            match self.apply_broker_snapshot(&order, &matched, expected_revision) {
+                Ok(()) => reconciled += 1,
+                Err(error) => failures.push(format!(
+                    "{}: apply broker snapshot: {error:?}",
+                    order.internal_order_id
+                )),
+            }
+        }
+        if failures.is_empty() {
+            Ok(reconciled)
+        } else {
+            Err(failures.join("; "))
         }
     }
 
@@ -685,4 +725,3 @@ impl ProductionExecutionPort {
     }
 
 }
-

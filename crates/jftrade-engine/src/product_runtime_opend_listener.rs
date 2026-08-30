@@ -1,9 +1,11 @@
 //! OpenD session event listener bridging quotes, depth, and reconnects to LiveHub.
 
 use std::sync::Arc;
+use tokio::sync::Notify;
 
 pub(crate) struct LiveHubOpenDEventListener {
     live_hub: Arc<jftrade_api::LiveHub>,
+    reconciliation_wake: Option<Arc<Notify>>,
 }
 
 impl std::fmt::Debug for LiveHubOpenDEventListener {
@@ -14,8 +16,14 @@ impl std::fmt::Debug for LiveHubOpenDEventListener {
 }
 
 impl LiveHubOpenDEventListener {
-    pub(crate) fn new(live_hub: Arc<jftrade_api::LiveHub>) -> Self {
-        Self { live_hub }
+    pub(crate) fn with_reconciliation_wake(
+        live_hub: Arc<jftrade_api::LiveHub>,
+        reconciliation_wake: Arc<Notify>,
+    ) -> Self {
+        Self {
+            live_hub,
+            reconciliation_wake: Some(reconciliation_wake),
+        }
     }
 }
 
@@ -166,7 +174,22 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                 _ => {}
             },
             jftrade_integration_futu::OpenDSessionCoordinatorOutcome::Reconnected { .. } => {
+                if let Some(wake) = self.reconciliation_wake.as_ref() {
+                    wake.notify_one();
+                }
                 let at = current_utc_rfc3339();
+                self.publish_runtime_event(
+                    "market-data.resync",
+                    "market-data",
+                    "futu",
+                    &at,
+                    serde_json::json!({
+                        "type": "market-data.resync",
+                        "at": at,
+                        "reason": "provider_reconnected",
+                        "action": "refresh",
+                    }),
+                );
                 let envelope = serde_json::json!({
                     "eventId": format!("console.refresh|market-data|{at}"),
                     "type": "console.refresh",
@@ -182,11 +205,15 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                 });
                 self.live_hub.publish(envelope);
             }
+            jftrade_integration_futu::OpenDSessionCoordinatorOutcome::Dropped => {
+                self.publish_stale("provider_disconnected", None);
+            }
             _ => {}
         }
     }
 
     fn on_error(&self, error: &str) {
+        self.publish_stale("provider_error", Some(error));
         let at = current_utc_rfc3339();
         let envelope = serde_json::json!({
             "eventId": format!("system.notification|market-data-error|{at}"),
@@ -203,6 +230,43 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
             },
         });
         self.live_hub.publish(envelope);
+    }
+}
+
+impl LiveHubOpenDEventListener {
+    fn publish_stale(&self, reason: &str, error: Option<&str>) {
+        let at = current_utc_rfc3339();
+        self.publish_runtime_event(
+            "market-data.stale",
+            "market-data",
+            "futu",
+            &at,
+            serde_json::json!({
+                "type": "market-data.stale",
+                "at": at,
+                "stale": true,
+                "reason": reason,
+                "error": error,
+            }),
+        );
+    }
+
+    fn publish_runtime_event(
+        &self,
+        event_type: &str,
+        source: &str,
+        entity_id: &str,
+        at: &str,
+        payload: serde_json::Value,
+    ) {
+        self.live_hub.publish(serde_json::json!({
+            "eventId": format!("{event_type}|{entity_id}|{at}"),
+            "type": event_type,
+            "source": source,
+            "entityId": entity_id,
+            "serverTime": at,
+            "payload": payload,
+        }));
     }
 }
 

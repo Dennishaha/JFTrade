@@ -335,6 +335,17 @@ impl ProductRuntimeHandle {
             })
     }
 
+    /// Wake the execution reconciliation worker after an OpenD ready or
+    /// reconnect transition.  The worker also keeps a bounded timer cadence,
+    /// so this hint is safe to call when no worker was composed.
+    pub fn wake_execution_reconciliation(&self) -> bool {
+        let Some(worker) = self.supervisor.execution_reconciliation_worker.as_ref() else {
+            return false;
+        };
+        worker.wake();
+        true
+    }
+
     pub fn set_market_data_opend_demand(
         &self,
         demand: Vec<jftrade_marketdata::InstrumentRef>,

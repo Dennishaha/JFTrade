@@ -67,18 +67,24 @@ pub async fn start_product_runtime(
     if let Some(task) = market_data_opend_task.as_mut()
         && task.event_listener.is_none()
     {
-        task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(Arc::clone(
-            &live_hub,
-        ))));
+        task.event_listener = Some(Arc::new(
+            LiveHubOpenDEventListener::with_reconciliation_wake(
+                Arc::clone(&live_hub),
+                trade_runtime.reconciliation_wake(),
+            ),
+        ));
     }
     let (market_data_opend_provider, market_data_router) = if let Some(mut provider) =
         config.market_data_opend_provider.clone()
     {
         let shared_router = Arc::clone(&provider.router);
         if provider.task.event_listener.is_none() {
-            provider.task.event_listener = Some(Arc::new(LiveHubOpenDEventListener::new(
-                Arc::clone(&live_hub),
-            )));
+            provider.task.event_listener = Some(Arc::new(
+                LiveHubOpenDEventListener::with_reconciliation_wake(
+                    Arc::clone(&live_hub),
+                    trade_runtime.reconciliation_wake(),
+                ),
+            ));
         }
         match OpenDProviderRuntime::start(provider) {
             Ok(runtime) => {
@@ -673,6 +679,9 @@ pub async fn start_product_runtime(
         supervisor.backtest_execution_workers = ports.as_ref().map(
             crate::product::product_production_ports::ProductionPortBundle::backtest_execution_workers,
         );
+        supervisor.execution_reconciliation_worker = ports.as_ref().and_then(
+            crate::product::product_production_ports::ProductionPortBundle::execution_reconciliation_worker,
+        );
         supervisor.production_ports = ports;
         let _ = supervisor.execute_shutdown().await;
         return Err(ProductError::RouteRegistry(
@@ -691,6 +700,9 @@ pub async fn start_product_runtime(
             supervisor.backtest_execution_workers = ports
                 .as_ref()
                 .map(crate::product::product_production_ports::ProductionPortBundle::backtest_execution_workers);
+            supervisor.execution_reconciliation_worker = ports.as_ref().and_then(
+                crate::product::product_production_ports::ProductionPortBundle::execution_reconciliation_worker,
+            );
             supervisor.production_ports = ports;
             supervisor.product = Some(product);
         }

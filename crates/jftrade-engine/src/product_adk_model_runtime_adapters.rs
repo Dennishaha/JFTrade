@@ -9,6 +9,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
+        let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
         let input = input.clone();
         if route == AdkChatRoute::Stream {
             let (stream, sender) = ApiStream::channel(32);
@@ -17,9 +18,10 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             let stream_session_store = Arc::clone(&session_store);
             let stream_secrets_path = secrets_path.clone();
             let stream_input = input.clone();
-            std::thread::Builder::new()
-                .name("jftrade-adk-stream".to_owned())
-                .spawn(move || {
+            let stream_key = format!("stream:{}", input.client_request_id);
+            continuation_supervisor
+                .clone()
+                .spawn(&stream_key, move |_supervisor_cancel| {
                     let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
                         Arc::clone(&tool_catalog),
                         Arc::clone(&stream_store),
@@ -28,13 +30,14 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         store: stream_store,
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
-                        cancellation_registry: Arc::clone(&cancellation_registry),
-                        tool_catalog: Arc::clone(&tool_catalog),
+                    cancellation_registry: Arc::clone(&cancellation_registry),
+                    tool_catalog: Arc::clone(&tool_catalog),
                         tool_executor,
+                    continuation_supervisor: Arc::clone(&continuation_supervisor),
                     };
                     runtime.start_live_stream(stream_input, stream, sender, started);
                 })
-                .map_err(|error| AdkChatPortError::Unavailable(error.to_string()))?;
+                ?;
             return ready
                 .recv()
                 .map_err(|_| unavailable("assistant model stream failed to start"))?;
@@ -53,6 +56,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                     cancellation_registry,
                     tool_catalog,
                     tool_executor,
+                    continuation_supervisor,
                 };
                 runtime.dispatch_inner(route, &input)
             })

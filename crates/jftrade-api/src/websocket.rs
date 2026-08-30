@@ -133,6 +133,41 @@ pub trait LiveDemandListener: Send + Sync + std::fmt::Debug {
         instruments: &[String],
     );
     fn on_disconnect(&self, connection_id: u64);
+
+    /// Receives the complete client subscription snapshot.  The legacy
+    /// callback remains the default compatibility seam for listeners that
+    /// only consume quote instruments.
+    fn on_subscription_snapshot(&self, connection_id: u64, snapshot: &LiveSubscriptionSnapshot) {
+        self.on_subscription_change(
+            connection_id,
+            &snapshot.provider_broker_id,
+            &snapshot.active_instruments,
+        );
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LiveSecuritySubscription {
+    pub market: String,
+    pub symbol: String,
+    pub instrument_id: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LiveDepthSubscription {
+    pub market: String,
+    pub symbol: String,
+    pub instrument_id: String,
+    pub num: i64,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LiveSubscriptionSnapshot {
+    pub provider_broker_id: String,
+    pub active_instruments: Vec<String>,
+    pub security_details: Vec<LiveSecuritySubscription>,
+    pub depth: Vec<LiveDepthSubscription>,
+    pub console_refresh: bool,
 }
 
 /// Lifecycle of the live hub, reported by startup readiness and enforced by
@@ -197,6 +232,8 @@ pub struct LiveHub {
 struct LiveSubscription {
     provider_broker_id: String,
     active_instruments: BTreeSet<String>,
+    security_details: BTreeSet<String>,
+    depth: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -296,6 +333,13 @@ impl LiveHub {
         }
     }
 
+    /// Atomically gate a connection on the serving lifecycle.  The ordinary
+    /// `connect` method is retained for in-process fixtures; HTTP upgrades use
+    /// this method so a shutdown race cannot register a new demand owner.
+    pub fn try_connect(self: &Arc<Self>) -> Option<LiveHubConnection> {
+        (self.lifecycle() == LiveHubLifecycle::Serving).then(|| self.connect())
+    }
+
     /// Publish an already encoded live event.  Returns false when no client
     /// is currently subscribed; callers may use that to avoid unnecessary
     /// provider work without changing the wire contract.
@@ -310,7 +354,14 @@ impl LiveHub {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let active_instruments = subscriptions
             .values()
-            .flat_map(|subscription| subscription.active_instruments.iter().cloned())
+            .flat_map(|subscription| {
+                subscription
+                    .active_instruments
+                    .iter()
+                    .chain(subscription.security_details.iter())
+                    .chain(subscription.depth.iter())
+                    .cloned()
+            })
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect();
@@ -320,11 +371,24 @@ impl LiveHub {
         }
     }
 
-    fn update_subscription(&self, id: u64, provider_broker_id: &str, instruments: &[String]) {
-        let normalized = instruments
+    fn update_subscription(&self, id: u64, snapshot: &LiveSubscriptionSnapshot) {
+        let normalized = snapshot
+            .active_instruments
             .iter()
             .map(|instrument| instrument.trim().to_ascii_uppercase())
             .filter(|instrument| !instrument.is_empty())
+            .collect::<BTreeSet<_>>();
+        let security_details = snapshot
+            .security_details
+            .iter()
+            .map(|item| item.instrument_id.trim().to_ascii_uppercase())
+            .filter(|value| !value.is_empty())
+            .collect::<BTreeSet<_>>();
+        let depth = snapshot
+            .depth
+            .iter()
+            .map(|item| item.instrument_id.trim().to_ascii_uppercase())
+            .filter(|value| !value.is_empty())
             .collect::<BTreeSet<_>>();
         if let Some(subscription) = self
             .subscriptions
@@ -332,8 +396,10 @@ impl LiveHub {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get_mut(&id)
         {
-            subscription.provider_broker_id = provider_broker_id.trim().to_owned();
+            subscription.provider_broker_id = snapshot.provider_broker_id.trim().to_owned();
             subscription.active_instruments = normalized;
+            subscription.security_details = security_details;
+            subscription.depth = depth;
         }
         if let Some(listener) = self
             .demand_listener
@@ -341,7 +407,7 @@ impl LiveHub {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
         {
-            listener.on_subscription_change(id, provider_broker_id, instruments);
+            listener.on_subscription_snapshot(id, snapshot);
         }
     }
 
@@ -361,7 +427,11 @@ impl LiveHub {
         }
         let instrument = event_instrument_id(event);
         match instrument {
-            Some(instrument) => subscription.active_instruments.contains(&instrument),
+            Some(instrument) => {
+                subscription.active_instruments.contains(&instrument)
+                    || subscription.security_details.contains(&instrument)
+                    || subscription.depth.contains(&instrument)
+            }
             // Heartbeats, stale/error and notification events are not tied to
             // one instrument and must remain visible to every authenticated
             // client.
@@ -387,15 +457,51 @@ impl LiveHub {
 
 impl LiveHubConnection {
     pub fn set_subscription(&self, provider_broker_id: &str, instruments: &[String]) {
+        self.set_subscription_snapshot(&LiveSubscriptionSnapshot {
+            provider_broker_id: provider_broker_id.to_owned(),
+            active_instruments: instruments.to_vec(),
+            ..LiveSubscriptionSnapshot::default()
+        });
+    }
+
+    pub fn set_subscription_snapshot(&self, snapshot: &LiveSubscriptionSnapshot) {
+        self.hub.update_subscription(self.id, snapshot);
+    }
+
+    pub fn provider_broker_id(&self) -> String {
         self.hub
-            .update_subscription(self.id, provider_broker_id, instruments);
+            .subscriptions
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&self.id)
+            .map(|subscription| subscription.provider_broker_id.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn active_instrument_count(&self) -> usize {
+        self.hub
+            .subscriptions
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&self.id)
+            .map_or(0, |subscription| {
+                subscription
+                    .active_instruments
+                    .iter()
+                    .chain(subscription.security_details.iter())
+                    .chain(subscription.depth.iter())
+                    .collect::<BTreeSet<_>>()
+                    .len()
+            })
     }
 
     pub async fn recv(&mut self) -> Option<Value> {
         loop {
             let event = match self.receiver.recv().await {
                 Ok(event) => event,
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Lagged(dropped)) => {
+                    return Some(live_resync_event(dropped));
+                }
                 Err(broadcast::error::RecvError::Closed) => return None,
             };
             if self.hub.event_matches(self.id, &event) {
@@ -414,12 +520,33 @@ impl Drop for LiveHubConnection {
 fn event_instrument_id(event: &Value) -> Option<String> {
     let candidate = event
         .pointer("/payload/instrumentId")
+        .or_else(|| event.pointer("/payload/request/instrumentId"))
         .or_else(|| event.pointer("/payload/instrument"))
         .or_else(|| event.pointer("/payload/symbol"))
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())?;
     Some(candidate.to_ascii_uppercase())
+}
+
+fn live_resync_event(dropped: u64) -> Value {
+    let at = time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+    serde_json::json!({
+        "eventId": format!("live.resync|{at}|{dropped}"),
+        "type": "live.resync",
+        "source": "system",
+        "entityId": "live-websocket",
+        "serverTime": at,
+        "payload": {
+            "type": "live.resync",
+            "at": at,
+            "reason": "broadcast_lagged",
+            "droppedEvents": dropped,
+            "action": "resubscribe",
+        },
+    })
 }
 
 fn event_provider_broker_id(event: &Value) -> Option<String> {

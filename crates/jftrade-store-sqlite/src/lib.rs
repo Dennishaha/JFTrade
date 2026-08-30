@@ -25,7 +25,7 @@ pub use adk::{
     ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkApprovalStage,
     AdkRunEvent, AdkStore, AdkStoreError, AdkTestCutoverStore, AdkToolInvocationClaim,
     AdkToolResultCommit, CreateAdkRunParams, StoredAdkApproval, StoredAdkEntity, StoredAdkMemory,
-    StoredAdkRun, StoredAdkTask, StoredAdkToolInvocation, StoredAdkWorkflow,
+    StoredAdkRun, StoredAdkRunLease, StoredAdkTask, StoredAdkToolInvocation, StoredAdkWorkflow,
     StoredAdkWorkflowTrigger,
 };
 pub use adk_artifact::{

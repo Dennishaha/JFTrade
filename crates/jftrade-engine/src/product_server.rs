@@ -153,6 +153,9 @@ impl ProductHandle {
         if let Some(manager) = self.calendar_manager.take() {
             let _ = manager.close();
         }
+        if let Some(ports) = self.production_ports.as_ref() {
+            ports.shutdown_adk_runtime();
+        }
         drop(self.production_ports.take());
     }
 
@@ -167,6 +170,9 @@ impl ProductHandle {
         self.live_hub.mark_stopped();
         if let Some(manager) = self.calendar_manager.take() {
             manager.close().map_err(ProductError::Calendar)?;
+        }
+        if let Some(ports) = self.production_ports.as_ref() {
+            ports.shutdown_adk_runtime();
         }
         drop(self.production_ports.take());
         Ok(())
@@ -185,6 +191,9 @@ impl Drop for ProductHandle {
         self.live_hub.mark_stopped();
         if let Some(manager) = self.calendar_manager.take() {
             let _ = manager.close();
+        }
+        if let Some(ports) = self.production_ports.as_ref() {
+            ports.shutdown_adk_runtime();
         }
         drop(self.production_ports.take());
     }
@@ -358,11 +367,19 @@ pub(crate) async fn prepare_product_with_runtime_state(
         access_policy =
             access_policy.with_session_validator(ports.auth_session_validator.clone());
     }
-    if let Some(manager) = &calendar_manager {
-        manager.start().map_err(ProductError::Calendar)?;
-    }
     let listener = StdTcpListener::bind(config.bind_address).map_err(ProductError::Bind)?;
     let address = listener.local_addr().map_err(ProductError::LocalAddress)?;
+    // Start the calendar worker only after every fallible listener setup step
+    // has succeeded.  If startup fails before the prepared product is handed
+    // to the shutdown supervisor, no background calendar thread is left
+    // running without an owner.  A source/worker start failure is closed
+    // immediately for the same fail-closed guarantee.
+    if let Some(manager) = &calendar_manager {
+        if let Err(error) = manager.start() {
+            let _ = manager.close();
+            return Err(ProductError::Calendar(error));
+        }
+    }
     let production_runtime_core_ready = production_ports.as_ref().is_some_and(|ports| {
         ports.provider_status == "ready"
             && ports.opend_status == "ready"
@@ -704,66 +721,4 @@ fn route_profile_digest(capabilities: &[String]) -> String {
         digest.update(b"\n");
     }
     encode_sha256(digest.finalize())
-}
-
-#[derive(Debug)]
-struct RouterDemandListener {
-    router: Arc<Mutex<jftrade_marketdata::ProviderRouter>>,
-}
-
-impl jftrade_api::LiveDemandListener for RouterDemandListener {
-    fn on_subscription_change(
-        &self,
-        connection_id: u64,
-        provider_broker_id: &str,
-        instruments: &[String],
-    ) {
-        let consumer_id = format!("ws-client-{}", connection_id);
-        let mut router = self.router.lock().unwrap_or_else(|e| e.into_inner());
-
-        let provider_id = provider_broker_id.trim();
-        let is_futu = provider_id.is_empty() || provider_id.eq_ignore_ascii_case("futu");
-        if !is_futu {
-            router.release_demand_consumer(&consumer_id);
-            return;
-        }
-
-        let refs = instruments
-            .iter()
-            .map(|inst| {
-                let upper = inst.trim().to_ascii_uppercase();
-                let (market, symbol) = if upper.contains('.') {
-                    let mut parts = upper.splitn(2, '.');
-                    let m = parts.next().unwrap_or("US");
-                    let s = parts.next().unwrap_or(&upper);
-                    (m.to_owned(), s.to_owned())
-                } else {
-                    ("US".to_owned(), upper)
-                };
-                jftrade_marketdata::InstrumentRef {
-                    channel: "SNAPSHOT".to_owned(),
-                    market,
-                    symbol,
-                    interval: None,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if refs.is_empty() {
-            router.release_demand_consumer(&consumer_id);
-        } else {
-            let now_ms = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .ok()
-                .and_then(|d| i64::try_from(d.as_millis()).ok())
-                .unwrap_or_default();
-            let _ = router.replace_demand(&consumer_id, refs, false, now_ms);
-        }
-    }
-
-    fn on_disconnect(&self, connection_id: u64) {
-        let consumer_id = format!("ws-client-{}", connection_id);
-        let mut router = self.router.lock().unwrap_or_else(|e| e.into_inner());
-        router.release_demand_consumer(&consumer_id);
-    }
 }

@@ -123,7 +123,10 @@ pub(super) fn provider_activation(
                         opend_provider_config(&settings_path, Arc::clone(router))
                             .map_err(|error| error.to_string())?;
                     configuration.task.event_listener = Some(Arc::new(
-                        LiveHubOpenDEventListener::new(Arc::clone(&activation_hub)),
+                        LiveHubOpenDEventListener::with_reconciliation_wake(
+                            Arc::clone(&activation_hub),
+                            trade_runtime_for_activation.reconciliation_wake(),
+                        ),
                     ));
                     let provider = OpenDProviderRuntime::start(configuration)
                         .map_err(|error| error.to_string())?;
@@ -292,6 +295,13 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation
                         .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
+                    // Provider activation is a readiness transition even
+                    // when the session has not yet emitted a reconnect event.
+                    // Wake reconciliation once the live trade readers have
+                    // been installed so pending orders are retried promptly.
+                    trade_runtime_for_activation
+                        .reconciliation_wake()
+                        .notify_one();
                 }
             }
             MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {

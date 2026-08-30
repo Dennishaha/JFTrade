@@ -20,6 +20,7 @@ use jftrade_integration_futu::{
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
 use serde_json::{Map, Value, json};
+use tokio::sync::Notify;
 use crate::product::product_query::{
     normalize_candle_period, normalize_optional_query_time, parse_candle_before_time,
 };
@@ -110,6 +111,9 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationReadPort>>>>,
     pub(crate) alert_writer:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationWritePort>>>>,
+    /// OpenD lifecycle listeners use this channel to wake the execution
+    /// reconciliation worker after a ready/reconnect transition.
+    reconciliation_wake: Arc<Notify>,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct TradeRuntimeConnection {
@@ -143,6 +147,10 @@ impl TradeReadRuntimeSnapshot {
     }
 }
 impl SharedTradeReadRuntime {
+    pub(crate) fn reconciliation_wake(&self) -> Arc<Notify> {
+        Arc::clone(&self.reconciliation_wake)
+    }
+
     pub(crate) fn set_runtime_projection(
         &self,
         config: &FutuIntegrationConfig,
@@ -672,12 +680,20 @@ impl super::ProductionBrokerPort {
         } else {
             (
                 super::normalize_history_time(
-                    &begin.to_owned().if_empty_then("1970-01-01 00:00:00"),
+                    if begin.is_empty() {
+                        "1970-01-01 00:00:00"
+                    } else {
+                        begin
+                    },
                     &market,
                 )
                 .map_err(super::BrokerReadSnapshotError::Invalid)?,
                 super::normalize_history_time(
-                    &end.to_owned().if_empty_then("2999-12-31 23:59:59"),
+                    if end.is_empty() {
+                        "2999-12-31 23:59:59"
+                    } else {
+                        end
+                    },
                     &market,
                 )
                 .map_err(super::BrokerReadSnapshotError::Invalid)?,
@@ -776,20 +792,6 @@ impl super::ProductionBrokerPort {
             "connectivity": "connected",
             "klines": historical_snapshot(request, &historical, period, extended_hours, &sessions, requested_limit),
         }))
-    }
-}
-
-trait EmptyTime {
-    fn if_empty_then(self, fallback: &str) -> String;
-}
-
-impl EmptyTime for String {
-    fn if_empty_then(self, fallback: &str) -> String {
-        if self.is_empty() {
-            fallback.to_owned()
-        } else {
-            self
-        }
     }
 }
 

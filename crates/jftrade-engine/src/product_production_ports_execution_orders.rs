@@ -12,6 +12,8 @@ use jftrade_trading::{
     OrderStatus, canonical_broker_status, canonical_stored_status, reconcile_status,
 };
 use serde_json::{Value, json};
+use tokio::sync::{Notify, oneshot};
+use tokio::task::JoinHandle;
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_brokers_write_port::{
@@ -60,13 +62,191 @@ impl std::fmt::Debug for ProductionExecutionPort {
     }
 }
 
+/// Runtime-owned execution reconciliation status.  This is intentionally
+/// separate from the HTTP read port: GET orders remains a pure durable read,
+/// while broker scans report their health through the runtime worker.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExecutionReconciliationWorkerStatus {
+    pub state: String,
+    pub scans: u64,
+    pub reconciled: u64,
+    pub failures: u64,
+    pub last_scan_at: Option<String>,
+    pub last_error: Option<String>,
+    pub next_retry_at: Option<String>,
+}
+
+impl Default for ExecutionReconciliationWorkerStatus {
+    fn default() -> Self {
+        Self {
+            state: "starting".to_owned(),
+            scans: 0,
+            reconciled: 0,
+            failures: 0,
+            last_scan_at: None,
+            last_error: None,
+            next_retry_at: None,
+        }
+    }
+}
+
+/// Owns the asynchronous broker reconciliation cadence and shutdown handle.
+/// It uses the shared trade runtime at scan time so dynamic Futu activation
+/// does not couple execution to the active market-data router.
+pub(crate) struct ExecutionReconciliationWorker {
+    stop_tx: Mutex<Option<oneshot::Sender<()>>>,
+    #[allow(dead_code)]
+    wake: Arc<Notify>,
+    handle: Mutex<Option<JoinHandle<()>>>,
+    status: Arc<Mutex<ExecutionReconciliationWorkerStatus>>,
+}
+
+impl std::fmt::Debug for ExecutionReconciliationWorker {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ExecutionReconciliationWorker")
+            .field("status", &self.status())
+            .finish_non_exhaustive()
+    }
+}
+
+impl ExecutionReconciliationWorker {
+    pub(crate) fn start(
+        port: Arc<ProductionExecutionPort>,
+        wake: Option<Arc<Notify>>,
+    ) -> Arc<Self> {
+        let wake = wake.unwrap_or_else(|| Arc::new(Notify::new()));
+        let status = Arc::new(Mutex::new(ExecutionReconciliationWorkerStatus::default()));
+        let (stop_tx, mut stop_rx) = oneshot::channel();
+        let task_wake = Arc::clone(&wake);
+        let task_status = Arc::clone(&status);
+        let handle = tokio::spawn(async move {
+            let mut retry_delay = std::time::Duration::from_secs(1);
+            let max_retry_delay = std::time::Duration::from_secs(60);
+            loop {
+                let scan = port.reconcile_pending_orders();
+                let now = crate::product::product_production_ports::provider_now_rfc3339();
+                let mut next_delay = std::time::Duration::from_secs(15);
+                {
+                    let mut state = task_status
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+                    state.scans = state.scans.saturating_add(1);
+                    state.last_scan_at = Some(now.clone());
+                    match scan {
+                        Ok(reconciled) => {
+                            state.state = "ready".to_owned();
+                            state.reconciled = state.reconciled.saturating_add(reconciled as u64);
+                            state.last_error = None;
+                            state.next_retry_at = None;
+                            retry_delay = std::time::Duration::from_secs(1);
+                        }
+                        Err(error) => {
+                            state.state = "degraded".to_owned();
+                            state.failures = state.failures.saturating_add(1);
+                            state.last_error = Some(error);
+                            next_delay = retry_delay;
+                            retry_delay = retry_delay.saturating_mul(2).min(max_retry_delay);
+                            state.next_retry_at = time::OffsetDateTime::now_utc()
+                                .checked_add(time::Duration::seconds(next_delay.as_secs() as i64))
+                                .and_then(|value| {
+                                    value
+                                        .format(&time::format_description::well_known::Rfc3339)
+                                        .ok()
+                                });
+                        }
+                    }
+                }
+                tokio::select! {
+                    _ = &mut stop_rx => break,
+                    _ = task_wake.notified() => {},
+                    _ = tokio::time::sleep(next_delay) => {},
+                }
+            }
+            let mut state = task_status
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            state.state = "stopped".to_owned();
+            state.next_retry_at = None;
+        });
+        Arc::new(Self {
+            stop_tx: Mutex::new(Some(stop_tx)),
+            wake,
+            handle: Mutex::new(Some(handle)),
+            status,
+        })
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn wake(&self) {
+        self.wake.notify_one();
+    }
+
+    pub(crate) fn status(&self) -> ExecutionReconciliationWorkerStatus {
+        self.status
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    pub(crate) async fn shutdown(&self) {
+        if let Some(sender) = self
+            .stop_tx
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take()
+        {
+            let _ = sender.send(());
+        }
+        let handle = self
+            .handle
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        if let Some(handle) = handle {
+            if let Err(error) = handle.await {
+                let mut state = self
+                    .status
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                state.state = "failed".to_owned();
+                state.last_error = Some(format!(
+                    "execution reconciliation worker join failed: {error}"
+                ));
+            }
+        }
+    }
+
+    pub(crate) fn terminate(&self) {
+        if let Some(sender) = self
+            .stop_tx
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take()
+        {
+            let _ = sender.send(());
+        }
+        if let Some(handle) = self
+            .handle
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take()
+        {
+            handle.abort();
+        }
+        let mut state = self
+            .status
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        state.state = "stopped".to_owned();
+        state.next_retry_at = None;
+    }
+}
+
 impl ExecutionReadSnapshotPort for ProductionExecutionPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, ExecutionReadSnapshotError> {
         if path == "/api/v1/execution/orders" {
-            // A read is also the restart recovery rendezvous.  Reconcile
-            // only durable candidates and keep the endpoint usable when
-            // OpenD is unavailable; no broker result is synthesized.
-            self.reconcile_pending_orders();
             let query = crate::product::product_query::QueryMap::parse(query).map_err(|_| {
                 ExecutionReadSnapshotError::Invalid("invalid execution orders query".to_owned())
             })?;

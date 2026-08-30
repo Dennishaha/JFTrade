@@ -79,7 +79,7 @@ pub(crate) use product_production_database_leases::{
 };
 pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
 pub(crate) use product_production_ports_execution::{
-    ProductionBacktestPort, ProductionExecutionPort,
+    ExecutionReconciliationWorker, ProductionBacktestPort, ProductionExecutionPort,
 };
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
@@ -322,6 +322,21 @@ pub(crate) fn production_ports(
         trade_runtime: config.trade_runtime.clone(),
         cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
     });
+    // `production_ports` is also used by synchronous assembly tests.  Only
+    // compose the async worker when the runtime owner has an active Tokio
+    // handle; the HTTP runtime startup path always satisfies this condition.
+    let execution_reconciliation_wake = config
+        .trade_runtime
+        .as_ref()
+        .map(|runtime| runtime.reconciliation_wake());
+    let execution_reconciliation_worker = tokio::runtime::Handle::try_current()
+        .ok()
+        .map(|_| {
+            ExecutionReconciliationWorker::start(
+                Arc::clone(&execution_port),
+                execution_reconciliation_wake,
+            )
+        });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
     );
@@ -694,6 +709,7 @@ pub(crate) fn production_ports(
             settings: market_data_settings.clone(),
             opend_status: config.opend_runtime_status,
             worker_status: config.worker_runtime_status,
+            execution_reconciliation_worker: execution_reconciliation_worker.clone(),
             database_leases: database_leases.clone(),
         }),
         system_write: system_write_port,
@@ -715,6 +731,7 @@ pub(crate) fn production_ports(
         bound_adapters,
         backtest_sync_workers,
         backtest_execution_workers,
+        execution_reconciliation_worker,
         #[cfg(test)]
         backtest_execution_ready: config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),

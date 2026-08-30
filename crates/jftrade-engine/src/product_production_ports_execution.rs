@@ -29,7 +29,9 @@ mod product_production_ports_backtest_sync_projection;
 use product_production_ports_backtest_sync_projection::sync_task_projection;
 #[path = "product_production_ports_execution_orders.rs"]
 mod product_production_ports_execution_orders;
-pub(crate) use product_production_ports_execution_orders::ProductionExecutionPort;
+pub(crate) use product_production_ports_execution_orders::{
+    ExecutionReconciliationWorker, ProductionExecutionPort,
+};
 
 #[path = "product_production_ports_backtest_strategy.rs"]
 mod product_production_ports_backtest_strategy;

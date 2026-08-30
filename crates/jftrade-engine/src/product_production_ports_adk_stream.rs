@@ -29,4 +29,10 @@ impl AdkChatStreamPort for ProductionAdkPort {
             })?
             .resume_approval(run_id)
     }
+
+    fn shutdown(&self) {
+        if let Some(runtime) = self.chat_runtime.as_deref() {
+            runtime.shutdown();
+        }
+    }
 }

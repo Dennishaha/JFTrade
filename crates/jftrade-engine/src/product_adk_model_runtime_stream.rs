@@ -20,8 +20,8 @@ use crate::product::product_adk_chat_stream_port::{
 };
 
 use super::{
-    ChatExecution, ModelResponse, ProductionAdkChatRuntime, format_adk_error, storage_unavailable,
-    stream_from_payload, unavailable,
+    ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, lease_owner_id,
+    run_cancelled, storage_unavailable, stream_from_payload, unavailable,
 };
 
 impl ProductionAdkChatRuntime {
@@ -44,9 +44,18 @@ impl ProductionAdkChatRuntime {
                 return;
             }
         };
+        let owner_id = lease_owner_id(&chat.run_id);
+        let run_lease =
+            match RunLeaseGuard::acquire(Arc::clone(&self.store), &chat.run_id, &owner_id) {
+                Ok(lease) => lease,
+                Err(error) => {
+                    let _ = started.send(Err(error));
+                    return;
+                }
+            };
         if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
             let disconnect = client_disconnected();
-            let _ = self.persist_cancelled(&chat, &disconnect);
+            let _ = self.persist_cancelled(&chat, &disconnect, &run_lease);
             let _ = started.send(Err(AdkChatPortError::Failed {
                 status: 499,
                 code: "CLIENT_DISCONNECTED".to_owned(),
@@ -58,11 +67,12 @@ impl ProductionAdkChatRuntime {
             "type": "run",
             "run": {"id": chat.run_id, "sessionId": chat.session_id, "agentId": chat.agent_id, "status": "RUNNING"},
         });
-        let initial_event = match self.emit_stream_event(&chat, initial, Some(&sender)) {
+        let initial_event = match self.emit_stream_event(&chat, initial, Some(&sender), &run_lease)
+        {
             Ok(event) => event,
             Err(error) => {
                 if super::is_client_disconnect(&error) {
-                    let _ = self.persist_cancelled(&chat, &error);
+                    let _ = self.persist_cancelled(&chat, &error, &run_lease);
                 }
                 let _ = started.send(Err(error));
                 return;
@@ -73,7 +83,7 @@ impl ProductionAdkChatRuntime {
             .is_err()
         {
             let disconnect = client_disconnected();
-            let _ = self.persist_cancelled(&chat, &disconnect);
+            let _ = self.persist_cancelled(&chat, &disconnect, &run_lease);
             let _ = started.send(Err(disconnect));
             return;
         }
@@ -84,10 +94,10 @@ impl ProductionAdkChatRuntime {
         });
         if started.send(Ok(output)).is_err() {
             self.cancellation_registry.unregister(&chat.run_id);
-            let _ = self.persist_cancelled(&chat, &client_disconnected());
+            let _ = self.persist_cancelled(&chat, &client_disconnected(), &run_lease);
             return;
         }
-        self.run_live_stream(chat, sender, cancellation);
+        self.run_live_stream(chat, sender, cancellation, run_lease);
     }
 
     fn run_live_stream(
@@ -95,6 +105,7 @@ impl ProductionAdkChatRuntime {
         chat: super::ChatExecution,
         sender: ApiStreamSender,
         cancellation: Arc<AtomicBool>,
+        run_lease: RunLeaseGuard,
     ) {
         let _guard = super::CancellationGuard {
             registry: Arc::clone(&self.cancellation_registry),
@@ -102,22 +113,34 @@ impl ProductionAdkChatRuntime {
         };
         let result = super::stream_adapter::execute_model_stream(
             chat.request.clone(),
-            |event| self.forward_provider_event(&chat, event, &sender),
+            |event| self.forward_provider_event(&chat, event, &sender, &run_lease),
             || {
                 sender.is_closed()
                     || cancellation.load(Ordering::Acquire)
                     || self.run_is_cancelled(&chat.run_id)
             },
         );
+        // A takeover may happen after the provider returns but before the
+        // terminal projection is written.  Never let a stale stream worker
+        // publish a late success/failure over the new owner's run state.
+        if run_lease.is_lost() {
+            return;
+        }
         match result {
             Ok(model_response) if !model_response.tool_calls.is_empty() => {
-                match self.persist_tool_calls(&chat, &model_response) {
+                match self.persist_tool_calls(&chat, &model_response, &run_lease) {
                     Ok(AdkChatPortOutput::Json(response)) => {
                         let event = self
                             .emit_post_terminal_event(
                                 &chat,
-                                json!({"type": "pending", "response": response}),
+                                // The browser stream contract has no
+                                // `pending` event.  Approval waits are
+                                // terminal from the transport perspective;
+                                // the embedded run status and
+                                // pendingApprovals carry the resumable state.
+                                json!({"type": "final", "response": response}),
                                 "PENDING",
+                                &run_lease,
                             )
                             .unwrap_or_else(|_| {
                                 json!({"type": "error", "message": "assistant tool call staging failed"})
@@ -134,6 +157,7 @@ impl ProductionAdkChatRuntime {
                                     "message": super::format_adk_error(&error),
                                 }),
                                 "FAILED",
+                                &run_lease,
                             )
                             .unwrap_or_else(|_| {
                                 json!({
@@ -145,7 +169,7 @@ impl ProductionAdkChatRuntime {
                     }
                 }
             }
-            Ok(model_response) => match self.persist_success(&chat, model_response) {
+            Ok(model_response) => match self.persist_success(&chat, model_response, &run_lease) {
                 Ok(response) => {
                     if let Ok(Some(event)) = self.latest_stream_event(&chat.run_id) {
                         let _ = sender.send(super::encode_sse_event(&event));
@@ -161,10 +185,10 @@ impl ProductionAdkChatRuntime {
                         || self.run_is_cancelled(&chat.run_id)
                         || super::is_run_cancelled(&error)
                     {
-                        let _ = self.persist_cancelled(&chat, &error);
+                        let _ = self.persist_cancelled(&chat, &error, &run_lease);
                         return;
                     }
-                    let persisted = match self.persist_failure(&chat, &error) {
+                    let persisted = match self.persist_failure(&chat, &error, &run_lease) {
                         Ok(()) => true,
                         Err(persist_error)
                             if super::is_run_cancelled(&persist_error)
@@ -192,10 +216,10 @@ impl ProductionAdkChatRuntime {
                     || self.run_is_cancelled(&chat.run_id)
                     || super::is_run_cancelled(&error)
                 {
-                    let _ = self.persist_cancelled(&chat, &error);
+                    let _ = self.persist_cancelled(&chat, &error, &run_lease);
                     return;
                 }
-                let persisted = match self.persist_failure(&chat, &error) {
+                let persisted = match self.persist_failure(&chat, &error, &run_lease) {
                     Ok(()) => true,
                     Err(persist_error)
                         if super::is_run_cancelled(&persist_error)
@@ -225,6 +249,7 @@ impl ProductionAdkChatRuntime {
         chat: &super::ChatExecution,
         mut event: Value,
         expected_status: &str,
+        run_lease: &RunLeaseGuard,
     ) -> Result<Value, AdkChatPortError> {
         let run = self
             .store()
@@ -249,7 +274,14 @@ impl ProductionAdkChatRuntime {
         events.push(event.clone());
         let updated = self
             .store()
-            .update_run_payload_if_status(&chat.run_id, expected_status, &payload.to_string())
+            .update_run_payload_if_status_and_revision_with_lease(
+                &chat.run_id,
+                expected_status,
+                &run.updated_at,
+                &payload.to_string(),
+                run_lease.owner_id(),
+                run_lease.token(),
+            )
             .map_err(super::storage_unavailable)?;
         if !updated {
             return Err(self.run_state_changed(&chat.run_id));
@@ -272,9 +304,13 @@ impl ProductionAdkChatRuntime {
         chat: &super::ChatExecution,
         provider_event: &Value,
         sender: &ApiStreamSender,
+        run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
+        if run_lease.is_lost() {
+            return Err(unavailable("assistant run execution lease was lost"));
+        }
         let prior_text = self.stream_text_prefix(&chat.run_id)?;
-        self.append_provider_event(chat, provider_event)?;
+        self.append_provider_event(chat, provider_event, run_lease)?;
         if provider_event.get("type").and_then(Value::as_str) != Some("response.output_text.delta")
         {
             return Ok(());
@@ -294,7 +330,10 @@ impl ProductionAdkChatRuntime {
                 "text": format!("{prior_text}{delta}"),
             },
         });
-        let event = self.emit_stream_event(chat, value, Some(sender))?;
+        if run_lease.is_lost() {
+            return Err(unavailable("assistant run execution lease was lost"));
+        }
+        let event = self.emit_stream_event(chat, value, Some(sender), run_lease)?;
         let _ = sender.send(super::encode_sse_event(&event));
         Ok(())
     }
@@ -327,6 +366,7 @@ impl ProductionAdkChatRuntime {
         &self,
         chat: &super::ChatExecution,
         event: &Value,
+        run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
         let run = self
             .store()
@@ -341,7 +381,14 @@ impl ProductionAdkChatRuntime {
             .map(|events| events.push(event.clone()));
         let updated = self
             .store()
-            .update_run_payload_if_status(&chat.run_id, "RUNNING", &payload.to_string())
+            .update_run_payload_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                &payload.to_string(),
+                run_lease.owner_id(),
+                run_lease.token(),
+            )
             .map_err(super::storage_unavailable)?;
         if !updated {
             return Err(self.run_state_changed(&chat.run_id));
@@ -354,6 +401,7 @@ impl ProductionAdkChatRuntime {
         chat: &super::ChatExecution,
         mut event: Value,
         sender: Option<&ApiStreamSender>,
+        run_lease: &RunLeaseGuard,
     ) -> Result<Value, AdkChatPortError> {
         let run = self
             .store()
@@ -375,7 +423,14 @@ impl ProductionAdkChatRuntime {
         events.push(event.clone());
         let updated = self
             .store()
-            .update_run_payload_if_status(&chat.run_id, "RUNNING", &payload.to_string())
+            .update_run_payload_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                &payload.to_string(),
+                run_lease.owner_id(),
+                run_lease.token(),
+            )
             .map_err(super::storage_unavailable)?;
         if !updated {
             return Err(self.run_state_changed(&chat.run_id));
@@ -445,10 +500,11 @@ impl ProductionAdkChatRuntime {
         &self,
         chat: &ChatExecution,
         result: Result<ModelResponse, AdkChatPortError>,
+        run_lease: &RunLeaseGuard,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
         match result {
             Ok(model_response) => {
-                let response = self.persist_success(chat, model_response)?;
+                let response = self.persist_success(chat, model_response, run_lease)?;
                 if chat.route == AdkChatRoute::Chat {
                     Ok(AdkChatPortOutput::Json(response))
                 } else {
@@ -461,7 +517,7 @@ impl ProductionAdkChatRuntime {
                 }
             }
             Err(error) => {
-                let _ = self.persist_failure(chat, &error);
+                let _ = self.persist_failure(chat, &error, run_lease);
                 Err(error)
             }
         }
@@ -471,6 +527,7 @@ impl ProductionAdkChatRuntime {
         &self,
         chat: &ChatExecution,
         model_response: ModelResponse,
+        run_lease: &RunLeaseGuard,
     ) -> Result<Value, AdkChatPortError> {
         let run = self
             .store()
@@ -570,7 +627,7 @@ impl ProductionAdkChatRuntime {
         }
         let updated = self
             .store()
-            .update_run_state_if_status_and_revision_with_events(
+            .update_run_state_if_status_and_revision_with_events_with_lease(
                 &chat.run_id,
                 "RUNNING",
                 &run.updated_at,
@@ -578,6 +635,8 @@ impl ProductionAdkChatRuntime {
                 &payload.to_string(),
                 self.session_store.path(),
                 &events,
+                run_lease.owner_id(),
+                run_lease.token(),
             )
             .map_err(storage_unavailable)?;
         if !updated {
@@ -606,6 +665,7 @@ impl ProductionAdkChatRuntime {
         &self,
         chat: &ChatExecution,
         error: &AdkChatPortError,
+        run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
         let message = match error {
             AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => {
@@ -621,7 +681,7 @@ impl ProductionAdkChatRuntime {
         } else {
             "FAILED"
         };
-        let run = self
+        let mut run = self
             .store()
             .get_run(&chat.run_id)
             .map_err(storage_unavailable)?
@@ -655,97 +715,50 @@ impl ProductionAdkChatRuntime {
                 .is_some_and(|kind| matches!(kind, "final" | "error"));
             if !has_terminal {
                 let event = json!({"type":"error","message":message});
-                let _ = self.emit_stream_event(chat, event, None)?;
-                payload = self
+                let _ = self.emit_stream_event(chat, event, None, run_lease)?;
+                run = self
                     .store()
                     .get_run(&chat.run_id)
                     .map_err(storage_unavailable)?
-                    .ok_or_else(|| unavailable("persisted ADK run disappeared"))
-                    .and_then(|run| {
-                        serde_json::from_str(&run.payload_json).map_err(storage_unavailable)
-                    })?;
+                    .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+                payload = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
             }
             payload["status"] = Value::String(status.to_owned());
             payload["message"] = Value::String(message);
         }
         let updated = self
             .store()
-            .update_run_state_if_status(&chat.run_id, "RUNNING", status, &payload.to_string())
-            .map_err(storage_unavailable)?;
-        if !updated
-            && self
-                .store()
-                .get_run(&chat.run_id)
-                .map_err(storage_unavailable)?
-                .is_some_and(|run| run.status.eq_ignore_ascii_case("CANCELLED"))
-        {
-            return Err(run_cancelled());
-        }
-        Ok(())
-    }
-
-    pub(super) fn persist_cancelled(
-        &self,
-        chat: &ChatExecution,
-        error: &AdkChatPortError,
-    ) -> Result<(), AdkChatPortError> {
-        let run = self
-            .store()
-            .get_run(&chat.run_id)
-            .map_err(storage_unavailable)?
-            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
-        if run.status.eq_ignore_ascii_case("CANCELLED") {
-            return Ok(());
-        }
-        if !run.status.eq_ignore_ascii_case("RUNNING") {
-            return Ok(());
-        }
-        let mut payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
-        let has_terminal = payload
-            .get("streamEvents")
-            .and_then(Value::as_array)
-            .and_then(|events| events.last())
-            .and_then(|event| event.get("type"))
-            .and_then(Value::as_str)
-            .is_some_and(|kind| matches!(kind, "final" | "error"));
-        if !has_terminal && chat.route == AdkChatRoute::Stream {
-            let _ = self.emit_stream_event(
-                chat,
-                json!({"type":"error","message":format_adk_error(error)}),
-                None,
-            )?;
-            payload = self
-                .store()
-                .get_run(&chat.run_id)
-                .map_err(storage_unavailable)?
-                .ok_or_else(|| unavailable("persisted ADK run disappeared"))
-                .and_then(|run| {
-                    serde_json::from_str(&run.payload_json).map_err(storage_unavailable)
-                })?;
-        }
-        payload["status"] = Value::String("CANCELLED".to_owned());
-        payload["message"] = Value::String(format_adk_error(error));
-        let updated = self
-            .store()
-            .update_run_state_if_status(&chat.run_id, "RUNNING", "CANCELLED", &payload.to_string())
+            .update_run_state_if_status_and_revision_with_lease(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                status,
+                &payload.to_string(),
+                run_lease.owner_id(),
+                run_lease.token(),
+            )
             .map_err(storage_unavailable)?;
         if !updated {
-            return Ok(());
+            let current = self
+                .store()
+                .get_run(&chat.run_id)
+                .map_err(storage_unavailable)?
+                .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+            if current.status.eq_ignore_ascii_case("CANCELLED") {
+                return Err(run_cancelled());
+            }
+            if current.status.eq_ignore_ascii_case(status) {
+                return Ok(());
+            }
+            return Err(unavailable(
+                "assistant chat run or execution lease changed before failure",
+            ));
         }
         Ok(())
     }
 
     fn store(&self) -> &std::sync::Arc<jftrade_store_sqlite::AdkStore> {
         &self.store
-    }
-}
-
-fn run_cancelled() -> AdkChatPortError {
-    AdkChatPortError::Failed {
-        status: 499,
-        code: "RUN_CANCELLED".to_owned(),
-        message: "assistant chat run was cancelled".to_owned(),
     }
 }
 

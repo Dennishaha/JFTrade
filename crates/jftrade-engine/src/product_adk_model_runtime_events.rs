@@ -22,6 +22,7 @@ impl ProductionAdkChatRuntime {
             Arc::clone(&tool_catalog),
             Arc::clone(&store),
         ));
+        let continuation_supervisor = Arc::new(ContinuationSupervisor::default());
         let runtime = Self {
             store,
             session_store,
@@ -29,41 +30,10 @@ impl ProductionAdkChatRuntime {
             cancellation_registry,
             tool_executor,
             tool_catalog,
+            continuation_supervisor,
         };
         runtime.recover_approval_continuations();
         runtime
-    }
-
-    fn recover_approval_continuations(&self) {
-        let Ok(runs) = self.store.list_runs() else {
-            return;
-        };
-        for run in runs {
-            let Ok(payload) = serde_json::from_str::<Value>(&run.payload_json) else {
-                continue;
-            };
-            let recovering = run.status.eq_ignore_ascii_case("RUNNING")
-                && (payload
-                    .get("resumeState")
-                    .and_then(Value::as_str)
-                    .is_some_and(|state| {
-                        state.eq_ignore_ascii_case("approval_resuming")
-                            || state.eq_ignore_ascii_case("tool_executing")
-                    })
-                    || payload
-                        .get("toolCalls")
-                        .and_then(Value::as_array)
-                        .is_some_and(|calls| {
-                            calls.iter().any(|call| {
-                                call.get("status")
-                                    .and_then(Value::as_str)
-                                    .is_some_and(|status| status.eq_ignore_ascii_case("RUNNING"))
-                            })
-                        }));
-            if recovering {
-                let _ = self.resume_approval(&run.id);
-            }
-        }
     }
 
     fn dispatch_inner(
@@ -139,10 +109,6 @@ impl ProductionAdkChatRuntime {
         self.store
             .upsert_session(&session_id, &agent_id, &session_payload.to_string())
             .map_err(storage_unavailable)?;
-        // The ADK session projection and the ADK event journal live in
-        // separate compatibility databases.  Ensure the referenced session
-        // exists before recording the first user event (the event schema has
-        // an FK back to this row).
         self.session_store
             .upsert_session(
                 "jftrade",
@@ -220,9 +186,6 @@ impl ProductionAdkChatRuntime {
         }))
     }
 
-    /// Resume a run released from approval.  The durable approval CAS is the
-    /// gate; this method only schedules the actual model continuation after
-    /// validating the persisted request and current provider configuration.
     pub(crate) fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
         let run = self
             .store
@@ -355,9 +318,11 @@ impl ProductionAdkChatRuntime {
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
-        std::thread::Builder::new()
-            .name("jftrade-adk-approval-resume".to_owned())
-            .spawn(move || {
+        let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
+        let continuation_run_id = chat.run_id.clone();
+        let supervisor_for_task = Arc::clone(&continuation_supervisor);
+        continuation_supervisor.clone().spawn(&continuation_run_id, move |continuation_cancel| {
+                let continuation_supervisor = supervisor_for_task;
                 let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
                     Arc::clone(&tool_catalog),
                     Arc::clone(&store),
@@ -369,8 +334,11 @@ impl ProductionAdkChatRuntime {
                     cancellation_registry,
                     tool_catalog,
                     tool_executor,
+                    continuation_supervisor,
                 };
-                let cancellation = runtime.cancellation_registry.register(&chat.run_id);
+                let cancellation = runtime
+                    .cancellation_registry
+                    .register_token(&chat.run_id, continuation_cancel);
                 let _guard = CancellationGuard {
                     registry: Arc::clone(&runtime.cancellation_registry),
                     run_id: chat.run_id.clone(),
@@ -379,12 +347,17 @@ impl ProductionAdkChatRuntime {
                     return;
                 }
                 runtime.run_approval_continuation(chat, cancellation);
-            })
-            .map_err(|error| unavailable(format!("assistant continuation unavailable: {error}")))?;
+            })?;
         Ok(())
     }
 
     fn execute_chat(&self, chat: ChatExecution) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        let owner_id = lease_owner_id(&chat.run_id);
+        let run_lease = RunLeaseGuard::acquire(
+            Arc::clone(&self.store),
+            &chat.run_id,
+            &owner_id,
+        )?;
         if chat.route == AdkChatRoute::Stream {
             let cancellation = self.cancellation_registry.register(&chat.run_id);
             let _guard = CancellationGuard {
@@ -401,12 +374,11 @@ impl ProductionAdkChatRuntime {
                         || self.run_is_cancelled(&run_id)
                 },
             );
-            return self.finish_chat(&chat, result);
+            if run_lease.is_lost() {
+                return Err(unavailable("assistant run execution lease was lost"));
+            }
+            return self.finish_chat(&chat, result, &run_lease);
         }
-        // Register synchronous model calls as well as streams.  The cancel
-        // mutation runs on another request thread and flips this token before
-        // fencing the persisted run state, so the in-flight HTTP call can be
-        // interrupted without waiting for the provider timeout.
         let cancellation = self.cancellation_registry.register(&chat.run_id);
         let _guard = CancellationGuard {
             registry: Arc::clone(&self.cancellation_registry),
@@ -414,31 +386,38 @@ impl ProductionAdkChatRuntime {
         };
         if self.run_is_cancelled(&chat.run_id) {
             let error = cancellation_error();
-            let _ = self.persist_cancelled(&chat, &error);
+            let _ = self.persist_cancelled(&chat, &error, &run_lease);
             return Err(error);
         }
         let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+        if run_lease.is_lost() {
+            return Err(unavailable("assistant run execution lease was lost"));
+        }
         if cancellation.load(Ordering::Acquire) {
             let error = match result {
                 Err(error) if is_cancellation_error(&error) => error,
                 _ => cancellation_error(),
             };
-            let _ = self.persist_cancelled(&chat, &error);
+            let _ = self.persist_cancelled(&chat, &error, &run_lease);
             return Err(error);
         }
         if let Ok(ref response) = result {
             if !response.tool_calls.is_empty() {
-                return self.persist_tool_calls(&chat, response);
+                return self.persist_tool_calls(&chat, response, &run_lease);
             }
         }
-        self.finish_chat(&chat, result)
+        self.finish_chat(&chat, result, &run_lease)
     }
 
     fn persist_tool_calls(
         &self,
         chat: &ChatExecution,
         response: &ModelResponse,
+        run_lease: &RunLeaseGuard,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        if run_lease.is_lost() {
+            return Err(unavailable("assistant run execution lease was lost"));
+        }
         let run = self
             .store
             .get_run(&chat.run_id)
@@ -477,19 +456,33 @@ impl ProductionAdkChatRuntime {
             .filter_map(|call| call.get("round").and_then(Value::as_u64))
             .max()
             .unwrap_or_default();
+        let round = prior_round.saturating_add(1);
+        let timestamp = run.updated_at.clone();
         for (index, call) in response.tool_calls.iter().enumerate() {
             let call_status = if known { "PENDING_APPROVAL" } else { "FAILED" };
             let requires_user = known;
-            let approval_id = format!("{}:approval:{}", chat.run_id, index + 1);
+            let approval_id = format!("{}:approval:r{}:{}", chat.run_id, round, index + 1);
+            let confirmation_call_id = format!("{approval_id}:confirmation");
             let call_value = json!({
                 "id": call.id,
+                "runId": chat.run_id,
+                "functionCallId": call.id,
+                "confirmationCallId": if known { Value::String(confirmation_call_id.clone()) } else { Value::Null },
                 "name": call.name,
+                "toolName": call.name,
                 "arguments": call.arguments,
+                "input": call.arguments,
                 "status": call_status,
                 "requiresUser": requires_user,
                 "approvalId": if known { Value::String(approval_id.clone()) } else { Value::Null },
+                "idempotencyKey": call.id,
+                "error": if known { Value::Null } else { Value::String("tool adapter unavailable".to_owned()) },
                 "errorCode": if known { Value::Null } else { Value::String("ADK_TOOL_UNAVAILABLE".to_owned()) },
-                "round": prior_round + 1,
+                "round": round,
+                "permission": "approval",
+                "reason": if known { "assistant requested tool execution" } else { "tool adapter unavailable" },
+                "createdAt": timestamp.clone(),
+                "updatedAt": timestamp.clone(),
             });
             tool_calls.push(call_value);
             if known {
@@ -500,8 +493,15 @@ impl ProductionAdkChatRuntime {
                     "status": "PENDING",
                     "toolName": call.name,
                     "toolCallId": call.id,
+                    "functionCallId": call.id,
+                    "confirmationCallId": confirmation_call_id,
                     "arguments": call.arguments,
+                    "input": call.arguments,
                     "requiresUser": true,
+                    "permission": "approval",
+                    "reason": "assistant requested tool execution",
+                    "createdAt": timestamp.clone(),
+                    "updatedAt": timestamp.clone(),
                 });
                 approval_rows.push((approval_id.clone(), approval.to_string()));
                 pending.push(approval);
@@ -533,7 +533,7 @@ impl ProductionAdkChatRuntime {
             .collect::<Vec<_>>();
         let mut event_rows = Vec::with_capacity(response.tool_calls.len());
         for (index, call) in response.tool_calls.iter().enumerate() {
-            let event_id = format!("{}:tool-call:{}:{}", chat.run_id, prior_round + 1, index + 1);
+            let event_id = format!("{}:tool-call:{}:{}", chat.run_id, round, index + 1);
             let content = serde_json::to_string(&json!({
                 "id": call.id,
                 "name": call.name,
@@ -555,7 +555,7 @@ impl ProductionAdkChatRuntime {
             .collect::<Vec<_>>();
         let updated = self
             .store
-            .stage_tool_calls_if_status_and_revision_with_events(
+            .stage_tool_calls_if_status_and_revision_with_events_with_lease(
                 &chat.run_id,
                 "RUNNING",
                 &run.updated_at,
@@ -564,6 +564,8 @@ impl ProductionAdkChatRuntime {
                 &approval_stages,
                 self.session_store.path(),
                 &events,
+                &run_lease.owner_id(),
+                run_lease.token(),
             )
             .map_err(storage_unavailable)?;
         if !updated {
@@ -704,8 +706,6 @@ impl ProductionAdkChatRuntime {
         })
     }
 
-    /// Resolve an explicit agent strictly, or mirror Go DefaultAgent's
-    /// enabled-primary -> first-enabled -> builtin-template ordering.
     fn resolve_agent(
         &self,
         requested_agent_id: Option<String>,
@@ -724,9 +724,6 @@ impl ProductionAdkChatRuntime {
         }
 
         let mut agents = self.store.list_agents().map_err(storage_unavailable)?;
-        // The Go store orders by updated_at DESC, id ASC and then promotes the
-        // primary builtin.  Reapply that ordering because the SQLite adapter
-        // exposes the persisted entities without the Go normalization layer.
         agents.sort_by(|left, right| {
             let left_primary = left.id.eq_ignore_ascii_case(DEFAULT_BUILTIN_AGENT_ID);
             let right_primary = right.id.eq_ignore_ascii_case(DEFAULT_BUILTIN_AGENT_ID);
