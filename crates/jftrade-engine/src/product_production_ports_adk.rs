@@ -216,6 +216,70 @@ impl ProductionToolCatalog {
             .collect()
     }
 
+    /// Resolve readiness for the small native MCP surface.  Most MCP names
+    /// map directly to an ADK descriptor, while `market.providers` and
+    /// `portfolio.summary` are compatibility aliases whose names predate the
+    /// production ADK catalog.  Keep those aliases on the same binding map so
+    /// `tools/list` and `tools/call` cannot disagree about availability.
+    pub(crate) fn binding_for_mcp_tool(
+        &self,
+        name: &str,
+    ) -> Option<ProductionAdapterBinding> {
+        let snapshot = self.active_provider_state.as_ref().map(|state| state.snapshot());
+        if let Some(definition) = PRODUCTION_TOOL_DEFINITIONS.iter().find(|definition| {
+            definition.id == name
+        }) {
+            return Some(snapshot.as_ref().map_or_else(
+                || {
+                    self.bindings
+                        .get(&definition.adapter)
+                        .copied()
+                        .unwrap_or(ProductionAdapterBinding::ExternalUnavailable)
+                },
+                |snapshot| self.binding_for(definition, snapshot),
+            ));
+        }
+        let adapter = match name {
+            "plugins.catalog" => ProductionRouteAdapter::PluginsRead,
+            "market.providers" | "market.capabilities" => {
+                ProductionRouteAdapter::MarketDataProviderRead
+            }
+            "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
+            "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,
+            "account.orders" => ProductionRouteAdapter::ExecutionRead,
+            "broker.orders" | "broker.fills" => ProductionRouteAdapter::BrokerRead,
+            "strategy.definition_versions.list" | "strategy.definition_versions.get" => {
+                ProductionRouteAdapter::StrategyDefinitionRead
+            }
+            "strategy.instance_activity" => ProductionRouteAdapter::StrategyRuntimeRead,
+            "risk.state" | "risk.events" => ProductionRouteAdapter::SystemRead,
+            _ => return None,
+        };
+        let startup_binding = self
+            .bindings
+            .get(&adapter)
+            .copied()
+            .unwrap_or(ProductionAdapterBinding::ExternalUnavailable);
+        if adapter != ProductionRouteAdapter::PortfolioRead {
+            return Some(startup_binding);
+        }
+        let Some(snapshot) = snapshot else {
+            return Some(startup_binding);
+        };
+        let trade_ready = self
+            .trade_runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.snapshot().is_ready());
+        Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+            && snapshot.opend_ready
+            && trade_ready
+        {
+            ProductionAdapterBinding::Ready
+        } else {
+            ProductionAdapterBinding::ExternalUnavailable
+        })
+    }
+
     /// Convert the currently callable catalog into the OpenAI Responses
     /// function-tool shape.  Provider-backed tools whose readiness is empty
     /// are intentionally omitted so the model cannot invoke an unavailable
@@ -803,12 +867,17 @@ mod tests {
         assert!(allowed_modes("market.search").is_empty());
         assert!(allowed_modes("research.instrument").is_empty());
         assert!(allowed_modes("market.snapshot").is_empty());
-        assert!(!allowed_modes("research.news").is_empty());
+        // OpenD readiness alone does not provide a news reader.  Futu news
+        // remains externally unavailable until the concrete trade-runtime
+        // reader is installed, so the ADK catalog must not advertise it as
+        // callable after provider activation.
+        assert!(allowed_modes("research.news").is_empty());
 
         state.set_readiness(false, true, true);
         assert!(!allowed_modes("market.snapshot").is_empty());
         assert!(!allowed_modes("market.subscriptions").is_empty());
         assert!(!allowed_modes("research.valuation").is_empty());
+        assert!(allowed_modes("research.news").is_empty());
     }
 }
 

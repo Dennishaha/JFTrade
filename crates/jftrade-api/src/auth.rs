@@ -13,6 +13,14 @@ pub trait WebSessionValidator: Send + Sync + std::fmt::Debug {
     fn is_csrf_valid(&self, session_cookie: &str, csrf_header: &str) -> bool;
 }
 
+/// Optional runtime origin provider used by listeners whose bind port can be
+/// changed without rebuilding the process. Static trusted origins remain the
+/// compatibility baseline; a provider may add only narrowly scoped origins
+/// for its currently active listener.
+pub trait AccessOriginProvider: Send + Sync + std::fmt::Debug {
+    fn allows_origin(&self, origin: &str) -> bool;
+}
+
 #[derive(Clone, Debug)]
 pub struct AccessPolicy {
     pub desktop_token: Option<String>,
@@ -23,6 +31,7 @@ pub struct AccessPolicy {
     pub desktop_mode: bool,
     pub internal_proxy_protocol: Option<String>,
     pub session_validator: Option<Arc<dyn WebSessionValidator>>,
+    pub dynamic_origin_provider: Option<Arc<dyn AccessOriginProvider>>,
 }
 
 impl PartialEq for AccessPolicy {
@@ -35,6 +44,7 @@ impl PartialEq for AccessPolicy {
             && self.desktop_mode == other.desktop_mode
             && self.internal_proxy_protocol == other.internal_proxy_protocol
             && self.session_validator.is_some() == other.session_validator.is_some()
+            && self.dynamic_origin_provider.is_some() == other.dynamic_origin_provider.is_some()
     }
 }
 
@@ -70,6 +80,7 @@ impl Default for AccessPolicy {
             desktop_mode: false,
             internal_proxy_protocol: None,
             session_validator: None,
+            dynamic_origin_provider: None,
         }
     }
 }
@@ -95,6 +106,11 @@ impl AccessPolicy {
 
     pub fn with_session_validator(mut self, validator: Arc<dyn WebSessionValidator>) -> Self {
         self.session_validator = Some(validator);
+        self
+    }
+
+    pub fn with_dynamic_origin_provider(mut self, provider: Arc<dyn AccessOriginProvider>) -> Self {
+        self.dynamic_origin_provider = Some(provider);
         self
     }
 
@@ -190,6 +206,10 @@ impl AccessPolicy {
             return false;
         };
         self.allowed_origins.contains(&origin)
+            || self
+                .dynamic_origin_provider
+                .as_ref()
+                .is_some_and(|provider| provider.allows_origin(&origin))
     }
 }
 

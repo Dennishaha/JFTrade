@@ -10,7 +10,7 @@ mod sse;
 mod websocket;
 
 pub use auth::{
-    ACCESS_SURFACE_HEADER, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,
+    ACCESS_SURFACE_HEADER, AccessOriginProvider, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,
     INTERNAL_PROXY_PROTOCOL_HEADER, SESSION_COOKIE, WebSessionValidator, canonical_origin,
     desktop_trusted_origins,
 };
@@ -22,7 +22,10 @@ pub use ports::{
     ApiOutput, ApiPort, ApiRequest, ApiStream, ApiStreamSender, Asset, AssetBundle, PortFuture,
 };
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
-pub use router::{ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, build_router};
+pub use router::{
+    ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, RequestContext, build_router,
+    current_request_context,
+};
 pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};
 pub use websocket::{
     DEFAULT_WEBSOCKET_LIMIT, LiveConnectionMetrics, LiveConnectionPermit, LiveConnectionSnapshot,

@@ -42,6 +42,14 @@ const platformChecks = Object.freeze([
 ]);
 const statuses = new Set(["passed", "open", "blocked"]);
 
+// A hard-cut or owner-deletion assertion is only meaningful after every
+// release-safety prerequisite has passed.  Keep this relationship executable
+// so a stale manifest cannot claim deletion while release evidence is open.
+const hardCutPrerequisiteGates = Object.freeze(
+  requiredGates.filter((gate) => gate !== "hardCutReadiness"),
+);
+const ownerDeletionPrerequisiteGates = Object.freeze(requiredGates);
+
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -191,6 +199,37 @@ function validateOwnerDeletion(value, label, errors) {
   requireStringArray(owner.conditions, `${label}.conditions`, errors);
 }
 
+function gateIsPassed(manifest, gateName) {
+  const gate = manifest.gates[gateName];
+  if (gate.status !== "passed") return false;
+  if (gateName !== "platformRelease") return true;
+  return REQUIRED_PLATFORMS.every((platform) =>
+    platformChecks.every((check) => gate.platforms[platform][check] === "passed"),
+  );
+}
+
+function addPrerequisiteBlockers(manifest, blockers) {
+  if (manifest.gates.hardCutReadiness.status === "passed") {
+    for (const gate of hardCutPrerequisiteGates) {
+      if (!gateIsPassed(manifest, gate)) {
+        blockers.push(
+          `hardCutReadiness is passed while prerequisite gate ${gate} is not fully passed`,
+        );
+      }
+    }
+  }
+  for (const owner of ["go", "wails"]) {
+    if (manifest.ownerDeletion[owner].status !== "passed") continue;
+    for (const gate of ownerDeletionPrerequisiteGates) {
+      if (!gateIsPassed(manifest, gate)) {
+        blockers.push(
+          `owner deletion ${owner} is passed while prerequisite gate ${gate} is not fully passed`,
+        );
+      }
+    }
+  }
+}
+
 export function validateManifest(manifest) {
   const errors = [];
   const root = checkKeys(
@@ -319,6 +358,7 @@ export function evaluateCloseout(manifest, options = {}) {
       blockers.push(`owner deletion ${owner} is ${manifest.ownerDeletion[owner].status}`);
     }
   }
+  addPrerequisiteBlockers(manifest, blockers);
   if (manifest.status !== "closed") blockers.push("manifest status is not closed");
   return {
     valid: true,

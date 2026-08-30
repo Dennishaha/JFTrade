@@ -199,6 +199,17 @@ impl SharedTradeReadRuntime {
             .is_some()
     }
 
+    /// Return the current OpenD historical-candle reader for consumers that
+    /// own a long-lived task but must follow provider activation/replacement.
+    /// The reader is cloned from the lock so callers never hold runtime state
+    /// while issuing the blocking OpenD request.
+    pub(crate) fn historical_klines_reader(&self) -> Option<Arc<dyn HistoricalKlineReadPort>> {
+        self.historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
     pub(crate) fn set_security_snapshots(&self, reader: Option<Arc<dyn SecuritySnapshotReadPort>>) {
         *self
             .security_snapshots

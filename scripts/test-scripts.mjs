@@ -44,6 +44,8 @@ export const scriptTestSuites = Object.freeze({
     "scripts/rust-migration/check-stage8-differential.test.mjs",
     "scripts/rust-migration/benchmark-stage8.test.mjs",
     "scripts/rust-migration/check-stage9-closeout.test.mjs",
+    "scripts/check-desktop-release-policy.test.mjs",
+    "scripts/check-desktop-release-workflow.test.mjs",
     "scripts/rust-migration/check-stage9-product-differential.test.mjs",
     "scripts/rust-migration/stage9-route-ownership.test.mjs",
     "scripts/check-rust-target-health.test.mjs",

@@ -134,6 +134,16 @@ pub trait SecuritySettingsStorePort: Send + Sync {
 
 pub trait SecurityRuntimePort: Send + Sync {
     fn apply(&self, record: &SecuritySettingsRecord) -> Result<(), String>;
+
+    /// Reports whether the runtime is currently able to serve Web access.
+    ///
+    /// Production composition supplies a listener-backed implementation. The
+    /// default keeps existing embedding ports source-compatible while making
+    /// an unowned runtime explicitly unavailable to callers that require a
+    /// truthful auth projection.
+    fn status(&self, _record: &SecuritySettingsRecord) -> Result<bool, String> {
+        Err("Web access runtime status is unavailable".to_owned())
+    }
 }
 
 pub trait SecurityPasswordPort: Send + Sync {
@@ -195,6 +205,37 @@ impl SecuritySettingsService {
             return Ok(false);
         }
         Ok(verify_argon2id(record.password_hash(), password))
+    }
+
+    /// Applies the persisted security record to an attached runtime during
+    /// composition startup. This does not mutate settings; a bind failure is
+    /// returned so the caller can abort startup before exposing the API.
+    pub fn apply_runtime(&self) -> Result<(), SecuritySettingsError> {
+        let record = self.record()?;
+        let Some(runtime) = &self.runtime else {
+            return Ok(());
+        };
+        runtime
+            .apply(&record)
+            .map_err(|message| SecuritySettingsError::Runtime { message })
+    }
+
+    /// Returns the persisted Web access flag and the attached runtime's live
+    /// serving state. A missing runtime is deliberately reported as
+    /// unavailable rather than as an optimistic `true`.
+    pub fn web_access_projection(&self) -> Result<(bool, bool), SecuritySettingsError> {
+        let record = self.record()?;
+        let enabled = record.web_access_enabled();
+        let runtime = self
+            .runtime
+            .as_ref()
+            .ok_or_else(|| SecuritySettingsError::Runtime {
+                message: "Web access runtime is unavailable".to_owned(),
+            })?;
+        let available = runtime
+            .status(&record)
+            .map_err(|message| SecuritySettingsError::Runtime { message })?;
+        Ok((enabled, available))
     }
 
     pub fn save(

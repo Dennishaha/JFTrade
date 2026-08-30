@@ -106,7 +106,10 @@ struct CanonicalComboIntent {
     rfq_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mvc: Option<String>,
-    #[serde(rename = "underlyingInstrumentId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "underlyingInstrumentId",
+        skip_serializing_if = "Option::is_none"
+    )]
     underlying_instrument_id: Option<String>,
     #[serde(rename = "optionStrategy", skip_serializing_if = "Option::is_none")]
     option_strategy: Option<String>,
@@ -343,8 +346,8 @@ fn canonical_combo_legs(
                         format!("combo leg {index} ratio must be a positive integer"),
                     )
                 })?;
-            let prediction_side = optional_string(object, "predictionSide")
-                .map(|value| value.to_ascii_uppercase());
+            let prediction_side =
+                optional_string(object, "predictionSide").map(|value| value.to_ascii_uppercase());
             if prediction_side
                 .as_deref()
                 .is_some_and(|value| value != "YES" && value != "NO")
@@ -373,13 +376,8 @@ fn required_string(
     object: &serde_json::Map<String, Value>,
     key: &str,
 ) -> Result<String, ExecutionWritePortError> {
-    optional_string(object, key).ok_or_else(|| {
-        failed(
-            400,
-            "BAD_REQUEST",
-            format!("{key} is required"),
-        )
-    })
+    optional_string(object, key)
+        .ok_or_else(|| failed(400, "BAD_REQUEST", format!("{key} is required")))
 }
 
 fn optional_string(object: &serde_json::Map<String, Value>, key: &str) -> Option<String> {
@@ -401,19 +399,11 @@ fn optional_number(
     if value.is_null() {
         return Ok(None);
     }
-    let number = value.as_f64().ok_or_else(|| {
-        failed(
-            400,
-            "BAD_REQUEST",
-            format!("{key} must be a number"),
-        )
-    })?;
+    let number = value
+        .as_f64()
+        .ok_or_else(|| failed(400, "BAD_REQUEST", format!("{key} must be a number")))?;
     if !number.is_finite() {
-        return Err(failed(
-            400,
-            "BAD_REQUEST",
-            format!("{key} must be finite"),
-        ));
+        return Err(failed(400, "BAD_REQUEST", format!("{key} must be finite")));
     }
     Ok(Some(GoNumber(number)))
 }
@@ -425,11 +415,9 @@ fn optional_timestamp(
     let Some(value) = optional_string(object, key) else {
         return Ok(None);
     };
-    let parsed = time::OffsetDateTime::parse(
-        &value,
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|error| failed(400, "BAD_REQUEST", format!("{key} is invalid: {error}")))?;
+    let parsed =
+        time::OffsetDateTime::parse(&value, &time::format_description::well_known::Rfc3339)
+            .map_err(|error| failed(400, "BAD_REQUEST", format!("{key} is invalid: {error}")))?;
     parsed
         .format(&time::format_description::well_known::Rfc3339)
         .map(Some)

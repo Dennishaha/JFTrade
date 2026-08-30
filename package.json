@@ -91,6 +91,7 @@
     "test:rust:stage8:differential": "node scripts/rust-migration/check-stage8-differential.mjs",
     "report:rust:stage9:closeout": "node scripts/rust-migration/check-stage9-closeout.mjs",
     "check:rust:stage9:closeout": "node scripts/rust-migration/check-stage9-closeout.mjs --check",
+    "check:desktop:release-policy": "node scripts/check-desktop-release-policy.mjs --publish",
     "test:rust:stage9:product-differential": "node scripts/rust-migration/check-stage9-product-differential.mjs",
     "test:rust:stage9:route-coverage": "node scripts/rust-migration/check-stage9-route-coverage.mjs",
     "test:servercore": "go test ./internal/app/apiserver/servercore -count=1 -timeout 120s",

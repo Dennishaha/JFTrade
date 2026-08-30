@@ -1,6 +1,7 @@
 //! Explicit unavailable adapters for optional external integrations.
 
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::product::product_market_data_provider_actions_port::{
     MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
@@ -35,6 +36,7 @@ use crate::product::{
     RemoteWatchlistSnapshotError, RemoteWatchlistSnapshotPort, ResearchReadSnapshotError,
     ResearchReadSnapshotPort, WsLiveSnapshotPort,
 };
+use jftrade_api::{LiveHub, LiveHubLifecycle};
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -184,10 +186,20 @@ impl StrategyPineAnalyzeSnapshotPort for ProductionUnavailablePort {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct ProductionWsLivePort;
+pub(crate) struct ProductionWsLivePort {
+    live_hub: Option<Arc<LiveHub>>,
+}
+
+impl ProductionWsLivePort {
+    pub(crate) fn new(live_hub: Option<Arc<LiveHub>>) -> Self {
+        Self { live_hub }
+    }
+}
 
 impl WsLiveSnapshotPort for ProductionWsLivePort {
     fn enabled(&self) -> bool {
-        true
+        self.live_hub
+            .as_ref()
+            .is_some_and(|hub| hub.lifecycle() == LiveHubLifecycle::Serving)
     }
 }

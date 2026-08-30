@@ -23,17 +23,18 @@ const (
 )
 
 var (
-	ErrWebAccessPasswordRequired = errors.New("a Web access password is required before Web access can be enabled")
-	ErrWebAccessPasswordTooShort = errors.New("web access password must contain at least 15 characters")
-	ErrWebAccessPasswordTooLong  = errors.New("web access password must contain at most 1024 bytes")
-	ErrWebAccessPortInvalid      = errors.New("web access port must be between 1024 and 65535")
-	ErrWebAccessRuntimeUpdate    = errors.New("could not apply Web access listener settings")
-	ErrMCPServerPortInvalid      = errors.New("MCP server port must be between 1024 and 65535")
-	ErrMCPServerAuthModeInvalid  = errors.New("MCP server auth mode must be token or none")
-	ErrMCPServerTokenRequired    = errors.New("an MCP server token is required before token authentication can be enabled")
-	ErrMCPServerRuntimeUpdate    = errors.New("could not apply MCP server listener settings")
-	ErrMCPServerStoreUnavailable = errors.New("MCP server settings store is unavailable")
-	ErrNotificationUnavailable   = errors.New("notification publisher is unavailable")
+	ErrWebAccessPasswordRequired   = errors.New("a Web access password is required before Web access can be enabled")
+	ErrWebAccessPasswordTooShort   = errors.New("web access password must contain at least 15 characters")
+	ErrWebAccessPasswordTooLong    = errors.New("web access password must contain at most 1024 bytes")
+	ErrWebAccessPortInvalid        = errors.New("web access port must be between 1024 and 65535")
+	ErrWebAccessRuntimeUpdate      = errors.New("could not apply Web access listener settings")
+	ErrMCPServerPortInvalid        = errors.New("MCP server port must be between 1024 and 65535")
+	ErrMCPServerAuthModeInvalid    = errors.New("MCP server auth mode must be token or none")
+	ErrMCPServerTokenRequired      = errors.New("an MCP server token is required before token authentication can be enabled")
+	ErrMCPServerRuntimeUpdate      = errors.New("could not apply MCP server listener settings")
+	ErrMCPServerRuntimeUnavailable = errors.New("MCP server manager is unavailable")
+	ErrMCPServerStoreUnavailable   = errors.New("MCP server settings store is unavailable")
+	ErrNotificationUnavailable     = errors.New("notification publisher is unavailable")
 )
 
 // Store 是 settings 持久化层接口，由应用装配层注入具体实现。
@@ -393,8 +394,21 @@ func (s *Service) GetMCPServerSettingsSnapshot() jfsettings.MCPServerSettingsSna
 	status := jfsettings.MCPServerStatus{
 		Endpoint: fmt.Sprintf("http://127.0.0.1:%d/mcp", settings.Port),
 	}
-	if s.mcpStatus != nil {
+	if s == nil || s.mcpStatus == nil {
+		// No status callback is the rehearsal/compatibility path.  Keep its
+		// historical stopped snapshot; production composition installs a
+		// callback (which can then fail closed for enabled settings).
+	} else {
 		status = s.mcpStatus()
+		// A callback that reports an enabled listener as stopped without an
+		// error is not an intentional disabled state. Surface it as unavailable
+		// so the settings route can fail closed instead of returning 200.
+		if settings.Enabled && !status.Running && status.LastError == "" {
+			status.LastError = ErrMCPServerRuntimeUnavailable.Error()
+		}
+		if settings.Enabled && status.Endpoint == "" {
+			status.Endpoint = fmt.Sprintf("http://127.0.0.1:%d/mcp", settings.Port)
+		}
 	}
 	return jfsettings.MCPServerSettingsSnapshot{Settings: settings, Status: status}
 }

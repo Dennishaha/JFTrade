@@ -12,6 +12,9 @@ use serde::de::Deserialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
 
+#[path = "product_adk_mutation_port_parse.rs"]
+mod parse;
+
 pub const ADK_MUTATION_ROUTES: [(&str, &str); 37] = [
     ("DELETE", "/api/v1/adk/agents/{agentId}"),
     ("DELETE", "/api/v1/adk/memory/{memoryId}"),
@@ -170,7 +173,7 @@ pub fn dispatch_adk_mutation(
     timestamp: &str,
 ) -> AdkMutationResponse {
     let (path, _) = split_path_query(&request.path);
-    let input = match parse_input(
+    let input = match parse::parse_input(
         request.method.as_str(),
         path,
         request.body.as_deref(),
@@ -219,35 +222,6 @@ struct ErrorSpec {
     status: u16,
     code: String,
     message: String,
-}
-
-fn parse_input(
-    method: &str,
-    path: &str,
-    body: Option<&[u8]>,
-    headers: &BTreeMap<String, String>,
-) -> Result<AdkMutationInput, ErrorSpec> {
-    let (operation, identifiers) = parse_route(method, path)?;
-    let body = if accepts_workflow_inputs(operation) {
-        parse_workflow_inputs(body)?
-    } else if ignores_body(operation) {
-        Value::Object(Map::new())
-    } else {
-        parse_object_body(
-            body,
-            body_required(operation),
-            body_error_message(operation),
-        )?
-    };
-    let webhook_secret = (operation == AdkMutationOperation::RunWorkflowWebhook)
-        .then(|| webhook_secret(headers))
-        .flatten();
-    Ok(AdkMutationInput {
-        operation,
-        identifiers,
-        body,
-        webhook_secret,
-    })
 }
 
 fn parse_route(
@@ -701,6 +675,10 @@ fn parse_object_body(
     };
     let mut decoder = serde_json::Deserializer::from_slice(body);
     let value = Value::deserialize(&mut decoder).map_err(|_| bad_request_spec(message))?;
+    // `Value::deserialize` intentionally stops after the first JSON value.
+    // The HTTP boundary must reject a second value instead of silently
+    // accepting `{"..."} {"..."}` as a valid mutation request.
+    decoder.end().map_err(|_| bad_request_spec(message))?;
     match value {
         Value::Null => Ok(Value::Object(Map::new())),
         Value::Object(object) => Ok(Value::Object(object)),
@@ -714,6 +692,9 @@ fn parse_workflow_inputs(body: Option<&[u8]>) -> Result<Value, ErrorSpec> {
     };
     let mut decoder = serde_json::Deserializer::from_slice(body);
     let value = Value::deserialize(&mut decoder)
+        .map_err(|_| bad_request_spec("invalid workflow inputs"))?;
+    decoder
+        .end()
         .map_err(|_| bad_request_spec("invalid workflow inputs"))?;
     let Value::Object(object) = value else {
         return if value.is_null() {

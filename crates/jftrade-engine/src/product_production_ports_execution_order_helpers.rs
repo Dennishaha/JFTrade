@@ -1,12 +1,12 @@
 //! Helpers for production execution adapters.
 
-use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
-use jftrade_store_sqlite::{ExecutionOrderStoreError, StoredExecutionOrder};
-use jftrade_integration_futu::TradeSessionError;
-use serde_json::{Value, json};
 use crate::product::product_brokers_write_port::BrokersWritePortError;
 use crate::product::product_execution_write_port::ExecutionWritePortError;
+use jftrade_integration_futu::TradeSessionError;
+use jftrade_store_sqlite::{ExecutionOrderStoreError, StoredExecutionOrder};
+use serde_json::{Value, json};
+use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
 
 pub(crate) fn header_from_order(
     order: &StoredExecutionOrder,
@@ -43,9 +43,7 @@ pub(crate) fn merge_query(
     Value::Object(object)
 }
 
-pub(crate) fn order_value(
-    order: &StoredExecutionOrder,
-) -> Result<Value, ExecutionWritePortError> {
+pub(crate) fn order_value(order: &StoredExecutionOrder) -> Result<Value, ExecutionWritePortError> {
     let mut value = json!({
         "internalOrderId": order.internal_order_id,
         "brokerId": order.broker_id,
@@ -91,7 +89,10 @@ pub(crate) fn order_value(
             Value::String(order.normalized_request.clone()),
         );
     }
-    if matches!(order.order_kind.trim().to_ascii_lowercase().as_str(), "option_combo" | "event_parlay") {
+    if matches!(
+        order.order_kind.trim().to_ascii_lowercase().as_str(),
+        "option_combo" | "event_parlay"
+    ) {
         let legs = normalized_legs_from_request(&order.normalized_request, order)?;
         if let Some(object) = value.as_object_mut() {
             object.insert("legs".to_owned(), Value::Array(legs));
@@ -115,16 +116,13 @@ fn normalized_legs_from_request(
             format!("stored normalized request is invalid JSON: {error}"),
         )
     })?;
-    let legs = value
-        .get("legs")
-        .and_then(Value::as_array)
-        .ok_or_else(|| {
-            failed(
-                500,
-                "EXECUTION_ORDER_DATA_INVALID",
-                "stored combo order is missing legs",
-            )
-        })?;
+    let legs = value.get("legs").and_then(Value::as_array).ok_or_else(|| {
+        failed(
+            500,
+            "EXECUTION_ORDER_DATA_INVALID",
+            "stored combo order is missing legs",
+        )
+    })?;
     if legs.len() < 2 {
         return Err(failed(
             500,
@@ -218,39 +216,39 @@ fn normalized_legs_from_request(
                     format!("stored combo leg {index} has invalid ratio"),
                 )
             })?;
-            let id = format!("{}-leg-{:03}", order.internal_order_id, index + 1);
-            let mut projected = json!({
-                "id": id,
-                "internalOrderId": order.internal_order_id,
-                "index": index,
-                "instrumentId": instrument,
-                "productClass": product_class,
-                "side": side,
-                "ratio": ratio,
-                "status": order.status,
-                "filledQuantity": Value::Null,
-                "filledAmount": Value::Null,
-                "averagePrice": Value::Null,
-                "fees": Value::Null,
-                "payout": Value::Null,
-                "updatedAt": order.updated_at,
-                "createdAt": order.created_at,
-            });
-            if let Some(value) = object.get("predictionSide")
-                && !value.is_null()
-            {
-                projected["predictionSide"] = value.clone();
+        let id = format!("{}-leg-{:03}", order.internal_order_id, index + 1);
+        let mut projected = json!({
+            "id": id,
+            "internalOrderId": order.internal_order_id,
+            "index": index,
+            "instrumentId": instrument,
+            "productClass": product_class,
+            "side": side,
+            "ratio": ratio,
+            "status": order.status,
+            "filledQuantity": Value::Null,
+            "filledAmount": Value::Null,
+            "averagePrice": Value::Null,
+            "fees": Value::Null,
+            "payout": Value::Null,
+            "updatedAt": order.updated_at,
+            "createdAt": order.created_at,
+        });
+        if let Some(value) = object.get("predictionSide")
+            && !value.is_null()
+        {
+            projected["predictionSide"] = value.clone();
+        }
+        for (from, to) in [
+            ("quantity", "requestedQuantity"),
+            ("amount", "requestedAmount"),
+            ("price", "requestedPrice"),
+        ] {
+            if let Some(value) = object.get(from) {
+                projected[to] = value.clone();
             }
-            for (from, to) in [
-                ("quantity", "requestedQuantity"),
-                ("amount", "requestedAmount"),
-                ("price", "requestedPrice"),
-            ] {
-                if let Some(value) = object.get(from) {
-                    projected[to] = value.clone();
-                }
-            }
-            projected_legs.push(projected);
+        }
+        projected_legs.push(projected);
     }
     Ok(projected_legs)
 }
@@ -261,10 +259,12 @@ pub(crate) fn value_identifier(value: Option<&Value>) -> Option<String> {
             let value = value.trim();
             (!value.is_empty()).then(|| value.to_owned())
         }
-        Some(Value::Number(value)) => value
-            .as_u64()
-            .map(|value| value.to_string())
-            .or_else(|| value.as_i64().filter(|value| *value >= 0).map(|value| value.to_string())),
+        Some(Value::Number(value)) => value.as_u64().map(|value| value.to_string()).or_else(|| {
+            value
+                .as_i64()
+                .filter(|value| *value >= 0)
+                .map(|value| value.to_string())
+        }),
         _ => None,
     }
 }
@@ -275,7 +275,10 @@ pub(crate) struct CancelInFlightGuard {
 }
 
 impl CancelInFlightGuard {
-    pub(crate) fn acquire(ids: Arc<Mutex<BTreeSet<String>>>, id: &str) -> Result<Self, ExecutionWritePortError> {
+    pub(crate) fn acquire(
+        ids: Arc<Mutex<BTreeSet<String>>>,
+        id: &str,
+    ) -> Result<Self, ExecutionWritePortError> {
         let mut guard = ids
             .lock()
             .map_err(|_| failed(500, "EXECUTION_LOCK_ERROR", "cancel lock is poisoned"))?;
@@ -344,7 +347,11 @@ pub(crate) fn parse_product_rule_request(
         .trim()
         .to_ascii_uppercase();
     let market = instrument
-        .and_then(|value| value.get("tradeMarket").or_else(|| value.get("quoteMarket")))
+        .and_then(|value| {
+            value
+                .get("tradeMarket")
+                .or_else(|| value.get("quoteMarket"))
+        })
         .and_then(Value::as_str)
         .or_else(|| object.get("market").and_then(Value::as_str))
         .unwrap_or("US")
@@ -367,10 +374,10 @@ pub(crate) fn parse_product_rule_request(
     })
 }
 
-pub(crate) fn product_rule_rejection(request: &ProductRuleRequest) -> Option<(&'static str, &'static str)> {
-    if request.order_kind == "event_single"
-        && request.product_class != "event_contract"
-    {
+pub(crate) fn product_rule_rejection(
+    request: &ProductRuleRequest,
+) -> Option<(&'static str, &'static str)> {
+    if request.order_kind == "event_single" && request.product_class != "event_contract" {
         return Some((
             "PRODUCT_MISMATCH",
             "event order requires an event-contract instrument",
@@ -383,11 +390,11 @@ pub(crate) fn product_rule_rejection(request: &ProductRuleRequest) -> Option<(&'
                 "prediction contracts trade in the US market",
             ));
         }
-        if request.amount.is_none_or(|value| !value.is_finite() || value <= 0.0) {
-            return Some((
-                "INVALID_AMOUNT",
-                "event-contract amount must be positive",
-            ));
+        if request
+            .amount
+            .is_none_or(|value| !value.is_finite() || value <= 0.0)
+        {
+            return Some(("INVALID_AMOUNT", "event-contract amount must be positive"));
         }
         if request
             .price
@@ -434,7 +441,13 @@ pub(crate) fn product_rule_rejection(request: &ProductRuleRequest) -> Option<(&'
 pub(crate) fn is_terminal_status(status: &str) -> bool {
     matches!(
         status.trim().to_ascii_uppercase().as_str(),
-        "FILLED" | "CANCELLED" | "CANCELED" | "REJECTED" | "EXPIRED" | "FAILED" | "PRECHECK_REJECTED"
+        "FILLED"
+            | "CANCELLED"
+            | "CANCELED"
+            | "REJECTED"
+            | "EXPIRED"
+            | "FAILED"
+            | "PRECHECK_REJECTED"
     )
 }
 
@@ -442,7 +455,9 @@ pub(crate) fn store_error(error: impl std::fmt::Display) -> ExecutionWritePortEr
     failed(500, "EXECUTION_STORE_ERROR", error.to_string())
 }
 
-pub(crate) fn map_transition_store_error(error: ExecutionOrderStoreError) -> ExecutionWritePortError {
+pub(crate) fn map_transition_store_error(
+    error: ExecutionOrderStoreError,
+) -> ExecutionWritePortError {
     match error {
         ExecutionOrderStoreError::Conflict(message) => {
             failed(409, "EXECUTION_ORDER_CONFLICT", message)
@@ -500,9 +515,9 @@ pub(crate) fn broker_error(error: ExecutionWritePortError) -> BrokersWritePortEr
 pub(crate) fn execution_error_details(error: &ExecutionWritePortError) -> (String, Option<String>) {
     match error {
         ExecutionWritePortError::Unavailable(message) => (message.clone(), None),
-        ExecutionWritePortError::Failed {
-            code, message, ..
-        } => (message.clone(), Some(code.clone())),
+        ExecutionWritePortError::Failed { code, message, .. } => {
+            (message.clone(), Some(code.clone()))
+        }
     }
 }
 

@@ -9,10 +9,8 @@ use jftrade_integration_futu::{
 use jftrade_store_sqlite::StoredExecutionOrderPreview;
 use serde_json::{Value, json};
 
-use super::execution_order_helpers::{
-    parse_product_rule_request, product_rule_rejection,
-};
 use super::execution_order_hash::preview_request_hash;
+use super::execution_order_helpers::{parse_product_rule_request, product_rule_rejection};
 use super::execution_order_parse::{
     ParsedCombo, ParsedOrder, market_label, order_type_label, parse_order, quote_market_label,
     sec_market, side_label,
@@ -24,15 +22,11 @@ impl ProductionExecutionPort {
     /// max-trade-quantity snapshot.  The snapshot is intentionally not exposed
     /// on the public wire shape; it is the external evidence that makes the
     /// preview safe to consume later.
-    pub(super) fn order_preview(
-        &self,
-        payload: &Value,
-    ) -> Result<Value, ExecutionWritePortError> {
+    pub(super) fn order_preview(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
         // Order previews use the same normalization/validation boundary as
         // placement.  In particular, a missing quantity must remain invalid
         // (the buying-power query has its own optional quantity semantics).
-        let parsed = parse_order(payload)
-            .map_err(|message| failed(400, "BAD_REQUEST", message))?;
+        let parsed = parse_order(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
         if requires_locked_preview(&parsed) && parsed.client_order_id.is_none() {
             return Err(failed(
                 400,
@@ -96,7 +90,8 @@ impl ProductionExecutionPort {
             "previewValid": true,
         });
         if let Some(prediction_side) = parsed.prediction_side {
-            response["predictionSide"] = Value::String(prediction_side_label(prediction_side).to_owned());
+            response["predictionSide"] =
+                Value::String(prediction_side_label(prediction_side).to_owned());
         }
         Ok(response)
     }
@@ -135,11 +130,8 @@ impl ProductionExecutionPort {
         self.validate_option_combo_legality(payload, &parsed)?;
         let maximum = self.read_combo_max_trade_quantity(&parsed)?;
         let now = crate::product::product_production_ports::provider_now_rfc3339();
-        let request_hash = preview_request_hash(
-            payload,
-            &parsed.order,
-            Some(canonical_combo_legs(&parsed)),
-        )?;
+        let request_hash =
+            preview_request_hash(payload, &parsed.order, Some(canonical_combo_legs(&parsed)))?;
         let preview_id = format!("preview-{}", &request_hash[..20]);
         let quote_expires_at = combo_quote_expires_at(payload)?;
         let expires_at = preview_expires_at(&now, quote_expires_at.as_deref())?;
@@ -216,7 +208,10 @@ impl ProductionExecutionPort {
             .unwrap_or_default()
             .trim()
             .to_ascii_lowercase();
-        if matches!(strategy_name.as_str(), "vertical" | "strangle" | "butterfly") {
+        if matches!(
+            strategy_name.as_str(),
+            "vertical" | "strangle" | "butterfly"
+        ) {
             if !runtime.option_strategy_spread_available() {
                 return Err(ExecutionWritePortError::Unavailable(
                     "Futu option strategy spread reader is unavailable".to_owned(),
@@ -275,7 +270,11 @@ impl ProductionExecutionPort {
                 "Futu option strategy reader failed: {error}"
             ))
         })?;
-        if !snapshot.items.iter().any(|item| same_option_strategy_legs(&item.multi_legs, &legs)) {
+        if !snapshot
+            .items
+            .iter()
+            .any(|item| same_option_strategy_legs(&item.multi_legs, &legs))
+        {
             return Err(failed(
                 400,
                 "ILLEGAL_OPTION_COMBINATION",
@@ -309,7 +308,10 @@ impl ProductionExecutionPort {
                 ))
             })?;
         let mut analysis = serde_json::Map::new();
-        analysis.insert("strategy".to_owned(), json!(option_strategy_name(snapshot.option_strategy)));
+        analysis.insert(
+            "strategy".to_owned(),
+            json!(option_strategy_name(snapshot.option_strategy)),
+        );
         for (key, value) in [
             ("bid", snapshot.bid1),
             ("ask", snapshot.ask1),
@@ -324,7 +326,10 @@ impl ProductionExecutionPort {
             }
         }
         if !snapshot.breakeven_points.is_empty() {
-            analysis.insert("breakevenPoints".to_owned(), json!(snapshot.breakeven_points));
+            analysis.insert(
+                "breakevenPoints".to_owned(),
+                json!(snapshot.breakeven_points),
+            );
         }
         Ok(Some(Value::Object(analysis)))
     }
@@ -434,11 +439,15 @@ fn combo_quote_expires_at(payload: &Value) -> Result<Option<String>, ExecutionWr
     let Some(value) = optional_text(payload, "quoteExpiresAt") else {
         return Ok(None);
     };
-    let parsed = time::OffsetDateTime::parse(
-        &value,
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|error| failed(400, "BAD_REQUEST", format!("quoteExpiresAt is invalid: {error}")))?;
+    let parsed =
+        time::OffsetDateTime::parse(&value, &time::format_description::well_known::Rfc3339)
+            .map_err(|error| {
+                failed(
+                    400,
+                    "BAD_REQUEST",
+                    format!("quoteExpiresAt is invalid: {error}"),
+                )
+            })?;
     parsed
         .format(&time::format_description::well_known::Rfc3339)
         .map(Some)
@@ -458,12 +467,11 @@ fn preview_expires_at(
         &time::format_description::well_known::Rfc3339,
     )
     .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
-    let fallback = time::OffsetDateTime::parse(
-        &default,
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
-    quote.min(fallback)
+    let fallback =
+        time::OffsetDateTime::parse(&default, &time::format_description::well_known::Rfc3339)
+            .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
+    quote
+        .min(fallback)
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))
 }
@@ -498,7 +506,12 @@ fn underlying_security(
         .and_then(Value::as_str)
         .unwrap_or(&parsed.order.symbol);
     let (market, code) = instrument.trim().rsplit_once('.').map_or_else(
-        || (market_label(parsed.order.header.trd_market), instrument.trim().to_owned()),
+        || {
+            (
+                market_label(parsed.order.header.trd_market),
+                instrument.trim().to_owned(),
+            )
+        },
         |(market, code)| (market.to_owned(), code.to_owned()),
     );
     let market = match market.trim().to_ascii_uppercase().as_str() {
@@ -514,14 +527,16 @@ fn underlying_security(
     };
     let code = code.trim().to_ascii_uppercase();
     if code.is_empty() {
-        return Err(failed(400, "BAD_REQUEST", "option combo underlying code is required"));
+        return Err(failed(
+            400,
+            "BAD_REQUEST",
+            "option combo underlying code is required",
+        ));
     }
     Ok((market, code))
 }
 
-fn option_strategy_legs(
-    parsed: &ParsedCombo,
-) -> Vec<jftrade_integration_futu::OptionStrategyLeg> {
+fn option_strategy_legs(parsed: &ParsedCombo) -> Vec<jftrade_integration_futu::OptionStrategyLeg> {
     parsed
         .legs
         .iter()
@@ -552,10 +567,7 @@ fn same_option_strategy_legs(
     if left.len() != right.len() {
         return false;
     }
-    let mut left = left
-        .iter()
-        .map(option_strategy_leg_key)
-        .collect::<Vec<_>>();
+    let mut left = left.iter().map(option_strategy_leg_key).collect::<Vec<_>>();
     let mut right = right
         .iter()
         .map(option_strategy_leg_key)
@@ -596,10 +608,7 @@ pub(super) fn canonical_combo_legs(parsed: &ParsedCombo) -> Value {
                 // instrument id but does not rewrite it to a market prefix.
                 // Preserve that exact public value (including SH/SZ and
                 // unqualified symbols) instead of the lossy OpenD market enum.
-                let raw = parsed
-                    .leg_payloads
-                    .get(index)
-                    .and_then(Value::as_object);
+                let raw = parsed.leg_payloads.get(index).and_then(Value::as_object);
                 let instrument = raw
                     .and_then(|object| {
                         ["instrumentId", "symbol", "code"]

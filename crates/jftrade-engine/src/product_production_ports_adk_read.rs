@@ -432,7 +432,7 @@ impl ProductionAdkPort {
 
     fn dynamic(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
         if let Some(id) = dynamic_id(path, "/api/v1/adk/optimization-tasks/", "") {
-            let Some(row) = self.store.get_optimization_task(id)? else {
+            let Some(row) = self.store.get_optimization_task(&id)? else {
                 return Err(not_found("optimization task not found"));
             };
             return Ok(AdkReadSnapshot::Json(payload(
@@ -446,10 +446,10 @@ impl ProductionAdkPort {
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/runs/", "/stream") {
-            return self.stream_snapshot(id, query);
+            return self.stream_snapshot(&id, query);
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/runs/", "") {
-            let Some(row) = self.store.get_run(id)? else {
+            let Some(row) = self.store.get_run(&id)? else {
                 return Err(not_found("run not found"));
             };
             return Ok(AdkReadSnapshot::Json(payload(
@@ -466,27 +466,38 @@ impl ProductionAdkPort {
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "/context") {
-            if self.store.get_session(id)?.is_none() {
+            let Some(session) = self.store.get_session(&id)? else {
                 return Err(not_found("session not found"));
-            }
-            if let Some(state) = self.store.get_session_context(id)? {
+            };
+            if let Some(state) = self.store.get_session_context(&id)? {
                 return Ok(AdkReadSnapshot::Json(payload(
                     &state.payload_json,
                     "session context",
-                    [("sessionId", id.into())],
+                    [("sessionId", id.clone())],
                 )?));
             }
-            return Err(AdkReadSnapshotError::Unavailable(
-                "session context is not persisted".to_owned(),
-            ));
+            // Older Go-owned databases may contain the session and transcript
+            // events but no context-state row.  Rebuild the same durable
+            // handoff projection used after compaction instead of returning a
+            // synthetic zero-boundary snapshot.
+            let events = self
+                .session_store
+                .list_events(&id)
+                .map_err(|error| AdkReadSnapshotError::Unavailable(error.to_string()))?;
+            return Ok(AdkReadSnapshot::Json(rebuild_context_snapshot(
+                &id,
+                &session.payload_json,
+                &events,
+                &self.store.list_handoff_segments(&id, true)?,
+            )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/sessions/", "") {
-            let Some(session) = self.store.get_session(id)? else {
+            let Some(session) = self.store.get_session(&id)? else {
                 return Err(not_found("session not found"));
             };
             let timeline = self
                 .session_store
-                .list_events(id)
+                .list_events(&id)
                 .map_err(|e| AdkReadSnapshotError::Unavailable(e.to_string()))?
                 .into_iter()
                 .enumerate()
@@ -512,13 +523,13 @@ impl ProductionAdkPort {
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let artifacts = self.artifact_store.list_session_artifacts(id).map_err(|e| AdkReadSnapshotError::Unavailable(e.to_string()))?.into_iter().map(|artifact| { let part: Value = serde_json::from_str(&artifact.part_json).map_err(|e| invalid_payload("artifact", e))?; Ok(json!({"appName": artifact.app_name, "userId": artifact.user_id, "sessionId": artifact.session_id, "fileName": artifact.file_name, "version": artifact.version, "part": part, "mimeType": artifact.mime_type, "customMetadata": artifact.custom_metadata_json.as_deref().map(serde_json::from_str::<Value>).transpose().map_err(|e| invalid_payload("artifact metadata", e))?, "createdAt": artifact.created_at, "updatedAt": artifact.updated_at})) }).collect::<Result<Vec<_>, AdkReadSnapshotError>>()?;
+            let artifacts = self.artifact_store.list_session_artifacts(&id).map_err(|e| AdkReadSnapshotError::Unavailable(e.to_string()))?.into_iter().map(|artifact| { let part: Value = serde_json::from_str(&artifact.part_json).map_err(|e| invalid_payload("artifact", e))?; Ok(json!({"appName": artifact.app_name, "userId": artifact.user_id, "sessionId": artifact.session_id, "fileName": artifact.file_name, "version": artifact.version, "part": part, "mimeType": artifact.mime_type, "customMetadata": artifact.custom_metadata_json.as_deref().map(serde_json::from_str::<Value>).transpose().map_err(|e| invalid_payload("artifact metadata", e))?, "createdAt": artifact.created_at, "updatedAt": artifact.updated_at})) }).collect::<Result<Vec<_>, AdkReadSnapshotError>>()?;
             return Ok(AdkReadSnapshot::Json(
-                json!({"session": session_entity_value(session)?, "timeline": timeline, "runs": runs, "artifacts": artifacts, "composerState": composer_state_value(id, self.store.get_session_composer_state(id)?)?}),
+                json!({"session": session_entity_value(session)?, "timeline": timeline, "runs": runs, "artifacts": artifacts, "composerState": composer_state_value(&id, self.store.get_session_composer_state(&id)?)?}),
             ));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/tasks/", "") {
-            let Some(row) = self.store.get_task(id)? else {
+            let Some(row) = self.store.get_task(&id)? else {
                 return Err(not_found("task not found"));
             };
             return Ok(AdkReadSnapshot::Json(payload(
@@ -535,12 +546,12 @@ impl ProductionAdkPort {
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/workflows/", "/triggers") {
-            if self.store.get_workflow(id)?.is_none() {
+            if self.store.get_workflow(&id)?.is_none() {
                 return Err(not_found("workflow not found"));
             }
             let values = self
                 .store
-                .list_workflow_triggers(id)?
+                .list_workflow_triggers(&id)?
                 .into_iter()
                 .map(|row| {
                     let deleted = is_deleted_payload(&row.payload_json, "workflow trigger")?;
@@ -568,7 +579,7 @@ impl ProductionAdkPort {
             return Ok(AdkReadSnapshot::Json(json!({"triggers": values})));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/workflows/", "") {
-            let Some(row) = self.store.get_workflow(id)? else {
+            let Some(row) = self.store.get_workflow(&id)? else {
                 return Err(not_found("workflow not found"));
             };
             if is_deleted_payload(&row.payload_json, "workflow")? {
@@ -586,7 +597,7 @@ impl ProductionAdkPort {
             )?));
         }
         if let Some(id) = dynamic_id(path, "/api/v1/adk/streams/", "") {
-            return self.stream_snapshot(id, query);
+            return self.stream_snapshot(&id, query);
         }
         Err(not_found("path not found"))
     }
@@ -639,6 +650,242 @@ impl ProductionAdkPort {
             events,
         }))
     }
+}
+
+/// Rebuild a context snapshot solely from durable session events and active
+/// handoff rows.  This path is used when a context-state projection predates
+/// the production store (or was interrupted before it could be written), so
+/// every persisted boundary is validated instead of being replaced by an
+/// empty/synthetic summary.
+fn rebuild_context_snapshot(
+    session_id: &str,
+    session_payload_json: &str,
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+    segments: &[jftrade_store_sqlite::StoredAdkHandoffSegment],
+) -> Result<Value, AdkReadSnapshotError> {
+    let session_payload: Value = serde_json::from_str(session_payload_json)
+        .map_err(|error| invalid_payload("session", error))?;
+    let context_window_tokens = session_payload
+        .get("contextWindowTokens")
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(0);
+
+    let mut current_revision = String::new();
+    for segment in segments {
+        let payload: Value = serde_json::from_str(&segment.payload_json)
+            .map_err(|error| invalid_payload("handoff segment", error))?;
+        if let Some(revision) = payload
+            .get("contextRevisionId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|revision| !revision.is_empty())
+        {
+            current_revision = revision.to_owned();
+        }
+    }
+    let mut active_segments = Vec::new();
+    for segment in segments {
+        let payload: Value = serde_json::from_str(&segment.payload_json)
+            .map_err(|error| invalid_payload("handoff segment", error))?;
+        let revision = payload
+            .get("contextRevisionId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .unwrap_or_default();
+        if current_revision.is_empty() || revision == current_revision {
+            active_segments.push((segment, payload));
+        }
+    }
+    active_segments.sort_by_key(|(segment, _)| {
+        (
+            segment.sequence,
+            segment.created_at.clone(),
+            segment.id.clone(),
+        )
+    });
+
+    let compacted_event_count = active_segments
+        .iter()
+        .filter_map(|(_, payload)| payload.get("endEventIndex").and_then(Value::as_u64))
+        .filter_map(|value| usize::try_from(value).ok())
+        .max()
+        .unwrap_or(0)
+        .min(events.len());
+    let summary = active_segments
+        .last()
+        .and_then(|(_, payload)| payload.get("summary").and_then(Value::as_str))
+        .map(str::trim)
+        .unwrap_or_default()
+        .to_owned();
+    let handoff_text = active_segments
+        .iter()
+        .filter_map(|(_, payload)| payload.get("summary").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let handoff_tokens =
+        estimate_context_tokens(&format!("Session handoff summaries:\n{handoff_text}"));
+    let raw_event_tokens = events
+        .iter()
+        .map(|event| estimate_context_tokens(&event.content))
+        .sum::<usize>();
+    let effective_event_tokens = events
+        .iter()
+        .skip(compacted_event_count)
+        .map(|event| estimate_context_tokens(&event.content))
+        .sum::<usize>();
+    let current_input_tokens = handoff_tokens.saturating_add(effective_event_tokens);
+    let usage_ratio = if context_window_tokens == 0 {
+        0.0
+    } else {
+        current_input_tokens as f64 / context_window_tokens as f64
+    };
+    let recent_start = recent_context_event_start(events, 10);
+    let protected_start = protected_context_event_start(events);
+    let retained_start = compacted_event_count.max(recent_start).min(events.len());
+    let retained_end = protected_start.max(retained_start).min(events.len());
+    let retained_recent_count = events[retained_start..retained_end]
+        .iter()
+        .filter(|event| is_context_user_event(event))
+        .count();
+    let protected_recent_count = events[protected_start..]
+        .iter()
+        .filter(|event| is_context_user_event(event))
+        .count();
+    let recent_user_tokens = events[retained_start..retained_end]
+        .iter()
+        .map(|event| estimate_context_tokens(&event.content))
+        .sum::<usize>();
+    let protected_tail_tokens = events[protected_start..]
+        .iter()
+        .map(|event| estimate_context_tokens(&event.content))
+        .sum::<usize>();
+    let other_visible_tokens = events[compacted_event_count.min(recent_start)..recent_start]
+        .iter()
+        .map(|event| estimate_context_tokens(&event.content))
+        .sum::<usize>();
+    let revision_created_at = active_segments
+        .last()
+        .and_then(|(_, payload)| payload.get("createdAt").and_then(Value::as_str))
+        .unwrap_or_default();
+    let last_compacted_at = active_segments
+        .last()
+        .and_then(|(_, payload)| payload.get("updatedAt").and_then(Value::as_str))
+        .unwrap_or_default();
+    let last_mode = active_segments
+        .last()
+        .and_then(|(_, payload)| payload.get("mode").and_then(Value::as_str))
+        .unwrap_or_default();
+    let last_reason = active_segments
+        .last()
+        .and_then(|(_, payload)| payload.get("reason").and_then(Value::as_str))
+        .unwrap_or_default();
+    Ok(json!({
+        "sessionId": session_id,
+        "contextRevisionId": current_revision,
+        "contextRevisionCreatedAt": revision_created_at,
+        "currentInputTokens": current_input_tokens,
+        "projectedNextTurnTokens": current_input_tokens,
+        "estimatedInputTokens": current_input_tokens,
+        "rawCurrentInputTokens": raw_event_tokens,
+        "rawProjectedNextTurnTokens": raw_event_tokens,
+        "contextWindowTokens": context_window_tokens,
+        "usageRatio": usage_ratio,
+        "status": context_status_for_read(usage_ratio, context_window_tokens),
+        "recentUserWindow": 10,
+        "retainedRecentUserCount": retained_recent_count,
+        "protectedRecentCount": protected_recent_count,
+        "activeHandoffCount": active_segments.len(),
+        "latestHandoffPreview": summary,
+        "summaryPreview": summary,
+        "rawEventCount": events.len(),
+        "compactedEventCount": compacted_event_count,
+        "summaryBoundaryEventIndex": compacted_event_count,
+        "breakdown": {
+            "instructionTokens": 0,
+            "handoffTokens": handoff_tokens,
+            "recentUserTokens": recent_user_tokens,
+            "protectedTailTokens": protected_tail_tokens,
+            "otherVisibleTokens": other_visible_tokens,
+            "pendingUserTokens": 0,
+            "toolDeclarationTokens": 0,
+        },
+        "rawBreakdown": {
+            "instructionTokens": 0,
+            "handoffTokens": 0,
+            "recentUserTokens": raw_event_tokens,
+            "protectedTailTokens": 0,
+            "otherVisibleTokens": 0,
+            "pendingUserTokens": 0,
+            "toolDeclarationTokens": 0,
+        },
+        "lastCompactedAt": last_compacted_at,
+        "lastCompactionMode": last_mode,
+        "lastCompactionReason": last_reason,
+        "autoCompacted": false,
+        "degradedSummary": false,
+    }))
+}
+
+fn estimate_context_tokens(value: &str) -> usize {
+    let bytes = value.trim().len();
+    if bytes == 0 {
+        0
+    } else {
+        bytes.saturating_add(3) / 4
+    }
+}
+
+fn context_status_for_read(ratio: f64, window: usize) -> &'static str {
+    if window == 0 {
+        "unknown"
+    } else if ratio >= 0.93 {
+        "critical"
+    } else if ratio >= 0.85 {
+        "near_limit"
+    } else if ratio >= 0.70 {
+        "warning"
+    } else {
+        "healthy"
+    }
+}
+
+fn is_context_user_event(event: &jftrade_store_sqlite::StoredAdkEvent) -> bool {
+    event.author.trim().eq_ignore_ascii_case("user")
+        || event.author.to_ascii_lowercase().contains("user")
+}
+
+fn recent_context_event_start(
+    events: &[jftrade_store_sqlite::StoredAdkEvent],
+    window: usize,
+) -> usize {
+    let mut hits = 0;
+    for index in (0..events.len()).rev() {
+        if !is_context_user_event(&events[index]) {
+            continue;
+        }
+        hits += 1;
+        if hits >= window {
+            return index;
+        }
+    }
+    0
+}
+
+fn protected_context_event_start(events: &[jftrade_store_sqlite::StoredAdkEvent]) -> usize {
+    events
+        .iter()
+        .position(|event| {
+            let content = event.content.to_ascii_lowercase();
+            content.contains("approval")
+                || content.contains("pending_input")
+                || content.contains("pending approval")
+                || content.contains("awaiting_input")
+        })
+        .unwrap_or(events.len())
 }
 
 fn sanitize_provider(

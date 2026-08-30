@@ -326,36 +326,13 @@ pub(super) fn provider_activation(
                 if !is_helper_ready && previous == Some(MarketDataProvider::Futu) {
                     return Err("market-data helper is not ready".to_owned());
                 }
-                if previous == Some(MarketDataProvider::Futu)
-                    && let Some(opend) = runtime.take()
-                {
-                    trade_runtime_for_activation.clear();
-                    trade_runtime_for_activation.set_historical_klines(None);
-                    trade_runtime_for_activation.set_future_info(None);
-                    trade_runtime_for_activation.set_valuation_detail(None);
-                    trade_runtime_for_activation.set_security_snapshots(None);
-                    trade_runtime_for_activation.set_option_expirations(None);
-                    trade_runtime_for_activation.set_option_chains(None);
-                    trade_runtime_for_activation.set_option_screens(None);
-                    trade_runtime_for_activation.set_option_quotes(None);
-                    trade_runtime_for_activation.set_option_volatility(None);
-                    trade_runtime_for_activation.set_option_exercise_probability(None);
-                    trade_runtime_for_activation.set_option_underlying_overview(None);
-                    trade_runtime_for_activation.set_option_underlying_his_volatility(None);
-                    trade_runtime_for_activation.set_option_market_statistic(None);
-                    trade_runtime_for_activation.set_option_underlying_his_statistic(None);
-                    trade_runtime_for_activation.set_option_strategy_spread(None);
-                    trade_runtime_for_activation.set_option_strategy(None);
-                    trade_runtime_for_activation.set_option_strategy_analysis(None);
-                    trade_runtime_for_activation.set_option_underlying_rank(None);
-                    trade_runtime_for_activation.set_option_contract_rank(None);
-                    trade_runtime_for_activation.set_option_events(None);
-                    trade_runtime_for_activation.set_option_zero_dte_screener(None);
-                    trade_runtime_for_activation.set_option_earnings_screener(None);
-                    trade_runtime_for_activation.set_option_zero_dte_contract(None);
-                    trade_runtime_for_activation.set_option_seller_screener(None);
-                    opend.shutdown().map_err(|error| error.to_string())?;
-                }
+                // OpenD is also the authenticated Futu trade owner.  Keep it
+                // alive while helper-backed market data is active so account,
+                // order, history, fill and fee reconciliation can continue.
+                // The active-provider snapshot gates market-data routes, while
+                // the execution reconciliation port reads this independent
+                // trade runtime.  The production shutdown supervisor remains
+                // the sole owner responsible for closing it.
             }
         }
         Ok(())

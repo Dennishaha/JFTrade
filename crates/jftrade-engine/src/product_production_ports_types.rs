@@ -4,6 +4,8 @@ use std::sync::Arc;
 use jftrade_api::WebSessionValidator;
 use jftrade_calendar::CalendarManager;
 use jftrade_settings::MarketDataProvider;
+use jftrade_store_sqlite::AdkStore;
+use jftrade_store_settings_file::SettingsFileStore;
 use serde_json::Value;
 
 use super::product_backtest_sync_registry::BacktestSyncWorkerRegistry;
@@ -319,6 +321,11 @@ fn validate_alert_payload(
 #[derive(Clone)]
 pub(crate) struct ProductionPortBundle {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    /// Settings file handle opened by the production composition.  Keeping
+    /// this concrete handle in the bundle lets route installation proof be
+    /// derived from the adapters that were actually constructed rather than
+    /// from a separate hand-maintained list.
+    pub(crate) settings_store: Arc<SettingsFileStore>,
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) database_leases: ProductionDatabaseLeaseSnapshot,
     pub database_lease_status: &'static str,
@@ -393,9 +400,77 @@ pub(crate) struct ProductionPortBundle {
     pub(crate) trade_logged_in: Option<bool>,
     #[allow(dead_code)]
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    /// Concrete ADK catalog/store used by the production MCP listener. The
+    /// listener is assembled at the composition root and shuts down before
+    /// this bundle releases its SQLite leases.
+    pub(crate) mcp_catalog: Arc<super::ProductionToolCatalog>,
+    pub(crate) mcp_store: Arc<AdkStore>,
 }
 
 impl ProductionPortBundle {
+    /// Derive the route-adapter installation proof from the concrete ports in
+    /// this bundle.  Readiness is deliberately kept separate: a concrete
+    /// adapter can be installed while its external Provider/OpenD dependency
+    /// is unavailable and therefore projects `ExternalUnavailable`.
+    pub(crate) fn derive_installed_adapters(&self) -> BTreeSet<ProductionRouteAdapter> {
+        let mut adapters = BTreeSet::new();
+        macro_rules! register_port {
+            ($port:expr, $($adapter:ident),+ $(,)?) => {{
+                let _ = &$port;
+                adapters.extend([$(ProductionRouteAdapter::$adapter),+]);
+            }};
+        }
+
+        register_port!(self.settings_store, Settings, SystemCore);
+        register_port!(self.database_leases, DataManagement);
+        register_port!(self.auth_session, AuthSessionRead);
+        register_port!(self.auth_session_write, AuthSessionWrite);
+        register_port!(self.system_read, SystemRead);
+        register_port!(self.system_write, SystemOpenDWrite, RealTradeControlWrite);
+        register_port!(self.calendar_manager, Calendar);
+        register_port!(self.watchlist_memberships, WatchlistMemberships);
+        register_port!(self.watchlist, WatchlistRead);
+        register_port!(self.watchlist_write, WatchlistWrite);
+        register_port!(self.remote_watchlist, RemoteWatchlistRead, RemoteWatchlistWrite);
+        register_port!(self.strategy_definition, StrategyDefinitionRead, StrategyDefinitionWrite);
+        register_port!(self.strategy_read, StrategyRuntimeRead);
+        register_port!(self.strategy_runtime_status, StrategyRuntimeRead);
+        register_port!(self.strategy_runtime_write, StrategyRuntimeWrite);
+        register_port!(self.strategy_pine_analyze, StrategyPine);
+        register_port!(self.research_read, ResearchRead, ResearchRankingsRead, ResearchIndustriesRead, ResearchCalendarRead, ResearchMacroRead);
+        register_port!(self.research_preset_read, ResearchPresetRead);
+        register_port!(self.research_preset_write, ResearchPresetWrite);
+        register_port!(self.research_screen_write, ResearchCatalog, ResearchScreenWrite);
+        register_port!(self.backtest_read, BacktestRead);
+        register_port!(self.backtest_sync, BacktestSyncRead);
+        register_port!(self.backtests_write, BacktestStart, BacktestDelete, BacktestSyncStart, BacktestSyncCancel);
+        register_port!(self.execution_read, ExecutionRead);
+        register_port!(self.execution_write, ExecutionWrite);
+        register_port!(self.broker, BrokerRead);
+        register_port!(self.brokers_write, BrokerWrite);
+        register_port!(self.portfolio, PortfolioRead);
+        register_port!(self.provider, MarketDataProviderRead);
+        register_port!(self.catalog, MarketDataMarketsRead, MarketDataSearchRead);
+        register_port!(self.market_data_quote, MarketDataSubscriptionRead, MarketDataSecuritiesRead, MarketDataSnapshotsRead, MarketDataCandlesRead, MarketDataDepthRead, MarketDataTicksRead, MarketDataBrokerQueueRead, MarketDataCapitalFlowRead, MarketDataIntradayRead, MarketDataProfileRead);
+        register_port!(self.market_data_derivative, MarketDataDerivativeRead, MarketDataFuturesRead);
+        register_port!(self.market_data_options, MarketDataOptionsRead, MarketDataOptionsChainRead, MarketDataOptionsExpirationsRead, MarketDataOptionsScreenRead, MarketDataOptionsAnalysisRead, MarketDataOptionsEventsRead, MarketDataOptionsUnusualRead, MarketDataOptionsZeroDteRead, MarketDataOptionsZeroDteContractRead, MarketDataOptionsEarningsRead, MarketDataOptionsSellerRead);
+        register_port!(self.market_data_news_actions, MarketDataNewsActionsRead);
+        register_port!(self.market_data_news_search, MarketDataNewsSearchRead);
+        register_port!(self.market_data_prediction, MarketDataPredictionRead);
+        register_port!(self.market_data_subscription_mutation, MarketDataSubscriptionAcquireWrite, MarketDataSubscriptionReleaseWrite, MarketDataSubscriptionClearWrite, MarketDataSubscriptionHeartbeatWrite, MarketDataPredictionSubscriptionAcquireWrite, MarketDataPredictionSubscriptionReleaseWrite);
+        register_port!(self.market_data_provider_actions, MarketDataInstrumentsNormalizeWrite, MarketDataBatchSnapshotsWrite, MarketDataOptionsAnalysisWrite, MarketDataZeroDteWrite, MarketDataPredictionCombosWrite);
+        register_port!(self.plugins, PluginsRead);
+        register_port!(self.plugin_write, PluginsWrite);
+        register_port!(self.plugin_guidance, PluginGuidanceRead);
+        register_port!(self.alert_snapshot, AlertsRead);
+        register_port!(self.alert_write, AlertsWrite);
+        register_port!(self.adk_read, AdkTemplatesRead, AdkRead);
+        register_port!(self.adk_mutation, AdkMutation);
+        register_port!(self.adk_chat_stream, AdkChat);
+        register_port!(self.ws_live, WebSocketLive);
+        adapters
+    }
+
     pub(crate) fn shutdown_strategy_runtime(&self) {
         self.strategy_runtime_manager.shutdown();
     }

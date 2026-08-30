@@ -64,7 +64,12 @@ func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 // @Router /api/v1/settings/adk/mcp [get]
 func handleMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		httpserver.WriteOK(c, svc.GetMCPServerSettingsSnapshot())
+		snapshot := svc.GetMCPServerSettingsSnapshot()
+		if !snapshot.Status.Running && snapshot.Status.LastError != "" {
+			httpserver.WriteError(c, http.StatusServiceUnavailable, "MCP_SERVER_UNAVAILABLE", snapshot.Status.LastError)
+			return
+		}
+		httpserver.WriteOK(c, snapshot)
 	}
 }
 
@@ -94,13 +99,22 @@ func handleSaveMCPServerSettings(svc *srv.Service) gin.HandlerFunc {
 				errors.Is(err, srv.ErrMCPServerTokenRequired) {
 				status = http.StatusBadRequest
 				code = "MCP_SERVER_SETTINGS_REJECTED"
+			} else if errors.Is(err, srv.ErrMCPServerRuntimeUpdate) ||
+				errors.Is(err, srv.ErrMCPServerRuntimeUnavailable) {
+				status = http.StatusBadGateway
+				code = "MCP_SERVER_RUNTIME_UNAVAILABLE"
 			}
 			httpserver.WriteError(c, status, code, err.Error())
 			return
 		}
+		snapshot := svc.GetMCPServerSettingsSnapshot()
+		if snapshot.Settings.Enabled && !snapshot.Status.Running && snapshot.Status.LastError != "" {
+			httpserver.WriteError(c, http.StatusServiceUnavailable, "MCP_SERVER_UNAVAILABLE", snapshot.Status.LastError)
+			return
+		}
 		httpserver.WriteOK(c, jfsettings.MCPServerSettingsSnapshot{
 			Settings: result,
-			Status:   svc.GetMCPServerSettingsSnapshot().Status,
+			Status:   snapshot.Status,
 		})
 	}
 }
@@ -116,12 +130,24 @@ func handleResetMCPServerToken(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		settings, token, err := svc.ResetMCPServerToken()
 		if err != nil {
-			httpserver.WriteError(c, http.StatusInternalServerError, "MCP_SERVER_TOKEN_RESET_FAILED", err.Error())
+			status := http.StatusInternalServerError
+			code := "MCP_SERVER_TOKEN_RESET_FAILED"
+			if errors.Is(err, srv.ErrMCPServerRuntimeUpdate) ||
+				errors.Is(err, srv.ErrMCPServerRuntimeUnavailable) {
+				status = http.StatusBadGateway
+				code = "MCP_SERVER_RUNTIME_UNAVAILABLE"
+			}
+			httpserver.WriteError(c, status, code, err.Error())
+			return
+		}
+		snapshot := svc.GetMCPServerSettingsSnapshot()
+		if !snapshot.Status.Running && snapshot.Status.LastError != "" {
+			httpserver.WriteError(c, http.StatusServiceUnavailable, "MCP_SERVER_UNAVAILABLE", snapshot.Status.LastError)
 			return
 		}
 		httpserver.WriteOK(c, jfsettings.MCPServerTokenResetResult{
 			Settings: settings,
-			Status:   svc.GetMCPServerSettingsSnapshot().Status,
+			Status:   snapshot.Status,
 			Token:    token,
 		})
 	}

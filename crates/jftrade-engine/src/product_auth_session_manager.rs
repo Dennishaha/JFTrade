@@ -12,17 +12,18 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::product::product_auth_session_write_port::{
-    AuthSessionWriteInput, AuthSessionWritePort, AuthSessionWritePortError,
-    AuthSessionWritePortResult,
+    AuthSessionRequestContext, AuthSessionWriteInput, AuthSessionWritePort,
+    AuthSessionWritePortError, AuthSessionWritePortResult,
 };
 use crate::product::{
     AuthSessionSnapshotError, AuthSessionSnapshotPort, AuthSessionSnapshotRequest,
 };
 
-const SESSION_TTL: Duration = Duration::from_secs(7 * 24 * 3600);
-const MAX_FAILED_ATTEMPTS: usize = 5;
-const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
-const RATE_LIMIT_LOCKOUT: Duration = Duration::from_secs(60);
+const SESSION_TTL: Duration = Duration::from_secs(12 * 3600);
+const MAX_FAILED_ATTEMPTS: usize = 8;
+const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(5 * 60);
+const MAX_LOGIN_ATTEMPTS: usize = 1024;
+const MAX_SESSIONS: usize = 128;
 const SESSION_STORE_VERSION: &str = "jftrade.web-sessions.v1";
 const SESSION_STORE_FILENAME: &str = "web-sessions.json";
 
@@ -44,9 +45,15 @@ struct StoredSessionDocument {
 #[derive(Clone, Debug)]
 pub struct ProductionAuthSessionManager {
     sessions: Arc<RwLock<BTreeMap<String, StoredSession>>>,
-    failed_attempts: Arc<Mutex<(usize, Instant)>>,
+    failed_attempts: Arc<Mutex<BTreeMap<String, LoginAttempt>>>,
     security: SecuritySettingsService,
     session_path: Arc<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LoginAttempt {
+    failures: usize,
+    window_start: Instant,
 }
 
 pub(crate) trait AuthSessionInvalidationPort: Send + Sync + std::fmt::Debug {
@@ -70,7 +77,7 @@ impl ProductionAuthSessionManager {
         sessions.retain(|_, session| !session_expired(session));
         let manager = Self {
             sessions: Arc::new(RwLock::new(sessions)),
-            failed_attempts: Arc::new(Mutex::new((0, Instant::now()))),
+            failed_attempts: Arc::new(Mutex::new(BTreeMap::new())),
             security,
             session_path: Arc::new(session_path),
         };
@@ -106,6 +113,58 @@ impl ProductionAuthSessionManager {
             .map_err(|_| "Web session state lock is poisoned".to_owned())?;
         persist_sessions(&self.session_path, &guard)
     }
+
+    fn valid_session(&self, session_cookie: &str) -> Option<StoredSession> {
+        self.sessions
+            .read()
+            .ok()
+            .and_then(|sessions| sessions.get(&token_hash(session_cookie)).cloned())
+            .filter(|session| !session_expired(session))
+    }
+
+    fn login_rate_limit_with_key(&self, key: &str) -> Option<AuthSessionWritePortError> {
+        let Ok(mut guard) = self.failed_attempts.lock() else {
+            return None;
+        };
+        let now = Instant::now();
+        prune_login_attempts(&mut guard, now);
+        let attempt = guard.get(key).copied()?;
+        if attempt.failures < MAX_FAILED_ATTEMPTS {
+            return None;
+        }
+        let retry_after =
+            RATE_LIMIT_WINDOW.saturating_sub(now.saturating_duration_since(attempt.window_start));
+        Some(AuthSessionWritePortError::RateLimited {
+            retry_after: retry_after.as_secs().max(1),
+            message: "too many failed login attempts".to_owned(),
+        })
+    }
+
+    fn record_login_failure(&self, key: &str) {
+        let Ok(mut guard) = self.failed_attempts.lock() else {
+            return;
+        };
+        let now = Instant::now();
+        prune_login_attempts(&mut guard, now);
+        if !guard.contains_key(key) && guard.len() >= MAX_LOGIN_ATTEMPTS {
+            evict_oldest_login_attempt(&mut guard);
+        }
+        let attempt = guard.entry(key.to_owned()).or_insert(LoginAttempt {
+            failures: 0,
+            window_start: now,
+        });
+        if now.saturating_duration_since(attempt.window_start) >= RATE_LIMIT_WINDOW {
+            attempt.failures = 0;
+            attempt.window_start = now;
+        }
+        attempt.failures = attempt.failures.saturating_add(1);
+    }
+
+    fn clear_login_failures(&self, key: &str) {
+        if let Ok(mut guard) = self.failed_attempts.lock() {
+            guard.remove(key);
+        }
+    }
 }
 
 impl AuthSessionInvalidationPort for ProductionAuthSessionManager {
@@ -116,11 +175,7 @@ impl AuthSessionInvalidationPort for ProductionAuthSessionManager {
 
 impl WebSessionValidator for ProductionAuthSessionManager {
     fn is_session_valid(&self, session_cookie: &str) -> bool {
-        self.sessions
-            .read()
-            .ok()
-            .and_then(|sessions| sessions.get(&token_hash(session_cookie)).cloned())
-            .is_some_and(|session| !session_expired(&session))
+        self.valid_session(session_cookie).is_some()
     }
 
     fn is_csrf_valid(&self, session_cookie: &str, csrf_header: &str) -> bool {
@@ -139,11 +194,11 @@ impl AuthSessionSnapshotPort for ProductionAuthSessionManager {
         &self,
         request: AuthSessionSnapshotRequest,
     ) -> Result<Value, AuthSessionSnapshotError> {
-        let browser_authenticated = request.browser_authenticated
-            && request
-                .session_cookie
-                .as_deref()
-                .is_some_and(|cookie| self.is_session_valid(cookie));
+        let session = request
+            .session_cookie
+            .as_deref()
+            .and_then(|cookie| self.valid_session(cookie));
+        let browser_authenticated = request.browser_authenticated && session.is_some();
         let authenticated = request.desktop_trusted || browser_authenticated;
         let csrf_token = if browser_authenticated {
             request
@@ -155,38 +210,53 @@ impl AuthSessionSnapshotPort for ProductionAuthSessionManager {
         } else {
             Value::Null
         };
+        let expires_at = if browser_authenticated {
+            session
+                .as_ref()
+                .map(|session| Value::String(format_rfc3339(session.expires_at_unix)))
+                .unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
 
         Ok(json!({
             "authenticated": authenticated,
             "desktop": request.desktop_trusted,
             "browser": browser_authenticated,
-            "csrfToken": csrf_token
+            "csrfToken": csrf_token,
+            "expiresAt": expires_at,
         }))
     }
 }
 
 impl AuthSessionWritePort for ProductionAuthSessionManager {
     fn login_rate_limit(&self) -> Option<AuthSessionWritePortError> {
-        if let Ok(guard) = self.failed_attempts.lock() {
-            let (count, last_attempt) = *guard;
-            if count >= MAX_FAILED_ATTEMPTS && last_attempt.elapsed() < RATE_LIMIT_LOCKOUT {
-                let remaining = RATE_LIMIT_LOCKOUT.saturating_sub(last_attempt.elapsed());
-                return Some(AuthSessionWritePortError::RateLimited {
-                    retry_after: remaining.as_secs().max(1),
-                    message: "too many failed login attempts".to_owned(),
-                });
-            }
-        }
-        None
+        self.login_rate_limit_with_key("unknown")
+    }
+
+    fn login_rate_limit_with_context(
+        &self,
+        context: &AuthSessionRequestContext,
+    ) -> Option<AuthSessionWritePortError> {
+        self.login_rate_limit_with_key(client_key(context))
     }
 
     fn mutate(
         &self,
         input: &AuthSessionWriteInput,
     ) -> Result<AuthSessionWritePortResult, AuthSessionWritePortError> {
+        self.mutate_with_context(input, &AuthSessionRequestContext::default())
+    }
+
+    fn mutate_with_context(
+        &self,
+        input: &AuthSessionWriteInput,
+        context: &AuthSessionRequestContext,
+    ) -> Result<AuthSessionWritePortResult, AuthSessionWritePortError> {
+        let client_key = client_key(context);
         match input {
             AuthSessionWriteInput::Login { password } => {
-                if let Some(rate_limit) = self.login_rate_limit() {
+                if let Some(rate_limit) = self.login_rate_limit_with_key(client_key) {
                     return Err(rate_limit);
                 }
 
@@ -206,23 +276,13 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                     .map_err(|e| AuthSessionWritePortError::Failed(e.to_string()))?;
 
                 if !valid {
-                    if let Ok(mut guard) = self.failed_attempts.lock() {
-                        let (count, last_attempt) = *guard;
-                        if last_attempt.elapsed() > RATE_LIMIT_WINDOW {
-                            *guard = (1, Instant::now());
-                        } else {
-                            *guard = (count + 1, Instant::now());
-                        }
-                    }
+                    self.record_login_failure(client_key);
                     return Err(AuthSessionWritePortError::InvalidPassword(
                         "invalid Web access password".to_owned(),
                     ));
                 }
 
-                // Reset failed attempts on success
-                if let Ok(mut guard) = self.failed_attempts.lock() {
-                    *guard = (0, Instant::now());
-                }
+                self.clear_login_failures(client_key);
 
                 let session_token = Self::generate_random_token()
                     .map_err(AuthSessionWritePortError::Unavailable)?;
@@ -238,6 +298,10 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                         "Web session state lock is poisoned".to_owned(),
                     )
                 })?;
+                prune_sessions(&mut guard);
+                if guard.len() >= MAX_SESSIONS {
+                    evict_oldest_session(&mut guard);
+                }
                 let previous = guard.insert(stored.token_hash.clone(), stored.clone());
                 if let Err(error) = persist_sessions(&self.session_path, &guard) {
                     if let Some(previous) = previous {
@@ -249,12 +313,7 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                 }
                 drop(guard);
 
-                let cookie = format!(
-                    "{}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-                    SESSION_COOKIE,
-                    session_token,
-                    SESSION_TTL.as_secs()
-                );
+                let cookie = session_cookie(&session_token, stored.expires_at_unix, context.secure);
 
                 Ok(AuthSessionWritePortResult {
                     data: json!({
@@ -262,6 +321,7 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                         "desktop": false,
                         "browser": true,
                         "csrfToken": csrf_token,
+                        "expiresAt": format_rfc3339(stored.expires_at_unix),
                     }),
                     set_cookie: Some(cookie),
                 })
@@ -283,10 +343,7 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                     }
                 }
 
-                let cookie = format!(
-                    "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
-                    SESSION_COOKIE
-                );
+                let cookie = expired_session_cookie(context.secure);
 
                 Ok(AuthSessionWritePortResult {
                     data: json!({
@@ -300,6 +357,110 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
             }
         }
     }
+}
+
+fn client_key(context: &AuthSessionRequestContext) -> &str {
+    let key = context.client_key.trim();
+    if key.is_empty() { "unknown" } else { key }
+}
+
+fn prune_login_attempts(attempts: &mut BTreeMap<String, LoginAttempt>, now: Instant) {
+    attempts.retain(|_, attempt| {
+        now.saturating_duration_since(attempt.window_start) < RATE_LIMIT_WINDOW
+    });
+}
+
+fn evict_oldest_login_attempt(attempts: &mut BTreeMap<String, LoginAttempt>) {
+    let oldest = attempts
+        .iter()
+        .min_by_key(|(_, attempt)| attempt.window_start)
+        .map(|(key, _)| key.clone());
+    if let Some(key) = oldest {
+        attempts.remove(&key);
+    }
+}
+
+fn prune_sessions(sessions: &mut BTreeMap<String, StoredSession>) {
+    let now = unix_timestamp();
+    sessions.retain(|_, session| session.expires_at_unix > now);
+}
+
+fn evict_oldest_session(sessions: &mut BTreeMap<String, StoredSession>) {
+    let oldest = sessions
+        .iter()
+        .min_by_key(|(_, session)| session.expires_at_unix)
+        .map(|(key, _)| key.clone());
+    if let Some(key) = oldest {
+        sessions.remove(&key);
+    }
+}
+
+fn session_cookie(token: &str, expires_at_unix: i64, secure: bool) -> String {
+    let secure = if secure { "; Secure" } else { "" };
+    format!(
+        "{}={}; Path=/; Expires={}; Max-Age={}; HttpOnly{}; SameSite=Strict",
+        SESSION_COOKIE,
+        token,
+        format_http_date(expires_at_unix),
+        SESSION_TTL.as_secs(),
+        secure,
+    )
+}
+
+fn expired_session_cookie(secure: bool) -> String {
+    let secure = if secure { "; Secure" } else { "" };
+    format!(
+        "{}=; Path=/; Expires={}; Max-Age=0; HttpOnly{}; SameSite=Strict",
+        SESSION_COOKIE,
+        format_http_date(1),
+        secure,
+    )
+}
+
+fn format_rfc3339(timestamp: i64) -> String {
+    use time::format_description::well_known::Rfc3339;
+    time::OffsetDateTime::from_unix_timestamp(timestamp)
+        .ok()
+        .and_then(|value| value.format(&Rfc3339).ok())
+        .unwrap_or_else(|| "1970-01-01T00:00:00Z".to_owned())
+}
+
+fn format_http_date(timestamp: i64) -> String {
+    let timestamp = timestamp.max(0);
+    let days = timestamp.div_euclid(86_400);
+    let seconds = timestamp.rem_euclid(86_400);
+    let (year, month, day) = civil_date(days);
+    const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    format!(
+        "{}, {:02} {} {:04} {:02}:{:02}:{:02} GMT",
+        WEEKDAYS[((days + 4).rem_euclid(7)) as usize],
+        day,
+        MONTHS[(month - 1) as usize],
+        year,
+        seconds / 3600,
+        (seconds % 3600) / 60,
+        seconds % 60,
+    )
+}
+
+fn civil_date(days_since_epoch: i64) -> (i64, i64, i64) {
+    // Howard Hinnant's proleptic Gregorian conversion, with 1970-01-01 as
+    // day zero.  HTTP dates only use modern positive years, but keeping the
+    // arithmetic total also makes the expiry fallback deterministic.
+    let z = days_since_epoch + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 }.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096).div_euclid(365);
+    let year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let month_part = (5 * doy + 2).div_euclid(153);
+    let day = doy - (153 * month_part + 2).div_euclid(5) + 1;
+    let month = month_part + if month_part < 10 { 3 } else { -9 };
+    let year = year + i64::from(month <= 2);
+    (year, month, day)
 }
 
 fn load_sessions(path: &Path) -> Result<BTreeMap<String, StoredSession>, String> {
@@ -549,7 +710,7 @@ mod tests {
             ProductionAuthSessionManager::open(security, &directory.path().join("settings.json"))
                 .expect("open auth manager");
 
-        for _ in 0..5 {
+        for _ in 0..MAX_FAILED_ATTEMPTS {
             let _ = manager.mutate(&AuthSessionWriteInput::Login {
                 password: "bad".to_owned(),
             });

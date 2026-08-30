@@ -136,7 +136,14 @@ impl MarketDataProviderRuntimePort for ActiveProviderState {
         let mut snapshot = self.snapshot.write().unwrap_or_else(|e| e.into_inner());
         snapshot.provider = Some(provider);
         snapshot.generation = snapshot.generation.saturating_add(1);
-        snapshot.opend_ready = provider == MarketDataProvider::Futu;
+        // `opend_ready` describes the physical OpenD session, not which
+        // market-data provider currently owns catalog/quote reads.  The
+        // production composition deliberately keeps a Futu trade session
+        // alive while yfinance/AKShare is active, so deriving this bit from
+        // the provider selection would make reconciliation and broker reads
+        // disappear after a helper-provider switch.  Keep the last observed
+        // readiness here; the dynamic readiness reader (or an explicit
+        // `set_readiness` update) remains the sole source of physical state.
         Ok(())
     }
 
@@ -221,5 +228,39 @@ mod tests {
         assert_eq!(transitions[1].0, Some(transitions[0].1));
         assert_eq!(configured.get(), Some(transitions[1].1));
         assert_eq!(configured.snapshot().generation, 2);
+    }
+
+    #[test]
+    fn helper_provider_switch_preserves_observed_opend_trade_readiness() {
+        // OpenD is a separate trade owner in production.  Switching market
+        // data from yfinance to AKShare must not clear a healthy physical
+        // OpenD session, otherwise reconciliation and broker projections are
+        // incorrectly downgraded until the next external probe.
+        let state = ActiveProviderState::new(Some(MarketDataProvider::Yfinance));
+        state.set_readiness(true, true, true);
+
+        state
+            .activate(MarketDataProvider::Akshare)
+            .expect("helper provider activation");
+
+        let snapshot = state.snapshot();
+        assert_eq!(snapshot.provider, Some(MarketDataProvider::Akshare));
+        assert!(snapshot.opend_ready);
+        assert_eq!(snapshot.generation, 1);
+    }
+
+    #[test]
+    fn futu_switch_without_physical_probe_does_not_claim_opend_ready() {
+        // A successful provider callback alone is not proof that OpenD's
+        // physical session is connected.  Readiness must remain false until
+        // the runtime probe/reader publishes it explicitly.
+        let state = ActiveProviderState::new(Some(MarketDataProvider::Yfinance));
+        state.set_readiness(true, false, true);
+
+        state
+            .activate(MarketDataProvider::Futu)
+            .expect("futu provider activation");
+
+        assert!(!state.snapshot().opend_ready);
     }
 }

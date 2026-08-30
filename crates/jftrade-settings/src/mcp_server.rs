@@ -136,6 +136,10 @@ pub enum McpServerSettingsError {
     Secret(String),
     #[error("MCP server settings store failed: {0}")]
     Store(#[from] SettingsStoreError),
+    #[error("MCP server runtime is unavailable")]
+    RuntimeUnavailable,
+    #[error("MCP server runtime status unavailable: {0}")]
+    RuntimeStatus(String),
     #[error("could not apply MCP server listener settings: {message}")]
     Runtime { message: String },
     #[error(
@@ -156,6 +160,13 @@ pub trait McpServerSettingsStorePort: Send + Sync {
 
 pub trait McpServerRuntimePort: Send + Sync {
     fn apply(&self, record: &McpServerSettingsRecord) -> Result<(), String>;
+
+    /// Returns the listener state owned by the runtime.  The default keeps
+    /// older embedding ports source-compatible while allowing production
+    /// composition to require an explicit, truthful status provider.
+    fn status(&self, _record: &McpServerSettingsRecord) -> Result<McpServerStatus, String> {
+        Err("MCP server runtime status is unavailable".to_owned())
+    }
 }
 
 pub trait McpServerSecretPort: Send + Sync {
@@ -182,6 +193,7 @@ pub struct McpServerSettingsService {
     runtime: Option<Arc<dyn McpServerRuntimePort>>,
     secrets: Arc<dyn McpServerSecretPort>,
     write_lock: Arc<Mutex<()>>,
+    runtime_required: bool,
 }
 
 impl McpServerSettingsService {
@@ -199,7 +211,16 @@ impl McpServerSettingsService {
             runtime,
             secrets,
             write_lock: Arc::new(Mutex::new(())),
+            runtime_required: false,
         }
+    }
+
+    /// Marks this service as production-owned.  Enabled settings cannot be
+    /// persisted unless an application-owned listener runtime is attached.
+    /// Rehearsal/test callers keep the historical stopped-snapshot behavior.
+    pub fn require_runtime(mut self) -> Self {
+        self.runtime_required = true;
+        self
     }
 
     pub fn settings(&self) -> Result<McpServerSettings, McpServerSettingsError> {
@@ -207,9 +228,10 @@ impl McpServerSettingsService {
     }
 
     pub fn stopped_snapshot(&self) -> Result<McpServerSettingsSnapshot, McpServerSettingsError> {
-        let settings = self.settings()?;
+        let record = self.record()?;
+        let settings = record.public_settings();
         Ok(McpServerSettingsSnapshot {
-            status: stopped_status(settings.port),
+            status: self.status_for(&record)?,
             settings,
         })
     }
@@ -262,9 +284,10 @@ impl McpServerSettingsService {
             current.auth_mode(),
             token_hash,
         );
-        let settings = self.persist_and_apply(&current, &next)?.public_settings();
+        let record = self.persist_and_apply(&current, &next)?;
+        let settings = record.public_settings();
         Ok(McpServerTokenResetResult {
-            status: stopped_status(settings.port),
+            status: self.status_for(&record)?,
             settings,
             token,
         })
@@ -285,6 +308,15 @@ impl McpServerSettingsService {
     ) -> Result<McpServerSettingsRecord, McpServerSettingsError> {
         self.store.save_mcp_server_record(next)?;
         let Some(runtime) = &self.runtime else {
+            if self.runtime_required && next.enabled() {
+                return match self.store.save_mcp_server_record(current) {
+                    Ok(()) => Err(McpServerSettingsError::RuntimeUnavailable),
+                    Err(rollback) => Err(McpServerSettingsError::RuntimeRollback {
+                        message: McpServerSettingsError::RuntimeUnavailable.to_string(),
+                        rollback: rollback.to_string(),
+                    }),
+                };
+            }
             return Ok(next.clone());
         };
         if let Err(message) = runtime.apply(next) {
@@ -297,6 +329,33 @@ impl McpServerSettingsService {
             };
         }
         Ok(next.clone())
+    }
+
+    fn status_for(
+        &self,
+        record: &McpServerSettingsRecord,
+    ) -> Result<McpServerStatus, McpServerSettingsError> {
+        if let Some(runtime) = &self.runtime {
+            return match runtime.status(record) {
+                Ok(status) if record.enabled() && !status.running => {
+                    if status.last_error.is_empty() {
+                        Err(McpServerSettingsError::RuntimeUnavailable)
+                    } else {
+                        Err(McpServerSettingsError::RuntimeStatus(status.last_error))
+                    }
+                }
+                Ok(status) => Ok(status),
+                // A disabled listener remains a valid stopped state even if
+                // an optional status provider is unavailable.  For enabled
+                // settings, never turn a status callback error into 200.
+                Err(_error) if !record.enabled() => Ok(stopped_status(record.port())),
+                Err(error) => Err(McpServerSettingsError::RuntimeStatus(error)),
+            };
+        }
+        if self.runtime_required && record.enabled() {
+            return Err(McpServerSettingsError::RuntimeUnavailable);
+        }
+        Ok(stopped_status(record.port()))
     }
 
     fn lock_writes(&self) -> Result<std::sync::MutexGuard<'_, ()>, McpServerSettingsError> {
@@ -395,6 +454,38 @@ mod tests {
         }
     }
 
+    struct RunningRuntime;
+
+    impl McpServerRuntimePort for RunningRuntime {
+        fn apply(&self, _record: &McpServerSettingsRecord) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn status(&self, record: &McpServerSettingsRecord) -> Result<McpServerStatus, String> {
+            Ok(McpServerStatus {
+                running: record.enabled(),
+                endpoint: format!("http://127.0.0.1:{}/mcp", record.port()),
+                last_error: String::new(),
+            })
+        }
+    }
+
+    struct StoppedRuntime;
+
+    impl McpServerRuntimePort for StoppedRuntime {
+        fn apply(&self, _record: &McpServerSettingsRecord) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn status(&self, record: &McpServerSettingsRecord) -> Result<McpServerStatus, String> {
+            Ok(McpServerStatus {
+                running: false,
+                endpoint: format!("http://127.0.0.1:{}/mcp", record.port()),
+                last_error: String::new(),
+            })
+        }
+    }
+
     #[test]
     fn snapshot_normalizes_public_settings_and_reports_unowned_listener_stopped() {
         let service = McpServerSettingsService::new(Arc::new(Store(RwLock::new(Some(
@@ -478,6 +569,90 @@ mod tests {
             store.0.read().expect("read store").as_ref(),
             Some(&original)
         );
+    }
+
+    #[test]
+    fn production_service_rejects_enabled_settings_without_runtime_owner() {
+        let original = McpServerSettingsRecord::new(true, 6697, "none", "");
+        let store = Arc::new(Store(RwLock::new(Some(original.clone()))));
+        let service =
+            McpServerSettingsService::with_ports(store.clone(), None, Arc::new(FixedSecrets))
+                .require_runtime();
+
+        assert_eq!(
+            service.stopped_snapshot().expect_err("missing runtime"),
+            McpServerSettingsError::RuntimeUnavailable
+        );
+        assert_eq!(
+            service
+                .save(&McpServerSettingsUpdate {
+                    enabled: true,
+                    port: 6697,
+                    auth_mode: "none".to_owned(),
+                })
+                .expect_err("missing runtime"),
+            McpServerSettingsError::RuntimeUnavailable
+        );
+        assert_eq!(
+            store.0.read().expect("read store").as_ref(),
+            Some(&original)
+        );
+    }
+
+    #[test]
+    fn runtime_status_is_returned_for_enabled_production_settings() {
+        let store = Arc::new(Store::default());
+        let service = McpServerSettingsService::with_ports(
+            store,
+            Some(Arc::new(RunningRuntime)),
+            Arc::new(FixedSecrets),
+        )
+        .require_runtime();
+        service
+            .save(&McpServerSettingsUpdate {
+                enabled: true,
+                port: 7443,
+                auth_mode: "none".to_owned(),
+            })
+            .expect("runtime-backed save");
+        let snapshot = service.stopped_snapshot().expect("runtime snapshot");
+        assert!(snapshot.status.running);
+        assert_eq!(snapshot.status.endpoint, "http://127.0.0.1:7443/mcp");
+    }
+
+    #[test]
+    fn enabled_settings_fail_closed_when_runtime_is_stopped_without_error() {
+        let store = Arc::new(Store(RwLock::new(Some(McpServerSettingsRecord::new(
+            true, 7443, "none", "",
+        )))));
+        let service = McpServerSettingsService::with_ports(
+            store,
+            Some(Arc::new(StoppedRuntime)),
+            Arc::new(FixedSecrets),
+        )
+        .require_runtime();
+
+        assert_eq!(
+            service
+                .stopped_snapshot()
+                .expect_err("stopped enabled runtime"),
+            McpServerSettingsError::RuntimeUnavailable
+        );
+    }
+
+    #[test]
+    fn disabled_settings_remain_stopped_when_runtime_is_not_running() {
+        let service = McpServerSettingsService::with_ports(
+            Arc::new(Store::default()),
+            Some(Arc::new(StoppedRuntime)),
+            Arc::new(FixedSecrets),
+        )
+        .require_runtime();
+
+        let snapshot = service.stopped_snapshot().expect("disabled snapshot");
+        assert!(!snapshot.settings.enabled);
+        assert!(!snapshot.status.running);
+        assert!(snapshot.status.last_error.is_empty());
     }
 
     #[test]

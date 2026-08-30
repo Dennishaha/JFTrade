@@ -12,8 +12,7 @@ pub async fn start_product_runtime(
     if config.product.is_production() {
         config.backtest_execution_port = None;
     }
-    if config.market_data_router.is_none()
-        && config.market_data_opend_provider.is_none()
+    if config.market_data_opend_provider.is_none()
         && config.market_data_opend.is_none()
         && config.market_data_opend_task.is_none()
     {
@@ -563,14 +562,11 @@ pub async fn start_product_runtime(
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .is_some();
-    if config.product.is_production()
-        && dynamic_opend_ready
-        && configured_provider.is_some_and(|provider| provider != MarketDataProvider::Futu)
-    {
-        return Err(ProductRuntimeError::Settings(
-            "OpenD runtime is configured while active market-data provider is not futu".to_owned(),
-        ));
-    }
+    // OpenD may be configured as the authenticated Futu trade owner while a
+    // helper-backed provider (yfinance/AKShare) owns market-data reads.  Keep
+    // both runtimes composed; execution reconciliation resolves trade
+    // readiness from `SharedTradeReadRuntime`, independently of this market
+    // provider selection.
     let initial_provider =
         configured_provider.or_else(|| dynamic_opend_ready.then_some(MarketDataProvider::Futu));
     let settings_path = config.product.settings_path().to_owned();

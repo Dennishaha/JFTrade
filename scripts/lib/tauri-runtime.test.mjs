@@ -47,6 +47,7 @@ test("tauri release injects one validated version into Rust and bundle metadata"
       JFTRADE_DESKTOP_COMMIT: "abc123",
       JFTRADE_DESKTOP_BUILD_TIME: "2026-08-24T00:00:00Z",
       JFTRADE_BUILD_VERSION: "stale",
+      JFTRADE_DESKTOP_PUBLISH: "true",
     },
     new Date("2026-08-24T01:00:00Z"),
   );
@@ -59,7 +60,7 @@ test("tauri release injects one validated version into Rust and bundle metadata"
   );
   assert.deepEqual(release.finalOptions, [
     "--config",
-    JSON.stringify({ version: "1.2.3" }),
+    JSON.stringify({ version: "1.2.3", bundle: { createUpdaterArtifacts: true } }),
   ]);
   assert.deepEqual(
     tauriCommandOptions(
@@ -71,9 +72,20 @@ test("tauri release injects one validated version into Rust and bundle metadata"
       "--config",
       JSON.stringify({ version: "9.9.9" }),
       "--config",
-      JSON.stringify({ version: "1.2.3" }),
+      JSON.stringify({ version: "1.2.3", bundle: { createUpdaterArtifacts: true } }),
     ],
   );
+});
+
+test("tauri release disables updater artifact generation for non-publish builds", () => {
+  const release = tauriReleaseBuild(
+    { JFTRADE_DESKTOP_RELEASE_TAG: "v1.2.3", JFTRADE_DESKTOP_PUBLISH: "false" },
+    new Date("2026-08-24T01:00:00Z"),
+  );
+  assert.deepEqual(release.finalOptions, [
+    "--config",
+    JSON.stringify({ version: "1.2.3", bundle: { createUpdaterArtifacts: false } }),
+  ]);
 });
 
 test("tauri release rejects development and zero versions before preparation", () => {

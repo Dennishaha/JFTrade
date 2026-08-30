@@ -35,13 +35,9 @@ pub(crate) enum ProductionAdapterBinding {
 }
 
 impl ProductionPortBundle {
-    /// Resolve readiness for one ADK mutation operation.  The public route
-    /// registry keeps a single `AdkMutation` adapter for compatibility, but
-    /// persistence-only operations are local and can be served without the
-    /// assistant model runtime.  Runtime-dependent operations remain
-    /// explicitly unavailable until a concrete runtime capability is wired;
-    /// dispatch then returns the canonical 503 envelope instead of reaching a
-    /// synthetic fallback.
+    /// Resolve readiness for one ADK mutation operation. The public route
+    /// registry keeps a single compatibility adapter, while this method
+    /// projects each operation from its actual local/runtime dependency.
     pub(crate) fn adk_mutation_operation_binding(
         &self,
         operation: AdkMutationOperation,
@@ -57,18 +53,20 @@ impl ProductionPortBundle {
         {
             return Some(ProductionAdapterBinding::MissingInternalAdapter);
         }
-        let external_runtime_operation = matches!(
+        let model_runtime_operation = matches!(
             operation,
             AdkMutationOperation::TestProvider
                 | AdkMutationOperation::RespondToInput
-                | AdkMutationOperation::CompactSessionContext
-                | AdkMutationOperation::InstallSkill
                 | AdkMutationOperation::RunWorkflowTrigger
                 | AdkMutationOperation::RunWorkflowWebhook
                 | AdkMutationOperation::RunWorkflow
         );
-        Some(if external_runtime_operation {
-            ProductionAdapterBinding::ExternalUnavailable
+        Some(if model_runtime_operation {
+            if self.adk_chat_stream.runtime_ready() {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            }
         } else {
             ProductionAdapterBinding::Ready
         })
@@ -285,8 +283,16 @@ impl ProductionPortBundle {
                 ProductionAdapterBinding::ExternalUnavailable
             });
         }
-        if adapter == ProductionRouteAdapter::WebSocketLive && !self.ws_live.enabled() {
-            return None;
+        if adapter == ProductionRouteAdapter::WebSocketLive {
+            // The hub is constructed before the HTTP listener is exposed, so
+            // the route is installed during preparation while remaining
+            // unavailable until the real hub reaches `Serving`.  Do not
+            // classify that lifecycle window as a missing internal adapter.
+            return Some(if self.ws_live.enabled() {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
         }
         if adapter == ProductionRouteAdapter::MarketDataOptionsExpirationsRead {
             let snapshot = self.active_provider_state.snapshot();

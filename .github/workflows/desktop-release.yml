@@ -89,6 +89,23 @@ jobs:
           fi
           echo "Verified required CI run: $ci_url"
 
+      - name: Verify publish signing and updater prerequisites
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        env:
+          JFTRADE_MACOS_CERTIFICATE_BASE64: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_BASE64 }}
+          JFTRADE_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_PASSWORD }}
+          JFTRADE_MACOS_SIGN_IDENTITY: ${{ secrets.JFTRADE_MACOS_SIGN_IDENTITY }}
+          JFTRADE_MACOS_NOTARY_APPLE_ID: ${{ secrets.JFTRADE_MACOS_NOTARY_APPLE_ID }}
+          JFTRADE_MACOS_NOTARY_PASSWORD: ${{ secrets.JFTRADE_MACOS_NOTARY_PASSWORD }}
+          JFTRADE_MACOS_NOTARY_TEAM_ID: ${{ secrets.JFTRADE_MACOS_NOTARY_TEAM_ID }}
+          JFTRADE_WINDOWS_CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
+          JFTRADE_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
+          JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
+        run: node scripts/check-desktop-release-policy.mjs --publish --signing-only
+
       - name: Setup Go
         uses: ./.github/actions/setup-go
 
@@ -103,6 +120,10 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Stage 9 closeout gate before publish
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        run: pnpm run check:rust:stage9:closeout
 
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
@@ -203,7 +224,11 @@ jobs:
           configured=0
           for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
           if [ "$configured" -eq 0 ]; then
-            echo "Signing credentials are not configured; producing an unsigned macOS release with an ad-hoc signature."
+            if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then
+              echo "Publishing requires complete macOS signing and notarization credentials." >&2
+              exit 1
+            fi
+            echo "Signing credentials are not configured; this is an unsigned dry-run artifact."
             echo "QUALIFIER=unsigned" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -244,7 +269,21 @@ jobs:
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build ARM64 DMG
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
+          JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
+      - name: Verify signed macOS updater output
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        run: |
+          set -euo pipefail
+          updater_dir="apps/desktop/src-tauri/target/release/bundle"
+          test -d "$updater_dir"
+          signatures="$(find "$updater_dir" -type f -name '*.sig' -print)"
+          test -n "$signatures"
 
       - name: Locate macOS artifact
         id: artifact
@@ -283,6 +322,16 @@ jobs:
           path: |
             ${{ steps.artifact.outputs.path }}
             bin/JFTrade-macos-arm64.spdx.json
+          if-no-files-found: error
+
+      - name: Upload macOS updater artifacts
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-updater-macos
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/macos/*.sig
+            apps/desktop/src-tauri/target/release/bundle/macos/*.tar.gz
           if-no-files-found: error
 
   windows:
@@ -336,7 +385,8 @@ jobs:
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
-            Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
+            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { throw "Publishing requires complete Windows signing credentials." }
+            Write-Host "Authenticode credentials are not configured; this is an unsigned dry-run artifact."
             "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
             exit 0
           }
@@ -357,8 +407,20 @@ jobs:
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build per-user NSIS installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
+          JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         shell: pwsh
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
+      - name: Verify signed Windows updater output
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        shell: pwsh
+        run: |
+          $signatures = Get-ChildItem apps/desktop/src-tauri/target/release/bundle -Recurse -Filter *.sig -File -ErrorAction SilentlyContinue
+          if (-not $signatures) { throw "Tauri updater signature artifacts are missing" }
 
       - name: Locate Windows artifact
         id: artifact
@@ -390,6 +452,18 @@ jobs:
           path: |
             ${{ steps.artifact.outputs.path }}
             bin/JFTrade-windows-x64.spdx.json
+          if-no-files-found: error
+
+      - name: Upload Windows updater artifacts
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-updater-windows
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.zip
+            apps/desktop/src-tauri/target/release/bundle/msi/*.sig
+            apps/desktop/src-tauri/target/release/bundle/msi/*.zip
           if-no-files-found: error
 
   windows_arm64:
@@ -448,7 +522,8 @@ jobs:
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
           if ($configured.Count -eq 0) {
-            Write-Host "Authenticode credentials are not configured; producing an unsigned Windows installer."
+            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { throw "Publishing requires complete Windows signing credentials." }
+            Write-Host "Authenticode credentials are not configured; this is an unsigned dry-run artifact."
             "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
             exit 0
           }
@@ -469,8 +544,20 @@ jobs:
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
       - name: Build ARM64 NSIS installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
+          JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         shell: pwsh
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
+      - name: Verify signed Windows ARM64 updater output
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        shell: pwsh
+        run: |
+          $signatures = Get-ChildItem apps/desktop/src-tauri/target/release/bundle -Recurse -Filter *.sig -File -ErrorAction SilentlyContinue
+          if (-not $signatures) { throw "Tauri updater signature artifacts are missing" }
 
       - name: Locate Windows ARM64 artifact
         id: artifact
@@ -502,6 +589,18 @@ jobs:
           path: |
             ${{ steps.artifact.outputs.path }}
             bin/JFTrade-windows-arm64.spdx.json
+          if-no-files-found: error
+
+      - name: Upload Windows ARM64 updater artifacts
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-updater-windows-arm64
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.sig
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.zip
+            apps/desktop/src-tauri/target/release/bundle/msi/*.sig
+            apps/desktop/src-tauri/target/release/bundle/msi/*.zip
           if-no-files-found: error
 
   linux:
@@ -560,7 +659,21 @@ jobs:
           echo "sbom=bin/$base.spdx.json" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux x64 release packages
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
+          JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
+      - name: Verify signed Linux updater output
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        run: |
+          set -euo pipefail
+          updater_dir="apps/desktop/src-tauri/target/release/bundle"
+          test -d "$updater_dir"
+          signatures="$(find "$updater_dir" -type f -name '*.sig' -print)"
+          test -n "$signatures"
 
       - name: Verify Linux x64 release packages
         id: artifact
@@ -599,16 +712,27 @@ jobs:
             ${{ steps.linux_artifacts.outputs.sbom }}
           if-no-files-found: error
 
+      - name: Upload Linux updater artifacts
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-updater-linux
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/appimage/*.sig
+            apps/desktop/src-tauri/target/release/bundle/appimage/*.tar.gz
+          if-no-files-found: error
+
   publish:
     name: Publish GitHub Release
     if: >-
       always() &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true)) &&
+      needs.release-inputs.result == 'success' &&
       needs.macos.result == 'success' &&
       needs.windows.result == 'success' &&
       needs.windows_arm64.result == 'success' &&
       needs.linux.result == 'success'
-    needs: [macos, windows, windows_arm64, linux]
+    needs: [release-inputs, macos, windows, windows_arm64, linux]
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -620,6 +744,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+
+      - name: Recheck Stage 9 closeout gate before publishing
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --check
 
       - name: Download release artifacts
         uses: actions/download-artifact@v8
@@ -642,6 +769,8 @@ jobs:
           test -s "release/$base.spdx.json"
           test ! -e release/JFTrade
           test -z "$(find release -maxdepth 1 -type f -name '*.pkg.tar.zst' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name '*.sig' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print -quit)"
           # Linux contributes AppImage, deb, rpm and SBOM; all platforms share the legal notice assets.
           test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
 

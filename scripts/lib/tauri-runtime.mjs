@@ -34,7 +34,18 @@ export function tauriReleaseBuild(sourceEnvironment, now = new Date()) {
       JFTRADE_BUILD_COMMIT: metadata.commit,
       JFTRADE_BUILD_TIME: metadata.buildTime,
     },
-    finalOptions: ["--config", JSON.stringify({ version: metadata.version })],
+    finalOptions: [
+      "--config",
+      JSON.stringify({
+        version: metadata.version,
+        // Updater artifacts are emitted only by the publish lane.  Keeping
+        // dry-runs free of signing requirements preserves local verification
+        // while the release workflow fails closed before any publish.
+        bundle: {
+          createUpdaterArtifacts: sourceEnvironment.JFTRADE_DESKTOP_PUBLISH === "true",
+        },
+      }),
+    ],
     metadata,
   };
 }

@@ -5,6 +5,9 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
+use jftrade_integration_futu::{
+    HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineResult,
+};
 use jftrade_integration_marketdata_helper::{HelperCandlesResponse, HelperClient};
 use jftrade_settings::MarketDataProvider;
 use jftrade_store_sqlite::{
@@ -15,9 +18,11 @@ use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 use super::ProductionBacktestPort;
+use crate::product::product_production_ports::SharedTradeReadRuntime;
 use super::product_backtest_sync_request::{
     SyncRequest, format_timestamp, parse_sync_request, parse_timestamp,
 };
+use super::requested_provider;
 use crate::product::product_backtests_write_port::{
     BacktestsWritePortError, BacktestsWritePortResult,
 };
@@ -25,28 +30,74 @@ use crate::product::product_backtests_write_port::{
 static SYNC_TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 impl ProductionBacktestPort {
+    /// Mark durable tasks left by a crashed process as terminal.  The worker
+    /// registry is process-local, therefore a queued/running row discovered at
+    /// composition time cannot still have an owner and must not be reported as
+    /// live work after restart.
+    pub(crate) fn recover_orphaned_sync_tasks(&self) -> Result<(), String> {
+        let tasks = self
+            .sync_tasks
+            .list_active()
+            .map_err(|error| format!("failed to scan backtest sync tasks: {error}"))?;
+        for task in tasks {
+            let timestamp = format_timestamp(time::OffsetDateTime::now_utc());
+            let recovered = StoredBacktestSyncTask {
+                status: "failed".to_owned(),
+                error: Some("sync task interrupted by process restart".to_owned()),
+                updated_at: timestamp,
+                ..task.clone()
+            };
+            let changed = self
+                .sync_tasks
+                .update(recovered, task.revision)
+                .map_err(|error| {
+                    format!(
+                        "backtest sync {} restart recovery failed: {error}",
+                        task.task_id
+                    )
+                })?;
+            if !changed {
+                return Err(format!(
+                    "backtest sync {} restart recovery conflicted",
+                    task.task_id
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn start_sync_task(
         &self,
         payload: &Value,
     ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
-        let provider = self.active_provider_state.get().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable(
-                "active market-data provider is not configured".to_owned(),
-            )
-        })?;
-        let provider_id = match provider {
-            MarketDataProvider::Yfinance => "yfinance",
-            MarketDataProvider::Akshare => "akshare",
-            MarketDataProvider::Futu => {
-                return Err(BacktestsWritePortError::Unavailable(
-                    "Futu historical candle sync is not configured".to_owned(),
-                ));
+        let provider_id = if let Some(provider_id) = requested_provider(payload)? {
+            provider_id
+        } else {
+            match self.backtest_market_data_provider_state.get() {
+                MarketDataProvider::Yfinance => "yfinance",
+                MarketDataProvider::Akshare => "akshare",
+                MarketDataProvider::Futu => "futu",
             }
         };
-        let helper = self.helper.clone().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable("market-data helper is not configured".to_owned())
-        })?;
         let request = parse_sync_request(payload)?;
+        let helper = self.helper.clone();
+        let historical_ready = self
+            .trade_runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.historical_klines_available());
+        match provider_id {
+            "futu" if !historical_ready => {
+                return Err(BacktestsWritePortError::Unavailable(
+                    "Futu historical candle sync is unavailable".to_owned(),
+                ));
+            }
+            "yfinance" | "akshare" if helper.is_none() => {
+                return Err(BacktestsWritePortError::Unavailable(
+                    "market-data helper is not configured".to_owned(),
+                ));
+            }
+            _ => {}
+        }
         let now = time::OffsetDateTime::now_utc();
         let timestamp = now
             .format(&time::format_description::well_known::Rfc3339)
@@ -94,6 +145,7 @@ impl ProductionBacktestPort {
         let response_task_id = task.task_id.clone();
         let tasks = Arc::clone(&self.sync_tasks);
         let market_store = Arc::clone(&self._market_data_store);
+        let trade_runtime = self.trade_runtime.clone();
         let registry = Arc::clone(&self.sync_workers);
         let worker_task_id = task_id.clone();
         let registry_task_id = worker_task_id.clone();
@@ -101,7 +153,7 @@ impl ProductionBacktestPort {
         let (cancel_tx, cancel_rx) = oneshot::channel();
         let handle = runtime.spawn(async move {
             tokio::select! {
-                _ = run_sync_task(Arc::clone(&tasks), market_store, helper, provider_id, request, task_id) => {}
+                _ = run_sync_task(Arc::clone(&tasks), market_store, helper, trade_runtime, provider_id, request, task_id) => {}
                 _ = cancel_rx => mark_task_cancelled(&tasks, &worker_task_id),
             }
         });
@@ -150,7 +202,8 @@ impl ProductionBacktestPort {
 async fn run_sync_task(
     tasks: Arc<BacktestSyncTaskStore>,
     market_store: Arc<BacktestMarketDataStore>,
-    helper: HelperClient,
+    helper: Option<HelperClient>,
+    trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     provider: &str,
     request: SyncRequest,
     task_id: String,
@@ -172,16 +225,33 @@ async fn run_sync_task(
         eprintln!("backtest sync {task_id} failed to mark running: {error}");
         return;
     }
-    let result = sync_request_pages(
-        &tasks,
-        &market_store,
-        &helper,
-        provider,
-        &request,
-        &task_id,
-        &mut task,
-    )
-    .await;
+    let result = if provider == "futu" {
+        sync_futu_request_pages(
+            &tasks,
+            &market_store,
+            trade_runtime.as_ref(),
+            &request,
+            &task_id,
+            &mut task,
+        )
+        .await
+    } else {
+        match helper.as_ref() {
+            Some(helper) => {
+                sync_request_pages(
+                    &tasks,
+                    &market_store,
+                    helper,
+                    provider,
+                    &request,
+                    &task_id,
+                    &mut task,
+                )
+                .await
+            }
+            None => Err("market-data helper is not configured".to_owned()),
+        }
+    };
     let cancelled = match is_cancelled(&tasks, &task_id) {
         Ok(cancelled) => cancelled,
         Err(error) => {
@@ -248,15 +318,23 @@ async fn sync_request_pages(
             } else {
                 request.market.as_str()
             };
-            let response: HelperCandlesResponse = helper
-                .get_provider_json_with_query(
-                    provider,
-                    &["candles", helper_market, symbol_code(&request.symbol)],
-                    &query,
-                )
-                .await
-                .map_err(|error| error.to_string())?;
+            let response: HelperCandlesResponse = fetch_helper_page_with_retry(
+                tasks,
+                &helper,
+                provider,
+                &["candles", helper_market, symbol_code(&request.symbol)],
+                &query,
+                task_id,
+                task,
+            )
+            .await?;
             validate_helper_page(&response, helper_market, &request.symbol, interval)?;
+            // Cancellation is persisted independently of the worker task.
+            // Re-check immediately before writing a page so a response that
+            // raced with CancelSync cannot insert candles after cancellation.
+            if is_cancelled(tasks, task_id)? {
+                return Ok(());
+            }
             let mut rows = Vec::with_capacity(response.candles.len());
             for candle in response.candles {
                 let at = parse_timestamp(&candle.at)?;
@@ -278,6 +356,9 @@ async fn sync_request_pages(
             }
             interval_inserted |= !rows.is_empty();
             if !rows.is_empty() {
+                if is_cancelled(tasks, task_id)? {
+                    return Ok(());
+                }
                 market_store
                     .insert_candles(
                         provider,
@@ -317,6 +398,343 @@ async fn sync_request_pages(
         persist_task(tasks, task, "running", None)?;
     }
     Ok(())
+}
+
+/// Sync OpenD pages using its opaque `nextReqKey` cursor.  The helper-backed
+/// source uses a timestamp cursor, while Qot_RequestHistoryKL requires the
+/// binary cursor to be passed back verbatim on each page.
+async fn sync_futu_request_pages(
+    tasks: &Arc<BacktestSyncTaskStore>,
+    market_store: &Arc<BacktestMarketDataStore>,
+    runtime: Option<&Arc<SharedTradeReadRuntime>>,
+    request: &SyncRequest,
+    task_id: &str,
+    task: &mut StoredBacktestSyncTask,
+) -> Result<(), String> {
+    let runtime = runtime.ok_or_else(|| "Futu historical candle sync is unavailable".to_owned())?;
+    let since = parse_timestamp(&request.since)?;
+    let until = parse_timestamp(&request.until)?;
+    let market = futu_market_code(&request.symbol)?;
+    let code = symbol_code(&request.symbol).to_ascii_uppercase();
+    for (index, interval) in request.intervals.iter().enumerate() {
+        if is_cancelled(tasks, task_id)? {
+            return Ok(());
+        }
+        task.current_interval = interval.clone();
+        persist_task(tasks, task, "running", None)?;
+        let mut cursor = Vec::new();
+        let mut seen_cursors = std::collections::BTreeSet::new();
+        let mut inserted = false;
+        let mut exhausted = false;
+        for _ in 0..32 {
+            if is_cancelled(tasks, task_id)? {
+                return Ok(());
+            }
+            let page = fetch_futu_page_with_retry(
+                tasks, runtime, market, &code, interval, request, &cursor, task_id, task,
+            )
+            .await?;
+            validate_futu_page(&page, market, &code, interval)?;
+            if is_cancelled(tasks, task_id)? {
+                return Ok(());
+            }
+            let rows = futu_rows(
+                &page.klines,
+                &request.symbol,
+                interval,
+                since,
+                until,
+                market,
+            )?;
+            inserted |= !rows.is_empty();
+            if !rows.is_empty() {
+                market_store
+                    .insert_candles(
+                        "futu",
+                        &request.symbol,
+                        interval,
+                        &request.rehab_type,
+                        &request.session_scope,
+                        &rows,
+                    )
+                    .map_err(|error| error.to_string())?;
+            }
+            task.completed_batches += 1;
+            task.total_batches = task.total_batches.max(task.completed_batches);
+            persist_task(tasks, task, "running", None)?;
+            if page.next_req_key.is_empty() {
+                exhausted = true;
+                break;
+            }
+            if !seen_cursors.insert(page.next_req_key.clone()) {
+                return Err("OpenD historical pagination repeated nextReqKey".to_owned());
+            }
+            cursor = page.next_req_key;
+        }
+        if !exhausted {
+            return Err("OpenD historical pagination exceeded 32 pages".to_owned());
+        }
+        if !inserted {
+            return Err(
+                "OpenD historical provider returned no candles in the requested range".to_owned(),
+            );
+        }
+        task.completed_intervals = (index + 1) as i64;
+        persist_task(tasks, task, "running", None)?;
+    }
+    Ok(())
+}
+
+async fn fetch_futu_page_with_retry(
+    tasks: &Arc<BacktestSyncTaskStore>,
+    runtime: &SharedTradeReadRuntime,
+    market: i32,
+    code: &str,
+    interval: &str,
+    request: &SyncRequest,
+    cursor: &[u8],
+    task_id: &str,
+    task: &mut StoredBacktestSyncTask,
+) -> Result<HistoricalKlineResult, String> {
+    let begin_time = opend_wall_clock(&request.since, &request.market)?;
+    let end_time = opend_wall_clock(&request.until, &request.market)?;
+    let query = HistoricalKlineQuery {
+        market,
+        symbol: code.to_owned(),
+        period: interval.to_owned(),
+        adjustment: match request.rehab_type.as_str() {
+            "none" => 0,
+            "backward" => 2,
+            _ => 1,
+        },
+        begin_time,
+        end_time,
+        max_ack_kl_num: Some(1000),
+        next_req_key: cursor.to_vec(),
+        extended_time: (request.session_scope == "extended").then_some(true),
+        session: (request.session_scope == "extended").then_some(3),
+    };
+    let mut last_error = None;
+    for attempt in 0..4 {
+        if is_cancelled(tasks, task_id)? {
+            return Err("sync cancelled".to_owned());
+        }
+        let Some(reader) = runtime.historical_klines_reader() else {
+            return Err("Futu historical candle sync is unavailable".to_owned());
+        };
+        let call_query = query.clone();
+        let joined = tokio::task::spawn_blocking(move || reader.query(&call_query));
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(30), joined).await;
+        match outcome {
+            Ok(Ok(Ok(page))) => return Ok(page),
+            Ok(Ok(Err(error))) => {
+                let retryable = futu_error_retryable(&error);
+                last_error = Some(error.to_string());
+                if !retryable || attempt == 3 {
+                    break;
+                }
+            }
+            Ok(Err(error)) => {
+                last_error = Some(format!("OpenD historical worker failed: {error}"));
+                if attempt == 3 {
+                    break;
+                }
+            }
+            Err(_) => {
+                last_error = Some("OpenD historical request timed out".to_owned());
+                if attempt == 3 {
+                    break;
+                }
+            }
+        }
+        task.retries += 1;
+        persist_task(tasks, task, "running", None)?;
+        tokio::time::sleep(std::time::Duration::from_millis(250 * (attempt as u64 + 1))).await;
+    }
+    Err(last_error.unwrap_or_else(|| "OpenD historical request failed".to_owned()))
+}
+
+fn futu_error_retryable(error: &HistoricalKlineError) -> bool {
+    match error {
+        HistoricalKlineError::Session(_) => true,
+        HistoricalKlineError::Rejected { err_code, .. } => {
+            *err_code == 408 || *err_code == 425 || *err_code == 429 || *err_code >= 500
+        }
+        HistoricalKlineError::Decode(_) | HistoricalKlineError::MissingS2c => false,
+    }
+}
+
+fn validate_futu_page(
+    page: &HistoricalKlineResult,
+    market: i32,
+    code: &str,
+    interval: &str,
+) -> Result<(), String> {
+    if page.security.market != market || !page.security.code.eq_ignore_ascii_case(code) {
+        return Err("OpenD historical response identity is invalid".to_owned());
+    }
+    if page
+        .klines
+        .iter()
+        .any(|candle| candle.time.trim().is_empty())
+    {
+        return Err("OpenD historical response contains an empty candle timestamp".to_owned());
+    }
+    if !matches!(
+        interval,
+        "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1w" | "1mo"
+    ) {
+        return Err(format!("OpenD does not support interval {interval}"));
+    }
+    Ok(())
+}
+
+fn futu_rows(
+    candles: &[HistoricalKline],
+    _symbol: &str,
+    interval: &str,
+    since: time::OffsetDateTime,
+    until: time::OffsetDateTime,
+    market: i32,
+) -> Result<Vec<StoredBacktestCandle>, String> {
+    let market_label = futu_market_label(market);
+    let mut rows = Vec::with_capacity(candles.len());
+    for candle in candles {
+        if candle.is_blank {
+            continue;
+        }
+        let at = parse_futu_candle_time(&candle.time, market_label)?;
+        if at < since || at >= until {
+            continue;
+        }
+        let (Some(open), Some(high), Some(low), Some(close)) = (
+            candle.open_price,
+            candle.high_price,
+            candle.low_price,
+            candle.close_price,
+        ) else {
+            return Err("OpenD historical candle is missing OHLC values".to_owned());
+        };
+        rows.push(StoredBacktestCandle {
+            start_time: at.unix_timestamp_nanos() as i64 / 1_000_000,
+            end_time: (at + interval_duration(interval) - time::Duration::milliseconds(1))
+                .unix_timestamp_nanos() as i64
+                / 1_000_000,
+            open: futu_decimal(open, "open")?,
+            high: futu_decimal(high, "high")?,
+            low: futu_decimal(low, "low")?,
+            close: futu_decimal(close, "close")?,
+            volume: candle.volume.unwrap_or_default().to_string(),
+        });
+    }
+    rows.sort_by_key(|row| row.start_time);
+    Ok(rows)
+}
+
+fn futu_decimal(value: f64, field: &str) -> Result<String, String> {
+    if !value.is_finite() {
+        return Err(format!("OpenD historical {field} is not finite"));
+    }
+    Ok(format!("{value:.8}"))
+}
+
+fn futu_market_code(symbol: &str) -> Result<i32, String> {
+    match symbol.split_once('.').map(|(market, _)| market) {
+        Some("HK") => Ok(1),
+        Some("US") => Ok(11),
+        Some("SH") => Ok(21),
+        Some("SZ") => Ok(22),
+        _ => Err("Futu historical sync requires a supported exchange-qualified symbol".to_owned()),
+    }
+}
+
+fn futu_market_label(market: i32) -> &'static str {
+    match market {
+        11 => "US",
+        21 => "SH",
+        22 => "SZ",
+        _ => "HK",
+    }
+}
+
+fn futu_timezone(market: &str) -> &'static str {
+    match market {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "SH" | "SZ" | "CN" => "Asia/Shanghai",
+        _ => "UTC",
+    }
+}
+
+fn opend_wall_clock(value: &str, market: &str) -> Result<String, String> {
+    let timestamp: jiff::Timestamp = value
+        .parse()
+        .map_err(|error| format!("invalid timestamp for OpenD: {error}"))?;
+    let local = timestamp
+        .to_zoned(jiff::tz::TimeZone::get(futu_timezone(market)).map_err(|e| e.to_string())?);
+    Ok(local.strftime("%Y-%m-%d %H:%M:%S").to_string())
+}
+
+fn parse_futu_candle_time(value: &str, market: &str) -> Result<time::OffsetDateTime, String> {
+    if value.contains('T') || value.ends_with('Z') || value.contains('+') {
+        return parse_timestamp(value);
+    }
+    let local = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", value.trim())
+        .map_err(|error| format!("invalid OpenD candle timestamp: {error}"))?;
+    let zoned = local
+        .in_tz(futu_timezone(market))
+        .map_err(|error| format!("invalid OpenD candle timestamp: {error}"))?;
+    parse_timestamp(&zoned.timestamp().to_string())
+}
+
+async fn fetch_helper_page_with_retry(
+    tasks: &Arc<BacktestSyncTaskStore>,
+    helper: &HelperClient,
+    provider: &str,
+    segments: &[&str],
+    query: &[(&str, &str)],
+    task_id: &str,
+    task: &mut StoredBacktestSyncTask,
+) -> Result<HelperCandlesResponse, String> {
+    let mut last_error = None;
+    for attempt in 0..4 {
+        if is_cancelled(tasks, task_id)? {
+            return Err("sync cancelled".to_owned());
+        }
+        match helper
+            .get_provider_json_with_query(provider, segments, query)
+            .await
+        {
+            Ok(response) => return Ok(response),
+            Err(error) => {
+                let retryable = is_retryable_helper_error(&error);
+                last_error = Some(error.to_string());
+                if !retryable || attempt == 3 {
+                    break;
+                }
+                task.retries += 1;
+                persist_task(tasks, task, "running", None)?;
+                let delay = std::time::Duration::from_millis(250 * (attempt as u64 + 1));
+                tokio::time::sleep(delay).await;
+            }
+        }
+    }
+    Err(last_error.unwrap_or_else(|| "helper request failed".to_owned()))
+}
+
+fn is_retryable_helper_error(
+    error: &jftrade_integration_marketdata_helper::HttpAdapterError,
+) -> bool {
+    use jftrade_integration_marketdata_helper::HttpAdapterError;
+    match error {
+        HttpAdapterError::Timeout | HttpAdapterError::Unavailable(_) => true,
+        HttpAdapterError::Remote { status, .. } => {
+            *status == 408 || *status == 425 || *status == 429 || *status >= 500
+        }
+        HttpAdapterError::InvalidUrl(_)
+        | HttpAdapterError::WeakToken
+        | HttpAdapterError::InvalidResponse(_) => false,
+    }
 }
 
 fn symbol_code(symbol: &str) -> &str {

@@ -91,6 +91,79 @@ mod product_production_assembly_tests {
         );
     }
 
+    #[tokio::test]
+    async fn direct_production_ports_without_trade_runtime_release_execution_lease() {
+        let (_temp_dir, _settings_path, config, security) = setup_test_env();
+        let ports = production_ports(&config, &security).expect("production ports");
+        assert!(
+            ports.execution_reconciliation_worker().is_none(),
+            "a direct port bundle without trade runtime must not spawn a detached reconciliation worker"
+        );
+        drop(ports);
+
+        production_ports(&config, &security)
+            .map(|_| ())
+            .expect("execution WriterLease must be reacquirable after direct bundle drop");
+    }
+
+    #[tokio::test]
+    async fn direct_product_shutdown_stops_reconciliation_before_releasing_leases() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        let config = http_product_config(&directory, runtime, None);
+
+        let handle = start_product(config.clone())
+            .await
+            .expect("start product with trade runtime");
+        assert!(
+            handle
+                .production_ports
+                .as_ref()
+                .and_then(|ports| ports.execution_reconciliation_worker())
+                .is_some(),
+            "direct production start with a trade runtime must compose reconciliation"
+        );
+        handle.shutdown().await.expect("shutdown product");
+
+        let restarted = start_product(config)
+            .await
+            .expect("WriterLease must be reacquirable after direct shutdown");
+        restarted
+            .shutdown()
+            .await
+            .expect("shutdown restarted product");
+    }
+
+    #[test]
+    fn direct_product_drop_terminates_reconciliation_before_releasing_leases() {
+        let directory = TempDir::new().expect("temp dir");
+        let runtime =
+            Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+        let config = http_product_config(&directory, runtime, None);
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build runtime");
+        let handle = runtime
+            .block_on(start_product(config.clone()))
+            .expect("start product with trade runtime");
+        drop(runtime);
+        drop(handle);
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build restart runtime");
+        let restarted = runtime
+            .block_on(start_product(config))
+            .expect("WriterLease must be reacquirable after direct drop");
+        runtime
+            .block_on(restarted.shutdown())
+            .expect("shutdown restarted product");
+    }
+
     #[derive(Debug)]
     struct HttpTradeRead;
 

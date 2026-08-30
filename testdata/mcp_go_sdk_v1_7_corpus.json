@@ -1,0 +1,128 @@
+{
+  "sdk": "github.com/modelcontextprotocol/go-sdk",
+  "version": "v1.7.0",
+  "transport": "stateless-streamable-http",
+  "entries": [
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "server/discover",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Method": ["server/discover"],
+        "Mcp-Protocol-Version": ["2026-07-28"]
+      },
+      "status": 200,
+      "response": {
+        "resultType": "complete",
+        "cacheScope": "public",
+        "ttlMs": 0,
+        "supportedVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"],
+        "capabilities": {"tools": {"listChanged": true}, "resources": {"listChanged": true, "subscribe": true}},
+        "instructions": "JFTrade local read-only market, portfolio, risk, strategy, and backtest tools."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "tools/list",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Method": ["tools/list"],
+        "Mcp-Protocol-Version": ["2026-07-28"]
+      },
+      "status": 200,
+      "response": {
+        "resultType": "complete",
+        "cacheScope": "public",
+        "ttlMs": 0,
+        "toolNames": [
+          "account.orders", "alerts.option_event.list", "alerts.price.list", "backtest.kline_sync_status",
+          "backtest.result_view", "backtest.runs", "broker.cash_flows", "broker.fees", "broker.fills",
+          "broker.margin_ratios", "broker.orders", "derivatives.futures", "derivatives.option_analysis",
+          "derivatives.option_chain", "derivatives.option_events", "derivatives.option_screen", "derivatives.warrants",
+          "execution.buying_power", "execution.order_events", "market.broker_queue", "market.candles",
+          "market.capabilities", "market.capital_flow", "market.depth", "market.instrument_profile",
+          "market.intraday", "market.providers", "market.search", "market.snapshot", "market.snapshots",
+          "market.subscriptions", "market.ticks", "plugins.catalog", "portfolio.summary", "prediction.combo_eligible",
+          "prediction.combo_quote", "prediction.depth", "prediction.discover", "prediction.history",
+          "prediction.snapshot", "research.analyst", "research.calendar", "research.corporate_actions",
+          "research.financials", "research.industry", "research.institutions", "research.instrument",
+          "research.macro", "research.news", "research.ownership", "research.rankings", "research.screen",
+          "research.screen_catalog", "research.short_interest", "research.technical_indicators", "research.valuation",
+          "risk.events", "risk.state", "strategy.definition_versions.get", "strategy.definition_versions.list",
+          "strategy.definitions", "strategy.instance_activity", "strategy.pine_spec", "strategy.validate_pine",
+          "system.futu_opend", "system.runtime_dependencies", "system.status", "watchlist.list", "watchlist.remote.list"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "tools/call",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Method": ["tools/call"],
+        "Mcp-Name": ["system.status"],
+        "Mcp-Protocol-Version": ["2026-07-28"]
+      },
+      "status": 200,
+      "response": {
+        "resultType": "complete",
+        "structuredContent": {"ok": true, "tool": "system.status"},
+        "content": [{"type": "text", "text": "{\"ok\":true,\"tool\":\"system.status\"}"}],
+        "isError": false
+      }
+    }
+  ],
+  "legacyEntries": [
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "initialize",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Protocol-Version": ["2025-11-25"]
+      },
+      "status": 200,
+      "response": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {"tools": {"listChanged": true}, "resources": {"listChanged": true, "subscribe": true}},
+        "instructions": "JFTrade local read-only market, portfolio, risk, strategy, and backtest tools.",
+        "serverInfo": {"name": "jftrade", "version": "1.0"}
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "tools/list",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Protocol-Version": ["2025-11-25"]
+      },
+      "status": 200,
+      "response": {"ttlMs": 0, "cacheScope": "public", "toolNames": ["system.status"]}
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "requestMethod": "tools/call",
+      "headers": {
+        "Accept": ["application/json, text/event-stream"],
+        "Content-Type": ["application/json"],
+        "Mcp-Protocol-Version": ["2025-11-25"]
+      },
+      "status": 200,
+      "response": {
+        "structuredContent": {"ok": true, "tool": "system.status"},
+        "content": [{"type": "text", "text": "{\"ok\":true,\"tool\":\"system.status\"}"}],
+        "isError": false
+      }
+    }
+  ]
+}

@@ -45,6 +45,43 @@ func TestSettingWriteRoutesRejectMalformedJSON(t *testing.T) {
 	}
 }
 
+func TestMCPSettingsRoutesDistinguishDisabledAndUnavailableManager(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &routeStore{mcpServer: jfsettings.MCPServerSettings{
+		Port: jfsettings.DefaultMCPServerPort, AuthMode: "none",
+	}}
+	service := srvsettings.NewService(store,
+		srvsettings.WithMCPServerStatus(func() jfsettings.MCPServerStatus {
+			return jfsettings.MCPServerStatus{}
+		}),
+		srvsettings.WithSideEffects(srvsettings.SideEffects{
+			OnMCPServerChanged: func(jfsettings.MCPServerSettings) error {
+				return srvsettings.ErrMCPServerRuntimeUnavailable
+			},
+		}),
+	)
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	get := performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/adk/mcp", "")
+	if get.Code != http.StatusOK || !strings.Contains(get.Body.String(), `"running":false`) {
+		t.Fatalf("disabled MCP GET = %d %s", get.Code, get.Body.String())
+	}
+	store.mcpServer.Enabled = true
+	get = performSettingsRequest(t, router, http.MethodGet, "/api/v1/settings/adk/mcp", "")
+	if get.Code != http.StatusServiceUnavailable || !strings.Contains(get.Body.String(), `"code":"MCP_SERVER_UNAVAILABLE"`) {
+		t.Fatalf("enabled MCP GET without manager = %d %s", get.Code, get.Body.String())
+	}
+	store.mcpServer.Enabled = false
+	put := performSettingsRequest(t, router, http.MethodPut, "/api/v1/settings/adk/mcp", `{"enabled":true,"authMode":"none"}`)
+	if put.Code != http.StatusBadGateway || !strings.Contains(put.Body.String(), `"code":"MCP_SERVER_RUNTIME_UNAVAILABLE"`) {
+		t.Fatalf("unavailable MCP PUT = %d %s", put.Code, put.Body.String())
+	}
+	if store.mcpServer.Enabled {
+		t.Fatal("failed MCP enable was persisted")
+	}
+}
+
 func TestSettingWriteRoutesMapPersistenceFailures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := settingsRouter(&routeStore{

@@ -181,6 +181,70 @@ async fn storage_overview_matches_the_go_empty_projection_behind_authentication(
 }
 
 #[tokio::test]
+async fn production_system_status_reports_real_database_lease_and_schema_state() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}\n").expect("seed settings");
+    product_data_management::initialize_production_databases(&settings_path)
+        .expect("initialize production databases");
+    let token = "production-system-status-token-012345678901234567890";
+    let mut config = ProductConfig::new(
+        "127.0.0.1:0".parse().expect("address"),
+        &settings_path,
+        AccessPolicy::desktop(Some(token.to_owned())),
+    )
+    .expect("product config");
+    config.capabilities = ProductCapabilities::all();
+    config.production = true;
+    let handle = start_product(config)
+        .await
+        .expect("start production product");
+    let authorization = format!("Bearer {token}");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert_eq!(response["ok"], true);
+    assert_eq!(response["data"]["persistence"]["engine"], "sqlite");
+    assert_eq!(response["data"]["persistence"]["status"], "ok");
+    assert_eq!(response["data"]["persistence"]["migrated"], true);
+    assert_eq!(
+        response["data"]["persistence"]["tables"]
+            .as_array()
+            .map(Vec::len),
+        Some(9)
+    );
+
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/storage/overview",
+        None,
+        &[("Authorization", authorization.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "storage overview response: {response}");
+    assert_eq!(response["ok"], true);
+    for key in [
+        "pendingOutbox",
+        "recentJobs",
+        "recentAuditLogs",
+        "recentExecutionCommands",
+    ] {
+        assert!(response["data"][key].is_array(), "{key} projection: {response}");
+    }
+    handle
+        .shutdown()
+        .await
+        .expect("shutdown production product");
+}
+
+#[tokio::test]
 async fn runtime_dependencies_use_the_normalized_settings_node_candidate() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");

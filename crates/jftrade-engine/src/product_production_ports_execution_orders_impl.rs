@@ -1,123 +1,20 @@
 impl ProductionExecutionPort {
-    fn reconcile_pending_orders(&self) -> Result<usize, String> {
-        let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
-            || !snapshot.opend_ready
-        {
-            return Err("Futu OpenD runtime is not ready".to_owned());
-        }
-        let reader = self
-            .trade_runtime
-            .as_ref()
-            .map(|runtime| runtime.snapshot().client)
-            .flatten()
-            .or_else(|| self.trade_read_port.clone())
-            .ok_or_else(|| "Futu trade read runtime is unavailable".to_owned())?;
-        let candidates = self
-            .store
-            .list_reconciliation_candidates()
-            .map_err(|error| format!("list execution reconciliation candidates: {error}"))?;
-        let mut failures = Vec::new();
-        let mut reconciled = 0;
-        for order in candidates {
-            let broker_id = order
-                .broker_order_id
-                .as_deref()
-                .and_then(|value| value.trim().parse::<u64>().ok())
-                .filter(|value| *value > 0);
-            let broker_order_id_ex = order
-                .broker_order_id_ex
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty());
-            if broker_id.is_none() && broker_order_id_ex.is_none() {
-                if matches!(
-                    order.status.to_ascii_uppercase().as_str(),
-                    "SUBMITTING" | "SUBMISSION_UNKNOWN"
-                ) {
-                    let mut unknown = order.clone();
-                    let error = failed(
-                        502,
-                        "EXECUTION_STATE_UNKNOWN",
-                        "broker order identity is unavailable for reconciliation",
-                    );
-                    let now = crate::product::product_production_ports::provider_now_rfc3339();
-                    if let Err(error) =
-                        self.persist_unknown(&mut unknown, &error, "reconcile_unknown", &now)
-                    {
-                        failures.push(format!(
-                            "{}: persist unknown state: {error:?}",
-                            order.internal_order_id
-                        ));
-                    }
-                }
-                continue;
-            }
-            let Ok(header) = header_from_order(&order) else {
-                failures.push(format!("{}: invalid trade header", order.internal_order_id));
-                continue;
-            };
-            let expected_revision = match self.store.order_revision(&order.internal_order_id) {
-                Ok(value) => value,
-                Err(error) => {
-                    failures.push(format!(
-                        "{}: read order revision: {error}",
-                        order.internal_order_id
-                    ));
-                    continue;
-                }
-            };
-            let snapshots = match reader.read_orders(header.clone(), None, Vec::new(), Some(true)) {
-                Ok(value) => value,
-                Err(error) => {
-                    failures.push(format!(
-                        "{}: read active broker orders: {error}",
-                        order.internal_order_id
-                    ));
-                    Vec::new()
-                }
-            };
-            let matches_order = |candidate: &jftrade_integration_futu::TradeOrderSnapshot| {
-                broker_id.is_some_and(|id| candidate.order_id == id)
-                    || (broker_order_id_ex.is_some_and(|id| id == candidate.order_id_ex.trim()))
-            };
-            let mut matched = snapshots.into_iter().find(matches_order);
-            if matched.is_none() {
-                match reader.read_history_orders(header, None, Vec::new(), Some(true)) {
-                    Ok(history) => matched = history.into_iter().find(matches_order),
-                    Err(error) => failures.push(format!(
-                        "{}: read broker order history: {error}",
-                        order.internal_order_id
-                    )),
-                }
-            }
-            let Some(matched) = matched else {
-                continue;
-            };
-            match self.apply_broker_snapshot(&order, &matched, expected_revision) {
-                Ok(()) => reconciled += 1,
-                Err(error) => failures.push(format!(
-                    "{}: apply broker snapshot: {error:?}",
-                    order.internal_order_id
-                )),
-            }
-        }
-        if failures.is_empty() {
-            Ok(reconciled)
-        } else {
-            Err(failures.join("; "))
-        }
-    }
-
     fn apply_broker_snapshot(
         &self,
         current: &StoredExecutionOrder,
         snapshot: &jftrade_integration_futu::TradeOrderSnapshot,
         expected_revision: u64,
-    ) -> Result<(), ExecutionWritePortError> {
+    ) -> Result<bool, ExecutionWritePortError> {
         let incoming = canonical_broker_status(order_status_label(snapshot.order_status));
         if incoming == OrderStatus::Unknown {
-            return Ok(());
+            return Err(failed(
+                502,
+                "BROKER_STATUS_UNKNOWN",
+                format!(
+                    "OpenD returned unknown order status {} for broker order {}",
+                    snapshot.order_status, snapshot.order_id
+                ),
+            ));
         }
         let stored_current = canonical_stored_status(&current.status);
         let accepted = if current.status.eq_ignore_ascii_case("CANCEL_SUBMITTED") {
@@ -132,27 +29,87 @@ impl ProductionExecutionPort {
             reconcile_status(stored_current, incoming).1
         };
         if !accepted {
-            return Ok(());
+            return Ok(false);
         }
         let mut next = current.clone();
         next.status = storage_status(incoming, current.status.as_str());
+        if next.broker_id.trim().is_empty() {
+            next.broker_id = "futu".to_owned();
+        }
         next.raw_broker_status = Some(snapshot.order_status.to_string());
-        next.broker_order_id = (snapshot.order_id > 0).then(|| snapshot.order_id.to_string());
+        if snapshot.order_id > 0 {
+            next.broker_order_id = Some(snapshot.order_id.to_string());
+        }
         if !snapshot.order_id_ex.trim().is_empty() {
             next.broker_order_id_ex = Some(snapshot.order_id_ex.clone());
         }
-        next.filled_quantity = snapshot.fill_qty;
-        next.filled_average_price = snapshot.fill_avg_price;
+        if snapshot
+            .fill_qty
+            .is_some_and(|value| value.is_finite() && value >= 0.0)
+            && snapshot
+                .fill_qty
+                .zip(next.filled_quantity)
+                .is_none_or(|(incoming, existing)| incoming >= existing)
+        {
+            next.filled_quantity = snapshot.fill_qty;
+        }
+        if snapshot
+            .fill_avg_price
+            .is_some_and(|value| value.is_finite() && value >= 0.0)
+        {
+            next.filled_average_price = snapshot.fill_avg_price;
+        }
+        if snapshot.qty.is_finite() && snapshot.qty > 0.0 {
+            next.requested_quantity = Some(snapshot.qty);
+        }
+        if snapshot
+            .price
+            .is_some_and(|value| value.is_finite() && value >= 0.0)
+        {
+            next.requested_price = snapshot.price;
+        }
+        if !snapshot.code.trim().is_empty() {
+            next.symbol = Some(if snapshot.code.contains('.') {
+                snapshot.code.trim().to_ascii_uppercase()
+            } else {
+                format!(
+                    "{}.{}",
+                    next.market,
+                    snapshot.code.trim().to_ascii_uppercase()
+                )
+            });
+        }
+        if !snapshot
+            .remark
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+        {
+            next.remark = snapshot.remark.clone();
+        }
+        next.side = Some(execution_order_parse::side_label(snapshot.trd_side).to_owned());
+        next.order_type =
+            Some(execution_order_parse::order_type_label(snapshot.order_type).to_owned());
         next.last_error = snapshot.last_err_msg.clone();
         next.last_error_code = None;
         next.last_error_source = snapshot.last_err_msg.as_ref().map(|_| "opend".to_owned());
         if next.status == current.status
+            && next.broker_id == current.broker_id
+            && next.broker_order_id == current.broker_order_id
+            && next.broker_order_id_ex == current.broker_order_id_ex
             && next.raw_broker_status == current.raw_broker_status
+            && next.symbol == current.symbol
+            && next.side == current.side
+            && next.order_type == current.order_type
+            && next.requested_quantity == current.requested_quantity
+            && next.requested_price == current.requested_price
             && next.filled_quantity == current.filled_quantity
             && next.filled_average_price == current.filled_average_price
+            && next.remark == current.remark
             && next.last_error == current.last_error
         {
-            return Ok(());
+            return Ok(false);
         }
         let now = crate::product::product_production_ports::provider_now_rfc3339();
         next.updated_at = now.clone();
@@ -168,6 +125,7 @@ impl ProductionExecutionPort {
             "brokerStatus": snapshot.order_status,
             "filledQuantity": snapshot.fill_qty,
             "filledAveragePrice": snapshot.fill_avg_price,
+            "updatedAt": snapshot.update_time,
         })
         .to_string();
         let event = StoredExecutionOrderEvent {
@@ -188,7 +146,7 @@ impl ProductionExecutionPort {
                 current.updated_at.as_str(),
                 Some(expected_revision),
             )
-            .map(|_| ())
+            .map(|_| true)
             .map_err(map_transition_store_error)
     }
 

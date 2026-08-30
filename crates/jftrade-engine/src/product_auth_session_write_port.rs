@@ -17,6 +17,18 @@ pub const AUTH_LOGOUT_PATH: &str = "/api/v1/auth/logout";
 pub const AUTH_SESSION_WRITE_ROUTES: [(&str, &str); 2] =
     [("POST", AUTH_LOGIN_PATH), ("POST", AUTH_LOGOUT_PATH)];
 
+/// Transport-only request metadata used by the production auth owner.
+///
+/// It intentionally lives outside `AuthSessionWriteRequest`: the latter is
+/// the frozen Stage 9 route fixture shape.  Runtime callers can supply the
+/// peer/client key and whether the request arrived through a trusted TLS
+/// proxy without changing the public HTTP or fixture contract.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct AuthSessionRequestContext {
+    pub client_key: String,
+    pub secure: bool,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthSessionWriteRequest {
     pub method: String,
@@ -67,10 +79,25 @@ pub trait AuthSessionWritePort: Send + Sync + std::fmt::Debug {
         None
     }
 
+    fn login_rate_limit_with_context(
+        &self,
+        _context: &AuthSessionRequestContext,
+    ) -> Option<AuthSessionWritePortError> {
+        self.login_rate_limit()
+    }
+
     fn mutate(
         &self,
         input: &AuthSessionWriteInput,
     ) -> Result<AuthSessionWritePortResult, AuthSessionWritePortError>;
+
+    fn mutate_with_context(
+        &self,
+        input: &AuthSessionWriteInput,
+        _context: &AuthSessionRequestContext,
+    ) -> Result<AuthSessionWritePortResult, AuthSessionWritePortError> {
+        self.mutate(input)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -84,15 +111,30 @@ pub fn auth_session_write_routes() -> &'static [(&'static str, &'static str); 2]
     &AUTH_SESSION_WRITE_ROUTES
 }
 
+#[allow(dead_code)]
 pub fn dispatch_auth_session_write(
     request: &AuthSessionWriteRequest,
     port: Option<&dyn AuthSessionWritePort>,
     timestamp: &str,
 ) -> AuthSessionWriteResponse {
+    dispatch_auth_session_write_with_context(
+        request,
+        port,
+        timestamp,
+        &AuthSessionRequestContext::default(),
+    )
+}
+
+pub fn dispatch_auth_session_write_with_context(
+    request: &AuthSessionWriteRequest,
+    port: Option<&dyn AuthSessionWritePort>,
+    timestamp: &str,
+    context: &AuthSessionRequestContext,
+) -> AuthSessionWriteResponse {
     let (path, _) = split_path_query(&request.path);
     match (request.method.as_str(), path) {
-        ("POST", AUTH_LOGIN_PATH) => dispatch_login(request, port, timestamp),
-        ("POST", AUTH_LOGOUT_PATH) => dispatch_logout(request, port, timestamp),
+        ("POST", AUTH_LOGIN_PATH) => dispatch_login(request, port, timestamp, context),
+        ("POST", AUTH_LOGOUT_PATH) => dispatch_logout(request, port, timestamp, context),
         _ => error_response(404, "NOT_FOUND", "resource not found", timestamp),
     }
 }
@@ -101,6 +143,7 @@ fn dispatch_login(
     request: &AuthSessionWriteRequest,
     port: Option<&dyn AuthSessionWritePort>,
     timestamp: &str,
+    context: &AuthSessionRequestContext,
 ) -> AuthSessionWriteResponse {
     if request.origin_provided && !request.origin_allowed {
         return error_response(
@@ -141,13 +184,13 @@ fn dispatch_login(
             timestamp,
         );
     };
-    if let Some(error) = port.login_rate_limit() {
+    if let Some(error) = port.login_rate_limit_with_context(context) {
         return port_error_response(error, timestamp);
     }
     let Some(password) = parse_login_password(request.body.as_deref()) else {
         return error_response(400, "BAD_REQUEST", "invalid login payload", timestamp);
     };
-    match port.mutate(&AuthSessionWriteInput::Login { password }) {
+    match port.mutate_with_context(&AuthSessionWriteInput::Login { password }, context) {
         Ok(result) => success_response(result.data, result.set_cookie, timestamp),
         Err(error) => port_error_response(error, timestamp),
     }
@@ -157,6 +200,7 @@ fn dispatch_logout(
     request: &AuthSessionWriteRequest,
     port: Option<&dyn AuthSessionWritePort>,
     timestamp: &str,
+    context: &AuthSessionRequestContext,
 ) -> AuthSessionWriteResponse {
     if request.origin_provided && !request.origin_allowed {
         return middleware_error_response(
@@ -209,7 +253,7 @@ fn dispatch_logout(
     let input = AuthSessionWriteInput::Logout {
         session_cookie: request.session_cookie.clone(),
     };
-    match port.mutate(&input) {
+    match port.mutate_with_context(&input, context) {
         Ok(result) => success_response(result.data, result.set_cookie, timestamp),
         Err(error) => port_error_response(error, timestamp),
     }

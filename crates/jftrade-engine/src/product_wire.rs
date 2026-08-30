@@ -406,7 +406,14 @@ fn settings_read_failure(error: jftrade_settings::SettingsStoreError) -> ApiFail
 }
 
 fn mcp_server_read_failure(error: McpServerSettingsError) -> ApiFailure {
-    ApiFailure::new(500, "SETTINGS_READ_FAILED", error.to_string())
+    let message = error.to_string();
+    let (status, code) = match &error {
+        McpServerSettingsError::RuntimeUnavailable | McpServerSettingsError::RuntimeStatus(_) => {
+            (503, "MCP_SERVER_UNAVAILABLE")
+        }
+        _ => (500, "SETTINGS_READ_FAILED"),
+    };
+    ApiFailure::new(status, code, message)
 }
 fn mcp_server_save_failure(error: McpServerSettingsError) -> ApiFailure {
     let message = error.to_string();
@@ -416,12 +423,26 @@ fn mcp_server_save_failure(error: McpServerSettingsError) -> ApiFailure {
         | McpServerSettingsError::TokenRequired => {
             ApiFailure::new(400, "MCP_SERVER_SETTINGS_REJECTED", message)
         }
+        McpServerSettingsError::RuntimeUnavailable => {
+            ApiFailure::new(503, "MCP_SERVER_UNAVAILABLE", message)
+        }
+        McpServerSettingsError::Runtime { .. } | McpServerSettingsError::RuntimeRollback { .. } => {
+            ApiFailure::new(502, "MCP_SERVER_RUNTIME_UNAVAILABLE", message)
+        }
         _ => ApiFailure::new(500, "MCP_SERVER_SETTINGS_FAILED", message),
     }
 }
 
 fn mcp_server_token_reset_failure(error: McpServerSettingsError) -> ApiFailure {
-    ApiFailure::new(500, "MCP_SERVER_TOKEN_RESET_FAILED", error.to_string())
+    let message = error.to_string();
+    let (status, code) = match &error {
+        McpServerSettingsError::RuntimeUnavailable => (503, "MCP_SERVER_UNAVAILABLE"),
+        McpServerSettingsError::Runtime { .. } | McpServerSettingsError::RuntimeRollback { .. } => {
+            (502, "MCP_SERVER_RUNTIME_UNAVAILABLE")
+        }
+        _ => (500, "MCP_SERVER_TOKEN_RESET_FAILED"),
+    };
+    ApiFailure::new(status, code, message)
 }
 
 fn security_settings_read_failure(error: SecuritySettingsError) -> ApiFailure {

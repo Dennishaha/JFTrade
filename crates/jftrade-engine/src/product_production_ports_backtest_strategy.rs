@@ -273,20 +273,14 @@ pub(super) fn parse_start_request(
             "definitionId is required".to_owned(),
         ));
     }
-    let symbol = if let Some(symbol) = text("symbol") {
-        symbol.to_owned()
-    } else if let (Some(market), Some(code)) = (text("market"), text("code")) {
-        format!("{market}.{code}")
-    } else if let Some(symbol) = corpus_case
-        .and_then(|case| case.get("symbol"))
-        .and_then(Value::as_str)
-    {
-        symbol.to_owned()
-    } else {
-        return Err(BacktestsWritePortError::BadRequest(
-            "symbol is required".to_owned(),
-        ));
-    };
+    let raw_symbol = text("symbol")
+        .or_else(|| corpus_case.and_then(|case| case.get("symbol")).and_then(Value::as_str))
+        .unwrap_or("");
+    let (_resolved_market, symbol) = normalize_start_instrument(
+        text("market").unwrap_or(""),
+        raw_symbol,
+        text("code").unwrap_or(""),
+    )?;
     let interval = text("interval").unwrap_or("1m").to_owned();
     if !matches!(
         interval.as_str(),
@@ -366,6 +360,106 @@ pub(super) fn parse_start_request(
         start_time_ms,
         end_time_ms,
     })
+}
+
+/// Mirror pkg/market.ParseInstrument for the production backtest boundary.
+/// Keeping this normalization here ensures a run and its local K-line lookup
+/// use exactly one canonical PREFIX.CODE identity.
+fn normalize_start_instrument(
+    market: &str,
+    symbol: &str,
+    code: &str,
+) -> Result<(String, String), BacktestsWritePortError> {
+    let market = market.trim().to_ascii_uppercase();
+    let (resolved_market, preferred_prefix) = match market.as_str() {
+        "" => (String::new(), String::new()),
+        "CN" => ("CN".to_owned(), String::new()),
+        "CNSH" => ("CN".to_owned(), "SH".to_owned()),
+        "CNSZ" => ("CN".to_owned(), "SZ".to_owned()),
+        "US" | "HK" | "SH" | "SZ" | "SG" | "JP" | "AU" | "MY" | "CA" => {
+            let resolved = if matches!(market.as_str(), "SH" | "SZ") {
+                "CN"
+            } else {
+                market.as_str()
+            };
+            (resolved.to_owned(), market.clone())
+        }
+        _ => {
+            return Err(BacktestsWritePortError::BadRequest(format!(
+                "unsupported market {market:?}"
+            )));
+        }
+    };
+    let normalized_symbol = symbol.trim().to_ascii_uppercase().replace(':', ".");
+    let normalized_code = code.trim().to_ascii_uppercase();
+    if normalized_symbol.is_empty() && normalized_code.is_empty() {
+        return Err(BacktestsWritePortError::BadRequest(
+            "symbol or code is required".to_owned(),
+        ));
+    }
+    if let Some((prefix, value)) = normalized_symbol.split_once('.') {
+        if prefix.is_empty() || value.trim().is_empty() || value.contains('.') {
+            return Err(BacktestsWritePortError::BadRequest(format!(
+                "symbol {normalized_symbol:?} must be in MARKET.CODE form"
+            )));
+        }
+        let prefix = prefix.to_owned();
+        let value = value.to_owned();
+        let (parsed_market, parsed_prefix) = match prefix.as_str() {
+            "US" | "HK" | "SG" | "JP" | "AU" | "MY" | "CA" => {
+                (prefix.clone(), prefix.clone())
+            }
+            "SH" => ("CN".to_owned(), "SH".to_owned()),
+            "SZ" => ("CN".to_owned(), "SZ".to_owned()),
+            "CNSH" => ("CN".to_owned(), "SH".to_owned()),
+            "CNSZ" => ("CN".to_owned(), "SZ".to_owned()),
+            _ => {
+                return Err(BacktestsWritePortError::BadRequest(format!(
+                    "unsupported market {prefix:?}"
+                )));
+            }
+        };
+        if !normalized_code.is_empty() && normalized_code != value {
+            return Err(BacktestsWritePortError::BadRequest(
+                "code does not match symbol".to_owned(),
+            ));
+        }
+        if !resolved_market.is_empty()
+            && !(resolved_market == parsed_market
+                || (resolved_market == "CN" && parsed_market == "CN"))
+        {
+            return Err(BacktestsWritePortError::BadRequest(
+                "market does not match symbol".to_owned(),
+            ));
+        }
+        return Ok((parsed_market, format!("{parsed_prefix}.{value}")));
+    }
+    if !normalized_code.is_empty() && normalized_code != normalized_symbol {
+        return Err(BacktestsWritePortError::BadRequest(
+            "code does not match symbol".to_owned(),
+        ));
+    }
+    let chosen_code = if normalized_symbol.is_empty() {
+        normalized_code
+    } else {
+        normalized_symbol
+    };
+    if resolved_market.is_empty() {
+        return Err(BacktestsWritePortError::BadRequest(
+            "market is required when symbol has no market prefix".to_owned(),
+        ));
+    }
+    if preferred_prefix.is_empty() {
+        return Err(BacktestsWritePortError::BadRequest(format!(
+            "market {market:?} requires an exchange-qualified symbol like SH.600519 or SZ.000001"
+        )));
+    }
+    if chosen_code.chars().any(|ch| ch.is_whitespace() || ch == '.') {
+        return Err(BacktestsWritePortError::BadRequest(
+            "invalid symbol code".to_owned(),
+        ));
+    }
+    Ok((resolved_market, format!("{preferred_prefix}.{chosen_code}")))
 }
 
 #[cfg(test)]

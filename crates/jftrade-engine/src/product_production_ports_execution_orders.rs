@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use jftrade_integration_futu::{TradeModifyOrderRequest, TradeUnlockRequest, TradeWritePort};
 use jftrade_store_sqlite::{
-    ExecutionOrderReservation, ExecutionOrderStore, ExecutionOrderStoreError,
-    StoredExecutionOrder, StoredExecutionOrderEvent, normalized_request_hash,
+    ExecutionOrderReservation, ExecutionOrderStore, ExecutionOrderStoreError, StoredExecutionOrder,
+    StoredExecutionOrderEvent, normalized_request_hash,
 };
 use jftrade_trading::{
     OrderStatus, canonical_broker_status, canonical_stored_status, reconcile_status,
@@ -23,24 +23,24 @@ use crate::product::product_execution_write_port::{
     ExecutionWriteInput, ExecutionWriteOperation, ExecutionWritePort, ExecutionWritePortError,
 };
 use crate::product::{ActiveProviderState, ExecutionReadSnapshotError, ExecutionReadSnapshotPort};
-#[path = "product_production_ports_execution_order_helpers.rs"]
-mod execution_order_helpers;
 #[path = "product_production_ports_execution_order_hash.rs"]
 mod execution_order_hash;
+#[path = "product_production_ports_execution_order_helpers.rs"]
+mod execution_order_helpers;
+use execution_order_hash::{canonical_execution_request, preview_request_hash};
 use execution_order_helpers::{
     CancelInFlightGuard, broker_error, broker_failed, execution_error_details, failed,
     header_from_order, is_terminal_status, map_trade_error, map_transition_store_error,
     merge_query, order_value, store_error, value_identifier,
 };
-use execution_order_hash::{canonical_execution_request, preview_request_hash};
 
 #[path = "product_production_ports_execution_order_parse.rs"]
 mod execution_order_parse;
-use execution_order_parse::{
-    new_order, parse_combo, parse_order, requires_locked_preview,
-};
+use execution_order_parse::{new_order, parse_combo, parse_order, requires_locked_preview};
 #[path = "product_production_ports_execution_order_previews.rs"]
 mod execution_order_previews;
+#[path = "product_production_ports_execution_reconciliation.rs"]
+mod execution_reconciliation;
 
 pub(crate) struct ProductionExecutionPort {
     pub(crate) store: Arc<ExecutionOrderStore>,
@@ -116,6 +116,11 @@ impl ExecutionReconciliationWorker {
         port: Arc<ProductionExecutionPort>,
         wake: Option<Arc<Notify>>,
     ) -> Arc<Self> {
+        // Keep the worker from extending the WriterLease lifetime after a
+        // synchronous `ProductRuntimeHandle` drop.  Each scan upgrades this
+        // weak reference only for the blocking reconciliation call and drops
+        // the port before waiting for the next wake/timer event.
+        let port = Arc::downgrade(&port);
         let wake = wake.unwrap_or_else(|| Arc::new(Notify::new()));
         let status = Arc::new(Mutex::new(ExecutionReconciliationWorkerStatus::default()));
         let (stop_tx, mut stop_rx) = oneshot::channel();
@@ -125,7 +130,12 @@ impl ExecutionReconciliationWorker {
             let mut retry_delay = std::time::Duration::from_secs(1);
             let max_retry_delay = std::time::Duration::from_secs(60);
             loop {
-                let scan = port.reconcile_pending_orders();
+                let scan = {
+                    let Some(port) = port.upgrade() else {
+                        break;
+                    };
+                    port.reconcile_pending_orders()
+                };
                 let now = crate::product::product_production_ports::provider_now_rfc3339();
                 let mut next_delay = std::time::Duration::from_secs(15);
                 {
@@ -484,9 +494,7 @@ fn replay_or_conflict(
 fn map_reservation_error(error: ExecutionOrderStoreError) -> ExecutionWritePortError {
     match error {
         ExecutionOrderStoreError::Validation(message)
-        | ExecutionOrderStoreError::NotFound(message) => {
-            failed(400, "PREVIEW_INVALID", message)
-        }
+        | ExecutionOrderStoreError::NotFound(message) => failed(400, "PREVIEW_INVALID", message),
         ExecutionOrderStoreError::Conflict(message) => {
             failed(409, "EXECUTION_ORDER_IDEMPOTENCY_CONFLICT", message)
         }

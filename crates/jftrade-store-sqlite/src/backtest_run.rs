@@ -261,7 +261,7 @@ impl BacktestRunStore {
         let mut statement = connection
             .prepare(
                 "SELECT id, status, request_json, result_json, created_at, updated_at
-                 FROM backtest_runs ORDER BY created_at DESC",
+                 FROM backtest_runs ORDER BY created_at DESC, id ASC",
             )
             .map_err(BacktestRunStoreError::Query)?;
         let rows = statement

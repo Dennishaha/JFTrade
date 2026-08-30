@@ -7,8 +7,9 @@ use jftrade_integration_futu::{
     TradePositionSnapshot, TradeSessionError,
 };
 use jftrade_marketdata::ProviderRouter;
-use jftrade_settings::FutuIntegrationConfig;
+use jftrade_settings::{FutuIntegrationConfig, MarketDataProvider, MarketDataProviderRuntimePort};
 use std::time::{Duration, Instant};
+use tempfile::tempdir;
 
 #[derive(Debug)]
 struct FakeTradeRead;
@@ -299,6 +300,36 @@ fn ready_state() -> Arc<ActiveProviderState> {
     state
 }
 
+fn helper_market_data_state(provider: MarketDataProvider) -> Arc<ActiveProviderState> {
+    let state = Arc::new(ActiveProviderState::new(Some(provider)));
+    // Market-data readiness is intentionally independent from the trade
+    // session used by the broker/portfolio projections.
+    state.set_readiness(true, false, true);
+    state
+}
+
+fn ready_trade_runtime() -> Arc<SharedTradeReadRuntime> {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime
+}
+
+fn execution_store() -> (
+    Arc<jftrade_store_sqlite::ExecutionOrderStore>,
+    tempfile::TempDir,
+) {
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("execution-orders.db");
+    let connection = rusqlite::Connection::open(&path).expect("create execution database");
+    jftrade_store_sqlite::initialize_current(&connection, "execution-orders")
+        .expect("initialize execution schema");
+    drop(connection);
+    (
+        Arc::new(jftrade_store_sqlite::ExecutionOrderStore::open(&path).expect("open store")),
+        directory,
+    )
+}
+
 #[test]
 fn broker_read_fails_closed_without_trade_client() {
     let port = ProductionBrokerPort {
@@ -326,6 +357,85 @@ fn broker_read_projects_futu_funds_from_neutral_client() {
         .expect("funds");
     assert_eq!(value["summary"]["totalAssets"], 2.0);
     assert_eq!(value["connectivity"], "connected");
+}
+
+#[test]
+fn helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session() {
+    let runtime = ready_trade_runtime();
+    let port = ProductionBrokerPort {
+        active_provider_state: helper_market_data_state(MarketDataProvider::Yfinance),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/funds",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("helper market-data provider must not gate Futu trade reads");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["summary"]["accountId"], "42");
+}
+
+#[test]
+fn provider_switch_does_not_disconnect_an_existing_futu_trade_session() {
+    let state = ready_state();
+    let runtime = ready_trade_runtime();
+    let port = ProductionBrokerPort {
+        active_provider_state: Arc::clone(&state),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    state
+        .activate(MarketDataProvider::Yfinance)
+        .expect("market-data provider switch");
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/orders",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("trade session remains available after provider switch");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["orders"], json!([]));
+}
+
+#[test]
+fn helper_market_data_provider_without_trade_session_fails_closed() {
+    let port = ProductionBrokerPort {
+        active_provider_state: helper_market_data_state(MarketDataProvider::Akshare),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: None,
+    };
+    let error = port
+        .read(
+            "/api/v1/brokers/futu/funds",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect_err("missing Futu trade session");
+    assert!(error.to_string().contains("trade session"));
+}
+
+#[test]
+fn helper_market_data_provider_keeps_futu_portfolio_reads_on_the_trade_session() {
+    let (store, _directory) = execution_store();
+    let port = ProductionPortfolioPort {
+        active_provider_state: helper_market_data_state(MarketDataProvider::Akshare),
+        _execution_store: store,
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(ready_trade_runtime()),
+    };
+    let value = port
+        .read(
+            "/api/v1/portfolio/futu/cash-balances",
+            "accountId=42&tradingEnvironment=REAL&market=US",
+        )
+        .expect("helper market-data provider must not gate portfolio reads");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["balances"][0]["accountId"], "42");
 }
 
 #[test]

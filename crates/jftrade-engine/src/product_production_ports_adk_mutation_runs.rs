@@ -43,10 +43,12 @@ pub(super) fn dispatch(
             };
             if resolution.should_continue {
                 if let Some(runtime) = port.chat_runtime.as_deref() {
-                    runtime
-                        .resume_approval(&resolution.approval.run_id)
-                        .map_err(continuation_unavailable)?;
+                    if let Err(error) = runtime.resume_approval(&resolution.approval.run_id) {
+                        rollback_staged_approval(port, &resolution)?;
+                        return Err(continuation_unavailable(error));
+                    }
                 } else {
+                    rollback_staged_approval(port, &resolution)?;
                     return Err(AdkMutationPortError::Failed {
                         status: 503,
                         code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
@@ -67,10 +69,12 @@ pub(super) fn dispatch(
             };
             if resolution.should_continue {
                 if let Some(runtime) = port.chat_runtime.as_deref() {
-                    runtime
-                        .resume_approval(&resolution.approval.run_id)
-                        .map_err(continuation_unavailable)?;
+                    if let Err(error) = runtime.resume_approval(&resolution.approval.run_id) {
+                        rollback_staged_approval(port, &resolution)?;
+                        return Err(continuation_unavailable(error));
+                    }
                 } else {
+                    rollback_staged_approval(port, &resolution)?;
                     return Err(AdkMutationPortError::Failed {
                         status: 503,
                         code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
@@ -315,4 +319,21 @@ pub(super) fn dispatch(
         }
         _ => unreachable!("operation group checked before dispatch"),
     }
+}
+
+fn rollback_staged_approval(
+    port: &ProductionAdkPort,
+    resolution: &jftrade_store_sqlite::AdkApprovalResolution,
+) -> Result<(), AdkMutationPortError> {
+    let Some(run) = resolution.run.as_ref() else {
+        return Ok(());
+    };
+    port.store
+        .rollback_staged_approval(
+            &resolution.approval.id,
+            &resolution.approval.run_id,
+            &run.updated_at,
+        )
+        .map_err(storage_mutation_failed)?;
+    Ok(())
 }

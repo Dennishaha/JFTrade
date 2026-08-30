@@ -54,6 +54,37 @@ impl SettingsFileStore {
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    /// Performs the one-time backtest-provider settings upgrade used by the
+    /// production composition. Older documents inherit the active provider;
+    /// once copied, subsequent live-provider changes cannot affect backtests.
+    pub fn ensure_backtest_market_data_provider(&self) -> Result<(), SettingsStoreError> {
+        self.ensure_writable()?;
+        let mut document = self
+            .document
+            .write()
+            .map_err(|_| SettingsStoreError::new("settings write lock is poisoned"))?;
+        let configured = document
+            .get("backtestMarketDataProvider")
+            .filter(|value| !value.is_null())
+            .is_some();
+        if configured {
+            return Ok(());
+        }
+        let provider = document
+            .get("activeMarketDataProvider")
+            .and_then(serde_json::Value::as_str)
+            .map(jftrade_settings::normalize_market_data_provider)
+            .unwrap_or_default();
+        let mut next = document.clone();
+        next.insert(
+            "backtestMarketDataProvider".to_owned(),
+            serde_json::Value::String(jftrade_settings::provider_id(provider).to_owned()),
+        );
+        persist_document(&self.path, &next)?;
+        *document = next;
+        Ok(())
+    }
 }
 
 impl SettingsStorePort for SettingsFileStore {

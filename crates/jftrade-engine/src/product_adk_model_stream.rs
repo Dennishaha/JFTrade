@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 use std::time::Duration;
 
 use super::{
-    MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, unavailable,
-    upstream_error,
+    MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, model_input,
+    unavailable, upstream_error,
 };
 use crate::product::product_adk_chat_stream_port::AdkChatPortError;
 
@@ -33,12 +33,7 @@ where
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|error| upstream_error(format!("create model client: {error}")))?;
-        let mut input = Vec::new();
-        if let Some(instruction) = request.instruction.filter(|value| !value.trim().is_empty()) {
-            input.push(json!({"role":"system","content":instruction}));
-        }
-        input.push(json!({"role":"user","content":request.message}));
-        input.extend(request.tool_context.clone());
+        let input = model_input(&request);
         let mut body = json!({"model":request.model,"input":input,"stream":true});
         if !request.tools.is_empty() {
             body["tools"] = Value::Array(request.tools.clone());

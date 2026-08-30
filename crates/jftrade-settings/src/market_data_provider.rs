@@ -85,14 +85,24 @@ impl BacktestMarketDataProviderSettingsService {
     pub fn save(&self, input: &str) -> Result<MarketDataProvider, MarketDataProviderSettingsError> {
         let current = self.active_provider()?;
         let next = parse_market_data_provider(input)?;
-        if next != current
-            && let Some(runtime) = &self.runtime
-        {
-            runtime
-                .prepare_backtest(next)
-                .map_err(MarketDataProviderSettingsError::Runtime)?;
+        if next == current {
+            return Ok(next);
         }
+        // Persist first so a failed settings write can never leave the
+        // process-local runtime pointing at a provider that will be lost on
+        // restart.  If runtime preparation fails, restore the old durable
+        // value before returning the error.
         self.store.save_backtest_market_data_provider(next)?;
+        if let Some(runtime) = &self.runtime
+            && let Err(error) = runtime.prepare_backtest(next)
+        {
+            if let Err(rollback_error) = self.store.save_backtest_market_data_provider(current) {
+                return Err(MarketDataProviderSettingsError::Runtime(format!(
+                    "{error}; settings rollback failed: {rollback_error}"
+                )));
+            }
+            return Err(MarketDataProviderSettingsError::Runtime(error));
+        }
         Ok(next)
     }
 }

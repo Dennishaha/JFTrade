@@ -136,7 +136,15 @@ impl ProductShutdownSupervisor {
             ports.shutdown_strategy_runtime();
             ports.shutdown_adk_runtime();
         }
-        // 2. Release provider demand & bridge
+        // 2. Stop reconciliation before provider/OpenD teardown.  It reads
+        // the trade session at scan time, so leaving it alive while the
+        // provider is closing would race a disappearing reader and could
+        // persist a false UNKNOWN state.
+        if let Some(worker) = self.execution_reconciliation_worker.take() {
+            worker.shutdown().await;
+            self.recorder.record("execution_reconciliation_worker");
+        }
+        // 3. Release provider demand & bridge
         let mut had_provider = false;
         if let Some(provider) = self.market_data_opend_provider.take() {
             had_provider = true;
@@ -156,7 +164,7 @@ impl ProductShutdownSupervisor {
             self.recorder.record("provider");
             self.recorder.record("opend");
         }
-        // 3. Stop OpenD task runtime
+        // 4. Stop OpenD task runtime
         let mut opend_closed = false;
         if let Some(mut task) = self.market_data_opend_runtime.take() {
             opend_closed = true;
@@ -167,7 +175,7 @@ impl ProductShutdownSupervisor {
                 self.recorder.record("opend");
             }
         }
-        // 4. Close OpenD coordinator
+        // 5. Close OpenD coordinator
         if let Some(coordinator) = self.market_data_opend.take() {
             if let Err(error) = coordinator
                 .lock()
@@ -180,16 +188,12 @@ impl ProductShutdownSupervisor {
                 self.recorder.record("opend");
             }
         }
-        // 5. Stop market-data helper (health monitor first, then process)
+        // 6. Stop market-data helper (health monitor first, then process)
         if let Some(workers) = self.backtest_sync_workers.take() {
             workers.shutdown().await;
         }
         if let Some(workers) = self.backtest_execution_workers.take() {
             workers.shutdown().await;
-        }
-        if let Some(worker) = self.execution_reconciliation_worker.take() {
-            worker.shutdown().await;
-            self.recorder.record("execution_reconciliation_worker");
         }
         if let Some(monitor) = self.helper_health.take() {
             monitor.stop();
@@ -204,7 +208,7 @@ impl ProductShutdownSupervisor {
             }
             self.recorder.record("marketdata_helper");
         }
-        // 6. Stop Pine workers
+        // 7. Stop Pine workers
         let had_pine = !self.pine_workers.is_empty();
         while let Some(worker) = self.pine_workers.pop() {
             if let Err(error) = worker.stop().await {
@@ -214,7 +218,7 @@ impl ProductShutdownSupervisor {
         if had_pine {
             self.recorder.record("pine_worker");
         }
-        // 7. Release SQLite stores & 9 WriterLease locks last
+        // 8. Release SQLite stores & 9 WriterLease locks last
         if self.production_ports.is_some() {
             drop(self.production_ports.take());
             self.recorder.record("sqlite_lease");
@@ -243,7 +247,14 @@ impl ProductShutdownSupervisor {
             ports.shutdown_strategy_runtime();
             ports.shutdown_adk_runtime();
         }
-        // 2. Release provider demand & bridge
+        // 2. Stop reconciliation before provider/OpenD teardown.  Keep the
+        // synchronous Drop path in the same lifecycle order as async
+        // shutdown; the worker's terminate operation is non-blocking.
+        if let Some(worker) = self.execution_reconciliation_worker.take() {
+            worker.terminate();
+            self.recorder.record("execution_reconciliation_worker");
+        }
+        // 3. Release provider demand & bridge
         let mut had_provider = false;
         if let Some(provider) = self.market_data_opend_provider.take() {
             had_provider = true;
@@ -259,7 +270,7 @@ impl ProductShutdownSupervisor {
             self.recorder.record("provider");
             self.recorder.record("opend");
         }
-        // 3. Stop OpenD task runtime & coordinator
+        // 4. Stop OpenD task runtime & coordinator
         let mut opend_recorded = false;
         if let Some(mut task) = self.market_data_opend_runtime.take() {
             opend_recorded = true;
@@ -277,16 +288,12 @@ impl ProductShutdownSupervisor {
                 self.recorder.record("opend");
             }
         }
-        // 4. Terminate helper (health monitor first, then process)
+        // 5. Terminate helper (health monitor first, then process)
         if let Some(workers) = self.backtest_sync_workers.take() {
             workers.terminate();
         }
         if let Some(workers) = self.backtest_execution_workers.take() {
             workers.terminate();
-        }
-        if let Some(worker) = self.execution_reconciliation_worker.take() {
-            worker.terminate();
-            self.recorder.record("execution_reconciliation_worker");
         }
         if let Some(monitor) = self.helper_health.take() {
             monitor.stop();
@@ -299,7 +306,7 @@ impl ProductShutdownSupervisor {
             helper.terminate();
             self.recorder.record("marketdata_helper");
         }
-        // 5. Terminate Pine workers
+        // 6. Terminate Pine workers
         let had_pine = !self.pine_workers.is_empty();
         while let Some(mut worker) = self.pine_workers.pop() {
             worker.terminate();
@@ -307,7 +314,7 @@ impl ProductShutdownSupervisor {
         if had_pine {
             self.recorder.record("pine_worker");
         }
-        // 6. Release SQLite stores & 9 WriterLease locks last
+        // 7. Release SQLite stores & 9 WriterLease locks last
         if self.production_ports.is_some() {
             drop(self.production_ports.take());
             self.recorder.record("sqlite_lease");

@@ -8,6 +8,10 @@ use jftrade_api::{Clock, SystemClock};
 use jftrade_settings::FutuOpenDInstallSettingsStorePort;
 use jftrade_settings::InterfaceSettingsStorePort;
 use jftrade_store_settings_file::SettingsFileStore;
+use jftrade_store_sqlite::{
+    AdkStore, BacktestRunStore, BacktestSyncTaskStore, ExecutionOrderStore,
+    StrategyRuntimeStore,
+};
 use jftrade_trading::{
     RealTradeControlEvent, RealTradeControlState, RealTradeHardStopEntry, RealTradeKillSwitchEntry,
     RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
@@ -24,14 +28,26 @@ use crate::product::{
     MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
     SystemReadSnapshotPort,
 };
+use crate::real_trade_control::RealTradeControlReader;
 pub(crate) struct ProductionSystemPort {
     pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
+    pub(crate) live_hub: Option<Arc<jftrade_api::LiveHub>>,
     pub(crate) settings: Arc<SettingsFileStore>,
     pub(crate) opend_status: ProductionRuntimeStatus,
     pub(crate) worker_status: ProductionRuntimeStatus,
     pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
     pub(crate) database_leases:
         crate::product::product_production_ports::ProductionDatabaseLeaseSnapshot,
+    /// Durable stores backing the storage overview projection.  These are
+    /// the same leased instances used by the production route adapters; the
+    /// system read path never opens a second connection or an ephemeral
+    /// queue.
+    pub(crate) backtest_store: Arc<BacktestRunStore>,
+    pub(crate) backtest_sync_tasks: Arc<BacktestSyncTaskStore>,
+    pub(crate) execution_store: Arc<ExecutionOrderStore>,
+    pub(crate) adk_store: Arc<AdkStore>,
+    pub(crate) strategy_runtime_store: Arc<StrategyRuntimeStore>,
+    pub(crate) real_trade_control: RealTradeControlReader,
 }
 
 impl std::fmt::Debug for ProductionSystemPort {
@@ -39,6 +55,7 @@ impl std::fmt::Debug for ProductionSystemPort {
         formatter
             .debug_struct("ProductionSystemPort")
             .field("runtime_status", &self.runtime_status.is_some())
+            .field("live_hub", &self.live_hub.is_some())
             .field("settings_path", &self.settings.path())
             .field("opend_status", &self.opend_status)
             .field("worker_status", &self.worker_status)
@@ -83,6 +100,7 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
     fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
         match path {
             "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
+            "/api/v1/system/storage/overview" => self.storage_overview_snapshot(),
             // Keep the route fail-closed when the runtime was assembled
             // outside the async production owner (for example, a synchronous
             // composition test).  A real runtime injects the worker below so
@@ -108,6 +126,15 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
                 "engine": "rust",
                 "productionOwner": "rust",
             })),
+            "/api/v1/system/real-trade-kill-switch" => {
+                Ok(json!(self.real_trade_control.snapshot().kill_switch()))
+            }
+            "/api/v1/system/real-trade-risk-limits" => {
+                Ok(json!(self.real_trade_control.snapshot().risk_limits()))
+            }
+            "/api/v1/system/real-trade-risk-events" => {
+                Ok(json!(self.real_trade_control.snapshot().risk_events()))
+            }
             "/api/v1/system/status" => {
                 let market_data = self.runtime_status.as_ref().map(|port| port.snapshot());
                 let status = if market_data.as_ref().is_some_and(|state| state.connected) {
@@ -189,6 +216,11 @@ impl ProductionSystemPort {
                 .stream_last_error
                 .clone()
                 .filter(|error| !error.is_empty()));
+        let live_snapshot = self.live_hub.as_ref().map(|hub| hub.snapshot());
+        let live_connections = live_snapshot.as_ref().map_or(0, |snapshot| snapshot.connected);
+        let live_limit = settings.max_websocket_connections.max(0) as usize;
+        let live_at_limit = live_limit > 0 && live_connections >= live_limit;
+        let process_inventory_available = false;
         Ok(json!({
             "checkedAt": provider_now_rfc3339(),
             "status": status,
@@ -218,10 +250,10 @@ impl ProductionSystemPort {
                 "configuredOpenDWebSocketLimit": settings.max_websocket_connections,
                 "configuredOpenDWebSocketLimitActive": false,
                 "configuredOpenDWebSocketLimitScope": "stored for FTWebSocket compatibility; current market-data path uses the OpenD native API via bbgo",
-                "websocketEstablishedConnections": 0,
+                "websocketEstablishedConnections": live_connections,
                 "jftradeLiveWebSocketLimit": settings.max_websocket_connections,
-                "jftradeLiveWebSocketAtLimit": false,
-                "likelyConnectionSaturation": false,
+                "jftradeLiveWebSocketAtLimit": live_at_limit,
+                "likelyConnectionSaturation": live_at_limit,
                 "openDWebSocketPoolLikelySaturation": false,
                 "liveQuoteBackoffActive": state.quote_retry_at.is_some(),
                 "liveQuoteRetryAfter": state.quote_retry_at,
@@ -232,6 +264,7 @@ impl ProductionSystemPort {
                 "liveStreamFailureCount": state.stream_failures,
                 "liveStreamLastError": state.stream_last_error,
                 "topClientProcesses": [],
+                "topClientProcessesStatus": if process_inventory_available { "available" } else { "unavailable" },
             },
             "localInstallation": {
                 "platform": std::env::consts::OS,

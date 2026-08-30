@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 use super::ProductionBacktestPort;
+use super::{persist_request_with_provider, requested_provider};
 use super::product_production_ports_backtest_parse::provider_id;
 use super::product_production_ports_backtest_strategy::{
     parse_start_request, resolve_strategy_payload,
@@ -85,12 +86,11 @@ impl ProductionBacktestPort {
             )
         })?;
         let execution_payload = resolve_strategy_payload(payload, &self.strategy_definitions)?;
-        let provider = self.active_provider_state.get().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable(
-                "active market-data provider is not configured".to_owned(),
-            )
-        })?;
-        let provider_id = provider_id(provider);
+        let provider_id = if let Some(provider_id) = requested_provider(payload)? {
+            provider_id
+        } else {
+            provider_id(self.backtest_market_data_provider_state.get())
+        };
         let request = parse_start_request(&execution_payload)?;
         let candles = self
             ._market_data_store
@@ -123,7 +123,7 @@ impl ProductionBacktestPort {
         let run = jftrade_store_sqlite::StoredBacktestRun {
             id: run_id.clone(),
             status: "queued".to_owned(),
-            request_json: payload.to_string(),
+            request_json: persist_request_with_provider(payload, provider_id),
             result_json: String::new(),
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),

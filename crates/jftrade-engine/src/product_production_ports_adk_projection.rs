@@ -140,9 +140,32 @@ pub(super) fn query_param(query: &str, target: &str) -> Option<String> {
         })
 }
 
-pub(super) fn dynamic_id<'a>(path: &'a str, prefix: &str, suffix: &str) -> Option<&'a str> {
+pub(super) fn dynamic_id(path: &str, prefix: &str, suffix: &str) -> Option<String> {
     let value = path.strip_prefix(prefix)?.strip_suffix(suffix)?;
-    (!value.is_empty() && !value.contains('/')).then_some(value)
+    if value.is_empty() || value.contains('/') || !valid_percent_escapes(value) {
+        return None;
+    }
+    let decoded = percent_decode_str(value).decode_utf8().ok()?.into_owned();
+    ( !decoded.trim().is_empty() && !decoded.contains('/') ).then_some(decoded)
+}
+
+fn valid_percent_escapes(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            index += 1;
+            continue;
+        }
+        if index + 2 >= bytes.len()
+            || !bytes[index + 1].is_ascii_hexdigit()
+            || !bytes[index + 2].is_ascii_hexdigit()
+        {
+            return false;
+        }
+        index += 3;
+    }
+    true
 }
 
 pub(super) fn invalid_payload<E: std::fmt::Display>(

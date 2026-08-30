@@ -147,4 +147,13 @@ mod tests {
         assert_eq!(token.len(), 64);
         assert!(token.bytes().all(|byte| byte.is_ascii_hexdigit()));
     }
+
+    #[test]
+    fn runtime_readiness_failure_is_fail_closed_for_every_non_ready_state() {
+        assert!(runtime_readiness_failure("ready").is_none());
+        for state in ["starting", "degraded", "unavailable", "failed", "unknown"] {
+            let error = runtime_readiness_failure(state).expect("non-ready state must fail");
+            assert!(matches!(error, NativeError::RuntimeUnavailable { readiness, .. } if readiness == state));
+        }
+    }
 }

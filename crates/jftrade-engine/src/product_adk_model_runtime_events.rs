@@ -32,6 +32,20 @@ impl ProductionAdkChatRuntime {
             tool_catalog,
             continuation_supervisor,
         };
+        // Any queued/running workflow invocation persisted by a previous
+        // process has no live executor after restart. Fence it before serving
+        // new requests; pending-approval runs are intentionally left for the
+        // continuation recovery path below.
+        if let Err(error) = runtime.store.recover_orphaned_workflow_trigger_logs() {
+            eprintln!("failed to recover orphaned ADK workflow invocations: {error}");
+            // A partially recovered durable log is unsafe to serve: a second
+            // runtime could replay the same invocation.  Fence all new work
+            // until an operator repairs the store and restarts the process.
+            runtime
+                .continuation_supervisor
+                .stopping
+                .store(true, std::sync::atomic::Ordering::Release);
+        }
         runtime.recover_approval_continuations();
         runtime
     }
@@ -180,6 +194,12 @@ impl ProductionAdkChatRuntime {
                     .is_some_and(|name| self.tool_executor.supports(name))
             })
             .collect();
+        let tool_context = durable_context_items(
+            self.store.as_ref(),
+            self.session_store.as_ref(),
+            &session_id,
+            Some(&run_id),
+        )?;
         Ok(PreparedChat::New(ChatExecution {
             route,
             run_id,
@@ -191,6 +211,7 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message: message.clone(),
+                durable_context: tool_context,
                 tool_context: Vec::new(),
                 timeout: provider.timeout,
                 tools,
@@ -264,16 +285,18 @@ impl ProductionAdkChatRuntime {
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .or_else(|| {
-                self.session_store
-                    .list_events(&run.session_id)
-                    .ok()?
-                    .into_iter()
-                    .find(|event| event.invocation_id == run.id && event.author == "user")
-                    .map(|event| event.content)
-            })
-            .ok_or_else(|| unavailable("persisted ADK run has no resumable request"))?;
+            .map(str::to_owned);
+        let message = match message {
+            Some(message) => message,
+            None => self
+                .session_store
+                .list_events(&run.session_id)
+                .map_err(storage_unavailable)?
+                .into_iter()
+                .find(|event| event.invocation_id == run.id && event.author == "user")
+                .map(|event| event.content)
+                .ok_or_else(|| unavailable("persisted ADK run has no resumable request"))?,
+        };
         let mut request = serde_json::Map::new();
         if let Some(agent_id) = object.get("agentId").and_then(Value::as_str) {
             request.insert("agentId".to_owned(), Value::String(agent_id.to_owned()));
@@ -324,6 +347,7 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message,
+                durable_context: Vec::new(),
                 tool_context: tool_context_from_payload(object),
                 timeout: provider.timeout,
                 tools,

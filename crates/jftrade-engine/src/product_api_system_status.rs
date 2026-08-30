@@ -22,6 +22,22 @@ impl ProductApi {
             .as_ref()
             .and_then(|manager| manager.status_snapshot().ok())
             .map(|status| json!(status));
+        let persistence = if runtime.production {
+            match self.production_persistence_projection(&settings_path, &checked_at) {
+                Ok(persistence) => persistence,
+                Err(failure) => return production_failure_output(failure),
+            }
+        } else {
+            json!({
+                "engine": "json",
+                "databasePath": settings_path,
+                "status": "ok",
+                "migrated": true,
+                "pendingMigrations": [],
+                "tables": ["broker_integrations", "broker_accounts"],
+                "checkedAt": checked_at,
+            })
+        };
         ApiOutput::Json(json!({
             "name": "JFTrade",
             "apiPort": self.api_port,
@@ -56,21 +72,13 @@ impl ProductApi {
                 "goarch": go_compatible_arch()
             },
             "persistence": {
-                "engine": if runtime.production { "sqlite" } else { "json" },
-                "databasePath": settings_path,
-                "status": "ok",
-                "migrated": true,
-                "pendingMigrations": [],
-                "tables": if runtime.production {
-                    json!([
-                        "watchlist", "strategy_definitions", "strategy_runtime",
-                        "execution_orders", "backtest_runs", "adk", "adk_sessions",
-                        "adk_artifacts", "research_presets"
-                    ])
-                } else {
-                    json!(["broker_integrations", "broker_accounts"])
-                },
-                "checkedAt": checked_at
+                "engine": persistence["engine"].clone(),
+                "databasePath": persistence["databasePath"].clone(),
+                "status": persistence["status"].clone(),
+                "migrated": persistence["migrated"].clone(),
+                "pendingMigrations": persistence["pendingMigrations"].clone(),
+                "tables": persistence["tables"].clone(),
+                "checkedAt": persistence["checkedAt"].clone()
             },
             "observability": {
                 "api": { "startedAt": self.started_at, "uptimeMs": uptime },
@@ -90,6 +98,92 @@ impl ProductApi {
             "strategyRuntime": strategy_runtime,
             "message": "JFTrade API adapter is running."
         }))
+    }
+
+    fn production_persistence_projection(
+        &self,
+        settings_path: &str,
+        checked_at: &str,
+    ) -> Result<Value, ApiFailure> {
+        let ports = self.production_ports.as_ref().ok_or_else(|| {
+            ApiFailure::new(
+                503,
+                "PERSISTENCE_UNAVAILABLE",
+                "production persistence bundle is not configured",
+            )
+        })?;
+        let overview = self
+            .settings
+            .data_management
+            .overview(
+                OverviewRequest {
+                    summary_only: true,
+                    database_id: String::new(),
+                },
+                checked_at.to_owned(),
+            )
+            .map_err(|error| {
+                ApiFailure::new(
+                    500,
+                    "PERSISTENCE_OVERVIEW_FAILED",
+                    error.to_string(),
+                )
+            })?;
+        let pending_migrations = overview
+            .databases
+            .iter()
+            .filter(|database| database.status != "ready")
+            .map(|database| database.descriptor.id.clone())
+            .collect::<Vec<_>>();
+        let tables = overview
+            .databases
+            .iter()
+            .map(|database| database.descriptor.id.clone())
+            .collect::<Vec<_>>();
+        let all_ready = ports.database_leases.status == "acquired"
+            && overview
+                .databases
+                .iter()
+                .all(|database| database.status == "ready");
+        let status = if all_ready {
+            "ok"
+        } else if ports.database_leases.status == "partial"
+            || overview
+                .databases
+                .iter()
+                .any(|database| database.status == "ready")
+        {
+            "degraded"
+        } else {
+            "unavailable"
+        };
+        Ok(json!({
+            "engine": "sqlite",
+            "databasePath": settings_path,
+            "status": status,
+            "migrated": all_ready,
+            "pendingMigrations": pending_migrations,
+            "tables": tables,
+            "checkedAt": checked_at,
+        }))
+    }
+}
+
+fn production_failure_output(failure: ApiFailure) -> ApiOutput {
+    let body = serde_json::to_vec(&json!({
+        "ok": false,
+        "error": {
+            "code": failure.code,
+            "message": failure.message,
+        },
+        "timestamp": SystemClock.now_rfc3339(),
+    }))
+    .unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
+    ApiOutput::Raw {
+        status: failure.status,
+        content_type: "application/json".to_owned(),
+        body,
+        headers: std::collections::BTreeMap::new(),
     }
 }
 

@@ -2,8 +2,13 @@ use super::product_backtest_sync_request::parse_sync_request;
 use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
+use jftrade_integration_futu::{
+    HistoricalKline, HistoricalKlineQuery, HistoricalKlineReadPort, HistoricalKlineResult,
+    HistoricalSecurity,
+};
 use jftrade_settings::MarketDataProvider;
 use jftrade_store_sqlite::{StoredBacktestCandle, StoredBacktestSyncTask};
+use std::sync::Mutex;
 
 #[derive(Debug)]
 struct FixtureExecution;
@@ -15,6 +20,47 @@ impl BacktestExecutionPort for FixtureExecution {
             "bars": request.candles.len(),
             "marketDataProvider": request.market_data_provider,
         }))
+    }
+}
+
+#[derive(Debug, Default)]
+struct FutuHistoryFixture {
+    calls: Mutex<Vec<Vec<u8>>>,
+}
+
+impl HistoricalKlineReadPort for FutuHistoryFixture {
+    fn query(
+        &self,
+        query: &HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, jftrade_integration_futu::HistoricalKlineError> {
+        self.calls
+            .lock()
+            .expect("fixture calls")
+            .push(query.next_req_key.clone());
+        let first = query.next_req_key.is_empty();
+        Ok(HistoricalKlineResult {
+            security: HistoricalSecurity {
+                market: query.market,
+                code: query.symbol.clone(),
+            },
+            name: Some("Fixture security".to_owned()),
+            klines: vec![HistoricalKline {
+                time: if first {
+                    "2026-08-01 08:00:00".to_owned()
+                } else {
+                    "2026-08-01 08:02:00".to_owned()
+                },
+                is_blank: false,
+                high_price: Some(102.0),
+                open_price: Some(100.0),
+                low_price: Some(99.0),
+                close_price: Some(101.0),
+                volume: Some(12),
+                turnover: None,
+                change_rate: None,
+            }],
+            next_req_key: if first { vec![1, 2, 3] } else { Vec::new() },
+        })
     }
 }
 
@@ -103,9 +149,12 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             sync_tasks,
             _market_data_store: market_data,
             helper: None,
-            active_provider_state: std::sync::Arc::new(ActiveProviderState::new(Some(
-                MarketDataProvider::Yfinance,
-            ))),
+            trade_runtime: None,
+            backtest_market_data_provider_state: std::sync::Arc::new(
+                crate::product::BacktestMarketDataProviderState::new(
+                    MarketDataProvider::Yfinance,
+                ),
+            ),
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
             execution: None,
             execution_workers: std::sync::Arc::new(BacktestExecutionTaskRegistry::default()),
@@ -113,6 +162,57 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
         },
         directory,
     )
+}
+
+#[tokio::test]
+async fn production_futu_sync_uses_opend_reader_and_persists_candles() {
+    let (mut port, _directory) = production_port();
+    let runtime = std::sync::Arc::new(crate::product::product_production_ports::SharedTradeReadRuntime::default());
+    let fixture = std::sync::Arc::new(FutuHistoryFixture::default());
+    runtime.set_historical_klines(Some(fixture.clone()));
+    port.trade_runtime = Some(runtime);
+    port.backtest_market_data_provider_state
+        .set(MarketDataProvider::Futu);
+    let response = port
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: json!({
+                "market": "HK",
+                "code": "00700",
+                "intervals": ["1m"],
+                "since": "2026-08-01T00:00:00Z",
+                "until": "2026-08-01T00:03:00Z",
+                "rehabType": "forward"
+            }),
+        })
+        .expect("start Futu sync");
+    let BacktestsWritePortResult::Data(data) = response else {
+        panic!("unexpected sync response");
+    };
+    let task_id = data["taskId"].as_str().expect("task id").to_owned();
+    for _ in 0..100 {
+        if let Some(task) = port.sync_tasks.get(&task_id).expect("task")
+            && matches!(task.status.as_str(), "completed" | "failed")
+        {
+            assert_eq!(task.status, "completed", "task error: {:?}", task.error);
+            let candles = port
+                ._market_data_store
+                .read_candles(
+                    "futu",
+                    "HK.00700",
+                    "1m",
+                    "forward",
+                    "regular",
+                    1_785_542_400_000,
+                    1_785_542_580_000,
+                )
+                .expect("read synced candles");
+            assert_eq!(candles.len(), 2);
+            assert_eq!(fixture.calls.lock().expect("fixture calls").len(), 2);
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("Futu sync did not complete");
 }
 
 #[test]
@@ -170,6 +270,41 @@ fn production_sync_cancel_matches_not_found_for_terminal_task() {
         task_id: "sync-terminal".to_owned(),
     });
     assert_eq!(result, Ok(BacktestsWritePortResult::SyncCancelled(false)));
+}
+
+#[test]
+fn production_sync_restart_recovery_marks_orphaned_task_failed() {
+    let (port, _directory) = production_port();
+    port.sync_tasks
+        .create(StoredBacktestSyncTask {
+            task_id: "sync-orphaned".to_owned(),
+            status: "running".to_owned(),
+            symbol: "HK.00700".to_owned(),
+            market_data_provider: "futu".to_owned(),
+            total_intervals: 1,
+            completed_intervals: 0,
+            total_batches: 0,
+            completed_batches: 0,
+            current_interval: "1m".to_owned(),
+            retries: 1,
+            error: None,
+            started_at: "2026-08-29T00:00:00Z".to_owned(),
+            updated_at: "2026-08-29T00:01:00Z".to_owned(),
+            revision: 0,
+        })
+        .expect("persist orphaned task");
+    port.recover_orphaned_sync_tasks()
+        .expect("recover orphaned task");
+    let task = port
+        .sync_tasks
+        .get("sync-orphaned")
+        .expect("load recovered task")
+        .expect("task exists");
+    assert_eq!(task.status, "failed");
+    assert_eq!(
+        task.error.as_deref(),
+        Some("sync task interrupted by process restart")
+    );
 }
 
 #[test]

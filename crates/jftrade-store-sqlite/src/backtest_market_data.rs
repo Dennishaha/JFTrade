@@ -398,11 +398,37 @@ fn kline_table_name(
     rehab_type: &str,
     session_scope: &str,
 ) -> Result<String, BacktestMarketDataStoreError> {
-    let raw_provider = normalize_provider_id(provider_id);
+    let raw_provider = provider_id.trim().to_ascii_lowercase();
+    if !matches!(raw_provider.as_str(), "futu" | "yfinance" | "akshare") {
+        return Err(BacktestMarketDataStoreError::Validation(format!(
+            "unsupported market-data provider: {provider_id}"
+        )));
+    }
     let raw_symbol = symbol.trim().to_ascii_lowercase();
-    let provider = normalize_component(&raw_provider, "futu");
-    let symbol = normalize_component(&raw_symbol, "value");
-    let interval = normalize_component(interval, "value");
+    if raw_symbol.is_empty() {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "symbol is required".to_owned(),
+        ));
+    }
+    let raw_interval = interval.trim();
+    if raw_interval.is_empty() {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "interval is required".to_owned(),
+        ));
+    }
+    let provider = normalize_component(&raw_provider, "");
+    let symbol = normalize_component(&raw_symbol, "");
+    let interval = normalize_component(raw_interval, "");
+    if symbol.is_empty() {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "symbol is required".to_owned(),
+        ));
+    }
+    if interval.is_empty() {
+        return Err(BacktestMarketDataStoreError::Validation(
+            "interval is required".to_owned(),
+        ));
+    }
     let rehab = match rehab_type.trim().to_ascii_lowercase().as_str() {
         "forward" | "backward" | "none" => rehab_type.trim().to_ascii_lowercase(),
         _ => {
@@ -424,14 +450,6 @@ fn kline_table_name(
     Ok(format!(
         "local_klines__{provider}__{symbol}__{interval}__{rehab}__{scope_tag}__{hash:08x}"
     ))
-}
-
-fn normalize_provider_id(value: &str) -> String {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "yfinance" => "yfinance".to_owned(),
-        "akshare" => "akshare".to_owned(),
-        _ => "futu".to_owned(),
-    }
 }
 
 fn normalize_component(value: &str, default: &str) -> String {

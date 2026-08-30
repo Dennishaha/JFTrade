@@ -10,8 +10,8 @@ use jftrade_marketdata::{
     PhysicalSubscriptionSnapshot, PhysicalSubscriptionSnapshotPort, ProviderRouter,
 };
 use jftrade_settings::{
-    FutuOpenDInstallSettingsStorePort, MarketDataProvider, MarketDataProviderSettingsStorePort,
-    parse_market_data_provider,
+    BrokerSettingsStorePort, FutuOpenDInstallSettingsStorePort, MarketDataProvider,
+    MarketDataProviderSettingsStorePort, parse_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 
@@ -21,25 +21,51 @@ pub(crate) fn compose_market_data_runtime(
     config: &mut ProductRuntimeConfig,
 ) -> Result<(), ProductRuntimeError> {
     let settings_path = config.product.settings_path();
-    if !std::path::Path::new(settings_path).exists() {
+    let settings_exists = std::path::Path::new(settings_path).exists();
+    let futu_env_override = std::env::var_os("JFTRADE_FUTU_OPEND_HOST").is_some()
+        || std::env::var_os("JFTRADE_FUTU_OPEND_PORT").is_some();
+    if !settings_exists && !futu_env_override {
         return Ok(());
     }
-    let store = SettingsFileStore::open_read_only(settings_path)
+    let store = settings_exists
+        .then(|| SettingsFileStore::open_read_only(settings_path))
+        .transpose()
         .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?;
     let active_provider = store
-        .load_active_market_data_provider()
-        .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?
+        .as_ref()
+        .map(|store| {
+            store
+                .load_active_market_data_provider()
+                .map_err(|e| ProductRuntimeError::Settings(e.to_string()))
+        })
+        .transpose()?
+        .flatten()
         .map(|p| {
             parse_market_data_provider(&p)
                 .map_err(|error| ProductRuntimeError::Settings(error.to_string()))
         })
         .transpose()?;
+    // Futu's OpenD session is a shared trade owner, not merely a market-data
+    // provider.  When a broker integration is enabled, compose it even if
+    // yfinance/AKShare currently owns market-data reads; reconciliation then
+    // keeps account/order/history/fill/fee visibility across provider switches.
+    let futu_trade_enabled = store
+        .as_ref()
+        .map(|store| {
+            store
+                .load_broker_settings_inputs()
+                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))
+        })
+        .transpose()?
+        .and_then(|inputs| inputs.saved_integration)
+        .is_some_and(|integration| integration.enabled);
     let router = config
         .market_data_router
         .clone()
         .unwrap_or_else(|| Arc::new(Mutex::new(ProviderRouter::new(512))));
 
-    if active_provider == Some(MarketDataProvider::Futu) {
+    if active_provider == Some(MarketDataProvider::Futu) || futu_trade_enabled || futu_env_override
+    {
         let provider_config = opend_provider_config(settings_path, Arc::clone(&router))?;
         config.market_data_opend_provider = Some(provider_config);
         // Keep the single router in the composition even while Futu owns the
@@ -57,11 +83,15 @@ pub(crate) fn opend_provider_config(
     settings_path: &std::path::Path,
     router: Arc<Mutex<ProviderRouter>>,
 ) -> Result<OpenDProviderRuntimeConfig, ProductRuntimeError> {
-    let store = SettingsFileStore::open_read_only(settings_path)
-        .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?;
-    let futu_settings = store
-        .load_futu_open_d_install_settings()
-        .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?;
+    let futu_settings = if settings_path.exists() {
+        let store = SettingsFileStore::open_read_only(settings_path)
+            .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?;
+        store
+            .load_futu_open_d_install_settings()
+            .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?
+    } else {
+        None
+    };
     let host = std::env::var("JFTRADE_FUTU_OPEND_HOST")
         .ok()
         .or_else(|| futu_settings.as_ref().map(|s| s.host.clone()))

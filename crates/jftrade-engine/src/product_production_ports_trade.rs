@@ -13,7 +13,6 @@ use jftrade_integration_futu::{
     TradeFilter, TradeFunds, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort,
     TradeSecurity, trade_header,
 };
-use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
 #[allow(unused_imports)]
 use time::OffsetDateTime;
@@ -67,6 +66,23 @@ pub(crate) struct ProductionBrokerPort {
     pub(crate) trade_read_port: Option<Arc<dyn TradeReadPort>>,
     pub(crate) trade_logged_in: Option<bool>,
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+}
+
+/// Trade connectivity is owned by the broker/OpenD session, not by the
+/// currently selected market-data provider.  A helper-backed market-data
+/// provider (yfinance or AKShare) can therefore coexist with a ready Futu
+/// trade session.  Keep the runtime snapshot authoritative when it exists;
+/// the startup-only fields are retained solely for the embedding path that
+/// predates `SharedTradeReadRuntime`.
+fn trade_session_ready(
+    trade_runtime: Option<&Arc<SharedTradeReadRuntime>>,
+    trade_read_port: Option<&Arc<dyn TradeReadPort>>,
+    trade_logged_in: Option<bool>,
+) -> bool {
+    trade_runtime.map_or_else(
+        || trade_read_port.is_some() && trade_logged_in == Some(true),
+        |runtime| runtime.snapshot().is_ready(),
+    )
 }
 
 impl std::fmt::Debug for ProductionBrokerPort {
@@ -311,19 +327,21 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
 
 impl ProductionBrokerPort {
     fn ensure_ready(&self) -> Result<(), BrokerReadSnapshotError> {
-        let state = self.active_provider_state.snapshot();
-        if state.provider != Some(MarketDataProvider::Futu) {
-            return Err(unavailable("Futu broker is not the active provider"));
+        if self.active_provider_state.snapshot().closing {
+            return Err(unavailable("Futu trade session is shutting down"));
         }
-        let runtime_ready = self
-            .trade_runtime
-            .as_ref()
-            .is_some_and(|runtime| runtime.snapshot().is_ready());
-        if state.opend_ready
-            && (runtime_ready
-                || (self.trade_runtime.is_none() && self.trade_logged_in == Some(true)))
-        {
+        if trade_session_ready(
+            self.trade_runtime.as_ref(),
+            self.trade_read_port.as_ref(),
+            self.trade_logged_in,
+        ) {
             return Ok(());
+        }
+        if self.trade_runtime.is_none()
+            && self.trade_read_port.is_none()
+            && self.trade_logged_in == Some(true)
+        {
+            return Err(unavailable("Futu trade read client is unavailable"));
         }
         Err(unavailable("Futu trade session login/account not ready"))
     }
@@ -351,14 +369,12 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, PortfolioSnapshotError> {
         let request = TradeRequest::parse_with_prefix(path, query, "/api/v1/portfolio/")
             .map_err(PortfolioSnapshotError::Unavailable)?;
-        let state = self.active_provider_state.snapshot();
-        if state.provider != Some(MarketDataProvider::Futu)
-            || !state.opend_ready
-            || !(self
-                .trade_runtime
-                .as_ref()
-                .is_some_and(|runtime| runtime.snapshot().is_ready())
-                || (self.trade_runtime.is_none() && self.trade_logged_in == Some(true)))
+        if self.active_provider_state.snapshot().closing
+            || !trade_session_ready(
+                self.trade_runtime.as_ref(),
+                self.trade_read_port.as_ref(),
+                self.trade_logged_in,
+            )
         {
             return Err(unavailable_portfolio(
                 "Futu trade session login/account not ready",

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,6 +34,7 @@ type mcpServerManager struct {
 	listener   net.Listener
 	server     *http.Server
 	handler    mcpLifecycleHandler
+	serveDone  chan struct{}
 	settings   jfsettings.MCPServerSettings
 	lastErr    string
 	closed     bool
@@ -54,28 +56,34 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 		return errors.New("MCP server manager is unavailable")
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.closed {
+		m.mu.Unlock()
 		return errors.New("MCP server manager is closed")
 	}
 
 	if !settings.Enabled {
-		if err := m.stopLocked(); err != nil {
-			m.lastErr = err.Error()
-			return err
-		}
+		server, handler, done := m.detachLocked()
 		m.settings = settings
 		m.lastErr = ""
+		m.mu.Unlock()
+		if err := stopMCPServer(server, handler, done); err != nil {
+			m.mu.Lock()
+			m.lastErr = err.Error()
+			m.mu.Unlock()
+			return err
+		}
 		return nil
 	}
 	if m.runtime == nil {
 		err := errors.New("ADK runtime is unavailable")
 		m.lastErr = err.Error()
+		m.mu.Unlock()
 		return err
 	}
 	if settings.AuthMode != "none" && strings.TrimSpace(settings.TokenHash) == "" {
 		err := errors.New("MCP server token is not configured")
 		m.lastErr = err.Error()
+		m.mu.Unlock()
 		return err
 	}
 	if m.listener != nil && m.settings.Enabled && m.settings.Port == settings.Port {
@@ -83,12 +91,14 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 		// changing token/auth mode does not interrupt existing listener ownership.
 		m.settings = settings
 		m.lastErr = ""
+		m.mu.Unlock()
 		return nil
 	}
 
 	handler, err := m.createHandler()
 	if err != nil {
 		m.lastErr = err.Error()
+		m.mu.Unlock()
 		return err
 	}
 	listen := m.listen
@@ -99,6 +109,7 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	if err != nil {
 		handler.Close()
 		m.lastErr = err.Error()
+		m.mu.Unlock()
 		return err
 	}
 
@@ -109,24 +120,31 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	}
 	oldServer := m.server
 	oldHandler := m.handler
+	oldDone := m.serveDone
+	serveDone := make(chan struct{})
 	m.server = server
 	m.listener = listener
 	m.handler = handler
+	m.serveDone = serveDone
 	m.settings = settings
 	m.lastErr = ""
 	m.serveWG.Go(func() {
-		m.serve(server, listener)
+		m.serve(server, listener, serveDone)
 	})
+	m.mu.Unlock()
 	if oldServer != nil {
 		if err := closeMCPHTTPServer(oldServer); err != nil {
 			// The new listener is already serving the requested configuration. Keep
 			// it alive and surface the cleanup issue through logs/status only.
+			m.mu.Lock()
 			m.lastErr = err.Error()
+			m.mu.Unlock()
 		}
 	}
 	if oldHandler != nil {
 		oldHandler.Close()
 	}
+	waitMCPServe(oldDone)
 	return nil
 }
 
@@ -156,13 +174,17 @@ func (m *mcpServerManager) Close() error {
 	}
 	m.mu.Lock()
 	m.closed = true
-	closeErr := m.stopLocked()
+	server, handler, done := m.detachLocked()
 	m.mu.Unlock()
+	closeErr := stopMCPServer(server, handler, done)
 	m.serveWG.Wait()
 	return closeErr
 }
 
-func (m *mcpServerManager) serve(server *http.Server, listener net.Listener) {
+func (m *mcpServerManager) serve(server *http.Server, listener net.Listener, done ...chan struct{}) {
+	if len(done) > 0 && done[0] != nil {
+		defer close(done[0])
+	}
 	err := server.Serve(listener)
 	if err == nil || errors.Is(err, http.ErrServerClosed) {
 		return
@@ -174,6 +196,7 @@ func (m *mcpServerManager) serve(server *http.Server, listener net.Listener) {
 		m.server = nil
 		m.listener = nil
 		m.handler = nil
+		m.serveDone = nil
 		m.lastErr = err.Error()
 	}
 	m.mu.Unlock()
@@ -182,20 +205,30 @@ func (m *mcpServerManager) serve(server *http.Server, listener net.Listener) {
 	}
 }
 
-func (m *mcpServerManager) stopLocked() error {
+func (m *mcpServerManager) detachLocked() (*http.Server, mcpLifecycleHandler, chan struct{}) {
 	server := m.server
 	handler := m.handler
+	done := m.serveDone
 	m.server = nil
 	m.listener = nil
 	m.handler = nil
-	var err error
-	if server != nil {
-		err = closeMCPHTTPServer(server)
-	}
+	m.serveDone = nil
+	return server, handler, done
+}
+
+func stopMCPServer(server *http.Server, handler mcpLifecycleHandler, done chan struct{}) error {
+	err := closeMCPHTTPServer(server)
 	if handler != nil {
 		handler.Close()
 	}
+	waitMCPServe(done)
 	return err
+}
+
+func waitMCPServe(done chan struct{}) {
+	if done != nil {
+		<-done
+	}
 }
 
 func closeMCPHTTPServer(server *http.Server) error {
@@ -230,11 +263,37 @@ func (m *mcpServerManager) authorizedHandler(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+		// Keep Origin handling identical to the Rust listener.  MCP clients
+		// commonly omit Origin; when supplied, only a valid same-host origin is
+		// accepted.  Browser "null", malformed and cross-origin values fail
+		// closed before the SDK parses the JSON-RPC body.
+		if !mcpOriginAllowed(r) {
+			http.Error(w, "Forbidden: invalid Origin header", http.StatusForbidden)
+			return
+		}
 		if r.Body != nil {
 			r.Body = http.MaxBytesReader(w, r.Body, localMCPMaxRequestBytes)
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func mcpOriginAllowed(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	if strings.EqualFold(origin, "null") {
+		return false
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return false
+	}
+	return strings.EqualFold(parsed.Host, strings.TrimSpace(r.Host))
 }
 
 func (m *mcpServerManager) authorizeBearer(r *http.Request, tokenHash string) bool {

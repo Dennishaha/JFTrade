@@ -267,6 +267,38 @@ impl ProductApi {
         })))
     }
     fn storage_overview(&self) -> ApiOutput {
+        if self.runtime.snapshot().production {
+            if let Some(ports) = self.production_ports.as_ref()
+                && ports.database_leases.status != "acquired"
+            {
+                return production_failure_output(ApiFailure::new(
+                    500,
+                    "PERSISTENCE_UNAVAILABLE",
+                    format!(
+                        "production database leases are not fully acquired: {}",
+                        ports.database_leases.status
+                    ),
+                ));
+            }
+            let Some(port) = self.system_read_snapshot_port.as_ref() else {
+                return production_failure_output(ApiFailure::new(
+                    500,
+                    "PRODUCTION_INTERNAL_ADAPTER_MISSING",
+                    "storage overview production adapter is not configured",
+                ));
+            };
+            return match port.read("/api/v1/system/storage/overview") {
+                Ok(snapshot) => ApiOutput::Json(snapshot),
+                Err(error) => production_failure_output(ApiFailure::new(
+                    503,
+                    "STORAGE_OVERVIEW_UNAVAILABLE",
+                    error.to_string(),
+                )),
+            };
+        }
+        // The empty shape is retained only for rehearsal profiles, where the
+        // public contract intentionally mirrors Go's disabled storage queue.
+        // Production dispatch never reaches this branch.
         ApiOutput::Json(json!({
             "pendingOutbox": [],
             "recentJobs": [],

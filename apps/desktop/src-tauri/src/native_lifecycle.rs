@@ -104,6 +104,20 @@ pub fn run() -> Result<(), NativeError> {
             );
         })?;
         let startup = runtime.startup_record().clone();
+        if let Some(readiness_error) = runtime_readiness_failure(startup.runtime_readiness) {
+            let readiness = startup.runtime_readiness.to_owned();
+            let shutdown = tauri::async_runtime::block_on(runtime.shutdown());
+            let message = match shutdown {
+                Ok(()) => format!(
+                    "production runtime reported readiness={readiness}; desktop startup is fail-closed"
+                ),
+                Err(error) => format!(
+                    "production runtime reported readiness={readiness}; shutdown during startup rollback failed: {error}"
+                ),
+            };
+            append_native_log(&setup_log_path, "ERROR", &message);
+            return Err(Box::new(readiness_error.with_message(message)));
+        }
         let runtime_config = DesktopRuntimeConfig {
             api_base_url: format!("http://{}", startup.address),
             auth_required: false,
@@ -263,6 +277,24 @@ fn stop_product(product: &Mutex<Option<ProductRuntimeHandle>>) {
     }
 }
 
+fn runtime_readiness_failure(readiness: &str) -> Option<NativeError> {
+    (readiness != "ready").then(|| NativeError::RuntimeUnavailable {
+        readiness: readiness.to_owned(),
+        message: String::new(),
+    })
+}
+
+impl NativeError {
+    fn with_message(self, message: String) -> Self {
+        match self {
+            Self::RuntimeUnavailable { readiness, .. } => {
+                Self::RuntimeUnavailable { readiness, message }
+            }
+            other => other,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum NativeError {
     #[error("desktop home directory is unavailable")]
@@ -291,6 +323,8 @@ pub enum NativeError {
     ResourceDirectory(#[source] tauri::Error),
     #[error("native desktop runtime state is unavailable")]
     RuntimeState,
+    #[error("Rust product runtime is not ready ({readiness}): {message}")]
+    RuntimeUnavailable { readiness: String, message: String },
     #[error("Tauri main window is unavailable")]
     MissingMainWindow,
     #[error("Tauri tray icon is unavailable")]

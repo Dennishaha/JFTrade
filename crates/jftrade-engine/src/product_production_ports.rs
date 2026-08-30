@@ -4,7 +4,7 @@
 //! SQLite databases (under `production.v1` lease profile) and production services
 //! without falling back to test cutover or dummy fixtures.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -23,7 +23,8 @@ use jftrade_datamanagement::{
     DATABASE_WATCHLIST,
 };
 use jftrade_settings::{
-    BrokerSettingsStorePort, ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort,
+    BacktestMarketDataProviderSettingsStorePort, BrokerSettingsStorePort, ExchangeCalendarSettings,
+    ExchangeCalendarSettingsStorePort,
     InterfaceSettingsStorePort, MarketDataProviderSettingsStorePort, SecuritySettingsService,
     normalize_live_websocket_connection_limit, parse_market_data_provider,
 };
@@ -58,6 +59,8 @@ mod product_production_ports_provider;
 mod product_production_ports_strategy;
 #[path = "product_production_ports_system.rs"]
 mod product_production_ports_system;
+#[path = "product_production_ports_storage.rs"]
+mod product_production_ports_storage;
 #[path = "product_production_ports_trade.rs"]
 mod product_production_ports_trade;
 #[path = "product_production_ports_types.rs"]
@@ -79,7 +82,8 @@ pub(crate) use product_production_database_leases::{
 };
 pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
 pub(crate) use product_production_ports_execution::{
-    ExecutionReconciliationWorker, ProductionBacktestPort, ProductionExecutionPort,
+    BacktestMarketDataProviderState, ExecutionReconciliationWorker, ProductionBacktestPort,
+    ProductionExecutionPort,
 };
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
@@ -107,30 +111,6 @@ pub(crate) use product_production_ports_watchlist::{
 };
 
 const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
-
-/// Record the concrete production route adapters assembled below.  This is
-/// deliberately independent from `production_adapter_bindings`: that map is
-/// a readiness projection and is populated for external capabilities even
-/// when their provider/worker is down.  The installation set is the proof
-/// that a dispatch target was actually constructed and wired.
-fn production_installed_adapters() -> BTreeSet<ProductionRouteAdapter> {
-    use ProductionRouteAdapter as Adapter;
-    let mut adapters = BTreeSet::new();
-    macro_rules! register {
-        ($($adapter:ident),+ $(,)?) => { adapters.extend([$(Adapter::$adapter),+]); };
-    }
-    register!(AuthSessionRead, AuthSessionWrite, Settings, DataManagement, SystemCore, SystemRead, SystemOpenDWrite, RealTradeControlWrite, Calendar);
-    register!(WatchlistMemberships, WatchlistRead, WatchlistWrite, RemoteWatchlistRead, RemoteWatchlistWrite);
-    register!(StrategyDefinitionRead, StrategyDefinitionWrite, StrategyRuntimeRead, StrategyRuntimeWrite, StrategyPine);
-    register!(ResearchCatalog, ResearchRead, ResearchRankingsRead, ResearchIndustriesRead, ResearchCalendarRead, ResearchMacroRead, ResearchPresetRead, ResearchPresetWrite, ResearchScreenWrite);
-    register!(BacktestRead, BacktestSyncRead, BacktestStart, BacktestDelete, BacktestSyncStart, BacktestSyncCancel);
-    register!(ExecutionRead, ExecutionWrite, BrokerRead, BrokerWrite, PortfolioRead);
-    register!(MarketDataProviderRead, MarketDataMarketsRead, MarketDataSearchRead, MarketDataSubscriptionRead, MarketDataSecuritiesRead, MarketDataSnapshotsRead, MarketDataCandlesRead, MarketDataDepthRead, MarketDataTicksRead, MarketDataBrokerQueueRead, MarketDataCapitalFlowRead, MarketDataIntradayRead, MarketDataProfileRead);
-    register!(MarketDataDerivativeRead, MarketDataFuturesRead, MarketDataOptionsRead, MarketDataOptionsChainRead, MarketDataOptionsExpirationsRead, MarketDataOptionsScreenRead, MarketDataOptionsAnalysisRead, MarketDataOptionsEventsRead, MarketDataOptionsUnusualRead, MarketDataOptionsZeroDteRead, MarketDataOptionsZeroDteContractRead, MarketDataOptionsEarningsRead, MarketDataOptionsSellerRead);
-    register!(MarketDataNewsActionsRead, MarketDataNewsSearchRead, MarketDataPredictionRead, MarketDataSubscriptionAcquireWrite, MarketDataSubscriptionReleaseWrite, MarketDataSubscriptionClearWrite, MarketDataSubscriptionHeartbeatWrite, MarketDataPredictionSubscriptionAcquireWrite, MarketDataPredictionSubscriptionReleaseWrite, MarketDataInstrumentsNormalizeWrite, MarketDataBatchSnapshotsWrite, MarketDataOptionsAnalysisWrite, MarketDataZeroDteWrite, MarketDataPredictionCombosWrite);
-    register!(PluginsRead, PluginsWrite, PluginGuidanceRead, AlertsRead, AlertsWrite, AdkTemplatesRead, AdkRead, AdkMutation, AdkChat, WebSocketLive);
-    adapters
-}
 
 fn exchange_calendar_snapshot_root(settings_path: &std::path::Path) -> PathBuf {
     std::env::var_os(EXCHANGE_CALENDAR_DIR_ENV)
@@ -361,6 +341,29 @@ pub(crate) fn production_ports(
             .transpose()?;
         Arc::new(ActiveProviderState::new(initial_provider))
     };
+    let backtest_market_data_provider_state = if let Some(state) =
+        config.backtest_market_data_provider_state.as_ref()
+    {
+        Arc::clone(state)
+    } else {
+        let initial_provider = market_data_settings
+            .load_backtest_market_data_provider()
+            .map_err(|error| {
+                ProductError::Storage(format!(
+                    "failed to load backtest market-data provider settings: {error}"
+                ))
+            })?
+            .as_deref()
+            .map(parse_market_data_provider)
+            .transpose()
+            .map_err(|error| {
+                ProductError::Storage(format!(
+                    "invalid backtest market-data provider settings: {error}"
+                ))
+            })?
+            .unwrap_or_default();
+        Arc::new(BacktestMarketDataProviderState::new(initial_provider))
+    };
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
         active_provider_state: Arc::clone(&active_provider_state),
@@ -370,21 +373,14 @@ pub(crate) fn production_ports(
         trade_runtime: config.trade_runtime.clone(),
         cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
     });
-    // `production_ports` is also used by synchronous assembly tests.  Only
-    // compose the async worker when the runtime owner has an active Tokio
-    // handle; the HTTP runtime startup path always satisfies this condition.
-    let execution_reconciliation_wake = config
-        .trade_runtime
-        .as_ref()
-        .map(|runtime| runtime.reconciliation_wake());
-    let execution_reconciliation_worker = tokio::runtime::Handle::try_current()
-        .ok()
-        .map(|_| {
+    let execution_reconciliation_worker = config.trade_runtime.as_ref().and_then(|runtime| {
+        tokio::runtime::Handle::try_current().ok().map(|_| {
             ExecutionReconciliationWorker::start(
                 Arc::clone(&execution_port),
-                execution_reconciliation_wake,
+                Some(runtime.reconciliation_wake()),
             )
-        });
+        })
+    });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
     );
@@ -434,17 +430,26 @@ pub(crate) fn production_ports(
     let has_router = provider_snapshot.router_ready;
     let backtest_sync_workers = Arc::new(BacktestSyncWorkerRegistry::default());
     let backtest_execution_workers = Arc::new(BacktestExecutionTaskRegistry::default());
+    let backtest_store_for_storage = Arc::clone(&backtest_store);
+    let backtest_sync_tasks_for_storage = Arc::clone(&backtest_sync_tasks);
     let backtest_port = Arc::new(ProductionBacktestPort {
         store: backtest_store,
         sync_tasks: backtest_sync_tasks,
         _market_data_store: backtest_market_data_store,
         helper: config.market_data_helper.clone(),
-        active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
+        backtest_market_data_provider_state: Arc::clone(&backtest_market_data_provider_state),
         sync_workers: Arc::clone(&backtest_sync_workers),
         execution: config.backtest_execution_port.clone(),
         execution_workers: Arc::clone(&backtest_execution_workers),
         strategy_definitions: Arc::clone(&strategy_def_store),
     });
+    backtest_port
+        .recover_orphaned_runs()
+        .map_err(|error| ProductError::Storage(error.to_string()))?;
+    backtest_port
+        .recover_orphaned_sync_tasks()
+        .map_err(ProductError::Storage)?;
     let active_provider_str = match active_provider {
         Some(jftrade_settings::MarketDataProvider::Futu) => Some("futu"),
         Some(jftrade_settings::MarketDataProvider::Yfinance) => Some("yfinance"),
@@ -463,7 +468,7 @@ pub(crate) fn production_ports(
     // prerequisite for this binding.
     bound_adapters.insert(
         ProductionRouteAdapter::BacktestStart,
-        if config.backtest_execution_port.is_some() && active_provider.is_some() {
+        if config.backtest_execution_port.is_some() {
             ProductionAdapterBinding::Ready
         } else {
             ProductionAdapterBinding::ExternalUnavailable
@@ -580,11 +585,12 @@ pub(crate) fn production_ports(
         Arc::clone(&cancellation_registry),
         Arc::clone(&tool_catalog),
     ));
+    let mcp_catalog = Arc::clone(&tool_catalog);
     let adk_port = Arc::new(ProductionAdkPort {
-        store: adk_store,
+        store: Arc::clone(&adk_store),
         session_store: adk_session_store,
         artifact_store: adk_artifact_store,
-        tool_catalog,
+        tool_catalog: Arc::clone(&tool_catalog),
         settings_path: config.settings_path().to_owned(),
         chat_runtime: Some(adk_chat_runtime),
     });
@@ -674,6 +680,7 @@ pub(crate) fn production_ports(
         Some(execution_port.clone()),
         Arc::clone(&active_provider_state),
     ));
+    let strategy_runtime_store_for_storage = Arc::clone(&strategy_runtime_store);
     let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
         store: strategy_runtime_store,
         definitions: strategy_def_store.clone(),
@@ -695,8 +702,9 @@ pub(crate) fn production_ports(
             .with_active_provider_state(Some(Arc::clone(&active_provider_state))),
     );
 
-    Ok(ProductionPortBundle {
+    let mut bundle = ProductionPortBundle {
         active_provider_state: Arc::clone(&active_provider_state),
+        settings_store: Arc::clone(&market_data_settings),
         database_leases: database_leases.clone(),
         database_lease_status,
         provider_status: config.provider_runtime_status.as_str(),
@@ -742,11 +750,20 @@ pub(crate) fn production_ports(
         alert_write: alert_port,
         system_read: Arc::new(ProductionSystemPort {
             runtime_status: config.market_data_runtime_status_port.clone(),
+            live_hub: config.live_hub.clone(),
             settings: market_data_settings.clone(),
             opend_status: config.opend_runtime_status,
             worker_status: config.worker_runtime_status,
             execution_reconciliation_worker: execution_reconciliation_worker.clone(),
             database_leases: database_leases.clone(),
+            backtest_store: backtest_store_for_storage,
+            backtest_sync_tasks: backtest_sync_tasks_for_storage,
+            execution_store: Arc::clone(&execution_store),
+            adk_store: Arc::clone(&adk_store),
+            strategy_runtime_store: strategy_runtime_store_for_storage,
+            real_trade_control: crate::real_trade_control::RealTradeControlReader::new(
+                config.real_trade_control_path(),
+            ),
         }),
         system_write: system_write_port,
         portfolio: portfolio_port,
@@ -763,8 +780,8 @@ pub(crate) fn production_ports(
         market_data_provider_actions: market_data_actions_port,
         research_screen_write: research_screen_port,
         strategy_pine_analyze: strategy_pine_port,
-        ws_live: Arc::new(ProductionWsLivePort),
-        installed_adapters: production_installed_adapters(),
+        ws_live: Arc::new(ProductionWsLivePort::new(config.live_hub.clone())),
+        installed_adapters: Default::default(),
         bound_adapters,
         backtest_sync_workers,
         backtest_execution_workers,
@@ -774,5 +791,9 @@ pub(crate) fn production_ports(
         trade_write_port: config.trade_write_port.clone(),
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),
-    })
+        mcp_catalog,
+        mcp_store: Arc::clone(&adk_store),
+    };
+    bundle.installed_adapters = bundle.derive_installed_adapters();
+    Ok(bundle)
 }

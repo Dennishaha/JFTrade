@@ -177,6 +177,22 @@ pub struct StoredAdkWorkflowTriggerLog {
     pub updated_at: String,
 }
 
+/// Durable context handoff segment used by production ADK compaction.  The
+/// public session-context wire contract remains a JSON projection, while the
+/// segment row gives compaction a restart-safe boundary and an explicit active
+/// chain instead of relying on an in-memory summary.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredAdkHandoffSegment {
+    pub id: String,
+    pub session_id: String,
+    pub active: bool,
+    pub sequence: i64,
+    pub payload_json: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredAdkAuditEvent {
@@ -360,12 +376,256 @@ impl AdkStore {
         })
     }
 
+    /// Upsert a provider and normalize the default selection in one immediate
+    /// transaction.  The request payload may ask for a provider to become the
+    /// default, but it can never leave duplicate (or, for a non-empty table,
+    /// missing) defaults behind.  Invalid stored JSON aborts the transaction
+    /// so a malformed row is surfaced instead of being silently discarded.
+    pub fn upsert_provider_normalized(
+        &self,
+        id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        if id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "provider id is required".to_owned(),
+            ));
+        }
+        let mut requested = Value::Object(decode_json_object(payload_json, "provider")?);
+        let requested_default = requested
+            .get("default")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        requested["id"] = Value::String(id.to_owned());
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let created_at = transaction
+            .query_row(
+                "SELECT created_at FROM adk_providers WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+            .unwrap_or_else(|| now.clone());
+        transaction
+            .execute(
+                "INSERT INTO adk_providers (id, payload_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(id) DO UPDATE SET payload_json = ?2, updated_at = ?4",
+                params![id, requested.to_string(), created_at, now],
+            )
+            .map_err(AdkStoreError::Query)?;
+
+        let rows = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT id, payload_json, created_at FROM adk_providers
+                     ORDER BY created_at ASC, id ASC",
+                )
+                .map_err(AdkStoreError::Query)?;
+            let values = statement
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })
+                .map_err(AdkStoreError::Query)?;
+            values
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(AdkStoreError::Query)?
+        };
+        let mut selected_id = rows.iter().find_map(|(row_id, _, _)| {
+            (row_id == id && requested_default).then_some(row_id.clone())
+        });
+        if selected_id.is_none() {
+            for (row_id, raw, _) in &rows {
+                let value = decode_json_object(raw, "provider")?;
+                if value
+                    .get("default")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    selected_id = Some(row_id.clone());
+                    break;
+                }
+            }
+        }
+        let selected_id = selected_id.unwrap_or_else(|| id.to_owned());
+        for (row_id, raw, _) in &rows {
+            let mut value = decode_json_object(raw, "provider")?;
+            value["id"] = Value::String(row_id.clone());
+            value["default"] = Value::Bool(row_id == &selected_id);
+            let encoded = Value::Object(value).to_string();
+            transaction
+                .execute(
+                    "UPDATE adk_providers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![encoded, now, row_id.as_str()],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, payload_json, created_at, updated_at
+                 FROM adk_providers WHERE id = ?1",
+                params![id],
+                stored_entity,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Persist a complete default-provider projection in one immediate
+    /// transaction.  Callers pass every provider payload with the desired
+    /// `default` bit; a failure cannot leave multiple defaults or no selected
+    /// provider half-written.
+    pub fn set_default_provider_atomic(
+        &self,
+        selected_id: &str,
+        updates: &[(&str, &str)],
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        if selected_id.trim().is_empty() || updates.is_empty() {
+            return Err(AdkStoreError::Validation(
+                "default provider and provider updates are required".to_owned(),
+            ));
+        }
+        if !updates.iter().any(|(id, _)| *id == selected_id) {
+            return Err(AdkStoreError::NotFound(selected_id.to_owned()));
+        }
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        for (id, payload_json) in updates {
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_providers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![payload_json, now, id],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected != 1 {
+                return Err(AdkStoreError::NotFound((*id).to_owned()));
+            }
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, payload_json, created_at, updated_at
+                 FROM adk_providers WHERE id = ?1",
+                params![selected_id],
+                stored_entity,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
     pub fn delete_provider(&self, id: &str) -> Result<bool, AdkStoreError> {
         let connection = self.lock_connection()?;
         let affected = connection
             .execute("DELETE FROM adk_providers WHERE id = ?1", params![id])
             .map_err(AdkStoreError::Query)?;
         Ok(affected > 0)
+    }
+
+    /// Delete a provider and, when requested, promote its replacement while
+    /// normalizing every remaining default flag in the same transaction.  A
+    /// missing replacement or malformed row aborts the transaction before
+    /// any caller-visible change is committed.
+    pub fn delete_provider_with_replacement_atomic(
+        &self,
+        id: &str,
+        replacement: Option<(&str, &str)>,
+    ) -> Result<bool, AdkStoreError> {
+        if id.trim().is_empty() {
+            return Ok(false);
+        }
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let exists = transaction
+            .query_row(
+                "SELECT 1 FROM adk_providers WHERE id = ?1 LIMIT 1",
+                params![id],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+            .is_some();
+        if !exists {
+            return Ok(false);
+        }
+        transaction
+            .execute("DELETE FROM adk_providers WHERE id = ?1", params![id])
+            .map_err(AdkStoreError::Query)?;
+        if let Some((replacement_id, replacement_payload)) = replacement {
+            if replacement_id == id {
+                return Err(AdkStoreError::Validation(
+                    "provider replacement must differ from deleted provider".to_owned(),
+                ));
+            }
+            decode_json_object(replacement_payload, "provider")?;
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_providers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![replacement_payload, now, replacement_id],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected != 1 {
+                return Err(AdkStoreError::NotFound(replacement_id.to_owned()));
+            }
+        }
+        let mut rows = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT id, payload_json FROM adk_providers
+                     ORDER BY created_at ASC, id ASC",
+                )
+                .map_err(AdkStoreError::Query)?;
+            let values = statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })
+                .map_err(AdkStoreError::Query)?;
+            values
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(AdkStoreError::Query)?
+        };
+        let mut selected = replacement.map(|(replacement_id, _)| replacement_id.to_owned());
+        if selected.is_none() {
+            for (row_id, raw) in &rows {
+                let value = decode_json_object(raw, "provider")?;
+                if value
+                    .get("default")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    selected = Some(row_id.clone());
+                    break;
+                }
+            }
+        }
+        let selected = selected.or_else(|| rows.first().map(|(row_id, _)| row_id.clone()));
+        for (row_id, raw) in &mut rows {
+            let mut value = decode_json_object(raw, "provider")?;
+            value["id"] = Value::String(row_id.clone());
+            value["default"] = Value::Bool(selected.as_deref() == Some(row_id.as_str()));
+            let encoded = Value::Object(value).to_string();
+            transaction
+                .execute(
+                    "UPDATE adk_providers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                    params![encoded, now, row_id.as_str()],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(true)
     }
 
     pub fn get_provider(&self, id: &str) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
@@ -551,6 +811,282 @@ impl AdkStore {
         session_id: &str,
     ) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
         self.get_simple_entity("adk_session_context_state", session_id)
+    }
+
+    /// Persist the latest projected context snapshot.  The context-state
+    /// table is intentionally keyed by session id so reads can reconstruct a
+    /// valid snapshot after a restart without depending on an in-memory ADK
+    /// runtime.
+    pub fn upsert_session_context(
+        &self,
+        session_id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        self.upsert_simple_entity("adk_session_context_state", session_id, payload_json)
+    }
+
+    /// Commit a context projection and its handoff segment under one SQLite
+    /// transaction.  The context revision is an opaque CAS token persisted in
+    /// the JSON projection (older databases do not have a dedicated revision
+    /// column), so a concurrent compactor cannot silently overwrite a newer
+    /// active chain.  `segment` is `(id, sequence, payload, replace_active)`;
+    /// an absent segment performs a CAS-protected projection-only update.
+    pub fn commit_session_context_compaction(
+        &self,
+        session_id: &str,
+        expected_revision: &str,
+        segment: Option<(&str, i64, &str, bool)>,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        if session_id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "session context requires a session id".to_owned(),
+            ));
+        }
+        decode_json_object(payload_json, "session context")?;
+        if let Some((id, sequence, segment_payload, _)) = segment {
+            if id.trim().is_empty() || sequence < 0 {
+                return Err(AdkStoreError::Validation(
+                    "handoff segment requires id and non-negative sequence".to_owned(),
+                ));
+            }
+            decode_json_object(segment_payload, "handoff segment")?;
+        }
+
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let existing = transaction
+            .query_row(
+                "SELECT payload_json, created_at FROM adk_session_context_state WHERE id = ?1",
+                params![session_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        let actual_revision = if let Some((raw, _)) = existing.as_ref() {
+            let value: Value = serde_json::from_str(raw).map_err(|error| {
+                AdkStoreError::Validation(format!(
+                    "stored session context JSON is invalid: {error}"
+                ))
+            })?;
+            value
+                .get("contextRevisionId")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or_default()
+                .to_owned()
+        } else {
+            String::new()
+        };
+        if actual_revision != expected_revision.trim() {
+            return Err(AdkStoreError::Conflict(format!(
+                "session context revision changed (expected {:?}, actual {:?})",
+                expected_revision.trim(),
+                actual_revision
+            )));
+        }
+
+        if let Some((id, sequence, segment_payload, replace_active)) = segment {
+            if replace_active {
+                let mut statement = transaction
+                    .prepare(
+                        "SELECT id, payload_json FROM adk_handoff_segments
+                         WHERE session_id = ?1 AND active = 1
+                         ORDER BY sequence_no DESC, id DESC",
+                    )
+                    .map_err(AdkStoreError::Query)?;
+                let rows = statement
+                    .query_map(params![session_id], |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                    })
+                    .map_err(AdkStoreError::Query)?;
+                let previous = rows
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(AdkStoreError::Query)?;
+                drop(statement);
+                for (previous_id, previous_payload) in previous {
+                    let mut payload = decode_json_object(&previous_payload, "handoff segment")?;
+                    payload.insert("active".to_owned(), Value::Bool(false));
+                    payload.insert("supersededBy".to_owned(), Value::String(id.to_owned()));
+                    payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
+                    let encoded = serde_json::to_string(&Value::Object(payload))
+                        .map_err(|error| AdkStoreError::Validation(error.to_string()))?;
+                    transaction
+                        .execute(
+                            "UPDATE adk_handoff_segments SET active = 0,
+                             payload_json = ?1, updated_at = ?2
+                             WHERE id = ?3 AND session_id = ?4 AND active = 1",
+                            params![encoded, now, previous_id, session_id],
+                        )
+                        .map_err(AdkStoreError::Query)?;
+                }
+            }
+            transaction
+                .execute(
+                    "INSERT INTO adk_handoff_segments
+                     (id, session_id, active, sequence_no, created_at, updated_at, payload_json)
+                     VALUES (?1, ?2, 1, ?3, ?4, ?4, ?5)
+                     ON CONFLICT(id) DO UPDATE SET session_id = ?2, active = 1,
+                       sequence_no = ?3, updated_at = ?4, payload_json = ?5",
+                    params![id, session_id, sequence, now, segment_payload],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+
+        let created_at = existing
+            .map(|(_, created_at)| created_at)
+            .unwrap_or_else(|| now.clone());
+        transaction
+            .execute(
+                "INSERT INTO adk_session_context_state (id, payload_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(id) DO UPDATE SET payload_json = ?2, updated_at = ?4",
+                params![session_id, payload_json, created_at, now],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, payload_json, created_at, updated_at
+                 FROM adk_session_context_state WHERE id = ?1",
+                params![session_id],
+                stored_entity,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Return durable handoff segments in deterministic sequence order.  The
+    /// active filter is applied in SQL so a restart cannot accidentally revive
+    /// superseded context while rebuilding the model input.
+    pub fn list_handoff_segments(
+        &self,
+        session_id: &str,
+        active_only: bool,
+    ) -> Result<Vec<StoredAdkHandoffSegment>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        let sql = if active_only {
+            "SELECT id, session_id, active, sequence_no, payload_json, created_at, updated_at
+             FROM adk_handoff_segments WHERE session_id = ?1 AND active = 1
+             ORDER BY sequence_no ASC, created_at ASC, id ASC"
+        } else {
+            "SELECT id, session_id, active, sequence_no, payload_json, created_at, updated_at
+             FROM adk_handoff_segments WHERE session_id = ?1
+             ORDER BY sequence_no ASC, created_at ASC, id ASC"
+        };
+        let mut statement = connection.prepare(sql).map_err(AdkStoreError::Query)?;
+        let rows = statement
+            .query_map(params![session_id], stored_handoff_segment)
+            .map_err(AdkStoreError::Query)?;
+        collect_rows(rows)
+    }
+
+    /// Atomically replace the active handoff chain with one newly compacted
+    /// segment.  Existing active rows are retained for historical inspection
+    /// but marked inactive and annotated with the replacement id.
+    pub fn replace_active_handoff_segment(
+        &self,
+        session_id: &str,
+        id: &str,
+        sequence: i64,
+        payload_json: &str,
+    ) -> Result<StoredAdkHandoffSegment, AdkStoreError> {
+        if session_id.trim().is_empty() || id.trim().is_empty() || sequence < 0 {
+            return Err(AdkStoreError::Validation(
+                "handoff segment requires session, id and non-negative sequence".to_owned(),
+            ));
+        }
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let previous = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT id, payload_json FROM adk_handoff_segments
+                     WHERE session_id = ?1 AND active = 1 ORDER BY sequence_no DESC, id DESC",
+                )
+                .map_err(AdkStoreError::Query)?;
+            let rows = statement
+                .query_map(params![session_id], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })
+                .map_err(AdkStoreError::Query)?;
+            rows.collect::<Result<Vec<_>, _>>()
+                .map_err(AdkStoreError::Query)?
+        };
+        for (previous_id, previous_payload) in previous {
+            let mut payload = decode_json_object(&previous_payload, "handoff segment")?;
+            payload.insert("active".to_owned(), Value::Bool(false));
+            payload.insert("supersededBy".to_owned(), Value::String(id.to_owned()));
+            payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
+            let encoded = serde_json::to_string(&Value::Object(payload))
+                .map_err(|error| AdkStoreError::Validation(error.to_string()))?;
+            transaction
+                .execute(
+                    "UPDATE adk_handoff_segments SET active = 0, payload_json = ?1,
+                     updated_at = ?2 WHERE id = ?3 AND session_id = ?4 AND active = 1",
+                    params![encoded, now, previous_id, session_id],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+        transaction
+            .execute(
+                "INSERT INTO adk_handoff_segments
+                 (id, session_id, active, sequence_no, created_at, updated_at, payload_json)
+                 VALUES (?1, ?2, 1, ?3, ?4, ?4, ?5)
+                 ON CONFLICT(id) DO UPDATE SET session_id = ?2, active = 1,
+                   sequence_no = ?3, updated_at = ?4, payload_json = ?5",
+                params![id, session_id, sequence, now, payload_json],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, session_id, active, sequence_no, payload_json,
+                        created_at, updated_at FROM adk_handoff_segments WHERE id = ?1",
+                params![id],
+                stored_handoff_segment,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Append a handoff segment to the active chain without superseding prior
+    /// revisions. This is the normal/manual compaction path; aggressive mode
+    /// uses `replace_active_handoff_segment` to collapse the chain.
+    pub fn save_handoff_segment(
+        &self,
+        session_id: &str,
+        id: &str,
+        sequence: i64,
+        payload_json: &str,
+    ) -> Result<StoredAdkHandoffSegment, AdkStoreError> {
+        if session_id.trim().is_empty() || id.trim().is_empty() || sequence < 0 {
+            return Err(AdkStoreError::Validation(
+                "handoff segment requires session, id and non-negative sequence".to_owned(),
+            ));
+        }
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        connection
+            .execute(
+                "INSERT INTO adk_handoff_segments
+                 (id, session_id, active, sequence_no, created_at, updated_at, payload_json)
+                 VALUES (?1, ?2, 1, ?3, ?4, ?4, ?5)",
+                params![id, session_id, sequence, now, payload_json],
+            )
+            .map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, session_id, active, sequence_no, payload_json,
+                        created_at, updated_at FROM adk_handoff_segments WHERE id = ?1",
+                params![id],
+                stored_handoff_segment,
+            )
+            .map_err(AdkStoreError::Query)
     }
 
     pub fn get_session_composer_state(
@@ -2183,6 +2719,143 @@ impl AdkStore {
         }))
     }
 
+    /// Compensate a staged approval when starting the continuation worker
+    /// fails.  Resolution and continuation necessarily cross a process-local
+    /// boundary; this CAS puts the approval and run back into their pending
+    /// state only if no worker has already advanced the run.
+    pub fn rollback_staged_approval(
+        &self,
+        approval_id: &str,
+        run_id: &str,
+        expected_run_updated_at: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let Some(mut approval) = transaction
+            .query_row(
+                "SELECT id, run_id, agent_id, status, payload_json, created_at, updated_at
+                 FROM adk_approvals WHERE id = ?1 AND run_id = ?2",
+                params![approval_id, run_id],
+                stored_approval,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+        else {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        };
+        if !matches!(
+            approval.status.trim().to_ascii_uppercase().as_str(),
+            "APPROVED" | "DENIED"
+        ) {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        }
+        let mut approval_payload = decode_json_object(&approval.payload_json, "approval")?;
+        approval_payload.insert("status".to_owned(), Value::String("PENDING".to_owned()));
+        approval_payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
+        let approval_json = serde_json::to_string(&Value::Object(approval_payload))
+            .map_err(|error| AdkStoreError::Validation(error.to_string()))?;
+
+        let Some(mut run) = transaction
+            .query_row(
+                "SELECT id, session_id, agent_id, status, client_request_id,
+                        request_fingerprint, payload_json, created_at, updated_at
+                 FROM adk_runs WHERE id = ?1",
+                params![run_id],
+                stored_run,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+        else {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        };
+        if !run.status.eq_ignore_ascii_case("RUNNING") || run.updated_at != expected_run_updated_at
+        {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        }
+        let mut run_payload = decode_json_object(&run.payload_json, "run")?;
+        if let Some(Value::Array(approvals)) = run_payload.get_mut("pendingApprovals") {
+            for item in approvals {
+                if item.get("id").and_then(Value::as_str) == Some(approval_id) {
+                    if let Some(object) = item.as_object_mut() {
+                        object.insert("status".to_owned(), Value::String("PENDING".to_owned()));
+                        object.insert("updatedAt".to_owned(), Value::String(now.clone()));
+                    }
+                }
+            }
+        }
+        if let Some(Value::Array(calls)) = run_payload.get_mut("toolCalls") {
+            for item in calls {
+                let matches_approval = item
+                    .get("approvalId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value == approval_id)
+                    || item
+                        .get("confirmationCallId")
+                        .and_then(Value::as_str)
+                        .is_some_and(|value| value.starts_with(approval_id));
+                if matches_approval && let Some(object) = item.as_object_mut() {
+                    object.insert(
+                        "status".to_owned(),
+                        Value::String("PENDING_APPROVAL".to_owned()),
+                    );
+                    object.insert("requiresUser".to_owned(), Value::Bool(true));
+                    object.insert("updatedAt".to_owned(), Value::String(now.clone()));
+                }
+            }
+        }
+        run_payload.insert("status".to_owned(), Value::String("PENDING".to_owned()));
+        run_payload.insert(
+            "resumeState".to_owned(),
+            Value::String("awaiting_approval".to_owned()),
+        );
+        run_payload.insert("updatedAt".to_owned(), Value::String(now.clone()));
+        let run_json = serde_json::to_string(&Value::Object(run_payload))
+            .map_err(|error| AdkStoreError::Validation(error.to_string()))?;
+        let changed = transaction
+            .execute(
+                "UPDATE adk_approvals SET status = 'PENDING', payload_json = ?1,
+                 updated_at = ?2 WHERE id = ?3 AND run_id = ?4 AND status IN ('APPROVED','DENIED')",
+                params![approval_json, now, approval_id, run_id],
+            )
+            .map_err(AdkStoreError::Query)?
+            == 1;
+        if !changed {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(false);
+        }
+        let run_changed = transaction
+            .execute(
+                "UPDATE adk_runs SET status = 'PENDING', payload_json = ?1,
+                 updated_at = ?2 WHERE id = ?3 AND status = 'RUNNING' AND updated_at = ?4",
+                params![
+                    run_json,
+                    Self::now_rfc3339(),
+                    run_id,
+                    expected_run_updated_at
+                ],
+            )
+            .map_err(AdkStoreError::Query)?
+            == 1;
+        if !run_changed {
+            // Keep the approval and run atomic: an unexpected CAS miss rolls
+            // the transaction back rather than leaving an APPROVED orphan.
+            return Err(AdkStoreError::Conflict(format!(
+                "approval rollback for run {run_id} changed concurrently"
+            )));
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        approval.status = "PENDING".to_owned();
+        run.status = "PENDING".to_owned();
+        Ok(true)
+    }
+
     // --- Memory ---
     pub fn upsert_memory(
         &self,
@@ -2920,6 +3593,208 @@ impl AdkStore {
         collect_rows(rows)
     }
 
+    pub fn get_workflow_trigger_log(
+        &self,
+        id: &str,
+    ) -> Result<Option<StoredAdkWorkflowTriggerLog>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "SELECT id, workflow_id, trigger_id, trigger_type, status, run_id,
+                        payload_json, created_at, updated_at
+                 FROM adk_workflow_trigger_logs WHERE id = ?1",
+                params![id],
+                stored_workflow_trigger_log,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Insert a workflow invocation before dispatching to an external model.
+    /// Unlike the historical upsert helper this method never overwrites an
+    /// existing id, making retries/restarts explicit rather than silently
+    /// replacing another invocation's durable record.
+    pub fn create_workflow_trigger_log(
+        &self,
+        id: &str,
+        workflow_id: &str,
+        trigger_id: &str,
+        trigger_type: &str,
+        status: &str,
+        run_id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkWorkflowTriggerLog, AdkStoreError> {
+        if id.trim().is_empty() || workflow_id.trim().is_empty() || status.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "workflow invocation identity and status are required".to_owned(),
+            ));
+        }
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        connection
+            .execute(
+                "INSERT INTO adk_workflow_trigger_logs
+                 (id, workflow_id, trigger_id, trigger_type, status, run_id,
+                  payload_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                params![
+                    id,
+                    workflow_id,
+                    trigger_id,
+                    trigger_type,
+                    status,
+                    run_id,
+                    payload_json,
+                    now
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, workflow_id, trigger_id, trigger_type, status, run_id,
+                        payload_json, created_at, updated_at
+                 FROM adk_workflow_trigger_logs WHERE id = ?1",
+                params![id],
+                stored_workflow_trigger_log,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Compare-and-set a workflow invocation projection.  A false result
+    /// means another executor already advanced the invocation, so callers
+    /// must re-read rather than claiming a terminal state locally.
+    pub fn update_workflow_trigger_log_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        status: &str,
+        run_id: &str,
+        payload_json: &str,
+    ) -> Result<Option<StoredAdkWorkflowTriggerLog>, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_workflow_trigger_logs
+                 SET status = ?1, run_id = ?2, payload_json = ?3, updated_at = ?4
+                 WHERE id = ?5 AND updated_at = ?6",
+                params![status, run_id, payload_json, now, id, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected != 1 {
+            return Ok(None);
+        }
+        connection
+            .query_row(
+                "SELECT id, workflow_id, trigger_id, trigger_type, status, run_id,
+                        payload_json, created_at, updated_at
+                 FROM adk_workflow_trigger_logs WHERE id = ?1",
+                params![id],
+                stored_workflow_trigger_log,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Mark queued/running workflow invocations left by a crashed process as
+    /// failed. Pending-approval records remain recoverable by the normal ADK
+    /// continuation path. Each row is CAS-fenced so a concurrently resumed
+    /// invocation wins without being overwritten by startup recovery.
+    pub fn recover_orphaned_workflow_trigger_logs(&self) -> Result<usize, AdkStoreError> {
+        let candidates = self
+            .list_workflow_trigger_logs()?
+            .into_iter()
+            .filter(|log| {
+                log.status.eq_ignore_ascii_case("RUNNING")
+                    || log.status.eq_ignore_ascii_case("QUEUED")
+            })
+            .collect::<Vec<_>>();
+        let mut recovered = 0;
+        for log in candidates {
+            let mut payload = decode_json_object(&log.payload_json, "workflow trigger log")?;
+            payload.insert("status".to_owned(), Value::String("FAILED".to_owned()));
+            payload.insert(
+                "error".to_owned(),
+                Value::String("workflow invocation was orphaned during restart".to_owned()),
+            );
+            payload.insert(
+                "errorCode".to_owned(),
+                Value::String("ADK_WORKFLOW_ORPHANED".to_owned()),
+            );
+            payload.insert("finishedAt".to_owned(), Value::String(Self::now_rfc3339()));
+            if self
+                .update_workflow_trigger_log_if_revision(
+                    &log.id,
+                    &log.updated_at,
+                    "FAILED",
+                    &log.run_id,
+                    &Value::Object(payload).to_string(),
+                )?
+                .is_some()
+            {
+                recovered += 1;
+            }
+        }
+        Ok(recovered)
+    }
+
+    /// Insert or update one workflow invocation log.  Workflow execution is
+    /// owned by the production ADK runtime, so keeping this write beside the
+    /// existing trigger rows preserves the Go-compatible durable projection.
+    pub fn upsert_workflow_trigger_log(
+        &self,
+        id: &str,
+        workflow_id: &str,
+        trigger_id: &str,
+        trigger_type: &str,
+        status: &str,
+        run_id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkWorkflowTriggerLog, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let created_at = connection
+            .query_row(
+                "SELECT created_at FROM adk_workflow_trigger_logs WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+            .unwrap_or_else(|| now.clone());
+        connection
+            .execute(
+                "INSERT INTO adk_workflow_trigger_logs
+                 (id, workflow_id, trigger_id, trigger_type, status, run_id,
+                  payload_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                 ON CONFLICT(id) DO UPDATE SET workflow_id = ?2,
+                   trigger_id = ?3, trigger_type = ?4, status = ?5,
+                   run_id = ?6, payload_json = ?7, updated_at = ?9",
+                params![
+                    id,
+                    workflow_id,
+                    trigger_id,
+                    trigger_type,
+                    status,
+                    run_id,
+                    payload_json,
+                    created_at,
+                    now
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        connection
+            .query_row(
+                "SELECT id, workflow_id, trigger_id, trigger_type, status, run_id,
+                        payload_json, created_at, updated_at
+                 FROM adk_workflow_trigger_logs WHERE id = ?1",
+                params![id],
+                stored_workflow_trigger_log,
+            )
+            .map_err(AdkStoreError::Query)
+    }
+
     fn upsert_simple_entity(
         &self,
         table: &str,
@@ -3340,6 +4215,18 @@ fn stored_workflow_trigger_log(
     })
 }
 
+fn stored_handoff_segment(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkHandoffSegment> {
+    Ok(StoredAdkHandoffSegment {
+        id: row.get(0)?,
+        session_id: row.get(1)?,
+        active: row.get::<_, i64>(2)? != 0,
+        sequence: row.get(3)?,
+        payload_json: row.get(4)?,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
+    })
+}
+
 #[derive(Debug)]
 pub struct AdkTestCutoverStore {
     inner: AdkStore,
@@ -3363,8 +4250,25 @@ impl AdkTestCutoverStore {
         self.inner.upsert_provider(id, payload_json)
     }
 
+    pub fn upsert_provider_normalized(
+        &self,
+        id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        self.inner.upsert_provider_normalized(id, payload_json)
+    }
+
     pub fn delete_provider(&self, id: &str) -> Result<bool, AdkStoreError> {
         self.inner.delete_provider(id)
+    }
+
+    pub fn delete_provider_with_replacement_atomic(
+        &self,
+        id: &str,
+        replacement: Option<(&str, &str)>,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .delete_provider_with_replacement_atomic(id, replacement)
     }
 
     pub fn get_provider(&self, id: &str) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
@@ -3911,6 +4815,36 @@ impl AdkTestCutoverStore {
         id: &str,
     ) -> Result<Option<StoredAdkWorkflowTrigger>, AdkStoreError> {
         self.inner.get_workflow_trigger(id)
+    }
+
+    pub fn get_session_context(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
+        self.inner.get_session_context(session_id)
+    }
+
+    pub fn list_handoff_segments(
+        &self,
+        session_id: &str,
+        active_only: bool,
+    ) -> Result<Vec<StoredAdkHandoffSegment>, AdkStoreError> {
+        self.inner.list_handoff_segments(session_id, active_only)
+    }
+
+    pub fn commit_session_context_compaction(
+        &self,
+        session_id: &str,
+        expected_revision: &str,
+        segment: Option<(&str, i64, &str, bool)>,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        self.inner.commit_session_context_compaction(
+            session_id,
+            expected_revision,
+            segment,
+            payload_json,
+        )
     }
 
     pub fn list_approvals(&self) -> Result<Vec<StoredAdkApproval>, AdkStoreError> {

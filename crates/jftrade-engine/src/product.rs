@@ -18,16 +18,17 @@ use jftrade_datamanagement::{
 use jftrade_research::ScreenCatalogError;
 use jftrade_settings::{
     AppearanceService, AssistantRuntimeService, AssistantRuntimeSettings,
-    BacktestMarketDataProviderSettingsService, BrokerIntegration, BrokerSettingsError,
-    BrokerSettingsService, ExchangeCalendarSettings, ExchangeCalendarSettingsService,
-    ExecutionService, ExecutionSettings, FutuOpenDInstallSettingsService,
-    InterfaceSettingsStorePort, ManagedBrokerAccount, MarketDataProviderSettingsError,
-    MarketDataProviderSettingsService, MarketDataProviderSettingsStorePort, McpServerSettingsError,
-    McpServerSettingsService, McpServerSettingsUpdate, OnboardingSettingsService,
-    OnboardingWriteRequest, PineWorkerSettings, PineWorkerSettingsService, SecuritySettingsError,
-    SecuritySettingsService, SecuritySettingsUpdate, SystemNotificationService,
-    SystemNotificationSettings, UiAppearanceSettings, normalize_live_websocket_connection_limit,
-    should_forward_system_notification,
+    BacktestMarketDataProviderSettingsService, BacktestMarketDataProviderSettingsStorePort,
+    BrokerIntegration, BrokerSettingsError, BrokerSettingsService, ExchangeCalendarSettings,
+    ExchangeCalendarSettingsService, ExecutionService, ExecutionSettings,
+    FutuOpenDInstallSettingsService, InterfaceSettingsStorePort, ManagedBrokerAccount,
+    MarketDataProviderSettingsError, MarketDataProviderSettingsService,
+    MarketDataProviderSettingsStorePort, McpServerSettingsError, McpServerSettingsService,
+    McpServerSettingsStorePort, McpServerSettingsUpdate, OnboardingSettingsService,
+    OnboardingWriteRequest, PineWorkerSettings, PineWorkerSettingsService, SecurityRuntimePort,
+    SecuritySettingsError, SecuritySettingsRecord, SecuritySettingsService, SecuritySettingsUpdate,
+    SystemNotificationService, SystemNotificationSettings, UiAppearanceSettings,
+    normalize_live_websocket_connection_limit, should_forward_system_notification,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 #[cfg(test)]
@@ -61,9 +62,12 @@ const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 #[path = "product_active_provider_state.rs"]
 pub(crate) mod product_active_provider_state;
+#[path = "product_production_ports_backtest_provider.rs"]
+pub(crate) mod product_backtest_provider;
 #[path = "product_query.rs"]
 pub(crate) mod product_query;
 pub(crate) use product_active_provider_state::ActiveProviderState;
+pub(crate) use product_backtest_provider::BacktestMarketDataProviderState;
 #[path = "product_candle_converter.rs"]
 pub(crate) mod product_candle_converter;
 #[path = "product_research_preset_port.rs"]
@@ -98,7 +102,7 @@ include!("product_auth_session_port.rs");
 mod product_auth_session_write_port;
 use product_auth_session_write_port::{
     AuthSessionWritePort, AuthSessionWriteRequest, AuthSessionWriteResponse,
-    auth_session_write_routes, dispatch_auth_session_write,
+    auth_session_write_routes,
 };
 #[path = "product_auth_session_manager.rs"]
 pub mod product_auth_session_manager;
@@ -171,6 +175,12 @@ use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatS
 pub(crate) mod product_adk_model_runtime;
 #[path = "product_adk_mutation_port.rs"]
 mod product_adk_mutation_port;
+#[path = "product_mcp_production_executor.rs"]
+mod product_mcp_production_executor;
+#[path = "product_mcp_protocol.rs"]
+mod product_mcp_protocol;
+#[path = "product_mcp_server.rs"]
+pub(crate) mod product_mcp_server;
 use product_adk_mutation_port::{
     AdkMutationPort, AdkMutationRequest, AdkMutationResponse, adk_mutation_routes,
     dispatch_adk_mutation,
@@ -342,6 +352,10 @@ pub struct ProductConfig {
     market_data_prediction_read_snapshot_port:
         Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
     pub(crate) active_provider_state: Option<Arc<ActiveProviderState>>,
+    /// Historical backtests use a provider persisted independently of the
+    /// live quote provider. This state is atomically shared with settings,
+    /// start, and sync handlers.
+    pub(crate) backtest_market_data_provider_state: Option<Arc<BacktestMarketDataProviderState>>,
     pub(crate) market_data_router: Option<Arc<Mutex<jftrade_marketdata::ProviderRouter>>>,
     pub(crate) market_data_helper: Option<jftrade_integration_marketdata_helper::HelperClient>,
     pub(crate) physical_subscription_port:
@@ -456,6 +470,7 @@ impl ProductConfig {
             market_data_quote_read_snapshot_port: None,
             market_data_prediction_read_snapshot_port: None,
             active_provider_state: None,
+            backtest_market_data_provider_state: None,
             market_data_router: None,
             market_data_helper: None,
             physical_subscription_port: None,

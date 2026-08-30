@@ -608,6 +608,7 @@ async fn test_product_runtime_ordered_shutdown_explicit() {
         recorder.events(),
         vec![
             "http_join",
+            "execution_reconciliation_worker",
             "provider",
             "opend",
             "marketdata_helper",
@@ -637,6 +638,7 @@ async fn test_product_runtime_startup_failure_rollback() {
     assert_eq!(
         recorder.events(),
         vec![
+            "execution_reconciliation_worker",
             "provider",
             "opend",
             "marketdata_helper",
@@ -667,6 +669,7 @@ async fn test_product_runtime_ordered_shutdown_direct_drop() {
         recorder.events(),
         vec![
             "http_join",
+            "execution_reconciliation_worker",
             "provider",
             "opend",
             "marketdata_helper",
@@ -710,6 +713,7 @@ fn test_product_runtime_ordered_shutdown_tokio_runtime_exit_drop() {
         recorder.events(),
         vec![
             "http_join",
+            "execution_reconciliation_worker",
             "provider",
             "opend",
             "marketdata_helper",

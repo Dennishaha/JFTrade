@@ -6,7 +6,7 @@ use std::time::Instant;
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::extract::ws::{CloseFrame, Message, WebSocketUpgrade};
-use axum::extract::{Request, State};
+use axum::extract::{ConnectInfo, Request, State};
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, CACHE_CONTROL, CONNECTION, VARY,
@@ -16,6 +16,7 @@ use axum::middleware::{self, Next};
 use axum::routing::get;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::net::{IpAddr, SocketAddr};
 use tokio_stream::wrappers::ReceiverStream;
 use tower_http::trace::TraceLayer;
 
@@ -32,6 +33,23 @@ use crate::{
 };
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+/// Transport-only metadata for request-scoped auth behavior. It stays outside
+/// the frozen API request DTO so HTTP/OpenAPI and Stage 9 fixtures remain
+/// unchanged.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RequestContext {
+    pub client_key: String,
+    pub secure: bool,
+}
+
+tokio::task_local! {
+    static CURRENT_REQUEST_CONTEXT: RequestContext;
+}
+
+pub fn current_request_context() -> Option<RequestContext> {
+    CURRENT_REQUEST_CONTEXT.try_with(Clone::clone).ok()
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LiveMarketDataStatus {
@@ -127,6 +145,7 @@ async fn transport_middleware(
             format!("rust-{sequence}")
         });
     request.extensions_mut().insert(request_id.clone());
+    let request_context = request_context(&request);
 
     let origin = request_origin(request.headers());
     let origin_was_provided = origin_provided(request.headers());
@@ -138,11 +157,17 @@ async fn transport_middleware(
         }
     } else if should_authenticate(request.uri().path()) {
         match authorize(&state, &request) {
-            Ok(()) => next.run(request).await,
+            Ok(()) => {
+                CURRENT_REQUEST_CONTEXT
+                    .scope(request_context.clone(), next.run(request))
+                    .await
+            }
             Err(failure) => error_response(&state.clock, failure),
         }
     } else {
-        next.run(request).await
+        CURRENT_REQUEST_CONTEXT
+            .scope(request_context, next.run(request))
+            .await
     };
     apply_cors_headers(response.headers_mut(), origin.as_deref(), &state.access);
     if let Ok(value) = HeaderValue::from_str(&request_id) {
@@ -156,6 +181,55 @@ async fn transport_middleware(
         &request_id,
     );
     response
+}
+
+fn request_context(request: &Request) -> RequestContext {
+    let peer = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|info| info.0);
+    let peer_ip = peer.map(|address| address.ip());
+    let loopback_peer = peer_ip.is_some_and(|ip| ip.is_loopback());
+    let client_ip = if loopback_peer {
+        last_forwarded_ip(request.headers()).or(peer_ip)
+    } else {
+        peer_ip
+    };
+    let client_key = client_ip.map_or_else(|| "unknown".to_owned(), |ip| ip.to_string());
+    let secure = request
+        .uri()
+        .scheme_str()
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https"))
+        || (loopback_peer && forwarded_https(request.headers()));
+    RequestContext { client_key, secure }
+}
+
+fn last_forwarded_ip(headers: &HeaderMap) -> Option<IpAddr> {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            value
+                .split(',')
+                .rev()
+                .map(str::trim)
+                .find(|value| !value.is_empty())
+        })
+        .and_then(|value| value.trim_matches(['[', ']']).parse().ok())
+}
+
+fn forwarded_https(headers: &HeaderMap) -> bool {
+    headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            value
+                .split(',')
+                .rev()
+                .map(str::trim)
+                .find(|value| !value.is_empty())
+        })
+        .is_some_and(|value| value.eq_ignore_ascii_case("https"))
 }
 
 fn normalize_request_id(value: &str) -> Option<String> {

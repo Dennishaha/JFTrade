@@ -85,6 +85,31 @@ fn sync_task_update_enforces_revision_compare_and_swap() {
 }
 
 #[test]
+fn sync_task_lists_only_active_rows_for_restart_recovery() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("backtest-runs.db");
+    seed_schema(&path);
+    let store = open_store(&path);
+    store
+        .create(task("queued", "queued", TIMESTAMP_1))
+        .expect("create queued");
+    store
+        .create(task("running", "running", TIMESTAMP_2))
+        .expect("create running");
+    store
+        .create(task("done", "completed", TIMESTAMP_1))
+        .expect("create terminal");
+    let active = store.list_active().expect("list active");
+    assert_eq!(
+        active
+            .iter()
+            .map(|task| task.task_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["queued", "running"]
+    );
+}
+
+#[test]
 fn malformed_internal_sync_table_fails_closed_without_replacing_database() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let path = directory.path().join("backtest-runs.db");

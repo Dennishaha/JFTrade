@@ -285,6 +285,22 @@ impl BacktestSyncTaskStore {
         self.run_store.get_sync_task(task_id)
     }
 
+    /// Load tasks that were active when the previous process exited.  The
+    /// production engine uses this at startup to make interrupted work
+    /// terminal before exposing progress reads; no stale queued/running row
+    /// is allowed to survive a restart as if a worker still owned it.
+    pub fn list_active(&self) -> Result<Vec<StoredBacktestSyncTask>, BacktestRunStoreError> {
+        self.run_store.list_active_sync_tasks()
+    }
+
+    /// List the durable sync-task history in deterministic newest-first order.
+    /// The production storage overview uses this projection instead of an
+    /// in-memory task registry, so completed and recovered jobs survive a
+    /// process restart.
+    pub fn list_all(&self) -> Result<Vec<StoredBacktestSyncTask>, BacktestRunStoreError> {
+        self.run_store.list_sync_tasks()
+    }
+
     pub fn cancel(
         &self,
         task_id: &str,
@@ -299,6 +315,89 @@ impl BacktestSyncTaskStore {
         expected_revision: i64,
     ) -> Result<bool, BacktestRunStoreError> {
         self.run_store.update_sync_task(&task, expected_revision)
+    }
+}
+
+impl BacktestRunStore {
+    fn list_sync_tasks(&self) -> Result<Vec<StoredBacktestSyncTask>, BacktestRunStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT task_id, status, symbol, market_data_provider,
+                total_intervals, completed_intervals, total_batches,
+                completed_batches, current_interval, retries, error,
+                started_at, updated_at, revision
+                FROM {SYNC_TASKS_TABLE} ORDER BY updated_at DESC, task_id ASC"
+            ))
+            .map_err(BacktestRunStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredBacktestSyncTask {
+                    task_id: row.get(0)?,
+                    status: row.get(1)?,
+                    symbol: row.get(2)?,
+                    market_data_provider: row.get(3)?,
+                    total_intervals: row.get(4)?,
+                    completed_intervals: row.get(5)?,
+                    total_batches: row.get(6)?,
+                    completed_batches: row.get(7)?,
+                    current_interval: row.get(8)?,
+                    retries: row.get(9)?,
+                    error: row.get(10)?,
+                    started_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                    revision: row.get(13)?,
+                })
+            })
+            .map_err(BacktestRunStoreError::Query)?;
+        let tasks = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(BacktestRunStoreError::Query)?;
+        for task in &tasks {
+            validate_sync_task(task)?;
+        }
+        Ok(tasks)
+    }
+
+    fn list_active_sync_tasks(&self) -> Result<Vec<StoredBacktestSyncTask>, BacktestRunStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT task_id, status, symbol, market_data_provider,
+                total_intervals, completed_intervals, total_batches,
+                completed_batches, current_interval, retries, error,
+                started_at, updated_at, revision
+                FROM {SYNC_TASKS_TABLE} WHERE status IN ('queued', 'running')
+                ORDER BY updated_at ASC, task_id ASC"
+            ))
+            .map_err(BacktestRunStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredBacktestSyncTask {
+                    task_id: row.get(0)?,
+                    status: row.get(1)?,
+                    symbol: row.get(2)?,
+                    market_data_provider: row.get(3)?,
+                    total_intervals: row.get(4)?,
+                    completed_intervals: row.get(5)?,
+                    total_batches: row.get(6)?,
+                    completed_batches: row.get(7)?,
+                    current_interval: row.get(8)?,
+                    retries: row.get(9)?,
+                    error: row.get(10)?,
+                    started_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                    revision: row.get(13)?,
+                })
+            })
+            .map_err(BacktestRunStoreError::Query)?;
+        let tasks = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(BacktestRunStoreError::Query)?;
+        for task in &tasks {
+            validate_sync_task(task)?;
+        }
+        Ok(tasks)
     }
 }
 

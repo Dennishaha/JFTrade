@@ -136,30 +136,114 @@ pub(super) fn dispatch(
                     "provider not found",
                 ));
             }
-            let payload = match existing.as_ref() {
-                Some(existing) => merged_entity_payload(existing, &input.body, "provider")?,
-                None => new_entity_payload(&input.body, "provider", &id)?,
-            };
+            let previous_rows = port.store.list_providers().map_err(storage_mutation_failed)?;
+            let (mut payload, api_key) =
+                provider_payload(port, &id, &input.body, existing.as_ref())?;
+            if let Some(object) = payload.as_object_mut() {
+                object.insert("id".to_owned(), Value::String(id.clone()));
+            }
             let stored = port
                 .store
-                .upsert_provider(&id, &payload.to_string())
+                .upsert_provider_normalized(&id, &payload.to_string())
                 .map_err(|e| AdkMutationPortError::Failed {
                     status: 400,
                     code: "ADK_MUTATION_FAILED".to_owned(),
                     message: e.to_string(),
                 })?;
-            decode_mutation_payload(&stored.payload_json, "provider")
+            commit_provider_secret(
+                port,
+                &id,
+                api_key.as_deref(),
+                existing.as_ref(),
+                &previous_rows,
+            )?;
+            sanitized_provider_payload(
+                decode_mutation_payload(&stored.payload_json, "provider")?,
+                &stored.id,
+                &port.settings_path,
+            )
         }
         AdkMutationOperation::DeleteProvider => {
             let id = required_identifier(input, "providerId")?;
-            let deleted =
-                port.store
-                    .delete_provider(&id)
-                    .map_err(|e| AdkMutationPortError::Failed {
-                        status: 400,
-                        code: "ADK_MUTATION_FAILED".to_owned(),
-                        message: e.to_string(),
-                    })?;
+            let providers = port.store.list_providers().map_err(storage_mutation_failed)?;
+            let old_secrets = read_adk_secrets(&port.settings_path)?;
+            let Some(existing) = providers.iter().find(|provider| provider.id == id) else {
+                return Err(not_found_mutation(
+                    "ADK_PROVIDER_NOT_FOUND",
+                    "provider not found",
+                ));
+            };
+            for agent in port.store.list_agents().map_err(storage_mutation_failed)? {
+                let payload = decode_mutation_payload(&agent.payload_json, "agent")?;
+                if payload
+                    .get("providerId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|provider| provider.trim() == id)
+                {
+                    return Err(AdkMutationPortError::Failed {
+                        status: 409,
+                        code: "ADK_PROVIDER_IN_USE".to_owned(),
+                        message: "provider is referenced by an agent".to_owned(),
+                    });
+                }
+            }
+            let target_payload = decode_mutation_payload(&existing.payload_json, "provider")?;
+            let was_default = target_payload
+                .get("default")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            // Decode and stage the replacement before deleting anything.  A
+            // malformed candidate must leave the provider table untouched.
+            let replacement = if was_default {
+                let mut replacement = None;
+                for provider in &providers {
+                    if provider.id == id {
+                        continue;
+                    }
+                    let mut value = decode_mutation_payload(&provider.payload_json, "provider")?;
+                    if value
+                        .get("enabled")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(true)
+                    {
+                        let object = value.as_object_mut().ok_or_else(|| {
+                            AdkMutationPortError::Failed {
+                                status: 500,
+                                code: "ADK_STORAGE_CORRUPT".to_owned(),
+                                message: "stored ADK provider payload must be a JSON object"
+                                    .to_owned(),
+                            }
+                        })?;
+                        object.insert("default".to_owned(), Value::Bool(true));
+                        replacement = Some((provider.id.clone(), value.to_string()));
+                        break;
+                    }
+                }
+                replacement
+            } else {
+                None
+            };
+
+            let replacement_ref = replacement
+                .as_ref()
+                .map(|(replacement_id, replacement_payload)| {
+                    (replacement_id.as_str(), replacement_payload.as_str())
+                });
+            let deleted = match port
+                .store
+                .delete_provider_with_replacement_atomic(&id, replacement_ref)
+            {
+                Ok(deleted) => deleted,
+                Err(error) => {
+                    let failure = storage_mutation_failed(error);
+                    return Err(provider_delete_failure(
+                        port,
+                        &providers,
+                        &old_secrets,
+                        failure,
+                    ));
+                }
+            };
             if !deleted {
                 return Err(AdkMutationPortError::Failed {
                     status: 404,
@@ -167,7 +251,20 @@ pub(super) fn dispatch(
                     message: "provider not found".to_owned(),
                 });
             }
-            Ok(json!({"deleted": true}))
+            let mut secrets = old_secrets.clone();
+            secrets.remove(&id);
+            if let Err(error) = write_adk_secrets(&port.settings_path, &secrets) {
+                return Err(provider_delete_failure(
+                    port,
+                    &providers,
+                    &old_secrets,
+                    error,
+                ));
+            }
+            Ok(json!({
+                "deleted": true,
+                "replacementProviderId": replacement.map(|(id, _)| id),
+            }))
         }
         AdkMutationOperation::SetDefaultProvider => {
             let id = required_identifier(input, "providerId")?;
@@ -187,6 +284,7 @@ pub(super) fn dispatch(
                 .list_providers()
                 .map_err(storage_mutation_failed)?;
             let mut selected = None;
+            let mut updates = Vec::with_capacity(providers.len());
             for provider in providers {
                 let mut value = decode_mutation_payload(&provider.payload_json, "provider")?;
                 let object = value
@@ -199,18 +297,25 @@ pub(super) fn dispatch(
                 let is_default = provider.id == id;
                 object.insert("id".to_owned(), Value::String(provider.id.clone()));
                 object.insert("default".to_owned(), Value::Bool(is_default));
-                let stored = port
-                    .store
-                    .upsert_provider(&provider.id, &value.to_string())
-                    .map_err(storage_mutation_failed)?;
+                object.remove("apiKey");
+                let payload = value.to_string();
                 if is_default {
-                    selected = Some(stored);
+                    selected = Some(provider.id.clone());
                 }
+                updates.push((provider.id, payload));
             }
-            let selected = selected.ok_or_else(|| {
+            let selected_id = selected.ok_or_else(|| {
                 not_found_mutation("ADK_PROVIDER_NOT_FOUND", "provider not found")
             })?;
-            object_payload(&selected, "provider")
+            let update_refs = updates
+                .iter()
+                .map(|(provider_id, payload)| (provider_id.as_str(), payload.as_str()))
+                .collect::<Vec<_>>();
+            let selected = port
+                .store
+                .set_default_provider_atomic(&selected_id, &update_refs)
+                .map_err(storage_mutation_failed)?;
+            sanitized_provider_payload(object_payload(&selected, "provider")?, &selected.id, &port.settings_path)
         }
         AdkMutationOperation::CreateMemory => {
             let body = object_body(&input.body, "memory")?;

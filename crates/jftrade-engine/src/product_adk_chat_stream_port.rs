@@ -100,6 +100,12 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
         ))
     }
 
+    /// Reports whether a concrete model/runtime configuration is available
+    /// for model-backed mutations without dispatching a request.
+    fn runtime_ready(&self) -> bool {
+        false
+    }
+
     /// Stops provider calls and joins any continuation workers owned by this
     /// port.  The default is intentionally a no-op for stateless rehearsal
     /// ports; production adapters override it so their SQLite stores are not

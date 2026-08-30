@@ -19,10 +19,22 @@ mod helpers;
 mod runs;
 #[path = "product_production_ports_adk_mutation_tasks.rs"]
 mod tasks;
+#[path = "product_production_ports_adk_mutation_provider.rs"]
+mod provider;
+#[path = "product_production_ports_adk_mutation_runtime.rs"]
+mod runtime;
+#[path = "product_production_ports_adk_mutation_context.rs"]
+mod context;
+#[path = "product_production_ports_adk_mutation_workflow_runtime.rs"]
+mod workflow;
 #[path = "product_production_ports_adk_mutation_workflows.rs"]
 mod workflows;
 
 use helpers::*;
+use provider::{
+    commit_provider_secret, provider_delete_failure, provider_payload, read_adk_secrets,
+    sanitized_provider_payload, write_adk_secrets,
+};
 
 static SESSION_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 static AGENT_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
@@ -759,6 +771,9 @@ fn dispatch_mutation(
     }
     if tasks::handles(input.operation) {
         return tasks::dispatch(port, input);
+    }
+    if runtime::handles(input.operation) {
+        return runtime::dispatch(port, input);
     }
     Err(AdkMutationPortError::Unavailable(format!(
         "ADK operation {} is not supported in production without external assistant runtime",

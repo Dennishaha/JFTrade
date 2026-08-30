@@ -150,6 +150,17 @@ impl BacktestExecutionTaskRegistry {
         });
     }
 
+    /// Reports whether a durable run still has a live worker in this process.
+    /// A newly opened process has an empty registry, which lets the production
+    /// backtest port recover queued/running rows left by the previous process.
+    pub(crate) fn has_worker(&self, run_id: &str) -> bool {
+        self.workers
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter()
+            .any(|worker| worker.run_id == run_id)
+    }
+
     pub(crate) async fn shutdown(&self) {
         let mut workers = self.take_workers();
         for worker in &mut workers {

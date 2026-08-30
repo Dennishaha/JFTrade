@@ -20,6 +20,8 @@ pub enum ProductError {
     },
     #[error("failed to bind Rust product API")]
     Bind(#[source] std::io::Error),
+    #[error("failed to apply Rust Web access listener settings: {message}")]
+    SecurityRuntime { message: String },
     #[error("failed to inspect Rust product API listener")]
     LocalAddress(#[source] std::io::Error),
     #[error("invalid Rust product route catalog")]
