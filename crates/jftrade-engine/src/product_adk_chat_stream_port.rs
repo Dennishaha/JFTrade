@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use jftrade_api::ApiStream;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -52,11 +53,18 @@ pub struct AdkChatStreamSnapshot {
     pub terminal: bool,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkChatLiveStream {
+    pub headers: BTreeMap<String, String>,
+    pub stream: ApiStream,
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AdkChatPortOutput {
     Json(Value),
     Stream(AdkChatStreamSnapshot),
+    LiveStream(AdkChatLiveStream),
 }
 
 #[allow(dead_code)]
@@ -77,6 +85,12 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError>;
+
+    /// Signals an active provider call to stop.  Implementations that do not
+    /// own a live runtime may keep the default no-op behavior.
+    fn cancel_run(&self, _run_id: &str) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,18 +106,27 @@ pub enum AdkChatWireResponse {
         frames: Vec<AdkChatStreamFrame>,
         terminal: bool,
     },
+    LiveSse {
+        status: u16,
+        headers: BTreeMap<String, String>,
+        stream: ApiStream,
+    },
 }
 
 impl AdkChatWireResponse {
     pub fn status(&self) -> u16 {
         match self {
-            Self::Json { status, .. } | Self::Sse { status, .. } => *status,
+            Self::Json { status, .. } | Self::Sse { status, .. } | Self::LiveSse { status, .. } => {
+                *status
+            }
         }
     }
 
     pub fn headers(&self) -> &BTreeMap<String, String> {
         match self {
-            Self::Json { headers, .. } | Self::Sse { headers, .. } => headers,
+            Self::Json { headers, .. }
+            | Self::Sse { headers, .. }
+            | Self::LiveSse { headers, .. } => headers,
         }
     }
 
@@ -113,6 +136,7 @@ impl AdkChatWireResponse {
                 serde_json::to_string(body).expect("chat JSON envelope is serializable")
             }
             Self::Sse { frames, .. } => encode_sse_frames(frames),
+            Self::LiveSse { .. } => String::new(),
         }
     }
 }
@@ -163,6 +187,9 @@ pub fn dispatch_adk_chat(
         (AdkChatRoute::Chat, AdkChatPortOutput::Json(data)) => json_success(data, timestamp),
         (AdkChatRoute::Stream, AdkChatPortOutput::Stream(snapshot)) => {
             stream_success(snapshot, stream_idle_timeout_ms)
+        }
+        (AdkChatRoute::Stream, AdkChatPortOutput::LiveStream(stream)) => {
+            live_stream_success(stream, stream_idle_timeout_ms)
         }
         (_, _) => json_error(
             500,
@@ -295,7 +322,8 @@ fn add_stream_idle_header(
     if route == AdkChatRoute::Stream {
         match &mut response {
             AdkChatWireResponse::Json { headers, .. }
-            | AdkChatWireResponse::Sse { headers, .. } => {
+            | AdkChatWireResponse::Sse { headers, .. }
+            | AdkChatWireResponse::LiveSse { headers, .. } => {
                 headers.insert(
                     "X-ADK-Stream-Idle-Timeout-Ms".to_owned(),
                     stream_idle_timeout_ms.to_string(),
@@ -342,6 +370,19 @@ fn stream_success(
         headers,
         frames,
         terminal: snapshot.terminal,
+    }
+}
+
+fn live_stream_success(
+    stream: AdkChatLiveStream,
+    stream_idle_timeout_ms: u64,
+) -> AdkChatWireResponse {
+    let mut headers = sse_headers(stream_idle_timeout_ms);
+    headers.extend(stream.headers);
+    AdkChatWireResponse::LiveSse {
+        status: 200,
+        headers,
+        stream: stream.stream,
     }
 }
 

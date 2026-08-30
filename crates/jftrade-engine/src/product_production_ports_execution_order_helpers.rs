@@ -5,8 +5,6 @@ use std::sync::{Arc, Mutex};
 use jftrade_store_sqlite::{ExecutionOrderStoreError, StoredExecutionOrder};
 use jftrade_integration_futu::TradeSessionError;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-use super::execution_order_parse::ParsedOrder;
 use crate::product::product_brokers_write_port::BrokersWritePortError;
 use crate::product::product_execution_write_port::ExecutionWritePortError;
 
@@ -182,6 +180,11 @@ fn normalized_legs_from_request(
                 )
             })?
             .to_ascii_uppercase();
+        let side = match side.as_str() {
+            "B" => "BUY".to_owned(),
+            "S" => "SELL".to_owned(),
+            _ => side,
+        };
         if !matches!(side.as_str(), "BUY" | "B" | "SELL" | "S") {
             return Err(failed(
                 500,
@@ -297,26 +300,6 @@ impl Drop for CancelInFlightGuard {
             ids.remove(&self.id);
         }
     }
-}
-
-pub(crate) fn parse_preview_order(
-    object: &serde_json::Map<String, Value>,
-) -> Result<ParsedOrder, ExecutionWritePortError> {
-    let mut normalized = object.clone();
-    if !normalized.contains_key("symbol")
-        && !normalized.contains_key("code")
-        && let Some(instrument_id) = normalized
-            .get("instrument")
-            .and_then(Value::as_object)
-            .and_then(|instrument| instrument.get("instrumentId"))
-    {
-        normalized.insert("symbol".to_owned(), instrument_id.clone());
-    }
-    if !normalized.contains_key("quantity") {
-        normalized.insert("quantity".to_owned(), json!(1.0));
-    }
-    let value = Value::Object(normalized);
-    super::execution_order_parse::parse_order(&value).map_err(|message| failed(400, "BAD_REQUEST", message))
 }
 
 #[derive(Clone, Debug)]
@@ -448,233 +431,6 @@ pub(crate) fn product_rule_rejection(request: &ProductRuleRequest) -> Option<(&'
     None
 }
 
-/// Construct the normalized command representation used by Go's execution
-/// hash.  Preview and place requests can differ in presentation fields or in
-/// alias casing; hashing this canonical form keeps the credential bound to
-/// the same broker/account/order command instead of the raw HTTP JSON.
-pub(crate) fn canonical_execution_request(
-    payload: &Value,
-    parsed: &ParsedOrder,
-    legs: Option<Value>,
-) -> Result<Value, ExecutionWritePortError> {
-    let mut outer = serde_json::Map::new();
-    outer.insert("brokerId".to_owned(), Value::String(parsed.broker_id.clone()));
-    outer.insert("orderKind".to_owned(), Value::String(parsed.order_kind.clone()));
-    outer.insert("productClass".to_owned(), Value::String(parsed.product_class.clone()));
-    outer.insert("query".to_owned(), canonical_query_value(parsed));
-    let legs = match legs {
-        Some(value) => validate_canonical_legs(value)?,
-        None => canonical_legs_from_payload(payload)?,
-    };
-    outer.insert("legs".to_owned(), legs);
-    Ok(Value::Object(outer))
-}
-
-fn canonical_query_value(parsed: &ParsedOrder) -> Value {
-    let mut query = serde_json::Map::new();
-    query.insert("brokerId".to_owned(), Value::String(parsed.broker_id.clone()));
-    query.insert("accountId".to_owned(), Value::String(parsed.header.acc_id.to_string()));
-    query.insert(
-        "tradingEnvironment".to_owned(),
-        Value::String(if parsed.header.trd_env == 1 { "REAL" } else { "SIMULATE" }.to_owned()),
-    );
-    query.insert("market".to_owned(), Value::String(super::execution_order_parse::market_label(parsed.header.trd_market)));
-    query.insert("symbol".to_owned(), Value::String(parsed.symbol.clone()));
-    query.insert("productClass".to_owned(), Value::String(parsed.product_class.clone()));
-    query.insert("quantityMode".to_owned(), Value::String(parsed.quantity_mode.clone()));
-    query.insert("side".to_owned(), Value::String(super::execution_order_parse::side_label(parsed.side).to_owned()));
-    query.insert("orderType".to_owned(), Value::String(super::execution_order_parse::order_type_label(parsed.order_type).to_owned()));
-    query.insert("quantity".to_owned(), json!(parsed.quantity));
-    if let Some(value) = parsed.price { query.insert("price".to_owned(), json!(value)); }
-    if let Some(value) = parsed.amount { query.insert("amount".to_owned(), json!(value)); }
-    if let Some(value) = parsed.stop_price { query.insert("stopPrice".to_owned(), json!(value)); }
-    if let Some(value) = parsed.prediction_side {
-        query.insert("predictionSide".to_owned(), Value::String(if value == 1 { "YES" } else { "NO" }.to_owned()));
-    }
-    if let Some(value) = parsed.time_in_force {
-        query.insert("timeInForce".to_owned(), Value::String(match value { 0 => "DAY", 1 => "GTC", 2 => "IOC", 3 => "GTD", _ => "" }.to_owned()));
-    }
-    if let Some(value) = parsed.client_order_id.as_deref().filter(|value| !value.is_empty()) {
-        query.insert("clientOrderId".to_owned(), Value::String(value.to_owned()));
-    }
-    if let Some(value) = parsed.remark.as_deref().or(parsed.client_order_id.as_deref()).filter(|value| !value.is_empty()) {
-        query.insert("remark".to_owned(), Value::String(value.to_owned()));
-    }
-    if let Some(value) = parsed.session {
-        query.insert("session".to_owned(), Value::String(match value { 0 => "RTH", 1 => "ETH", 2 => "OVERNIGHT", _ => "" }.to_owned()));
-    }
-    if let Some(value) = parsed.fill_outside_rth { query.insert("fillOutsideRTH".to_owned(), Value::Bool(value)); }
-    Value::Object(query)
-}
-
-fn canonical_legs_from_payload(payload: &Value) -> Result<Value, ExecutionWritePortError> {
-    let Some(value) = payload.get("legs") else {
-        return Ok(Value::Null);
-    };
-    let legs = value.as_array().ok_or_else(|| {
-        failed(
-            400,
-            "BAD_REQUEST",
-            "combo legs must be an array",
-        )
-    })?;
-    if legs.is_empty() {
-        return Err(failed(
-            400,
-            "BAD_REQUEST",
-            "combo legs must not be empty",
-        ));
-    }
-    let mut canonical = Vec::with_capacity(legs.len());
-    for (index, value) in legs.iter().enumerate() {
-        let object = value.as_object().ok_or_else(|| {
-            failed(
-                400,
-                "BAD_REQUEST",
-                format!("combo leg {index} must be an object"),
-            )
-        })?;
-        let instrument = object
-            .get("instrumentId")
-            .or_else(|| object.get("symbol"))
-            .or_else(|| object.get("code"))
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| {
-                failed(
-                    400,
-                    "BAD_REQUEST",
-                    format!("combo leg {index} instrumentId is required"),
-                )
-            })?;
-        let side = object
-            .get("side")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| {
-                failed(
-                    400,
-                    "BAD_REQUEST",
-                    format!("combo leg {index} side is required"),
-                )
-            })?
-            .to_ascii_uppercase();
-        if !matches!(side.as_str(), "BUY" | "B" | "SELL" | "S") {
-            return Err(failed(
-                400,
-                "BAD_REQUEST",
-                format!("combo leg {index} has invalid side"),
-            ));
-        }
-        let ratio_value = object
-            .get("ratio")
-            .or_else(|| object.get("qtyRatio"))
-            .ok_or_else(|| {
-                failed(
-                    400,
-                    "BAD_REQUEST",
-                    format!("combo leg {index} ratio is required"),
-                )
-            })?;
-        let ratio = ratio_value
-            .as_i64()
-            .or_else(|| {
-                ratio_value.as_f64().and_then(|value| {
-                    (value.is_finite() && value > 0.0 && value.fract() == 0.0)
-                        .then_some(value as i64)
-                })
-            })
-            .filter(|value| *value > 0)
-            .ok_or_else(|| {
-                failed(
-                    400,
-                    "BAD_REQUEST",
-                    format!("combo leg {index} ratio must be a positive integer"),
-                )
-            })?;
-        let product_class = object
-            .get("productClass")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| {
-                failed(
-                    400,
-                    "BAD_REQUEST",
-                    format!("combo leg {index} productClass is required"),
-                )
-            })?;
-        let mut leg = serde_json::Map::new();
-        leg.insert(
-            "instrumentId".to_owned(),
-            Value::String(instrument.to_ascii_uppercase()),
-        );
-        leg.insert(
-            "productClass".to_owned(),
-            Value::String(product_class.to_owned()),
-        );
-        leg.insert("side".to_owned(), Value::String(side));
-        leg.insert("ratio".to_owned(), json!(ratio));
-        for key in ["quantity", "amount", "price"] {
-            if let Some(value) = object.get(key) {
-                leg.insert(key.to_owned(), value.clone());
-            }
-        }
-        if let Some(value) = object.get("predictionSide") {
-            let side = value.as_str().map(str::trim).filter(|value| !value.is_empty()).ok_or_else(|| {
-                failed(400, "BAD_REQUEST", format!("combo leg {index} predictionSide is invalid"))
-            })?;
-            if !matches!(side.to_ascii_uppercase().as_str(), "YES" | "NO") {
-                return Err(failed(400, "BAD_REQUEST", format!("combo leg {index} predictionSide is invalid")));
-            }
-            leg.insert("predictionSide".to_owned(), Value::String(side.to_ascii_uppercase()));
-        }
-        canonical.push(Value::Object(leg));
-    }
-    Ok(Value::Array(canonical))
-}
-
-fn validate_canonical_legs(value: Value) -> Result<Value, ExecutionWritePortError> {
-    let legs = value.as_array().ok_or_else(|| {
-        failed(500, "EXECUTION_ORDER_DATA_INVALID", "canonical combo legs must be an array")
-    })?;
-    if legs.is_empty() {
-        return Err(failed(500, "EXECUTION_ORDER_DATA_INVALID", "canonical combo legs must not be empty"));
-    }
-    for (index, leg) in legs.iter().enumerate() {
-        let object = leg.as_object().ok_or_else(|| {
-            failed(500, "EXECUTION_ORDER_DATA_INVALID", format!("canonical combo leg {index} must be an object"))
-        })?;
-        for field in ["instrumentId", "productClass", "side", "ratio"] {
-            let valid = match field {
-                "ratio" => object.get(field).and_then(Value::as_i64).is_some_and(|value| value > 0),
-                _ => object.get(field).and_then(Value::as_str).is_some_and(|value| !value.trim().is_empty()),
-            };
-            if !valid {
-                return Err(failed(500, "EXECUTION_ORDER_DATA_INVALID", format!("canonical combo leg {index} is missing or invalid {field}")));
-            }
-        }
-    }
-    Ok(value)
-}
-
-pub(crate) fn preview_request_hash(
-    payload: &Value,
-    parsed: &ParsedOrder,
-    legs: Option<Value>,
-) -> Result<String, ExecutionWritePortError> {
-    let request = canonical_execution_request(payload, parsed, legs)?;
-    let bytes = serde_json::to_vec(&request).map_err(|error| {
-        failed(500, "EXECUTION_REQUEST_SERIALIZE_FAILED", error.to_string())
-    })?;
-    Ok(Sha256::digest(bytes)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect())
-}
-
 pub(crate) fn is_terminal_status(status: &str) -> bool {
     matches!(
         status.trim().to_ascii_uppercase().as_str(),
@@ -751,7 +507,12 @@ pub(crate) fn execution_error_details(error: &ExecutionWritePortError) -> (Strin
 }
 
 pub(crate) fn map_trade_error(error: TradeSessionError) -> ExecutionWritePortError {
-    let message = error.to_string();
+    let message = match error {
+        TradeSessionError::Unsupported(message) => {
+            return ExecutionWritePortError::Unavailable(message);
+        }
+        error => error.to_string(),
+    };
     let lower = message.to_ascii_lowercase();
     if lower.contains("timeout") || lower.contains("timed out") {
         failed(504, "BROKER_TIMEOUT", message)

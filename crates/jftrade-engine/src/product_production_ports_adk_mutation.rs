@@ -278,6 +278,33 @@ fn run_state_result(
     run_entity_value(&updated)
 }
 
+fn run_state_result_if_status(
+    port: &ProductionAdkPort,
+    id: &str,
+    expected_status: &str,
+    status: &str,
+    payload: &Value,
+) -> Result<Value, AdkMutationPortError> {
+    if !port
+        .store
+        .update_run_state_if_status(id, expected_status, status, &payload.to_string())
+        .map_err(storage_mutation_failed)?
+    {
+        let existing = port
+            .store
+            .get_run(id)
+            .map_err(storage_mutation_failed)?
+            .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+        return run_entity_value(&existing);
+    }
+    let updated = port
+        .store
+        .get_run(id)
+        .map_err(storage_mutation_failed)?
+        .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+    run_entity_value(&updated)
+}
+
 fn validate_goal_run(value: &Value, action: &str) -> Result<(), AdkMutationPortError> {
     let object = value
         .as_object()

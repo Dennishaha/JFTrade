@@ -11,6 +11,7 @@ mod backtest_sync_task;
 mod data_management;
 mod execution_order;
 mod execution_order_preview;
+mod execution_order_reservation;
 mod maintenance;
 mod research_preset;
 mod schema_manifest;
@@ -52,6 +53,7 @@ pub use execution_order::{
     StoredExecutionOrder, StoredExecutionOrderEvent, StoredExecutionOrderEventRecord,
 };
 pub use execution_order_preview::StoredExecutionOrderPreview;
+pub use execution_order_reservation::{ExecutionOrderReservation, normalized_request_hash};
 pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{
     RESEARCH_PRESET_PRODUCTION_PROFILE, RESEARCH_PRESET_TEST_CUTOVER_PROFILE,

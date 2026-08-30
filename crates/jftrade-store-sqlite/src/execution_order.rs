@@ -196,6 +196,87 @@ impl ExecutionOrderStore {
         saved.updated_at = timestamp.to_owned();
         Ok(saved)
     }
+
+    /// Reserve an order identity without overwriting an order that another
+    /// request may have created concurrently.  The client-order uniqueness
+    /// fence is the complete broker/environment/account/client tuple defined
+    /// by the execution schema.  A false result means the tuple (or internal
+    /// id) was already present and the caller must replay that durable order.
+    pub fn reserve_order(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+    ) -> Result<bool, ExecutionOrderStoreError> {
+        validate_rfc3339_timestamp(timestamp)?;
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let created_at = if order.created_at.is_empty() {
+            timestamp.to_owned()
+        } else {
+            order.created_at.clone()
+        };
+        let result = transaction
+            .execute(
+                "INSERT OR IGNORE INTO execution_orders (
+                internal_order_id, broker_id, broker_order_id, broker_order_id_ex,
+                source, source_detail, trading_environment, account_id, market,
+                symbol, side, order_type, status, raw_broker_status,
+                requested_quantity, requested_price, filled_quantity, filled_average_price,
+                remark, last_error, last_error_code, last_error_source,
+                submitted_at, updated_at, created_at, order_kind, product_class,
+                quantity_mode, client_order_id, preview_id, normalized_request,
+                requested_amount, payout, fees
+            ) VALUES (
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+                ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27,
+                ?28, ?29, ?30, ?31, ?32, ?33, ?34
+            )",
+                params![
+                    order.internal_order_id,
+                    order.broker_id,
+                    order.broker_order_id,
+                    order.broker_order_id_ex,
+                    order.source,
+                    order.source_detail,
+                    order.trading_environment,
+                    order.account_id,
+                    order.market,
+                    order.symbol,
+                    order.side,
+                    order.order_type,
+                    order.status,
+                    order.raw_broker_status,
+                    order.requested_quantity,
+                    order.requested_price,
+                    order.filled_quantity,
+                    order.filled_average_price,
+                    order.remark,
+                    order.last_error,
+                    order.last_error_code,
+                    order.last_error_source,
+                    order.submitted_at,
+                    timestamp,
+                    created_at,
+                    order.order_kind,
+                    order.product_class,
+                    order.quantity_mode,
+                    order.client_order_id,
+                    order.preview_id,
+                    order.normalized_request,
+                    order.requested_amount,
+                    order.payout,
+                    order.fees,
+                ],
+            )
+            .map_err(ExecutionOrderStoreError::Query)?;
+        transaction
+            .commit()
+            .map_err(ExecutionOrderStoreError::Query)?;
+        Ok(result > 0)
+    }
     /// Atomically persists an order projection and its lifecycle event.
     ///
     /// Command handlers use this for every broker acknowledgement/failure so
@@ -686,6 +767,49 @@ impl ExecutionOrderTestCutoverStore {
         timestamp: &str,
     ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
         self.inner.save_order(order, timestamp)
+    }
+    pub fn reserve_order_with_preview(
+        &self,
+        order: StoredExecutionOrder,
+        request_hash: &str,
+        timestamp: &str,
+    ) -> Result<
+        crate::execution_order_reservation::ExecutionOrderReservation,
+        ExecutionOrderStoreError,
+    > {
+        self.inner
+            .reserve_order_with_preview(order, request_hash, timestamp)
+    }
+    pub fn reserve_order_with_preview_checked(
+        &self,
+        order: StoredExecutionOrder,
+        request_hash: &str,
+        timestamp: &str,
+        expected_capability_version: Option<&str>,
+    ) -> Result<
+        crate::execution_order_reservation::ExecutionOrderReservation,
+        ExecutionOrderStoreError,
+    > {
+        self.inner.reserve_order_with_preview_checked(
+            order,
+            request_hash,
+            timestamp,
+            expected_capability_version,
+        )
+    }
+    pub fn find_order_by_client_identity(
+        &self,
+        broker_id: &str,
+        trading_environment: &str,
+        account_id: &str,
+        client_order_id: &str,
+    ) -> Result<Option<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        self.inner.find_order_by_client_identity(
+            broker_id,
+            trading_environment,
+            account_id,
+            client_order_id,
+        )
     }
     pub fn save_order_and_event(
         &self,

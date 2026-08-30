@@ -11,6 +11,7 @@ use jftrade_store_sqlite::StoredExecutionOrder;
 pub(super) struct ParsedOrder {
     pub(super) header: TradeHeader,
     pub(super) broker_id: String,
+    pub(super) market: String,
     pub(super) symbol: String,
     pub(super) code: String,
     pub(super) side: i32,
@@ -69,14 +70,41 @@ impl ParsedOrder {
 pub(super) struct ParsedCombo {
     pub(super) order: ParsedOrder,
     pub(super) legs: Vec<TradeComboLeg>,
+    /// Original normalized JSON legs retained for the combo preview/order
+    /// projection. OpenD's neutral leg omits optional quantity/amount/price
+    /// fields and must not force the public wire shape to drop them.
+    pub(super) leg_payloads: Vec<Value>,
 }
 
 impl ParsedCombo {
+    pub(super) fn combo_quantity(&self) -> f64 {
+        if self.order.order_kind == "event_parlay"
+            && self.order.amount.is_some_and(|value| value.is_finite() && value > 0.0)
+        {
+            return self.order.amount.unwrap_or(1.0);
+        }
+        for (leg, payload) in self.legs.iter().zip(&self.leg_payloads) {
+            let Some(quantity) = payload
+                .get("quantity")
+                .and_then(Value::as_f64)
+                .filter(|value| value.is_finite() && *value > 0.0)
+            else {
+                continue;
+            };
+            let ratio = leg
+                .qty_ratio
+                .filter(|value| value.is_finite() && *value > 0.0)
+                .unwrap_or(1.0);
+            return quantity / ratio;
+        }
+        self.order.quantity
+    }
+
     pub(super) fn to_trade_request(&self) -> TradePlaceComboOrderRequest {
         TradePlaceComboOrderRequest {
             header: self.order.header.clone(),
             combo_legs: self.legs.clone(),
-            quantity: self.order.quantity,
+            quantity: self.combo_quantity(),
             price: self.order.price,
             order_type: self.order.order_type,
             time_in_force: self.order.time_in_force,
@@ -91,12 +119,20 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
     let object = payload
         .as_object()
         .ok_or_else(|| "order payload must be an object".to_owned())?;
+    // The Futu production command DTO has no reduce-only field. Reject an
+    // explicit true value instead of silently ignoring a public request.
+    if object.get("reduceOnly").and_then(Value::as_bool) == Some(true) {
+        return Err("reduceOnly is not supported by the Futu execution adapter".to_owned());
+    }
     let account_id = string_field(object, "accountId")
         .ok_or_else(|| "accountId is required".to_owned())?
         .parse::<u64>()
         .map_err(|_| "accountId must be numeric for Futu".to_owned())?;
-    let symbol = string_field(object, "symbol")
-        .or_else(|| string_field(object, "code"))
+    let supplied_symbol = string_field(object, "symbol");
+    let supplied_code = string_field(object, "code");
+    let symbol = supplied_symbol
+        .clone()
+        .or_else(|| supplied_code.clone())
         .or_else(|| string_field(object, "underlyingInstrumentId"))
         .or_else(|| {
             object
@@ -111,10 +147,11 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
                 })
         })
         .ok_or_else(|| "symbol is required".to_owned())?;
-    let code = symbol
-        .rsplit_once('.')
-        .map_or_else(|| symbol.clone(), |(_, code)| code.to_owned());
-    let market = string_field(object, "market").unwrap_or_else(|| "US".to_owned());
+    let (market, symbol, code) = normalize_instrument(
+        string_field(object, "market").as_deref(),
+        &symbol,
+        supplied_code.as_deref(),
+    )?;
     let trade_market_code = trade_market(&market);
     if trade_market_code == 0 {
         return Err(format!("unsupported market {market:?}"));
@@ -269,13 +306,15 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
         && product_class != "option"
         && product_class != "event_contract"
     {
-        Some(0)
+        // Match Go's normalizeExecutionSession default (RTH) and OpenD's
+        // Common.Session enum rather than sending Session_NONE (0).
+        Some(1)
     } else {
         parse_session(raw_session.as_deref())?
     };
     let fill_outside_rth = object.get("fillOutsideRTH").and_then(Value::as_bool).or_else(|| {
         if matches!(order_type, 1 | 4) {
-            session.map(|value| value != 0)
+            session.map(|value| value != 1)
         } else {
             None
         }
@@ -287,7 +326,10 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
             trd_market: trade_market_code,
             jp_acc_type: None,
         },
-        broker_id: string_field(object, "brokerId").unwrap_or_else(|| "futu".to_owned()),
+        broker_id: string_field(object, "brokerId")
+            .map(|value| value.to_ascii_lowercase())
+            .unwrap_or_else(|| "futu".to_owned()),
+        market,
         symbol,
         code,
         side: parse_side(string_field(object, "side").as_deref().unwrap_or("BUY"))?,
@@ -310,10 +352,16 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
 }
 
 pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
-    let order = parse_order(payload)?;
     let object = payload
         .as_object()
         .ok_or_else(|| "combo payload must be an object".to_owned())?;
+    let request_market = string_field(object, "market");
+    let mut order = parse_order(payload)?;
+    // ComboOrderIntent keeps the caller's market string (unlike a single
+    // order's ParseInstrument projection, which resolves SH/SZ to CN).
+    if let Some(ref request_market) = request_market {
+        order.market = request_market.to_ascii_uppercase();
+    }
     if !matches!(order.order_kind.as_str(), "option_combo" | "event_parlay") {
         return Err("orderKind must be option_combo or event_parlay".to_owned());
     }
@@ -352,10 +400,9 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
         if order.product_class != "event_contract" {
             return Err("event_parlay requires productClass event_contract".to_owned());
         }
-        if !order
-            .header
-            .trd_market
-            .eq(&trade_market("US"))
+        if request_market
+            .as_deref()
+            .is_none_or(|market| !market.eq_ignore_ascii_case("US"))
         {
             return Err("event parlay must use market US".to_owned());
         }
@@ -367,11 +414,16 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
         if number_field(object, "price").is_some() {
             return Err("event parlay price is bound to the server-side RFQ and must not be provided".to_owned());
         }
+        validate_event_parlay_quote(object, order.header.trd_env)?;
     }
-    let legs = payload
+    let leg_payloads = payload
         .get("legs")
         .and_then(Value::as_array)
         .ok_or_else(|| "legs is required".to_owned())?
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    let legs = leg_payloads
         .iter()
         .map(|item| {
             let object = item
@@ -381,10 +433,18 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
                 .or_else(|| string_field(object, "symbol"))
                 .or_else(|| string_field(object, "code"))
                 .ok_or_else(|| "combo leg instrumentId is required".to_owned())?;
-            let (market, code) = instrument.rsplit_once('.').map_or_else(
-                || (order.header.trd_market, instrument.clone()),
-                |(market, code)| (trade_market(market), code.to_owned()),
-            );
+            let instrument = instrument.to_ascii_uppercase().replace(':', ".");
+            let (market, code) = if order.order_kind == "event_parlay" {
+                // Event contracts are represented by Futu's dedicated US
+                // event quote market regardless of the public US symbol
+                // prefix.
+                (quote_market("US_EVENT"), instrument.trim_start_matches("US.").to_owned())
+            } else {
+                instrument.rsplit_once('.').map_or_else(
+                    || (quote_market_from_trade_market(order.header.trd_market), instrument.clone()),
+                    |(market, code)| (quote_market(market), code.trim().to_owned()),
+                )
+            };
             if market == 0 || code.trim().is_empty() {
                 return Err("combo leg instrumentId has an unsupported market".to_owned());
             }
@@ -439,7 +499,31 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
     if legs.len() < 2 {
         return Err("combo requires at least two legs".to_owned());
     }
-    Ok(ParsedCombo { order, legs })
+    Ok(ParsedCombo {
+        order,
+        legs,
+        leg_payloads,
+    })
+}
+
+fn validate_event_parlay_quote(
+    object: &Map<String, Value>,
+    trading_environment: i32,
+) -> Result<(), String> {
+    if trading_environment == 1 {
+        return Err("prediction quote persistence is unavailable for REAL orders".to_owned());
+    }
+    let quote_expires_at = string_field(object, "quoteExpiresAt")
+        .ok_or_else(|| "Parlay quote expired; request a new RFQ".to_owned())?;
+    let parsed = time::OffsetDateTime::parse(
+        &quote_expires_at,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map_err(|error| format!("quoteExpiresAt is invalid: {error}"))?;
+    if !time::OffsetDateTime::now_utc().lt(&parsed) {
+        return Err("Parlay quote expired; request a new RFQ".to_owned());
+    }
+    Ok(())
 }
 
 pub(super) fn new_order(id: &str, parsed: &ParsedOrder, timestamp: &str) -> StoredExecutionOrder {
@@ -453,7 +537,7 @@ pub(super) fn new_order(id: &str, parsed: &ParsedOrder, timestamp: &str) -> Stor
         trading_environment: if parsed.header.trd_env == 1 { "REAL" } else { "SIMULATE" }
             .to_owned(),
         account_id: parsed.header.acc_id.to_string(),
-        market: market_label(parsed.header.trd_market),
+        market: parsed.market.clone(),
         symbol: Some(parsed.symbol.clone()),
         side: Some(side_label(parsed.side).to_owned()),
         order_type: Some(order_type_label(parsed.order_type).to_owned()),
@@ -495,6 +579,97 @@ fn number_field(object: &Map<String, Value>, key: &str) -> Option<f64> {
     object.get(key).and_then(Value::as_f64)
 }
 
+/// Normalize the public market/symbol pair the same way as Go's
+/// `market.ParseInstrument`: an exchange-qualified symbol determines the
+/// prefix, while the resolved market for SH/SZ is the aggregate CN market.
+fn normalize_instrument(
+    requested_market: Option<&str>,
+    raw_symbol: &str,
+    supplied_code: Option<&str>,
+) -> Result<(String, String, String), String> {
+    let symbol = raw_symbol.trim().to_ascii_uppercase().replace(':', ".");
+    let code_field = supplied_code
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_ascii_uppercase());
+    if symbol.is_empty() && code_field.is_none() {
+        return Err("symbol or code is required".to_owned());
+    }
+
+    if let Some((prefix, code)) = symbol.split_once('.') {
+        let prefix = prefix.trim().to_ascii_uppercase();
+        let code = code.trim().to_ascii_uppercase();
+        if prefix.is_empty() || code.is_empty() {
+            return Err(format!("symbol {raw_symbol:?} must be in MARKET.CODE form"));
+        }
+        if code_field.as_deref().is_some_and(|value| value != code) {
+            return Err(format!("code {:?} does not match symbol {:?}", supplied_code, raw_symbol));
+        }
+        let (resolved_market, preferred_prefix) = normalize_market_input(&prefix)?;
+        if preferred_prefix.is_empty() {
+            return Err(format!(
+                "market {prefix:?} requires an exchange-qualified symbol like SH.600519 or SZ.000001"
+            ));
+        }
+        if let Some(requested) = requested_market {
+            let (requested_resolved, requested_prefix) = normalize_market_input(requested)?;
+            if requested_resolved != resolved_market
+                || (requested_prefix != "" && requested_prefix != preferred_prefix)
+            {
+                return Err(format!(
+                    "market {requested:?} does not match symbol {raw_symbol:?}"
+                ));
+            }
+        }
+        return Ok((
+            resolved_market,
+            format!("{preferred_prefix}.{code}"),
+            code,
+        ));
+    }
+
+    if code_field
+        .as_deref()
+        .is_some_and(|value| !symbol.is_empty() && value != symbol)
+    {
+        return Err(format!("code {:?} does not match symbol {:?}", supplied_code, raw_symbol));
+    }
+    let code = if symbol.is_empty() {
+        code_field.unwrap_or_default()
+    } else {
+        symbol
+    };
+    if code.is_empty() {
+        return Err("symbol or code is required".to_owned());
+    }
+    let requested = requested_market.ok_or_else(|| {
+        "market is required when symbol has no market prefix".to_owned()
+    })?;
+    let (resolved_market, preferred_prefix) = normalize_market_input(requested)?;
+    if preferred_prefix.is_empty() {
+        return Err(format!(
+            "market {requested:?} requires an exchange-qualified symbol like SH.600519 or SZ.000001"
+        ));
+    }
+    Ok((
+        resolved_market,
+        format!("{preferred_prefix}.{code}"),
+        code,
+    ))
+}
+
+fn normalize_market_input(value: &str) -> Result<(String, String), String> {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "US" => Ok(("US".to_owned(), "US".to_owned())),
+        "HK" => Ok(("HK".to_owned(), "HK".to_owned())),
+        "SH" | "CNSH" => Ok(("CN".to_owned(), "SH".to_owned())),
+        "SZ" | "CNSZ" => Ok(("CN".to_owned(), "SZ".to_owned())),
+        "CN" => Ok(("CN".to_owned(), String::new())),
+        "SG" => Ok(("SG".to_owned(), "SG".to_owned())),
+        _ => Err(format!("unsupported market {:?}", value.trim())),
+    }
+}
+
 fn parse_side(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
         "BUY" | "B" => Ok(1),
@@ -531,9 +706,10 @@ fn parse_time_in_force(value: Option<&str>) -> Result<Option<i32>, String> {
 fn parse_session(value: Option<&str>) -> Result<Option<i32>, String> {
     value
         .map(|value| match value.trim().to_ascii_lowercase().as_str() {
-            "regular" | "normal" => Ok(0),
-            "pre" | "premarket" => Ok(1),
-            "after" | "afterhours" => Ok(2),
+            "rth" | "regular" | "normal" => Ok(1),
+            "eth" | "extended" | "pre" | "premarket" | "after" | "afterhours" => Ok(2),
+            "all" => Ok(3),
+            "overnight" => Ok(4),
             _ => Err(format!("unsupported session {value:?}")),
         })
         .transpose()
@@ -543,9 +719,52 @@ pub(super) fn trade_market(value: &str) -> i32 {
     match value.trim().to_ascii_uppercase().as_str() {
         "HK" => 1,
         "US" => 2,
-        "CN" | "SH" | "SZ" => 3,
+        "CN" | "SH" | "SZ" | "CNSH" | "CNSZ" => 3,
         "SG" => 6,
         _ => 0,
+    }
+}
+
+/// Futu quote-market identifiers used by combo-leg securities.  They are not
+/// the trading-header identifiers above (US is 11 here, not 2).
+pub(super) fn quote_market(value: &str) -> i32 {
+    match value.trim().to_ascii_uppercase().as_str() {
+        "HK" => 1,
+        "US" => 11,
+        "SH" | "CNSH" => 21,
+        "SZ" | "CNSZ" => 22,
+        "SG" => 31,
+        "JP" => 41,
+        "AU" => 51,
+        "MY" => 61,
+        "CA" => 71,
+        "US_EVENT" | "EVENT" => 101,
+        _ => 0,
+    }
+}
+
+fn quote_market_from_trade_market(value: i32) -> i32 {
+    match value {
+        1 => 1,
+        2 => 11,
+        3 => 0,
+        6 => 31,
+        _ => 0,
+    }
+}
+
+pub(super) fn quote_market_label(value: i32) -> &'static str {
+    match value {
+        1 => "HK",
+        11 | 101 => "US",
+        21 => "SH",
+        22 => "SZ",
+        31 => "SG",
+        41 => "JP",
+        51 => "AU",
+        61 => "MY",
+        71 => "CA",
+        _ => "UNKNOWN",
     }
 }
 

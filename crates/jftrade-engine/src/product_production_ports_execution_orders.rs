@@ -4,21 +4,35 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
 use jftrade_integration_futu::{TradeModifyOrderRequest, TradeUnlockRequest, TradeWritePort};
-use jftrade_store_sqlite::{ExecutionOrderStore, StoredExecutionOrder, StoredExecutionOrderEvent};
+use jftrade_store_sqlite::{
+    ExecutionOrderReservation, ExecutionOrderStore, ExecutionOrderStoreError,
+    StoredExecutionOrder, StoredExecutionOrderEvent, normalized_request_hash,
+};
 use serde_json::{Value, json};
 
-use crate::product::product_brokers_write_port::{BrokersWriteInput, BrokersWriteOperation, BrokersWritePort, BrokersWritePortError};
-use crate::product::product_execution_write_port::{ExecutionWriteInput, ExecutionWriteOperation, ExecutionWritePort, ExecutionWritePortError};
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
+use crate::product::product_brokers_write_port::{
+    BrokersWriteInput, BrokersWriteOperation, BrokersWritePort, BrokersWritePortError,
+};
+use crate::product::product_execution_write_port::{
+    ExecutionWriteInput, ExecutionWriteOperation, ExecutionWritePort, ExecutionWritePortError,
+};
 use crate::product::{ActiveProviderState, ExecutionReadSnapshotError, ExecutionReadSnapshotPort};
 #[path = "product_production_ports_execution_order_helpers.rs"]
 mod execution_order_helpers;
-use execution_order_helpers::{CancelInFlightGuard, broker_error, broker_failed, execution_error_details, failed, header_from_order, is_terminal_status, map_trade_error, map_transition_store_error, merge_query, order_value, parse_preview_order, preview_request_hash, store_error, value_identifier};
+#[path = "product_production_ports_execution_order_hash.rs"]
+mod execution_order_hash;
+use execution_order_helpers::{
+    CancelInFlightGuard, broker_error, broker_failed, execution_error_details, failed,
+    header_from_order, is_terminal_status, map_trade_error, map_transition_store_error,
+    merge_query, order_value, store_error, value_identifier,
+};
+use execution_order_hash::{canonical_execution_request, preview_request_hash};
 
 #[path = "product_production_ports_execution_order_parse.rs"]
 mod execution_order_parse;
 use execution_order_parse::{
-    ParsedOrder, new_order, parse_combo, parse_order, requires_locked_preview,
+    new_order, parse_combo, parse_order, requires_locked_preview,
 };
 #[path = "product_production_ports_execution_order_previews.rs"]
 mod execution_order_previews;
@@ -52,17 +66,34 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
             let scope_active = query
                 .get_first("scope")
                 .is_some_and(|scope| scope.trim().eq_ignore_ascii_case("ACTIVE"));
-            let broker_id = query.get_first("brokerId").map(str::trim).filter(|v| !v.is_empty());
-            let environment = query.get_first("tradingEnvironment").map(str::trim).filter(|v| !v.is_empty());
-            let account_id = query.get_first("accountId").map(str::trim).filter(|v| !v.is_empty());
-            let market = query.get_first("market").map(str::trim).filter(|v| !v.is_empty());
-            let mut orders = self.store.list_orders().map_err(|e| {
-                ExecutionReadSnapshotError::Failed { code: "LIST_ORDERS_FAILED".to_owned(), message: e.to_string() }
-            })?;
+            let broker_id = query
+                .get_first("brokerId")
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            let environment = query
+                .get_first("tradingEnvironment")
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            let account_id = query
+                .get_first("accountId")
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            let market = query
+                .get_first("market")
+                .map(str::trim)
+                .filter(|v| !v.is_empty());
+            let mut orders =
+                self.store
+                    .list_orders()
+                    .map_err(|e| ExecutionReadSnapshotError::Failed {
+                        code: "LIST_ORDERS_FAILED".to_owned(),
+                        message: e.to_string(),
+                    })?;
             orders.retain(|order| {
                 (!scope_active || !is_terminal_status(&order.status))
                     && broker_id.is_none_or(|value| order.broker_id.eq_ignore_ascii_case(value))
-                    && environment.is_none_or(|value| order.trading_environment.eq_ignore_ascii_case(value))
+                    && environment
+                        .is_none_or(|value| order.trading_environment.eq_ignore_ascii_case(value))
                     && account_id.is_none_or(|value| order.account_id.trim() == value)
                     && market.is_none_or(|value| order.market.eq_ignore_ascii_case(value))
             });
@@ -98,7 +129,10 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
             let events = self
                 .store
                 .list_order_events(id)
-                .map_err(|e| ExecutionReadSnapshotError::Failed { code: "GET_ORDER_EVENTS_FAILED".to_owned(), message: e.to_string() })?
+                .map_err(|e| ExecutionReadSnapshotError::Failed {
+                    code: "GET_ORDER_EVENTS_FAILED".to_owned(),
+                    message: e.to_string(),
+                })?
                 .into_iter()
                 .map(|event| {
                     json!({
@@ -118,13 +152,19 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
             if id.is_empty() || id.contains('/') {
                 return Err(ExecutionReadSnapshotError::NotFound);
             }
-            let order = self
-                .store
-                .get_order(id)
-                .map_err(|e| ExecutionReadSnapshotError::Failed { code: "GET_ORDER_FAILED".to_owned(), message: e.to_string() })?;
+            let order =
+                self.store
+                    .get_order(id)
+                    .map_err(|e| ExecutionReadSnapshotError::Failed {
+                        code: "GET_ORDER_FAILED".to_owned(),
+                        message: e.to_string(),
+                    })?;
             if let Some(o) = order {
                 let mut recent_events = self.store.list_order_events(id).map_err(|e| {
-                    ExecutionReadSnapshotError::Failed { code: "GET_ORDER_FAILED".to_owned(), message: e.to_string() }
+                    ExecutionReadSnapshotError::Failed {
+                        code: "GET_ORDER_FAILED".to_owned(),
+                        message: e.to_string(),
+                    }
                 })?;
                 if recent_events.len() > 10 {
                     recent_events = recent_events.split_off(recent_events.len() - 10);
@@ -197,7 +237,9 @@ impl BrokersWritePort for ProductionExecutionPort {
                     .ok_or_else(|| broker_failed(400, "BAD_REQUEST", "orders is required"))?;
                 let mut cancelled = Vec::with_capacity(items.len());
                 for item in items {
-                    let id = self.resolve_broker_cancel_target(item).map_err(broker_error)?;
+                    let id = self
+                        .resolve_broker_cancel_target(item)
+                        .map_err(broker_error)?;
                     cancelled.push(self.cancel_order(&id).map_err(broker_error)?);
                 }
                 Ok(json!({"cancelled": cancelled.len(), "orders": cancelled}))
@@ -246,7 +288,9 @@ impl ProductionExecutionPort {
         let trade_logged_in = self
             .trade_runtime
             .as_ref()
-            .map_or(self.trade_logged_in, |runtime| runtime.snapshot().trade_logged_in);
+            .map_or(self.trade_logged_in, |runtime| {
+                runtime.snapshot().trade_logged_in
+            });
         if trade_logged_in != Some(true) {
             return Err(ExecutionWritePortError::Unavailable(
                 "Futu trade account is not logged in".to_owned(),
@@ -254,7 +298,9 @@ impl ProductionExecutionPort {
         }
         if let Some(runtime) = self.trade_runtime.as_ref() {
             return runtime.writer_snapshot().ok_or_else(|| {
-                ExecutionWritePortError::Unavailable("OpenD trade runtime is unavailable".to_owned())
+                ExecutionWritePortError::Unavailable(
+                    "OpenD trade runtime is unavailable".to_owned(),
+                )
             });
         }
         self.trade_write_port.clone().ok_or_else(|| {
@@ -262,55 +308,9 @@ impl ProductionExecutionPort {
         })
     }
 
-    fn order_preview(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
-        let object = payload.as_object().ok_or_else(|| {
-            failed(400, "BAD_REQUEST", "invalid execution order payload")
-        })?;
-        let parsed = parse_preview_order(object)?;
-        if requires_locked_preview(&parsed) && parsed.client_order_id.is_none() {
-            return Err(failed(
-                400,
-                "BAD_REQUEST",
-                "clientOrderId is required for derivative and event-contract previews",
-            ));
-        }
-        // Validate the request before checking external readiness so malformed
-        // payloads retain the baseline 400 response even when OpenD is down.
-        self.ensure_futu_runtime()?;
-        // Input validation remains local so malformed requests preserve the
-        // baseline 400 response. A successful preview requires a concrete
-        // ProductRule/OpenD adapter, which is not installed in this build.
-        let _ = parsed;
-        Err(ExecutionWritePortError::Unavailable(
-            "Futu product-rule adapter is unavailable".to_owned(),
-        ))
-    }
-
-    fn consume_preview(
-        &self,
-        preview_id: &str,
-        parsed: &ParsedOrder,
-        payload: &Value,
-    ) -> Result<(), ExecutionWritePortError> {
-        let timestamp = crate::product::product_production_ports::provider_now_rfc3339();
-        let request_hash = preview_request_hash(payload, parsed, None)?;
-        self.store
-            .consume_preview(
-                preview_id,
-                &parsed.broker_id,
-                &parsed.header.acc_id.to_string(),
-                &request_hash,
-                &timestamp,
-            )
-            .map_err(|error| failed(400, "PREVIEW_INVALID", error.to_string()))
-    }
-
     fn place_order(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
         let parsed = parse_order(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
         let now = crate::product::product_production_ports::provider_now_rfc3339();
-        if let Some(existing) = self.find_client_order(parsed.client_order_id.as_deref())? {
-            return order_value(&existing);
-        }
         if requires_locked_preview(&parsed) {
             if parsed.preview_id.is_none() {
                 return Err(failed(
@@ -333,20 +333,43 @@ impl ProductionExecutionPort {
                 "clientOrderId is required when previewId is supplied",
             ));
         }
-        if let Some(preview_id) = parsed.preview_id.as_deref() {
-            self.consume_preview(preview_id, &parsed, payload)?;
+        let request_hash = preview_request_hash(payload, &parsed, None)?;
+        if let Some(client_order_id) = parsed.client_order_id.as_deref()
+            && let Some(existing) = self
+                .store
+                .find_order_by_client_identity(
+                    &parsed.broker_id,
+                    if parsed.header.trd_env == 1 { "REAL" } else { "SIMULATE" },
+                    &parsed.header.acc_id.to_string(),
+                    client_order_id,
+                )
+                .map_err(store_error)?
+        {
+            return replay_or_conflict(existing, &request_hash);
         }
+        // Probe readiness before consuming a preview. A runtime that becomes
+        // unavailable after this probe is still fenced as UNKNOWN below.
         let writer = self.writer()?;
+        let capability_version = execution_order_previews::jftrade_broker_capability_version();
         let sequence = self
             .store
             .next_sequence("internal-order")
             .map_err(store_error)?;
         let internal_id = format!("rust-order-{sequence}");
         let mut order = new_order(&internal_id, &parsed, &now);
-        order.normalized_request = payload.to_string();
-        self.store
-            .save_order(order.clone(), &now)
-            .map_err(store_error)?;
+        order.normalized_request = canonical_execution_request(payload, &parsed, None)?;
+        let reservation = self
+            .store
+            .reserve_order_with_preview_checked(
+                order.clone(),
+                &request_hash,
+                &now,
+                Some(capability_version.as_str()),
+            )
+            .map_err(map_reservation_error)?;
+        if let ExecutionOrderReservation::Existing(existing) = reservation {
+            return replay_or_conflict(existing, &request_hash);
+        }
         let result = match writer.place_order(parsed.to_trade_request()) {
             Ok(result) => result,
             Err(error) => {
@@ -370,13 +393,7 @@ impl ProductionExecutionPort {
         order.broker_order_id_ex = result.order_id_ex;
         order.submitted_at = Some(now.clone());
         order.updated_at = now.clone();
-        self.persist_transition(
-            &order,
-            "submitted",
-            Some(&previous_status),
-            &now,
-            &now,
-        )?;
+        self.persist_external_success(&order, "submitted", &previous_status, &now, &now)?;
         order_value(&order)
     }
 
@@ -389,22 +406,51 @@ impl ProductionExecutionPort {
                 "previewId is required for combo orders",
             ));
         }
-        let writer = self.writer()?;
         let now = crate::product::product_production_ports::provider_now_rfc3339();
-        if let Some(preview_id) = parsed.order.preview_id.as_deref() {
-            self.consume_preview(preview_id, &parsed.order, payload)?;
+        let legs = execution_order_previews::canonical_combo_legs(&parsed);
+        let request_hash = preview_request_hash(payload, &parsed.order, Some(legs.clone()))?;
+        if let Some(client_order_id) = parsed.order.client_order_id.as_deref()
+            && let Some(existing) = self
+                .store
+                .find_order_by_client_identity(
+                    &parsed.order.broker_id,
+                    if parsed.order.header.trd_env == 1 {
+                        "REAL"
+                    } else {
+                        "SIMULATE"
+                    },
+                    &parsed.order.header.acc_id.to_string(),
+                    client_order_id,
+                )
+                .map_err(store_error)?
+        {
+            return replay_or_conflict(existing, &request_hash);
         }
+        // Keep the preview credential untouched when OpenD is already known
+        // to be unavailable. A race after this probe is persisted as UNKNOWN.
+        let writer = self.writer()?;
+        let capability_version = execution_order_previews::jftrade_broker_capability_version();
         let sequence = self
             .store
             .next_sequence("internal-combo-order")
             .map_err(store_error)?;
         let internal_id = format!("rust-combo-{sequence}");
         let mut order = new_order(&internal_id, &parsed.order, &now);
-        order.order_kind = "combo".to_owned();
-        order.normalized_request = payload.to_string();
-        self.store
-            .save_order(order.clone(), &now)
-            .map_err(store_error)?;
+        order.requested_quantity = Some(parsed.combo_quantity());
+        order.normalized_request =
+            canonical_execution_request(payload, &parsed.order, Some(legs))?;
+        let reservation = self
+            .store
+            .reserve_order_with_preview_checked(
+                order.clone(),
+                &request_hash,
+                &now,
+                Some(capability_version.as_str()),
+            )
+            .map_err(map_reservation_error)?;
+        if let ExecutionOrderReservation::Existing(existing) = reservation {
+            return replay_or_conflict(existing, &request_hash);
+        }
         let result = match writer.place_combo_order(parsed.to_trade_request()) {
             Ok(result) => result,
             Err(error) => {
@@ -427,13 +473,7 @@ impl ProductionExecutionPort {
         order.broker_order_id_ex = Some(order_id_ex);
         order.submitted_at = Some(now.clone());
         order.updated_at = now.clone();
-        self.persist_transition(
-            &order,
-            "submitted",
-            Some(&previous_status),
-            &now,
-            &now,
-        )?;
+        self.persist_external_success(&order, "submitted", &previous_status, &now, &now)?;
         order_value(&order)
     }
 
@@ -488,21 +528,21 @@ impl ProductionExecutionPort {
         let previous_status = order.status.clone();
         let expected_updated_at = order.updated_at.clone();
         let modify_result = writer.modify_order(TradeModifyOrderRequest {
-                header: header_from_order(&order)?,
-                order_id: broker_order_id,
-                operation: 2,
-                for_all: None,
-                trd_market: None,
-                quantity: None,
-                price: None,
-                adjust_price: None,
-                adjust_side_and_limit: None,
-                aux_price: None,
-                trail_type: None,
-                trail_value: None,
-                trail_spread: None,
-                order_id_ex: order.broker_order_id_ex.clone(),
-            });
+            header: header_from_order(&order)?,
+            order_id: broker_order_id,
+            operation: 2,
+            for_all: None,
+            trd_market: None,
+            quantity: None,
+            price: None,
+            adjust_price: None,
+            adjust_side_and_limit: None,
+            aux_price: None,
+            trail_type: None,
+            trail_value: None,
+            trail_spread: None,
+            order_id_ex: order.broker_order_id_ex.clone(),
+        });
         if let Err(error) = modify_result {
             let mapped = map_trade_error(error);
             let now = crate::product::product_production_ports::provider_now_rfc3339();
@@ -519,10 +559,10 @@ impl ProductionExecutionPort {
         let now = crate::product::product_production_ports::provider_now_rfc3339();
         order.status = "CANCEL_SUBMITTED".to_owned();
         order.updated_at = now.clone();
-        self.persist_transition(
+        self.persist_external_success(
             &order,
             "cancel_submitted",
-            Some(&previous_status),
+            &previous_status,
             &expected_updated_at,
             &now,
         )?;
@@ -533,9 +573,16 @@ impl ProductionExecutionPort {
     /// identity.  The broker API accepts the numeric `orderId` plus optional
     /// broker/external identifiers; treating those fields as strings (or as a
     /// local id) silently cancels the wrong order or reports a false 400.
-    fn resolve_broker_cancel_target(&self, item: &Value) -> Result<String, ExecutionWritePortError> {
+    fn resolve_broker_cancel_target(
+        &self,
+        item: &Value,
+    ) -> Result<String, ExecutionWritePortError> {
         let object = item.as_object().ok_or_else(|| {
-            failed(400, "BAD_REQUEST", "each order cancellation item must be an object")
+            failed(
+                400,
+                "BAD_REQUEST",
+                "each order cancellation item must be an object",
+            )
         })?;
         let internal_id = value_identifier(object.get("internalOrderId"));
         let broker_id = value_identifier(object.get("orderId"));
@@ -596,20 +643,6 @@ impl ProductionExecutionPort {
         }
     }
 
-    fn find_client_order(
-        &self,
-        id: Option<&str>,
-    ) -> Result<Option<StoredExecutionOrder>, ExecutionWritePortError> {
-        let Some(id) = id.filter(|value| !value.trim().is_empty()) else {
-            return Ok(None);
-        };
-        self.store.list_orders().map_err(store_error).map(|orders| {
-            orders
-                .into_iter()
-                .find(|order| order.client_order_id.as_deref() == Some(id))
-        })
-    }
-
     fn persist_transition(
         &self,
         order: &StoredExecutionOrder,
@@ -633,6 +666,43 @@ impl ProductionExecutionPort {
             timestamp,
             &order.normalized_request,
         )
+    }
+
+    /// Persist the local acknowledgement after an external broker command
+    /// succeeded.  If the CAS/event transaction fails, the broker side effect
+    /// is already irreversible; best-effortly fence the durable order as
+    /// `UNKNOWN` so callers do not mistake a stale `SUBMITTING`/
+    /// `CANCEL_SUBMITTED` row for a safely retryable command.
+    fn persist_external_success(
+        &self,
+        order: &StoredExecutionOrder,
+        event_type: &str,
+        previous_status: &str,
+        expected_updated_at: &str,
+        timestamp: &str,
+    ) -> Result<(), ExecutionWritePortError> {
+        if let Err(error) = self.persist_transition(
+            order,
+            event_type,
+            Some(previous_status),
+            expected_updated_at,
+            timestamp,
+        ) {
+            let mut unknown = order.clone();
+            unknown.status = previous_status.to_owned();
+            unknown.updated_at = expected_updated_at.to_owned();
+            let detail = execution_error_details(&error).0;
+            let unknown_error = failed(
+                502,
+                "EXECUTION_STATE_UNKNOWN",
+                format!(
+                    "broker accepted {event_type}, but local state could not be persisted: {detail}"
+                ),
+            );
+            let _ = self.persist_unknown(&mut unknown, &unknown_error, "state_unknown", timestamp);
+            return Err(unknown_error);
+        }
+        Ok(())
     }
 
     fn persist_transition_with_payload(
@@ -724,5 +794,39 @@ impl ProductionExecutionPort {
             timestamp,
             &payload_json,
         )
+    }
+}
+
+fn replay_or_conflict(
+    existing: StoredExecutionOrder,
+    request_hash: &str,
+) -> Result<Value, ExecutionWritePortError> {
+    let Some(existing_hash) = normalized_request_hash(&existing) else {
+        return Err(failed(
+            409,
+            "EXECUTION_ORDER_IDEMPOTENCY_CONFLICT",
+            "clientOrderId is already reserved for a different request",
+        ));
+    };
+    if existing_hash != request_hash {
+        return Err(failed(
+            409,
+            "EXECUTION_ORDER_IDEMPOTENCY_CONFLICT",
+            "clientOrderId is already reserved for a different request",
+        ));
+    }
+    order_value(&existing)
+}
+
+fn map_reservation_error(error: ExecutionOrderStoreError) -> ExecutionWritePortError {
+    match error {
+        ExecutionOrderStoreError::Validation(message)
+        | ExecutionOrderStoreError::NotFound(message) => {
+            failed(400, "PREVIEW_INVALID", message)
+        }
+        ExecutionOrderStoreError::Conflict(message) => {
+            failed(409, "EXECUTION_ORDER_IDEMPOTENCY_CONFLICT", message)
+        }
+        other => store_error(other),
     }
 }

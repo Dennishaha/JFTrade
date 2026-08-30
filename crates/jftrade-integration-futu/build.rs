@@ -47,6 +47,7 @@ fn main() {
         "../../pkg/futu/proto/Trd_GetOrderFee.proto",
         "../../pkg/futu/proto/Trd_GetMarginRatio.proto",
         "../../pkg/futu/proto/Trd_GetMaxTrdQtys.proto",
+        "../../pkg/futu/proto/Trd_GetComboMaxTrdQtys.proto",
         "../../pkg/futu/proto/Trd_FlowSummary.proto",
         "../../pkg/futu/proto/Trd_PlaceOrder.proto",
         "../../pkg/futu/proto/Trd_PlaceComboOrder.proto",

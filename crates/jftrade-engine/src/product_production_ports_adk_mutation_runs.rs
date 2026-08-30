@@ -43,6 +43,12 @@ pub(super) fn dispatch(
         }
         AdkMutationOperation::CancelRun => {
             let id = required_identifier(input, "runId")?;
+            // Wake an in-flight provider request before committing the durable
+            // cancellation below.  The runtime's SQLite CAS remains the
+            // authority if the request races a terminal completion.
+            if let Some(runtime) = port.chat_runtime.as_deref() {
+                runtime.cancel_run(&id);
+            }
             let Some(existing) = port.store.get_run(&id).map_err(storage_mutation_failed)? else {
                 return Err(not_found_mutation("NOT_FOUND", "run not found"));
             };
@@ -151,7 +157,7 @@ pub(super) fn dispatch(
                     }
                 }
             }
-            run_state_result(port, &id, "CANCELLED", &value)
+            run_state_result_if_status(port, &id, &status, "CANCELLED", &value)
         }
         AdkMutationOperation::PauseRun => {
             let id = required_identifier(input, "runId")?;

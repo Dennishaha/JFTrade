@@ -16,15 +16,29 @@ impl ProductApi {
             &SystemClock.now_rfc3339(),
             stream_idle_timeout_ms,
         );
-        Ok(ApiOutput::Raw {
-            status: response.status(),
-            content_type: response
-                .headers()
-                .get("Content-Type")
-                .cloned()
-                .unwrap_or_else(|| "application/octet-stream".to_owned()),
-            body: response.body().into_bytes(),
-            headers: response.headers().clone(),
-        })
+        let status = response.status();
+        let content_type = response
+            .headers()
+            .get("Content-Type")
+            .cloned()
+            .unwrap_or_else(|| "application/octet-stream".to_owned());
+        let headers = response.headers().clone();
+        let body = response.body().into_bytes();
+        match response {
+            product_adk_chat_stream_port::AdkChatWireResponse::LiveSse { stream, .. } => {
+                Ok(ApiOutput::RawStream {
+                    status,
+                    content_type,
+                    stream,
+                    headers,
+                })
+            }
+            _ => Ok(ApiOutput::Raw {
+                status,
+                content_type,
+                body,
+                headers,
+            }),
+        }
     }
 }

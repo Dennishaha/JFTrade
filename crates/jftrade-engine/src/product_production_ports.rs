@@ -9,7 +9,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
-use crate::product::product_adk_model_runtime::ProductionAdkChatRuntime;
+use crate::product::product_adk_model_runtime::{
+    ProductionAdkChatRuntime, RunCancellationRegistry,
+};
 use crate::product::{ProductConfig, product_data_management};
 use jftrade_calendar::{
     CalendarManager, CalendarManagerSettings, CalendarManualOverride, CalendarSessionOverride,
@@ -518,10 +520,12 @@ pub(crate) fn production_ports(
         .with_active_provider_state(Arc::clone(&active_provider_state))
         .with_trade_runtime(config.trade_runtime.clone()),
     );
+    let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
         Arc::clone(&adk_store),
         Arc::clone(&adk_session_store),
         config.settings_path(),
+        Arc::clone(&cancellation_registry),
     ));
     let adk_port = Arc::new(ProductionAdkPort {
         store: adk_store,
@@ -624,7 +628,9 @@ pub(crate) fn production_ports(
     });
     strategy_runtime_port
         .restore_running_instances()
-        .map_err(|error| ProductError::Storage(format!("recover strategy runtime instances: {error}")))?;
+        .map_err(|error| {
+            ProductError::Storage(format!("recover strategy runtime instances: {error}"))
+        })?;
     let market_data_sub_port = Arc::new(ProductionMarketDataSubscriptionMutationPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_router.clone(),

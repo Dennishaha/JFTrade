@@ -747,4 +747,10 @@ impl AdkChatStreamPort for ProductionAdkPort {
                 .to_owned(),
         ))
     }
+
+    fn cancel_run(&self, run_id: &str) -> bool {
+        self.chat_runtime
+            .as_deref()
+            .is_some_and(|runtime| runtime.cancel_run(run_id))
+    }
 }

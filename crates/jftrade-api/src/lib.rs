@@ -18,7 +18,9 @@ pub use envelope::{ApiFailure, Clock, FixedClock, SystemClock};
 pub use observability::{
     OpenDHealth, RequestObservabilitySnapshot, TransportEvent, TransportMetrics, TransportSnapshot,
 };
-pub use ports::{ApiOutput, ApiPort, ApiRequest, Asset, AssetBundle, PortFuture};
+pub use ports::{
+    ApiOutput, ApiPort, ApiRequest, ApiStream, ApiStreamSender, Asset, AssetBundle, PortFuture,
+};
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
 pub use router::{ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, build_router};
 pub use sse::{SseEvent, encode_comment, encode_event, encode_retry};

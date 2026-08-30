@@ -16,6 +16,7 @@ use axum::middleware::{self, Next};
 use axum::routing::get;
 use serde::Deserialize;
 use serde_json::json;
+use tokio_stream::wrappers::ReceiverStream;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::{origin_provided, request_origin};
@@ -317,6 +318,24 @@ async fn dispatch(State(state): State<ApiState>, request: Request) -> Response<B
             body,
         )
         .tap_headers(&headers),
+        Ok(ApiOutput::RawStream {
+            status,
+            content_type,
+            stream,
+            headers,
+        }) => {
+            let body = stream
+                .take_receiver()
+                .map(ReceiverStream::new)
+                .map(Body::from_stream)
+                .unwrap_or_else(Body::empty);
+            body_response(
+                StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                &content_type,
+                body,
+            )
+            .tap_headers(&headers)
+        }
         Err(failure) => error_response(&state.clock, failure),
     };
     if is_auth_session {

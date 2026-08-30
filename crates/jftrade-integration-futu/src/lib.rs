@@ -225,7 +225,8 @@ pub use trade_session::{
     trade_header,
 };
 pub use trade_snapshots::{
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg,
+    TradeComboMaxTradeQuantityRequest, TradeComboMaxTradeQuantitySnapshot, TradeFillSnapshot,
     TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
     TradeMarketInfo, TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot,
     TradeOrderFeeItemSnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot, TradePositionSnapshot,

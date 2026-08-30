@@ -9,14 +9,15 @@ use crate::health::OpenDInitializedSession;
 use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
-    ResponseError, common::PacketId, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
-    trd_get_margin_ratio, trd_get_max_trd_qtys, trd_get_order_fee, trd_get_order_fill_list,
-    trd_get_order_list, trd_get_position_list, trd_modify_order, trd_place_combo_order,
-    trd_place_order, trd_sub_acc_push, trd_unlock_trade,
+    ResponseError, common::PacketId, trd_common, trd_flow_summary, trd_get_acc_list,
+    trd_get_combo_max_trd_qtys, trd_get_funds, trd_get_margin_ratio, trd_get_max_trd_qtys,
+    trd_get_order_fee, trd_get_order_fill_list, trd_get_order_list, trd_get_position_list,
+    trd_modify_order, trd_place_combo_order, trd_place_order, trd_sub_acc_push, trd_unlock_trade,
 };
 use crate::trade_snapshots::{
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeComboLeg, TradeFillSnapshot, TradeFilter,
-    TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeComboLeg, TradeComboMaxTradeQuantityRequest,
+    TradeComboMaxTradeQuantitySnapshot, TradeFillSnapshot, TradeFilter, TradeFundsSnapshot,
+    TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
     TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
     TradePositionSnapshot, TradeSecurity, account_projection, cash_flows_projection,
     fills_projection, funds_projection, margin_ratios_projection, max_trade_quantity_projection,
@@ -66,6 +67,18 @@ pub trait TradeReadPort: Send + Sync {
         &self,
         request: TradeMaxTradeQuantityRequest,
     ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError>;
+
+    /// Queries OpenD's combo-specific buying-power/product-rule endpoint.
+    /// Implementations without combo support fail closed rather than
+    /// manufacturing an approval from local defaults.
+    fn read_combo_max_trade_quantity(
+        &self,
+        _request: TradeComboMaxTradeQuantityRequest,
+    ) -> Result<TradeComboMaxTradeQuantitySnapshot, TradeSessionError> {
+        Err(TradeSessionError::Unsupported(
+            "combo product-rule adapter is unavailable".to_owned(),
+        ))
+    }
 
     #[allow(clippy::too_many_arguments)]
     fn read_positions(
@@ -227,6 +240,8 @@ pub enum TradeSessionError {
     Response(#[from] ResponseError),
     #[error("OpenD trade coordinator is unavailable: {0}")]
     Coordinator(#[from] OpenDSessionCoordinatorError),
+    #[error("OpenD trade capability is unsupported: {0}")]
+    Unsupported(String),
 }
 
 /// Authenticated, read-only Futu trade RPC client.
@@ -627,6 +642,46 @@ impl OpenDTradeReadClient {
         Ok(max_trade_quantity_projection(&request, payload))
     }
 
+    pub fn read_combo_max_trade_quantity(
+        &self,
+        request: TradeComboMaxTradeQuantityRequest,
+    ) -> Result<TradeComboMaxTradeQuantitySnapshot, TradeSessionError> {
+        let payload = self.call(
+            trd_get_combo_max_trd_qtys::PROTOCOL_ID,
+            &trd_get_combo_max_trd_qtys::encode_request(&trd_get_combo_max_trd_qtys::Request {
+                c2s: trd_get_combo_max_trd_qtys::C2s {
+                    header: request.header.clone().into(),
+                    combo_legs: request
+                        .combo_legs
+                        .clone()
+                        .into_iter()
+                        .map(|leg| crate::trade_proto::qot_common::ComboLeg {
+                            security: crate::trade_proto::qot_common::Security {
+                                market: leg.market,
+                                code: leg.code,
+                            },
+                            side: leg.side,
+                            qty_ratio: leg.qty_ratio,
+                            position_id: leg.position_id,
+                            pred_side: leg.pred_side,
+                        })
+                        .collect(),
+                    qty: request.quantity,
+                    price: request.price,
+                    order_type: request.order_type,
+                    order_id_ex: request.order_id_ex.clone(),
+                },
+            }),
+        )?;
+        let payload = trd_get_combo_max_trd_qtys::decode_response(&payload)?;
+        let maximum = payload
+            .max_trd_qtys
+            .ok_or(crate::trade_proto::ResponseError::MissingMaxTradeQuantity)?;
+        Ok(crate::trade_snapshots::combo_max_trade_quantity_projection(
+            &request, maximum,
+        ))
+    }
+
     fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
@@ -768,6 +823,13 @@ impl TradeReadPort for OpenDTradeReadClient {
         request: TradeMaxTradeQuantityRequest,
     ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
         OpenDTradeReadClient::read_max_trade_quantity(self, request)
+    }
+
+    fn read_combo_max_trade_quantity(
+        &self,
+        request: TradeComboMaxTradeQuantityRequest,
+    ) -> Result<TradeComboMaxTradeQuantitySnapshot, TradeSessionError> {
+        OpenDTradeReadClient::read_combo_max_trade_quantity(self, request)
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -434,6 +434,67 @@ pub mod trd_get_max_trd_qtys {
     }
 }
 
+pub mod trd_get_combo_max_trd_qtys {
+    use prost::Message;
+
+    include!(concat!(env!("OUT_DIR"), "/trd_get_combo_max_trd_qtys.rs"));
+
+    pub const PROTOCOL_ID: u32 = 2112;
+
+    pub fn encode_request(request: &Request) -> Vec<u8> {
+        request.encode_to_vec()
+    }
+
+    pub fn decode_response(body: &[u8]) -> Result<S2c, super::ResponseError> {
+        let response = Response::decode(body).map_err(|error| super::ResponseError::Decode {
+            operation: "GetComboMaxTrdQtys",
+            message: error.to_string(),
+        })?;
+        super::validate_response_for(
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+            response.s2c.is_some(),
+        )?;
+        let payload = response.s2c.ok_or(super::ResponseError::MissingS2c)?;
+        if payload.max_trd_qtys.is_none() {
+            return Err(super::ResponseError::MissingMaxTradeQuantity);
+        }
+        super::validate_combo_max_trade_quantity_s2c(&payload)?;
+        Ok(payload)
+    }
+}
+
+fn validate_combo_max_trade_quantity_s2c(
+    payload: &trd_get_combo_max_trd_qtys::S2c,
+) -> Result<(), ResponseError> {
+    let Some(maximum) = payload.max_trd_qtys.as_ref() else {
+        return Ok(());
+    };
+    for (field, value) in [
+        ("nlv_change", maximum.nlv_change),
+        ("initial_margin_change", maximum.initial_margin_change),
+        (
+            "maintenance_margin_change",
+            maximum.maintenance_margin_change,
+        ),
+        ("option_buy_power", maximum.option_buy_power),
+        ("max_with_draw_change", maximum.max_with_draw_change),
+        ("buy_power_decrease", maximum.buy_power_decrease),
+    ] {
+        if let Some(value) = value
+            && !value.is_finite()
+        {
+            return Err(ValidationError::NonFinite {
+                operation: "GetComboMaxTrdQtys",
+                field: field.to_owned(),
+            }
+            .into());
+        }
+    }
+    Ok(())
+}
+
 /// Adds the small amount of framing/response validation shared by OpenD trade
 /// command protocols.  Command requests intentionally stay in this adapter;
 /// the engine only sees the neutral request/result types from `trade_session`.

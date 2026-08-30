@@ -173,6 +173,27 @@ pub struct TradeMaxTradeQuantitySnapshot {
     pub session: Option<i32>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeComboMaxTradeQuantityRequest {
+    pub header: TradeHeader,
+    pub combo_legs: Vec<TradeComboLeg>,
+    pub quantity: f64,
+    pub price: Option<f64>,
+    pub order_type: i32,
+    pub order_id_ex: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TradeComboMaxTradeQuantitySnapshot {
+    pub header: TradeHeader,
+    pub nlv_change: Option<f64>,
+    pub initial_margin_change: Option<f64>,
+    pub maintenance_margin_change: Option<f64>,
+    pub option_buy_power: Option<f64>,
+    pub max_withdraw_change: Option<f64>,
+    pub buying_power_decrease: Option<f64>,
+}
+
 /// A single account cash-flow entry returned by Trd_FlowSummary.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TradeCashFlowSnapshot {
@@ -647,6 +668,21 @@ pub(crate) fn max_trade_quantity_projection(
         long_required_im: payload.long_required_im,
         short_required_im: payload.short_required_im,
         session: payload.session,
+    }
+}
+
+pub(crate) fn combo_max_trade_quantity_projection(
+    request: &TradeComboMaxTradeQuantityRequest,
+    payload: trade_proto::trd_common::ComboMaxTrdQtys,
+) -> TradeComboMaxTradeQuantitySnapshot {
+    TradeComboMaxTradeQuantitySnapshot {
+        header: request.header.clone(),
+        nlv_change: payload.nlv_change,
+        initial_margin_change: payload.initial_margin_change,
+        maintenance_margin_change: payload.maintenance_margin_change,
+        option_buy_power: payload.option_buy_power,
+        max_withdraw_change: payload.max_with_draw_change,
+        buying_power_decrease: payload.buy_power_decrease,
     }
 }
 

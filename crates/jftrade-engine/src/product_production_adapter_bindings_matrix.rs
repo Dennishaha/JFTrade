@@ -141,6 +141,10 @@ pub(crate) fn production_adapter_bindings(
         Adapter::AdkRead,
         Adapter::AdkMutation,
         Adapter::WebSocketLive,
+        // The execution adapter is always installed. Its handlers perform
+        // live Futu/OpenD readiness checks and fail closed when unavailable;
+        // route registration must not hide those operations at startup.
+        Adapter::ExecutionWrite,
         Adapter::MarketDataProviderRead,
         Adapter::MarketDataSubscriptionRead,
         Adapter::MarketDataInstrumentsNormalizeWrite,
@@ -158,7 +162,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::ResearchMacroRead,
         Adapter::ResearchScreenWrite,
         Adapter::BacktestStart,
-        Adapter::ExecutionWrite,
         Adapter::BrokerRead,
         Adapter::BrokerWrite,
         Adapter::PortfolioRead,

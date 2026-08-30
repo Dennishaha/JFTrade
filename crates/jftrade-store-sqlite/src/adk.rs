@@ -592,6 +592,28 @@ impl AdkStore {
         Ok(affected > 0)
     }
 
+    /// Update a run projection only when its indexed lifecycle status still
+    /// equals `expected_status`. Streaming writers use this CAS boundary so a
+    /// concurrent cancellation cannot be overwritten by stale provider data.
+    pub fn update_run_payload_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_runs
+                 SET payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND status = ?4",
+                params![payload_json, now, id, expected_status],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
+    }
+
     /// Atomically updates the indexed lifecycle status and its JSON
     /// projection.  Run lifecycle mutations must update both columns as one
     /// unit; otherwise a crash between two independent statements can leave
@@ -613,6 +635,33 @@ impl AdkStore {
                  SET status = ?1, payload_json = ?2, updated_at = ?3
                  WHERE id = ?4",
                 params![status, payload_json, now, id],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
+    }
+
+    /// Atomically transition a run only when it is still in
+    /// `expected_status`. This prevents terminal completion/failure from
+    /// clobbering a cancellation committed by another request.
+    pub fn update_run_state_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let affected = transaction
+            .execute(
+                "UPDATE adk_runs
+                 SET status = ?1, payload_json = ?2, updated_at = ?3
+                 WHERE id = ?4 AND status = ?5",
+                params![status, payload_json, now, id, expected_status],
             )
             .map_err(AdkStoreError::Query)?;
         transaction.commit().map_err(AdkStoreError::Query)?;
@@ -1777,6 +1826,16 @@ impl AdkTestCutoverStore {
         self.inner.update_run_payload(id, payload_json)
     }
 
+    pub fn update_run_payload_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .update_run_payload_if_status(id, expected_status, payload_json)
+    }
+
     pub fn update_run_state(
         &self,
         id: &str,
@@ -1784,6 +1843,17 @@ impl AdkTestCutoverStore {
         payload_json: &str,
     ) -> Result<bool, AdkStoreError> {
         self.inner.update_run_state(id, status, payload_json)
+    }
+
+    pub fn update_run_state_if_status(
+        &self,
+        id: &str,
+        expected_status: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .update_run_state_if_status(id, expected_status, status, payload_json)
     }
 
     pub fn create_approval(

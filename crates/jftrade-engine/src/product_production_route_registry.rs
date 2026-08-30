@@ -306,19 +306,20 @@ impl ProductionRouteRegistry {
                     adapter: "unclassified-route".to_owned(),
                 }
             })?;
-            let adapter_binding = if execution_preview_is_external_unavailable(&method, &path) {
-                // Execution preview and buying-power operations require a
-                // dedicated ProductRule/OpenD adapter. The generic execution
-                // writer only proves order placement/cancellation readiness;
-                // never advertise these preview routes as ready merely
-                // because the trade session is connected.
-                Some(ProductionAdapterBinding::ExternalUnavailable)
-            } else if adapter == ProductionRouteAdapter::ResearchRead {
+            let adapter_binding = if adapter == ProductionRouteAdapter::ResearchRead {
                 // ResearchRead is a compatibility umbrella for several
                 // operations. Resolve readiness from the concrete path so a
                 // helper-backed profile/financials route (or Futu valuation)
                 // is not hidden behind the umbrella's conservative default.
                 ports.research_operation_binding(&path)
+            } else if adapter == ProductionRouteAdapter::ExecutionWrite {
+                // Order placement/cancellation and product-rule previews do
+                // not share the same readiness boundary. Keep the generic
+                // writer status for ordinary execution routes, while letting
+                // buying-power/combo previews require their real readers.
+                ports
+                    .execution_operation_binding(&path)
+                    .or_else(|| ports.adapter_binding(adapter))
             } else {
                 ports.adapter_binding(adapter)
             }
@@ -480,16 +481,6 @@ fn research_operation_bindings(
         bindings.insert((*alias).to_owned(), binding);
     }
     bindings
-}
-
-fn execution_preview_is_external_unavailable(method: &str, path: &str) -> bool {
-    method == "POST"
-        && matches!(
-            path,
-            "/api/v1/execution/buying-power"
-                | "/api/v1/execution/previews"
-                | "/api/v1/execution/combos/previews"
-        )
 }
 
 #[derive(Debug, Deserialize)]

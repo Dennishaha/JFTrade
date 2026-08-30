@@ -28,6 +28,53 @@ pub(crate) enum ProductionAdapterBinding {
 }
 
 impl ProductionPortBundle {
+    /// Resolve readiness for execution routes that require more than the
+    /// generic order writer.  The public execution adapter also owns plain
+    /// order placement/cancellation, but buying-power and combo previews have
+    /// stricter product-rule readers and must not inherit that writer status.
+    pub(crate) fn execution_operation_binding(
+        &self,
+        path: &str,
+    ) -> Option<ProductionAdapterBinding> {
+        match path {
+            // The Rust product-rule port is intentionally fail-closed until a
+            // real broker implementation is installed; local parsing alone
+            // must never project `allowed: true` as a capability.
+            "/api/v1/execution/buying-power" => {
+                Some(ProductionAdapterBinding::ExternalUnavailable)
+            }
+            "/api/v1/execution/combos/previews" => {
+                let snapshot = self.active_provider_state.snapshot();
+                let option_reader = self.trade_runtime.as_ref().is_some_and(|runtime| {
+                    // The handler accepts both generic and spread strategy
+                    // payloads, and combo_preview always projects
+                    // optionAnalysis. All three readers are therefore needed
+                    // for the route-wide Ready claim.
+                    runtime.option_strategy_available()
+                        && runtime.option_strategy_spread_available()
+                        && runtime.option_strategy_analysis_available()
+                });
+                let trade_reader = if let Some(runtime) = self.trade_runtime.as_ref() {
+                    runtime.snapshot().is_ready()
+                } else {
+                    self.trade_read_port
+                        .as_ref()
+                        .is_some_and(|_| self.trade_logged_in == Some(true))
+                };
+                Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && option_reader
+                    && trade_reader
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                })
+            }
+            _ => None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn database_leases(
         &self,

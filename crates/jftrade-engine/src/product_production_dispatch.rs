@@ -138,7 +138,12 @@ impl ProductApi {
                 self.alerts(kind, &request.query)
             }
             Target::AlertsWrite => self.alert_write(request),
-            Target::AdkTemplatesRead => Ok(ApiOutput::Json(agent_templates_wire())),
+            // Production templates must be projected from the same dynamic
+            // tool catalog exposed by `/api/v1/adk/tools`.  The rehearsal
+            // path intentionally keeps the static compatibility template,
+            // but production must not advertise provider-backed tools while
+            // their adapters are unavailable.
+            Target::AdkTemplatesRead => self.production_agent_templates(),
             Target::AdkRead => self.adk_read(request),
             Target::AdkMutation => self.adk_mutation(request),
             Target::AdkChat => self.adk_chat_stream(request),
@@ -148,6 +153,61 @@ impl ProductApi {
                 "live endpoint requires a websocket upgrade",
             )),
         }
+    }
+
+    fn production_agent_templates(&self) -> Result<ApiOutput, ApiFailure> {
+        let Some(port) = self.adk_read_snapshot_port.as_deref() else {
+            return Err(ApiFailure::new(
+                503,
+                "ADK_READ_UNAVAILABLE",
+                "ADK read snapshot port is not configured",
+            ));
+        };
+        let snapshot = port
+            .read("/api/v1/adk/tools", "")
+            .map_err(|error| adk_read_failure(snapshot_failure(error)))?;
+        let AdkReadSnapshot::Json(snapshot) = snapshot else {
+            return Err(ApiFailure::new(
+                500,
+                "ADK_READ_INVALID_SNAPSHOT",
+                "ADK tool catalog snapshot must be JSON",
+            ));
+        };
+        let available_tools = snapshot
+            .get("tools")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                ApiFailure::new(
+                    500,
+                    "ADK_READ_INVALID_SNAPSHOT",
+                    "ADK tool catalog snapshot is missing tools",
+                )
+            })?
+            .iter()
+            .filter(|tool| {
+                tool.get("allowedModes")
+                    .and_then(Value::as_array)
+                    .is_some_and(|modes| !modes.is_empty())
+            })
+            .filter_map(|tool| tool.get("id").and_then(Value::as_str))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+
+        let mut template = agent_templates_wire();
+        let Some(template) = template
+            .get_mut("templates")
+            .and_then(Value::as_array_mut)
+            .and_then(|templates| templates.first_mut())
+            .and_then(Value::as_object_mut)
+        else {
+            return Err(ApiFailure::new(
+                500,
+                "ADK_READ_INVALID_SNAPSHOT",
+                "ADK agent template wire is malformed",
+            ));
+        };
+        template.insert("tools".to_owned(), json!(available_tools));
+        Ok(ApiOutput::Json(serde_json::json!({"templates": [template]})))
     }
 
     async fn dispatch_production_settings(
