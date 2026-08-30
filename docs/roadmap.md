@@ -13,7 +13,7 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 按依赖和共享文件冲突依次收口，完成前不再扩展新的 route group。
 
 - [ ] **Execution reconciliation 端到端证据**：补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等证据。
-- [ ] **Rust MCP baseline 资格**：用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call 的 method/header/status corpus；明确 reviewed tool catalog 是完整兼容还是经批准缩窄；persisted listener apply 失败必须进入 fail-closed/degraded readiness。
+- [ ] **Rust MCP baseline 资格**：Go SDK v1.7 的 initialize、tools/list、tools/call corpus、Origin/标准头校验和 persisted-listener apply 失败降级已闭合；剩余工作是完成 69 个 reviewed tool 的真实 production executor 覆盖，或形成经批准的缩窄 catalog，并为每个保留工具提供真实端口调用与 502/503 fail-closed 证据。
 
 ## Release 与终局放行项
 
