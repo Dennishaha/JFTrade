@@ -260,15 +260,28 @@ fn approval_resolution_value(
 fn run_state_result(
     port: &ProductionAdkPort,
     id: &str,
+    expected_status: &str,
+    expected_updated_at: &str,
     status: &str,
     payload: &Value,
 ) -> Result<Value, AdkMutationPortError> {
     if !port
         .store
-        .update_run_state(id, status, &payload.to_string())
+        .update_run_state_if_status_and_revision(
+            id,
+            expected_status,
+            expected_updated_at,
+            status,
+            &payload.to_string(),
+        )
         .map_err(storage_mutation_failed)?
     {
-        return Err(not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"));
+        let existing = port
+            .store
+            .get_run(id)
+            .map_err(storage_mutation_failed)?
+            .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+        return run_entity_value(&existing);
     }
     let updated = port
         .store
@@ -282,12 +295,19 @@ fn run_state_result_if_status(
     port: &ProductionAdkPort,
     id: &str,
     expected_status: &str,
+    expected_updated_at: &str,
     status: &str,
     payload: &Value,
 ) -> Result<Value, AdkMutationPortError> {
     if !port
         .store
-        .update_run_state_if_status(id, expected_status, status, &payload.to_string())
+        .update_run_state_if_status_and_revision(
+            id,
+            expected_status,
+            expected_updated_at,
+            status,
+            &payload.to_string(),
+        )
         .map_err(storage_mutation_failed)?
     {
         let existing = port

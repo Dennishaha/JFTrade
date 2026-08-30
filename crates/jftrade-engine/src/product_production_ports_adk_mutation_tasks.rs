@@ -69,10 +69,20 @@ pub(super) fn dispatch(
             object.insert("status".to_owned(), Value::String(existing.status.clone()));
             if !port
                 .store
-                .update_run_payload(&id, &value.to_string())
+                .update_run_payload_if_status_and_revision(
+                    &id,
+                    &existing.status,
+                    &existing.updated_at,
+                    &value.to_string(),
+                )
                 .map_err(storage_mutation_failed)?
             {
-                return Err(not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"));
+                let current = port
+                    .store
+                    .get_run(&id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+                return run_entity_value(&current);
             }
             let updated = port
                 .store
@@ -135,6 +145,12 @@ pub(super) fn dispatch(
             let Some(existing) = port.store.get_task(&id).map_err(storage_mutation_failed)? else {
                 return Err(not_found_mutation("ADK_TASK_NOT_FOUND", "task not found"));
             };
+            if matches!(
+                existing.status.trim().to_ascii_uppercase().as_str(),
+                "DONE" | "CANCELLED"
+            ) {
+                return task_payload(&existing);
+            }
             let mut payload = decode_mutation_payload(&existing.payload_json, "task")?;
             let object = payload
                 .as_object_mut()
@@ -206,13 +222,34 @@ pub(super) fn dispatch(
                 .get("status")
                 .and_then(Value::as_str)
                 .map(str::to_owned)
-                .unwrap_or(existing.status);
+                .unwrap_or_else(|| existing.status.clone());
             let agent_id = normalized_string(object.get("agentId"));
             let run_id = normalized_string(object.get("runId"));
+            let changed = port
+                .store
+                .update_task_if_status_and_revision(
+                    &id,
+                    &existing.status,
+                    &existing.updated_at,
+                    &status,
+                    &agent_id,
+                    &run_id,
+                    &payload.to_string(),
+                )
+                .map_err(storage_mutation_failed)?;
+            if !changed {
+                let current = port
+                    .store
+                    .get_task(&id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| not_found_mutation("ADK_TASK_NOT_FOUND", "task not found"))?;
+                return task_payload(&current);
+            }
             let stored = port
                 .store
-                .upsert_task(&id, &status, &agent_id, &run_id, &payload.to_string())
-                .map_err(storage_mutation_failed)?;
+                .get_task(&id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| not_found_mutation("ADK_TASK_NOT_FOUND", "task not found"))?;
             task_payload(&stored)
         }
         AdkMutationOperation::DeleteTask => {
@@ -247,11 +284,41 @@ pub(super) fn dispatch(
                     message: "stored ADK optimization task payload must be a JSON object"
                         .to_owned(),
                 })?;
+            if object
+                .get("status")
+                .and_then(Value::as_str)
+                .is_some_and(|status| matches!(status.trim().to_ascii_lowercase().as_str(), "cancelled" | "done" | "completed"))
+            {
+                return optimization_payload(&stored);
+            }
             object.insert("status".to_owned(), Value::String("cancelled".to_owned()));
+            let changed = port
+                .store
+                .update_optimization_task_if_revision(&id, &stored.updated_at, &payload.to_string())
+                .map_err(storage_mutation_failed)?;
+            if !changed {
+                let current = port
+                    .store
+                    .get_optimization_task(&id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| {
+                        not_found_mutation(
+                            "ADK_OPTIMIZATION_TASK_NOT_FOUND",
+                            "optimization task not found",
+                        )
+                    })?;
+                return optimization_payload(&current);
+            }
             let updated = port
                 .store
-                .upsert_optimization_task(&id, &payload.to_string())
-                .map_err(storage_mutation_failed)?;
+                .get_optimization_task(&id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| {
+                    not_found_mutation(
+                        "ADK_OPTIMIZATION_TASK_NOT_FOUND",
+                        "optimization task not found",
+                    )
+                })?;
             optimization_payload(&updated)
         }
         AdkMutationOperation::RenameSession => {

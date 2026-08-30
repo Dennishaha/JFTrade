@@ -157,7 +157,14 @@ pub(super) fn dispatch(
                     }
                 }
             }
-            run_state_result_if_status(port, &id, &status, "CANCELLED", &value)
+            run_state_result_if_status(
+                port,
+                &id,
+                &status,
+                &existing.updated_at,
+                "CANCELLED",
+                &value,
+            )
         }
         AdkMutationOperation::PauseRun => {
             let id = required_identifier(input, "runId")?;
@@ -206,7 +213,7 @@ pub(super) fn dispatch(
                 Value::String("目标将在当前轮结束后暂停。".to_owned()),
             );
             object.insert("status".to_owned(), Value::String(status.clone()));
-            run_state_result(port, &id, &status, &value)
+            run_state_result(port, &id, &status, &existing.updated_at, &status, &value)
         }
         AdkMutationOperation::ResumeRun => {
             let id = required_identifier(input, "runId")?;
@@ -265,7 +272,7 @@ pub(super) fn dispatch(
             object.remove("pausedAt");
             object.remove("pausedReason");
             object.insert("degraded".to_owned(), Value::Bool(false));
-            run_state_result(port, &id, "RUNNING", &value)
+            run_state_result(port, &id, &status, &existing.updated_at, "RUNNING", &value)
         }
         _ => unreachable!("operation group checked before dispatch"),
     }

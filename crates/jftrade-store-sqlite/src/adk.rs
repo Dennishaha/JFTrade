@@ -614,6 +614,29 @@ impl AdkStore {
         Ok(affected > 0)
     }
 
+    /// CAS variant that also fences the caller's durable revision token.  ADK
+    /// rows predate an explicit integer revision column, so `updated_at` is
+    /// the persisted opaque revision token exposed by every stored run.
+    pub fn update_run_payload_if_status_and_revision(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_runs
+                 SET payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND status = ?4 AND updated_at = ?5",
+                params![payload_json, now, id, expected_status, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
+    }
+
     /// Atomically updates the indexed lifecycle status and its JSON
     /// projection.  Run lifecycle mutations must update both columns as one
     /// unit; otherwise a crash between two independent statements can leave
@@ -662,6 +685,40 @@ impl AdkStore {
                  SET status = ?1, payload_json = ?2, updated_at = ?3
                  WHERE id = ?4 AND status = ?5",
                 params![status, payload_json, now, id, expected_status],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
+    }
+
+    /// Atomically transitions a run only when both its lifecycle status and
+    /// persisted revision token still match the caller's snapshot.
+    pub fn update_run_state_if_status_and_revision(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let affected = transaction
+            .execute(
+                "UPDATE adk_runs
+                 SET status = ?1, payload_json = ?2, updated_at = ?3
+                 WHERE id = ?4 AND status = ?5 AND updated_at = ?6",
+                params![
+                    status,
+                    payload_json,
+                    now,
+                    id,
+                    expected_status,
+                    expected_updated_at
+                ],
             )
             .map_err(AdkStoreError::Query)?;
         transaction.commit().map_err(AdkStoreError::Query)?;
@@ -755,8 +812,8 @@ impl AdkStore {
                 .execute(
                     "UPDATE adk_approvals
                      SET status = ?1, payload_json = ?2, updated_at = ?3
-                     WHERE id = ?4 AND status = 'PENDING'",
-                    params![status, payload_json, now, id],
+                     WHERE id = ?4 AND status = 'PENDING' AND updated_at = ?5",
+                    params![status, payload_json, now, id, approval.updated_at],
                 )
                 .map_err(AdkStoreError::Query)?;
             if affected == 1 {
@@ -981,8 +1038,8 @@ impl AdkStore {
             .execute(
                 "UPDATE adk_runs
                  SET status = ?1, payload_json = ?2, updated_at = ?3
-                 WHERE id = ?4 AND status = 'PENDING'",
-                params![next_status, payload_json, now, run.id],
+                 WHERE id = ?4 AND status = 'PENDING' AND updated_at = ?5",
+                params![next_status, payload_json, now, run.id, run.updated_at],
             )
             .map_err(AdkStoreError::Query)?;
         if affected != 1 {
@@ -1340,6 +1397,25 @@ impl AdkStore {
         self.upsert_simple_entity("adk_optimization_tasks", id, payload_json)
     }
 
+    pub fn update_optimization_task_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_optimization_tasks
+                 SET payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND updated_at = ?4",
+                params![payload_json, now, id, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
+    }
+
     pub fn get_optimization_task(
         &self,
         id: &str,
@@ -1386,6 +1462,41 @@ impl AdkStore {
                 stored_task,
             )
             .map_err(AdkStoreError::Query)
+    }
+
+    /// Update a task projection only when the caller still owns the durable
+    /// status/revision snapshot.  The timestamp is the legacy ADK revision
+    /// token persisted by this schema.
+    pub fn update_task_if_status_and_revision(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        agent_id: &str,
+        run_id: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_tasks
+                 SET status = ?1, agent_id = ?2, run_id = ?3, payload_json = ?4, updated_at = ?5
+                 WHERE id = ?6 AND status = ?7 AND updated_at = ?8",
+                params![
+                    status,
+                    agent_id,
+                    run_id,
+                    payload_json,
+                    now,
+                    id,
+                    expected_status,
+                    expected_updated_at
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected > 0)
     }
 
     pub fn delete_task(&self, id: &str) -> Result<bool, AdkStoreError> {
@@ -1836,6 +1947,21 @@ impl AdkTestCutoverStore {
             .update_run_payload_if_status(id, expected_status, payload_json)
     }
 
+    pub fn update_run_payload_if_status_and_revision(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.update_run_payload_if_status_and_revision(
+            id,
+            expected_status,
+            expected_updated_at,
+            payload_json,
+        )
+    }
+
     pub fn update_run_state(
         &self,
         id: &str,
@@ -1854,6 +1980,23 @@ impl AdkTestCutoverStore {
     ) -> Result<bool, AdkStoreError> {
         self.inner
             .update_run_state_if_status(id, expected_status, status, payload_json)
+    }
+
+    pub fn update_run_state_if_status_and_revision(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.update_run_state_if_status_and_revision(
+            id,
+            expected_status,
+            expected_updated_at,
+            status,
+            payload_json,
+        )
     }
 
     pub fn create_approval(
