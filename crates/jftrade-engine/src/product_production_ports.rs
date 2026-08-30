@@ -520,12 +520,14 @@ pub(crate) fn production_ports(
         .with_active_provider_state(Arc::clone(&active_provider_state))
         .with_trade_runtime(config.trade_runtime.clone()),
     );
+    let tool_schemas = Arc::new(tool_catalog.openai_tools());
     let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
         Arc::clone(&adk_store),
         Arc::clone(&adk_session_store),
         config.settings_path(),
         Arc::clone(&cancellation_registry),
+        Arc::clone(&tool_schemas),
     ));
     let adk_port = Arc::new(ProductionAdkPort {
         store: adk_store,

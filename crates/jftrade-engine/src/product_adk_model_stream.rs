@@ -5,7 +5,8 @@ use serde_json::{Value, json};
 use std::time::Duration;
 
 use super::{
-    MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, unavailable, upstream_error,
+    MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, unavailable,
+    upstream_error,
 };
 use crate::product::product_adk_chat_stream_port::AdkChatPortError;
 
@@ -37,7 +38,10 @@ where
             input.push(json!({"role":"system","content":instruction}));
         }
         input.push(json!({"role":"user","content":request.message}));
-        let body = json!({"model":request.model,"input":input,"stream":true});
+        let mut body = json!({"model":request.model,"input":input,"stream":true});
+        if !request.tools.is_empty() {
+            body["tools"] = Value::Array(request.tools.clone());
+        }
         let response = client
             .post(request.endpoint)
             .bearer_auth(request.api_key)
@@ -68,15 +72,17 @@ where
                 .map_err(|error| upstream_error(format!("decode model response: {error}")))?;
             on_event(&value)?;
             let text = extract_text(&value).trim().to_owned();
-            if text.is_empty() {
+            let tool_calls = extract_tool_calls(&value)?;
+            if text.is_empty() && tool_calls.is_empty() {
                 return Err(upstream_error("assistant model returned an empty response"));
             }
-            return Ok(ModelResponse { text });
+            return Ok(ModelResponse { text, tool_calls });
         }
 
         let mut response = response;
         let mut decoder = SseDecoder::default();
         let mut text = String::new();
+        let mut tool_calls = Vec::new();
         let mut completed = false;
         let mut bytes_seen = 0usize;
         loop {
@@ -121,6 +127,7 @@ where
                             if !completed_text.trim().is_empty() {
                                 text = completed_text;
                             }
+                            tool_calls = extract_tool_calls(response)?;
                         }
                         completed = true;
                     }
@@ -152,6 +159,9 @@ where
                     if !completed_text.trim().is_empty() {
                         text = completed_text;
                     }
+                    if let Some(response) = value.get("response") {
+                        tool_calls = extract_tool_calls(response)?;
+                    }
                 }
                 Ok(())
             })?;
@@ -162,10 +172,10 @@ where
             ));
         }
         let text = text.trim().to_owned();
-        if text.is_empty() {
+        if text.is_empty() && tool_calls.is_empty() {
             return Err(upstream_error("assistant model returned an empty response"));
         }
-        Ok(ModelResponse { text })
+        Ok(ModelResponse { text, tool_calls })
     })
 }
 

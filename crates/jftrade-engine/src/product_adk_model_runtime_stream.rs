@@ -109,6 +109,41 @@ impl ProductionAdkChatRuntime {
             },
         );
         match result {
+            Ok(model_response) if !model_response.tool_calls.is_empty() => {
+                match self.persist_tool_calls(&chat, &model_response) {
+                    Ok(AdkChatPortOutput::Json(response)) => {
+                        let event = self
+                            .emit_post_terminal_event(
+                                &chat,
+                                json!({"type": "pending", "response": response}),
+                                "PENDING",
+                            )
+                            .unwrap_or_else(|_| {
+                                json!({"type": "error", "message": "assistant tool call staging failed"})
+                            });
+                        let _ = sender.send(super::encode_sse_event(&event));
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        let event = self
+                            .emit_post_terminal_event(
+                                &chat,
+                                json!({
+                                    "type": "error",
+                                    "message": super::format_adk_error(&error),
+                                }),
+                                "FAILED",
+                            )
+                            .unwrap_or_else(|_| {
+                                json!({
+                                    "type": "error",
+                                    "message": super::format_adk_error(&error),
+                                })
+                            });
+                        let _ = sender.send(super::encode_sse_event(&event));
+                    }
+                }
+            }
             Ok(model_response) => match self.persist_success(&chat, model_response) {
                 Ok(response) => {
                     if let Ok(Some(event)) = self.latest_stream_event(&chat.run_id) {
@@ -182,6 +217,53 @@ impl ProductionAdkChatRuntime {
                 let _ = sender.send(super::encode_sse_event(&event));
             }
         }
+    }
+
+    fn emit_post_terminal_event(
+        &self,
+        chat: &super::ChatExecution,
+        mut event: Value,
+        expected_status: &str,
+    ) -> Result<Value, AdkChatPortError> {
+        let run = self
+            .store()
+            .get_run(&chat.run_id)
+            .map_err(super::storage_unavailable)?
+            .ok_or_else(|| super::unavailable("persisted ADK run disappeared"))?;
+        if !run.status.eq_ignore_ascii_case(expected_status) {
+            return Err(self.run_state_changed(&chat.run_id));
+        }
+        let mut payload: Value =
+            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
+        let events = payload
+            .get_mut("streamEvents")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| super::unavailable("persisted ADK run has no stream event list"))?;
+        let sequence = events.len() as u64 + 1;
+        if let Some(object) = event.as_object_mut() {
+            object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
+            object.insert("sequence".to_owned(), Value::from(sequence));
+            object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
+        }
+        events.push(event.clone());
+        let updated = self
+            .store()
+            .update_run_payload_if_status(&chat.run_id, expected_status, &payload.to_string())
+            .map_err(super::storage_unavailable)?;
+        if !updated {
+            return Err(self.run_state_changed(&chat.run_id));
+        }
+        self.record_event_with_id(
+            &format!("{}:stream:{}", chat.run_id, sequence),
+            &chat.run_id,
+            &chat.session_id,
+            "assistant.stream",
+            event
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        )?;
+        Ok(event)
     }
 
     pub(super) fn forward_provider_event(

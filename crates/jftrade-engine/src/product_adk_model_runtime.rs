@@ -37,6 +37,7 @@ pub(crate) struct ProductionAdkChatRuntime {
     session_store: Arc<AdkSessionStore>,
     secrets_path: PathBuf,
     cancellation_registry: Arc<RunCancellationRegistry>,
+    tool_schemas: Arc<Vec<Value>>,
 }
 
 /// Process-local cancellation fan-out for active provider calls.
@@ -105,6 +106,7 @@ impl ProductionAdkChatRuntime {
         session_store: Arc<AdkSessionStore>,
         settings_path: &Path,
         cancellation_registry: Arc<RunCancellationRegistry>,
+        tool_schemas: Arc<Vec<Value>>,
     ) -> Self {
         let secrets_path = std::env::var_os("JFTRADE_ADK_SECRETS")
             .filter(|value| !value.is_empty())
@@ -123,6 +125,7 @@ impl ProductionAdkChatRuntime {
             session_store,
             secrets_path,
             cancellation_registry,
+            tool_schemas,
         }
     }
 
@@ -246,6 +249,7 @@ impl ProductionAdkChatRuntime {
                 instruction: provider.instruction,
                 message: message.clone(),
                 timeout: provider.timeout,
+                tools: self.tool_schemas.as_ref().clone(),
             },
         }))
     }
@@ -278,7 +282,130 @@ impl ProductionAdkChatRuntime {
             let _ = self.persist_cancelled(&chat, &error);
             return Err(error);
         }
+        if let Ok(ref response) = result {
+            if !response.tool_calls.is_empty() {
+                return self.persist_tool_calls(&chat, response);
+            }
+        }
         self.finish_chat(&chat, result)
+    }
+
+    fn persist_tool_calls(
+        &self,
+        chat: &ChatExecution,
+        response: &ModelResponse,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        let run = self
+            .store
+            .get_run(&chat.run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        if !run.status.eq_ignore_ascii_case("RUNNING") {
+            return Err(unavailable(format!(
+                "assistant chat run is already {}",
+                run.status
+            )));
+        }
+        let mut payload: Value =
+            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        if !payload.is_object() {
+            return Err(AdkChatPortError::Failed {
+                status: 500,
+                code: "ADK_STORAGE_CORRUPT".to_owned(),
+                message: "stored ADK run payload must be a JSON object".to_owned(),
+            });
+        }
+        let known = response.tool_calls.iter().all(|call| {
+            self.tool_schemas.iter().any(|schema| {
+                schema.get("name").and_then(Value::as_str) == Some(call.name.as_str())
+            })
+        });
+        let status = if known { "PENDING" } else { "FAILED" };
+        let mut pending = Vec::new();
+        let mut tool_calls = Vec::with_capacity(response.tool_calls.len());
+        for (index, call) in response.tool_calls.iter().enumerate() {
+            let call_status = if known { "PENDING_APPROVAL" } else { "FAILED" };
+            let requires_user = known;
+            let approval_id = format!("{}:approval:{}", chat.run_id, index + 1);
+            let call_value = json!({
+                "id": call.id,
+                "name": call.name,
+                "arguments": call.arguments,
+                "status": call_status,
+                "requiresUser": requires_user,
+                "approvalId": if known { Value::String(approval_id.clone()) } else { Value::Null },
+                "errorCode": if known { Value::Null } else { Value::String("ADK_TOOL_UNAVAILABLE".to_owned()) },
+            });
+            tool_calls.push(call_value);
+            if known {
+                let approval = json!({
+                    "id": approval_id,
+                    "runId": chat.run_id,
+                    "agentId": chat.agent_id,
+                    "status": "PENDING",
+                    "toolName": call.name,
+                    "toolCallId": call.id,
+                    "arguments": call.arguments,
+                    "requiresUser": true,
+                });
+                self.store
+                    .create_approval(
+                        &approval_id,
+                        &chat.run_id,
+                        &chat.agent_id,
+                        "PENDING",
+                        &approval.to_string(),
+                    )
+                    .map_err(storage_unavailable)?;
+                pending.push(approval);
+            }
+        }
+        {
+            let object = payload.as_object_mut().expect("payload object checked");
+            object.insert("toolCalls".to_owned(), Value::Array(tool_calls));
+            object.insert("pendingApprovals".to_owned(), Value::Array(pending.clone()));
+            object.insert("status".to_owned(), Value::String(status.to_owned()));
+            object.insert(
+                "message".to_owned(),
+                Value::String(if known {
+                    "assistant tool call requires approval".to_owned()
+                } else {
+                    "assistant requested an unavailable tool".to_owned()
+                }),
+            );
+        }
+        let payload_json = payload.to_string();
+        let updated = self
+            .store
+            .update_run_state_if_status(&chat.run_id, "RUNNING", status, &payload_json)
+            .map_err(storage_unavailable)?;
+        if !updated {
+            return Err(unavailable(
+                "assistant chat run state changed before tool call staging",
+            ));
+        }
+        if !known {
+            return Err(AdkChatPortError::Failed {
+                status: 503,
+                code: "ADK_TOOL_UNAVAILABLE".to_owned(),
+                message: "assistant requested an unavailable tool".to_owned(),
+            });
+        }
+        let session = self
+            .store
+            .get_session(&chat.session_id)
+            .map_err(storage_unavailable)?
+            .map(|session| {
+                json!({"id": session.id, "agentId": chat.agent_id, "createdAt": session.created_at, "updatedAt": session.updated_at})
+            })
+            .unwrap_or_else(|| json!({"id": chat.session_id, "agentId": chat.agent_id}));
+        Ok(AdkChatPortOutput::Json(json!({
+            "reply": "",
+            "session": session,
+            "run": payload,
+            "pendingApprovals": pending,
+            "timeline": [],
+        })))
     }
 
     fn resolve_provider(
@@ -495,6 +622,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let session_store = Arc::clone(&self.session_store);
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
+        let tool_schemas = Arc::clone(&self.tool_schemas);
         let input = input.clone();
         if route == AdkChatRoute::Stream {
             let (stream, sender) = ApiStream::channel(32);
@@ -511,6 +639,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
                         cancellation_registry: Arc::clone(&cancellation_registry),
+                        tool_schemas: Arc::clone(&tool_schemas),
                     };
                     runtime.start_live_stream(stream_input, stream, sender, started);
                 })
@@ -527,6 +656,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                     session_store,
                     secrets_path,
                     cancellation_registry,
+                    tool_schemas,
                 };
                 runtime.dispatch_inner(route, &input)
             })
@@ -586,11 +716,20 @@ struct ModelRequest {
     instruction: Option<String>,
     message: String,
     timeout: Duration,
+    tools: Vec<Value>,
 }
 
 #[derive(Debug)]
 struct ModelResponse {
     text: String,
+    tool_calls: Vec<ModelToolCall>,
+}
+
+#[derive(Clone, Debug)]
+struct ModelToolCall {
+    id: String,
+    name: String,
+    arguments: Value,
 }
 
 struct CancellationGuard {
@@ -631,7 +770,10 @@ fn execute_model(
             input.push(json!({"role":"system","content":instruction}));
         }
         input.push(json!({"role":"user","content":request.message}));
-        let body = json!({"model":request.model,"input":input,"stream":false});
+        let mut body = json!({"model":request.model,"input":input,"stream":false});
+        if !request.tools.is_empty() {
+            body["tools"] = Value::Array(request.tools.clone());
+        }
         let send = client
             .post(request.endpoint)
             .bearer_auth(request.api_key)
@@ -693,10 +835,14 @@ fn execute_model(
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|error| upstream_error(format!("decode model response: {error}")))?;
         let text = extract_text(&value).trim().to_owned();
+        let tool_calls = extract_tool_calls(&value)?;
+        if !tool_calls.is_empty() {
+            return Ok(ModelResponse { text, tool_calls });
+        }
         if text.is_empty() {
             return Err(upstream_error("assistant model returned an empty response"));
         }
-        Ok(ModelResponse { text })
+        Ok(ModelResponse { text, tool_calls })
     })
 }
 
@@ -723,6 +869,49 @@ fn extract_text(value: &Value) -> String {
         }
     }
     output
+}
+
+fn extract_tool_calls(value: &Value) -> Result<Vec<ModelToolCall>, AdkChatPortError> {
+    let Some(output) = value.get("output").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    let mut calls = Vec::new();
+    for item in output {
+        if item.get("type").and_then(Value::as_str) != Some("function_call") {
+            continue;
+        }
+        let name = item
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| upstream_error("assistant model returned a tool call without a name"))?
+            .to_owned();
+        let id = item
+            .get("call_id")
+            .or_else(|| item.get("id"))
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| upstream_error("assistant model returned a tool call without an id"))?
+            .to_owned();
+        let arguments = match item.get("arguments") {
+            Some(Value::String(raw)) => serde_json::from_str(raw)
+                .map_err(|error| upstream_error(format!("invalid tool call arguments: {error}")))?,
+            Some(value) if value.is_object() => value.clone(),
+            Some(_) | None => {
+                return Err(upstream_error(
+                    "assistant model returned invalid tool arguments",
+                ));
+            }
+        };
+        calls.push(ModelToolCall {
+            id,
+            name,
+            arguments,
+        });
+    }
+    Ok(calls)
 }
 
 fn encode_sse_event(value: &Value) -> Vec<u8> {

@@ -191,6 +191,54 @@ impl ProductionToolCatalog {
             .collect()
     }
 
+    /// Convert the currently callable catalog into the OpenAI Responses
+    /// function-tool shape.  Provider-backed tools whose readiness is empty
+    /// are intentionally omitted so the model cannot invoke an unavailable
+    /// capability.  Argument schemas remain object-shaped for compatibility
+    /// with the existing Go tool contract; dispatch validates concrete input
+    /// before any side effect.
+    pub(crate) fn openai_tools(&self) -> Vec<Value> {
+        self.values()
+            .into_iter()
+            .filter(|tool| {
+                tool.get("allowedModes")
+                    .and_then(Value::as_array)
+                    .is_some_and(|modes| !modes.is_empty())
+            })
+            .filter_map(|tool| {
+                let name = tool.get("id").and_then(Value::as_str)?.to_owned();
+                let description = tool
+                    .get("displayName")
+                    .and_then(Value::as_str)
+                    .unwrap_or(&name)
+                    .to_owned();
+                Some(json!({
+                    "type": "function",
+                    "name": name,
+                    "description": description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "instrumentId": {"type": "string"},
+                            "market": {"type": "string"},
+                            "symbol": {"type": "string"},
+                            "query": {"type": "string"},
+                            "period": {"type": "string"},
+                            "limit": {"type": "integer"},
+                            "operation": {"type": "string"},
+                            "brokerId": {"type": "string"},
+                            "accountId": {"type": "string"},
+                            "tradingEnvironment": {"type": "string"},
+                            "payload": {"type": "object"},
+                            "internalOrderId": {"type": "string"}
+                        },
+                        "additionalProperties": false
+                    }
+                }))
+            })
+            .collect()
+    }
+
     fn ids_for_categories(&self, categories: &[&str]) -> Vec<String> {
         self.tools
             .iter()
