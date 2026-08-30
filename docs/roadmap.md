@@ -14,7 +14,7 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 - [ ] **Execution reconciliation 端到端证据**：补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等证据。
 - [ ] **Rust MCP baseline 资格**：Go SDK v1.7 的 initialize、tools/list、tools/call corpus、Origin/标准头校验和 persisted-listener apply 失败降级已闭合；剩余工作是完成 69 个 reviewed tool 的真实 production executor 覆盖，或形成经批准的缩窄 catalog，并为每个保留工具提供真实端口调用与 502/503 fail-closed 证据。
-- [ ] **Runtime 状态投影真实化**：桌面 runtime readiness 为 `degraded`/`unavailable` 时必须 fail-closed，不能标记 ready 或展示主窗口；`system/status` 与 `system/storage/overview` 必须来自真实 lease/store 状态，禁止固定成功或 synthetic 空数组。
+- [ ] **Storage overview production adapter**：`system/storage/overview` 仍缺少 durable outbox/recent-jobs projection；必须接入真实 data-management/store adapter，或在缺失时于启动期拒绝注册该 route，不能以永久 503 或 synthetic 空数组冒充完成。Tauri readiness 与 `system/status` 的真实投影已闭合，不再作为活动门禁。
 
 ## Release 与终局放行项
 
@@ -31,7 +31,7 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 1. 先完成 MCP baseline 资格；在没有 Go SDK corpus 前不得扩展 method surface 或宣称 catalog 兼容。
 2. 随后补齐 execution reconciliation 的行情/交易端到端证据。
-3. 实现稳定后做一次只读全局审计，再按受影响范围运行验证；最终总门禁以仓库脚本的实际编排为准。
+3. 再补齐 `storage/overview` 的真实 production adapter；完成后做一次只读全局审计，再按受影响范围运行验证。
 4. 最后审阅完整 diff，在 `main` 上做一次本地提交；不 push。
 
 ## 约束
