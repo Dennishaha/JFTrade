@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
 use axum::http::HeaderMap;
 use serde_json::Value;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, watch};
 
 use crate::AccessPolicy;
 use crate::auth::{origin_provided, request_origin};
@@ -186,6 +186,7 @@ impl LiveHubLifecycle {
 #[derive(Debug)]
 pub struct LiveHub {
     sender: broadcast::Sender<Value>,
+    shutdown_sender: watch::Sender<bool>,
     subscriptions: Arc<RwLock<BTreeMap<u64, LiveSubscription>>>,
     next_connection_id: AtomicUsize,
     demand_listener: RwLock<Option<Arc<dyn LiveDemandListener>>>,
@@ -230,8 +231,10 @@ impl Default for LiveHub {
 impl LiveHub {
     pub fn new(capacity: usize) -> Self {
         let (sender, _) = broadcast::channel(capacity.max(1));
+        let (shutdown_sender, _) = watch::channel(false);
         Self {
             sender,
+            shutdown_sender,
             subscriptions: Arc::new(RwLock::new(BTreeMap::new())),
             next_connection_id: AtomicUsize::new(0),
             demand_listener: RwLock::new(None),
@@ -254,6 +257,16 @@ impl LiveHub {
     pub fn begin_shutdown(&self) {
         self.lifecycle
             .store(LiveHubLifecycle::ShuttingDown.to_u8(), Ordering::Release);
+        // Every connected session receives the transition, including sessions
+        // which are currently waiting on an empty live-event stream.
+        let _ = self.shutdown_sender.send(true);
+    }
+
+    /// Subscribe to the hub shutdown signal.  The watch channel retains the
+    /// terminal value so a session that starts draining just after shutdown
+    /// still observes the notification immediately.
+    pub fn subscribe_shutdown(&self) -> watch::Receiver<bool> {
+        self.shutdown_sender.subscribe()
     }
 
     /// The HTTP server thread has finished; no connection can ever be

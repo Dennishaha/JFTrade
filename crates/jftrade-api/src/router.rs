@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
-use axum::extract::ws::{Message, WebSocketUpgrade};
+use axum::extract::ws::{CloseFrame, Message, WebSocketUpgrade};
 use axum::extract::{Request, State};
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
@@ -461,6 +461,7 @@ async fn websocket_handler(
     let timestamp = state.clock.now_rfc3339();
     let live_market_data_status = state.live_market_data_status.clone();
     let live_hub_connection = state.live_hub.connect();
+    let shutdown = state.live_hub.subscribe_shutdown();
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
         .on_upgrade(move |socket| {
@@ -470,6 +471,7 @@ async fn websocket_handler(
                 live_hub_connection,
                 timestamp,
                 live_market_data_status,
+                shutdown,
             )
         })
 }
@@ -495,7 +497,17 @@ async fn websocket_session(
     mut live_hub_connection: LiveHubConnection,
     timestamp: String,
     live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
 ) {
+    if *shutdown.borrow() {
+        let _ = socket
+            .send(Message::Close(Some(CloseFrame {
+                code: 1001,
+                reason: "server shutting down".into(),
+            })))
+            .await;
+        return;
+    }
     let heartbeat = live_heartbeat(&timestamp, live_market_data_status.as_deref());
     if socket
         .send(Message::Text(heartbeat.to_string().into()))
@@ -547,6 +559,17 @@ async fn websocket_session(
                     break;
                 }
             }
+            changed = shutdown.changed() => {
+                if changed.is_ok() || *shutdown.borrow() {
+                    let _ = socket
+                        .send(Message::Close(Some(CloseFrame {
+                            code: 1001,
+                            reason: "server shutting down".into(),
+                        })))
+                        .await;
+                }
+                break;
+            }
         }
     }
 }
@@ -557,9 +580,13 @@ fn live_heartbeat(
 ) -> serde_json::Value {
     let stale = status.is_some_and(|port| !port.snapshot().connected);
     json!({
+        "eventId": format!("heartbeat|live-websocket|{timestamp}"),
         "type": "heartbeat",
         "source": "system",
+        "entityId": "live-websocket",
+        "serverTime": timestamp,
         "payload": {
+            "type": "heartbeat",
             "at": timestamp,
             "intervalMs": 15000,
             "stale": stale,

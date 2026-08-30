@@ -174,7 +174,10 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                     "entityId": "futu",
                     "serverTime": at,
                     "payload": {
+                        "type": "console.refresh",
+                        "at": at,
                         "scope": "market-data",
+                        "checkedAt": at,
                     },
                 });
                 self.live_hub.publish(envelope);
@@ -192,6 +195,8 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
             "entityId": "futu",
             "serverTime": at,
             "payload": {
+                "type": "system.notification",
+                "at": at,
                 "level": "error",
                 "message": error,
                 "source": "futu",
