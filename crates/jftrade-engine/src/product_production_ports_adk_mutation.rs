@@ -188,6 +188,33 @@ fn now_rfc3339() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
 }
 
+/// ADK workflow rows use their persisted `updatedAt` value as an opaque
+/// revision token.  Accept the explicit `expectedUpdatedAt` spelling and the
+/// generic `expectedRevision` alias used by other mutation clients without
+/// changing the public response shape.
+fn expected_updated_at(body: &Map<String, Value>, fallback: &str) -> Result<String, AdkMutationPortError> {
+    let value = body
+        .get("expectedUpdatedAt")
+        .or_else(|| body.get("expectedRevision"));
+    let Some(value) = value else {
+        return Ok(fallback.to_owned());
+    };
+    let token = value
+        .as_str()
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+        .ok_or_else(|| invalid_mutation_input("expectedUpdatedAt must be a non-empty string"))?;
+    Ok(token.to_owned())
+}
+
+fn revision_conflict(resource: &str) -> AdkMutationPortError {
+    AdkMutationPortError::Failed {
+        status: 409,
+        code: format!("ADK_{resource}_CONFLICT"),
+        message: format!("{resource} changed; refresh and retry"),
+    }
+}
+
 fn run_entity_value(
     stored: &jftrade_store_sqlite::StoredAdkRun,
 ) -> Result<Value, AdkMutationPortError> {

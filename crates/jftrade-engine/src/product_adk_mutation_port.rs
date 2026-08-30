@@ -619,8 +619,6 @@ fn ignores_body(operation: AdkMutationOperation) -> bool {
             | AdkMutationOperation::DeleteSession
             | AdkMutationOperation::DeleteSkill
             | AdkMutationOperation::DeleteTask
-            | AdkMutationOperation::DeleteWorkflow
-            | AdkMutationOperation::DeleteWorkflowTrigger
             | AdkMutationOperation::Approve
             | AdkMutationOperation::Deny
             | AdkMutationOperation::CancelOptimizationTask

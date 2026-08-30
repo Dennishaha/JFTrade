@@ -212,3 +212,97 @@ fn adk_store_lifecycle_and_restart_durability() {
         .expect("found");
     assert_eq!(agent2.id, "analyst");
 }
+
+#[test]
+fn adk_workflow_and_trigger_mutations_use_timestamp_cas_and_atomic_delete() {
+    let directory = tempdir().expect("temp dir");
+    let db_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&db_path);
+    let store = AdkTestCutoverStore::open_existing(&db_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("open valid store");
+
+    let workflow = store
+        .upsert_workflow("wf-cas", "ENABLED", r#"{"name":"CAS workflow"}"#)
+        .expect("create workflow");
+    let trigger = store
+        .upsert_workflow_trigger(
+            "trigger-cas",
+            "wf-cas",
+            "manual",
+            "ENABLED",
+            "",
+            r#"{"id":"trigger-cas","workflowId":"wf-cas","type":"manual","status":"ENABLED"}"#,
+        )
+        .expect("create trigger");
+
+    assert!(
+        !store
+            .update_workflow_if_revision("wf-cas", "stale", "ENABLED", r#"{"name":"stale"}"#,)
+            .expect("stale workflow CAS")
+    );
+    assert!(
+        store
+            .update_workflow_if_revision(
+                "wf-cas",
+                &workflow.updated_at,
+                "ENABLED",
+                r#"{"name":"updated"}"#,
+            )
+            .expect("workflow CAS")
+    );
+    let updated_workflow = store
+        .get_workflow("wf-cas")
+        .expect("get workflow")
+        .expect("workflow exists");
+    assert_eq!(updated_workflow.payload_json, r#"{"name":"updated"}"#);
+
+    assert!(
+        !store
+            .update_workflow_trigger_if_revision(
+                "trigger-cas",
+                "stale",
+                "wf-cas",
+                "manual",
+                "ENABLED",
+                "",
+                r#"{"status":"stale"}"#,
+            )
+            .expect("stale trigger CAS")
+    );
+    assert!(
+        store
+            .update_workflow_trigger_if_revision(
+                "trigger-cas",
+                &trigger.updated_at,
+                "wf-cas",
+                "manual",
+                "ENABLED",
+                "",
+                r#"{"status":"updated"}"#,
+            )
+            .expect("trigger CAS")
+    );
+
+    let deleted_at = "2026-08-30T00:00:00Z";
+    assert!(
+        store
+            .soft_delete_workflow_if_revision(
+                "wf-cas",
+                &updated_workflow.updated_at,
+                r#"{"name":"updated","status":"DISABLED","deletedAt":"2026-08-30T00:00:00Z"}"#,
+                deleted_at,
+            )
+            .expect("atomic workflow delete")
+    );
+    let deleted_workflow = store
+        .get_workflow("wf-cas")
+        .expect("get deleted workflow")
+        .expect("deleted workflow exists");
+    let deleted_trigger = store
+        .get_workflow_trigger("trigger-cas")
+        .expect("get deleted trigger")
+        .expect("deleted trigger exists");
+    assert_eq!(deleted_workflow.status, "DISABLED");
+    assert_eq!(deleted_trigger.status, "DISABLED");
+    assert!(deleted_trigger.payload_json.contains("deletedAt"));
+}

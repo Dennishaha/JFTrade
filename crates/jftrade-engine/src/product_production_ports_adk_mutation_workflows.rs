@@ -116,10 +116,42 @@ pub(super) fn dispatch(
             );
             object.insert("id".to_owned(), Value::String(id.clone()));
             object.insert("status".to_owned(), Value::String(status.clone()));
-            let stored = port
-                .store
-                .upsert_workflow(&id, &status, &payload.to_string())
-                .map_err(storage_mutation_failed)?;
+            let payload_json = payload.to_string();
+            let stored = if let Some(existing) = existing.as_ref() {
+                let expected = expected_updated_at(&body, &existing.updated_at)?;
+                if !port
+                    .store
+                    .update_workflow_if_revision(
+                        &id,
+                        &expected,
+                        &status,
+                        &payload_json,
+                    )
+                    .map_err(storage_mutation_failed)?
+                {
+                    let current = port
+                        .store
+                        .get_workflow(&id)
+                        .map_err(storage_mutation_failed)?
+                        .ok_or_else(|| {
+                            not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                        })?;
+                    if current.updated_at != expected {
+                        return Err(revision_conflict("WORKFLOW"));
+                    }
+                    return Err(revision_conflict("WORKFLOW"));
+                }
+                port.store
+                    .get_workflow(&id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| {
+                        not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                    })?
+            } else {
+                port.store
+                    .upsert_workflow(&id, &status, &payload_json)
+                    .map_err(storage_mutation_failed)?
+            };
             workflow_payload(&stored)
         }
         AdkMutationOperation::DeleteWorkflow => {
@@ -150,42 +182,47 @@ pub(super) fn dispatch(
                 })?;
             object.insert("id".to_owned(), Value::String(id.clone()));
             object.insert("status".to_owned(), Value::String("DISABLED".to_owned()));
-            object.insert("deletedAt".to_owned(), Value::String(now_rfc3339()));
+            let deleted_at = now_rfc3339();
+            object.insert(
+                "deletedAt".to_owned(),
+                Value::String(deleted_at.clone()),
+            );
+            let expected = expected_updated_at(
+                input.body.as_object().unwrap_or(&Map::new()),
+                &existing.updated_at,
+            )?;
+            let changed = port
+                .store
+                .soft_delete_workflow_if_revision(
+                    &id,
+                    &expected,
+                    &payload.to_string(),
+                    &deleted_at,
+                )
+                .map_err(storage_mutation_failed)?;
+            if !changed {
+                let current = port
+                    .store
+                    .get_workflow(&id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| {
+                        not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
+                    })?;
+                if is_deleted_payload(&current.payload_json)? {
+                    return Err(not_found_mutation(
+                        "ADK_WORKFLOW_NOT_FOUND",
+                        "workflow not found",
+                    ));
+                }
+                return Err(revision_conflict("WORKFLOW"));
+            }
             let stored = port
                 .store
-                .upsert_workflow(&id, "DISABLED", &payload.to_string())
-                .map_err(storage_mutation_failed)?;
-            for trigger in port
-                .store
-                .list_workflow_triggers(&id)
+                .get_workflow(&id)
                 .map_err(storage_mutation_failed)?
-            {
-                if is_deleted_payload(&trigger.payload_json)? {
-                    continue;
-                }
-                let mut trigger_payload =
-                    decode_mutation_payload(&trigger.payload_json, "workflow trigger")?;
-                let trigger_object = trigger_payload.as_object_mut().ok_or_else(|| {
-                    AdkMutationPortError::Failed {
-                        status: 500,
-                        code: "ADK_STORAGE_CORRUPT".to_owned(),
-                        message: "stored ADK workflow trigger payload must be a JSON object"
-                            .to_owned(),
-                    }
+                .ok_or_else(|| {
+                    not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found")
                 })?;
-                trigger_object.insert("status".to_owned(), Value::String("DISABLED".to_owned()));
-                trigger_object.insert("deletedAt".to_owned(), Value::String(now_rfc3339()));
-                port.store
-                    .upsert_workflow_trigger(
-                        &trigger.id,
-                        &trigger.workflow_id,
-                        &trigger.trigger_type,
-                        "DISABLED",
-                        &trigger.next_run_at,
-                        &trigger_payload.to_string(),
-                    )
-                    .map_err(storage_mutation_failed)?;
-            }
             Ok(json!({"deleted": true, "workflow": workflow_payload(&stored)?}))
         }
         AdkMutationOperation::CreateWorkflowTrigger => {
@@ -357,17 +394,49 @@ pub(super) fn dispatch(
                 object.insert("hasSecret".to_owned(), Value::Bool(false));
                 String::new()
             };
-            let stored = port
+            let expected = expected_updated_at(&body, &existing.updated_at)?;
+            let payload_json = payload.to_string();
+            let changed = port
                 .store
-                .upsert_workflow_trigger(
+                .update_workflow_trigger_if_revision(
                     &trigger_id,
+                    &expected,
                     &workflow_id,
                     &trigger_type,
                     &status,
                     &existing.next_run_at,
-                    &payload.to_string(),
+                    &payload_json,
                 )
                 .map_err(storage_mutation_failed)?;
+            if !changed {
+                let current = port
+                    .store
+                    .get_workflow_trigger(&trigger_id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| {
+                        not_found_mutation(
+                            "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                            "workflow trigger not found",
+                        )
+                    })?;
+                if is_deleted_payload(&current.payload_json)? {
+                    return Err(not_found_mutation(
+                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        "workflow trigger not found",
+                    ));
+                }
+                return Err(revision_conflict("WORKFLOW_TRIGGER"));
+            }
+            let stored = port
+                .store
+                .get_workflow_trigger(&trigger_id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| {
+                    not_found_mutation(
+                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        "workflow trigger not found",
+                    )
+                })?;
             trigger_result(&stored, secret)
         }
         AdkMutationOperation::DeleteWorkflowTrigger => {
@@ -414,18 +483,50 @@ pub(super) fn dispatch(
                     message: "stored ADK workflow trigger payload must be a JSON object".to_owned(),
                 })?;
             object.insert("status".to_owned(), Value::String("DISABLED".to_owned()));
-            object.insert("deletedAt".to_owned(), Value::String(now_rfc3339()));
-            let stored = port
+            let deleted_at = now_rfc3339();
+            object.insert("deletedAt".to_owned(), Value::String(deleted_at));
+            let expected = expected_updated_at(
+                input.body.as_object().unwrap_or(&Map::new()),
+                &existing.updated_at,
+            )?;
+            let changed = port
                 .store
-                .upsert_workflow_trigger(
+                .soft_delete_workflow_trigger_if_revision(
                     &trigger_id,
+                    &expected,
                     &workflow_id,
-                    &existing.trigger_type,
-                    "DISABLED",
-                    &existing.next_run_at,
                     &payload.to_string(),
                 )
                 .map_err(storage_mutation_failed)?;
+            if !changed {
+                let current = port
+                    .store
+                    .get_workflow_trigger(&trigger_id)
+                    .map_err(storage_mutation_failed)?
+                    .ok_or_else(|| {
+                        not_found_mutation(
+                            "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                            "workflow trigger not found",
+                        )
+                    })?;
+                if is_deleted_payload(&current.payload_json)? {
+                    return Err(not_found_mutation(
+                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        "workflow trigger not found",
+                    ));
+                }
+                return Err(revision_conflict("WORKFLOW_TRIGGER"));
+            }
+            let stored = port
+                .store
+                .get_workflow_trigger(&trigger_id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| {
+                    not_found_mutation(
+                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        "workflow trigger not found",
+                    )
+                })?;
             Ok(json!({
                 "deleted": true,
                 "trigger": workflow_trigger_payload(&stored)?,

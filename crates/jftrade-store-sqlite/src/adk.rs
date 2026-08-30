@@ -1805,6 +1805,71 @@ impl AdkStore {
         })
     }
 
+    /// Update a workflow only when the caller still owns the persisted
+    /// `updated_at` revision token.  ADK workflows predate an integer
+    /// revision column; the timestamp is therefore the opaque CAS token used
+    /// by the production mutation adapter.
+    pub fn update_workflow_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_workflows
+                 SET status = ?1, payload_json = ?2, updated_at = ?3
+                 WHERE id = ?4 AND updated_at = ?5",
+                params![status, payload_json, now, id, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected == 1)
+    }
+
+    /// Atomically soft-delete a workflow and all of its non-deleted triggers.
+    /// The workflow revision is the fence for the whole operation, so a
+    /// concurrent workflow update cannot leave child triggers half deleted.
+    pub fn soft_delete_workflow_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        deleted_at: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let affected = transaction
+            .execute(
+                "UPDATE adk_workflows
+                 SET status = 'DISABLED', payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND updated_at = ?4",
+                params![payload_json, now, id, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected == 1 {
+            transaction
+                .execute(
+                    "UPDATE adk_workflow_triggers
+                     SET status = 'DISABLED',
+                         payload_json = json_set(payload_json,
+                             '$.status', 'DISABLED', '$.deletedAt', ?1),
+                         updated_at = ?2
+                     WHERE workflow_id = ?3
+                       AND COALESCE(json_extract(payload_json, '$.deletedAt'), '') = ''",
+                    params![deleted_at, now, id],
+                )
+                .map_err(AdkStoreError::Query)?;
+        }
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(affected == 1)
+    }
+
     pub fn delete_workflow(&self, id: &str) -> Result<bool, AdkStoreError> {
         let connection = self.lock_connection()?;
         let affected = connection
@@ -2213,6 +2278,62 @@ impl AdkStore {
                 stored_workflow_trigger,
             )
             .map_err(AdkStoreError::Query)
+    }
+
+    /// Update a workflow trigger only when its timestamp revision still
+    /// matches the caller's snapshot.
+    pub fn update_workflow_trigger_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        workflow_id: &str,
+        trigger_type: &str,
+        status: &str,
+        next_run_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_workflow_triggers
+                 SET workflow_id = ?1, trigger_type = ?2, status = ?3,
+                     next_run_at = ?4, payload_json = ?5, updated_at = ?6
+                 WHERE id = ?7 AND updated_at = ?8",
+                params![
+                    workflow_id,
+                    trigger_type,
+                    status,
+                    next_run_at,
+                    payload_json,
+                    now,
+                    id,
+                    expected_updated_at
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected == 1)
+    }
+
+    /// Soft-delete one workflow trigger behind its revision fence.
+    pub fn soft_delete_workflow_trigger_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        workflow_id: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_workflow_triggers
+                 SET status = 'DISABLED', payload_json = ?1, updated_at = ?2
+                 WHERE id = ?3 AND workflow_id = ?4 AND updated_at = ?5",
+                params![payload_json, now, id, workflow_id, expected_updated_at],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(affected == 1)
     }
 
     pub fn delete_workflow_trigger(&self, id: &str) -> Result<bool, AdkStoreError> {
@@ -2794,8 +2915,70 @@ impl AdkTestCutoverStore {
         self.inner.upsert_workflow(id, status, payload_json)
     }
 
+    pub fn update_workflow_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .update_workflow_if_revision(id, expected_updated_at, status, payload_json)
+    }
+
+    pub fn soft_delete_workflow_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        deleted_at: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.soft_delete_workflow_if_revision(
+            id,
+            expected_updated_at,
+            payload_json,
+            deleted_at,
+        )
+    }
+
     pub fn delete_workflow(&self, id: &str) -> Result<bool, AdkStoreError> {
         self.inner.delete_workflow(id)
+    }
+
+    pub fn update_workflow_trigger_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        workflow_id: &str,
+        trigger_type: &str,
+        status: &str,
+        next_run_at: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.update_workflow_trigger_if_revision(
+            id,
+            expected_updated_at,
+            workflow_id,
+            trigger_type,
+            status,
+            next_run_at,
+            payload_json,
+        )
+    }
+
+    pub fn soft_delete_workflow_trigger_if_revision(
+        &self,
+        id: &str,
+        expected_updated_at: &str,
+        workflow_id: &str,
+        payload_json: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner.soft_delete_workflow_trigger_if_revision(
+            id,
+            expected_updated_at,
+            workflow_id,
+            payload_json,
+        )
     }
 
     pub fn record_audit_event(
@@ -2819,6 +3002,36 @@ impl AdkTestCutoverStore {
 
     pub fn list_workflows(&self) -> Result<Vec<StoredAdkWorkflow>, AdkStoreError> {
         self.inner.list_workflows()
+    }
+
+    pub fn get_workflow(&self, id: &str) -> Result<Option<StoredAdkWorkflow>, AdkStoreError> {
+        self.inner.get_workflow(id)
+    }
+
+    pub fn upsert_workflow_trigger(
+        &self,
+        id: &str,
+        workflow_id: &str,
+        trigger_type: &str,
+        status: &str,
+        next_run_at: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkWorkflowTrigger, AdkStoreError> {
+        self.inner.upsert_workflow_trigger(
+            id,
+            workflow_id,
+            trigger_type,
+            status,
+            next_run_at,
+            payload_json,
+        )
+    }
+
+    pub fn get_workflow_trigger(
+        &self,
+        id: &str,
+    ) -> Result<Option<StoredAdkWorkflowTrigger>, AdkStoreError> {
+        self.inner.get_workflow_trigger(id)
     }
 
     pub fn list_approvals(&self) -> Result<Vec<StoredAdkApproval>, AdkStoreError> {

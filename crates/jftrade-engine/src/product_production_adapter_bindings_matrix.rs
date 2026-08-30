@@ -139,7 +139,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::PluginGuidanceRead,
         Adapter::AdkTemplatesRead,
         Adapter::AdkRead,
-        Adapter::AdkMutation,
         Adapter::WebSocketLive,
         // The execution adapter is always installed. Its handlers perform
         // live Futu/OpenD readiness checks and fail closed when unavailable;
@@ -193,6 +192,12 @@ pub(crate) fn production_adapter_bindings(
         Adapter::AlertsRead,
         Adapter::AlertsWrite,
         Adapter::AdkChat,
+        // The ADK mutation adapter currently contains a mixed surface:
+        // durable entity/workflow CRUD is local, while continuation, skill
+        // install and workflow-run operations still require an external
+        // assistant runtime. Keep the umbrella binding fail-closed so an
+        // unimplemented operation can never be advertised as Ready.
+        Adapter::AdkMutation,
     ];
 
     if matrix.can_search() {
