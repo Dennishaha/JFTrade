@@ -8,6 +8,9 @@ use jftrade_store_sqlite::{
     ExecutionOrderReservation, ExecutionOrderStore, ExecutionOrderStoreError,
     StoredExecutionOrder, StoredExecutionOrderEvent, normalized_request_hash,
 };
+use jftrade_trading::{
+    OrderStatus, canonical_broker_status, canonical_stored_status, reconcile_status,
+};
 use serde_json::{Value, json};
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
@@ -60,6 +63,10 @@ impl std::fmt::Debug for ProductionExecutionPort {
 impl ExecutionReadSnapshotPort for ProductionExecutionPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, ExecutionReadSnapshotError> {
         if path == "/api/v1/execution/orders" {
+            // A read is also the restart recovery rendezvous.  Reconcile
+            // only durable candidates and keep the endpoint usable when
+            // OpenD is unavailable; no broker result is synthesized.
+            self.reconcile_pending_orders();
             let query = crate::product::product_query::QueryMap::parse(query).map_err(|_| {
                 ExecutionReadSnapshotError::Invalid("invalid execution orders query".to_owned())
             })?;
@@ -273,6 +280,159 @@ impl BrokersWritePort for ProductionExecutionPort {
 }
 
 impl ProductionExecutionPort {
+    fn reconcile_pending_orders(&self) {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
+            || !snapshot.opend_ready
+        {
+            return;
+        }
+        let Some(reader) = self.trade_read_port.clone() else {
+            return;
+        };
+        let candidates = match self.store.list_reconciliation_candidates() {
+            Ok(candidates) => candidates,
+            Err(_) => return,
+        };
+        for order in candidates {
+            let broker_id = order
+                .broker_order_id
+                .as_deref()
+                .and_then(|value| value.trim().parse::<u64>().ok())
+                .filter(|value| *value > 0);
+            let broker_order_id_ex = order
+                .broker_order_id_ex
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty());
+            if broker_id.is_none() && broker_order_id_ex.is_none() {
+                if matches!(
+                    order.status.to_ascii_uppercase().as_str(),
+                    "SUBMITTING" | "SUBMISSION_UNKNOWN"
+                ) {
+                    let mut unknown = order.clone();
+                    let error = failed(
+                        502,
+                        "EXECUTION_STATE_UNKNOWN",
+                        "broker order identity is unavailable for reconciliation",
+                    );
+                    let now = crate::product::product_production_ports::provider_now_rfc3339();
+                    let _ = self.persist_unknown(&mut unknown, &error, "reconcile_unknown", &now);
+                }
+                continue;
+            }
+            let Ok(header) = header_from_order(&order) else {
+                continue;
+            };
+            let Ok(expected_revision) = self.store.order_revision(&order.internal_order_id) else {
+                continue;
+            };
+            let snapshots = match reader.read_orders(header.clone(), None, Vec::new(), Some(true)) {
+                Ok(value) => value,
+                Err(_) => Vec::new(),
+            };
+            let matches_order = |candidate: &jftrade_integration_futu::TradeOrderSnapshot| {
+                broker_id.is_some_and(|id| candidate.order_id == id)
+                    || (broker_order_id_ex.is_some_and(|id| id == candidate.order_id_ex.trim()))
+            };
+            let mut matched = snapshots.into_iter().find(matches_order);
+            if matched.is_none() {
+                matched = reader
+                    .read_history_orders(header, None, Vec::new(), Some(true))
+                    .unwrap_or_default()
+                    .into_iter()
+                    .find(matches_order);
+            }
+            let Some(matched) = matched else {
+                continue;
+            };
+            let _ = self.apply_broker_snapshot(&order, &matched, expected_revision);
+        }
+    }
+
+    fn apply_broker_snapshot(
+        &self,
+        current: &StoredExecutionOrder,
+        snapshot: &jftrade_integration_futu::TradeOrderSnapshot,
+        expected_revision: u64,
+    ) -> Result<(), ExecutionWritePortError> {
+        let incoming = canonical_broker_status(order_status_label(snapshot.order_status));
+        if incoming == OrderStatus::Unknown {
+            return Ok(());
+        }
+        let stored_current = canonical_stored_status(&current.status);
+        let accepted = if current.status.eq_ignore_ascii_case("CANCEL_SUBMITTED") {
+            matches!(
+                incoming,
+                OrderStatus::Filled
+                    | OrderStatus::Cancelled
+                    | OrderStatus::Rejected
+                    | OrderStatus::Expired
+            )
+        } else {
+            reconcile_status(stored_current, incoming).1
+        };
+        if !accepted {
+            return Ok(());
+        }
+        let mut next = current.clone();
+        next.status = storage_status(incoming, current.status.as_str());
+        next.raw_broker_status = Some(snapshot.order_status.to_string());
+        next.broker_order_id = (snapshot.order_id > 0).then(|| snapshot.order_id.to_string());
+        if !snapshot.order_id_ex.trim().is_empty() {
+            next.broker_order_id_ex = Some(snapshot.order_id_ex.clone());
+        }
+        next.filled_quantity = snapshot.fill_qty;
+        next.filled_average_price = snapshot.fill_avg_price;
+        next.last_error = snapshot.last_err_msg.clone();
+        next.last_error_code = None;
+        next.last_error_source = snapshot.last_err_msg.as_ref().map(|_| "opend".to_owned());
+        if next.status == current.status
+            && next.raw_broker_status == current.raw_broker_status
+            && next.filled_quantity == current.filled_quantity
+            && next.filled_average_price == current.filled_average_price
+            && next.last_error == current.last_error
+        {
+            return Ok(());
+        }
+        let now = crate::product::product_production_ports::provider_now_rfc3339();
+        next.updated_at = now.clone();
+        let event_id = format!(
+            "{}-reconcile-{}",
+            current.internal_order_id,
+            self.store.next_sequence("order-event").map_err(store_error)?
+        );
+        let next_status = next.status.clone();
+        let payload_json = json!({
+            "brokerOrderId": snapshot.order_id,
+            "brokerOrderIdEx": snapshot.order_id_ex,
+            "brokerStatus": snapshot.order_status,
+            "filledQuantity": snapshot.fill_qty,
+            "filledAveragePrice": snapshot.fill_avg_price,
+        })
+        .to_string();
+        let event = StoredExecutionOrderEvent {
+            id: &event_id,
+            internal_order_id: &current.internal_order_id,
+            event_type: "reconciled",
+            previous_status: Some(current.status.as_str()),
+            next_status: &next_status,
+            payload_json: &payload_json,
+            created_at: &now,
+        };
+        self.store
+            .transition_order_and_event_fenced(
+                next,
+                &now,
+                &event,
+                current.status.as_str(),
+                current.updated_at.as_str(),
+                Some(expected_revision),
+            )
+            .map(|_| ())
+            .map_err(map_transition_store_error)
+    }
+
     fn writer(&self) -> Result<Arc<dyn TradeWritePort>, ExecutionWritePortError> {
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu) {
@@ -527,6 +687,21 @@ impl ProductionExecutionPort {
         let writer = self.writer()?;
         let previous_status = order.status.clone();
         let expected_updated_at = order.updated_at.clone();
+        let expected_revision = self
+            .store
+            .order_revision(internal_id)
+            .map_err(store_error)?;
+        let fence_now = crate::product::product_production_ports::provider_now_rfc3339();
+        order.status = "CANCEL_SUBMITTED".to_owned();
+        order.updated_at = fence_now.clone();
+        self.persist_transition_with_revision(
+            &order,
+            "cancel_submitted",
+            &previous_status,
+            &expected_updated_at,
+            &fence_now,
+            expected_revision,
+        )?;
         let modify_result = writer.modify_order(TradeModifyOrderRequest {
             header: header_from_order(&order)?,
             order_id: broker_order_id,
@@ -546,26 +721,12 @@ impl ProductionExecutionPort {
         if let Err(error) = modify_result {
             let mapped = map_trade_error(error);
             let now = crate::product::product_production_ports::provider_now_rfc3339();
-            self.persist_failure(
-                &mut order,
-                &mapped,
-                "cancel_failed",
-                &previous_status,
-                &expected_updated_at,
-                &now,
-            )?;
+            self.persist_unknown(&mut order, &mapped, "cancel_failed", &now)?;
             return Err(mapped);
         }
-        let now = crate::product::product_production_ports::provider_now_rfc3339();
-        order.status = "CANCEL_SUBMITTED".to_owned();
-        order.updated_at = now.clone();
-        self.persist_external_success(
-            &order,
-            "cancel_submitted",
-            &previous_status,
-            &expected_updated_at,
-            &now,
-        )?;
+        // The durable CANCEL_SUBMITTED fence was committed before the
+        // external call.  A successful acknowledgement needs no second
+        // state write; reconciliation will apply the broker terminal state.
         order_value(&order)
     }
 
@@ -668,6 +829,44 @@ impl ProductionExecutionPort {
         )
     }
 
+    fn persist_transition_with_revision(
+        &self,
+        order: &StoredExecutionOrder,
+        event_type: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        timestamp: &str,
+        expected_revision: u64,
+    ) -> Result<(), ExecutionWritePortError> {
+        let event_id = format!(
+            "{}-{event_type}-{}",
+            order.internal_order_id,
+            self.store
+                .next_sequence("order-event")
+                .map_err(store_error)?
+        );
+        let event = StoredExecutionOrderEvent {
+            id: &event_id,
+            internal_order_id: &order.internal_order_id,
+            event_type,
+            previous_status: Some(expected_status),
+            next_status: &order.status,
+            payload_json: &order.normalized_request,
+            created_at: timestamp,
+        };
+        self.store
+            .transition_order_and_event_fenced(
+                order.clone(),
+                timestamp,
+                &event,
+                expected_status,
+                expected_updated_at,
+                Some(expected_revision),
+            )
+            .map(|_| ())
+            .map_err(map_transition_store_error)
+    }
+
     /// Persist the local acknowledgement after an external broker command
     /// succeeded.  If the CAS/event transaction fails, the broker side effect
     /// is already irreversible; best-effortly fence the durable order as
@@ -766,35 +965,6 @@ impl ProductionExecutionPort {
         )
     }
 
-    fn persist_failure(
-        &self,
-        order: &mut StoredExecutionOrder,
-        error: &ExecutionWritePortError,
-        event_type: &str,
-        previous_status: &str,
-        expected_updated_at: &str,
-        timestamp: &str,
-    ) -> Result<(), ExecutionWritePortError> {
-        let (message, code) = execution_error_details(error);
-        order.last_error = Some(message);
-        order.last_error_code = code;
-        order.last_error_source = Some("opend".to_owned());
-        order.updated_at = timestamp.to_owned();
-        let payload_json = json!({
-            "error": order.last_error.clone(),
-            "code": order.last_error_code.clone(),
-            "source": order.last_error_source.clone(),
-        })
-        .to_string();
-        self.persist_transition_with_payload(
-            order,
-            event_type,
-            previous_status,
-            expected_updated_at,
-            timestamp,
-            &payload_json,
-        )
-    }
 }
 
 fn replay_or_conflict(
@@ -829,4 +999,39 @@ fn map_reservation_error(error: ExecutionOrderStoreError) -> ExecutionWritePortE
         }
         other => store_error(other),
     }
+}
+
+fn order_status_label(value: i32) -> &'static str {
+    match value {
+        -1 => "UNKNOWN",
+        0 => "UNSUBMITTED",
+        1 => "WAITING_SUBMIT",
+        2 => "SUBMITTING",
+        3 => "SUBMITFAILED",
+        4 => "TIMEOUT",
+        5 => "SUBMITTED",
+        10 => "FILLED_PART",
+        11 => "FILLED_ALL",
+        12 | 13 => "CANCEL_REQUESTED",
+        14 | 15 | 23 => "CANCELLED_ALL",
+        21 | 22 | 24 => "FAILED",
+        _ => "UNKNOWN",
+    }
+}
+
+fn storage_status(status: OrderStatus, current: &str) -> String {
+    match status {
+        OrderStatus::Created => "CREATED",
+        OrderStatus::Submitting | OrderStatus::SubmissionUnknown => "SUBMITTING",
+        OrderStatus::Submitted | OrderStatus::BrokerAccepted => "SUBMITTED",
+        OrderStatus::PartiallyFilled => "PARTIALLY_FILLED",
+        OrderStatus::Filled => "FILLED",
+        OrderStatus::CancelRequested => "CANCEL_SUBMITTED",
+        OrderStatus::Cancelled => "CANCELLED",
+        OrderStatus::Rejected => "FAILED",
+        OrderStatus::Expired => "EXPIRED",
+        OrderStatus::Unknown => current,
+        OrderStatus::PrecheckRejected => "FAILED",
+    }
+    .to_owned()
 }

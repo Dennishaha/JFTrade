@@ -8,6 +8,7 @@ use jftrade_store_sqlite::{
 use rusqlite::Connection;
 
 const TIMESTAMP_1: &str = "2026-08-22T06:00:00Z";
+const TIMESTAMP_2: &str = "2026-08-22T06:00:01Z";
 
 #[test]
 fn execution_orders_store_rejects_missing_drifted_and_corrupted_go_databases() {
@@ -124,6 +125,53 @@ fn execution_orders_lifecycle_events_and_restart_durability() {
         })
         .expect("record event");
     assert_eq!(store.event_count("PLACE").expect("place count"), 1);
+
+    let mut fenced = retrieved.clone();
+    fenced.status = "CANCEL_SUBMITTED".to_owned();
+    fenced.updated_at = TIMESTAMP_2.to_owned();
+    let transition = StoredExecutionOrderEvent {
+        id: "evt-2",
+        internal_order_id: "ord-1",
+        event_type: "cancel_submitted",
+        previous_status: Some("SUBMITTED"),
+        next_status: "CANCEL_SUBMITTED",
+        payload_json: "{}",
+        created_at: TIMESTAMP_2,
+    };
+    store
+        .transition_order_and_event_fenced(
+            fenced.clone(),
+            TIMESTAMP_2,
+            &transition,
+            "SUBMITTED",
+            TIMESTAMP_1,
+            Some(1),
+        )
+        .expect("revision-fenced transition");
+    assert_eq!(store.order_revision("ord-1").expect("revision"), 2);
+    let stale = store
+        .transition_order_and_event_fenced(
+            StoredExecutionOrder {
+                status: "UNKNOWN".to_owned(),
+                updated_at: TIMESTAMP_2.to_owned(),
+                ..fenced
+            },
+            TIMESTAMP_2,
+            &StoredExecutionOrderEvent {
+                id: "evt-stale",
+                internal_order_id: "ord-1",
+                event_type: "late",
+                previous_status: Some("CANCEL_SUBMITTED"),
+                next_status: "UNKNOWN",
+                payload_json: "{}",
+                created_at: TIMESTAMP_2,
+            },
+            "CANCEL_SUBMITTED",
+            TIMESTAMP_2,
+            Some(1),
+        )
+        .expect_err("stale revision must be rejected");
+    assert!(matches!(stale, ExecutionOrderStoreError::Conflict(_)));
 
     let seq1 = store.next_sequence("order").expect("next seq 1");
     let seq2 = store.next_sequence("order").expect("next seq 2");

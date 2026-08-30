@@ -328,6 +328,29 @@ impl ExecutionOrderStore {
         expected_status: &str,
         expected_updated_at: &str,
     ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        self.transition_order_and_event_fenced(
+            order,
+            timestamp,
+            event,
+            expected_status,
+            expected_updated_at,
+            None,
+        )
+    }
+
+    /// Applies a transition only when the durable event revision still
+    /// matches the caller's snapshot.  Event count is the schema-compatible
+    /// revision: reservations start at zero and every committed transition
+    /// appends exactly one event in the same immediate transaction.
+    pub fn transition_order_and_event_fenced(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+        expected_status: &str,
+        expected_updated_at: &str,
+        expected_revision: Option<u64>,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
         validate_rfc3339_timestamp(timestamp)?;
         validate_rfc3339_timestamp(event.created_at)?;
         if event.internal_order_id != order.internal_order_id {
@@ -369,6 +392,22 @@ impl ExecutionOrderStore {
                 current_updated_at,
             )));
         }
+        if let Some(expected_revision) = expected_revision {
+            let current_revision: i64 = transaction
+                .query_row(
+                    "SELECT COUNT(*) FROM execution_order_events
+                     WHERE internal_order_id = ?1",
+                    params![order.internal_order_id],
+                    |row| row.get(0),
+                )
+                .map_err(ExecutionOrderStoreError::Query)?;
+            if current_revision < 0 || current_revision as u64 != expected_revision {
+                return Err(ExecutionOrderStoreError::Conflict(format!(
+                    "order {} revision changed while applying {} (expected revision={}, got {})",
+                    order.internal_order_id, event.event_type, expected_revision, current_revision,
+                )));
+            }
+        }
         let created_at = if order.created_at.is_empty() {
             timestamp.to_owned()
         } else {
@@ -383,6 +422,58 @@ impl ExecutionOrderStore {
         saved.created_at = created_at;
         saved.updated_at = timestamp.to_owned();
         Ok(saved)
+    }
+
+    /// Returns the durable lifecycle revision for an order.  This is derived
+    /// from the event journal to keep the shared Go SQLite schema unchanged.
+    pub fn order_revision(&self, id: &str) -> Result<u64, ExecutionOrderStoreError> {
+        let connection = self.lock()?;
+        let revision: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM execution_order_events WHERE internal_order_id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .map_err(ExecutionOrderStoreError::Query)?;
+        u64::try_from(revision).map_err(|_| {
+            ExecutionOrderStoreError::Incompatible(format!(
+                "negative execution order revision for {id}"
+            ))
+        })
+    }
+
+    /// Lists non-terminal rows that may need broker reconciliation after a
+    /// timeout, crash, or process restart.  Rows without broker identifiers
+    /// are intentionally retained so callers can surface them as UNKNOWN
+    /// rather than retrying a potentially duplicated command.
+    pub fn list_reconciliation_candidates(
+        &self,
+    ) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT internal_order_id, broker_id, broker_order_id, broker_order_id_ex,
+                        source, source_detail, trading_environment, account_id, market,
+                        symbol, side, order_type, status, raw_broker_status,
+                        requested_quantity, requested_price, filled_quantity,
+                        filled_average_price, remark, last_error, last_error_code,
+                        last_error_source, submitted_at, updated_at, created_at,
+                        order_kind, product_class, quantity_mode, client_order_id,
+                        preview_id, normalized_request, requested_amount, payout, fees
+                 FROM execution_orders
+                 WHERE UPPER(status) IN (
+                    'SUBMITTING', 'SUBMISSION_UNKNOWN', 'UNKNOWN',
+                    'SUBMITTED', 'BROKER_ACCEPTED', 'PARTIALLY_FILLED',
+                    'CANCEL_REQUESTED', 'CANCEL_SUBMITTED'
+                 )
+                 ORDER BY updated_at ASC, created_at ASC, internal_order_id ASC",
+            )
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let rows = statement
+            .query_map([], read_order)
+            .map_err(ExecutionOrderStoreError::Query)?;
+        rows.map(|row| row.map_err(ExecutionOrderStoreError::Query))
+            .collect()
     }
     pub fn get_order(
         &self,
@@ -715,6 +806,46 @@ fn upsert_order(
         .map_err(ExecutionOrderStoreError::Query)?;
     Ok(())
 }
+
+fn read_order(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredExecutionOrder> {
+    Ok(StoredExecutionOrder {
+        internal_order_id: row.get(0)?,
+        broker_id: row.get(1)?,
+        broker_order_id: row.get(2)?,
+        broker_order_id_ex: row.get(3)?,
+        source: row.get(4)?,
+        source_detail: row.get(5)?,
+        trading_environment: row.get(6)?,
+        account_id: row.get(7)?,
+        market: row.get(8)?,
+        symbol: row.get(9)?,
+        side: row.get(10)?,
+        order_type: row.get(11)?,
+        status: row.get(12)?,
+        raw_broker_status: row.get(13)?,
+        requested_quantity: row.get(14)?,
+        requested_price: row.get(15)?,
+        filled_quantity: row.get(16)?,
+        filled_average_price: row.get(17)?,
+        remark: row.get(18)?,
+        last_error: row.get(19)?,
+        last_error_code: row.get(20)?,
+        last_error_source: row.get(21)?,
+        submitted_at: row.get(22)?,
+        updated_at: row.get(23)?,
+        created_at: row.get(24)?,
+        order_kind: row.get(25)?,
+        product_class: row.get(26)?,
+        quantity_mode: row.get(27)?,
+        client_order_id: row.get(28)?,
+        preview_id: row.get(29)?,
+        normalized_request: row.get(30)?,
+        requested_amount: row.get(31)?,
+        payout: row.get(32)?,
+        fees: row.get(33)?,
+    })
+}
+
 fn insert_event(
     transaction: &rusqlite::Transaction<'_>,
     event: &StoredExecutionOrderEvent<'_>,
@@ -834,6 +965,32 @@ impl ExecutionOrderTestCutoverStore {
             expected_status,
             expected_updated_at,
         )
+    }
+    pub fn transition_order_and_event_fenced(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+        expected_status: &str,
+        expected_updated_at: &str,
+        expected_revision: Option<u64>,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        self.inner.transition_order_and_event_fenced(
+            order,
+            timestamp,
+            event,
+            expected_status,
+            expected_updated_at,
+            expected_revision,
+        )
+    }
+    pub fn order_revision(&self, id: &str) -> Result<u64, ExecutionOrderStoreError> {
+        self.inner.order_revision(id)
+    }
+    pub fn list_reconciliation_candidates(
+        &self,
+    ) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
+        self.inner.list_reconciliation_candidates()
     }
     pub fn get_order(
         &self,
