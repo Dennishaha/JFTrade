@@ -1,8 +1,8 @@
-use std::fs;
 use std::path::Path;
 
 use jftrade_store_sqlite::{
-    AdkRunEvent, AdkStore, AdkStoreError, CreateAdkRunParams, StoredAdkRun, initialize_current,
+    AdkRunEvent, AdkSessionStore, AdkSessionStoreError, AdkStore, AdkStoreError,
+    CreateAdkRunParams, StoredAdkRun, initialize_current,
 };
 use rusqlite::Connection;
 use tempfile::tempdir;
@@ -43,13 +43,13 @@ fn payload_and_session_event_commit_or_rollback_together() {
         )
         .expect("claim lease");
 
-    // An empty attached database makes the event insert fail.  The run
-    // update must be rolled back rather than exposing a payload without its
-    // corresponding session event.
-    fs::write(&session_path, b"").expect("create invalid session db");
+    initialize_database(&session_path, "adk-session");
+    let session_store = AdkSessionStore::open(&session_path).expect("open session store");
+    // Invalid event identity makes the event append fail. The run update must
+    // be rolled back rather than exposing a payload without its session event.
     let event = AdkRunEvent {
         id: "run-atomic:stream:1",
-        session_id: "session-atomic",
+        session_id: "other-session",
         invocation_id: "run-atomic",
         author: "assistant.stream",
         content: "hello",
@@ -59,12 +59,12 @@ fn payload_and_session_event_commit_or_rollback_together() {
         "RUNNING",
         &run.updated_at,
         r#"{"streamEvents":[{"type":"timeline"}],"providerEvents":[]}"#,
-        &session_path,
+        &session_store,
         &[event],
         lease.owner_id.as_str(),
         lease.fencing_token,
     );
-    assert!(result.is_err(), "missing session schema must fail closed");
+    assert!(result.is_err(), "invalid session event must fail closed");
 
     let current = store
         .get_run("run-atomic")
@@ -83,15 +83,45 @@ fn missing_session_database_is_not_created_and_run_is_unchanged() {
 
     let store = AdkStore::open(&run_path).expect("open adk store");
     let run = create_running_run(&store, "run-missing-session", "session-missing");
+    let result = AdkSessionStore::open(&session_path);
+    assert!(
+        matches!(result, Err(AdkSessionStoreError::NotRegularFile(_))),
+        "missing session database must fail before a transaction: {result:?}"
+    );
+    assert!(
+        !session_path.exists(),
+        "ATTACH must not create the database"
+    );
+
+    let current = store
+        .get_run(&run.id)
+        .expect("read run")
+        .expect("run exists");
+    assert_eq!(current.payload_json, run.payload_json);
+    assert_eq!(current.updated_at, run.updated_at);
+}
+
+#[test]
+fn attached_wal_session_database_is_rejected_before_projection_changes() {
+    let directory = tempdir().expect("temp dir");
+    let run_path = directory.path().join("adk.db");
+    let session_path = directory.path().join("adk-session.db");
+    initialize_database(&run_path, "adk");
+    initialize_database(&session_path, "adk-session");
+    let session_connection = Connection::open(&session_path).expect("open session database");
+    session_connection
+        .pragma_update(None, "journal_mode", "WAL")
+        .expect("enable WAL");
+    drop(session_connection);
+
+    let session_store = AdkSessionStore::open(&session_path).expect("open session store");
+    let store = AdkStore::open(&run_path).expect("open adk store");
+    let run = create_running_run(&store, "run-wal", "session-wal");
     let lease = store
-        .claim_run_lease(
-            &run.id,
-            "owner-missing-session",
-            std::time::Duration::from_secs(30),
-        )
+        .claim_run_lease(&run.id, "owner-wal", std::time::Duration::from_secs(30))
         .expect("claim lease");
     let event = AdkRunEvent {
-        id: "run-missing-session:stream:1",
+        id: "run-wal:stream:1",
         session_id: &run.session_id,
         invocation_id: &run.id,
         author: "assistant.stream",
@@ -103,20 +133,15 @@ fn missing_session_database_is_not_created_and_run_is_unchanged() {
         &run.status,
         &run.updated_at,
         r#"{"streamEvents":[{"type":"timeline"}],"providerEvents":[]}"#,
-        &session_path,
+        &session_store,
         &[event],
         &lease.owner_id,
         lease.fencing_token,
     );
     assert!(
-        matches!(result, Err(AdkStoreError::NotRegularFile(_))),
-        "missing session database must fail before ATTACH: {result:?}"
+        matches!(result, Err(AdkStoreError::Incompatible(ref message)) if message.contains("WAL")),
+        "WAL session database must fail closed: {result:?}"
     );
-    assert!(
-        !session_path.exists(),
-        "ATTACH must not create the database"
-    );
-
     let current = store
         .get_run(&run.id)
         .expect("read run")
@@ -133,6 +158,7 @@ fn duplicate_event_key_with_different_content_rolls_back_projection() {
     initialize_database(&run_path, "adk");
     initialize_database(&session_path, "adk-session");
 
+    let session_store = AdkSessionStore::open(&session_path).expect("open session store");
     let store = AdkStore::open(&run_path).expect("open adk store");
     let initial_event = AdkRunEvent {
         id: "run-duplicate:user",
@@ -152,7 +178,7 @@ fn duplicate_event_key_with_different_content_rolls_back_projection() {
                 request_fingerprint: "fingerprint",
                 payload_json: r#"{"streamEvents":[],"providerEvents":[]}"#,
             },
-            &session_path,
+            &session_store,
             &initial_event,
         )
         .expect("create run with event");
@@ -173,7 +199,7 @@ fn duplicate_event_key_with_different_content_rolls_back_projection() {
         &run.status,
         &run.updated_at,
         r#"{"streamEvents":[{"type":"timeline"}],"providerEvents":[]}"#,
-        &session_path,
+        &session_store,
         &[conflicting_event],
         &lease.owner_id,
         lease.fencing_token,
@@ -208,6 +234,7 @@ fn event_must_match_the_run_and_session_before_projection_changes() {
     initialize_database(&run_path, "adk");
     initialize_database(&session_path, "adk-session");
 
+    let session_store = AdkSessionStore::open(&session_path).expect("open session store");
     let store = AdkStore::open(&run_path).expect("open adk store");
     let run = create_running_run(&store, "run-identity", "session-identity");
     let lease = store
@@ -240,7 +267,7 @@ fn event_must_match_the_run_and_session_before_projection_changes() {
             &run.status,
             &run.updated_at,
             r#"{"streamEvents":[{"type":"timeline"}],"providerEvents":[]}"#,
-            &session_path,
+            &session_store,
             &[event],
             &lease.owner_id,
             lease.fencing_token,

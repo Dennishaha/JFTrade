@@ -155,7 +155,7 @@ impl ProductionAdkChatRuntime {
                     request_fingerprint: &fingerprint,
                     payload_json: &initial_payload_json,
                 },
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &initial_event,
             )
             .map_err(|error| {
@@ -251,7 +251,7 @@ impl ProductionAdkChatRuntime {
                     &run.updated_at,
                     "DENIED",
                     &denied_payload.to_string(),
-                    self.session_store.path(),
+                    self.session_store.as_ref(),
                     &[event],
                     run_lease.owner_id(),
                     run_lease.token(),
@@ -578,7 +578,7 @@ impl ProductionAdkChatRuntime {
                 status,
                 &payload_json,
                 &approval_stages,
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &events,
                 &run_lease.owner_id(),
                 run_lease.token(),

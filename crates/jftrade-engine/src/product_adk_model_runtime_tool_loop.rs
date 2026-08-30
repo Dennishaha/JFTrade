@@ -356,7 +356,7 @@ impl ProductionAdkChatRuntime {
                 owner_id,
                 fencing_token,
                 run_lease_token,
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &event,
             )
             .map_err(storage_unavailable)?;

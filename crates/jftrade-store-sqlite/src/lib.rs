@@ -36,8 +36,8 @@ pub use adk_artifact::{
 };
 pub use adk_session::{
     ADK_SESSION_PRODUCTION_PROFILE, ADK_SESSION_TEST_CUTOVER_PROFILE, AdkSessionStore,
-    AdkSessionStoreError, AdkSessionTestCutoverStore, RecordAdkEventParams, StoredAdkEvent,
-    StoredAdkSessionState,
+    AdkSessionStoreError, AdkSessionTestCutoverStore, AdkSessionWriteLease, RecordAdkEventParams,
+    StoredAdkEvent, StoredAdkSessionState,
 };
 pub use backtest_market_data::{
     BACKTEST_MARKET_DATA_PRODUCTION_PROFILE, BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE,

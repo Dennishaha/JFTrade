@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
+
 use jftrade_store_sqlite::{
     ADK_SESSION_TEST_CUTOVER_PROFILE, AdkSessionStoreError, AdkSessionTestCutoverStore,
 };
@@ -92,6 +95,20 @@ fn adk_session_store_rejects_missing_drifted_and_corrupted_go_databases() {
         AdkSessionTestCutoverStore::open_existing(&drifted_path, ADK_SESSION_TEST_CUTOVER_PROFILE)
             .expect_err("drifted DB must fail closed");
     assert!(matches!(err, AdkSessionStoreError::Schema(_)));
+}
+
+#[cfg(unix)]
+#[test]
+fn adk_session_store_rejects_symlink_aliases() {
+    let directory = tempdir().expect("temp dir");
+    let target = directory.path().join("canonical.db");
+    let alias = directory.path().join("alias.db");
+    seed_valid_go_adk_session_database(&target);
+    symlink(&target, &alias).expect("create database symlink");
+
+    let err = AdkSessionTestCutoverStore::open_existing(&alias, ADK_SESSION_TEST_CUTOVER_PROFILE)
+        .expect_err("symlink aliases must fail closed");
+    assert!(matches!(err, AdkSessionStoreError::NotRegularFile(_)));
 }
 
 #[test]

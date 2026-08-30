@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
@@ -10,12 +11,11 @@ use serde_json::Value;
 use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+use crate::adk_session::{AdkSessionStore, AdkSessionWriteLease};
 use crate::schema_manifest::{SchemaManifestError, validate_current};
 
 const ADK_COMPONENT: &str = "adk";
 const ADK_SCHEMA_VERSION: i64 = 4;
-const ADK_SESSION_COMPONENT: &str = "adk-session";
-const ADK_SESSION_SCHEMA_VERSION: i64 = 4;
 pub const ADK_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const ADK_PRODUCTION_PROFILE: &str = "production.v1";
 
@@ -209,8 +209,10 @@ pub struct AdkApprovalStage<'a> {
 /// Session event committed together with a terminal ADK run projection.
 ///
 /// The session database is a separate SQLite file for compatibility with the
-/// existing ADK schema.  `AdkStore` attaches it for the duration of one
-/// transaction so a terminal run cannot become visible without its event.
+/// existing ADK schema. `AdkStore` attaches the write-lease capability for the
+/// duration of one transaction so a terminal run cannot become visible
+/// without its event. The capability holds the canonical session store's
+/// mutex; its parent also owns the cross-process writer lease.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdkRunEvent<'a> {
     pub id: &'a str,
@@ -230,6 +232,8 @@ pub enum AdkStoreError {
     NotRegularFile(String),
     #[error(transparent)]
     WriterLease(#[from] WriterLeaseError),
+    #[error("adk session store: {0}")]
+    SessionStore(#[from] crate::adk_session::AdkSessionStoreError),
     #[error("open adk database: {0}")]
     Open(#[source] rusqlite::Error),
     #[error("configure adk database: {0}")]
@@ -278,18 +282,11 @@ impl AdkStore {
         if profile != ADK_TEST_CUTOVER_PROFILE && profile != ADK_PRODUCTION_PROFILE {
             return Err(AdkStoreError::UnsupportedProfile(profile.to_owned()));
         }
-        if !path
-            .metadata()
-            .map(|metadata| metadata.is_file())
-            .unwrap_or(false)
-        {
-            return Err(AdkStoreError::NotRegularFile(path.display().to_string()));
-        }
-
-        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
+        let path = canonical_regular_file(path)?;
+        let writer_lease = WriterLease::acquire(&path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
-            path,
+            &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX
                 | OpenFlags::SQLITE_OPEN_URI,
@@ -858,7 +855,7 @@ impl AdkStore {
     pub fn create_run_with_event(
         &self,
         params: CreateAdkRunParams<'_>,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         event: &AdkRunEvent<'_>,
     ) -> Result<StoredAdkRun, AdkStoreError> {
         if params.id.trim().is_empty()
@@ -871,7 +868,7 @@ impl AdkStore {
             ));
         }
         let mut connection = self.lock_connection()?;
-        attach_adk_session_database(&connection, session_db_path)?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let now = Self::now_rfc3339();
         let result = (|| {
             let transaction = connection
@@ -907,14 +904,11 @@ impl AdkStore {
                 updated_at: now.clone(),
             })
         })();
-        let detach = connection
-            .execute("DETACH DATABASE adk_session_events", [])
-            .map_err(AdkStoreError::Query);
-        match (result, detach) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(_)) => Ok(value),
-        }
+        // The transaction result is authoritative. A successful commit must
+        // not be reported as failed merely because cleanup of the connection
+        // alias was rejected; the next operation retries the cleanup.
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
     }
 
     pub fn update_run_status(&self, id: &str, status: &str) -> Result<bool, AdkStoreError> {
@@ -1170,14 +1164,14 @@ impl AdkStore {
         expected_status: &str,
         expected_updated_at: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
     ) -> Result<bool, AdkStoreError> {
         validate_run_lease_identity(owner_id, run_lease_token)?;
         let mut connection = self.lock_connection()?;
-        attach_adk_session_database(&connection, session_db_path)?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1198,14 +1192,8 @@ impl AdkStore {
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(affected == 1)
         })();
-        let detach = connection
-            .execute("DETACH DATABASE adk_session_events", [])
-            .map_err(AdkStoreError::Query);
-        match (result, detach) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(_)) => Ok(value),
-        }
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
     }
 
     /// Atomically transition a run and append its session events.
@@ -1222,7 +1210,7 @@ impl AdkStore {
         expected_updated_at: &str,
         status: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
     ) -> Result<bool, AdkStoreError> {
         self.update_run_state_if_status_and_revision_with_events_inner(
@@ -1231,7 +1219,7 @@ impl AdkStore {
             expected_updated_at,
             status,
             payload_json,
-            session_db_path,
+            session_store,
             events,
             None,
         )
@@ -1248,7 +1236,7 @@ impl AdkStore {
         expected_updated_at: &str,
         status: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
@@ -1260,7 +1248,7 @@ impl AdkStore {
             expected_updated_at,
             status,
             payload_json,
-            session_db_path,
+            session_store,
             events,
             Some((owner_id, run_lease_token)),
         )
@@ -1274,12 +1262,12 @@ impl AdkStore {
         expected_updated_at: &str,
         status: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
-        attach_adk_session_database(&connection, session_db_path)?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1309,14 +1297,8 @@ impl AdkStore {
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(affected == 1)
         })();
-        let detach = connection
-            .execute("DETACH DATABASE adk_session_events", [])
-            .map_err(AdkStoreError::Query);
-        match (result, detach) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(_)) => Ok(value),
-        }
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
     }
 
     /// Read a previously persisted tool invocation by its run-scoped
@@ -1553,7 +1535,7 @@ impl AdkStore {
         owner_id: &str,
         fencing_token: i64,
         run_lease_token: i64,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         event: &AdkRunEvent<'_>,
     ) -> Result<AdkToolResultCommit, AdkStoreError> {
         let status = status.trim().to_ascii_uppercase();
@@ -1578,7 +1560,7 @@ impl AdkStore {
         })?;
 
         let mut connection = self.lock_connection()?;
-        attach_adk_session_database(&connection, session_db_path)?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1718,14 +1700,8 @@ impl AdkStore {
                 },
             })
         })();
-        let detach = connection
-            .execute("DETACH DATABASE adk_session_events", [])
-            .map_err(AdkStoreError::Query);
-        match (result, detach) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(_)) => Ok(value),
-        }
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
     }
 
     /// Atomically stage a model tool-call round: update the run projection,
@@ -1740,7 +1716,7 @@ impl AdkStore {
         status: &str,
         payload_json: &str,
         approvals: &[AdkApprovalStage<'_>],
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
     ) -> Result<bool, AdkStoreError> {
         self.stage_tool_calls_if_status_and_revision_with_events_inner(
@@ -1750,7 +1726,7 @@ impl AdkStore {
             status,
             payload_json,
             approvals,
-            session_db_path,
+            session_store,
             events,
             None,
         )
@@ -1768,7 +1744,7 @@ impl AdkStore {
         status: &str,
         payload_json: &str,
         approvals: &[AdkApprovalStage<'_>],
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
@@ -1785,7 +1761,7 @@ impl AdkStore {
             status,
             payload_json,
             approvals,
-            session_db_path,
+            session_store,
             events,
             Some((owner_id, run_lease_token)),
         )
@@ -1799,12 +1775,12 @@ impl AdkStore {
         status: &str,
         payload_json: &str,
         approvals: &[AdkApprovalStage<'_>],
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
-        attach_adk_session_database(&connection, session_db_path)?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1868,14 +1844,8 @@ impl AdkStore {
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(true)
         })();
-        let detach = connection
-            .execute("DETACH DATABASE adk_session_events", [])
-            .map_err(AdkStoreError::Query);
-        match (result, detach) {
-            (Err(error), _) => Err(error),
-            (Ok(_), Err(error)) => Err(error),
-            (Ok(value), Ok(_)) => Ok(value),
-        }
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
     }
 
     // --- Approvals ---
@@ -3063,51 +3033,47 @@ fn ensure_current_run_lease(
     Ok(())
 }
 
-fn attach_adk_session_database(
+fn attach_adk_session_database<'a>(
     connection: &Connection,
-    session_db_path: &Path,
-) -> Result<(), AdkStoreError> {
-    let uri = preflight_adk_session_database(session_db_path)?;
+    session_store: &'a AdkSessionStore,
+) -> Result<AdkSessionWriteLease<'a>, AdkStoreError> {
+    // A failed cleanup must not poison the connection with a stale alias.
+    // Ignore the expected "not attached" error; any other attach failure is
+    // returned below.
+    let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+    let write_lease = session_store.acquire_write_lease()?;
+    let uri = sqlite_read_write_uri(write_lease.path());
     connection
         .execute("ATTACH DATABASE ?1 AS adk_session_events", params![uri])
         .map_err(AdkStoreError::Query)?;
-    Ok(())
-}
-
-fn preflight_adk_session_database(session_db_path: &Path) -> Result<String, AdkStoreError> {
-    if !session_db_path
-        .metadata()
-        .map(|metadata| metadata.is_file())
-        .unwrap_or(false)
-    {
-        return Err(AdkStoreError::NotRegularFile(
-            session_db_path.display().to_string(),
+    let journal_mode =
+        match connection.pragma_query_value(Some("adk_session_events"), "journal_mode", |row| {
+            row.get::<_, String>(0)
+        }) {
+            Ok(mode) => mode,
+            Err(error) => {
+                let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+                return Err(AdkStoreError::Query(error));
+            }
+        };
+    if journal_mode.eq_ignore_ascii_case("wal") {
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        return Err(AdkStoreError::Incompatible(
+            "ADK session database uses WAL; cross-database event commits are not crash-atomic"
+                .to_owned(),
         ));
     }
-    let canonical = session_db_path
-        .canonicalize()
-        .map_err(|_| AdkStoreError::NotRegularFile(session_db_path.display().to_string()))?;
-    let session = Connection::open_with_flags(
-        &canonical,
-        OpenFlags::SQLITE_OPEN_READ_WRITE
-            | OpenFlags::SQLITE_OPEN_NO_MUTEX
-            | OpenFlags::SQLITE_OPEN_URI,
-    )
-    .map_err(AdkStoreError::Open)?;
-    session
-        .busy_timeout(Duration::from_millis(5_000))
-        .map_err(AdkStoreError::Configure)?;
-    session
-        .pragma_update(None, "foreign_keys", "ON")
-        .map_err(AdkStoreError::Configure)?;
-    validate_current(
-        &session,
-        &canonical.display().to_string(),
-        ADK_SESSION_COMPONENT,
-        ADK_SESSION_SCHEMA_VERSION,
-    )?;
-    drop(session);
-    Ok(sqlite_read_write_uri(&canonical))
+    Ok(write_lease)
+}
+
+fn canonical_regular_file(path: &Path) -> Result<PathBuf, AdkStoreError> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| AdkStoreError::NotRegularFile(path.display().to_string()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(AdkStoreError::NotRegularFile(path.display().to_string()));
+    }
+    path.canonicalize()
+        .map_err(|_| AdkStoreError::NotRegularFile(path.display().to_string()))
 }
 
 fn sqlite_read_write_uri(path: &Path) -> String {
@@ -3444,11 +3410,11 @@ impl AdkTestCutoverStore {
     pub fn create_run_with_event(
         &self,
         params: CreateAdkRunParams<'_>,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         event: &AdkRunEvent<'_>,
     ) -> Result<StoredAdkRun, AdkStoreError> {
         self.inner
-            .create_run_with_event(params, session_db_path, event)
+            .create_run_with_event(params, session_store, event)
     }
 
     pub fn claim_run_lease(
@@ -3536,7 +3502,7 @@ impl AdkTestCutoverStore {
         expected_status: &str,
         expected_updated_at: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
@@ -3547,7 +3513,7 @@ impl AdkTestCutoverStore {
                 expected_status,
                 expected_updated_at,
                 payload_json,
-                session_db_path,
+                session_store,
                 events,
                 owner_id,
                 run_lease_token,
@@ -3620,7 +3586,7 @@ impl AdkTestCutoverStore {
         expected_updated_at: &str,
         status: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
     ) -> Result<bool, AdkStoreError> {
         self.inner
@@ -3630,7 +3596,7 @@ impl AdkTestCutoverStore {
                 expected_updated_at,
                 status,
                 payload_json,
-                session_db_path,
+                session_store,
                 events,
             )
     }
@@ -3643,7 +3609,7 @@ impl AdkTestCutoverStore {
         expected_updated_at: &str,
         status: &str,
         payload_json: &str,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
@@ -3655,7 +3621,7 @@ impl AdkTestCutoverStore {
                 expected_updated_at,
                 status,
                 payload_json,
-                session_db_path,
+                session_store,
                 events,
                 owner_id,
                 run_lease_token,
@@ -3709,7 +3675,7 @@ impl AdkTestCutoverStore {
         owner_id: &str,
         fencing_token: i64,
         run_lease_token: i64,
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         event: &AdkRunEvent<'_>,
     ) -> Result<AdkToolResultCommit, AdkStoreError> {
         self.inner
@@ -3726,7 +3692,7 @@ impl AdkTestCutoverStore {
                 owner_id,
                 fencing_token,
                 run_lease_token,
-                session_db_path,
+                session_store,
                 event,
             )
     }
@@ -3739,7 +3705,7 @@ impl AdkTestCutoverStore {
         status: &str,
         payload_json: &str,
         approvals: &[AdkApprovalStage<'_>],
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
     ) -> Result<bool, AdkStoreError> {
         self.inner
@@ -3750,7 +3716,7 @@ impl AdkTestCutoverStore {
                 status,
                 payload_json,
                 approvals,
-                session_db_path,
+                session_store,
                 events,
             )
     }
@@ -3763,7 +3729,7 @@ impl AdkTestCutoverStore {
         status: &str,
         payload_json: &str,
         approvals: &[AdkApprovalStage<'_>],
-        session_db_path: &Path,
+        session_store: &AdkSessionStore,
         events: &[AdkRunEvent<'_>],
         owner_id: &str,
         run_lease_token: i64,
@@ -3776,7 +3742,7 @@ impl AdkTestCutoverStore {
                 status,
                 payload_json,
                 approvals,
-                session_db_path,
+                session_store,
                 events,
                 owner_id,
                 run_lease_token,

@@ -46,7 +46,7 @@ impl ProductionAdkChatRuntime {
                 expected_status,
                 &run.updated_at,
                 &payload.to_string(),
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &[adk_run_event(
                     &event_id,
                     &chat.session_id,
@@ -115,7 +115,7 @@ impl ProductionAdkChatRuntime {
                 "RUNNING",
                 &run.updated_at,
                 &payload.to_string(),
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &[adk_run_event(
                     &event_id,
                     &chat.session_id,
@@ -171,7 +171,7 @@ impl ProductionAdkChatRuntime {
                 "RUNNING",
                 &run.updated_at,
                 &payload.to_string(),
-                self.session_store.path(),
+                self.session_store.as_ref(),
                 &[adk_run_event(
                     &event_id,
                     &chat.session_id,

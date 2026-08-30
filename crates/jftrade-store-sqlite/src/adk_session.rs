@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
@@ -82,6 +83,22 @@ pub struct AdkSessionStore {
     _writer_lease: WriterLease,
 }
 
+/// Composition-level proof that a caller owns the canonical ADK session
+/// store.  The guard keeps the session store mutex held while another store
+/// performs a cross-database transaction against this database.  The writer
+/// lease itself is owned by the parent `AdkSessionStore` for the guard's
+/// lifetime, so callers cannot provide an arbitrary path to that transaction.
+pub struct AdkSessionWriteLease<'a> {
+    path: PathBuf,
+    _connection: MutexGuard<'a, Connection>,
+}
+
+impl AdkSessionWriteLease<'_> {
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
 impl std::fmt::Debug for AdkSessionStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -108,20 +125,11 @@ impl AdkSessionStore {
         {
             return Err(AdkSessionStoreError::UnsupportedProfile(profile.to_owned()));
         }
-        if !path
-            .metadata()
-            .map(|metadata| metadata.is_file())
-            .unwrap_or(false)
-        {
-            return Err(AdkSessionStoreError::NotRegularFile(
-                path.display().to_string(),
-            ));
-        }
-
-        let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
+        let path = canonical_regular_file(path)?;
+        let writer_lease = WriterLease::acquire(&path, &OwnerDiagnostic::current("rust", profile))?;
 
         let connection = Connection::open_with_flags(
-            path,
+            &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX
                 | OpenFlags::SQLITE_OPEN_URI,
@@ -153,6 +161,17 @@ impl AdkSessionStore {
         self.connection
             .lock()
             .map_err(|_| AdkSessionStoreError::LockUnavailable)
+    }
+
+    /// Acquire the process-local mutex together with the store's already-held
+    /// cross-process writer lease.  The resulting capability is required by
+    /// `AdkStore` for every transaction that appends events to this database.
+    pub fn acquire_write_lease(&self) -> Result<AdkSessionWriteLease<'_>, AdkSessionStoreError> {
+        let connection = self.lock_connection()?;
+        Ok(AdkSessionWriteLease {
+            path: self.path.clone(),
+            _connection: connection,
+        })
     }
 
     fn now_rfc3339() -> String {
@@ -343,6 +362,18 @@ impl AdkSessionStore {
     }
 }
 
+fn canonical_regular_file(path: &Path) -> Result<PathBuf, AdkSessionStoreError> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| AdkSessionStoreError::NotRegularFile(path.display().to_string()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(AdkSessionStoreError::NotRegularFile(
+            path.display().to_string(),
+        ));
+    }
+    path.canonicalize()
+        .map_err(|_| AdkSessionStoreError::NotRegularFile(path.display().to_string()))
+}
+
 fn stored_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkSessionState> {
     Ok(StoredAdkSessionState {
         app_name: row.get(0)?,
@@ -370,6 +401,10 @@ impl AdkSessionTestCutoverStore {
 
     pub fn path(&self) -> &Path {
         &self.inner.path
+    }
+
+    pub fn acquire_write_lease(&self) -> Result<AdkSessionWriteLease<'_>, AdkSessionStoreError> {
+        self.inner.acquire_write_lease()
     }
 
     pub fn upsert_session(

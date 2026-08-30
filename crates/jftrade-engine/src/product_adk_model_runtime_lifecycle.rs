@@ -139,7 +139,7 @@ impl ProductionAdkChatRuntime {
                     &run.updated_at,
                     "CANCELLED",
                     &payload.to_string(),
-                    self.session_store.path(),
+                    self.session_store.as_ref(),
                     &[AdkRunEvent {
                         id: event_id,
                         session_id: &chat.session_id,
