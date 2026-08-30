@@ -85,6 +85,20 @@ impl MarketDataCapabilityMatrix {
         }
     }
 
+    /// Subscription reads use the shared demand book for the Futu path. A
+    /// helper-backed provider has no demand book, but remains a valid
+    /// snapshot-polling fallback when its helper is ready.
+    pub(crate) fn can_read_subscriptions(&self) -> bool {
+        self.active_provider.is_some()
+            && (self.router_ready
+                || (self.helper_ready
+                && matches!(
+                    self.active_provider,
+                    Some(ActiveMarketDataProvider::Yfinance)
+                        | Some(ActiveMarketDataProvider::Akshare)
+                )))
+    }
+
     pub(crate) fn can_read_news_actions(&self) -> bool {
         matches!(
             self.active_provider,
@@ -145,7 +159,6 @@ pub(crate) fn production_adapter_bindings(
         // route registration must not hide those operations at startup.
         Adapter::ExecutionWrite,
         Adapter::MarketDataProviderRead,
-        Adapter::MarketDataSubscriptionRead,
         Adapter::MarketDataInstrumentsNormalizeWrite,
         Adapter::PluginsWrite,
     ];
@@ -245,6 +258,11 @@ pub(crate) fn production_adapter_bindings(
             Adapter::MarketDataSubscriptionClearWrite,
             Adapter::MarketDataSubscriptionHeartbeatWrite,
         ]);
+    }
+    if matrix.can_read_subscriptions() {
+        ready.push(Adapter::MarketDataSubscriptionRead);
+    } else {
+        unavailable.push(Adapter::MarketDataSubscriptionRead);
     }
     if matrix.can_read_news_actions() {
         ready.push(Adapter::MarketDataNewsActionsRead);

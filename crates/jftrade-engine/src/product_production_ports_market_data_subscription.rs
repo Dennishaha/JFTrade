@@ -56,11 +56,26 @@ impl ProductionMarketDataSubscriptionMutationPort {
         })
     }
 
-    fn uses_broker_polling(explicit_broker: Option<&str>) -> bool {
-        if let Some(b) = explicit_broker.map(str::trim).filter(|s| !s.is_empty()) {
-            return !b.eq_ignore_ascii_case("futu");
+    /// Return the broker id for the explicit polling fallback or for an
+    /// active helper provider when no router was composed.  The latter keeps
+    /// helper-backed subscription mutations usable without pretending that a
+    /// local demand book exists.
+    fn polling_provider_id(&self, explicit_broker: Option<&str>) -> Option<String> {
+        if let Some(broker) = explicit_broker.map(str::trim).filter(|s| !s.is_empty()) {
+            return (!broker.eq_ignore_ascii_case("futu")).then(|| broker.to_ascii_lowercase());
         }
-        false
+        if self.router.is_some() {
+            return None;
+        }
+        let snapshot = self.active_provider_state.snapshot();
+        if !snapshot.helper_ready {
+            return None;
+        }
+        match snapshot.provider {
+            Some(MarketDataProvider::Yfinance) => Some("yfinance".to_owned()),
+            Some(MarketDataProvider::Akshare) => Some("akshare".to_owned()),
+            Some(MarketDataProvider::Futu) | None => None,
+        }
     }
 }
 
@@ -215,16 +230,9 @@ impl ProductionMarketDataSubscriptionMutationPort {
             });
         }
 
-        let provider_broker_id = body
-            .provider_broker_id
-            .as_deref()
-            .map(str::trim)
-            .unwrap_or_default()
-            .to_ascii_lowercase();
+        let polling_provider_id = self.polling_provider_id(body.provider_broker_id.as_deref());
 
-        let uses_polling = Self::uses_broker_polling(body.provider_broker_id.as_deref());
-
-        if uses_polling {
+        if let Some(provider_broker_id) = polling_provider_id {
             let raw_insts = raw_instruments
                 .into_iter()
                 .map(|r| {
@@ -387,16 +395,9 @@ impl ProductionMarketDataSubscriptionMutationPort {
             });
         }
 
-        let provider_broker_id = body
-            .provider_broker_id
-            .as_deref()
-            .map(str::trim)
-            .unwrap_or_default()
-            .to_ascii_lowercase();
+        let polling_provider_id = self.polling_provider_id(body.provider_broker_id.as_deref());
 
-        let uses_polling = Self::uses_broker_polling(body.provider_broker_id.as_deref());
-
-        if uses_polling {
+        if let Some(provider_broker_id) = polling_provider_id {
             let raw_insts = body.instruments.map(|list| {
                 list.into_iter()
                     .map(|r| {
@@ -471,24 +472,26 @@ impl ProductionMarketDataSubscriptionMutationPort {
         })?;
         let consumer_id = query_map.get_first("consumerId").unwrap_or_default();
 
-        let provider_broker_id = query_map.get_first("providerBrokerId").unwrap_or_default();
-        let uses_polling = Self::uses_broker_polling(
-            (!provider_broker_id.is_empty()).then_some(provider_broker_id),
-        );
-        if uses_polling {
+        let explicit_provider_broker_id = query_map.get_first("providerBrokerId");
+        if let Some(provider_broker_id) = self.polling_provider_id(explicit_provider_broker_id) {
             return Ok(broker_polling_subscription_response(
                 consumer_id,
-                provider_broker_id,
+                &provider_broker_id,
                 Vec::new(),
                 "cleared",
             ));
         }
 
-        // Baseline semantics: without a physical router the shared demand
-        // book is the local empty state, so clearing it stays a 200 with an
-        // empty snapshot instead of failing closed on the missing provider.
+        // A clear without a router is only valid for the explicit helper
+        // polling fallback above.  Do not manufacture an empty demand
+        // snapshot for an unconfigured provider.
+        let Some(router) = &self.router else {
+            return Err(MarketDataSubscriptionMutationPortError::Unavailable(
+                "market-data subscription provider is not configured".to_owned(),
+            ));
+        };
         let now_ms = current_unix_millis();
-        let snapshot = if let Some(router) = &self.router {
+        let snapshot = {
             let mut router_guard = router.lock().unwrap_or_else(|e| e.into_inner());
             let target = if consumer_id.trim().is_empty() {
                 None
@@ -496,8 +499,6 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 Some(consumer_id.trim())
             };
             router_guard.clear_demand(target, now_ms)
-        } else {
-            jftrade_marketdata::DemandSnapshot::default()
         };
 
         let physical_snapshot = self
@@ -546,16 +547,9 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 retry_after_seconds: None,
             })?;
 
-        let provider_broker_id = body
-            .provider_broker_id
-            .as_deref()
-            .map(str::trim)
-            .unwrap_or_default()
-            .to_ascii_lowercase();
+        let polling_provider_id = self.polling_provider_id(body.provider_broker_id.as_deref());
 
-        let uses_polling = Self::uses_broker_polling(body.provider_broker_id.as_deref());
-
-        if uses_polling {
+        if let Some(provider_broker_id) = polling_provider_id {
             return Ok(broker_polling_subscription_response(
                 consumer_id,
                 &provider_broker_id,

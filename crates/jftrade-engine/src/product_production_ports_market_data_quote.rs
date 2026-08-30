@@ -119,6 +119,26 @@ impl MarketDataQuoteReadSnapshotPort for ProductionMarketDataQuotePort {
 
 impl ProductionMarketDataQuotePort {
     fn read_subscriptions(&self) -> Result<Value, MarketDataQuoteReadSnapshotError> {
+        let router = self.router.as_ref();
+        if router.is_none() {
+            let snapshot = self.active_provider_state.snapshot();
+            if !snapshot.helper_ready
+                || !matches!(
+                    snapshot.provider,
+                    Some(MarketDataProvider::Yfinance) | Some(MarketDataProvider::Akshare)
+                )
+            {
+                return Err(MarketDataQuoteReadSnapshotError::Unavailable(
+                    "market-data subscription provider is not configured".to_owned(),
+                ));
+            }
+            let mut response = render_subscriptions_data(
+                &jftrade_marketdata::DemandSnapshot::default(),
+                None,
+            );
+            response["transport"] = json!({"mode": "snapshot-poll-fallback"});
+            return Ok(response);
+        }
         let physical_snapshot = self
             .physical
             .as_ref()
@@ -134,8 +154,7 @@ impl ProductionMarketDataQuotePort {
             })
             .transpose()?
             .flatten();
-        let empty_demand = jftrade_marketdata::DemandSnapshot::default();
-        let demand = if let Some(router) = &self.router {
+        let demand = if let Some(router) = router {
             router
                 .lock()
                 .map_err(|error| MarketDataQuoteReadSnapshotError::Failed {
@@ -146,7 +165,7 @@ impl ProductionMarketDataQuotePort {
                 })?
                 .demand()
         } else {
-            empty_demand
+            unreachable!("router absence handled by polling fallback above");
         };
         Ok(render_subscriptions_data(
             &demand,
