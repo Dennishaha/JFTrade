@@ -12,11 +12,11 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 按依赖和共享文件冲突依次收口，完成前不再扩展新的 route group。
 
-- [ ] **ADK model context 与恢复闭环**：让下一次真实模型请求消费 durable context/handoff；修复仅有 handoff segment、缺少 context row 时的 CAS re-anchor；orphan recovery 失败必须 fail closed，workflow 终态 CAS loser 必须重读 durable winner。已完成的 invocation 预写入、终态 CAS 基础能力、DNS 固定地址下载和 ZIP 安装防护不再派工。
+- [ ] **ADK model context 与恢复闭环**：让下一次真实模型请求消费 durable context/handoff；修复仅有 handoff segment、缺少 context row 时的 CAS re-anchor；orphan recovery 失败必须 fail closed，workflow 终态 CAS loser 必须重读 durable winner。
 - [ ] **ADK Provider 唯一默认约束**：Create、Update、SetDefault、Delete 全部通过 store 级原子操作维护唯一 `default=true`；默认 Provider 删除与 secrets/替代项更新必须同一事务或具备可证明的失败回滚，并覆盖并发 mutation。
-- [ ] **Execution reconciliation 生命周期与端到端证据**：在 HTTP/WS 停止后、Provider/OpenD teardown 前停止 reconciliation worker；补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等验证。行情 active provider 与交易 reader 的代码解耦已完成，不再作为实现门禁。
-- [ ] **Rust MCP baseline 资格**：先用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call、method/header/status corpus，再按 baseline 收口 Host、Origin、Accept、Content-Type、`MCP-Protocol-Version` 和 startup/degraded projection；明确 reviewed tool catalog 是完整兼容还是经批准缩窄。现有 listener、Bearer、body limit、persisted apply、无 runtime fail-closed 和 teardown 不再派工。
-- [ ] **Production route 安装证明**：移除独立手工 `production_installed_adapters()` 事实源，从实际强类型 bundle/adapter 构造结果派生 registry；逐 route 证明 `ExternalUnavailable` 不得返回 2xx，并让 WS readiness 来自 LiveHub 实际状态而非固定 `enabled=true`。278 route count/digest、显式 dispatch、无 501/Go fallback 已完成，不再派工。
+- [ ] **Execution reconciliation 生命周期与端到端证据**：在 HTTP/WS 停止后、Provider/OpenD teardown 前停止 reconciliation worker；补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等验证。
+- [ ] **Rust MCP baseline 资格**：先用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call、method/header/status corpus，再按 baseline 收口 Host、Origin、Accept、Content-Type、`MCP-Protocol-Version` 和 startup/degraded projection；明确 reviewed tool catalog 是完整兼容还是经批准缩窄。
+- [ ] **Production route 安装证明**：移除独立手工 `production_installed_adapters()` 事实源，从实际强类型 bundle/adapter 构造结果派生 registry；逐 route 证明 `ExternalUnavailable` 不得返回 2xx，并让 WS readiness 来自 LiveHub 实际状态而非固定 `enabled=true`。
 
 ## Release 与终局放行项
 
