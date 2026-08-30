@@ -38,6 +38,7 @@ where
             input.push(json!({"role":"system","content":instruction}));
         }
         input.push(json!({"role":"user","content":request.message}));
+        input.extend(request.tool_context.clone());
         let mut body = json!({"model":request.model,"input":input,"stream":true});
         if !request.tools.is_empty() {
             body["tools"] = Value::Array(request.tools.clone());

@@ -1,0 +1,413 @@
+impl ProductionAdkChatRuntime {
+    /// Execute calls released by approval, persist every outcome, and feed
+    /// durable function_call/function_call_output pairs back to Responses.
+    /// A bounded loop prevents a provider from spinning forever.
+    fn run_approval_continuation(
+        &self,
+        mut chat: ChatExecution,
+        cancellation: Arc<AtomicBool>,
+    ) {
+        const MAX_TOOL_ROUNDS: usize = 8;
+        for _round in 0..MAX_TOOL_ROUNDS {
+            if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
+                let error = cancellation_error();
+                let _ = self.persist_cancelled(&chat, &error);
+                return;
+            }
+            let run = match self.store.get_run(&chat.run_id) {
+                Ok(Some(run)) => run,
+                Ok(None) => return,
+                Err(error) => {
+                    let _ = self.persist_failure(&chat, &storage_unavailable(error));
+                    return;
+                }
+            };
+            if !run.status.eq_ignore_ascii_case("RUNNING") {
+                return;
+            }
+            let payload: Value = match serde_json::from_str(&run.payload_json) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    let failure = storage_unavailable(error);
+                    let _ = self.persist_failure(&chat, &failure);
+                    return;
+                }
+            };
+            let calls = executable_tool_calls(&payload);
+            for call in calls {
+                if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
+                    let error = cancellation_error();
+                    let _ = self.persist_cancelled(&chat, &error);
+                    return;
+                }
+                let call_id = call
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty())
+                    .unwrap_or_default()
+                    .to_owned();
+                let name = call
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_default()
+                    .to_owned();
+                let arguments = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
+                if call_id.is_empty() || name.is_empty() {
+                    let error = tool_unavailable("malformed assistant tool call");
+                    let _ = self.persist_failure(&chat, &error);
+                    return;
+                }
+                let idempotency_key = call_id.clone();
+                let input_json = match serde_json::to_string(&arguments) {
+                    Ok(input_json) => input_json,
+                    Err(error) => {
+                        let failure = storage_unavailable(error);
+                        let _ = self.persist_failure(&chat, &failure);
+                        return;
+                    }
+                };
+                // Claim before invoking the side effect. A terminal row is
+                // replayed after restart; a live row belongs to another
+                // continuation and must not be executed concurrently.
+                let claim_run = match self.store.get_run(&chat.run_id) {
+                    Ok(Some(run)) => run,
+                    Ok(None) => return,
+                    Err(error) => {
+                        let failure = storage_unavailable(error);
+                        let _ = self.persist_failure(&chat, &failure);
+                        return;
+                    }
+                };
+                let claim = self.store.claim_tool_invocation_if_status_and_revision(
+                    &chat.run_id,
+                    &idempotency_key,
+                    &name,
+                    &input_json,
+                    "RUNNING",
+                    &claim_run.updated_at,
+                    "rust-adk-runtime",
+                    // The production model timeout is capped at ten minutes;
+                    // keep the claim alive longer than that bound.
+                    Duration::from_secs(15 * 60),
+                );
+                let (outcome, claim_owner, claim_fencing_token) = match claim {
+                    Ok(AdkToolInvocationClaim::Replay(invocation)) => (
+                        serde_json::from_str::<Value>(&invocation.output_json)
+                            .map(|value| {
+                                if invocation.status.eq_ignore_ascii_case("SUCCEEDED") {
+                                    Ok(value)
+                                } else {
+                                    Err(tool_unavailable(format!(
+                                        "tool {} has a persisted failed outcome",
+                                        invocation.tool_name
+                                    )))
+                                }
+                            })
+                            .unwrap_or_else(|error| Err(storage_unavailable(error))),
+                        invocation.owner_id,
+                        invocation.fencing_token,
+                    ),
+                    Ok(AdkToolInvocationClaim::Execute(invocation)) => (
+                        self.tool_executor
+                            .execute(&name, &arguments)
+                            .map_err(|message| tool_unavailable(message)),
+                        invocation.owner_id,
+                        invocation.fencing_token,
+                    ),
+                    Err(error) => (
+                        Err(storage_unavailable(error)),
+                        "rust-adk-runtime".to_owned(),
+                        0,
+                    ),
+                };
+                match outcome {
+                    Ok(output) => {
+                        if let Err(error) = self.persist_tool_result(
+                            &chat,
+                            &call,
+                            &idempotency_key,
+                            output,
+                            "SUCCEEDED",
+                            &claim_owner,
+                            claim_fencing_token,
+                        ) {
+                            let _ = self.persist_failure(&chat, &error);
+                            return;
+                        }
+                    }
+                    Err(error) => {
+                        // Persist an explicit unavailable result before
+                        // transitioning the run; never fake a successful tool.
+                        let result = json!({
+                            "ok": false,
+                            "error": {
+                                "code": "ADK_TOOL_UNAVAILABLE",
+                                "message": format_adk_error(&error),
+                                "status": 503,
+                            }
+                        });
+                        let _ = self.persist_tool_result(
+                            &chat,
+                            &call,
+                            &idempotency_key,
+                            result,
+                            "FAILED",
+                            &claim_owner,
+                            claim_fencing_token,
+                        );
+                        let _ = self.persist_failure(&chat, &error);
+                        return;
+                    }
+                }
+            }
+
+            let latest = match self.store.get_run(&chat.run_id) {
+                Ok(Some(run)) => run,
+                Ok(None) => return,
+                Err(error) => {
+                    let failure = storage_unavailable(error);
+                    let _ = self.persist_failure(&chat, &failure);
+                    return;
+                }
+            };
+            if !latest.status.eq_ignore_ascii_case("RUNNING") {
+                return;
+            }
+            let latest_payload: Value = match serde_json::from_str(&latest.payload_json) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    let failure = storage_unavailable(error);
+                    let _ = self.persist_failure(&chat, &failure);
+                    return;
+                }
+            };
+            let empty = serde_json::Map::new();
+            chat.request.tool_context = tool_context_from_payload(
+                latest_payload.as_object().unwrap_or(&empty),
+            );
+            let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+            if cancellation.load(Ordering::Acquire) {
+                let error = cancellation_error();
+                let _ = self.persist_cancelled(&chat, &error);
+                return;
+            }
+            match result {
+                Ok(response) if !response.tool_calls.is_empty() => {
+                    if let Err(error) = self.persist_tool_calls(&chat, &response) {
+                        let _ = self.persist_failure(&chat, &error);
+                    }
+                    return;
+                }
+                Ok(response) => {
+                    if let Err(error) = self.persist_success(&chat, response) {
+                        let _ = self.persist_failure(&chat, &error);
+                    }
+                    return;
+                }
+                Err(error) => {
+                    let _ = self.persist_failure(&chat, &error);
+                    return;
+                }
+            }
+        }
+        let error = AdkChatPortError::Failed {
+            status: 503,
+            code: "ADK_TOOL_LOOP_LIMIT".to_owned(),
+            message: "assistant tool loop exceeded the production limit".to_owned(),
+        };
+        let _ = self.persist_failure(&chat, &error);
+    }
+
+    fn persist_tool_result(
+        &self,
+        chat: &ChatExecution,
+        call: &Value,
+        idempotency_key: &str,
+        output: Value,
+        status: &str,
+        owner_id: &str,
+        fencing_token: i64,
+    ) -> Result<(), AdkChatPortError> {
+        let run = self
+            .store
+            .get_run(&chat.run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        if !run.status.eq_ignore_ascii_case("RUNNING") {
+            return Err(self.run_state_changed(&chat.run_id));
+        }
+        let mut payload: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let object = payload
+            .as_object_mut()
+            .ok_or_else(|| unavailable("persisted ADK run payload must be an object"))?;
+        let call_id = call.get("id").and_then(Value::as_str).unwrap_or(idempotency_key);
+        let tool_name = call.get("name").and_then(Value::as_str).unwrap_or("unknown");
+        let input = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
+        let output_json = serde_json::to_string(&output)
+            .map_err(|error| unavailable(format!("encode tool result: {error}")))?;
+        let input_json = serde_json::to_string(&input)
+            .map_err(|error| unavailable(format!("encode tool arguments: {error}")))?;
+        let results = object
+            .entry("toolResults")
+            .or_insert_with(|| Value::Array(Vec::new()))
+            .as_array_mut()
+            .ok_or_else(|| unavailable("persisted ADK tool result list is invalid"))?;
+        if !results.iter().any(|result| {
+            result
+                .get("callId")
+                .and_then(Value::as_str)
+                .is_some_and(|id| id == call_id)
+        }) {
+            results.push(json!({
+                "callId": call_id,
+                "name": tool_name,
+                "arguments": input,
+                "status": status,
+                "output": output,
+            }));
+        }
+        if let Some(Value::Array(tool_calls)) = object.get_mut("toolCalls") {
+            for item in tool_calls {
+                if item.get("id").and_then(Value::as_str) != Some(call_id) {
+                    continue;
+                }
+                if let Some(item) = item.as_object_mut() {
+                    item.insert("status".to_owned(), Value::String(status.to_owned()));
+                    item.insert("requiresUser".to_owned(), Value::Bool(false));
+                    item.insert("output".to_owned(), output.clone());
+                    item.insert("completedAt".to_owned(), Value::String(run.updated_at.clone()));
+                    if status != "SUCCEEDED" {
+                        item.insert("errorCode".to_owned(), Value::String("ADK_TOOL_UNAVAILABLE".to_owned()));
+                    }
+                }
+            }
+        }
+        object.insert("resumeState".to_owned(), Value::String("tool_result_persisted".to_owned()));
+        let event_id = format!("{}:tool:{}", chat.run_id, idempotency_key);
+        let event_content = serde_json::to_string(&json!({
+            "callId": call_id,
+            "name": tool_name,
+            "status": status,
+            "output": output,
+        }))
+        .map_err(|error| unavailable(format!("encode tool event: {error}")))?;
+        let event = AdkRunEvent {
+            id: &event_id,
+            session_id: &chat.session_id,
+            invocation_id: &chat.run_id,
+            author: "assistant.tool",
+            content: &event_content,
+        };
+        let commit = self
+            .store
+            .commit_tool_result_if_status_and_revision_with_event(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                &payload.to_string(),
+                idempotency_key,
+                tool_name,
+                &input_json,
+                &output_json,
+                status,
+                owner_id,
+                fencing_token,
+                self.session_store.path(),
+                &event,
+            )
+            .map_err(storage_unavailable)?;
+        if commit.changed {
+            return Ok(());
+        }
+        // A concurrent continuation already committed this result. Treat it
+        // as idempotent success; the next loop reads the durable projection.
+        Ok(())
+    }
+}
+
+/// Select calls released by approval that do not yet have a durable result.
+fn executable_tool_calls(payload: &Value) -> Vec<Value> {
+    let Some(calls) = payload.get("toolCalls").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    let results = payload
+        .get("toolResults")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    calls
+        .iter()
+        .filter(|call| {
+            let running = call
+                .get("status")
+                .and_then(Value::as_str)
+                .is_some_and(|status| status.eq_ignore_ascii_case("RUNNING"));
+            let id = call.get("id").and_then(Value::as_str).unwrap_or_default();
+            running
+                && !results.iter().any(|result| {
+                    result
+                        .get("callId")
+                        .and_then(Value::as_str)
+                        .is_some_and(|result_id| result_id == id)
+                })
+        })
+        .cloned()
+        .collect()
+}
+
+/// Reconstruct Responses API function-call context from the durable run.
+fn tool_context_from_payload(object: &serde_json::Map<String, Value>) -> Vec<Value> {
+    let calls = object
+        .get("toolCalls")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let results = object
+        .get("toolResults")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut context = Vec::new();
+    for call in calls {
+        let Some(call_id) = call.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(name) = call.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let arguments = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
+        let arguments = serde_json::to_string(&arguments).unwrap_or_else(|_| "{}".to_owned());
+        context.push(json!({
+            "type": "function_call",
+            "call_id": call_id,
+            "name": name,
+            "arguments": arguments,
+        }));
+        if let Some(result) = results.iter().find(|result| {
+            result
+                .get("callId")
+                .and_then(Value::as_str)
+                .is_some_and(|result_id| result_id == call_id)
+        }) {
+            let output = result.get("output").cloned().unwrap_or(Value::Null);
+            let output = serde_json::to_string(&output).unwrap_or_else(|_| "null".to_owned());
+            context.push(json!({
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": output,
+            }));
+        }
+    }
+    context
+}
+
+fn tool_unavailable(message: impl Into<String>) -> AdkChatPortError {
+    AdkChatPortError::Failed {
+        status: 503,
+        code: "ADK_TOOL_UNAVAILABLE".to_owned(),
+        message: message.into(),
+    }
+}

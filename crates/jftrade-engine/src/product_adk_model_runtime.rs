@@ -13,7 +13,8 @@ use sha2::{Digest, Sha256};
 
 use jftrade_api::ApiStream;
 use jftrade_store_sqlite::{
-    AdkRunEvent, AdkSessionStore, AdkStore, CreateAdkRunParams, RecordAdkEventParams,
+    AdkApprovalStage, AdkRunEvent, AdkSessionStore, AdkStore, AdkToolInvocationClaim,
+    CreateAdkRunParams, RecordAdkEventParams,
 };
 
 use crate::product::product_adk_chat_stream_port::{
@@ -40,6 +41,7 @@ pub(crate) struct ProductionAdkChatRuntime {
     secrets_path: PathBuf,
     cancellation_registry: Arc<RunCancellationRegistry>,
     tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
+    tool_executor: Arc<dyn AdkToolExecutor>,
 }
 
 /// Process-local cancellation fan-out for active provider calls.
@@ -103,4 +105,9 @@ fn text_field(object: &serde_json::Map<String, Value>, field: &str) -> Option<St
 }
 
 include!("product_adk_model_runtime_events.rs");
+include!("product_adk_model_runtime_tool_loop.rs");
 include!("product_adk_model_runtime_adapters.rs");
+
+#[path = "product_adk_tool_executor.rs"]
+mod tool_executor;
+use tool_executor::{AdkToolExecutor, ProductionAdkToolExecutor};

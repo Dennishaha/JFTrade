@@ -410,7 +410,7 @@ impl ProductionAdkChatRuntime {
             .is_some_and(|run| run.status.eq_ignore_ascii_case("CANCELLED"))
     }
 
-    fn run_state_changed(&self, run_id: &str) -> AdkChatPortError {
+    pub(super) fn run_state_changed(&self, run_id: &str) -> AdkChatPortError {
         if self.run_is_cancelled(run_id) {
             AdkChatPortError::Failed {
                 status: 499,

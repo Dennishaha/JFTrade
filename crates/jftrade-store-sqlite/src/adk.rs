@@ -52,6 +52,42 @@ pub struct StoredAdkApproval {
     pub updated_at: String,
 }
 
+/// Durable result of one model tool invocation.  The invocation key is the
+/// model supplied call id (or the deterministic run/round/index fallback),
+/// making retries after a crash idempotent while keeping the public ADK JSON
+/// projection unchanged.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredAdkToolInvocation {
+    pub run_id: String,
+    pub idempotency_key: String,
+    pub tool_name: String,
+    pub status: String,
+    pub owner_id: String,
+    pub fencing_token: i64,
+    pub run_lease_token: i64,
+    pub lease_expires_at_unix_ms: i64,
+    pub input_json: String,
+    pub output_json: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Result of atomically appending a tool result to a run projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkToolResultCommit {
+    pub changed: bool,
+    pub invocation: StoredAdkToolInvocation,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AdkToolInvocationClaim {
+    /// The caller owns execution of this invocation under the durable lease.
+    Execute(StoredAdkToolInvocation),
+    /// A terminal outcome already exists and must be replayed.
+    Replay(StoredAdkToolInvocation),
+}
+
 /// Atomic result of resolving an approval and staging its pending run.
 ///
 /// The approval row, sibling approval rows and the embedded run projection
@@ -143,6 +179,14 @@ pub struct CreateAdkRunParams<'a> {
     pub status: &'a str,
     pub client_request_id: &'a str,
     pub request_fingerprint: &'a str,
+    pub payload_json: &'a str,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkApprovalStage<'a> {
+    pub id: &'a str,
+    pub run_id: &'a str,
+    pub agent_id: &'a str,
     pub payload_json: &'a str,
 }
 
@@ -814,6 +858,484 @@ impl AdkStore {
             }
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(affected == 1)
+        })();
+        let detach = connection
+            .execute("DETACH DATABASE adk_session_events", [])
+            .map_err(AdkStoreError::Query);
+        match (result, detach) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(_)) => Ok(value),
+        }
+    }
+
+    /// Read a previously persisted tool invocation by its run-scoped
+    /// idempotency key.  A terminal row is replayable and must never cause
+    /// the executor to run the side effect a second time after a retry.
+    pub fn get_tool_invocation(
+        &self,
+        run_id: &str,
+        idempotency_key: &str,
+    ) -> Result<Option<StoredAdkToolInvocation>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "SELECT run_id, idempotency_key, tool_name, status, owner_id,
+                        fencing_token, run_lease_token, input_json, output_json,
+                        lease_expires_at_unix_ms, created_at, updated_at
+                 FROM adk_tool_invocations
+                 WHERE run_id = ?1 AND idempotency_key = ?2",
+                params![run_id, idempotency_key],
+                stored_tool_invocation,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
+    /// Claim a tool invocation before invoking any side effect.  The unique
+    /// `(run_id, idempotency_key)` row is the durable fence: a second worker
+    /// either replays a terminal result or receives a conflict while the
+    /// first worker's lease is alive.  Expired RUNNING rows are fenced over
+    /// with a monotonically increased token for crash recovery.
+    pub fn claim_tool_invocation_if_status_and_revision(
+        &self,
+        run_id: &str,
+        idempotency_key: &str,
+        tool_name: &str,
+        input_json: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        owner_id: &str,
+        lease_ttl: Duration,
+    ) -> Result<AdkToolInvocationClaim, AdkStoreError> {
+        if lease_ttl.is_zero() || run_id.trim().is_empty() || idempotency_key.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "tool invocation claim identity and TTL are required".to_owned(),
+            ));
+        }
+        serde_json::from_str::<Value>(input_json).map_err(|error| {
+            AdkStoreError::Validation(format!("invalid tool input JSON: {error}"))
+        })?;
+        let now = OffsetDateTime::now_utc();
+        let now_ms = now.unix_timestamp_nanos() / 1_000_000;
+        let expires_ms = now_ms.saturating_add(lease_ttl.as_millis() as i128);
+        let now_text = now
+            .format(&Rfc3339)
+            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+        let mut connection = self.lock_connection()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(AdkStoreError::Query)?;
+        let run_revision = transaction
+            .query_row(
+                "SELECT status, updated_at FROM adk_runs WHERE id = ?1",
+                params![run_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        let Some((run_status, run_updated_at)) = run_revision else {
+            return Err(AdkStoreError::NotFound(run_id.to_owned()));
+        };
+        if !run_status.eq_ignore_ascii_case(expected_status)
+            || run_updated_at != expected_updated_at
+        {
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Err(AdkStoreError::Conflict(format!(
+                "run {run_id} changed before tool invocation claim"
+            )));
+        }
+        let existing = transaction
+            .query_row(
+                "SELECT run_id, idempotency_key, tool_name, status, owner_id,
+                        fencing_token, run_lease_token, input_json, output_json,
+                        lease_expires_at_unix_ms, created_at, updated_at
+                 FROM adk_tool_invocations
+                 WHERE run_id = ?1 AND idempotency_key = ?2",
+                params![run_id, idempotency_key],
+                stored_tool_invocation,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        if let Some(existing) = existing {
+            if existing.tool_name != tool_name || existing.input_json != input_json {
+                return Err(AdkStoreError::Conflict(format!(
+                    "tool invocation key {idempotency_key} was reused with different input"
+                )));
+            }
+            if matches!(
+                existing.status.to_ascii_uppercase().as_str(),
+                "SUCCEEDED" | "FAILED" | "UNKNOWN"
+            ) {
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok(AdkToolInvocationClaim::Replay(existing));
+            }
+            let lease_expires: i64 = transaction
+                .query_row(
+                    "SELECT lease_expires_at_unix_ms FROM adk_tool_invocations
+                     WHERE run_id = ?1 AND idempotency_key = ?2",
+                    params![run_id, idempotency_key],
+                    |row| row.get(0),
+                )
+                .map_err(AdkStoreError::Query)?;
+            if lease_expires > now_ms as i64 {
+                return Err(AdkStoreError::Conflict(format!(
+                    "tool invocation {idempotency_key} is already in flight"
+                )));
+            }
+            let fencing_token: i64 = transaction
+                .query_row(
+                    "SELECT fencing_token FROM adk_tool_invocations
+                     WHERE run_id = ?1 AND idempotency_key = ?2",
+                    params![run_id, idempotency_key],
+                    |row| row.get(0),
+                )
+                .map_err(AdkStoreError::Query)?;
+            let invocation_affected = transaction
+                .execute(
+                    "UPDATE adk_tool_invocations
+                     SET status = 'RUNNING', owner_id = ?1, fencing_token = ?2,
+                         lease_expires_at_unix_ms = ?3, updated_at = ?4
+                     WHERE run_id = ?5 AND idempotency_key = ?6
+                       AND status = 'RUNNING' AND lease_expires_at_unix_ms <= ?7",
+                    params![
+                        owner_id,
+                        fencing_token.saturating_add(1),
+                        expires_ms as i64,
+                        now_text,
+                        run_id,
+                        idempotency_key,
+                        now_ms as i64,
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if invocation_affected != 1 {
+                return Err(AdkStoreError::Conflict(format!(
+                    "tool invocation {idempotency_key} lease is no longer current"
+                )));
+            }
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            return Ok(AdkToolInvocationClaim::Execute(StoredAdkToolInvocation {
+                owner_id: owner_id.to_owned(),
+                fencing_token: fencing_token.saturating_add(1),
+                run_lease_token: existing.run_lease_token,
+                lease_expires_at_unix_ms: expires_ms as i64,
+                updated_at: now_text,
+                ..existing
+            }));
+        }
+        transaction
+            .execute(
+                "INSERT INTO adk_tool_invocations
+                 (run_id, idempotency_key, tool_name, status, owner_id,
+                  fencing_token, run_lease_token, input_json, output_json,
+                  lease_expires_at_unix_ms, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, 'RUNNING', ?4, 1, 1, ?5, 'null', ?6, ?7, ?7)",
+                params![
+                    run_id,
+                    idempotency_key,
+                    tool_name,
+                    owner_id,
+                    input_json,
+                    expires_ms as i64,
+                    now_text
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        transaction.commit().map_err(AdkStoreError::Query)?;
+        Ok(AdkToolInvocationClaim::Execute(StoredAdkToolInvocation {
+            run_id: run_id.to_owned(),
+            idempotency_key: idempotency_key.to_owned(),
+            tool_name: tool_name.to_owned(),
+            status: "RUNNING".to_owned(),
+            owner_id: owner_id.to_owned(),
+            fencing_token: 1,
+            run_lease_token: 1,
+            lease_expires_at_unix_ms: expires_ms as i64,
+            input_json: input_json.to_owned(),
+            output_json: "null".to_owned(),
+            created_at: now_text.clone(),
+            updated_at: now_text,
+        }))
+    }
+
+    /// Atomically append one tool result to the run projection, invocation
+    /// ledger and ADK session event journal.  The run status and updated_at
+    /// token form the CAS fence; if another continuation or cancellation won
+    /// the race no invocation/result is written.  Existing terminal rows are
+    /// replayed without executing the tool again.
+    pub fn commit_tool_result_if_status_and_revision_with_event(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        idempotency_key: &str,
+        tool_name: &str,
+        input_json: &str,
+        output_json: &str,
+        status: &str,
+        owner_id: &str,
+        fencing_token: i64,
+        session_db_path: &Path,
+        event: &AdkRunEvent<'_>,
+    ) -> Result<AdkToolResultCommit, AdkStoreError> {
+        let status = status.trim().to_ascii_uppercase();
+        if !matches!(status.as_str(), "SUCCEEDED" | "FAILED" | "UNKNOWN") {
+            return Err(AdkStoreError::Validation(
+                "tool invocation status must be SUCCEEDED, FAILED or UNKNOWN".to_owned(),
+            ));
+        }
+        if id.trim().is_empty() || idempotency_key.trim().is_empty() || tool_name.trim().is_empty()
+        {
+            return Err(AdkStoreError::Validation(
+                "tool invocation identity is required".to_owned(),
+            ));
+        }
+        // Validate opaque JSON fields before opening the transaction so a
+        // malformed result can never be persisted as a successful execution.
+        serde_json::from_str::<Value>(input_json).map_err(|error| {
+            AdkStoreError::Validation(format!("invalid tool input JSON: {error}"))
+        })?;
+        serde_json::from_str::<Value>(output_json).map_err(|error| {
+            AdkStoreError::Validation(format!("invalid tool output JSON: {error}"))
+        })?;
+
+        let mut connection = self.lock_connection()?;
+        connection
+            .execute(
+                "ATTACH DATABASE ?1 AS adk_session_events",
+                params![session_db_path.to_string_lossy().as_ref()],
+            )
+            .map_err(AdkStoreError::Query)?;
+        let result = (|| {
+            let now = Self::now_rfc3339();
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            let existing = transaction
+                .query_row(
+                    "SELECT run_id, idempotency_key, tool_name, status, owner_id,
+                            fencing_token, run_lease_token, input_json, output_json,
+                            lease_expires_at_unix_ms, created_at, updated_at
+                     FROM adk_tool_invocations
+                     WHERE run_id = ?1 AND idempotency_key = ?2",
+                    params![id, idempotency_key],
+                    stored_tool_invocation,
+                )
+                .optional()
+                .map_err(AdkStoreError::Query)?;
+            if let Some(existing) = existing.as_ref() {
+                if existing.tool_name != tool_name || existing.input_json != input_json {
+                    return Err(AdkStoreError::Conflict(format!(
+                        "tool invocation key {idempotency_key} was reused with different input"
+                    )));
+                }
+                if matches!(
+                    existing.status.to_ascii_uppercase().as_str(),
+                    "SUCCEEDED" | "FAILED" | "UNKNOWN"
+                ) {
+                    transaction.commit().map_err(AdkStoreError::Query)?;
+                    return Ok(AdkToolResultCommit {
+                        changed: false,
+                        invocation: existing.clone(),
+                    });
+                }
+            }
+
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_runs
+                     SET payload_json = ?1, updated_at = ?2
+                     WHERE id = ?3 AND status = ?4 AND updated_at = ?5",
+                    params![payload_json, now, id, expected_status, expected_updated_at],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected != 1 {
+                return Err(AdkStoreError::Conflict(format!(
+                    "run {id} changed before tool result commit"
+                )));
+            }
+            let invocation_affected = transaction
+                .execute(
+                    "INSERT INTO adk_tool_invocations
+                     (run_id, idempotency_key, tool_name, status, owner_id,
+                      fencing_token, run_lease_token, input_json, output_json,
+                      lease_expires_at_unix_ms, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?8, ?9, 1, ?5, ?6, 0, ?7, ?7)
+                     ON CONFLICT(run_id, idempotency_key) DO UPDATE SET
+                       tool_name = excluded.tool_name,
+                       status = excluded.status,
+                       input_json = excluded.input_json,
+                       output_json = excluded.output_json,
+                       owner_id = excluded.owner_id,
+                       updated_at = excluded.updated_at
+                     WHERE adk_tool_invocations.owner_id = ?8
+                       AND adk_tool_invocations.fencing_token = ?9
+                       AND adk_tool_invocations.status = 'RUNNING'",
+                    params![
+                        id,
+                        idempotency_key,
+                        tool_name,
+                        status,
+                        input_json,
+                        output_json,
+                        now,
+                        owner_id,
+                        fencing_token
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if invocation_affected != 1 {
+                return Err(AdkStoreError::Conflict(format!(
+                    "tool invocation {idempotency_key} lease is no longer current"
+                )));
+            }
+            transaction
+                .execute(
+                    "INSERT OR IGNORE INTO adk_session_events.sessions
+                     (app_name, user_id, id, state, create_time, update_time)
+                     VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
+                    params![event.session_id, now],
+                )
+                .map_err(AdkStoreError::Query)?;
+            transaction
+                .execute(
+                    "INSERT OR IGNORE INTO adk_session_events.events
+                     (id, app_name, user_id, session_id, invocation_id, author,
+                      content, timestamp)
+                     VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        event.id,
+                        event.session_id,
+                        event.invocation_id,
+                        event.author,
+                        event.content,
+                        now,
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok(AdkToolResultCommit {
+                changed: true,
+                invocation: StoredAdkToolInvocation {
+                    run_id: id.to_owned(),
+                    idempotency_key: idempotency_key.to_owned(),
+                    tool_name: tool_name.to_owned(),
+                    status,
+                    owner_id: owner_id.to_owned(),
+                    fencing_token,
+                    run_lease_token: 1,
+                    lease_expires_at_unix_ms: 0,
+                    input_json: input_json.to_owned(),
+                    output_json: output_json.to_owned(),
+                    created_at: now.clone(),
+                    updated_at: now,
+                },
+            })
+        })();
+        let detach = connection
+            .execute("DETACH DATABASE adk_session_events", [])
+            .map_err(AdkStoreError::Query);
+        match (result, detach) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(_)) => Ok(value),
+        }
+    }
+
+    /// Atomically stage a model tool-call round: update the run projection,
+    /// create all approval rows and append the corresponding session events.
+    /// A failed insert (including a duplicate approval id) rolls back the
+    /// complete round so no half-visible approval can be resumed.
+    pub fn stage_tool_calls_if_status_and_revision_with_events(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+        approvals: &[AdkApprovalStage<'_>],
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+    ) -> Result<bool, AdkStoreError> {
+        let mut connection = self.lock_connection()?;
+        connection
+            .execute(
+                "ATTACH DATABASE ?1 AS adk_session_events",
+                params![session_db_path.to_string_lossy().as_ref()],
+            )
+            .map_err(AdkStoreError::Query)?;
+        let result = (|| {
+            let now = Self::now_rfc3339();
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_runs
+                     SET status = ?1, payload_json = ?2, updated_at = ?3
+                     WHERE id = ?4 AND status = ?5 AND updated_at = ?6",
+                    params![
+                        status,
+                        payload_json,
+                        now,
+                        id,
+                        expected_status,
+                        expected_updated_at
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected != 1 {
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok(false);
+            }
+            for approval in approvals {
+                transaction
+                    .execute(
+                        "INSERT INTO adk_approvals
+                         (id, run_id, agent_id, status, payload_json, created_at, updated_at)
+                         VALUES (?1, ?2, ?3, 'PENDING', ?4, ?5, ?5)",
+                        params![
+                            approval.id,
+                            approval.run_id,
+                            approval.agent_id,
+                            approval.payload_json,
+                            now
+                        ],
+                    )
+                    .map_err(AdkStoreError::Query)?;
+            }
+            if let Some(first) = events.first() {
+                transaction
+                    .execute(
+                        "INSERT OR IGNORE INTO adk_session_events.sessions
+                         (app_name, user_id, id, state, create_time, update_time)
+                         VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
+                        params![first.session_id, now],
+                    )
+                    .map_err(AdkStoreError::Query)?;
+            }
+            for event in events {
+                transaction
+                    .execute(
+                        "INSERT OR IGNORE INTO adk_session_events.events
+                         (id, app_name, user_id, session_id, invocation_id, author,
+                          content, timestamp)
+                         VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
+                        params![
+                            event.id,
+                            event.session_id,
+                            event.invocation_id,
+                            event.author,
+                            event.content,
+                            now
+                        ],
+                    )
+                    .map_err(AdkStoreError::Query)?;
+            }
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok(true)
         })();
         let detach = connection
             .execute("DETACH DATABASE adk_session_events", [])
@@ -1889,6 +2411,23 @@ fn stored_approval(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkApprova
     })
 }
 
+fn stored_tool_invocation(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkToolInvocation> {
+    Ok(StoredAdkToolInvocation {
+        run_id: row.get(0)?,
+        idempotency_key: row.get(1)?,
+        tool_name: row.get(2)?,
+        status: row.get(3)?,
+        owner_id: row.get(4)?,
+        fencing_token: row.get(5)?,
+        run_lease_token: row.get(6)?,
+        input_json: row.get(7)?,
+        output_json: row.get(8)?,
+        lease_expires_at_unix_ms: row.get(9)?,
+        created_at: row.get(10)?,
+        updated_at: row.get(11)?,
+    })
+}
+
 fn decode_json_object(
     raw: &str,
     resource: &str,
@@ -2116,6 +2655,95 @@ impl AdkTestCutoverStore {
                 expected_updated_at,
                 status,
                 payload_json,
+                session_db_path,
+                events,
+            )
+    }
+
+    pub fn get_tool_invocation(
+        &self,
+        run_id: &str,
+        idempotency_key: &str,
+    ) -> Result<Option<StoredAdkToolInvocation>, AdkStoreError> {
+        self.inner.get_tool_invocation(run_id, idempotency_key)
+    }
+
+    pub fn claim_tool_invocation_if_status_and_revision(
+        &self,
+        run_id: &str,
+        idempotency_key: &str,
+        tool_name: &str,
+        input_json: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        owner_id: &str,
+        lease_ttl: Duration,
+    ) -> Result<AdkToolInvocationClaim, AdkStoreError> {
+        self.inner.claim_tool_invocation_if_status_and_revision(
+            run_id,
+            idempotency_key,
+            tool_name,
+            input_json,
+            expected_status,
+            expected_updated_at,
+            owner_id,
+            lease_ttl,
+        )
+    }
+
+    pub fn commit_tool_result_if_status_and_revision_with_event(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        idempotency_key: &str,
+        tool_name: &str,
+        input_json: &str,
+        output_json: &str,
+        status: &str,
+        owner_id: &str,
+        fencing_token: i64,
+        session_db_path: &Path,
+        event: &AdkRunEvent<'_>,
+    ) -> Result<AdkToolResultCommit, AdkStoreError> {
+        self.inner
+            .commit_tool_result_if_status_and_revision_with_event(
+                id,
+                expected_status,
+                expected_updated_at,
+                payload_json,
+                idempotency_key,
+                tool_name,
+                input_json,
+                output_json,
+                status,
+                owner_id,
+                fencing_token,
+                session_db_path,
+                event,
+            )
+    }
+
+    pub fn stage_tool_calls_if_status_and_revision_with_events(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+        approvals: &[AdkApprovalStage<'_>],
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .stage_tool_calls_if_status_and_revision_with_events(
+                id,
+                expected_status,
+                expected_updated_at,
+                status,
+                payload_json,
+                approvals,
                 session_db_path,
                 events,
             )

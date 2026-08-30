@@ -20,12 +20,17 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             std::thread::Builder::new()
                 .name("jftrade-adk-stream".to_owned())
                 .spawn(move || {
+                    let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
+                        Arc::clone(&tool_catalog),
+                        Arc::clone(&stream_store),
+                    ));
                     let runtime = ProductionAdkChatRuntime {
                         store: stream_store,
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
                         cancellation_registry: Arc::clone(&cancellation_registry),
                         tool_catalog: Arc::clone(&tool_catalog),
+                        tool_executor,
                     };
                     runtime.start_live_stream(stream_input, stream, sender, started);
                 })
@@ -37,12 +42,17 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         std::thread::Builder::new()
             .name("jftrade-adk-model".to_owned())
             .spawn(move || {
+                let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
+                    Arc::clone(&tool_catalog),
+                    Arc::clone(&store),
+                ));
                 let runtime = ProductionAdkChatRuntime {
                     store,
                     session_store,
                     secrets_path,
                     cancellation_registry,
                     tool_catalog,
+                    tool_executor,
                 };
                 runtime.dispatch_inner(route, &input)
             })
@@ -106,6 +116,10 @@ struct ModelRequest {
     model: String,
     instruction: Option<String>,
     message: String,
+    /// Responses API input items produced by prior tool-call rounds. The
+    /// initial request leaves this empty; approval continuations append the
+    /// original function calls and durable function_call_output items.
+    tool_context: Vec<Value>,
     timeout: Duration,
     tools: Vec<Value>,
 }
@@ -161,6 +175,7 @@ fn execute_model(
             input.push(json!({"role":"system","content":instruction}));
         }
         input.push(json!({"role":"user","content":request.message}));
+        input.extend(request.tool_context.clone());
         let mut body = json!({"model":request.model,"input":input,"stream":false});
         if !request.tools.is_empty() {
             body["tools"] = Value::Array(request.tools.clone());

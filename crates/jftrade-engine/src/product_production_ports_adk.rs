@@ -191,13 +191,10 @@ impl ProductionToolCatalog {
             .collect()
     }
 
-    /// Convert the currently callable catalog into the OpenAI Responses
-    /// function-tool shape.  Provider-backed tools whose readiness is empty
-    /// are intentionally omitted so the model cannot invoke an unavailable
-    /// capability.  Argument schemas remain object-shaped for compatibility
-    /// with the existing Go tool contract; dispatch validates concrete input
-    /// before any side effect.
-    pub(crate) fn openai_tools(&self) -> Vec<Value> {
+    /// Return the descriptors that are currently callable after provider and
+    /// runtime readiness projection.  This is intentionally derived from
+    /// `values()` on every read rather than exposing the startup snapshot.
+    pub(crate) fn callable_tools(&self) -> Vec<Value> {
         self.values()
             .into_iter()
             .filter(|tool| {
@@ -205,6 +202,18 @@ impl ProductionToolCatalog {
                     .and_then(Value::as_array)
                     .is_some_and(|modes| !modes.is_empty())
             })
+            .collect()
+    }
+
+    /// Convert the currently callable catalog into the OpenAI Responses
+    /// function-tool shape.  Provider-backed tools whose readiness is empty
+    /// are intentionally omitted so the model cannot invoke an unavailable
+    /// capability.  Argument schemas remain object-shaped for compatibility
+    /// with the existing Go tool contract; dispatch validates concrete input
+    /// before any side effect.
+    pub(crate) fn openai_tools(&self) -> Vec<Value> {
+        self.callable_tools()
+            .into_iter()
             .filter_map(|tool| {
                 let name = tool.get("id").and_then(Value::as_str)?.to_owned();
                 let description = tool

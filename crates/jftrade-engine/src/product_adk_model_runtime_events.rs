@@ -18,11 +18,16 @@ impl ProductionAdkChatRuntime {
                         |parent| parent.join("secrets/adk-secrets.json"),
                     )
             });
+        let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
+            Arc::clone(&tool_catalog),
+            Arc::clone(&store),
+        ));
         let runtime = Self {
             store,
             session_store,
             secrets_path,
             cancellation_registry,
+            tool_executor,
             tool_catalog,
         };
         runtime.recover_approval_continuations();
@@ -38,10 +43,23 @@ impl ProductionAdkChatRuntime {
                 continue;
             };
             let recovering = run.status.eq_ignore_ascii_case("RUNNING")
-                && payload
+                && (payload
                     .get("resumeState")
                     .and_then(Value::as_str)
-                    .is_some_and(|state| state.eq_ignore_ascii_case("approval_resuming"));
+                    .is_some_and(|state| {
+                        state.eq_ignore_ascii_case("approval_resuming")
+                            || state.eq_ignore_ascii_case("tool_executing")
+                    })
+                    || payload
+                        .get("toolCalls")
+                        .and_then(Value::as_array)
+                        .is_some_and(|calls| {
+                            calls.iter().any(|call| {
+                                call.get("status")
+                                    .and_then(Value::as_str)
+                                    .is_some_and(|status| status.eq_ignore_ascii_case("RUNNING"))
+                            })
+                        }));
             if recovering {
                 let _ = self.resume_approval(&run.id);
             }
@@ -148,6 +166,8 @@ impl ProductionAdkChatRuntime {
             "requestMessage": message.clone(),
             "providerId": provider.id.clone(),
             "model": model.clone(),
+            "route": match route { AdkChatRoute::Chat => "chat", AdkChatRoute::Stream => "stream" },
+            "toolResults": [],
         });
         self.store
             .create_run(CreateAdkRunParams {
@@ -171,6 +191,17 @@ impl ProductionAdkChatRuntime {
                 }
             })?;
         self.record_event(&run_id, &session_id, "user", &message)?;
+        let tools = self
+            .tool_catalog
+            .openai_tools()
+            .into_iter()
+            .filter(|schema| {
+                schema
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| self.tool_executor.supports(name))
+            })
+            .collect();
         Ok(PreparedChat::New(ChatExecution {
             route,
             run_id,
@@ -182,8 +213,9 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message: message.clone(),
+                tool_context: Vec::new(),
                 timeout: provider.timeout,
-                tools: self.tool_catalog.openai_tools(),
+                tools,
             },
         }))
     }
@@ -287,8 +319,23 @@ impl ProductionAdkChatRuntime {
         if model.trim().is_empty() {
             return Err(unavailable("assistant model is not configured"));
         }
+        let route = match object.get("route").and_then(Value::as_str) {
+            Some("stream") => AdkChatRoute::Stream,
+            _ => AdkChatRoute::Chat,
+        };
+        let tools = self
+            .tool_catalog
+            .openai_tools()
+            .into_iter()
+            .filter(|schema| {
+                schema
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| self.tool_executor.supports(name))
+            })
+            .collect();
         let chat = ChatExecution {
-            route: AdkChatRoute::Chat,
+            route,
             run_id: run.id,
             session_id: run.session_id,
             agent_id: run.agent_id,
@@ -298,8 +345,9 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message,
+                tool_context: tool_context_from_payload(object),
                 timeout: provider.timeout,
-                tools: self.tool_catalog.openai_tools(),
+                tools,
             },
         };
         let store = Arc::clone(&self.store);
@@ -310,12 +358,17 @@ impl ProductionAdkChatRuntime {
         std::thread::Builder::new()
             .name("jftrade-adk-approval-resume".to_owned())
             .spawn(move || {
+                let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
+                    Arc::clone(&tool_catalog),
+                    Arc::clone(&store),
+                ));
                 let runtime = ProductionAdkChatRuntime {
                     store,
                     session_store,
                     secrets_path,
                     cancellation_registry,
                     tool_catalog,
+                    tool_executor,
                 };
                 let cancellation = runtime.cancellation_registry.register(&chat.run_id);
                 let _guard = CancellationGuard {
@@ -325,23 +378,7 @@ impl ProductionAdkChatRuntime {
                 if runtime.run_is_cancelled(&chat.run_id) {
                     return;
                 }
-                let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
-                if cancellation.load(Ordering::Acquire) {
-                    let error = cancellation_error();
-                    let _ = runtime.persist_cancelled(&chat, &error);
-                    return;
-                }
-                match result {
-                    Ok(response) if !response.tool_calls.is_empty() => {
-                        let _ = runtime.persist_tool_calls(&chat, &response);
-                    }
-                    Ok(response) => {
-                        let _ = runtime.persist_success(&chat, response);
-                    }
-                    Err(error) => {
-                        let _ = runtime.persist_failure(&chat, &error);
-                    }
-                }
+                runtime.run_approval_continuation(chat, cancellation);
             })
             .map_err(|error| unavailable(format!("assistant continuation unavailable: {error}")))?;
         Ok(())
@@ -422,15 +459,24 @@ impl ProductionAdkChatRuntime {
                 message: "stored ADK run payload must be a JSON object".to_owned(),
             });
         }
-        let available_tools = self.tool_catalog.openai_tools();
-        let known = response.tool_calls.iter().all(|call| {
-            available_tools.iter().any(|schema| {
-                schema.get("name").and_then(Value::as_str) == Some(call.name.as_str())
-            })
-        });
+        let known = response
+            .tool_calls
+            .iter()
+            .all(|call| self.tool_executor.supports(&call.name));
         let status = if known { "PENDING" } else { "FAILED" };
         let mut pending = Vec::new();
-        let mut tool_calls = Vec::with_capacity(response.tool_calls.len());
+        let mut approval_rows: Vec<(String, String)> = Vec::new();
+        let prior_calls = payload
+            .get("toolCalls")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut tool_calls = prior_calls;
+        let prior_round = tool_calls
+            .iter()
+            .filter_map(|call| call.get("round").and_then(Value::as_u64))
+            .max()
+            .unwrap_or_default();
         for (index, call) in response.tool_calls.iter().enumerate() {
             let call_status = if known { "PENDING_APPROVAL" } else { "FAILED" };
             let requires_user = known;
@@ -443,6 +489,7 @@ impl ProductionAdkChatRuntime {
                 "requiresUser": requires_user,
                 "approvalId": if known { Value::String(approval_id.clone()) } else { Value::Null },
                 "errorCode": if known { Value::Null } else { Value::String("ADK_TOOL_UNAVAILABLE".to_owned()) },
+                "round": prior_round + 1,
             });
             tool_calls.push(call_value);
             if known {
@@ -456,15 +503,7 @@ impl ProductionAdkChatRuntime {
                     "arguments": call.arguments,
                     "requiresUser": true,
                 });
-                self.store
-                    .create_approval(
-                        &approval_id,
-                        &chat.run_id,
-                        &chat.agent_id,
-                        "PENDING",
-                        &approval.to_string(),
-                    )
-                    .map_err(storage_unavailable)?;
+                approval_rows.push((approval_id.clone(), approval.to_string()));
                 pending.push(approval);
             }
         }
@@ -483,14 +522,52 @@ impl ProductionAdkChatRuntime {
             );
         }
         let payload_json = payload.to_string();
+        let approval_stages = approval_rows
+            .iter()
+            .map(|(id, approval_payload)| AdkApprovalStage {
+                id,
+                run_id: &chat.run_id,
+                agent_id: &chat.agent_id,
+                payload_json: approval_payload,
+            })
+            .collect::<Vec<_>>();
+        let mut event_rows = Vec::with_capacity(response.tool_calls.len());
+        for (index, call) in response.tool_calls.iter().enumerate() {
+            let event_id = format!("{}:tool-call:{}:{}", chat.run_id, prior_round + 1, index + 1);
+            let content = serde_json::to_string(&json!({
+                "id": call.id,
+                "name": call.name,
+                "arguments": call.arguments,
+                "status": if known { "PENDING_APPROVAL" } else { "FAILED" },
+            }))
+            .map_err(|error| unavailable(format!("encode tool call event: {error}")))?;
+            event_rows.push((event_id, content));
+        }
+        let events = event_rows
+            .iter()
+            .map(|(id, content)| AdkRunEvent {
+                id,
+                session_id: &chat.session_id,
+                invocation_id: &chat.run_id,
+                author: "assistant.tool_call",
+                content,
+            })
+            .collect::<Vec<_>>();
         let updated = self
             .store
-            .update_run_state_if_status(&chat.run_id, "RUNNING", status, &payload_json)
+            .stage_tool_calls_if_status_and_revision_with_events(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                status,
+                &payload_json,
+                &approval_stages,
+                self.session_store.path(),
+                &events,
+            )
             .map_err(storage_unavailable)?;
         if !updated {
-            return Err(unavailable(
-                "assistant chat run state changed before tool call staging",
-            ));
+            return Err(unavailable("assistant chat run state changed before tool call staging"));
         }
         if !known {
             return Err(AdkChatPortError::Failed {
@@ -720,4 +797,3 @@ impl ProductionAdkChatRuntime {
         Ok(())
     }
 }
-
