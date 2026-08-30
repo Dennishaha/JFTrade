@@ -12,9 +12,8 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 按依赖和共享文件冲突依次收口，完成前不再扩展新的 route group。
 
-- [ ] **ADK model request residual**：修正 durable context/handoff 在真实模型请求中的 chronological 排序，并让 workflow failure 的 CAS loser 重读 durable winner；补 compact→restart→model-payload 与失败竞争的行为证据。context-row 缺失 re-anchor、orphan fail-closed 和正常终态 CAS loser 路径已完成，不再派工。
-- [ ] **Execution reconciliation residual**：确保直接 `ProductHandle` 的 shutdown/drop 也在释放 production ports/WriterLease 前停止 reconciliation worker；补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等证据。行情 active provider 与交易 reader 解耦、异步 supervisor 的停止顺序已完成，不再重复派工。
-- [ ] **Rust MCP baseline 资格**：用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call 的 method/header/status corpus；补 Origin 校验，明确 reviewed tool catalog 是完整兼容还是经批准缩窄；persisted listener apply 失败必须进入 fail-closed/degraded readiness。Host、POST-only、Content-Type、Accept 和 `MCP-Protocol-Version` 校验已完成，不再派工。
+- [ ] **Execution reconciliation 端到端证据**：补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等证据。
+- [ ] **Rust MCP baseline 资格**：用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call 的 method/header/status corpus；明确 reviewed tool catalog 是完整兼容还是经批准缩窄；persisted listener apply 失败必须进入 fail-closed/degraded readiness。
 
 ## Release 与终局放行项
 
@@ -29,11 +28,10 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 ## 后续交接顺序
 
-1. 先完成 ADK model request residual（输入顺序与 failure-CAS winner 读取）；已落地的 Provider 原子默认约束不再派工。
-2. MCP baseline 资格可独立推进；在没有 Go SDK corpus 前不得扩展 method surface 或宣称 catalog 兼容。
-3. 随后补齐直接 `ProductHandle` 路径的 reconciliation 停止与端到端证据，避免释放 composition ports 前仍有后台读者。
-4. 实现稳定后做一次只读全局审计，再按受影响范围运行验证；最终总门禁以仓库脚本的实际编排为准。
-5. 最后审阅完整 diff，在 `main` 上做一次本地提交；不 push。
+1. 先完成 MCP baseline 资格；在没有 Go SDK corpus 前不得扩展 method surface 或宣称 catalog 兼容。
+2. 随后补齐 execution reconciliation 的行情/交易端到端证据。
+3. 实现稳定后做一次只读全局审计，再按受影响范围运行验证；最终总门禁以仓库脚本的实际编排为准。
+4. 最后审阅完整 diff，在 `main` 上做一次本地提交；不 push。
 
 ## 约束
 
