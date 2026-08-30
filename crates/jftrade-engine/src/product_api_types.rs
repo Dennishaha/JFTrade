@@ -8,6 +8,11 @@ struct ProductStage9WritePorts {
 }
 
 struct ProductOptionalPorts {
+    /// Canonical production route bindings.  Rehearsal profiles leave this
+    /// unset and keep their legacy opt-in dispatch surface; production always
+    /// supplies the registry built from the concrete port bundle.
+    production_routes:
+        Option<Arc<crate::product::product_production_route_registry::ProductionRouteRegistry>>,
     notification: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,

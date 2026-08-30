@@ -306,8 +306,16 @@ pub(crate) fn production_ports(
     let research_preset_port = Arc::new(ProductionResearchPresetPort {
         store: research_store,
     });
+    let execution_active_provider_state = config
+        .active_provider_state
+        .clone()
+        .ok_or_else(|| ProductError::Storage("active provider state is missing".to_owned()))?;
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
+        active_provider_state: execution_active_provider_state,
+        trade_read_port: config.trade_read_port.clone(),
+        trade_write_port: config.trade_write_port.clone(),
+        trade_logged_in: config.trade_logged_in,
     });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
@@ -694,6 +702,7 @@ pub(crate) fn production_ports(
         #[cfg(test)]
         backtest_execution_ready: config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),
+        trade_write_port: config.trade_write_port.clone(),
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),
     })

@@ -83,14 +83,18 @@ pub async fn start_product_runtime(
         match OpenDProviderRuntime::start(provider) {
             Ok(runtime) => {
                 let trade_logged_in = runtime.trade_logged_in();
-                let trade_read_port = runtime
+                let trade_client = runtime
                     .coordinator()
                     .lock()
                     .ok()
                     .and_then(|coordinator| {
                         OpenDTradeReadClient::from_coordinator(&coordinator).ok()
                     })
-                    .map(|client| Arc::new(client) as Arc<dyn TradeReadPort>);
+                    .map(Arc::new);
+                let trade_read_port = trade_client
+                    .clone()
+                    .map(|client| client as Arc<dyn TradeReadPort>);
+                let trade_write_port = trade_client.map(|client| client as Arc<dyn TradeWritePort>);
                 let historical_reader = {
                     let coordinator = runtime.coordinator();
                     Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
@@ -102,6 +106,10 @@ pub async fn start_product_runtime(
                     .product
                     .clone()
                     .with_trade_read_port(trade_read_port, trade_logged_in);
+                config.product = config
+                    .product
+                    .clone()
+                    .with_trade_write_port(trade_write_port);
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                 trade_runtime.set_historical_klines(Some(historical_reader));
                 let customization_reader = Arc::new(
@@ -117,10 +125,8 @@ pub async fn start_product_runtime(
                     Some(customization_reader.clone()),
                     Some(alert_reader.clone()),
                 );
-                trade_runtime.set_customization_writers(
-                    Some(customization_reader),
-                    Some(alert_writer),
-                );
+                trade_runtime
+                    .set_customization_writers(Some(customization_reader), Some(alert_writer));
                 trade_runtime.set_news_reader(Some(Arc::new(
                     jftrade_integration_futu::OpenDNewsReader::new(runtime.coordinator()),
                 )));
@@ -263,15 +269,23 @@ pub async fn start_product_runtime(
     } else {
         config.market_data_runtime_recorder.take()
     };
-    if config.product.trade_read_port.is_none()
-        && let Some(coordinator) = market_data_opend.as_ref()
+    if let Some(coordinator) = market_data_opend.as_ref()
         && let Ok(guard) = coordinator.lock()
         && let Ok(client) = OpenDTradeReadClient::from_coordinator(&guard)
     {
-        config.product = config
-            .product
-            .clone()
-            .with_trade_read_port(Some(Arc::new(client)), None);
+        let client = Arc::new(client);
+        if config.product.trade_read_port.is_none() {
+            config.product = config
+                .product
+                .clone()
+                .with_trade_read_port(Some(client.clone() as Arc<dyn TradeReadPort>), None);
+        }
+        if config.product.trade_write_port.is_none() {
+            config.product = config
+                .product
+                .clone()
+                .with_trade_write_port(Some(client as Arc<dyn TradeWritePort>));
+        }
     }
     if let Some(coordinator) = market_data_opend.as_ref() {
         let customization_reader = Arc::new(
@@ -283,10 +297,8 @@ pub async fn start_product_runtime(
         let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
             coordinator: Arc::clone(coordinator),
         });
-        trade_runtime.set_customization_readers(
-            Some(customization_reader.clone()),
-            Some(alert_reader),
-        );
+        trade_runtime
+            .set_customization_readers(Some(customization_reader.clone()), Some(alert_reader));
         trade_runtime.set_customization_writers(Some(customization_reader), Some(alert_writer));
         trade_runtime.set_future_info(Some(Arc::new(
             jftrade_integration_futu::OpenDFutureInfoReader::new(Arc::clone(coordinator)),
@@ -486,9 +498,8 @@ pub async fn start_product_runtime(
                 config.product = config
                     .product
                     .with_strategy_pine_worker_port(Arc::clone(&port));
-                config.backtest_execution_port = Some(Arc::new(
-                    PineBacktestExecutionAdapter::new(port),
-                ));
+                config.backtest_execution_port =
+                    Some(Arc::new(PineBacktestExecutionAdapter::new(port)));
                 backtest_execution_verified = true;
             }
             Err(error) => {
@@ -498,9 +509,7 @@ pub async fn start_product_runtime(
     }
     if let Some(port) = config.backtest_execution_port.take() {
         config.product = if backtest_execution_verified {
-            config
-                .product
-                .with_verified_backtest_execution_port(port)
+            config.product.with_verified_backtest_execution_port(port)
         } else {
             config.product.with_backtest_execution_port(port)
         };
@@ -551,13 +560,11 @@ pub async fn start_product_runtime(
         && configured_provider.is_some_and(|provider| provider != MarketDataProvider::Futu)
     {
         return Err(ProductRuntimeError::Settings(
-            "OpenD runtime is configured while active market-data provider is not futu"
-                .to_owned(),
+            "OpenD runtime is configured while active market-data provider is not futu".to_owned(),
         ));
     }
-    let initial_provider = configured_provider.or_else(|| {
-        dynamic_opend_ready.then_some(MarketDataProvider::Futu)
-    });
+    let initial_provider =
+        configured_provider.or_else(|| dynamic_opend_ready.then_some(MarketDataProvider::Futu));
     let settings_path = config.product.settings_path().to_owned();
     let dynamic_readiness = product_runtime_provider_activation::dynamic_provider_readiness(
         &helper_process,

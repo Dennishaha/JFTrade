@@ -15,7 +15,9 @@ mod wire {
     tonic::include_proto!("jftrade.strategy.pineworker.v1");
 }
 use wire::pine_worker_client::PineWorkerClient;
-use wire::{AnalyzeScriptRequest, AnalyzeScriptResponse, CandleBatch, RunScriptRequest, RunScriptResponse};
+use wire::{
+    AnalyzeScriptRequest, AnalyzeScriptResponse, CandleBatch, RunScriptRequest, RunScriptResponse,
+};
 const CANDLE_BATCH_ENCODING_VERSION: u32 = 1;
 const CANDLE_BATCH_RECORD_BYTES: usize = 56;
 const DEFAULT_MAX_MESSAGE_BYTES: usize = 4 << 20;
@@ -387,9 +389,12 @@ impl GrpcPineExecutionPort {
                 self.max_source_bytes
             )));
         }
-        timeout(self.request_timeout, self.analyze_script_inner(job_id, script_id, source, include_ast))
-            .await
-            .map_err(|_| PineExecutionError::Timeout)?
+        timeout(
+            self.request_timeout,
+            self.analyze_script_inner(job_id, script_id, source, include_ast),
+        )
+        .await
+        .map_err(|_| PineExecutionError::Timeout)?
     }
 
     async fn analyze_script_inner(
@@ -426,7 +431,9 @@ impl GrpcPineExecutionPort {
         if let Some(token) = &self.bearer_token {
             let authorization = MetadataValue::try_from(format!("Bearer {token}"))
                 .map_err(|error| PineExecutionError::InvalidRequest(error.to_string()))?;
-            tonic_request.metadata_mut().insert("authorization", authorization);
+            tonic_request
+                .metadata_mut()
+                .insert("authorization", authorization);
         }
         let response = client
             .analyze_script(tonic_request)

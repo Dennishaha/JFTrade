@@ -382,6 +382,8 @@ pub(crate) struct ProductionPortBundle {
     #[allow(dead_code)]
     pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
     #[allow(dead_code)]
+    pub(crate) trade_write_port: Option<Arc<dyn jftrade_integration_futu::TradeWritePort>>,
+    #[allow(dead_code)]
     pub(crate) trade_logged_in: Option<bool>,
     #[allow(dead_code)]
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,

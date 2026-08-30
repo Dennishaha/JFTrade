@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering},
+};
 
 use thiserror::Error;
 
@@ -6,12 +9,13 @@ use crate::health::OpenDInitializedSession;
 use crate::managed_session::{OpenDManagedSession, OpenDManagedSessionError};
 use crate::session_coordinator::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 use crate::trade_proto::{
-    ResponseError, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
+    ResponseError, common::PacketId, trd_common, trd_flow_summary, trd_get_acc_list, trd_get_funds,
     trd_get_margin_ratio, trd_get_max_trd_qtys, trd_get_order_fee, trd_get_order_fill_list,
-    trd_get_order_list, trd_get_position_list,
+    trd_get_order_list, trd_get_position_list, trd_modify_order, trd_place_combo_order,
+    trd_place_order, trd_sub_acc_push, trd_unlock_trade,
 };
 use crate::trade_snapshots::{
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFilter,
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeComboLeg, TradeFillSnapshot, TradeFilter,
     TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
     TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
     TradePositionSnapshot, TradeSecurity, account_projection, cash_flows_projection,
@@ -111,6 +115,110 @@ pub trait TradeReadPort: Send + Sync {
     }
 }
 
+/// Neutral command DTOs used by the Rust production execution adapter.  They
+/// intentionally contain no generated protobuf or transport types so engine
+/// code cannot accidentally depend on OpenD wire details.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradePlaceOrderRequest {
+    pub header: TradeHeader,
+    pub trd_side: i32,
+    pub order_type: i32,
+    pub code: String,
+    pub quantity: f64,
+    pub price: Option<f64>,
+    pub remark: Option<String>,
+    pub time_in_force: Option<i32>,
+    pub fill_outside_rth: Option<bool>,
+    pub aux_price: Option<f64>,
+    pub trail_type: Option<i32>,
+    pub trail_value: Option<f64>,
+    pub trail_spread: Option<f64>,
+    pub session: Option<i32>,
+    pub position_id: Option<u64>,
+    pub expire_time: Option<String>,
+    pub amount: Option<f64>,
+    pub prediction_side: Option<i32>,
+    pub sec_market: Option<i32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradePlaceOrderResult {
+    pub header: TradeHeader,
+    pub order_id: Option<u64>,
+    pub order_id_ex: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradePlaceComboOrderRequest {
+    pub header: TradeHeader,
+    pub combo_legs: Vec<TradeComboLeg>,
+    pub quantity: f64,
+    pub price: Option<f64>,
+    pub order_type: i32,
+    pub time_in_force: Option<i32>,
+    pub expire_time: Option<String>,
+    pub remark: Option<String>,
+    pub quote_id: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradePlaceComboOrderResult {
+    pub header: TradeHeader,
+    pub order_id_ex: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradeModifyOrderRequest {
+    pub header: TradeHeader,
+    pub order_id: u64,
+    pub operation: i32,
+    pub for_all: Option<bool>,
+    pub trd_market: Option<i32>,
+    pub quantity: Option<f64>,
+    pub price: Option<f64>,
+    pub adjust_price: Option<bool>,
+    pub adjust_side_and_limit: Option<f64>,
+    pub aux_price: Option<f64>,
+    pub trail_type: Option<i32>,
+    pub trail_value: Option<f64>,
+    pub trail_spread: Option<f64>,
+    pub order_id_ex: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TradeUnlockRequest {
+    pub unlock: bool,
+    pub password_md5: Option<String>,
+    pub security_firm: Option<i32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TradeSubscribeAccountsRequest {
+    pub account_ids: Vec<u64>,
+}
+
+/// Command-side OpenD contract. Implementations own framing, anti-replay
+/// packet ids, response validation and connection lifecycle.
+pub trait TradeWritePort: Send + Sync + std::fmt::Debug {
+    fn place_order(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError>;
+    fn place_combo_order(
+        &self,
+        request: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError>;
+    fn modify_order(
+        &self,
+        request: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError>;
+    fn unlock_trade(&self, request: TradeUnlockRequest) -> Result<(), TradeSessionError>;
+    fn subscribe_trade_accounts(
+        &self,
+        request: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError>;
+}
+
 #[derive(Debug, Error)]
 pub enum TradeSessionError {
     #[error("OpenD trade session call failed: {0}")]
@@ -129,12 +237,26 @@ pub enum TradeSessionError {
 #[derive(Clone)]
 pub struct OpenDTradeReadClient {
     session: Arc<OpenDManagedSession>,
+    conn_id: u64,
+    command_serial: Arc<AtomicU32>,
+}
+
+impl std::fmt::Debug for OpenDTradeReadClient {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OpenDTradeReadClient")
+            .field("conn_id", &self.conn_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl OpenDTradeReadClient {
     pub fn from_session(session: OpenDInitializedSession) -> Self {
+        let conn_id = session.conn_id();
         Self {
             session: session.managed_session_handle(),
+            conn_id,
+            command_serial: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -146,7 +268,11 @@ impl OpenDTradeReadClient {
 
     #[cfg(test)]
     fn from_managed_session(session: Arc<OpenDManagedSession>) -> Self {
-        Self { session }
+        Self {
+            session,
+            conn_id: 0,
+            command_serial: Arc::new(AtomicU32::new(0)),
+        }
     }
 
     pub(crate) fn get_account_list(
@@ -504,6 +630,62 @@ impl OpenDTradeReadClient {
     fn call(&self, protocol: u32, request_body: &[u8]) -> Result<Vec<u8>, TradeSessionError> {
         Ok(self.session.call(protocol, request_body)?)
     }
+
+    fn next_command_packet_id(&self) -> PacketId {
+        let serial_no = self
+            .command_serial
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+                Some(value.wrapping_add(1).max(1))
+            })
+            .unwrap_or(0)
+            .wrapping_add(1)
+            .max(1);
+        PacketId {
+            conn_id: self.conn_id,
+            serial_no,
+        }
+    }
+
+    fn place_order_command(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        let body = self.call(
+            trd_place_order::PROTOCOL_ID,
+            &trd_place_order::encode_request(&trd_place_order::Request {
+                c2s: trd_place_order::C2s {
+                    packet_id: self.next_command_packet_id(),
+                    header: request.header.into(),
+                    trd_side: request.trd_side,
+                    order_type: request.order_type,
+                    code: request.code,
+                    qty: request.quantity,
+                    price: request.price,
+                    adjust_price: None,
+                    adjust_side_and_limit: None,
+                    sec_market: request.sec_market,
+                    remark: request.remark,
+                    time_in_force: request.time_in_force,
+                    fill_outside_rth: request.fill_outside_rth,
+                    aux_price: request.aux_price,
+                    trail_type: request.trail_type,
+                    trail_value: request.trail_value,
+                    trail_spread: request.trail_spread,
+                    session: request.session,
+                    position_id: request.position_id,
+                    expire_time: request.expire_time,
+                    amount: request.amount,
+                    pred_side: request.prediction_side,
+                },
+            }),
+        )?;
+        let payload = trd_place_order::decode_response(&body)?;
+        Ok(TradePlaceOrderResult {
+            header: payload.header.into(),
+            order_id: payload.order_id,
+            order_id_ex: payload.order_id_ex,
+        })
+    }
 }
 
 fn unknown_security_code(error: &TradeSessionError) -> Option<String> {
@@ -655,6 +837,121 @@ impl TradeReadPort for OpenDTradeReadClient {
         refresh_cache: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         OpenDTradeReadClient::read_history_fills(self, header, filter, refresh_cache)
+    }
+}
+
+impl TradeWritePort for OpenDTradeReadClient {
+    fn place_order(
+        &self,
+        request: TradePlaceOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        self.place_order_command(request)
+    }
+
+    fn place_combo_order(
+        &self,
+        request: TradePlaceComboOrderRequest,
+    ) -> Result<TradePlaceComboOrderResult, TradeSessionError> {
+        let body = self.call(
+            trd_place_combo_order::PROTOCOL_ID,
+            &trd_place_combo_order::encode_request(&trd_place_combo_order::Request {
+                c2s: trd_place_combo_order::C2s {
+                    packet_id: self.next_command_packet_id(),
+                    header: request.header.into(),
+                    combo_legs: request
+                        .combo_legs
+                        .into_iter()
+                        .map(|leg| crate::trade_proto::qot_common::ComboLeg {
+                            security: crate::trade_proto::qot_common::Security {
+                                market: leg.market,
+                                code: leg.code,
+                            },
+                            side: leg.side,
+                            qty_ratio: leg.qty_ratio,
+                            position_id: leg.position_id,
+                            pred_side: leg.pred_side,
+                        })
+                        .collect(),
+                    qty: request.quantity,
+                    price: request.price,
+                    order_type: request.order_type,
+                    time_in_force: request.time_in_force,
+                    expire_time: request.expire_time,
+                    remark: request.remark,
+                    quote_id: request.quote_id,
+                },
+            }),
+        )?;
+        let payload = trd_place_combo_order::decode_response(&body)?;
+        Ok(TradePlaceComboOrderResult {
+            header: payload.header.into(),
+            order_id_ex: payload.order_id_ex,
+        })
+    }
+
+    fn modify_order(
+        &self,
+        request: TradeModifyOrderRequest,
+    ) -> Result<TradePlaceOrderResult, TradeSessionError> {
+        let body = self.call(
+            trd_modify_order::PROTOCOL_ID,
+            &trd_modify_order::encode_request(&trd_modify_order::Request {
+                c2s: trd_modify_order::C2s {
+                    packet_id: self.next_command_packet_id(),
+                    header: request.header.into(),
+                    order_id: request.order_id,
+                    modify_order_op: request.operation,
+                    for_all: request.for_all,
+                    trd_market: request.trd_market,
+                    qty: request.quantity,
+                    price: request.price,
+                    adjust_price: request.adjust_price,
+                    adjust_side_and_limit: request.adjust_side_and_limit,
+                    aux_price: request.aux_price,
+                    trail_type: request.trail_type,
+                    trail_value: request.trail_value,
+                    trail_spread: request.trail_spread,
+                    order_id_ex: request.order_id_ex,
+                },
+            }),
+        )?;
+        let payload = trd_modify_order::decode_response(&body)?;
+        Ok(TradePlaceOrderResult {
+            header: payload.header.into(),
+            order_id: Some(payload.order_id),
+            order_id_ex: payload.order_id_ex,
+        })
+    }
+
+    fn unlock_trade(&self, request: TradeUnlockRequest) -> Result<(), TradeSessionError> {
+        let body = self.call(
+            trd_unlock_trade::PROTOCOL_ID,
+            &trd_unlock_trade::encode_request(&trd_unlock_trade::Request {
+                c2s: trd_unlock_trade::C2s {
+                    unlock: request.unlock,
+                    pwd_md5: request.password_md5,
+                    security_firm: request.security_firm,
+                },
+            }),
+        )?;
+        trd_unlock_trade::decode_response(&body)?;
+        Ok(())
+    }
+
+    fn subscribe_trade_accounts(
+        &self,
+        request: TradeSubscribeAccountsRequest,
+    ) -> Result<(), TradeSessionError> {
+        let body = self.call(
+            trd_sub_acc_push::PROTOCOL_ID,
+            &trd_sub_acc_push::encode_request(&trd_sub_acc_push::Request {
+                c2s: trd_sub_acc_push::C2s {
+                    acc_id_list: request.account_ids,
+                },
+            }),
+        )?;
+        trd_sub_acc_push::decode_response(&body)?;
+        Ok(())
     }
 }
 

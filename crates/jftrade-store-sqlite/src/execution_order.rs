@@ -207,102 +207,50 @@ impl ExecutionOrderStore {
             order.created_at.clone()
         };
 
-        transaction
-            .execute(
-                "INSERT INTO execution_orders (
-                    internal_order_id, broker_id, broker_order_id, broker_order_id_ex,
-                    source, source_detail, trading_environment, account_id, market,
-                    symbol, side, order_type, status, raw_broker_status,
-                    requested_quantity, requested_price, filled_quantity, filled_average_price,
-                    remark, last_error, last_error_code, last_error_source,
-                    submitted_at, updated_at, created_at, order_kind, product_class,
-                    quantity_mode, client_order_id, preview_id, normalized_request,
-                    requested_amount, payout, fees
-                ) VALUES (
-                    ?1, ?2, ?3, ?4,
-                    ?5, ?6, ?7, ?8, ?9,
-                    ?10, ?11, ?12, ?13, ?14,
-                    ?15, ?16, ?17, ?18,
-                    ?19, ?20, ?21, ?22,
-                    ?23, ?24, ?25, ?26, ?27,
-                    ?28, ?29, ?30, ?31,
-                    ?32, ?33, ?34
-                ) ON CONFLICT(internal_order_id) DO UPDATE SET
-                    broker_id = excluded.broker_id,
-                    broker_order_id = excluded.broker_order_id,
-                    broker_order_id_ex = excluded.broker_order_id_ex,
-                    source = excluded.source,
-                    source_detail = excluded.source_detail,
-                    trading_environment = excluded.trading_environment,
-                    account_id = excluded.account_id,
-                    market = excluded.market,
-                    symbol = excluded.symbol,
-                    side = excluded.side,
-                    order_type = excluded.order_type,
-                    status = excluded.status,
-                    raw_broker_status = excluded.raw_broker_status,
-                    requested_quantity = excluded.requested_quantity,
-                    requested_price = excluded.requested_price,
-                    filled_quantity = excluded.filled_quantity,
-                    filled_average_price = excluded.filled_average_price,
-                    remark = excluded.remark,
-                    last_error = excluded.last_error,
-                    last_error_code = excluded.last_error_code,
-                    last_error_source = excluded.last_error_source,
-                    submitted_at = excluded.submitted_at,
-                    updated_at = excluded.updated_at,
-                    order_kind = excluded.order_kind,
-                    product_class = excluded.product_class,
-                    quantity_mode = excluded.quantity_mode,
-                    client_order_id = excluded.client_order_id,
-                    preview_id = excluded.preview_id,
-                    normalized_request = excluded.normalized_request,
-                    requested_amount = excluded.requested_amount,
-                    payout = excluded.payout,
-                    fees = excluded.fees",
-                params![
-                    order.internal_order_id,
-                    order.broker_id,
-                    order.broker_order_id,
-                    order.broker_order_id_ex,
-                    order.source,
-                    order.source_detail,
-                    order.trading_environment,
-                    order.account_id,
-                    order.market,
-                    order.symbol,
-                    order.side,
-                    order.order_type,
-                    order.status,
-                    order.raw_broker_status,
-                    order.requested_quantity,
-                    order.requested_price,
-                    order.filled_quantity,
-                    order.filled_average_price,
-                    order.remark,
-                    order.last_error,
-                    order.last_error_code,
-                    order.last_error_source,
-                    order.submitted_at,
-                    timestamp,
-                    created_at,
-                    order.order_kind,
-                    order.product_class,
-                    order.quantity_mode,
-                    order.client_order_id,
-                    order.preview_id,
-                    order.normalized_request,
-                    order.requested_amount,
-                    order.payout,
-                    order.fees
-                ],
-            )
-            .map_err(ExecutionOrderStoreError::Query)?;
+        upsert_order(&transaction, &order, timestamp, &created_at)?;
 
         transaction
             .commit()
             .map_err(ExecutionOrderStoreError::Query)?;
 
+        let mut saved = order;
+        saved.created_at = created_at;
+        saved.updated_at = timestamp.to_owned();
+        Ok(saved)
+    }
+
+    /// Atomically persists an order projection and its lifecycle event.
+    ///
+    /// Command handlers use this for every broker acknowledgement/failure so
+    /// a durable order status can never be committed without its matching
+    /// event (or vice versa).
+    pub fn save_order_and_event(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        validate_rfc3339_timestamp(timestamp)?;
+        validate_rfc3339_timestamp(event.created_at)?;
+        if event.internal_order_id != order.internal_order_id {
+            return Err(ExecutionOrderStoreError::Validation(
+                "order and event internal ids must match".to_owned(),
+            ));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let created_at = if order.created_at.is_empty() {
+            timestamp.to_owned()
+        } else {
+            order.created_at.clone()
+        };
+        upsert_order(&transaction, &order, timestamp, &created_at)?;
+        insert_event(&transaction, event)?;
+        transaction
+            .commit()
+            .map_err(ExecutionOrderStoreError::Query)?;
         let mut saved = order;
         saved.created_at = created_at;
         saved.updated_at = timestamp.to_owned();
@@ -477,23 +425,7 @@ impl ExecutionOrderStore {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(ExecutionOrderStoreError::Query)?;
-
-        transaction
-            .execute(
-                "INSERT INTO execution_order_events (
-                    id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    event.id,
-                    event.internal_order_id,
-                    event.event_type,
-                    event.previous_status,
-                    event.next_status,
-                    event.payload_json,
-                    event.created_at
-                ],
-            )
-            .map_err(ExecutionOrderStoreError::Query)?;
+        insert_event(&transaction, event)?;
 
         transaction
             .commit()
@@ -572,6 +504,129 @@ impl ExecutionOrderStore {
     }
 }
 
+fn upsert_order(
+    transaction: &rusqlite::Transaction<'_>,
+    order: &StoredExecutionOrder,
+    timestamp: &str,
+    created_at: &str,
+) -> Result<(), ExecutionOrderStoreError> {
+    transaction
+        .execute(
+            "INSERT INTO execution_orders (
+                internal_order_id, broker_id, broker_order_id, broker_order_id_ex,
+                source, source_detail, trading_environment, account_id, market,
+                symbol, side, order_type, status, raw_broker_status,
+                requested_quantity, requested_price, filled_quantity, filled_average_price,
+                remark, last_error, last_error_code, last_error_source,
+                submitted_at, updated_at, created_at, order_kind, product_class,
+                quantity_mode, client_order_id, preview_id, normalized_request,
+                requested_amount, payout, fees
+            ) VALUES (
+                ?1, ?2, ?3, ?4,
+                ?5, ?6, ?7, ?8, ?9,
+                ?10, ?11, ?12, ?13, ?14,
+                ?15, ?16, ?17, ?18,
+                ?19, ?20, ?21, ?22,
+                ?23, ?24, ?25, ?26, ?27,
+                ?28, ?29, ?30, ?31,
+                ?32, ?33, ?34
+            ) ON CONFLICT(internal_order_id) DO UPDATE SET
+                broker_id = excluded.broker_id,
+                broker_order_id = excluded.broker_order_id,
+                broker_order_id_ex = excluded.broker_order_id_ex,
+                source = excluded.source,
+                source_detail = excluded.source_detail,
+                trading_environment = excluded.trading_environment,
+                account_id = excluded.account_id,
+                market = excluded.market,
+                symbol = excluded.symbol,
+                side = excluded.side,
+                order_type = excluded.order_type,
+                status = excluded.status,
+                raw_broker_status = excluded.raw_broker_status,
+                requested_quantity = excluded.requested_quantity,
+                requested_price = excluded.requested_price,
+                filled_quantity = excluded.filled_quantity,
+                filled_average_price = excluded.filled_average_price,
+                remark = excluded.remark,
+                last_error = excluded.last_error,
+                last_error_code = excluded.last_error_code,
+                last_error_source = excluded.last_error_source,
+                submitted_at = excluded.submitted_at,
+                updated_at = excluded.updated_at,
+                order_kind = excluded.order_kind,
+                product_class = excluded.product_class,
+                quantity_mode = excluded.quantity_mode,
+                client_order_id = excluded.client_order_id,
+                preview_id = excluded.preview_id,
+                normalized_request = excluded.normalized_request,
+                requested_amount = excluded.requested_amount,
+                payout = excluded.payout,
+                fees = excluded.fees",
+            params![
+                order.internal_order_id,
+                order.broker_id,
+                order.broker_order_id,
+                order.broker_order_id_ex,
+                order.source,
+                order.source_detail,
+                order.trading_environment,
+                order.account_id,
+                order.market,
+                order.symbol,
+                order.side,
+                order.order_type,
+                order.status,
+                order.raw_broker_status,
+                order.requested_quantity,
+                order.requested_price,
+                order.filled_quantity,
+                order.filled_average_price,
+                order.remark,
+                order.last_error,
+                order.last_error_code,
+                order.last_error_source,
+                order.submitted_at,
+                timestamp,
+                created_at,
+                order.order_kind,
+                order.product_class,
+                order.quantity_mode,
+                order.client_order_id,
+                order.preview_id,
+                order.normalized_request,
+                order.requested_amount,
+                order.payout,
+                order.fees,
+            ],
+        )
+        .map_err(ExecutionOrderStoreError::Query)?;
+    Ok(())
+}
+
+fn insert_event(
+    transaction: &rusqlite::Transaction<'_>,
+    event: &StoredExecutionOrderEvent<'_>,
+) -> Result<(), ExecutionOrderStoreError> {
+    transaction
+        .execute(
+            "INSERT INTO execution_order_events (
+                id, internal_order_id, event_type, previous_status, next_status, payload_json, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                event.id,
+                event.internal_order_id,
+                event.event_type,
+                event.previous_status,
+                event.next_status,
+                event.payload_json,
+                event.created_at,
+            ],
+        )
+        .map_err(ExecutionOrderStoreError::Query)?;
+    Ok(())
+}
+
 fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), ExecutionOrderStoreError> {
     OffsetDateTime::parse(timestamp, &Rfc3339)
         .map(|_| ())
@@ -606,6 +661,15 @@ impl ExecutionOrderTestCutoverStore {
         timestamp: &str,
     ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
         self.inner.save_order(order, timestamp)
+    }
+
+    pub fn save_order_and_event(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        self.inner.save_order_and_event(order, timestamp, event)
     }
 
     pub fn get_order(

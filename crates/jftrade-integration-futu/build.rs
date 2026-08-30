@@ -48,6 +48,14 @@ fn main() {
         "../../pkg/futu/proto/Trd_GetMarginRatio.proto",
         "../../pkg/futu/proto/Trd_GetMaxTrdQtys.proto",
         "../../pkg/futu/proto/Trd_FlowSummary.proto",
+        "../../pkg/futu/proto/Trd_PlaceOrder.proto",
+        "../../pkg/futu/proto/Trd_PlaceComboOrder.proto",
+        "../../pkg/futu/proto/Trd_ModifyOrder.proto",
+        "../../pkg/futu/proto/Trd_UnlockTrade.proto",
+        "../../pkg/futu/proto/Trd_SubAccPush.proto",
+        "../../pkg/futu/proto/Trd_UpdateOrder.proto",
+        "../../pkg/futu/proto/Trd_UpdateOrderFill.proto",
+        "../../pkg/futu/proto/Trd_Notify.proto",
     ];
     for proto in protos {
         println!("cargo:rerun-if-changed={proto}");

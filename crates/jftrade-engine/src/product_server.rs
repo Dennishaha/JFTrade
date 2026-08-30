@@ -421,6 +421,7 @@ pub(crate) async fn prepare_product_with_runtime_state(
         runtime,
         real_trade_control,
         ProductOptionalPorts {
+            production_routes: production_registry.clone().map(Arc::new),
             notification: config.notification_port.clone(),
             calendar_manager: calendar_manager.clone(),
             watchlist_membership_snapshot: config

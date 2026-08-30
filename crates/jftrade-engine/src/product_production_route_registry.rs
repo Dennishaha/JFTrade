@@ -230,6 +230,14 @@ pub(crate) struct ProductionRouteBinding {
     pub(crate) path: String,
     pub(crate) route_group: String,
     pub(crate) adapter: ProductionRouteAdapter,
+    /// The concrete dispatch target selected by the production composition.
+    ///
+    /// This is intentionally kept separate from `adapter`: the adapter names
+    /// the capability/readiness contract, while this target is the value that
+    /// the API dispatcher consumes.  Keeping both values in the binding makes
+    /// it impossible for the production route catalog and dispatch resolver
+    /// to silently drift apart.
+    pub(crate) dispatch_target: ProductionRouteAdapter,
     pub(crate) adapter_binding: ProductionAdapterBinding,
     /// Readiness for operations selected by query on a shared public route.
     /// Options/events and instrument research routes expose operation aliases
@@ -245,6 +253,10 @@ impl ProductionRouteBinding {
     ) -> Option<ProductionAdapterBinding> {
         let normalized = operation.trim().to_ascii_lowercase();
         self.operation_bindings.get(&normalized).copied()
+    }
+
+    pub(crate) const fn dispatch_target(&self) -> ProductionRouteAdapter {
+        self.dispatch_target
     }
 }
 
@@ -356,6 +368,7 @@ impl ProductionRouteRegistry {
                 path,
                 route_group: operation.capability,
                 adapter,
+                dispatch_target: adapter,
                 adapter_binding,
                 operation_bindings,
             });
@@ -406,6 +419,35 @@ impl ProductionRouteRegistry {
     pub(crate) fn digest(&self) -> &str {
         &self.digest
     }
+
+    /// Resolves a concrete request path against the canonical production
+    /// binding table.  `RouteCatalog::allows` intentionally exposes only a
+    /// boolean; production dispatch also needs the selected target, so this
+    /// resolver is the single source of truth for both registration and
+    /// request routing.
+    pub(crate) fn resolve(
+        &self,
+        method: &str,
+        concrete_path: &str,
+    ) -> Option<&ProductionRouteBinding> {
+        let method = method.trim().to_ascii_uppercase();
+        self.bindings.iter().find(|binding| {
+            binding.method == method && template_matches(&binding.path, concrete_path)
+        })
+    }
+}
+
+fn template_matches(template: &str, concrete: &str) -> bool {
+    let template = template.split('/').collect::<Vec<_>>();
+    let concrete = concrete.split('/').collect::<Vec<_>>();
+    template.len() == concrete.len()
+        && template.iter().zip(concrete).all(|(expected, actual)| {
+            if expected.starts_with('{') && expected.ends_with('}') {
+                !actual.is_empty()
+            } else {
+                *expected == actual
+            }
+        })
 }
 
 fn research_operation_bindings(
@@ -728,5 +770,92 @@ fn adk_adapter(method: &str, path: &str) -> ProductionRouteAdapter {
         ProductionRouteAdapter::AdkChat
     } else {
         ProductionRouteAdapter::AdkMutation
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture_registry() -> ProductionRouteRegistry {
+        let ledger: RouteLedger = serde_json::from_str(CANONICAL_ROUTE_LEDGER).expect("ledger");
+        let canonical_routes = ledger
+            .operations
+            .iter()
+            .map(|operation| {
+                format!(
+                    "{} {}",
+                    operation.method.trim().to_uppercase(),
+                    operation.path.trim()
+                )
+            })
+            .collect::<Vec<_>>();
+        let bindings = ledger
+            .operations
+            .into_iter()
+            .map(|operation| {
+                let method = operation.method.trim().to_uppercase();
+                let path = operation.path.trim().to_owned();
+                let adapter = adapter_for(&operation.capability, &method, &path)
+                    .expect("canonical operation adapter");
+                ProductionRouteBinding {
+                    method,
+                    path,
+                    route_group: operation.capability,
+                    adapter,
+                    dispatch_target: adapter,
+                    adapter_binding: ProductionAdapterBinding::Ready,
+                    operation_bindings: BTreeMap::new(),
+                }
+            })
+            .collect::<Vec<_>>();
+        ProductionRouteRegistry::finish(bindings, route_profile_digest(&canonical_routes))
+            .expect("fixture registry")
+    }
+
+    #[test]
+    fn resolver_returns_registered_target_for_dynamic_paths() {
+        let registry = fixture_registry();
+        let binding = registry
+            .resolve("get", "/api/v1/market-data/candles/US/AAPL")
+            .expect("dynamic route");
+        assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::MarketDataCandlesRead);
+        let binding = registry
+            .resolve("POST", "/api/v1/strategies/instance-1/start")
+            .expect("strategy start");
+        assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::StrategyRuntimeWrite);
+    }
+
+    #[test]
+    fn resolver_rejects_unknown_method_and_path() {
+        let registry = fixture_registry();
+        assert!(registry.resolve("PATCH", "/api/v1/market-data/markets").is_none());
+        assert!(registry
+            .resolve("GET", "/api/v1/market-data/markets/extra")
+            .is_none());
+        assert!(registry.resolve("GET", "/api/v1/unknown").is_none());
+    }
+
+    #[test]
+    fn every_canonical_template_has_a_dispatch_target() {
+        let registry = fixture_registry();
+        for binding in registry.bindings() {
+            let concrete = binding
+                .path
+                .split('/')
+                .map(|segment| {
+                    if segment.starts_with('{') && segment.ends_with('}') {
+                        "fixture-id"
+                    } else {
+                        segment
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("/");
+            let resolved = registry
+                .resolve(&binding.method, &concrete)
+                .expect("canonical operation resolves");
+            assert_eq!(resolved.dispatch_target(), binding.dispatch_target());
+        }
     }
 }

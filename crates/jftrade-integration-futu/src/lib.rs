@@ -4,11 +4,14 @@
 
 mod basic_quote_query;
 mod basic_quote_tick;
+mod corporate_actions_query;
+mod customization;
 mod frame;
 mod future_info_query;
 mod health;
 mod history;
 mod managed_session;
+mod news_query;
 mod option_chain_query;
 mod option_contract_rank_query;
 mod option_earnings_screener_query;
@@ -34,15 +37,12 @@ mod provider;
 mod provider_runtime;
 mod quote_push;
 mod runtime_task;
-mod news_query;
-mod corporate_actions_query;
 mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
 mod valuation_detail_query;
-mod customization;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
 // rules because its field/enum names are dictated by the OpenD schema.
@@ -61,6 +61,15 @@ mod transport;
 
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
 pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
+pub use corporate_actions_query::{
+    CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
+    FutuCorporateActionsQueryError, FutuCorporateActionsReadPort, FutuCorporateActionsResult,
+    OpenDCorporateActionsReader,
+};
+pub use customization::{
+    AlertCustomizationReadPort, AlertCustomizationWritePort, FutuAlertQuery, FutuAlertWrite,
+    FutuRemoteWatchlistReader, RemoteWatchlistReadPort, RemoteWatchlistWritePort,
+};
 pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
 pub use future_info_query::{
     FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort, FutureInfoSecurity,
@@ -76,6 +85,10 @@ pub use history::{
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
+};
+pub use news_query::{
+    FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
+    OpenDNewsReader,
 };
 pub use option_chain_query::{
     OpenDOptionChainReader, OptionChainDataFilter, OptionChainDate, OptionChainItem,
@@ -205,7 +218,12 @@ pub use subscriptions::{
     SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
 };
 pub use trade_proto::ResponseError;
-pub use trade_session::{OpenDTradeReadClient, TradeReadPort, TradeSessionError, trade_header};
+pub use trade_session::{
+    OpenDTradeReadClient, TradeModifyOrderRequest, TradePlaceComboOrderRequest,
+    TradePlaceComboOrderResult, TradePlaceOrderRequest, TradePlaceOrderResult, TradeReadPort,
+    TradeSessionError, TradeSubscribeAccountsRequest, TradeUnlockRequest, TradeWritePort,
+    trade_header,
+};
 pub use trade_snapshots::{
     TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg, TradeFillSnapshot,
     TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
@@ -227,20 +245,6 @@ pub use valuation_detail_query::{
     ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
     ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
     ValuationDetailTrend,
-};
-pub use customization::{
-    AlertCustomizationReadPort, AlertCustomizationWritePort, FutuAlertQuery,
-    FutuAlertWrite, FutuRemoteWatchlistReader, RemoteWatchlistReadPort,
-    RemoteWatchlistWritePort,
-};
-pub use news_query::{
-    FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
-    OpenDNewsReader,
-};
-pub use corporate_actions_query::{
-    CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
-    FutuCorporateActionsQueryError, FutuCorporateActionsReadPort, FutuCorporateActionsResult,
-    OpenDCorporateActionsReader,
 };
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;

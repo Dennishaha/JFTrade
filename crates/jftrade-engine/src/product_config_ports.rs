@@ -225,6 +225,14 @@ impl ProductConfig {
         self
     }
 
+    pub(crate) fn with_trade_write_port(
+        mut self,
+        port: Option<Arc<dyn jftrade_integration_futu::TradeWritePort>>,
+    ) -> Self {
+        self.trade_write_port = port;
+        self
+    }
+
     pub(crate) fn with_trade_runtime(
         mut self,
         runtime: Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,

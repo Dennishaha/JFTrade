@@ -78,6 +78,18 @@ fn agent_templates_wire() -> serde_json::Value {
 impl ApiPort for ProductApi {
     fn dispatch(&self, request: ApiRequest) -> PortFuture<'_> {
         Box::pin(async move {
+            if let Some(registry) = self.production_routes.as_ref() {
+                let Some(binding) = registry.resolve(&request.method, &request.path) else {
+                    return Err(ApiFailure::new(
+                        404,
+                        "NOT_FOUND",
+                        format!("unknown endpoint {}", request.path),
+                    ));
+                };
+                return self
+                    .dispatch_production_target(binding.dispatch_target(), &request)
+                    .await;
+            }
             match (request.method.as_str(), request.path.as_str()) {
                 ("GET", "/api/v1/auth/session") => self.auth_session(&request),
                 (method, path) if is_auth_session_write_path(method, path) && self.auth_session_write_port.is_some() => self.auth_session_write(&request),
@@ -693,3 +705,5 @@ fn decode_query_component(value: &str) -> String {
         .decode_utf8_lossy()
         .into_owned()
 }
+
+include!("product_production_dispatch.rs");

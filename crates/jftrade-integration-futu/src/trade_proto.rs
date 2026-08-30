@@ -434,6 +434,68 @@ pub mod trd_get_max_trd_qtys {
     }
 }
 
+/// Adds the small amount of framing/response validation shared by OpenD trade
+/// command protocols.  Command requests intentionally stay in this adapter;
+/// the engine only sees the neutral request/result types from `trade_session`.
+macro_rules! trade_command_proto {
+    ($module:ident, $file:literal, $operation:literal, $protocol_id:literal) => {
+        pub mod $module {
+            use prost::Message;
+
+            include!(concat!(env!("OUT_DIR"), "/", $file));
+
+            pub const PROTOCOL_ID: u32 = $protocol_id;
+
+            pub fn encode_request(request: &Request) -> Vec<u8> {
+                request.encode_to_vec()
+            }
+
+            pub fn decode_response(body: &[u8]) -> Result<S2c, super::ResponseError> {
+                let response =
+                    Response::decode(body).map_err(|error| super::ResponseError::Decode {
+                        operation: $operation,
+                        message: error.to_string(),
+                    })?;
+                super::validate_response_for(
+                    response.ret_type,
+                    response.err_code,
+                    response.ret_msg.as_deref(),
+                    response.s2c.is_some(),
+                )?;
+                response.s2c.ok_or(super::ResponseError::MissingS2c)
+            }
+        }
+    };
+}
+
+trade_command_proto!(trd_place_order, "trd_place_order.rs", "PlaceOrder", 2202);
+trade_command_proto!(
+    trd_place_combo_order,
+    "trd_place_combo_order.rs",
+    "PlaceComboOrder",
+    2227
+);
+trade_command_proto!(trd_modify_order, "trd_modify_order.rs", "ModifyOrder", 2205);
+trade_command_proto!(trd_unlock_trade, "trd_unlock_trade.rs", "UnlockTrade", 2005);
+trade_command_proto!(
+    trd_sub_acc_push,
+    "trd_sub_acc_push.rs",
+    "SubscribeAccountPush",
+    2008
+);
+
+/// Push-only trade notifications.  They have no request type, therefore the
+/// modules only expose generated protobuf messages to the order-update worker.
+pub mod trd_update_order {
+    include!(concat!(env!("OUT_DIR"), "/trd_update_order.rs"));
+}
+pub mod trd_update_order_fill {
+    include!(concat!(env!("OUT_DIR"), "/trd_update_order_fill.rs"));
+}
+pub mod trd_notify {
+    include!(concat!(env!("OUT_DIR"), "/trd_notify.rs"));
+}
+
 #[cfg(test)]
 #[path = "trade_proto_tests.rs"]
 mod tests;

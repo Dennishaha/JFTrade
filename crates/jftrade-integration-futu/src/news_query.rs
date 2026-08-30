@@ -50,7 +50,10 @@ impl FutuNewsQuery {
                 "news maxCount must be between 1 and 50".to_owned(),
             ));
         }
-        if self.news_sub_type.is_some_and(|value| !(0..=3).contains(&value)) {
+        if self
+            .news_sub_type
+            .is_some_and(|value| !(0..=3).contains(&value))
+        {
             return Err(FutuNewsQueryError::InvalidQuery(
                 "news subType must be between 0 and 3".to_owned(),
             ));
@@ -209,10 +212,9 @@ fn normalize_publish_time(value: &str) -> Result<Option<String>, FutuNewsQueryEr
     if value.is_empty() {
         return Ok(None);
     }
-    if let Ok(timestamp) = time::OffsetDateTime::parse(
-        value,
-        &time::format_description::well_known::Rfc3339,
-    ) {
+    if let Ok(timestamp) =
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+    {
         return timestamp
             .to_offset(time::UtcOffset::UTC)
             .format(&time::format_description::well_known::Rfc3339)

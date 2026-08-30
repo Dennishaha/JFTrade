@@ -3,16 +3,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_integration_futu::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDSessionCoordinator, OpenDSessionRuntime,
-    OpenDSessionRuntimeConfig, OpenDTradeReadClient, TradeReadPort,
+    OpenDSessionRuntimeConfig, OpenDTradeReadClient, TradeReadPort, TradeWritePort,
 };
 use jftrade_integration_marketdata_helper::ProcessError;
 use jftrade_integration_pine::{
     GrpcPineExecutionPort, PineBacktestExecutionAdapter, PineExecutionConfig, PineProcessError,
 };
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
-use jftrade_settings::{
-    MarketDataProvider, MarketDataProviderSettingsStorePort,
-};
+use jftrade_settings::{MarketDataProvider, MarketDataProviderSettingsStorePort};
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
 use thiserror::Error;
@@ -71,8 +69,7 @@ pub struct ProductRuntimeConfig {
     /// absent worker configuration keeps POST /api/v1/backtests fail closed.
     pub backtest_execution_port: Option<Arc<dyn crate::product::BacktestExecutionPort>>,
     /// Native PineTS AnalyzeScript adapter created after worker readiness.
-    pub strategy_pine_worker_port:
-        Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
+    pub strategy_pine_worker_port: Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
     pub(crate) shutdown_recorder: Option<product_runtime_supervisor::ShutdownEventRecorder>,
     #[cfg(test)]
     pub inject_startup_failure: bool,

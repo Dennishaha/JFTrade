@@ -1,6 +1,8 @@
 include!("product_api_types.rs");
 struct ProductApi {
     api_port: u16,
+    production_routes:
+        Option<Arc<crate::product::product_production_route_registry::ProductionRouteRegistry>>,
     settings: ProductSettingsServices,
     metrics: Arc<TransportMetrics>,
     live_connections: Arc<LiveConnectionMetrics>,
@@ -76,6 +78,7 @@ impl ProductApi {
             new_market_data_subscription_mutation_api(&optional_ports);
         Self {
             api_port,
+            production_routes: optional_ports.production_routes,
             settings,
             metrics,
             live_connections,

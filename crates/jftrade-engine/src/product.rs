@@ -388,6 +388,7 @@ pub struct ProductConfig {
     opend_runtime_status: ProductionRuntimeStatus,
     worker_runtime_status: ProductionRuntimeStatus,
     pub(crate) trade_read_port: Option<Arc<dyn jftrade_integration_futu::TradeReadPort>>,
+    pub(crate) trade_write_port: Option<Arc<dyn jftrade_integration_futu::TradeWritePort>>,
     pub(crate) trade_logged_in: Option<bool>,
     pub(crate) trade_runtime:
         Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
@@ -493,6 +494,7 @@ impl ProductConfig {
             opend_runtime_status: ProductionRuntimeStatus::Unavailable,
             worker_runtime_status: ProductionRuntimeStatus::Unavailable,
             trade_read_port: None,
+            trade_write_port: None,
             trade_logged_in: None,
             trade_runtime: None,
         })

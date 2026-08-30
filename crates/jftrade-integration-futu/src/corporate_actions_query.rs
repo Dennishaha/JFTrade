@@ -130,10 +130,9 @@ impl FutuCorporateActionsReadPort for OpenDCorporateActionsReader {
         query: &FutuCorporateActionsQuery,
     ) -> Result<FutuCorporateActionsResult, FutuCorporateActionsQueryError> {
         query.validate()?;
-        let coordinator = self
-            .coordinator
-            .lock()
-            .map_err(|_| FutuCorporateActionsQueryError::Session(OpenDSessionCoordinatorError::Closed))?;
+        let coordinator = self.coordinator.lock().map_err(|_| {
+            FutuCorporateActionsQueryError::Session(OpenDSessionCoordinatorError::Closed)
+        })?;
         let session = coordinator.session()?;
         match query.kind {
             CorporateActionKind::Dividends => {
@@ -208,7 +207,12 @@ fn decode_dividends(
 ) -> Result<FutuCorporateActionsResult, FutuCorporateActionsQueryError> {
     use crate::trade_proto::qot_get_corporate_actions_dividends::Response;
     let response = Response::decode(body).map_err(FutuCorporateActionsQueryError::Decode)?;
-    ensure_success(response.ret_type, response.err_code, response.ret_msg, "dividends")?;
+    ensure_success(
+        response.ret_type,
+        response.err_code,
+        response.ret_msg,
+        "dividends",
+    )?;
     let Some(s2c) = response.s2c else {
         return Err(FutuCorporateActionsQueryError::MissingS2c);
     };
@@ -232,7 +236,12 @@ fn decode_buybacks(
 ) -> Result<FutuCorporateActionsResult, FutuCorporateActionsQueryError> {
     use crate::trade_proto::qot_get_corporate_actions_buybacks::Response;
     let response = Response::decode(body).map_err(FutuCorporateActionsQueryError::Decode)?;
-    ensure_success(response.ret_type, response.err_code, response.ret_msg, "buybacks")?;
+    ensure_success(
+        response.ret_type,
+        response.err_code,
+        response.ret_msg,
+        "buybacks",
+    )?;
     let Some(s2c) = response.s2c else {
         return Err(FutuCorporateActionsQueryError::MissingS2c);
     };
@@ -252,7 +261,12 @@ fn decode_splits(
 ) -> Result<FutuCorporateActionsResult, FutuCorporateActionsQueryError> {
     use crate::trade_proto::qot_get_corporate_actions_stock_splits::Response;
     let response = Response::decode(body).map_err(FutuCorporateActionsQueryError::Decode)?;
-    ensure_success(response.ret_type, response.err_code, response.ret_msg, "stock splits")?;
+    ensure_success(
+        response.ret_type,
+        response.err_code,
+        response.ret_msg,
+        "stock splits",
+    )?;
     let Some(s2c) = response.s2c else {
         return Err(FutuCorporateActionsQueryError::MissingS2c);
     };
@@ -294,7 +308,11 @@ fn map_dividend(
     insert_text(&mut metadata, "statement", item.statement)?;
     insert_text(&mut metadata, "process", item.process)?;
     insert_text(&mut metadata, "recordDate", item.record_date)?;
-    insert_text(&mut metadata, "dividendPayableDate", item.dividend_payable_date)?;
+    insert_text(
+        &mut metadata,
+        "dividendPayableDate",
+        item.dividend_payable_date,
+    )?;
     insert_text(&mut metadata, "fiscalYear", item.fiscal_year)?;
     let ex_date = normalize_date(item.ex_date)?;
     Ok(FutuCorporateAction {
@@ -345,18 +363,26 @@ fn map_split(
     item: crate::trade_proto::qot_get_corporate_actions_stock_splits::StockSplitItem,
 ) -> Result<FutuCorporateAction, FutuCorporateActionsQueryError> {
     let mut metadata = BTreeMap::new();
-    insert_text(&mut metadata, "announcementDate", item.dir_deci_pub_date_str)?;
+    insert_text(
+        &mut metadata,
+        "announcementDate",
+        item.dir_deci_pub_date_str,
+    )?;
     insert_text(&mut metadata, "reformType", item.reform_type)?;
     insert_text(&mut metadata, "decisionDate", item.sm_deci_date_str)?;
     insert_text(&mut metadata, "eventStatus", item.event_status)?;
     insert_text(&mut metadata, "temporaryShareCode", item.temp_share_code)?;
-    insert_text(&mut metadata, "temporaryShareName", item.temp_share_abbr_name)?;
+    insert_text(
+        &mut metadata,
+        "temporaryShareName",
+        item.temp_share_abbr_name,
+    )?;
     let ex_date = normalize_date(item.ex_date_str)?;
-    let ratio = item
-        .rate
-        .as_deref()
-        .and_then(parse_ratio)
-        .or_else(|| item.shares_after_effect.zip(item.new_par_value).and_then(|_| None));
+    let ratio = item.rate.as_deref().and_then(parse_ratio).or_else(|| {
+        item.shares_after_effect
+            .zip(item.new_par_value)
+            .and_then(|_| None)
+    });
     Ok(FutuCorporateAction {
         kind: "split".to_owned(),
         ex_date,
@@ -426,7 +452,11 @@ fn insert_optional_text(target: &mut BTreeMap<String, String>, key: &str, value:
     }
 }
 
-fn insert_optional_number<T: ToString>(target: &mut BTreeMap<String, String>, key: &str, value: Option<T>) {
+fn insert_optional_number<T: ToString>(
+    target: &mut BTreeMap<String, String>,
+    key: &str,
+    value: Option<T>,
+) {
     if let Some(value) = value {
         target.insert(key.to_owned(), value.to_string());
     }

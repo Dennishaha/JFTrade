@@ -66,6 +66,7 @@ pub struct OpenDTcpProbe;
 #[derive(Clone)]
 pub struct OpenDInitializedSession {
     session: Arc<OpenDManagedSession>,
+    conn_id: u64,
 }
 
 impl OpenDInitializedSession {
@@ -78,8 +79,8 @@ impl OpenDInitializedSession {
             config.timeout,
             generation,
         )?);
-        initialize_session(&session, config, false)?;
-        Ok(Self { session })
+        let conn_id = initialize_session(&session, config, false)?;
+        Ok(Self { session, conn_id })
     }
 
     /// Connects the long-lived market-data role with unsolicited quote
@@ -95,12 +96,18 @@ impl OpenDInitializedSession {
             config.timeout,
             generation,
         )?);
-        initialize_session(&session, config, true)?;
-        Ok(Self { session })
+        let conn_id = initialize_session(&session, config, true)?;
+        Ok(Self { session, conn_id })
     }
 
     pub fn managed_session(&self) -> &OpenDManagedSession {
         &self.session
+    }
+
+    /// Connection id assigned by OpenD during InitConnect.  Trade command
+    /// packets include this id in their anti-replay `PacketID` envelope.
+    pub fn conn_id(&self) -> u64 {
+        self.conn_id
     }
 
     pub(crate) fn managed_session_handle(&self) -> Arc<OpenDManagedSession> {
@@ -206,7 +213,7 @@ fn initialize_session(
     session: &OpenDManagedSession,
     config: &OpenDTcpProbeConfig,
     recv_notify: bool,
-) -> Result<(), OpenDTcpProbeError> {
+) -> Result<u64, OpenDTcpProbeError> {
     let init_request = InitConnectRequest {
         c2s: Some(InitConnectC2s {
             client_ver: 101,
@@ -225,10 +232,10 @@ fn initialize_session(
             }
         })?;
     ensure_success("InitConnect", init_response.ret_type, init_response.ret_msg)?;
-    if init_response.s2c.is_none() {
-        return Err(OpenDTcpProbeError::MissingInitState);
-    }
-    Ok(())
+    let state = init_response
+        .s2c
+        .ok_or(OpenDTcpProbeError::MissingInitState)?;
+    Ok(state.conn_id)
 }
 
 fn ensure_success(
