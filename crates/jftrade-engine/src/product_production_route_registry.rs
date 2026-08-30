@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use super::product_production_ports::{ProductionAdapterBinding, ProductionPortBundle};
+use super::product_production_ports::{
+    ProductionAdapterBinding, ProductionPortBundle, OPTION_ANALYSIS_OPERATIONS,
+};
 use super::*;
 
 const EXPECTED_PRODUCTION_ROUTE_COUNT: usize = 278;
@@ -320,6 +322,20 @@ impl ProductionRouteRegistry {
                                 adapter: operation_adapter.name().to_owned(),
                             }
                         })?;
+                        Ok(((*operation).to_owned(), binding))
+                    })
+                    .collect::<Result<BTreeMap<_, _>, ProductError>>()?
+            } else if adapter == ProductionRouteAdapter::MarketDataOptionsAnalysisRead {
+                OPTION_ANALYSIS_OPERATIONS
+                    .iter()
+                    .map(|operation| {
+                        let binding = ports
+                            .option_analysis_operation_binding(operation)
+                            .ok_or_else(|| ProductError::MissingProductionAdapter {
+                                method: method.clone(),
+                                path: path.clone(),
+                                adapter: adapter.name().to_owned(),
+                            })?;
                         Ok(((*operation).to_owned(), binding))
                     })
                     .collect::<Result<BTreeMap<_, _>, ProductError>>()?

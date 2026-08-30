@@ -23,9 +23,7 @@ pub(crate) fn read(
         ));
     }
     let request = parse_request(path, query)?;
-    let snapshot = runtime
-        .option_contract_rank(&request)
-        .map_err(map_error)?;
+    let snapshot = runtime.option_contract_rank(&request).map_err(map_error)?;
     let jftrade_integration_futu::OptionContractRankSnapshot {
         market,
         sort_type,
@@ -38,12 +36,10 @@ pub(crate) fn read(
     let entries = items
         .into_iter()
         .map(|item| {
-            serde_json::to_value(item).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!("failed to serialize OpenD option contract rank: {error}"),
-                }
+            serde_json::to_value(item).map_err(|error| MarketDataOptionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: format!("failed to serialize OpenD option contract rank: {error}"),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -84,10 +80,7 @@ pub(crate) fn read(
 fn parse_request(
     path: &str,
     query: &str,
-) -> Result<
-    jftrade_integration_futu::OptionContractRankQuery,
-    MarketDataOptionsReadSnapshotError,
-> {
+) -> Result<jftrade_integration_futu::OptionContractRankQuery, MarketDataOptionsReadSnapshotError> {
     let instrument = path
         .strip_prefix("/api/v1/market-data/options/analysis/")
         .filter(|value| !value.is_empty() && !value.contains('/'))
@@ -143,10 +136,7 @@ fn parse_request(
     let trading_date = query_map
         .get_first("tradingDate")
         .map(|value| value.trim().to_owned());
-    let is_asc = query_map
-        .get_first("isAsc")
-        .map(parse_bool)
-        .transpose()?;
+    let is_asc = query_map.get_first("isAsc").map(parse_bool).transpose()?;
     let page = query_map
         .get_first("page")
         .or_else(|| query_map.get_first("cursor"))

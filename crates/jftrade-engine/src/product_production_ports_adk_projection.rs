@@ -7,9 +7,15 @@ use crate::product::AdkReadSnapshotError;
 
 use super::ProductionToolCatalog;
 
-pub(super) fn payload<const N: usize>(raw: &str, resource: &str, fields: [(&str, String); N]) -> Result<Value, AdkReadSnapshotError> {
+pub(super) fn payload<const N: usize>(
+    raw: &str,
+    resource: &str,
+    fields: [(&str, String); N],
+) -> Result<Value, AdkReadSnapshotError> {
     let mut value: Value = serde_json::from_str(raw).map_err(|e| invalid_payload(resource, e))?;
-    for (key, field_value) in fields { put_string(&mut value, key, field_value); }
+    for (key, field_value) in fields {
+        put_string(&mut value, key, field_value);
+    }
     Ok(value)
 }
 
@@ -51,7 +57,10 @@ pub(super) fn session_entity_value(
     )
 }
 
-pub(super) fn timeline_value(event: jftrade_store_sqlite::StoredAdkEvent, sequence: usize) -> Value {
+pub(super) fn timeline_value(
+    event: jftrade_store_sqlite::StoredAdkEvent,
+    sequence: usize,
+) -> Value {
     let is_user = event.author.trim().eq_ignore_ascii_case("user");
     json!({
         "id": event.id,
@@ -83,10 +92,7 @@ pub(super) fn composer_state_value(
             "stored composer state payload must be a JSON object",
         )
     })?;
-    object.insert(
-        "sessionId".to_owned(),
-        Value::String(session_id.to_owned()),
-    );
+    object.insert("sessionId".to_owned(), Value::String(session_id.to_owned()));
     for (key, default) in [
         ("chatDraft", Value::String(String::new())),
         ("providerIdOverride", Value::String(String::new())),
@@ -96,10 +102,7 @@ pub(super) fn composer_state_value(
         ("permissionModeOverride", Value::String(String::new())),
         ("goalObjectiveDraft", Value::String(String::new())),
         ("goalObjectiveTouched", Value::Bool(false)),
-        (
-            "updatedAt",
-            Value::String(updated_at.clone()),
-        ),
+        ("updatedAt", Value::String(updated_at.clone())),
     ] {
         object.entry(key.to_owned()).or_insert(default);
     }
@@ -109,18 +112,32 @@ pub(super) fn composer_state_value(
 
 pub(super) fn page(key: &str, items: Vec<Value>, query: &str, default_limit: usize) -> Value {
     let total = items.len();
-    let limit = query_param(query, "limit").and_then(|v| v.parse().ok()).filter(|v: &usize| *v > 0).unwrap_or(default_limit);
-    let offset = query_param(query, "offset").and_then(|v| v.parse().ok()).unwrap_or(0usize).min(total);
+    let limit = query_param(query, "limit")
+        .and_then(|v| v.parse().ok())
+        .filter(|v: &usize| *v > 0)
+        .unwrap_or(default_limit);
+    let offset = query_param(query, "offset")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0usize)
+        .min(total);
     let end = offset.saturating_add(limit).min(total);
     json!({key: items[offset..end].to_vec(), "page": {"limit": limit, "offset": offset, "total": total, "returned": end - offset, "hasMore": end < total}})
 }
 
 pub(super) fn query_param(query: &str, target: &str) -> Option<String> {
-    query.split('&').filter_map(|part| part.split_once('=')).find_map(|(key, value)| {
-        let decoded_key = percent_decode_str(key).decode_utf8().ok()?;
-        if decoded_key != target { return None; }
-        percent_decode_str(value).decode_utf8().ok().map(|decoded| decoded.into_owned())
-    })
+    query
+        .split('&')
+        .filter_map(|part| part.split_once('='))
+        .find_map(|(key, value)| {
+            let decoded_key = percent_decode_str(key).decode_utf8().ok()?;
+            if decoded_key != target {
+                return None;
+            }
+            percent_decode_str(value)
+                .decode_utf8()
+                .ok()
+                .map(|decoded| decoded.into_owned())
+        })
 }
 
 pub(super) fn dynamic_id<'a>(path: &'a str, prefix: &str, suffix: &str) -> Option<&'a str> {
@@ -128,12 +145,31 @@ pub(super) fn dynamic_id<'a>(path: &'a str, prefix: &str, suffix: &str) -> Optio
     (!value.is_empty() && !value.contains('/')).then_some(value)
 }
 
-pub(super) fn invalid_payload<E: std::fmt::Display>(resource: &str, error: E) -> AdkReadSnapshotError { AdkReadSnapshotError::Unavailable(format!("stored ADK {resource} payload is invalid JSON: {error}")) }
-pub(super) fn not_found(message: &str) -> AdkReadSnapshotError { AdkReadSnapshotError::Failed { status: 404, code: "NOT_FOUND".to_owned(), message: message.to_owned(), retry_after_seconds: None } }
-pub(super) fn put_string(value: &mut Value, key: &str, value_string: String) { if let Value::Object(object) = value { object.insert(key.to_owned(), Value::String(value_string)); } }
+pub(super) fn invalid_payload<E: std::fmt::Display>(
+    resource: &str,
+    error: E,
+) -> AdkReadSnapshotError {
+    AdkReadSnapshotError::Unavailable(format!(
+        "stored ADK {resource} payload is invalid JSON: {error}"
+    ))
+}
+pub(super) fn not_found(message: &str) -> AdkReadSnapshotError {
+    AdkReadSnapshotError::Failed {
+        status: 404,
+        code: "NOT_FOUND".to_owned(),
+        message: message.to_owned(),
+        retry_after_seconds: None,
+    }
+}
+pub(super) fn put_string(value: &mut Value, key: &str, value_string: String) {
+    if let Value::Object(object) = value {
+        object.insert(key.to_owned(), Value::String(value_string));
+    }
+}
 
 pub(super) fn is_deleted_payload(raw: &str, resource: &str) -> Result<bool, AdkReadSnapshotError> {
-    let value: Value = serde_json::from_str(raw).map_err(|error| invalid_payload(resource, error))?;
+    let value: Value =
+        serde_json::from_str(raw).map_err(|error| invalid_payload(resource, error))?;
     Ok(value.get("deletedAt").is_some_and(|deleted| {
         !deleted.is_null()
             && deleted

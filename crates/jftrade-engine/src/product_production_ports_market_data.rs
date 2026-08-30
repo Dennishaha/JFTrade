@@ -7,53 +7,55 @@
 mod product_production_ports_market_data_actions;
 #[path = "product_production_ports_market_data_catalog.rs"]
 mod product_production_ports_market_data_catalog;
+#[path = "product_production_ports_market_data_futures.rs"]
+mod product_production_ports_market_data_futures;
+#[path = "product_production_ports_market_data_news_actions.rs"]
+pub(super) mod product_production_ports_market_data_news_actions;
+#[path = "product_production_ports_market_data_news_search.rs"]
+mod product_production_ports_market_data_news_search;
+#[cfg(test)]
+#[path = "product_production_ports_market_data_news_tests.rs"]
+mod product_production_ports_market_data_news_tests;
+#[path = "product_production_ports_market_data_options_analysis.rs"]
+mod product_production_ports_market_data_options_analysis;
+#[path = "product_production_ports_market_data_options_common.rs"]
+mod product_production_ports_market_data_options_common;
+#[path = "product_production_ports_market_data_options_contract_rank.rs"]
+mod product_production_ports_market_data_options_contract_rank;
+#[path = "product_production_ports_market_data_options_events.rs"]
+mod product_production_ports_market_data_options_events;
+#[path = "product_production_ports_market_data_options_historical_volatility.rs"]
+mod product_production_ports_market_data_options_historical_volatility;
+#[path = "product_production_ports_market_data_options_screen.rs"]
+mod product_production_ports_market_data_options_screen;
+#[path = "product_production_ports_market_data_options_strategy.rs"]
+mod product_production_ports_market_data_options_strategy;
+#[path = "product_production_ports_market_data_options_strategy_analysis.rs"]
+mod product_production_ports_market_data_options_strategy_analysis;
+#[path = "product_production_ports_market_data_options_strategy_spread.rs"]
+mod product_production_ports_market_data_options_strategy_spread;
+#[cfg(test)]
+#[path = "product_production_ports_market_data_options_tests.rs"]
+mod product_production_ports_market_data_options_tests;
+#[path = "product_production_ports_market_data_prediction.rs"]
+mod product_production_ports_market_data_prediction;
 #[path = "product_production_ports_market_data_projection.rs"]
 pub(crate) mod product_production_ports_market_data_projection;
 #[path = "product_production_ports_market_data_quote.rs"]
 mod product_production_ports_market_data_quote;
 #[path = "product_production_ports_market_data_subscription.rs"]
 mod product_production_ports_market_data_subscription;
-#[path = "product_production_ports_market_data_options_screen.rs"]
-mod product_production_ports_market_data_options_screen;
-#[path = "product_production_ports_market_data_options_analysis.rs"]
-mod product_production_ports_market_data_options_analysis;
-#[path = "product_production_ports_market_data_options_historical_volatility.rs"]
-mod product_production_ports_market_data_options_historical_volatility;
-#[path = "product_production_ports_market_data_options_strategy_spread.rs"]
-mod product_production_ports_market_data_options_strategy_spread;
-#[path = "product_production_ports_market_data_options_strategy.rs"]
-mod product_production_ports_market_data_options_strategy;
-#[path = "product_production_ports_market_data_options_strategy_analysis.rs"]
-mod product_production_ports_market_data_options_strategy_analysis;
-#[path = "product_production_ports_market_data_options_contract_rank.rs"]
-mod product_production_ports_market_data_options_contract_rank;
-#[path = "product_production_ports_market_data_options_events.rs"]
-mod product_production_ports_market_data_options_events;
-#[path = "product_production_ports_market_data_prediction.rs"]
-mod product_production_ports_market_data_prediction;
-#[path = "product_production_ports_market_data_futures.rs"]
-mod product_production_ports_market_data_futures;
-#[path = "product_production_ports_market_data_news_search.rs"]
-mod product_production_ports_market_data_news_search;
-#[path = "product_production_ports_market_data_news_actions.rs"]
-mod product_production_ports_market_data_news_actions;
-#[cfg(test)]
-#[path = "product_production_ports_market_data_options_tests.rs"]
-mod product_production_ports_market_data_options_tests;
-#[cfg(test)]
-#[path = "product_production_ports_market_data_news_tests.rs"]
-mod product_production_ports_market_data_news_tests;
 
 pub(crate) use product_production_ports_market_data_actions::ProductionMarketDataProviderActionsPort;
 pub(crate) use product_production_ports_market_data_catalog::ProductionMarketDataCatalogPort;
 pub(crate) use product_production_ports_market_data_quote::ProductionMarketDataQuotePort;
 pub(crate) use product_production_ports_market_data_subscription::ProductionMarketDataSubscriptionMutationPort;
 
-use std::sync::Arc;
-use std::thread;
-use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
-use serde_json::Value;
-use jftrade_settings::MarketDataProvider;
+use product_production_ports_market_data_options_common::{
+    map_option_chain_error, map_option_expiration_error, options_bad_request,
+};
+
+use super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::{
     MarketDataDerivativeReadSnapshotError, MarketDataDerivativeReadSnapshotPort,
@@ -61,7 +63,11 @@ use crate::product::{
     MarketDataNewsSearchReadSnapshotError, MarketDataNewsSearchReadSnapshotPort,
     MarketDataOptionsReadSnapshotError, MarketDataOptionsReadSnapshotPort,
 };
-use super::product_production_ports_trade::SharedTradeReadRuntime;
+use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
+use jftrade_settings::MarketDataProvider;
+use serde_json::Value;
+use std::sync::Arc;
+use std::thread;
 
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataDerivativePort {
@@ -70,7 +76,11 @@ pub(crate) struct ProductionMarketDataDerivativePort {
 }
 
 impl MarketDataDerivativeReadSnapshotPort for ProductionMarketDataDerivativePort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
+    fn read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Value, MarketDataDerivativeReadSnapshotError> {
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider != Some(MarketDataProvider::Futu) || !snapshot.opend_ready {
             return Err(MarketDataDerivativeReadSnapshotError::Unavailable(
@@ -120,10 +130,7 @@ impl MarketDataOptionsReadSnapshotPort for ProductionMarketDataOptionsPort {
             );
         }
         if path == "/api/v1/market-data/options/events" {
-            return product_production_ports_market_data_options_events::read(
-                Some(runtime),
-                query,
-            );
+            return product_production_ports_market_data_options_events::read(Some(runtime), query);
         }
         if path.starts_with("/api/v1/market-data/options/chains/") {
             if !runtime.option_chains_available() {
@@ -174,7 +181,9 @@ fn parse_option_chain_request(
         .ok_or_else(|| options_bad_request("unsupported options route"))?;
     let (market, symbol) = instrument
         .split_once('.')
-        .filter(|(market, symbol)| !market.is_empty() && !symbol.is_empty() && !symbol.contains('.'))
+        .filter(|(market, symbol)| {
+            !market.is_empty() && !symbol.is_empty() && !symbol.contains('.')
+        })
         .ok_or_else(|| options_bad_request("instrumentId must be MARKET.CODE"))?;
     let market = market.trim().to_ascii_uppercase();
     let market_code = match market.as_str() {
@@ -204,11 +213,7 @@ fn parse_option_chain_request(
     // through today + 30 days. Keep that observable request contract while
     // still rejecting an explicitly blank date value.
     let today = time::OffsetDateTime::now_utc().date();
-    let begin_time = chain_date_or_default(
-        &query_map,
-        "beginTime",
-        format_chain_date(today),
-    )?;
+    let begin_time = chain_date_or_default(&query_map, "beginTime", format_chain_date(today))?;
     let end_time = chain_date_or_default(
         &query_map,
         "endTime",
@@ -274,13 +279,18 @@ fn optional_chain_enum(
 
 fn parse_option_chain_filter(
     query: &crate::product::product_query::QueryMap,
-) -> Result<Option<jftrade_integration_futu::OptionChainDataFilter>, MarketDataOptionsReadSnapshotError>
-{
+) -> Result<
+    Option<jftrade_integration_futu::OptionChainDataFilter>,
+    MarketDataOptionsReadSnapshotError,
+> {
     let mut filter = jftrade_integration_futu::OptionChainDataFilter::default();
     let mut present = false;
     macro_rules! field {
         ($name:literal, $slot:ident) => {
-            if let Some(value) = query.get_first($name).filter(|value| !value.trim().is_empty()) {
+            if let Some(value) = query
+                .get_first($name)
+                .filter(|value| !value.trim().is_empty())
+            {
                 filter.$slot = Some(parse_chain_filter_number(value, $name)?);
                 present = true;
             }
@@ -352,39 +362,29 @@ fn option_chain_result(
     }))
 }
 
-fn map_option_chain_error(
-    error: jftrade_integration_futu::OptionChainQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    match error {
-        jftrade_integration_futu::OptionChainQueryError::InvalidQuery(message) => {
-            options_bad_request(&message)
-        }
-        other => MarketDataOptionsReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: other.to_string(),
-        },
-    }
-}
-
 fn parse_option_expiration_request(
     path: &str,
     query: &str,
-) -> Result<jftrade_integration_futu::OptionExpirationQuery, MarketDataOptionsReadSnapshotError>
-{
+) -> Result<jftrade_integration_futu::OptionExpirationQuery, MarketDataOptionsReadSnapshotError> {
     let instrument = path
         .strip_prefix("/api/v1/market-data/options/expirations/")
         .filter(|value| !value.is_empty() && !value.contains('/'))
         .ok_or_else(|| options_bad_request("unsupported options route"))?;
     let (market, symbol) = instrument
         .split_once('.')
-        .filter(|(market, symbol)| !market.is_empty() && !symbol.is_empty() && !symbol.contains('.'))
+        .filter(|(market, symbol)| {
+            !market.is_empty() && !symbol.is_empty() && !symbol.contains('.')
+        })
         .ok_or_else(|| options_bad_request("instrumentId must be MARKET.CODE"))?;
     let market = market.trim().to_ascii_uppercase();
     let market_code = match market.as_str() {
         "HK" => 1,
         "US" => 11,
-        _ => return Err(options_bad_request("option expiration market must be HK or US")),
+        _ => {
+            return Err(options_bad_request(
+                "option expiration market must be HK or US",
+            ));
+        }
     };
     let symbol = symbol.trim();
     if symbol.is_empty() || symbol.chars().any(char::is_whitespace) {
@@ -408,9 +408,12 @@ fn parse_option_expiration_request(
         .get_first("indexOptionType")
         .filter(|value| !value.trim().is_empty())
         .map(|value| {
-            value.trim().parse::<i32>().ok().filter(|value| (0..=2).contains(value)).ok_or_else(|| {
-                options_bad_request("indexOptionType must be 0, 1, or 2")
-            })
+            value
+                .trim()
+                .parse::<i32>()
+                .ok()
+                .filter(|value| (0..=2).contains(value))
+                .ok_or_else(|| options_bad_request("indexOptionType must be 0, 1, or 2"))
         })
         .transpose()?;
     Ok(jftrade_integration_futu::OptionExpirationQuery {
@@ -420,9 +423,7 @@ fn parse_option_expiration_request(
     })
 }
 
-fn option_expiration_result(
-    dates: Vec<jftrade_integration_futu::OptionExpirationDate>,
-) -> Value {
+fn option_expiration_result(dates: Vec<jftrade_integration_futu::OptionExpirationDate>) -> Value {
     let as_of = super::provider_now_rfc3339();
     let entries = dates
         .iter()
@@ -432,7 +433,10 @@ fn option_expiration_result(
                 entry.insert("strikeTime".to_owned(), Value::String(strike_time.clone()));
             }
             if let Some(strike_timestamp) = date.strike_timestamp {
-                entry.insert("strikeTimestamp".to_owned(), serde_json::json!(strike_timestamp));
+                entry.insert(
+                    "strikeTimestamp".to_owned(),
+                    serde_json::json!(strike_timestamp),
+                );
             }
             entry.insert(
                 "optionExpiryDateDistance".to_owned(),
@@ -464,32 +468,10 @@ fn option_expiration_result(
     })
 }
 
-fn options_bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {
-    MarketDataOptionsReadSnapshotError::Failed {
-        status: 400,
-        code: "BAD_REQUEST".to_owned(),
-        message: message.to_owned(),
-    }
-}
-
-fn map_option_expiration_error(
-    error: jftrade_integration_futu::OptionExpirationQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    match error {
-        jftrade_integration_futu::OptionExpirationQueryError::InvalidQuery(message) => {
-            options_bad_request(&message)
-        }
-        other => MarketDataOptionsReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: other.to_string(),
-        },
-    }
-}
-
 pub(crate) struct ProductionMarketDataNewsPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
     pub(crate) helper: Option<HelperClient>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataNewsPort {
@@ -497,12 +479,17 @@ impl std::fmt::Debug for ProductionMarketDataNewsPort {
         formatter
             .debug_struct("ProductionMarketDataNewsPort")
             .field("has_helper", &self.helper.is_some())
+            .field("has_trade_runtime", &self.trade_runtime.is_some())
             .finish()
     }
 }
 
 impl MarketDataNewsActionsReadSnapshotPort for ProductionMarketDataNewsPort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataNewsActionsReadSnapshotError> {
+    fn read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Value, MarketDataNewsActionsReadSnapshotError> {
         let snapshot = self.active_provider_state.snapshot();
         let provider_kind = snapshot.provider.ok_or_else(|| {
             MarketDataNewsActionsReadSnapshotError::Unavailable(
@@ -520,14 +507,22 @@ impl MarketDataNewsActionsReadSnapshotPort for ProductionMarketDataNewsPort {
                 "requested broker {requested:?} does not match active provider"
             )));
         }
+        if provider_kind == MarketDataProvider::Futu {
+            if !snapshot.opend_ready {
+                return Err(MarketDataNewsActionsReadSnapshotError::Unavailable(
+                    "Futu OpenD news/actions runtime is not ready".to_owned(),
+                ));
+            }
+            return product_production_ports_market_data_news_actions::read_futu(
+                self.trade_runtime.as_ref(),
+                path,
+                query,
+            );
+        }
         let provider = match provider_kind {
             MarketDataProvider::Yfinance => "yfinance",
             MarketDataProvider::Akshare => "akshare",
-            MarketDataProvider::Futu => {
-                return Err(news_actions_capability(
-                    "Futu news/actions reader is not registered",
-                ));
-            }
+            MarketDataProvider::Futu => unreachable!("Futu handled by OpenD branch above"),
         };
         if !snapshot.helper_ready {
             return Err(MarketDataNewsActionsReadSnapshotError::Unavailable(
@@ -539,8 +534,7 @@ impl MarketDataNewsActionsReadSnapshotPort for ProductionMarketDataNewsPort {
                 "market-data helper is not configured".to_owned(),
             ));
         };
-        let (operation, market, symbol, query_pairs) =
-            news_actions_helper_request(path, query)?;
+        let (operation, market, symbol, query_pairs) = news_actions_helper_request(path, query)?;
         if provider == "akshare" && !matches!(market.as_str(), "SH" | "SZ") {
             return Err(news_actions_capability(
                 "AKShare news/actions is only available for CN markets",
@@ -580,7 +574,11 @@ impl MarketDataNewsActionsReadSnapshotPort for ProductionMarketDataNewsPort {
 }
 
 impl MarketDataNewsSearchReadSnapshotPort for ProductionMarketDataNewsPort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataNewsSearchReadSnapshotError> {
+    fn read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Value, MarketDataNewsSearchReadSnapshotError> {
         product_production_ports_market_data_news_search::read(self, path, query)
     }
 }
@@ -641,14 +639,16 @@ fn parse_corporate_action_time(
     query: &crate::product::product_query::QueryMap,
     key: &'static str,
 ) -> Result<Option<(time::OffsetDateTime, String)>, MarketDataNewsActionsReadSnapshotError> {
-    let Some(raw) = query.get_first(key).map(str::trim).filter(|value| !value.is_empty()) else {
+    let Some(raw) = query
+        .get_first(key)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
         return Ok(None);
     };
-    let parsed = time::OffsetDateTime::parse(
-        raw,
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|_| news_actions_bad_request(&format!("{key} must be a valid timestamp")))?;
+    let parsed =
+        time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339)
+            .map_err(|_| news_actions_bad_request(&format!("{key} must be a valid timestamp")))?;
     let normalized = parsed
         .to_offset(time::UtcOffset::UTC)
         .format(&time::format_description::well_known::Rfc3339)
@@ -749,7 +749,11 @@ fn map_news_actions_helper_error(
             retry_after_seconds,
         } => MarketDataNewsActionsReadSnapshotError::Failed {
             status,
-            code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
+            code: if code.is_empty() {
+                "BAD_GATEWAY".to_owned()
+            } else {
+                code
+            },
             message,
             retry_after_seconds,
         },
@@ -759,12 +763,14 @@ fn map_news_actions_helper_error(
             message: "market-data helper request timed out".to_owned(),
             retry_after_seconds: None,
         },
-        HttpAdapterError::InvalidResponse(message) => MarketDataNewsActionsReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message,
-            retry_after_seconds: None,
-        },
+        HttpAdapterError::InvalidResponse(message) => {
+            MarketDataNewsActionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message,
+                retry_after_seconds: None,
+            }
+        }
         HttpAdapterError::Unavailable(message) => {
             MarketDataNewsActionsReadSnapshotError::Unavailable(message)
         }
@@ -786,6 +792,4 @@ fn news_actions_capability(message: &str) -> MarketDataNewsActionsReadSnapshotEr
     }
 }
 
-pub(crate) use product_production_ports_market_data_prediction::{
-    ProductionMarketDataPredictionPort,
-};
+pub(crate) use product_production_ports_market_data_prediction::ProductionMarketDataPredictionPort;

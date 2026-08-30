@@ -23,7 +23,9 @@ pub(crate) fn read(
         ));
     }
     let request = parse_request(query)?;
-    let snapshot = runtime.option_strategy_analysis(&request).map_err(map_error)?;
+    let snapshot = runtime
+        .option_strategy_analysis(&request)
+        .map_err(map_error)?;
     let entry = serde_json::to_value(snapshot).map_err(|error| {
         MarketDataOptionsReadSnapshotError::Failed {
             status: 502,
@@ -65,7 +67,9 @@ fn parse_request(
         ));
     };
     if values.is_empty() {
-        return Err(bad_request("strategy_analysis requires at least one combo leg"));
+        return Err(bad_request(
+            "strategy_analysis requires at least one combo leg",
+        ));
     }
     let mut legs = Vec::new();
     for raw in values {
@@ -80,7 +84,9 @@ fn parse_request(
         }
     }
     let request = jftrade_integration_futu::OptionStrategyAnalysisQuery { multi_legs: legs };
-    request.validate().map_err(|error| bad_request(&error.to_string()))?;
+    request
+        .validate()
+        .map_err(|error| bad_request(&error.to_string()))?;
     Ok(request)
 }
 
@@ -98,12 +104,18 @@ fn append_json_legs(
             }
         }
         item @ Value::Object(_) => legs.push(parse_json_leg(item)?),
-        _ => return Err(bad_request("strategy_analysis combo legs must be JSON objects")),
+        _ => {
+            return Err(bad_request(
+                "strategy_analysis combo legs must be JSON objects",
+            ));
+        }
     }
     Ok(())
 }
 
-fn parse_json_leg(value: Value) -> Result<jftrade_integration_futu::OptionStrategyLeg, MarketDataOptionsReadSnapshotError> {
+fn parse_json_leg(
+    value: Value,
+) -> Result<jftrade_integration_futu::OptionStrategyLeg, MarketDataOptionsReadSnapshotError> {
     let object = value
         .as_object()
         .ok_or_else(|| bad_request("strategy_analysis combo leg must be an object"))?;
@@ -215,7 +227,9 @@ fn parse_compact_leg(
     let (market, code) = instrument
         .split_once('.')
         .filter(|(market, code)| !market.trim().is_empty() && !code.trim().is_empty())
-        .ok_or_else(|| bad_request("strategy_analysis compact leg must be MARKET.CODE:SIDE:RATIO"))?;
+        .ok_or_else(|| {
+            bad_request("strategy_analysis compact leg must be MARKET.CODE:SIDE:RATIO")
+        })?;
     let side = parts
         .next()
         .and_then(|value| value_to_side(&Value::String(value.to_owned())));
@@ -247,13 +261,15 @@ fn value_to_i32(value: &Value) -> Option<i32> {
 }
 
 fn value_to_side(value: &Value) -> Option<i32> {
-    value_to_i32(value).or_else(|| match value.as_str()?.trim().to_ascii_uppercase().as_str() {
-        "BUY" => Some(1),
-        "SELL" => Some(2),
-        "SELL_SHORT" | "SELLSHORT" => Some(3),
-        "BUY_BACK" | "BUYBACK" => Some(4),
-        _ => None,
-    })
+    value_to_i32(value).or_else(
+        || match value.as_str()?.trim().to_ascii_uppercase().as_str() {
+            "BUY" => Some(1),
+            "SELL" => Some(2),
+            "SELL_SHORT" | "SELLSHORT" => Some(3),
+            "BUY_BACK" | "BUYBACK" => Some(4),
+            _ => None,
+        },
+    )
 }
 
 fn bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {

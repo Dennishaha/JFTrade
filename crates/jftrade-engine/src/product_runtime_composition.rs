@@ -11,7 +11,7 @@ use jftrade_marketdata::{
 };
 use jftrade_settings::{
     FutuOpenDInstallSettingsStorePort, MarketDataProvider, MarketDataProviderSettingsStorePort,
-    normalize_market_data_provider,
+    parse_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 
@@ -29,7 +29,11 @@ pub(crate) fn compose_market_data_runtime(
     let active_provider = store
         .load_active_market_data_provider()
         .map_err(|e| ProductRuntimeError::Settings(e.to_string()))?
-        .map(|p| normalize_market_data_provider(&p));
+        .map(|p| {
+            parse_market_data_provider(&p)
+                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))
+        })
+        .transpose()?;
     let router = config
         .market_data_router
         .clone()

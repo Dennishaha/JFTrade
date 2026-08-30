@@ -1,4 +1,59 @@
 impl ProductConfig {
+    /// Remove all caller-supplied route ports before constructing the
+    /// production API.  Production route handlers must always come from the
+    /// `ProductionPortBundle`; accepting an embedding/test port here would
+    /// silently shadow the production adapter while still reporting the
+    /// production route ledger as owned by Rust.  Runtime resources (helper,
+    /// OpenD, live hub and status recorder) are intentionally left intact.
+    pub(crate) fn fence_production_route_ports(&mut self) {
+        if !self.production {
+            return;
+        }
+        self.calendar_manager = None;
+        self.watchlist_membership_snapshot_port = None;
+        self.watchlist_read_snapshot_port = None;
+        self.portfolio_snapshot_port = None;
+        self.research_read_snapshot_port = None;
+        self.research_preset_read_snapshot_port = None;
+        self.execution_read_snapshot_port = None;
+        self.market_data_provider_read_snapshot_port = None;
+        self.market_data_catalog_read_snapshot_port = None;
+        self.market_data_derivative_read_snapshot_port = None;
+        self.market_data_options_read_snapshot_port = None;
+        self.market_data_news_actions_read_snapshot_port = None;
+        self.market_data_news_search_read_snapshot_port = None;
+        self.adk_read_snapshot_port = None;
+        self.market_data_quote_read_snapshot_port = None;
+        self.market_data_prediction_read_snapshot_port = None;
+        self.broker_read_snapshot_port = None;
+        self.system_read_snapshot_port = None;
+        self.remote_watchlist_snapshot_port = None;
+        self.remote_watchlist_write_port = None;
+        self.watchlist_write_port = None;
+        self.plugin_uninstall_guidance_snapshot_port = None;
+        self.plugin_snapshot_port = None;
+        self.plugin_write_port = None;
+        self.research_preset_write_port = None;
+        self.strategy_definition_write_port = None;
+        self.market_data_provider_actions_port = None;
+        self.adk_chat_stream_port = None;
+        self.adk_mutation_port = None;
+        self.alert_snapshot_port = None;
+        self.alert_write_port = None;
+        self.strategy_definition_snapshot_port = None;
+        self.strategy_pine_analyze_snapshot_port = None;
+        self.ws_live_snapshot_port = None;
+        self.backtest_read_snapshot_port = None;
+        self.backtest_sync_read_snapshot_port = None;
+        self.backtests_write_port = None;
+        self.strategy_read_snapshot_port = None;
+        self.strategy_runtime_status_port = None;
+        self.strategy_runtime_write_port = None;
+        self.auth_session_snapshot_port = None;
+        self.auth_session_write_port = None;
+        self.stage9_write_ports = ProductStage9WritePorts::default();
+    }
+
     pub(crate) fn with_production_runtime_statuses(
         mut self,
         provider: ProductionRuntimeStatus,
@@ -22,6 +77,14 @@ impl ProductConfig {
     #[allow(dead_code)]
     pub(crate) fn with_active_provider_state(mut self, state: Arc<ActiveProviderState>) -> Self {
         self.active_provider_state = Some(state);
+        self
+    }
+
+    pub(crate) fn with_strategy_pine_worker_port(
+        mut self,
+        port: Arc<jftrade_integration_pine::GrpcPineExecutionPort>,
+    ) -> Self {
+        self.strategy_pine_worker_port = Some(port);
         self
     }
 
@@ -296,6 +359,16 @@ impl ProductConfig {
         port: Arc<dyn crate::product::BacktestExecutionPort>,
     ) -> Self {
         self.backtest_execution_port = Some(port);
+        self.backtest_execution_port_verified = false;
+        self
+    }
+
+    pub(crate) fn with_verified_backtest_execution_port(
+        mut self,
+        port: Arc<dyn crate::product::BacktestExecutionPort>,
+    ) -> Self {
+        self.backtest_execution_port = Some(port);
+        self.backtest_execution_port_verified = true;
         self
     }
 

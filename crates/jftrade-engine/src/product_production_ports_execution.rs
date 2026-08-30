@@ -1,24 +1,24 @@
 //! Backtests, Execution Orders, Brokers, and ADK production ports.
 
-use std::sync::Arc;
-use jftrade_integration_marketdata_helper::HelperClient;
-use jftrade_store_sqlite::{
-    BacktestMarketDataStore, BacktestRunStore, BacktestSyncTaskStore, StrategyDefinitionStore,
-};
-use serde_json::{Value, json};
+use super::BacktestSyncWorkerRegistry;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_backtest_execution::{
     BacktestExecutionPort, BacktestExecutionTaskRegistry,
 };
-use super::BacktestSyncWorkerRegistry;
 use crate::product::product_backtests_write_port::{
     BacktestsWriteDeleteResult, BacktestsWriteInput, BacktestsWritePort, BacktestsWritePortError,
     BacktestsWritePortResult,
 };
 use crate::product::{
-    BacktestReadSnapshotError,
-    BacktestReadSnapshotPort, BacktestSyncReadSnapshotError, BacktestSyncReadSnapshotPort,
+    BacktestReadSnapshotError, BacktestReadSnapshotPort, BacktestSyncReadSnapshotError,
+    BacktestSyncReadSnapshotPort,
 };
+use jftrade_integration_marketdata_helper::HelperClient;
+use jftrade_store_sqlite::{
+    BacktestMarketDataStore, BacktestRunStore, BacktestSyncTaskStore, StrategyDefinitionStore,
+};
+use serde_json::{Value, json};
+use std::sync::Arc;
 
 #[path = "product_backtest_sync_request.rs"]
 mod product_backtest_sync_request;
@@ -31,12 +31,12 @@ use product_production_ports_backtest_sync_projection::sync_task_projection;
 mod product_production_ports_execution_orders;
 pub(crate) use product_production_ports_execution_orders::ProductionExecutionPort;
 
-#[path = "product_production_ports_backtest_task.rs"]
-mod product_production_ports_backtest_task;
-#[path = "product_production_ports_backtest_sync.rs"]
-mod product_production_ports_backtest_sync;
 #[path = "product_production_ports_backtest_strategy.rs"]
 mod product_production_ports_backtest_strategy;
+#[path = "product_production_ports_backtest_sync.rs"]
+mod product_production_ports_backtest_sync;
+#[path = "product_production_ports_backtest_task.rs"]
+mod product_production_ports_backtest_task;
 
 pub(crate) struct ProductionBacktestPort {
     pub(crate) store: Arc<BacktestRunStore>,
@@ -101,12 +101,14 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
             .store
             .get_run(run_id)
             .map_err(|e| BacktestReadSnapshotError::Unavailable(e.to_string()))?;
-        Ok(run.map(|r| json!({
-            "id": r.id,
-            "status": r.status,
-            "createdAt": r.created_at,
-            "updatedAt": r.updated_at,
-        })))
+        Ok(run.map(|r| {
+            json!({
+                "id": r.id,
+                "status": r.status,
+                "createdAt": r.created_at,
+                "updatedAt": r.updated_at,
+            })
+        }))
     }
 
     fn result(&self, run_id: &str) -> Result<Option<Value>, BacktestReadSnapshotError> {
@@ -169,29 +171,26 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
 }
 
 impl BacktestsWritePort for ProductionBacktestPort {
-    fn mutate(&self, input: &BacktestsWriteInput) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
+    fn mutate(
+        &self,
+        input: &BacktestsWriteInput,
+    ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
         match input {
             BacktestsWriteInput::Start { payload } => self.start_backtest(payload),
-            BacktestsWriteInput::Sync { payload } => {
-                self.start_sync_task(payload)
-            }
-            BacktestsWriteInput::CancelSync { task_id } => {
-                self.cancel_sync_task(task_id)
-            }
-            BacktestsWriteInput::Delete { run_id } => {
-                match self.store.delete_run(run_id) {
-                    Ok(true) => {
-                        Ok(BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Deleted))
-                    }
-                    Ok(false) => {
-                        Ok(BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::Missing))
-                    }
-                    Err(jftrade_store_sqlite::BacktestRunStoreError::NotTerminal(_)) => {
-                        Ok(BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::NotTerminal))
-                    }
-                    Err(e) => Err(BacktestsWritePortError::Failed(e.to_string())),
-                }
-            }
+            BacktestsWriteInput::Sync { payload } => self.start_sync_task(payload),
+            BacktestsWriteInput::CancelSync { task_id } => self.cancel_sync_task(task_id),
+            BacktestsWriteInput::Delete { run_id } => match self.store.delete_run(run_id) {
+                Ok(true) => Ok(BacktestsWritePortResult::RunDeleted(
+                    BacktestsWriteDeleteResult::Deleted,
+                )),
+                Ok(false) => Ok(BacktestsWritePortResult::RunDeleted(
+                    BacktestsWriteDeleteResult::Missing,
+                )),
+                Err(jftrade_store_sqlite::BacktestRunStoreError::NotTerminal(_)) => Ok(
+                    BacktestsWritePortResult::RunDeleted(BacktestsWriteDeleteResult::NotTerminal),
+                ),
+                Err(e) => Err(BacktestsWritePortError::Failed(e.to_string())),
+            },
         }
     }
 }

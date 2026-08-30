@@ -20,6 +20,7 @@ fn port(base_url: String) -> ProductionMarketDataNewsPort {
     ProductionMarketDataNewsPort {
         active_provider_state: state,
         helper: Some(helper(base_url)),
+        trade_runtime: None,
     }
 }
 
@@ -32,13 +33,12 @@ async fn production_news_actions_port_forwards_yfinance_news_request() {
         let mut request = vec![0_u8; 4096];
         let read = stream.read(&mut request).await.expect("read");
         let request = String::from_utf8_lossy(&request[..read]);
-        assert!(request.starts_with(
-            "GET /providers/yfinance/news/US/AAPL?limit=5 HTTP/1.1\r\n"
-        ));
+        assert!(request.starts_with("GET /providers/yfinance/news/US/AAPL?limit=5 HTTP/1.1\r\n"));
         let body = r#"{"market":"US","symbol":"AAPL","instrument_id":"US.AAPL","entries":[{"title":"Headline","published_at":"2026-08-15T14:30:00Z"}],"source":"yfinance-news"}"#;
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.len(), body
+            body.len(),
+            body
         );
         stream.write_all(response.as_bytes()).await.expect("write");
     });
@@ -68,7 +68,8 @@ async fn production_news_actions_port_forwards_corporate_actions_window() {
         let body = r#"{"market":"SH","symbol":"600519","instrument_id":"SH.600519","events":[{"kind":"dividend","ex_date":"2026-01-10","amount":1.2,"ratio":null}],"source":"yfinance-actions"}"#;
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.len(), body
+            body.len(),
+            body
         );
         stream.write_all(response.as_bytes()).await.expect("write");
     });
@@ -93,7 +94,8 @@ async fn production_news_actions_port_maps_helper_failure_and_rejects_bad_limit(
         let body = r#"{"error":{"code":"upstream_error","message":"Yahoo unavailable"}}"#;
         let response = format!(
             "HTTP/1.1 502 Bad Gateway\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.len(), body
+            body.len(),
+            body
         );
         stream.write_all(response.as_bytes()).await.expect("write");
     });

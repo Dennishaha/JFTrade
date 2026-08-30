@@ -13,6 +13,8 @@ use jftrade_integration_futu::{
     OptionZeroDteScreenerReadPort, OptionEarningsScreenerReadPort,
     OptionZeroDteContractReadPort, OptionSellerScreenerReadPort,
     ValuationDetailReadPort,
+    FutuCorporateActionsReadPort, FutuCorporateActionsQuery, FutuCorporateActionsResult,
+    FutuNewsQuery, FutuNewsReadPort, FutuNewsResult,
     TradeReadPort, TradeSecurity,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -31,16 +33,21 @@ use super::qot_market_label;
 mod product_trade_runtime_candles;
 #[path = "product_trade_runtime_futures.rs"]
 mod product_trade_runtime_futures;
-#[path = "product_trade_runtime_valuation.rs"]
-mod product_trade_runtime_valuation;
 #[path = "product_trade_runtime_projection_values.rs"]
 mod product_trade_runtime_projection_values;
+#[path = "product_trade_runtime_valuation.rs"]
+mod product_trade_runtime_valuation;
 
+use product_trade_runtime_candles::{historical_snapshot, parse_requested_sessions};
+
+// Kept as a module-level helper for the projection tests; the implementation
+// remains in the dedicated candle converter module.
+#[cfg(test)]
+pub(super) fn canonical_candle_time(value: &str, market: &str) -> String {
+    product_trade_runtime_candles::canonical_candle_time(value, market)
+}
 use product_trade_runtime_projection_values::{
     insert_rich_quote_fields, insert_rich_security_fields, security_snapshot_value,
-};
-use product_trade_runtime_candles::{
-    canonical_candle_time, historical_snapshot, parse_requested_sessions,
 };
 
 #[derive(Clone, Default)]
@@ -86,9 +93,18 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn OptionEarningsScreenerReadPort>>>>,
     pub(crate) option_zero_dte_contract:
         Arc<RwLock<Option<Arc<dyn OptionZeroDteContractReadPort>>>>,
-    pub(crate) option_seller_screener:
-        Arc<RwLock<Option<Arc<dyn OptionSellerScreenerReadPort>>>>,
+    pub(crate) option_seller_screener: Arc<RwLock<Option<Arc<dyn OptionSellerScreenerReadPort>>>>,
     pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
+    pub(crate) news_reader: Arc<RwLock<Option<Arc<dyn FutuNewsReadPort>>>>,
+    pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
+    pub(crate) remote_watchlist_reader:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>>>>,
+    pub(crate) remote_watchlist_writer:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistWritePort>>>>,
+    pub(crate) alert_reader:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationReadPort>>>>,
+    pub(crate) alert_writer:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationWritePort>>>>,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct TradeRuntimeConnection {
@@ -168,6 +184,117 @@ impl SharedTradeReadRuntime {
             .security_snapshots
             .write()
             .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn set_news_reader(&self, reader: Option<Arc<dyn FutuNewsReadPort>>) {
+        *self
+            .news_reader
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn news_reader_available(&self) -> bool {
+        self.news_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn news(&self, query: &FutuNewsQuery) -> Result<FutuNewsResult, String> {
+        self.news_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu news runtime is unavailable".to_owned())?
+            .query(query)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn set_corporate_actions_reader(
+        &self,
+        reader: Option<Arc<dyn FutuCorporateActionsReadPort>>,
+    ) {
+        *self
+            .corporate_actions_reader
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn set_customization_readers(
+        &self,
+        remote: Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>>,
+        alert: Option<Arc<dyn jftrade_integration_futu::AlertCustomizationReadPort>>,
+    ) {
+        *self
+            .remote_watchlist_reader
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = remote;
+        *self.alert_reader.write().unwrap_or_else(|e| e.into_inner()) = alert;
+    }
+
+    pub(crate) fn set_customization_writers(
+        &self,
+        remote: Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistWritePort>>,
+        alert: Option<Arc<dyn jftrade_integration_futu::AlertCustomizationWritePort>>,
+    ) {
+        *self
+            .remote_watchlist_writer
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = remote;
+        *self.alert_writer.write().unwrap_or_else(|e| e.into_inner()) = alert;
+    }
+
+    pub(crate) fn remote_watchlist_reader(
+        &self,
+    ) -> Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>> {
+        self.remote_watchlist_reader
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+    pub(crate) fn remote_watchlist_writer(
+        &self,
+    ) -> Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistWritePort>> {
+        self.remote_watchlist_writer
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+    pub(crate) fn alert_reader(
+        &self,
+    ) -> Option<Arc<dyn jftrade_integration_futu::AlertCustomizationReadPort>> {
+        self.alert_reader
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+    pub(crate) fn alert_writer(
+        &self,
+    ) -> Option<Arc<dyn jftrade_integration_futu::AlertCustomizationWritePort>> {
+        self.alert_writer
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn corporate_actions_reader_available(&self) -> bool {
+        self.corporate_actions_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn corporate_actions(
+        &self,
+        query: &FutuCorporateActionsQuery,
+    ) -> Result<FutuCorporateActionsResult, String> {
+        self.corporate_actions_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu corporate actions runtime is unavailable".to_owned())?
+            .query(query)
+            .map_err(|error| error.to_string())
     }
 
     pub(crate) fn historical_klines(
@@ -362,6 +489,10 @@ impl SharedTradeReadRuntime {
 
     pub(crate) fn clear(&self) {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
+        self.set_news_reader(None);
+        self.set_corporate_actions_reader(None);
+        self.set_customization_readers(None, None);
+        self.set_customization_writers(None, None);
     }
 
     pub(crate) fn snapshot(&self) -> TradeReadRuntimeSnapshot {

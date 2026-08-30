@@ -5,6 +5,13 @@ use super::*;
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+    // A production caller cannot smuggle a fixture/embedding execution port
+    // into the API.  Backtest execution is bound below only after a real Pine
+    // worker passes its readiness probe; without one the route remains
+    // reachable and fails closed with the baseline 503 response.
+    if config.product.is_production() {
+        config.backtest_execution_port = None;
+    }
     if config.market_data_router.is_none()
         && config.market_data_opend_provider.is_none()
         && config.market_data_opend.is_none()
@@ -97,6 +104,31 @@ pub async fn start_product_runtime(
                     .with_trade_read_port(trade_read_port, trade_logged_in);
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                 trade_runtime.set_historical_klines(Some(historical_reader));
+                let customization_reader = Arc::new(
+                    jftrade_integration_futu::FutuRemoteWatchlistReader::new(runtime.coordinator()),
+                );
+                let alert_reader = Arc::new(jftrade_integration_futu::FutuAlertQuery {
+                    coordinator: runtime.coordinator(),
+                });
+                let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
+                    coordinator: runtime.coordinator(),
+                });
+                trade_runtime.set_customization_readers(
+                    Some(customization_reader.clone()),
+                    Some(alert_reader.clone()),
+                );
+                trade_runtime.set_customization_writers(
+                    Some(customization_reader),
+                    Some(alert_writer),
+                );
+                trade_runtime.set_news_reader(Some(Arc::new(
+                    jftrade_integration_futu::OpenDNewsReader::new(runtime.coordinator()),
+                )));
+                trade_runtime.set_corporate_actions_reader(Some(Arc::new(
+                    jftrade_integration_futu::OpenDCorporateActionsReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_future_info(Some(Arc::new(
                     jftrade_integration_futu::OpenDFutureInfoReader::new(runtime.coordinator()),
                 )));
@@ -242,8 +274,28 @@ pub async fn start_product_runtime(
             .with_trade_read_port(Some(Arc::new(client)), None);
     }
     if let Some(coordinator) = market_data_opend.as_ref() {
+        let customization_reader = Arc::new(
+            jftrade_integration_futu::FutuRemoteWatchlistReader::new(Arc::clone(coordinator)),
+        );
+        let alert_reader = Arc::new(jftrade_integration_futu::FutuAlertQuery {
+            coordinator: Arc::clone(coordinator),
+        });
+        let alert_writer = Arc::new(jftrade_integration_futu::FutuAlertWrite {
+            coordinator: Arc::clone(coordinator),
+        });
+        trade_runtime.set_customization_readers(
+            Some(customization_reader.clone()),
+            Some(alert_reader),
+        );
+        trade_runtime.set_customization_writers(Some(customization_reader), Some(alert_writer));
         trade_runtime.set_future_info(Some(Arc::new(
             jftrade_integration_futu::OpenDFutureInfoReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_news_reader(Some(Arc::new(
+            jftrade_integration_futu::OpenDNewsReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_corporate_actions_reader(Some(Arc::new(
+            jftrade_integration_futu::OpenDCorporateActionsReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_valuation_detail(Some(Arc::new(
             jftrade_integration_futu::OpenDValuationDetailReader::new(Arc::clone(coordinator)),
@@ -353,7 +405,13 @@ pub async fn start_product_runtime(
             },
         ));
     }
-    if let Some(registry) = config.strategy_runtime_registry.take() {
+    // The production composition owns the strategy runtime status port that
+    // is built from the production SQLite stores.  An injected registry is a
+    // test/embedding seam and must never replace that owner in production;
+    // retaining it in `config` is harmless and it is dropped with the config.
+    if !config.product.is_production()
+        && let Some(registry) = config.strategy_runtime_registry.take()
+    {
         config.product = config.product.with_strategy_runtime_status_port(registry);
     }
     let state = ProductRuntimeState::configured(&config);
@@ -377,58 +435,75 @@ pub async fn start_product_runtime(
         }
     }
 
-    let pine_execution_config = if config.backtest_execution_port.is_none() {
-        config.pine_workers.first().map(|worker| {
-            (
-                worker.spec.clone(),
-                worker.process.bearer_token.clone(),
-                worker.process.max_message_bytes,
-                worker.connect_timeout,
-                worker.request_timeout,
-            )
-        })
-    } else {
-        None
-    };
+    let mut healthy_pine_execution_config = None;
+    let mut backtest_execution_verified = false;
     for worker in std::mem::take(&mut config.pine_workers) {
+        let execution_config = (
+            worker.spec.clone(),
+            worker.process.bearer_token.clone(),
+            worker.process.max_message_bytes,
+            worker.connect_timeout,
+            worker.request_timeout,
+        );
         let result = start_pine_worker(worker).await;
         match result {
             Ok((process, _health)) => {
                 supervisor.pine_workers.push(process);
+                if healthy_pine_execution_config.is_none() {
+                    healthy_pine_execution_config = Some(execution_config);
+                }
             }
             Err(error) => {
-                let _ = supervisor.execute_shutdown().await;
-                return Err(ProductRuntimeError::Pine(error));
+                // PineTS is an optional external worker.  Keep the API alive
+                // and expose backtest/strategy-Pine routes as 503 while the
+                // worker is unavailable; internal store/schema failures still
+                // fail before this point.
+                eprintln!("Warning: PineTS worker unavailable: {error}");
             }
         }
     }
 
     // A healthy retained Pine worker is the only production composition that
-    // can satisfy backtest execution.  Keep explicit test/embedding ports as
-    // the highest-precedence override; otherwise bind the adapter to the
-    // first worker that passed the real gRPC readiness probe.  No worker means
-    // no execution port, preserving the HTTP layer's 503 fail-closed result.
+    // can satisfy backtest execution.  Non-production test/embedding ports are
+    // still accepted for rehearsal; production is always bound to the first
+    // worker that passed the real gRPC readiness probe.  No worker means no
+    // execution port, preserving the HTTP layer's 503 fail-closed result.
     if config.backtest_execution_port.is_none()
         && let Some((spec, bearer_token, max_message_bytes, connect_timeout, request_timeout)) =
-            pine_execution_config
+            healthy_pine_execution_config
     {
         let mut execution =
             PineExecutionConfig::for_worker(&spec, bearer_token, connect_timeout, request_timeout);
         if let Some(max_message_bytes) = max_message_bytes {
             execution.max_message_bytes = max_message_bytes;
         }
-        let port = match GrpcPineExecutionPort::new(execution) {
-            Ok(port) => port,
-            Err(error) => {
-                let _ = supervisor.execute_shutdown().await;
-                return Err(ProductRuntimeError::PineExecution(error.to_string()));
+        match GrpcPineExecutionPort::new(execution) {
+            Ok(port) => {
+                let port = Arc::new(port);
+                // The same verified gRPC client backs both backtest execution
+                // and the strategy-pine AnalyzeScript route.  Keeping one
+                // client per worker avoids a second unprobed endpoint.
+                config.product = config
+                    .product
+                    .with_strategy_pine_worker_port(Arc::clone(&port));
+                config.backtest_execution_port = Some(Arc::new(
+                    PineBacktestExecutionAdapter::new(port),
+                ));
+                backtest_execution_verified = true;
             }
-        };
-        config.backtest_execution_port =
-            Some(Arc::new(PineBacktestExecutionAdapter::new(Arc::new(port))));
+            Err(error) => {
+                eprintln!("Warning: PineTS execution adapter unavailable: {error}");
+            }
+        }
     }
     if let Some(port) = config.backtest_execution_port.take() {
-        config.product = config.product.with_backtest_execution_port(port);
+        config.product = if backtest_execution_verified {
+            config
+                .product
+                .with_verified_backtest_execution_port(port)
+        } else {
+            config.product.with_backtest_execution_port(port)
+        };
     }
 
     let helper_process = if let Some(helper) = config.marketdata_helper.take() {
@@ -439,8 +514,12 @@ pub async fn start_product_runtime(
                 Some(Arc::new(Mutex::new(Some(process))))
             }
             Err(error) => {
-                let _ = supervisor.execute_shutdown().await;
-                return Err(error);
+                // The helper is an optional external process.  Preserve the
+                // API and let capability/readiness projection return 502/503
+                // for helper-backed routes instead of failing the whole
+                // product startup.
+                eprintln!("Warning: market-data helper unavailable: {error}");
+                None
             }
         }
     } else {
@@ -448,25 +527,37 @@ pub async fn start_product_runtime(
     };
     supervisor.marketdata_helper = helper_process.clone();
 
-    let initial_provider = if dynamic_opend
+    let settings_file = std::path::Path::new(config.product.settings_path());
+    let configured_provider = if settings_file.exists() {
+        let store = SettingsFileStore::open_read_only(config.product.settings_path())
+            .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?;
+        store
+            .load_active_market_data_provider()
+            .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?
+            .map(|provider| {
+                jftrade_settings::parse_market_data_provider(&provider)
+                    .map_err(|error| ProductRuntimeError::Settings(error.to_string()))
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let dynamic_opend_ready = dynamic_opend
         .lock()
         .unwrap_or_else(|error| error.into_inner())
-        .is_some()
+        .is_some();
+    if config.product.is_production()
+        && dynamic_opend_ready
+        && configured_provider.is_some_and(|provider| provider != MarketDataProvider::Futu)
     {
-        Some(MarketDataProvider::Futu)
-    } else {
-        let settings_file = std::path::Path::new(config.product.settings_path());
-        if settings_file.exists() {
-            let store = SettingsFileStore::open_read_only(config.product.settings_path())
-                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?;
-            store
-                .load_active_market_data_provider()
-                .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?
-                .map(|provider| normalize_market_data_provider(&provider))
-        } else {
-            None
-        }
-    };
+        return Err(ProductRuntimeError::Settings(
+            "OpenD runtime is configured while active market-data provider is not futu"
+                .to_owned(),
+        ));
+    }
+    let initial_provider = configured_provider.or_else(|| {
+        dynamic_opend_ready.then_some(MarketDataProvider::Futu)
+    });
     let settings_path = config.product.settings_path().to_owned();
     let dynamic_readiness = product_runtime_provider_activation::dynamic_provider_readiness(
         &helper_process,

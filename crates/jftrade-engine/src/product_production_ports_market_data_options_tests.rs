@@ -668,12 +668,49 @@ impl jftrade_integration_futu::OptionZeroDteScreenerReadPort for FixtureZeroDteS
     fn query(
         &self,
         query: &jftrade_integration_futu::OptionZeroDteScreenerQuery,
-    ) -> Result<jftrade_integration_futu::OptionZeroDteScreenerPage, jftrade_integration_futu::OptionZeroDteScreenerQueryError> {
+    ) -> Result<
+        jftrade_integration_futu::OptionZeroDteScreenerPage,
+        jftrade_integration_futu::OptionZeroDteScreenerQueryError,
+    > {
         assert_eq!(query.option_market, 1);
         assert_eq!(query.count, 50);
         assert_eq!(query.filters.len(), 1);
-        let owner = jftrade_integration_futu::OptionEventSecurity { market: "US".into(), code: "AAPL".into(), quote_market: "US".into(), trade_market: "US".into(), instrument_id: "US.AAPL".into() };
-        Ok(jftrade_integration_futu::OptionZeroDteScreenerPage { items: vec![jftrade_integration_futu::OptionZeroDteScreenerItem { owner, name: Some("Apple".into()), price: Some(100.0), change_rate: None, market_cap: None, iv: None, iv_rank: None, iv_percentile: None, hv: None, volume: Some(10), open_interest: None, last_trading_time: None, earnings_timestamp: None, earnings_time: None, earnings_pub_type: None, chain_info: Some(jftrade_integration_futu::OptionZeroDteChainInfo { strike_date_timestamp: Some(1), product_code: Some("AAPL".into()), multiplier: Some(100.0), contract_share_size: Some(100.0), expiration_type: Some(2), underlying: None }) }], next_page: Some("zero-next".into()), update_timestamp: Some(2.0) })
+        let owner = jftrade_integration_futu::OptionEventSecurity {
+            market: "US".into(),
+            code: "AAPL".into(),
+            quote_market: "US".into(),
+            trade_market: "US".into(),
+            instrument_id: "US.AAPL".into(),
+        };
+        Ok(jftrade_integration_futu::OptionZeroDteScreenerPage {
+            items: vec![jftrade_integration_futu::OptionZeroDteScreenerItem {
+                owner,
+                name: Some("Apple".into()),
+                price: Some(100.0),
+                change_rate: None,
+                market_cap: None,
+                iv: None,
+                iv_rank: None,
+                iv_percentile: None,
+                hv: None,
+                volume: Some(10),
+                open_interest: None,
+                last_trading_time: None,
+                earnings_timestamp: None,
+                earnings_time: None,
+                earnings_pub_type: None,
+                chain_info: Some(jftrade_integration_futu::OptionZeroDteChainInfo {
+                    strike_date_timestamp: Some(1),
+                    product_code: Some("AAPL".into()),
+                    multiplier: Some(100.0),
+                    contract_share_size: Some(100.0),
+                    expiration_type: Some(2),
+                    underlying: None,
+                }),
+            }],
+            next_page: Some("zero-next".into()),
+            update_timestamp: Some(2.0),
+        })
     }
 }
 
@@ -684,12 +721,49 @@ impl jftrade_integration_futu::OptionEarningsScreenerReadPort for FixtureEarning
     fn query(
         &self,
         query: &jftrade_integration_futu::OptionEarningsScreenerQuery,
-    ) -> Result<jftrade_integration_futu::OptionEarningsScreenerPage, jftrade_integration_futu::OptionEarningsScreenerQueryError> {
+    ) -> Result<
+        jftrade_integration_futu::OptionEarningsScreenerPage,
+        jftrade_integration_futu::OptionEarningsScreenerQueryError,
+    > {
         assert_eq!(query.option_market, 1);
         assert_eq!(query.count, 50);
         assert_eq!(query.filters.len(), 1);
-        let owner = jftrade_integration_futu::OptionEventSecurity { market: "US".into(), code: "AAPL".into(), quote_market: "US".into(), trade_market: "US".into(), instrument_id: "US.AAPL".into() };
-        Ok(jftrade_integration_futu::OptionEarningsScreenerPage { items: vec![jftrade_integration_futu::OptionEarningsScreenerItem { owner, name: Some("Apple".into()), price: Some(100.0), change_rate: None, market_cap: None, iv: Some(20.0), iv_rank: None, iv_percentile: None, hv: None, volume: Some(10), open_interest: None, earnings_timestamp: Some(1.0), earnings_time: Some("2026-09-01".into()), earnings_pub_type: Some(1), earnings_quarter: Some("2026Q3".into()), last_report_iv_crush: None, history_report_iv_crush: None, last_report_chg_rate: None, history_report_chg_rate: None, estimate_eps_yoy: None, estimate_revenue_yoy: None, expected_move_ratio: Some(3.0) }], next_page: None, update_timestamp: Some(2.0), all_count: Some(1) })
+        let owner = jftrade_integration_futu::OptionEventSecurity {
+            market: "US".into(),
+            code: "AAPL".into(),
+            quote_market: "US".into(),
+            trade_market: "US".into(),
+            instrument_id: "US.AAPL".into(),
+        };
+        Ok(jftrade_integration_futu::OptionEarningsScreenerPage {
+            items: vec![jftrade_integration_futu::OptionEarningsScreenerItem {
+                owner,
+                name: Some("Apple".into()),
+                price: Some(100.0),
+                change_rate: None,
+                market_cap: None,
+                iv: Some(20.0),
+                iv_rank: None,
+                iv_percentile: None,
+                hv: None,
+                volume: Some(10),
+                open_interest: None,
+                earnings_timestamp: Some(1.0),
+                earnings_time: Some("2026-09-01".into()),
+                earnings_pub_type: Some(1),
+                earnings_quarter: Some("2026Q3".into()),
+                last_report_iv_crush: None,
+                history_report_iv_crush: None,
+                last_report_chg_rate: None,
+                history_report_chg_rate: None,
+                estimate_eps_yoy: None,
+                estimate_revenue_yoy: None,
+                expected_move_ratio: Some(3.0),
+            }],
+            next_page: None,
+            update_timestamp: Some(2.0),
+            all_count: Some(1),
+        })
     }
 }
 
@@ -1389,7 +1463,10 @@ fn event_projection_dispatches_zero_dte_and_earnings_readers() {
         )
         .expect("0DTE response");
     assert_eq!(zero["entries"][0]["owner"]["instrumentId"], "US.AAPL");
-    assert_eq!(zero["entries"][0]["drilldownContext"]["chain"]["productCode"], "AAPL");
+    assert_eq!(
+        zero["entries"][0]["drilldownContext"]["chain"]["productCode"],
+        "AAPL"
+    );
     assert_eq!(zero["nextCursor"], "zero-next");
     let earnings = port
         .read(

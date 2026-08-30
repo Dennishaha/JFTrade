@@ -15,7 +15,7 @@ mod wire {
     tonic::include_proto!("jftrade.strategy.pineworker.v1");
 }
 use wire::pine_worker_client::PineWorkerClient;
-use wire::{CandleBatch, RunScriptRequest, RunScriptResponse};
+use wire::{AnalyzeScriptRequest, AnalyzeScriptResponse, CandleBatch, RunScriptRequest, RunScriptResponse};
 const CANDLE_BATCH_ENCODING_VERSION: u32 = 1;
 const CANDLE_BATCH_RECORD_BYTES: usize = 56;
 const DEFAULT_MAX_MESSAGE_BYTES: usize = 4 << 20;
@@ -359,6 +359,87 @@ impl GrpcPineExecutionPort {
         request: PineRunRequest,
     ) -> Result<PineRunResult, PineExecutionError> {
         self.run(request).await
+    }
+
+    /// Invoke the worker's native AnalyzeScript RPC.  Strategy-pine analysis
+    /// is intentionally kept separate from RunScript: the worker performs
+    /// parser/diagnostic work without requiring market candles or a runtime
+    /// session.  The response is returned as a JSON-compatible projection so
+    /// the engine can preserve the public analysis wire shape without
+    /// duplicating Pine's evolving schema.
+    pub async fn analyze_script(
+        &self,
+        job_id: &str,
+        script_id: &str,
+        source: &str,
+        include_ast: bool,
+    ) -> Result<serde_json::Value, PineExecutionError> {
+        let job_id = job_id.trim();
+        let script_id = script_id.trim();
+        if job_id.is_empty() || script_id.is_empty() {
+            return Err(PineExecutionError::InvalidRequest(
+                "analysis job and script ids are required".to_owned(),
+            ));
+        }
+        if source.len() > self.max_source_bytes {
+            return Err(PineExecutionError::InvalidRequest(format!(
+                "source bytes exceed {}",
+                self.max_source_bytes
+            )));
+        }
+        timeout(self.request_timeout, self.analyze_script_inner(job_id, script_id, source, include_ast))
+            .await
+            .map_err(|_| PineExecutionError::Timeout)?
+    }
+
+    async fn analyze_script_inner(
+        &self,
+        job_id: &str,
+        script_id: &str,
+        source: &str,
+        include_ast: bool,
+    ) -> Result<serde_json::Value, PineExecutionError> {
+        let mut params = HashMap::new();
+        params.insert("includeAst".to_owned(), include_ast.to_string());
+        let request = AnalyzeScriptRequest {
+            job_id: job_id.to_owned(),
+            script_id: script_id.to_owned(),
+            source: source.to_owned(),
+            params,
+        };
+        if request.encoded_len() > self.max_message_bytes {
+            return Err(PineExecutionError::InvalidRequest(format!(
+                "encoded analysis request exceeds {} bytes",
+                self.max_message_bytes
+            )));
+        }
+        let channel = self
+            .endpoint
+            .clone()
+            .connect()
+            .await
+            .map_err(|error| PineExecutionError::Unavailable(error.to_string()))?;
+        let mut client = PineWorkerClient::new(channel)
+            .max_decoding_message_size(self.max_message_bytes)
+            .max_encoding_message_size(self.max_message_bytes);
+        let mut tonic_request = Request::new(request);
+        if let Some(token) = &self.bearer_token {
+            let authorization = MetadataValue::try_from(format!("Bearer {token}"))
+                .map_err(|error| PineExecutionError::InvalidRequest(error.to_string()))?;
+            tonic_request.metadata_mut().insert("authorization", authorization);
+        }
+        let response = client
+            .analyze_script(tonic_request)
+            .await
+            .map_err(map_status)?
+            .into_inner();
+        if response.encoded_len() > self.max_message_bytes {
+            return Err(PineExecutionError::InvalidResponse(format!(
+                "encoded analysis response exceeds {} bytes",
+                self.max_message_bytes
+            )));
+        }
+        analysis_response_json(response)
     }
     /// Runs one call while observing an external cancellation future.
     pub async fn run_with_cancellation<F>(
@@ -781,6 +862,47 @@ fn map_status(status: Status) -> PineExecutionError {
         | tonic::Code::ResourceExhausted => PineExecutionError::Remote(status.message().to_owned()),
         _ => PineExecutionError::Transport(status.to_string()),
     }
+}
+
+fn analysis_response_json(
+    response: AnalyzeScriptResponse,
+) -> Result<serde_json::Value, PineExecutionError> {
+    if !response.error.trim().is_empty() {
+        return Err(PineExecutionError::Remote(response.error));
+    }
+    let diagnostics = response
+        .diagnostics
+        .into_iter()
+        .map(|diagnostic| {
+            serde_json::json!({
+                "severity": diagnostic.severity,
+                "code": diagnostic.code,
+                "message": diagnostic.message,
+                "line": diagnostic.line,
+                "column": diagnostic.column,
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut value = serde_json::json!({
+        "jobId": response.job_id,
+        "ok": response.ok,
+        "diagnostics": diagnostics,
+        "inputs": response.inputs,
+        "plots": response.plots,
+        "strategyConfig": response.strategy_config,
+    });
+    if let Some(metadata) = response.metadata {
+        value["metadata"] = serde_json::json!({
+            "workerId": metadata.worker_id,
+            "version": metadata.version,
+            "pineTsVersion": metadata.pinets_version,
+            "scriptHash": metadata.script_hash,
+            "durationMs": metadata.duration_ms,
+            "requestBytes": metadata.request_bytes,
+            "responseBytes": metadata.response_bytes,
+        });
+    }
+    Ok(value)
 }
 #[cfg(test)]
 mod tests;

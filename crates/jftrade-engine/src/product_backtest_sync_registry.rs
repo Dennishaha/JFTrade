@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 
+use jftrade_store_sqlite::BacktestSyncTaskStore;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use jftrade_store_sqlite::BacktestSyncTaskStore;
 
 /// Rust-owned lifecycle for asynchronous historical sync workers.
 #[derive(Default)]
@@ -29,7 +29,12 @@ impl BacktestSyncWorkerRegistry {
         self.workers
             .lock()
             .unwrap_or_else(|error| error.into_inner())
-            .push(Worker { task_id, tasks, handle, cancel: Some(cancel) });
+            .push(Worker {
+                task_id,
+                tasks,
+                handle,
+                cancel: Some(cancel),
+            });
     }
 
     /// Remove completed worker handles. If a worker exited without reaching a
@@ -46,15 +51,29 @@ impl BacktestSyncWorkerRegistry {
                 return true;
             }
             let terminal = match worker.tasks.get(&worker.task_id) {
-                Ok(Some(task)) => matches!(task.status.as_str(), "completed" | "failed" | "cancelled"),
+                Ok(Some(task)) => {
+                    matches!(task.status.as_str(), "completed" | "failed" | "cancelled")
+                }
                 Ok(None) => true,
-                Err(_) => return true,
+                Err(error) => {
+                    eprintln!(
+                        "backtest sync {} failed to inspect finished worker: {error}",
+                        worker.task_id
+                    );
+                    return true;
+                }
             };
             if !terminal {
                 let timestamp = time::OffsetDateTime::now_utc()
                     .format(&time::format_description::well_known::Rfc3339)
                     .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
-                let _ = worker.tasks.cancel(&worker.task_id, &timestamp);
+                if let Err(error) = worker.tasks.cancel(&worker.task_id, &timestamp) {
+                    eprintln!(
+                        "backtest sync {} failed to persist crash cancellation: {error}",
+                        worker.task_id
+                    );
+                    return true;
+                }
             }
             false
         });
@@ -70,7 +89,12 @@ impl BacktestSyncWorkerRegistry {
             // Persist cancellation before signalling the task. This closes
             // the race where HTTP shutdown tears down the Tokio runtime and
             // the worker can no longer run its cancellation branch.
-            let _ = worker.tasks.cancel(&worker.task_id, &timestamp);
+            if let Err(error) = worker.tasks.cancel(&worker.task_id, &timestamp) {
+                eprintln!(
+                    "backtest sync {} shutdown cancellation persistence failed: {error}",
+                    worker.task_id
+                );
+            }
             if let Some(cancel) = worker.cancel.take() {
                 let _ = cancel.send(());
             }
@@ -88,7 +112,12 @@ impl BacktestSyncWorkerRegistry {
             let timestamp = time::OffsetDateTime::now_utc()
                 .format(&time::format_description::well_known::Rfc3339)
                 .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
-            let _ = worker.tasks.cancel(&worker.task_id, &timestamp);
+            if let Err(error) = worker.tasks.cancel(&worker.task_id, &timestamp) {
+                eprintln!(
+                    "backtest sync {} termination cancellation persistence failed: {error}",
+                    worker.task_id
+                );
+            }
             worker.handle.abort();
         }
     }
@@ -109,13 +138,15 @@ impl BacktestSyncWorkerRegistry {
             .unwrap_or_else(|error| error.into_inner())
             .len()
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jftrade_store_sqlite::{BacktestRunStore, BacktestSyncTaskStore, BACKTEST_RUNS_PRODUCTION_PROFILE, initialize_current};
+    use jftrade_store_sqlite::{
+        BACKTEST_RUNS_PRODUCTION_PROFILE, BacktestRunStore, BacktestSyncTaskStore,
+        initialize_current,
+    };
     use rusqlite::Connection;
     use tempfile::tempdir;
 
@@ -129,7 +160,10 @@ mod tests {
             BacktestRunStore::open_existing(&path, BACKTEST_RUNS_PRODUCTION_PROFILE)
                 .expect("store"),
         );
-        (std::sync::Arc::new(BacktestSyncTaskStore::new(runs)), directory)
+        (
+            std::sync::Arc::new(BacktestSyncTaskStore::new(runs)),
+            directory,
+        )
     }
 
     #[tokio::test]

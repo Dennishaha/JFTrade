@@ -113,10 +113,22 @@ pub fn run() -> Result<(), NativeError> {
         *setup_product
             .lock()
             .map_err(|_| NativeError::RuntimeState)? = Some(runtime);
+        let startup = runtime.startup_record();
         append_native_log(
             &setup_log_path,
-            "INFO",
-            "Rust API, PineTS worker, and market-data helper are ready",
+            if startup.runtime_readiness == "ready" {
+                "INFO"
+            } else {
+                "WARN"
+            },
+            &format!(
+                "Rust product runtime started: readiness={}, provider={}, OpenD={}, workers={}, websocket={}",
+                startup.runtime_readiness,
+                startup.provider_status,
+                startup.opend_status,
+                startup.worker_status,
+                startup.websocket_status,
+            ),
         );
         setup_port.show_main()?;
         if setup_port.automatic_update_check_enabled() {

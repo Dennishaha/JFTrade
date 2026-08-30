@@ -1,8 +1,7 @@
 use super::*;
 use jftrade_api::LiveHub;
 use jftrade_integration_futu::{
-    ResponseError,
-    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds,
+    ResponseError, TradeAccountSnapshot, TradeCashFlowSnapshot, TradeFillSnapshot, TradeFunds,
     TradeFundsSnapshot, TradeMarginRatioSnapshot, TradeMaxTradeQuantityRequest,
     TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot,
     TradePositionSnapshot, TradeSessionError,
@@ -15,7 +14,12 @@ use std::time::{Duration, Instant};
 struct FakeTradeRead;
 
 impl TradeReadPort for FakeTradeRead {
-    fn read_accounts(&self, _: u64, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+    fn read_accounts(
+        &self,
+        _: u64,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
         Ok(vec![TradeAccountSnapshot {
             trd_env: 1,
             acc_id: 42,
@@ -32,22 +36,64 @@ impl TradeReadPort for FakeTradeRead {
         }])
     }
 
-    fn read_funds(&self, header: TradeHeader, _: Option<bool>, _: Option<i32>, _: Option<i32>) -> Result<TradeFundsSnapshot, TradeSessionError> {
-        Ok(TradeFundsSnapshot { header, funds: TradeFunds {
-            power: 1.0, total_assets: 2.0, cash: 3.0, market_val: 4.0, frozen_cash: 0.0,
-            debt_cash: 0.0, avl_withdrawal_cash: 3.0, currency: Some(1), available_funds: None,
-            unrealized_pl: None, realized_pl: None, risk_level: None, initial_margin: None,
-            maintenance_margin: None, cash_info_list: Vec::new(), max_power_short: None,
-            net_cash_power: None, long_mv: None, short_mv: None, pending_asset: None,
-            max_withdrawal: None, risk_status: None, margin_call_margin: None, is_pdt: None,
-            pdt_seq: None, beginning_dtbp: None, remaining_dtbp: None, dt_call_amount: None,
-            dt_status: None, securities_assets: None, fund_assets: None, bond_assets: None,
-            market_info_list: Vec::new(), crypto_mv: None, exposure_level: None,
-            exposure_limit: None, used_limit: None, remaining_limit: None,
-        } })
+    fn read_funds(
+        &self,
+        header: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        Ok(TradeFundsSnapshot {
+            header,
+            funds: TradeFunds {
+                power: 1.0,
+                total_assets: 2.0,
+                cash: 3.0,
+                market_val: 4.0,
+                frozen_cash: 0.0,
+                debt_cash: 0.0,
+                avl_withdrawal_cash: 3.0,
+                currency: Some(1),
+                available_funds: None,
+                unrealized_pl: None,
+                realized_pl: None,
+                risk_level: None,
+                initial_margin: None,
+                maintenance_margin: None,
+                cash_info_list: Vec::new(),
+                max_power_short: None,
+                net_cash_power: None,
+                long_mv: None,
+                short_mv: None,
+                pending_asset: None,
+                max_withdrawal: None,
+                risk_status: None,
+                margin_call_margin: None,
+                is_pdt: None,
+                pdt_seq: None,
+                beginning_dtbp: None,
+                remaining_dtbp: None,
+                dt_call_amount: None,
+                dt_status: None,
+                securities_assets: None,
+                fund_assets: None,
+                bond_assets: None,
+                market_info_list: Vec::new(),
+                crypto_mv: None,
+                exposure_level: None,
+                exposure_limit: None,
+                used_limit: None,
+                remaining_limit: None,
+            },
+        })
     }
 
-    fn read_cash_flows(&self, header: TradeHeader, _: String, _: Option<i32>) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+    fn read_cash_flows(
+        &self,
+        header: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
         Ok(vec![TradeCashFlowSnapshot {
             header,
             clearing_date: Some("2026-08-21".to_owned()),
@@ -62,18 +108,27 @@ impl TradeReadPort for FakeTradeRead {
         }])
     }
 
-    fn read_order_fees(&self, header: TradeHeader, _: Vec<String>) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+    fn read_order_fees(
+        &self,
+        header: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
         Ok(vec![TradeOrderFeeSnapshot {
             header,
             broker_order_id_ex: "fee-2".to_owned(),
             fee_amount: Some(1.5),
             fee_items: vec![jftrade_integration_futu::TradeOrderFeeItemSnapshot {
-                title: "commission".to_owned(), value: 1.5,
+                title: "commission".to_owned(),
+                value: 1.5,
             }],
         }])
     }
 
-    fn read_margin_ratios(&self, header: TradeHeader, _: Vec<TradeSecurity>) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+    fn read_margin_ratios(
+        &self,
+        header: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
         Ok(vec![TradeMarginRatioSnapshot {
             header,
             market: "US".to_owned(),
@@ -93,7 +148,10 @@ impl TradeReadPort for FakeTradeRead {
         }])
     }
 
-    fn read_max_trade_quantity(&self, request: TradeMaxTradeQuantityRequest) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+    fn read_max_trade_quantity(
+        &self,
+        request: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
         Ok(TradeMaxTradeQuantitySnapshot {
             header: request.header,
             code: request.code,
@@ -110,9 +168,36 @@ impl TradeReadPort for FakeTradeRead {
         })
     }
 
-    fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Ok(Vec::new()) }
-    fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Ok(Vec::new()) }
-    fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Ok(Vec::new()) }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Ok(Vec::new())
+    }
 }
 
 #[derive(Debug)]
@@ -131,17 +216,81 @@ impl ErrorTradeRead {
 }
 
 impl TradeReadPort for ErrorTradeRead {
-    fn read_accounts(&self, user_id: u64, category: Option<i32>, general: Option<bool>) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+    fn read_accounts(
+        &self,
+        user_id: u64,
+        category: Option<i32>,
+        general: Option<bool>,
+    ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
         FakeTradeRead.read_accounts(user_id, category, general)
     }
-    fn read_funds(&self, _: TradeHeader, _: Option<bool>, _: Option<i32>, _: Option<i32>) -> Result<TradeFundsSnapshot, TradeSessionError> { Err(self.error()) }
-    fn read_cash_flows(&self, _: TradeHeader, _: String, _: Option<i32>) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> { Err(self.error()) }
-    fn read_order_fees(&self, _: TradeHeader, _: Vec<String>) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> { Err(self.error()) }
-    fn read_margin_ratios(&self, _: TradeHeader, _: Vec<TradeSecurity>) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> { Err(self.error()) }
-    fn read_max_trade_quantity(&self, _: TradeMaxTradeQuantityRequest) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> { Err(self.error()) }
-    fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> { Err(self.error()) }
-    fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> { Err(self.error()) }
-    fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> { Err(self.error()) }
+    fn read_funds(
+        &self,
+        _: TradeHeader,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+    ) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_cash_flows(
+        &self,
+        _: TradeHeader,
+        _: String,
+        _: Option<i32>,
+    ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_order_fees(
+        &self,
+        _: TradeHeader,
+        _: Vec<String>,
+    ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_margin_ratios(
+        &self,
+        _: TradeHeader,
+        _: Vec<TradeSecurity>,
+    ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_max_trade_quantity(
+        &self,
+        _: TradeMaxTradeQuantityRequest,
+    ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_positions(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<f64>,
+        _: Option<f64>,
+        _: Option<bool>,
+        _: Option<i32>,
+        _: Option<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_orders(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Vec<i32>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
+    fn read_fills(
+        &self,
+        _: TradeHeader,
+        _: Option<TradeFilter>,
+        _: Option<bool>,
+    ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        Err(self.error())
+    }
 }
 
 fn ready_state() -> Arc<ActiveProviderState> {
@@ -152,24 +301,46 @@ fn ready_state() -> Arc<ActiveProviderState> {
 
 #[test]
 fn broker_read_fails_closed_without_trade_client() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: None, trade_logged_in: Some(true), trade_runtime: None };
-    let error = port.read("/api/v1/brokers/futu/funds", "accountId=42&market=US").expect_err("missing client");
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let error = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect_err("missing client");
     assert!(error.to_string().contains("trade read client"));
 }
 
 #[test]
 fn broker_read_projects_futu_funds_from_neutral_client() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
-    let value = port.read("/api/v1/brokers/futu/funds", "accountId=42&market=US").expect("funds");
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect("funds");
     assert_eq!(value["summary"]["totalAssets"], 2.0);
     assert_eq!(value["connectivity"], "connected");
 }
 
 #[test]
 fn broker_read_projects_cash_flows_with_baseline_fields_and_sorting() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let value = port
-        .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US&clearingDate=2026-08-21&direction=IN")
+        .read(
+            "/api/v1/brokers/futu/cash-flows",
+            "accountId=42&market=US&clearingDate=2026-08-21&direction=IN",
+        )
         .expect("cash flows");
     assert_eq!(value["connectivity"], "connected");
     assert_eq!(value["cashFlows"][0]["cashFlowId"], "9");
@@ -179,16 +350,28 @@ fn broker_read_projects_cash_flows_with_baseline_fields_and_sorting() {
 
 #[test]
 fn cash_flows_require_clearing_date() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let error = port
         .read("/api/v1/brokers/futu/cash-flows", "accountId=42&market=US")
         .expect_err("missing clearing date");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("clearingDate")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("clearingDate"))
+    );
 }
 
 #[test]
 fn broker_read_projects_order_fees_and_merges_order_id_queries() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let value = port
         .read(
             "/api/v1/brokers/futu/order-fees",
@@ -203,18 +386,36 @@ fn broker_read_projects_order_fees_and_merges_order_id_queries() {
 
 #[test]
 fn order_fees_require_at_least_one_non_empty_order_id() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let error = port
-        .read("/api/v1/brokers/futu/order-fees", "accountId=42&market=US&orderIdEx=,")
+        .read(
+            "/api/v1/brokers/futu/order-fees",
+            "accountId=42&market=US&orderIdEx=,",
+        )
         .expect_err("missing order id");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("orderIdEx")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("orderIdEx"))
+    );
 }
 
 #[test]
 fn broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_values() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let value = port
-        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US&symbol=US.AAPL")
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbol=US.AAPL",
+        )
         .expect("margin ratios");
     assert_eq!(value["connectivity"], "connected");
     assert_eq!(value["marginRatios"][0]["tradingEnvironment"], "REAL");
@@ -245,11 +446,21 @@ fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty
 
 #[test]
 fn margin_ratios_require_symbols() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let error = port
-        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US")
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US",
+        )
         .expect_err("missing symbol");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol"))
+    );
 }
 
 #[test]
@@ -295,11 +506,21 @@ fn max_trade_quantity_rejects_invalid_inputs() {
 
 #[test]
 fn margin_ratios_reject_symbol_with_conflicting_market() {
-    let port = ProductionBrokerPort { active_provider_state: ready_state(), trade_read_port: Some(Arc::new(FakeTradeRead)), trade_logged_in: Some(true), trade_runtime: None };
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
     let error = port
-        .read("/api/v1/brokers/futu/margin-ratios", "accountId=42&market=US&symbol=HK.00700")
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbol=HK.00700",
+        )
         .expect_err("conflicting market");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("market")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("market"))
+    );
 }
 
 #[test]
@@ -359,7 +580,9 @@ fn margin_ratios_use_recent_cache_only_for_rate_limit_errors() {
         Instant::now() - Duration::from_secs(121),
     );
     let expired = port.read("/api/v1/brokers/futu/margin-ratios", query);
-    assert!(matches!(expired, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("rate limit")));
+    assert!(
+        matches!(expired, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("rate limit"))
+    );
 
     runtime.set(
         Some(Arc::new(ErrorTradeRead {
@@ -368,7 +591,9 @@ fn margin_ratios_use_recent_cache_only_for_rate_limit_errors() {
         Some(true),
     );
     let non_rate = port.read("/api/v1/brokers/futu/margin-ratios", query);
-    assert!(matches!(non_rate, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker service unavailable")));
+    assert!(
+        matches!(non_rate, Err(BrokerReadSnapshotError::Unavailable(message)) if message.contains("broker service unavailable"))
+    );
 }
 
 #[test]
@@ -425,7 +650,9 @@ fn broker_runtime_requires_real_projection_sources() {
     let error = port
         .read("/api/v1/brokers/futu/runtime", "")
         .expect_err("runtime projection must not use fixture values");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("projection") || message.contains("connection settings")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("projection") || message.contains("connection settings"))
+    );
 }
 
 #[test]
@@ -455,7 +682,10 @@ fn broker_runtime_projects_configured_connection_and_live_hub() {
     assert_eq!(value["session"]["connection"]["websocketPort"], 21_111);
     assert_eq!(value["session"]["connection"]["port"], 21_110);
     assert_eq!(value["session"]["connection"]["useEncryption"], true);
-    assert_eq!(value["session"]["connection"]["marketDataTransport"], "bbgo-opend-tcp-api");
+    assert_eq!(
+        value["session"]["connection"]["marketDataTransport"],
+        "bbgo-opend-tcp-api"
+    );
     assert_eq!(value["session"]["liveWebSocketClients"]["connected"], 1);
     assert_eq!(value["session"]["liveWebSocketClients"]["limit"], 7);
     assert_eq!(value["session"]["liveWebSocketClients"]["atLimit"], false);
@@ -508,7 +738,10 @@ fn broker_securities_projects_real_futu_tick_cache() {
         )
         .expect("securities snapshot");
     assert_eq!(value["connectivity"], "connected");
-    assert_eq!(value["securities"]["snapshots"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        value["securities"]["snapshots"].as_array().unwrap().len(),
+        1
+    );
     assert_eq!(value["securities"]["snapshots"][0]["symbol"], "US.AAPL");
     assert_eq!(value["securities"]["snapshots"][0]["lastPrice"], 123.45);
     assert_eq!(value["securities"]["snapshots"][0]["volume"], 1000);
@@ -516,7 +749,10 @@ fn broker_securities_projects_real_futu_tick_cache() {
     assert_eq!(value["securities"]["snapshots"][0]["openPrice"], 120.0);
     assert_eq!(value["securities"]["snapshots"][0]["previousClose"], 122.0);
     assert_eq!(value["securities"]["snapshots"][0]["turnover"], 123456.5);
-    assert_eq!(value["securities"]["snapshots"][0]["updateTime"], "15:59:59");
+    assert_eq!(
+        value["securities"]["snapshots"][0]["updateTime"],
+        "15:59:59"
+    );
     assert_eq!(value["securities"]["snapshots"][0]["status"], 3);
 }
 
@@ -524,9 +760,9 @@ fn broker_securities_projects_real_futu_tick_cache() {
 fn broker_securities_returns_real_empty_result_when_cache_has_no_symbol() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
-    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
-        ProviderRouter::new(8),
-    ))));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(ProviderRouter::new(
+        8,
+    )))));
     let port = ProductionBrokerPort {
         active_provider_state: ready_state(),
         trade_read_port: None,
@@ -552,16 +788,18 @@ fn broker_securities_fails_closed_without_market_data_router() {
     let error = port
         .read("/api/v1/brokers/futu/securities", "symbol=US.AAPL")
         .expect_err("missing router");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data runtime") || message.contains("router")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data runtime") || message.contains("router"))
+    );
 }
 
 #[test]
 fn broker_securities_requires_symbol_query() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
-    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
-        ProviderRouter::new(8),
-    ))));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(ProviderRouter::new(
+        8,
+    )))));
     let port = ProductionBrokerPort {
         active_provider_state: ready_state(),
         trade_read_port: None,
@@ -571,7 +809,9 @@ fn broker_securities_requires_symbol_query() {
     let error = port
         .read("/api/v1/brokers/futu/securities", "")
         .expect_err("missing symbol");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol"))
+    );
 }
 
 #[test]
@@ -650,9 +890,9 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
 fn broker_quote_requires_every_requested_symbol_in_real_cache() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
-    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
-        ProviderRouter::new(8),
-    ))));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(ProviderRouter::new(
+        8,
+    )))));
     let port = ProductionBrokerPort {
         active_provider_state: ready_state(),
         trade_read_port: None,
@@ -665,7 +905,9 @@ fn broker_quote_requires_every_requested_symbol_in_real_cache() {
             "symbol=US.AAPL&symbols=US.MSFT",
         )
         .expect_err("missing cached quote");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("US.AAPL")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("US.AAPL"))
+    );
 }
 
 #[test]
@@ -681,7 +923,9 @@ fn broker_quote_fails_closed_without_market_data_runtime() {
     let error = port
         .read("/api/v1/brokers/futu/quote", "symbol=US.AAPL")
         .expect_err("missing market-data router");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("runtime") || message.contains("router")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("runtime") || message.contains("router"))
+    );
 }
 
 #[test]
@@ -697,16 +941,18 @@ fn broker_capabilities_fail_closed_without_a_market_data_reader() {
     let error = port
         .read("/api/v1/brokers/capabilities", "")
         .expect_err("capabilities require market-data reader");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data reader")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data reader"))
+    );
 }
 
 #[test]
 fn broker_quote_requires_symbol_query() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
-    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(
-        ProviderRouter::new(8),
-    ))));
+    runtime.set_market_data_router(Some(Arc::new(std::sync::Mutex::new(ProviderRouter::new(
+        8,
+    )))));
     let port = ProductionBrokerPort {
         active_provider_state: ready_state(),
         trade_read_port: None,
@@ -716,7 +962,9 @@ fn broker_quote_requires_symbol_query() {
     let error = port
         .read("/api/v1/brokers/futu/quote", "")
         .expect_err("missing symbol");
-    assert!(matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol"))
+    );
 }
 
 #[test]
@@ -735,7 +983,9 @@ fn broker_klines_valid_request_fails_closed_without_historical_source() {
             "symbol=US.AAPL&period=1d&limit=10",
         )
         .expect_err("historical source is not wired");
-    assert!(matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("historical klines")));
+    assert!(
+        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("historical klines"))
+    );
 }
 
 #[test]
@@ -749,19 +999,20 @@ fn broker_klines_rejects_invalid_period_and_time_combinations() {
         trade_runtime: Some(runtime),
     };
     let invalid_period = port
-        .read(
-            "/api/v1/brokers/futu/klines",
-            "symbol=US.AAPL&period=2h",
-        )
+        .read("/api/v1/brokers/futu/klines", "symbol=US.AAPL&period=2h")
         .expect_err("invalid period");
-    assert!(matches!(invalid_period, BrokerReadSnapshotError::Invalid(message) if message.contains("period")));
+    assert!(
+        matches!(invalid_period, BrokerReadSnapshotError::Invalid(message) if message.contains("period"))
+    );
     let conflicting = port
         .read(
             "/api/v1/brokers/futu/klines",
             "symbol=US.AAPL&before=2026-08-29T00:00:00Z&fromTime=2026-08-28",
         )
         .expect_err("before/from conflict");
-    assert!(matches!(conflicting, BrokerReadSnapshotError::Invalid(message) if message.contains("combined")));
+    assert!(
+        matches!(conflicting, BrokerReadSnapshotError::Invalid(message) if message.contains("combined"))
+    );
 }
 
 #[test]
@@ -777,21 +1028,27 @@ fn broker_klines_requires_symbol_and_valid_before_timestamp() {
     let missing_symbol = port
         .read("/api/v1/brokers/futu/klines", "period=1d")
         .expect_err("missing symbol");
-    assert!(matches!(missing_symbol, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol")));
+    assert!(
+        matches!(missing_symbol, BrokerReadSnapshotError::Invalid(message) if message.contains("symbol"))
+    );
     let invalid_before = port
         .read(
             "/api/v1/brokers/futu/klines",
             "symbol=US.AAPL&before=not-a-time",
         )
         .expect_err("invalid before");
-    assert!(matches!(invalid_before, BrokerReadSnapshotError::Invalid(message) if message.contains("RFC3339")));
+    assert!(
+        matches!(invalid_before, BrokerReadSnapshotError::Invalid(message) if message.contains("RFC3339"))
+    );
     let invalid_limit = port
         .read(
             "/api/v1/brokers/futu/klines",
             "symbol=US.AAPL&limit=not-a-number",
         )
         .expect_err("invalid limit");
-    assert!(matches!(invalid_limit, BrokerReadSnapshotError::Invalid(message) if message.contains("limit")));
+    assert!(
+        matches!(invalid_limit, BrokerReadSnapshotError::Invalid(message) if message.contains("limit"))
+    );
 }
 
 #[test]
@@ -881,7 +1138,11 @@ fn history_query_converts_supported_trade_markets_to_local_wall_clock() {
             .trade_filter(true, market)
             .expect("filter")
             .expect("filter present");
-        assert_eq!(filter.begin_time.as_deref(), Some(expected), "market={market}");
+        assert_eq!(
+            filter.begin_time.as_deref(),
+            Some(expected),
+            "market={market}"
+        );
     }
 }
 
@@ -899,15 +1160,19 @@ fn trade_market_code_supports_all_futu_trade_markets() {
         ("MY", 111),
         ("CA", 112),
     ] {
-        assert_eq!(market_code(market).expect("market code"), expected, "market={market}");
+        assert_eq!(
+            market_code(market).expect("market code"),
+            expected,
+            "market={market}"
+        );
     }
     assert!(market_code("MARS").is_err());
 }
 
 #[test]
 fn invalid_order_scope_is_rejected_before_opend_call() {
-    let request = TradeRequest::parse("/api/v1/brokers/futu/fills", "scope=archive")
-        .expect("request");
+    let request =
+        TradeRequest::parse("/api/v1/brokers/futu/fills", "scope=archive").expect("request");
     assert_eq!(
         request.history_scope().expect_err("invalid scope"),
         "query parameter scope is invalid"

@@ -163,6 +163,14 @@ pub(super) fn provider_activation(
                     };
                     trade_runtime_for_activation.set(client, trade_logged_in);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    trade_runtime_for_activation.set_news_reader(Some(Arc::new(
+                        jftrade_integration_futu::OpenDNewsReader::new(provider.coordinator()),
+                    )));
+                    trade_runtime_for_activation.set_corporate_actions_reader(Some(Arc::new(
+                        jftrade_integration_futu::OpenDCorporateActionsReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_future_info(Some(Arc::new(
                         jftrade_integration_futu::OpenDFutureInfoReader::new(
                             provider.coordinator(),

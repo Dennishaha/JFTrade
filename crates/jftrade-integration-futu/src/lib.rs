@@ -34,12 +34,15 @@ mod provider;
 mod provider_runtime;
 mod quote_push;
 mod runtime_task;
+mod news_query;
+mod corporate_actions_query;
 mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
 mod valuation_detail_query;
+mod customization;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
 // rules because its field/enum names are dictated by the OpenD schema.
@@ -224,6 +227,20 @@ pub use valuation_detail_query::{
     ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
     ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
     ValuationDetailTrend,
+};
+pub use customization::{
+    AlertCustomizationReadPort, AlertCustomizationWritePort, FutuAlertQuery,
+    FutuAlertWrite, FutuRemoteWatchlistReader, RemoteWatchlistReadPort,
+    RemoteWatchlistWritePort,
+};
+pub use news_query::{
+    FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
+    OpenDNewsReader,
+};
+pub use corporate_actions_query::{
+    CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
+    FutuCorporateActionsQueryError, FutuCorporateActionsReadPort, FutuCorporateActionsResult,
+    OpenDCorporateActionsReader,
 };
 
 pub const PROTO_INIT_CONNECT: u32 = 1001;

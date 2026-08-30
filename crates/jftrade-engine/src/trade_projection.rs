@@ -50,19 +50,31 @@ pub(super) fn funds_value(request: &ResolvedTradeRequest, value: TradeFundsSnaps
     json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPnl": value.funds.unrealized_pl, "realizedPnl": value.funds.realized_pl, "securitiesAssets": value.funds.securities_assets, "fundAssets": value.funds.fund_assets, "bondAssets": value.funds.bond_assets, "longMarketValue": value.funds.long_mv, "shortMarketValue": value.funds.short_mv, "netCashPower": value.funds.net_cash_power, "maxWithdrawal": value.funds.max_withdrawal, "pendingAsset": value.funds.pending_asset, "initialMargin": value.funds.initial_margin, "maintenanceMargin": value.funds.maintenance_margin, "marginCallMargin": value.funds.margin_call_margin, "isPdt": value.funds.is_pdt, "pdtSeq": value.funds.pdt_seq, "beginningDTBP": value.funds.beginning_dtbp, "remainingDTBP": value.funds.remaining_dtbp, "dtCallAmount": value.funds.dt_call_amount, "exposureLevel": value.funds.exposure_level, "exposureLimit": value.funds.exposure_limit, "usedLimit": value.funds.used_limit, "remainingLimit": value.funds.remaining_limit}})
 }
 
-pub(super) fn position_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradePositionSnapshot) -> Value {
+pub(super) fn position_value(
+    request: &ResolvedTradeRequest,
+    value: jftrade_integration_futu::TradePositionSnapshot,
+) -> Value {
     json!({"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "quantity": value.qty, "sellableQuantity": value.can_sell_qty, "lastPrice": value.price, "costPrice": value.cost_price, "averageCostPrice": value.average_cost_price, "marketValue": value.val, "unrealizedPnl": value.unrealized_pl, "realizedPnl": value.realized_pl, "pnlRatio": value.pl_ratio, "currency": currency_label(value.currency)})
 }
 
-pub(super) fn order_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeOrderSnapshot) -> Value {
+pub(super) fn order_value(
+    request: &ResolvedTradeRequest,
+    value: jftrade_integration_futu::TradeOrderSnapshot,
+) -> Value {
     json!({"accountId": request.account_id, "brokerOrderId": value.order_id.to_string(), "brokerOrderIdEx": non_empty(&value.order_id_ex), "currency": currency_label(value.currency), "filledAveragePrice": value.fill_avg_price, "filledQuantity": value.fill_qty, "lastError": value.last_err_msg, "market": request.market, "orderType": order_type_label(value.order_type), "price": value.price, "quantity": value.qty, "remark": value.remark, "side": trade_side(value.trd_side), "status": order_status_label(value.order_status), "submittedAt": canonical_time(&value.create_time), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "timeInForce": value.time_in_force.map(time_in_force_label), "tradingEnvironment": request.environment, "updatedAt": canonical_time(&value.update_time)})
 }
 
-pub(super) fn fill_value(request: &ResolvedTradeRequest, value: jftrade_integration_futu::TradeFillSnapshot) -> Value {
+pub(super) fn fill_value(
+    request: &ResolvedTradeRequest,
+    value: jftrade_integration_futu::TradeFillSnapshot,
+) -> Value {
     json!({"accountId": request.account_id, "brokerFillId": value.fill_id.to_string(), "brokerFillIdEx": non_empty(&value.fill_id_ex), "brokerOrderId": value.order_id.map(|v| v.to_string()).unwrap_or_default(), "brokerOrderIdEx": value.order_id_ex, "fillPrice": value.price, "filledAt": canonical_time(&value.create_time), "filledQuantity": value.qty, "market": request.market, "side": trade_side(value.trd_side), "status": value.status.map(fill_status_label), "symbol": qualify_symbol(&request.market, &value.code), "symbolName": non_empty(&value.name), "tradingEnvironment": request.environment})
 }
 
-pub(super) fn order_fee_value(request: &ResolvedTradeRequest, value: TradeOrderFeeSnapshot) -> Value {
+pub(super) fn order_fee_value(
+    request: &ResolvedTradeRequest,
+    value: TradeOrderFeeSnapshot,
+) -> Value {
     let fee_amount = value.fee_amount;
     let fee_items = value
         .fee_items
@@ -75,20 +87,28 @@ pub(super) fn order_fee_value(request: &ResolvedTradeRequest, value: TradeOrderF
         "market": request.market,
         "brokerOrderIdEx": value.broker_order_id_ex,
         "feeItems": fee_items,
-    })
-    ;
+    });
     if let Some(amount) = fee_amount {
         output["feeAmount"] = json!(amount);
     } else {
-        output.as_object_mut().expect("fee object").remove("feeAmount");
+        output
+            .as_object_mut()
+            .expect("fee object")
+            .remove("feeAmount");
     }
     if output["feeItems"].as_array().is_some_and(Vec::is_empty) {
-        output.as_object_mut().expect("fee object").remove("feeItems");
+        output
+            .as_object_mut()
+            .expect("fee object")
+            .remove("feeItems");
     }
     output
 }
 
-pub(super) fn margin_ratio_value(request: &ResolvedTradeRequest, value: TradeMarginRatioSnapshot) -> Value {
+pub(super) fn margin_ratio_value(
+    request: &ResolvedTradeRequest,
+    value: TradeMarginRatioSnapshot,
+) -> Value {
     let mut output = json!({
         "accountId": request.account_id,
         "tradingEnvironment": request.environment,
@@ -180,7 +200,11 @@ pub(super) fn cash_flow_direction_label(value: i32) -> &'static str {
 }
 
 pub(super) fn qualify_symbol(market: &str, code: &str) -> String {
-    if code.contains('.') || market.is_empty() { code.to_owned() } else { format!("{market}.{code}") }
+    if code.contains('.') || market.is_empty() {
+        code.to_owned()
+    } else {
+        format!("{market}.{code}")
+    }
 }
 
 pub(super) fn non_empty(value: &str) -> Option<&str> {
@@ -189,9 +213,15 @@ pub(super) fn non_empty(value: &str) -> Option<&str> {
 
 pub(super) fn currency_label(currency: Option<i32>) -> Option<&'static str> {
     match currency {
-        Some(1) => Some("HKD"), Some(2) => Some("USD"), Some(3) => Some("CNH"),
-        Some(4) => Some("JPY"), Some(5) => Some("SGD"), Some(6) => Some("AUD"),
-        Some(7) => Some("CAD"), Some(8) => Some("MYR"), Some(9) => Some("NZD"),
+        Some(1) => Some("HKD"),
+        Some(2) => Some("USD"),
+        Some(3) => Some("CNH"),
+        Some(4) => Some("JPY"),
+        Some(5) => Some("SGD"),
+        Some(6) => Some("AUD"),
+        Some(7) => Some("CAD"),
+        Some(8) => Some("MYR"),
+        Some(9) => Some("NZD"),
         _ => None,
     }
 }
@@ -227,28 +257,69 @@ pub(super) fn trade_side(side: i32) -> &'static str {
 }
 
 pub(super) fn account_type_label(value: i32) -> &'static str {
-    match value { 1 => "CASH", 2 => "MARGIN", 3 => "TFSA", 4 => "RRSP", 5 => "SRRSP", 6 => "DERIVATIVES", _ => "UNKNOWN" }
+    match value {
+        1 => "CASH",
+        2 => "MARGIN",
+        3 => "TFSA",
+        4 => "RRSP",
+        5 => "SRRSP",
+        6 => "DERIVATIVES",
+        _ => "UNKNOWN",
+    }
 }
 
 pub(super) fn account_role_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("NORMAL"), 2 => Some("MASTER"), 3 => Some("IPO"), _ => None }
+    match value {
+        1 => Some("NORMAL"),
+        2 => Some("MASTER"),
+        3 => Some("IPO"),
+        _ => None,
+    }
 }
 
 pub(super) fn security_firm_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("FUTUSECURITIES"), 2 => Some("FUTUINC"), 3 => Some("FUTUSG"), 4 => Some("FUTUAU"), 5 => Some("FUTUCA"), 6 => Some("FUTUMY"), 7 => Some("FUTUJP"), _ => None }
+    match value {
+        1 => Some("FUTUSECURITIES"),
+        2 => Some("FUTUINC"),
+        3 => Some("FUTUSG"),
+        4 => Some("FUTUAU"),
+        5 => Some("FUTUCA"),
+        6 => Some("FUTUMY"),
+        7 => Some("FUTUJP"),
+        _ => None,
+    }
 }
 
 pub(super) fn simulated_account_type_label(value: i32) -> Option<&'static str> {
-    match value { 1 => Some("STOCK"), 2 => Some("OPTION"), 3 => Some("FUTURES"), 4 => Some("STOCKANDOPTION"), 5 => Some("COMPETITION"), _ => None }
+    match value {
+        1 => Some("STOCK"),
+        2 => Some("OPTION"),
+        3 => Some("FUTURES"),
+        4 => Some("STOCKANDOPTION"),
+        5 => Some("COMPETITION"),
+        _ => None,
+    }
 }
 
 pub(super) fn order_type_label(value: i32) -> &'static str {
     match value {
-        1 => "NORMAL", 2 => "MARKET", 5 => "ABSOLUTELIMIT", 6 => "AUCTION",
-        7 => "AUCTIONLIMIT", 8 => "SPECIALLIMIT", 9 => "SPECIALLIMIT_ALL",
-        10 => "STOP", 11 => "STOPLIMIT", 12 => "MARKETIFTOUCHED",
-        13 => "LIMITIFTOUCHED", 14 => "TRAILINGSTOP", 15 => "TRAILINGSTOPLIMIT",
-        16 => "TWAP_MARKET", 17 => "TWAP_LIMIT", 18 => "VWAP_MARKET", 19 => "VWAP_LIMIT",
+        1 => "NORMAL",
+        2 => "MARKET",
+        5 => "ABSOLUTELIMIT",
+        6 => "AUCTION",
+        7 => "AUCTIONLIMIT",
+        8 => "SPECIALLIMIT",
+        9 => "SPECIALLIMIT_ALL",
+        10 => "STOP",
+        11 => "STOPLIMIT",
+        12 => "MARKETIFTOUCHED",
+        13 => "LIMITIFTOUCHED",
+        14 => "TRAILINGSTOP",
+        15 => "TRAILINGSTOPLIMIT",
+        16 => "TWAP_MARKET",
+        17 => "TWAP_LIMIT",
+        18 => "VWAP_MARKET",
+        19 => "VWAP_LIMIT",
         _ => "UNKNOWN",
     }
 }
@@ -278,20 +349,45 @@ pub(super) fn session_label(value: i32) -> Option<&'static str> {
 
 pub(super) fn order_status_label(value: i32) -> &'static str {
     match value {
-        -1 => "UNKNOWN", 0 => "UNSUBMITTED", 1 => "WAITINGSUBMIT", 2 => "SUBMITTING",
-        3 => "SUBMITFAILED", 4 => "TIMEOUT", 5 => "SUBMITTED", 10 => "FILLED_PART",
-        11 => "FILLED_ALL", 12 => "CANCELLING_PART", 13 => "CANCELLING_ALL",
-        14 => "CANCELLED_PART", 15 => "CANCELLED_ALL", 21 => "FAILED", 22 => "DISABLED",
-        23 => "DELETED", 24 => "FILLCANCELLED", _ => "UNKNOWN",
+        -1 => "UNKNOWN",
+        0 => "UNSUBMITTED",
+        1 => "WAITINGSUBMIT",
+        2 => "SUBMITTING",
+        3 => "SUBMITFAILED",
+        4 => "TIMEOUT",
+        5 => "SUBMITTED",
+        10 => "FILLED_PART",
+        11 => "FILLED_ALL",
+        12 => "CANCELLING_PART",
+        13 => "CANCELLING_ALL",
+        14 => "CANCELLED_PART",
+        15 => "CANCELLED_ALL",
+        21 => "FAILED",
+        22 => "DISABLED",
+        23 => "DELETED",
+        24 => "FILLCANCELLED",
+        _ => "UNKNOWN",
     }
 }
 
 pub(super) fn fill_status_label(value: i32) -> &'static str {
-    match value { 0 => "OK", 1 => "CANCELLED", 2 => "CHANGED", 3 => "PAYOUT", _ => "UNKNOWN" }
+    match value {
+        0 => "OK",
+        1 => "CANCELLED",
+        2 => "CHANGED",
+        3 => "PAYOUT",
+        _ => "UNKNOWN",
+    }
 }
 
 pub(super) fn time_in_force_label(value: i32) -> &'static str {
-    match value { 0 => "DAY", 1 => "GTC", 2 => "IOC", 3 => "GTD", _ => "UNKNOWN" }
+    match value {
+        0 => "DAY",
+        1 => "GTC",
+        2 => "IOC",
+        3 => "GTD",
+        _ => "UNKNOWN",
+    }
 }
 
 pub(super) fn canonical_time(value: &str) -> &str {

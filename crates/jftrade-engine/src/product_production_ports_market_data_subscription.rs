@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
 use jftrade_marketdata::{InstrumentRef, PhysicalSubscriptionSnapshotPort, ProviderRouter};
 use jftrade_settings::MarketDataProvider;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::sync::{Arc, Mutex};
 
 use super::product_production_ports_market_data_projection::{
     broker_polling_subscription_response, current_unix_millis, render_subscriptions_data,
@@ -49,13 +49,11 @@ impl ProductionMarketDataSubscriptionMutationPort {
     fn active_provider(
         &self,
     ) -> Result<MarketDataProvider, MarketDataSubscriptionMutationPortError> {
-        self.active_provider_state
-            .get()
-            .ok_or_else(|| {
-                MarketDataSubscriptionMutationPortError::Unavailable(
-                    "active market-data provider is not configured".to_owned(),
-                )
-            })
+        self.active_provider_state.get().ok_or_else(|| {
+            MarketDataSubscriptionMutationPortError::Unavailable(
+                "active market-data provider is not configured".to_owned(),
+            )
+        })
     }
 
     fn uses_broker_polling(explicit_broker: Option<&str>) -> bool {
@@ -102,9 +100,9 @@ impl MarketDataSubscriptionMutationPort for ProductionMarketDataSubscriptionMuta
             ("POST", MARKET_DATA_SUBSCRIPTION_RELEASE_PATH) => self.release(request),
             ("DELETE", MARKET_DATA_SUBSCRIPTION_CLEAR_PATH) => self.clear(request),
             ("POST", MARKET_DATA_SUBSCRIPTION_HEARTBEAT_PATH) => self.heartbeat(request),
-            _ => Err(MarketDataSubscriptionMutationPortError::Unavailable(format!(
-                "unsupported subscription mutation route: {method} {path}"
-            ))),
+            _ => Err(MarketDataSubscriptionMutationPortError::Unavailable(
+                format!("unsupported subscription mutation route: {method} {path}"),
+            )),
         }
     }
 }
@@ -114,14 +112,15 @@ impl ProductionMarketDataSubscriptionMutationPort {
         &self,
         request: &MarketDataSubscriptionMutationRequest,
     ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
-        let body: SubscriptionRequestBody = serde_json::from_slice(&request.body).map_err(|_| {
-            MarketDataSubscriptionMutationPortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid subscription request".to_owned(),
-                retry_after_seconds: None,
-            }
-        })?;
+        let body: SubscriptionRequestBody =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                MarketDataSubscriptionMutationPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid subscription request".to_owned(),
+                    retry_after_seconds: None,
+                }
+            })?;
 
         let consumer_id = body
             .consumer_id
@@ -135,14 +134,14 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 retry_after_seconds: None,
             })?;
 
-        let raw_instruments = body
-            .instruments
-            .ok_or_else(|| MarketDataSubscriptionMutationPortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "consumerId and instruments are required".to_owned(),
-                retry_after_seconds: None,
-            })?;
+        let raw_instruments =
+            body.instruments
+                .ok_or_else(|| MarketDataSubscriptionMutationPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "consumerId and instruments are required".to_owned(),
+                    retry_after_seconds: None,
+                })?;
 
         let mut refs = Vec::new();
         for item in &raw_instruments {
@@ -168,7 +167,12 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 });
             }
 
-            if channel != "KLINE" && item.interval.as_deref().is_some_and(|i| !i.trim().is_empty()) {
+            if channel != "KLINE"
+                && item
+                    .interval
+                    .as_deref()
+                    .is_some_and(|i| !i.trim().is_empty())
+            {
                 return Err(MarketDataSubscriptionMutationPortError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
@@ -180,14 +184,15 @@ impl ProductionMarketDataSubscriptionMutationPort {
             if channel == "KLINE" {
                 let raw_interval = item.interval.as_deref().unwrap_or_default();
                 let interval = raw_interval.trim();
-                let valid_intervals = [
-                    "1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo",
-                ];
+                let valid_intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"];
                 if interval.is_empty() || !valid_intervals.contains(&interval) {
                     return Err(MarketDataSubscriptionMutationPortError::Failed {
                         status: 400,
                         code: "BAD_REQUEST".to_owned(),
-                        message: format!("unsupported KLINE subscription interval {:?}", raw_interval),
+                        message: format!(
+                            "unsupported KLINE subscription interval {:?}",
+                            raw_interval
+                        ),
                         retry_after_seconds: None,
                     });
                 }
@@ -277,10 +282,7 @@ impl ProductionMarketDataSubscriptionMutationPort {
             })
             .transpose()?
             .flatten();
-        let res = render_subscriptions_data(
-            &snapshot,
-            physical_snapshot.as_ref(),
-        );
+        let res = render_subscriptions_data(&snapshot, physical_snapshot.as_ref());
         Ok(res)
     }
 
@@ -288,14 +290,15 @@ impl ProductionMarketDataSubscriptionMutationPort {
         &self,
         request: &MarketDataSubscriptionMutationRequest,
     ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
-        let body: SubscriptionRequestBody = serde_json::from_slice(&request.body).map_err(|_| {
-            MarketDataSubscriptionMutationPortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid release request".to_owned(),
-                retry_after_seconds: None,
-            }
-        })?;
+        let body: SubscriptionRequestBody =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                MarketDataSubscriptionMutationPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid release request".to_owned(),
+                    retry_after_seconds: None,
+                }
+            })?;
 
         let consumer_id = body
             .consumer_id
@@ -324,7 +327,11 @@ impl ProductionMarketDataSubscriptionMutationPort {
                     retry_after_seconds: None,
                 });
             }
-            let raw_channel = target.channel.as_deref().map(str::trim).unwrap_or("SNAPSHOT");
+            let raw_channel = target
+                .channel
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("SNAPSHOT");
             let channel = if raw_channel.is_empty() {
                 "SNAPSHOT".to_owned()
             } else {
@@ -341,7 +348,12 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 });
             }
 
-            if channel != "KLINE" && target.interval.as_deref().is_some_and(|i| !i.trim().is_empty()) {
+            if channel != "KLINE"
+                && target
+                    .interval
+                    .as_deref()
+                    .is_some_and(|i| !i.trim().is_empty())
+            {
                 return Err(MarketDataSubscriptionMutationPortError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
@@ -353,14 +365,15 @@ impl ProductionMarketDataSubscriptionMutationPort {
             if channel == "KLINE" {
                 let raw_interval = target.interval.as_deref().unwrap_or_default();
                 let interval = raw_interval.trim();
-                let valid_intervals = [
-                    "1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo",
-                ];
+                let valid_intervals = ["1m", "3m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"];
                 if !valid_intervals.contains(&interval) {
                     return Err(MarketDataSubscriptionMutationPortError::Failed {
                         status: 400,
                         code: "BAD_REQUEST".to_owned(),
-                        message: format!("unsupported KLINE subscription interval {:?}", raw_interval),
+                        message: format!(
+                            "unsupported KLINE subscription interval {:?}",
+                            raw_interval
+                        ),
                         retry_after_seconds: None,
                     });
                 }
@@ -439,10 +452,7 @@ impl ProductionMarketDataSubscriptionMutationPort {
             })
             .transpose()?
             .flatten();
-        let mut res = render_subscriptions_data(
-            &snapshot,
-            physical_snapshot.as_ref(),
-        );
+        let mut res = render_subscriptions_data(&snapshot, physical_snapshot.as_ref());
         res["released"] = json!(true);
         Ok(res)
     }
@@ -459,13 +469,12 @@ impl ProductionMarketDataSubscriptionMutationPort {
                 retry_after_seconds: None,
             }
         })?;
-        let consumer_id = query_map
-            .get_first("consumerId")
-            .unwrap_or_default();
+        let consumer_id = query_map.get_first("consumerId").unwrap_or_default();
 
         let provider_broker_id = query_map.get_first("providerBrokerId").unwrap_or_default();
-        let uses_polling =
-            Self::uses_broker_polling((!provider_broker_id.is_empty()).then_some(provider_broker_id));
+        let uses_polling = Self::uses_broker_polling(
+            (!provider_broker_id.is_empty()).then_some(provider_broker_id),
+        );
         if uses_polling {
             return Ok(broker_polling_subscription_response(
                 consumer_id,
@@ -506,10 +515,7 @@ impl ProductionMarketDataSubscriptionMutationPort {
             })
             .transpose()?
             .flatten();
-        let mut res = render_subscriptions_data(
-            &snapshot,
-            physical_snapshot.as_ref(),
-        );
+        let mut res = render_subscriptions_data(&snapshot, physical_snapshot.as_ref());
         res["cleared"] = json!(true);
         Ok(res)
     }
@@ -518,14 +524,15 @@ impl ProductionMarketDataSubscriptionMutationPort {
         &self,
         request: &MarketDataSubscriptionMutationRequest,
     ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
-        let body: SubscriptionRequestBody = serde_json::from_slice(&request.body).map_err(|_| {
-            MarketDataSubscriptionMutationPortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid heartbeat request".to_owned(),
-                retry_after_seconds: None,
-            }
-        })?;
+        let body: SubscriptionRequestBody =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                MarketDataSubscriptionMutationPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid heartbeat request".to_owned(),
+                    retry_after_seconds: None,
+                }
+            })?;
 
         let consumer_id = body
             .consumer_id
@@ -585,10 +592,7 @@ impl ProductionMarketDataSubscriptionMutationPort {
             })
             .transpose()?
             .flatten();
-        let res = render_subscriptions_data(
-            &snapshot,
-            physical_snapshot.as_ref(),
-        );
+        let res = render_subscriptions_data(&snapshot, physical_snapshot.as_ref());
         Ok(res)
     }
 }

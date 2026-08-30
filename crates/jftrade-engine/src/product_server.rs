@@ -277,16 +277,33 @@ pub(crate) async fn prepare_product_with_runtime_state(
     let initial_active_provider = settings_store
         .load_active_market_data_provider()
         .map_err(ProductError::Settings)?
-        .and_then(|s| jftrade_settings::parse_market_data_provider(&s).ok());
+        .map(|value| {
+            jftrade_settings::parse_market_data_provider(&value).map_err(|error| {
+                ProductError::Settings(jftrade_settings::SettingsStoreError::new(format!(
+                    "invalid active market-data provider: {error}"
+                )))
+            })
+        })
+        .transpose()?;
     let active_provider_state = config
         .active_provider_state
         .clone()
         .unwrap_or_else(|| Arc::new(ActiveProviderState::new(initial_active_provider)));
     config.active_provider_state = Some(Arc::clone(&active_provider_state));
+    if config.production && !config.backtest_execution_port_verified {
+        // A production backtest adapter is trusted only when the runtime
+        // installed it after a successful Pine readiness probe.  Direct
+        // ProductConfig injection remains a rehearsal seam and is ignored.
+        config.backtest_execution_port = None;
+    }
     let production_ports = config
         .production
         .then(|| product_production_ports::production_ports(&config, &security_service))
         .transpose()?;
+    // Production composition is fenced to the concrete bundle built above.
+    // This prevents an embedding/test port supplied on `ProductConfig` from
+    // taking precedence over a production adapter in `ProductOptionalPorts`.
+    config.fence_production_route_ports();
     let production_calendar_manager = production_ports
         .as_ref()
         .map(|ports| ports.calendar_manager.clone());

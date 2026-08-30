@@ -6,21 +6,21 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+use super::ProductionAdkPort;
 use crate::product::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPort, AdkMutationPortError,
 };
-use super::ProductionAdkPort;
 
-#[path = "product_production_ports_adk_mutation_helpers.rs"]
-mod helpers;
 #[path = "product_production_ports_adk_mutation_entities.rs"]
 mod entities;
-#[path = "product_production_ports_adk_mutation_workflows.rs"]
-mod workflows;
+#[path = "product_production_ports_adk_mutation_helpers.rs"]
+mod helpers;
 #[path = "product_production_ports_adk_mutation_runs.rs"]
 mod runs;
 #[path = "product_production_ports_adk_mutation_tasks.rs"]
 mod tasks;
+#[path = "product_production_ports_adk_mutation_workflows.rs"]
+mod workflows;
 
 use helpers::*;
 
@@ -30,20 +30,27 @@ static TASK_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 static TRIGGER_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 static WORKFLOW_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
-
 fn object_payload(
     stored: &jftrade_store_sqlite::StoredAdkEntity,
     resource: &str,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, resource)?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: format!("stored ADK {resource} payload must be a JSON object"),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: format!("stored ADK {resource} payload must be a JSON object"),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
-    object.insert("createdAt".to_owned(), Value::String(stored.created_at.clone()));
-    object.insert("updatedAt".to_owned(), Value::String(stored.updated_at.clone()));
+    object.insert(
+        "createdAt".to_owned(),
+        Value::String(stored.created_at.clone()),
+    );
+    object.insert(
+        "updatedAt".to_owned(),
+        Value::String(stored.updated_at.clone()),
+    );
     Ok(value)
 }
 
@@ -51,17 +58,25 @@ fn memory_payload(
     stored: &jftrade_store_sqlite::StoredAdkMemory,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "memory")?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK memory payload must be a JSON object".to_owned(),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK memory payload must be a JSON object".to_owned(),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert("agentId".to_owned(), Value::String(stored.agent_id.clone()));
     object.insert("scope".to_owned(), Value::String(stored.scope.clone()));
     object.insert("key".to_owned(), Value::String(stored.memory_key.clone()));
-    object.insert("createdAt".to_owned(), Value::String(stored.created_at.clone()));
-    object.insert("updatedAt".to_owned(), Value::String(stored.updated_at.clone()));
+    object.insert(
+        "createdAt".to_owned(),
+        Value::String(stored.created_at.clone()),
+    );
+    object.insert(
+        "updatedAt".to_owned(),
+        Value::String(stored.updated_at.clone()),
+    );
     Ok(value)
 }
 
@@ -69,17 +84,25 @@ fn task_payload(
     stored: &jftrade_store_sqlite::StoredAdkTask,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "task")?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK task payload must be a JSON object".to_owned(),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK task payload must be a JSON object".to_owned(),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert("status".to_owned(), Value::String(stored.status.clone()));
     object.insert("agentId".to_owned(), Value::String(stored.agent_id.clone()));
     object.insert("runId".to_owned(), Value::String(stored.run_id.clone()));
-    object.insert("createdAt".to_owned(), Value::String(stored.created_at.clone()));
-    object.insert("updatedAt".to_owned(), Value::String(stored.updated_at.clone()));
+    object.insert(
+        "createdAt".to_owned(),
+        Value::String(stored.created_at.clone()),
+    );
+    object.insert(
+        "updatedAt".to_owned(),
+        Value::String(stored.updated_at.clone()),
+    );
     Ok(value)
 }
 
@@ -93,18 +116,35 @@ fn workflow_trigger_payload(
     stored: &jftrade_store_sqlite::StoredAdkWorkflowTrigger,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "workflow trigger")?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK workflow trigger payload must be a JSON object".to_owned(),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK workflow trigger payload must be a JSON object".to_owned(),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
-    object.insert("workflowId".to_owned(), Value::String(stored.workflow_id.clone()));
-    object.insert("type".to_owned(), Value::String(stored.trigger_type.clone()));
+    object.insert(
+        "workflowId".to_owned(),
+        Value::String(stored.workflow_id.clone()),
+    );
+    object.insert(
+        "type".to_owned(),
+        Value::String(stored.trigger_type.clone()),
+    );
     object.insert("status".to_owned(), Value::String(stored.status.clone()));
-    object.insert("nextRunAt".to_owned(), Value::String(stored.next_run_at.clone()));
-    object.insert("createdAt".to_owned(), Value::String(stored.created_at.clone()));
-    object.insert("updatedAt".to_owned(), Value::String(stored.updated_at.clone()));
+    object.insert(
+        "nextRunAt".to_owned(),
+        Value::String(stored.next_run_at.clone()),
+    );
+    object.insert(
+        "createdAt".to_owned(),
+        Value::String(stored.created_at.clone()),
+    );
+    object.insert(
+        "updatedAt".to_owned(),
+        Value::String(stored.updated_at.clone()),
+    );
     let has_secret = object
         .get("hasSecret")
         .and_then(Value::as_bool)
@@ -122,15 +162,23 @@ fn workflow_payload(
     stored: &jftrade_store_sqlite::StoredAdkWorkflow,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "workflow")?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK workflow payload must be a JSON object".to_owned(),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK workflow payload must be a JSON object".to_owned(),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert("status".to_owned(), Value::String(stored.status.clone()));
-    object.insert("createdAt".to_owned(), Value::String(stored.created_at.clone()));
-    object.insert("updatedAt".to_owned(), Value::String(stored.updated_at.clone()));
+    object.insert(
+        "createdAt".to_owned(),
+        Value::String(stored.created_at.clone()),
+    );
+    object.insert(
+        "updatedAt".to_owned(),
+        Value::String(stored.updated_at.clone()),
+    );
     Ok(value)
 }
 
@@ -144,13 +192,13 @@ fn run_entity_value(
     stored: &jftrade_store_sqlite::StoredAdkRun,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "run")?;
-    let object = value.as_object_mut().ok_or_else(|| {
-        AdkMutationPortError::Failed {
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
             status: 500,
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: "stored ADK run payload must be a JSON object".to_owned(),
-        }
-    })?;
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert("status".to_owned(), Value::String(stored.status.clone()));
     object.insert(
@@ -173,13 +221,13 @@ fn approval_entity_value(
     stored: &jftrade_store_sqlite::StoredAdkApproval,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "approval")?;
-    let object = value.as_object_mut().ok_or_else(|| {
-        AdkMutationPortError::Failed {
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
             status: 500,
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: "stored ADK approval payload must be a JSON object".to_owned(),
-        }
-    })?;
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert("runId".to_owned(), Value::String(stored.run_id.clone()));
     object.insert("agentId".to_owned(), Value::String(stored.agent_id.clone()));
@@ -231,13 +279,13 @@ fn run_state_result(
 }
 
 fn validate_goal_run(value: &Value, action: &str) -> Result<(), AdkMutationPortError> {
-    let object = value.as_object().ok_or_else(|| {
-        AdkMutationPortError::Failed {
+    let object = value
+        .as_object()
+        .ok_or_else(|| AdkMutationPortError::Failed {
             status: 500,
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: "stored ADK run payload must be a JSON object".to_owned(),
-        }
-    })?;
+        })?;
     let work_mode = object
         .get("workMode")
         .and_then(Value::as_str)
@@ -370,11 +418,13 @@ fn session_entity_value(
     stored: &jftrade_store_sqlite::StoredAdkEntity,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, "session")?;
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK session payload must be a JSON object".to_owned(),
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK session payload must be a JSON object".to_owned(),
+        })?;
     object.insert("id".to_owned(), Value::String(stored.id.clone()));
     object.insert(
         "createdAt".to_owned(),
@@ -414,15 +464,14 @@ fn composer_state_value(
         Some(stored) => decode_mutation_payload(&stored.payload_json, "composer state")?,
         None => default_composer_state(session_id),
     };
-    let object = value.as_object_mut().ok_or_else(|| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_STORAGE_CORRUPT".to_owned(),
-        message: "stored ADK composer state must be a JSON object".to_owned(),
-    })?;
-    object.insert(
-        "sessionId".to_owned(),
-        Value::String(session_id.to_owned()),
-    );
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: "stored ADK composer state must be a JSON object".to_owned(),
+        })?;
+    object.insert("sessionId".to_owned(), Value::String(session_id.to_owned()));
     for (key, default) in [
         ("chatDraft", Value::String(String::new())),
         ("providerIdOverride", Value::String(String::new())),
@@ -444,10 +493,7 @@ fn bounded_text(value: &str) -> String {
     value.chars().take(50_000).collect()
 }
 
-fn composer_string(
-    body: &Value,
-    key: &str,
-) -> Result<Option<String>, AdkMutationPortError> {
+fn composer_string(body: &Value, key: &str) -> Result<Option<String>, AdkMutationPortError> {
     body.get(key)
         .map(|value| {
             value
@@ -486,18 +532,22 @@ fn task_status(value: Option<&Value>) -> Result<String, AdkMutationPortError> {
         .map(str::trim)
         .unwrap_or_default()
         .to_ascii_uppercase();
-    let status = if status.is_empty() { "TODO" } else { status.as_str() };
-    if matches!(status, "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED") {
+    let status = if status.is_empty() {
+        "TODO"
+    } else {
+        status.as_str()
+    };
+    if matches!(
+        status,
+        "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE" | "CANCELLED"
+    ) {
         Ok(status.to_owned())
     } else {
         Err(invalid_mutation_input("invalid task status"))
     }
 }
 
-fn string_slice(
-    value: Option<&Value>,
-    field: &str,
-) -> Result<Vec<String>, AdkMutationPortError> {
+fn string_slice(value: Option<&Value>, field: &str) -> Result<Vec<String>, AdkMutationPortError> {
     let Some(value) = value else {
         return Ok(Vec::new());
     };
@@ -517,7 +567,10 @@ fn string_slice(
 }
 
 fn reject_self_dependency(id: &str, depends_on: &[String]) -> Result<(), AdkMutationPortError> {
-    if depends_on.iter().any(|dependency| normalize_id(dependency) == id) {
+    if depends_on
+        .iter()
+        .any(|dependency| normalize_id(dependency) == id)
+    {
         Err(invalid_mutation_input("task cannot depend on itself"))
     } else {
         Ok(())
@@ -550,10 +603,7 @@ fn normalize_trigger_status(value: Option<&Value>, fallback: &str) -> String {
     }
 }
 
-fn validate_trigger_config(
-    trigger_type: &str,
-    config: &Value,
-) -> Result<(), AdkMutationPortError> {
+fn validate_trigger_config(trigger_type: &str, config: &Value) -> Result<(), AdkMutationPortError> {
     let config = config
         .as_object()
         .ok_or_else(|| invalid_mutation_input("workflow trigger config must be an object"))?;

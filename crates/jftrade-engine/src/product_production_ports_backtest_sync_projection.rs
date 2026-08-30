@@ -1,5 +1,5 @@
 use jftrade_store_sqlite::StoredBacktestSyncTask;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::product::BacktestSyncReadSnapshotError;
 

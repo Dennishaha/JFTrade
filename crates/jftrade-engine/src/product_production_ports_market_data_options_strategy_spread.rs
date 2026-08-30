@@ -23,17 +23,17 @@ pub(crate) fn read(
         ));
     }
     let request = parse_request(path, query)?;
-    let snapshot = runtime.option_strategy_spread(&request).map_err(map_error)?;
+    let snapshot = runtime
+        .option_strategy_spread(&request)
+        .map_err(map_error)?;
     let entries = snapshot
         .items
         .into_iter()
         .map(|item| {
-            serde_json::to_value(item).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!("failed to serialize OpenD option strategy spread: {error}"),
-                }
+            serde_json::to_value(item).map_err(|error| MarketDataOptionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: format!("failed to serialize OpenD option strategy spread: {error}"),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -74,10 +74,8 @@ pub(crate) fn read(
 fn parse_request(
     path: &str,
     query: &str,
-) -> Result<
-    jftrade_integration_futu::OptionStrategySpreadQuery,
-    MarketDataOptionsReadSnapshotError,
-> {
+) -> Result<jftrade_integration_futu::OptionStrategySpreadQuery, MarketDataOptionsReadSnapshotError>
+{
     let instrument = path
         .strip_prefix("/api/v1/market-data/options/analysis/")
         .filter(|value| !value.is_empty() && !value.contains('/'))
@@ -90,7 +88,11 @@ fn parse_request(
     let market_code = match market.as_str() {
         "HK" => 1,
         "US" => 11,
-        _ => return Err(bad_request("option strategy spread market must be HK or US")),
+        _ => {
+            return Err(bad_request(
+                "option strategy spread market must be HK or US",
+            ));
+        }
     };
     let code = code.trim();
     if code.is_empty()
@@ -152,9 +154,7 @@ fn parse_request(
     Ok(request)
 }
 
-fn parse_option_strategy(
-    value: &str,
-) -> Result<i32, MarketDataOptionsReadSnapshotError> {
+fn parse_option_strategy(value: &str) -> Result<i32, MarketDataOptionsReadSnapshotError> {
     let value = value.trim();
     if let Ok(value) = value.parse::<i32>() {
         return Ok(value);
@@ -169,7 +169,11 @@ fn parse_option_strategy(
         "iron_butterfly" => 13,
         "iron_condor" => 14,
         "diagonal" | "diagonal_spread" => 16,
-        _ => return Err(bad_request("optionStrategy must be an integer or supported strategy name")),
+        _ => {
+            return Err(bad_request(
+                "optionStrategy must be an integer or supported strategy name",
+            ));
+        }
     };
     Ok(value)
 }

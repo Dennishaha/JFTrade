@@ -28,12 +28,10 @@ pub(crate) fn read(
         .items
         .into_iter()
         .map(|item| {
-            serde_json::to_value(item).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!("failed to serialize OpenD option strategy: {error}"),
-                }
+            serde_json::to_value(item).map_err(|error| MarketDataOptionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: format!("failed to serialize OpenD option strategy: {error}"),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -101,9 +99,9 @@ fn parse_request(
     };
     let code = code.trim();
     if code.is_empty()
-        || code.chars().any(|value| {
-            value.is_whitespace() || (!value.is_ascii_alphanumeric() && value != '-')
-        })
+        || code
+            .chars()
+            .any(|value| value.is_whitespace() || (!value.is_ascii_alphanumeric() && value != '-'))
     {
         return Err(bad_request("option strategy code is invalid"));
     }
@@ -138,7 +136,9 @@ fn parse_request(
         strike_price,
         index_option_type,
     };
-    request.validate().map_err(|error| bad_request(&error.to_string()))?;
+    request
+        .validate()
+        .map_err(|error| bad_request(&error.to_string()))?;
     Ok(request)
 }
 
@@ -181,9 +181,7 @@ fn optional_int(
         .map_err(|_| bad_request(&format!("{} must be an integer", keys[0])))
 }
 
-fn parse_option_strategy(
-    value: &str,
-) -> Result<i32, MarketDataOptionsReadSnapshotError> {
+fn parse_option_strategy(value: &str) -> Result<i32, MarketDataOptionsReadSnapshotError> {
     if let Ok(value) = value.trim().parse::<i32>() {
         return Ok(value);
     }
@@ -202,7 +200,11 @@ fn parse_option_strategy(
         "calendar" | "calendar_spread" => 15,
         "diagonal" | "diagonal_spread" => 16,
         "custom" | "customize" => 100,
-        _ => return Err(bad_request("optionStrategy must be an integer or supported strategy name")),
+        _ => {
+            return Err(bad_request(
+                "optionStrategy must be an integer or supported strategy name",
+            ));
+        }
     };
     Ok(value)
 }

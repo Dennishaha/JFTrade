@@ -164,6 +164,8 @@ use product_strategy_definition_write_port::{
 #[path = "product_adk_chat_stream_port.rs"]
 mod product_adk_chat_stream_port;
 use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
+#[path = "product_adk_model_runtime.rs"]
+pub(crate) mod product_adk_model_runtime;
 #[path = "product_adk_mutation_port.rs"]
 mod product_adk_mutation_port;
 use product_adk_mutation_port::{
@@ -180,8 +182,8 @@ use product_strategy_runtime_write_port::{
     strategy_runtime_write_routes,
 };
 #[path = "strategy_pine.rs"]
-mod strategy_pine;
-use strategy_pine::{
+pub(crate) mod strategy_pine;
+pub(crate) use strategy_pine::{
     STRATEGY_PINE_ANALYZE_PATH, StrategyPineAnalyzeSnapshotPort, dispatch_strategy_pine_analyze,
 };
 const WS_LIVE_ROUTE: (&str, &str) = ("GET", "/api/v1/ws/live");
@@ -360,11 +362,20 @@ pub struct ProductConfig {
     alert_write_port: Option<Arc<dyn AlertWritePort>>,
     strategy_definition_snapshot_port: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
     strategy_pine_analyze_snapshot_port: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
+    /// Runtime-created Pine worker adapter. Unlike the public snapshot seam,
+    /// this is installed only after a real worker readiness probe and is
+    /// preserved by the production port fence.
+    pub(crate) strategy_pine_worker_port:
+        Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
     ws_live_snapshot_port: Option<Arc<dyn WsLiveSnapshotPort>>,
     backtest_read_snapshot_port: Option<Arc<dyn BacktestReadSnapshotPort>>,
     backtest_sync_read_snapshot_port: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
     backtests_write_port: Option<Arc<dyn BacktestsWritePort>>,
     pub(crate) backtest_execution_port: Option<Arc<dyn BacktestExecutionPort>>,
+    /// Set only by the runtime after a Pine worker passes its real readiness
+    /// probe.  Public callers may provide a rehearsal adapter, but production
+    /// composition must never accept that unverified seam.
+    pub(crate) backtest_execution_port_verified: bool,
     strategy_read_snapshot_port: Option<Arc<dyn StrategyReadSnapshotPort>>,
     strategy_runtime_status_port: Option<Arc<dyn StrategyRuntimeStatusPort>>,
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
@@ -463,11 +474,13 @@ impl ProductConfig {
             alert_write_port: None,
             strategy_definition_snapshot_port: None,
             strategy_pine_analyze_snapshot_port: None,
+            strategy_pine_worker_port: None,
             ws_live_snapshot_port: None,
             backtest_read_snapshot_port: None,
             backtest_sync_read_snapshot_port: None,
             backtests_write_port: None,
             backtest_execution_port: None,
+            backtest_execution_port_verified: false,
             strategy_read_snapshot_port: None,
             strategy_runtime_status_port: None,
             strategy_runtime_write_port: None,

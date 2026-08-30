@@ -1,5 +1,5 @@
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
-use serde_json::{json, Value};
 
 use jftrade_marketdata::{DemandSnapshot, PhysicalSubscriptionSnapshot};
 
@@ -51,17 +51,21 @@ pub(crate) fn render_subscriptions_data(
                 {
                     (
                         phys.broker_state.as_str(),
-                        phys.subscribed_at.as_deref().map(|s| json!(s)).unwrap_or(Value::Null),
-                        phys.unsubscribe_eligible_at.as_deref().map(|s| json!(s)).unwrap_or(Value::Null),
-                        phys.last_error.as_deref().map(|s| json!(s)).unwrap_or(Value::Null),
+                        phys.subscribed_at
+                            .as_deref()
+                            .map(|s| json!(s))
+                            .unwrap_or(Value::Null),
+                        phys.unsubscribe_eligible_at
+                            .as_deref()
+                            .map(|s| json!(s))
+                            .unwrap_or(Value::Null),
+                        phys.last_error
+                            .as_deref()
+                            .map(|s| json!(s))
+                            .unwrap_or(Value::Null),
                     )
                 } else {
-                    (
-                        default_entry_state,
-                        Value::Null,
-                        Value::Null,
-                        Value::Null,
-                    )
+                    (default_entry_state, Value::Null, Value::Null, Value::Null)
                 };
 
             json!({
@@ -108,7 +112,9 @@ pub(crate) fn render_subscriptions_data(
             phys.desired_count,
             phys.own_active_count,
             phys.pending_release_count,
-            phys.total_used_quota.map(|q| json!(q)).unwrap_or(Value::Null),
+            phys.total_used_quota
+                .map(|q| json!(q))
+                .unwrap_or(Value::Null),
             phys.remain_quota.map(|q| json!(q)).unwrap_or(Value::Null),
             json!({
                 "checkedAt": phys.checked_at.as_deref().map(|s| json!(s)).unwrap_or(Value::Null),
@@ -165,10 +171,12 @@ pub(crate) fn render_subscriptions_data(
 pub(crate) fn format_unix_millis_rfc3339(ms: i64) -> String {
     time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(ms) * 1_000_000)
         .ok()
-        .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok())
+        .and_then(|dt| {
+            dt.format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
         .unwrap_or_else(|| "1970-01-01T00:00:00Z".to_owned())
 }
-
 
 pub(crate) fn current_unix_millis() -> i64 {
     std::time::SystemTime::now()
@@ -214,7 +222,11 @@ pub(crate) fn map_helper_quote_error(
             message,
             retry_after_seconds,
         } => {
-            let error_code = if !code.is_empty() { code } else { default_code.to_owned() };
+            let error_code = if !code.is_empty() {
+                code
+            } else {
+                default_code.to_owned()
+            };
             MarketDataQuoteReadSnapshotError::Failed {
                 status,
                 code: error_code,

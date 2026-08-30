@@ -6,10 +6,10 @@ use jftrade_store_sqlite::{
 };
 use serde_json::Value;
 
-use crate::product::product_backtests_write_port::BacktestsWritePortError;
 use super::product_production_ports_backtest_parse::{
-    parse_end_timestamp, parse_start_timestamp, ParsedBacktestStart,
+    ParsedBacktestStart, parse_end_timestamp, parse_start_timestamp,
 };
+use crate::product::product_backtests_write_port::BacktestsWritePortError;
 
 #[derive(Clone, Debug)]
 struct ResolvedStrategyDefinition {
@@ -32,7 +32,13 @@ pub(super) fn resolve_strategy_payload(
 ) -> Result<Value, BacktestsWritePortError> {
     let Some(source) = request_text(
         payload,
-        &["strategyScript", "strategySource", "strategy_source", "source", "script"],
+        &[
+            "strategyScript",
+            "strategySource",
+            "strategy_source",
+            "source",
+            "script",
+        ],
         "strategy source",
     )?
     else {
@@ -87,8 +93,10 @@ fn resolve_definition_payload_with<L: DefinitionLookup>(
     payload: &Value,
     store: &L,
 ) -> Result<Value, BacktestsWritePortError> {
-    let definition_id = request_text(payload, &["definitionId"], "definitionId")?
-        .ok_or_else(|| BacktestsWritePortError::BadRequest("definitionId is required".to_owned()))?;
+    let definition_id =
+        request_text(payload, &["definitionId"], "definitionId")?.ok_or_else(|| {
+            BacktestsWritePortError::BadRequest("definitionId is required".to_owned())
+        })?;
     let requested_version = requested_definition_version(payload)?;
     let definition = store
         .get_definition(&definition_id)
@@ -196,9 +204,9 @@ fn optional_request_text(
     let Some(value) = object.get(field) else {
         return Ok(None);
     };
-    let text = value.as_str().ok_or_else(|| {
-        BacktestsWritePortError::BadRequest(format!("{field} must be a string"))
-    })?;
+    let text = value
+        .as_str()
+        .ok_or_else(|| BacktestsWritePortError::BadRequest(format!("{field} must be a string")))?;
     let text = text.trim();
     if text.is_empty() {
         return Ok(None);
@@ -219,9 +227,9 @@ fn request_text(
     let Some(value) = names.iter().find_map(|name| object.get(*name)) else {
         return Ok(None);
     };
-    let text = value.as_str().ok_or_else(|| {
-        BacktestsWritePortError::BadRequest(format!("{field} must be a string"))
-    })?;
+    let text = value
+        .as_str()
+        .ok_or_else(|| BacktestsWritePortError::BadRequest(format!("{field} must be a string")))?;
     let text = text.trim();
     if text.is_empty() {
         return Err(BacktestsWritePortError::BadRequest(format!(
@@ -231,9 +239,7 @@ fn request_text(
     Ok(Some(text.to_owned()))
 }
 
-fn map_strategy_resolution_error(
-    error: StrategyDefinitionStoreError,
-) -> BacktestsWritePortError {
+fn map_strategy_resolution_error(error: StrategyDefinitionStoreError) -> BacktestsWritePortError {
     match error {
         StrategyDefinitionStoreError::NotFound => {
             BacktestsWritePortError::StrategyNotFound("strategy resource not found".to_owned())
@@ -244,7 +250,9 @@ fn map_strategy_resolution_error(
     }
 }
 
-pub(super) fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart, BacktestsWritePortError> {
+pub(super) fn parse_start_request(
+    payload: &Value,
+) -> Result<ParsedBacktestStart, BacktestsWritePortError> {
     let object = payload.as_object().ok_or_else(|| {
         BacktestsWritePortError::BadRequest("invalid backtest request".to_owned())
     })?;
@@ -280,7 +288,10 @@ pub(super) fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart
         ));
     };
     let interval = text("interval").unwrap_or("1m").to_owned();
-    if !matches!(interval.as_str(), "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1w" | "1mo") {
+    if !matches!(
+        interval.as_str(),
+        "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1w" | "1mo"
+    ) {
         return Err(BacktestsWritePortError::BadRequest(
             "invalid interval".to_owned(),
         ));
@@ -327,14 +338,18 @@ pub(super) fn parse_start_request(payload: &Value) -> Result<ParsedBacktestStart
                 .and_then(Value::as_str)
                 .map(parse_start_timestamp)
                 .transpose()?
-                .ok_or_else(|| BacktestsWritePortError::BadRequest("invalid candle start".to_owned()))?;
+                .ok_or_else(|| {
+                    BacktestsWritePortError::BadRequest("invalid candle start".to_owned())
+                })?;
             let end = candles
                 .last()
                 .and_then(|candle| candle.get("end"))
                 .and_then(Value::as_str)
                 .map(parse_end_timestamp)
                 .transpose()?
-                .ok_or_else(|| BacktestsWritePortError::BadRequest("invalid candle end".to_owned()))?;
+                .ok_or_else(|| {
+                    BacktestsWritePortError::BadRequest("invalid candle end".to_owned())
+                })?;
             (start, end)
         }
     };
@@ -422,7 +437,10 @@ mod definition_resolution_tests {
             &FakeDefinitionStore::default(),
         )
         .expect_err("missing definition");
-        assert!(matches!(missing, BacktestsWritePortError::StrategyNotFound(_)));
+        assert!(matches!(
+            missing,
+            BacktestsWritePortError::StrategyNotFound(_)
+        ));
 
         let conflict = resolve_definition_payload_with(
             &json!({"definitionId": "strategy-1", "definitionVersion": "2.0.0"}),
@@ -447,7 +465,9 @@ mod definition_resolution_tests {
             },
         )
         .expect_err("empty source");
-        assert!(matches!(error, BacktestsWritePortError::Failed(message) if message.contains("empty source")));
+        assert!(
+            matches!(error, BacktestsWritePortError::Failed(message) if message.contains("empty source"))
+        );
 
         let mut unsupported = definition();
         unsupported.source_format = "javascript".to_owned();
@@ -459,6 +479,8 @@ mod definition_resolution_tests {
             },
         )
         .expect_err("unsupported source");
-        assert!(matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported strategy source format")));
+        assert!(
+            matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported strategy source format"))
+        );
     }
 }

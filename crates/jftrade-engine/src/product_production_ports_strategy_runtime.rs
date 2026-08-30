@@ -1,32 +1,314 @@
 //! Production strategy runtime adapter.
 
-use std::sync::Arc;
-use jftrade_store_sqlite::{StrategyDefinitionStore, StrategyRuntimeStore};
-use serde_json::{Value, json};
+use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWriteOperation, StrategyRuntimeWritePort,
     StrategyRuntimeWritePortError,
 };
-use crate::product::{StrategyReadSnapshotError, StrategyReadSnapshotPort, StrategyRuntimeStatusPort, StrategyRuntimeSummary};
+use crate::product::{
+    StrategyReadSnapshotError, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
+    StrategyRuntimeSummary,
+};
+use jftrade_integration_pine::{GrpcPineExecutionPort, PineExecutionError};
+use jftrade_marketdata::{InstrumentRef, ProviderRouter};
+use jftrade_store_sqlite::{StrategyDefinitionStore, StrategyRuntimeStore};
+use serde_json::{Value, json};
+use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+
+#[derive(Debug)]
+struct RuntimeTask {
+    cancel: Arc<AtomicBool>,
+    _join: Option<JoinHandle<()>>,
+}
+
+/// Rust-owned lifecycle coordinator for live strategy instances.  The HTTP
+/// port remains synchronous, therefore task execution is isolated in a
+/// dedicated thread with its own Tokio runtime; cancellation and demand
+/// release happen before the persisted state transition.
+#[derive(Debug)]
+pub(crate) struct StrategyRuntimeManager {
+    tasks: Mutex<BTreeMap<String, RuntimeTask>>,
+    router: Option<Arc<Mutex<ProviderRouter>>>,
+    worker: Option<Arc<GrpcPineExecutionPort>>,
+    provider: Arc<ActiveProviderState>,
+}
+
+impl StrategyRuntimeManager {
+    pub(crate) fn new(
+        router: Option<Arc<Mutex<ProviderRouter>>>,
+        worker: Option<Arc<GrpcPineExecutionPort>>,
+        provider: Arc<ActiveProviderState>,
+    ) -> Self {
+        Self {
+            tasks: Mutex::new(BTreeMap::new()),
+            router,
+            worker,
+            provider,
+        }
+    }
+
+    fn dependency_error(&self) -> Option<StrategyRuntimeWritePortError> {
+        let snapshot = self.provider.snapshot();
+        let Some(active) = snapshot.provider else {
+            return Some(StrategyRuntimeWritePortError::Unavailable(
+                "strategy provider is not configured".to_owned(),
+            ));
+        };
+        let provider_ready = match active {
+            jftrade_settings::MarketDataProvider::Futu => {
+                snapshot.opend_ready && snapshot.router_ready
+            }
+            jftrade_settings::MarketDataProvider::Yfinance
+            | jftrade_settings::MarketDataProvider::Akshare => snapshot.helper_ready,
+        };
+        if !provider_ready {
+            return Some(StrategyRuntimeWritePortError::Unavailable(
+                "strategy market-data provider is unavailable".to_owned(),
+            ));
+        }
+        if self.worker.is_none() {
+            return Some(StrategyRuntimeWritePortError::Unavailable(
+                "strategy PineTS worker is unavailable".to_owned(),
+            ));
+        }
+        None
+    }
+
+    fn cancel(&self, instance_id: &str) {
+        let task = self
+            .tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(instance_id);
+        if let Some(mut task) = task {
+            task.cancel.store(true, Ordering::Release);
+            // Do not hold the task-map mutex while waiting for the worker;
+            // the worker may need to finish a final observation write.
+            if let Some(join) = task._join.take() {
+                let _ = join.join();
+            }
+        }
+    }
+
+    /// Stop all live strategy tasks before external workers and SQLite leases
+    /// are torn down.  Joining here is bounded by the Pine client's request
+    /// timeout and prevents a task from retaining a store lease after shutdown.
+    pub(crate) fn shutdown(&self) {
+        let tasks = std::mem::take(&mut *self.tasks.lock().unwrap_or_else(|e| e.into_inner()));
+        let instance_ids = tasks.keys().cloned().collect::<Vec<_>>();
+        for task in tasks.values() {
+            task.cancel.store(true, Ordering::Release);
+        }
+        for (_, mut task) in tasks {
+            if let Some(join) = task._join.take() {
+                let _ = join.join();
+            }
+        }
+        // A shutdown may happen without an explicit Stop mutation.  Release
+        // every consumer after its task has joined so the router cannot keep
+        // stale strategy demand alive while the provider is being torn down.
+        for instance_id in instance_ids {
+            self.release_demand(&instance_id);
+        }
+    }
+
+    fn release_demand(&self, instance_id: &str) {
+        if let Some(router) = &self.router {
+            let now = now_millis();
+            let mut router = router.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = router.release_demand_consumer_with_time(instance_id, now);
+        }
+    }
+
+    fn acquire_demand(
+        &self,
+        instance_id: &str,
+        binding: &Value,
+    ) -> Result<(), StrategyRuntimeWritePortError> {
+        let Some(router) = &self.router else {
+            return Ok(());
+        };
+        let refs = binding_symbols(binding)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|symbol| {
+                let (market, symbol) = match symbol.split_once('.') {
+                    Some((market, symbol)) => (market.to_owned(), symbol.to_owned()),
+                    None => (
+                        binding_string_opt(binding, &["market"]).unwrap_or_else(|| "US".to_owned()),
+                        symbol,
+                    ),
+                };
+                InstrumentRef {
+                    channel: "KLINE".to_owned(),
+                    market,
+                    symbol,
+                    interval: Some(
+                        binding_string_opt(binding, &["interval", "timeframe"])
+                            .unwrap_or_else(|| "1m".to_owned()),
+                    ),
+                }
+            })
+            .collect::<Vec<_>>();
+        if refs.is_empty() {
+            return Err(StrategyRuntimeWritePortError::Failed {
+                status: 400,
+                code: "STRATEGY_SYMBOLS_REQUIRED".to_owned(),
+                message: "strategy binding requires at least one symbol".to_owned(),
+            });
+        }
+        let managed =
+            self.provider.snapshot().provider == Some(jftrade_settings::MarketDataProvider::Futu);
+        router
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .acquire_demand(instance_id, refs, managed, now_millis())
+            .map(|_| ())
+            .map_err(|error| StrategyRuntimeWritePortError::Unavailable(error.to_string()))
+    }
+
+    fn spawn_task(
+        &self,
+        instance_id: String,
+        binding: Value,
+        store: Arc<StrategyRuntimeStore>,
+    ) -> Result<(), StrategyRuntimeWritePortError> {
+        let Some(worker) = self.worker.clone() else {
+            return Err(StrategyRuntimeWritePortError::Unavailable(
+                "strategy PineTS worker is unavailable".to_owned(),
+            ));
+        };
+        let router = self.router.clone();
+        let script = binding_string_opt(&binding, &["script", "source"]).unwrap_or_default();
+        let active_symbols = binding_symbols(&binding).unwrap_or_default();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let cancel_for_thread = Arc::clone(&cancel);
+        let id_for_thread = instance_id.clone();
+        let join = std::thread::Builder::new()
+            .name(format!("strategy-runtime-{instance_id}"))
+            .spawn(move || {
+                if !script.is_empty() {
+                    let result = match tokio::runtime::Runtime::new() {
+                        Ok(runtime) => runtime
+                            .block_on(worker.analyze_script(
+                                &format!("strategy-{id_for_thread}"),
+                                &id_for_thread,
+                                &script,
+                                false,
+                            ))
+                            .err(),
+                        Err(error) => Some(PineExecutionError::Transport(format!(
+                            "create strategy runtime executor: {error}"
+                        ))),
+                    };
+                    if cancel_for_thread.load(Ordering::Acquire) {
+                        return;
+                    }
+                    if let Some(error) = result {
+                        let message = pine_error_message(error);
+                        let _ = store.update_observation(
+                            &id_for_thread,
+                            "FAILED",
+                            &active_symbols,
+                            Some(&message),
+                            now_millis(),
+                        );
+                        let _ = store.update_status(&id_for_thread, "FAILED", &now_rfc3339());
+                        if let Some(router) = router.as_ref() {
+                            let _ = router
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .release_demand_consumer_with_time(&id_for_thread, now_millis());
+                        }
+                        return;
+                    }
+                }
+                let _ = store.update_observation(
+                    &id_for_thread,
+                    "RUNNING",
+                    &active_symbols,
+                    None,
+                    now_millis(),
+                );
+                while !cancel_for_thread.load(Ordering::Acquire) {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            })
+            .map_err(|error| {
+                StrategyRuntimeWritePortError::Unavailable(format!(
+                    "start strategy runtime task: {error}"
+                ))
+            })?;
+        self.tasks.lock().unwrap_or_else(|e| e.into_inner()).insert(
+            instance_id,
+            RuntimeTask {
+                cancel,
+                _join: Some(join),
+            },
+        );
+        Ok(())
+    }
+}
+
+impl Drop for StrategyRuntimeManager {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
+fn now_millis() -> i64 {
+    time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64 / 1_000_000
+}
+fn now_rfc3339() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+}
+fn pine_error_message(error: PineExecutionError) -> String {
+    error.to_string()
+}
+
+impl From<jftrade_store_sqlite::StrategyRuntimeStoreError> for StrategyRuntimeWritePortError {
+    fn from(error: jftrade_store_sqlite::StrategyRuntimeStoreError) -> Self {
+        let message = error.to_string();
+        let (status, code) = match error {
+            jftrade_store_sqlite::StrategyRuntimeStoreError::NotFound => (404, "NOT_FOUND"),
+            jftrade_store_sqlite::StrategyRuntimeStoreError::Conflict => (409, "CONFLICT"),
+            jftrade_store_sqlite::StrategyRuntimeStoreError::Validation(_) => {
+                (400, "VALIDATION_FAILED")
+            }
+            _ => (500, "STRATEGY_RUNTIME_MUTATION_FAILED"),
+        };
+        Self::Failed {
+            status,
+            code: code.to_owned(),
+            message,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyRuntimePort {
     pub(crate) store: Arc<StrategyRuntimeStore>,
     pub(crate) definitions: Arc<StrategyDefinitionStore>,
+    pub(crate) manager: Arc<StrategyRuntimeManager>,
 }
 
 impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
     fn read(&self, path: &str, query: &str) -> Result<Option<Value>, StrategyReadSnapshotError> {
         if path == "/api/v1/strategies" {
-                let instances = self
-                    .store
-                    .list_instances()
-                    .map_err(|e| StrategyReadSnapshotError::Unavailable(e.to_string()))?;
-                let items = instances
-                    .into_iter()
-                    .map(|instance| self.runtime_instance_wire(instance))
-                    .collect::<Result<Vec<_>, _>>()?;
-                return Ok(Some(Value::Array(items)));
+            let instances = self
+                .store
+                .list_instances()
+                .map_err(|e| StrategyReadSnapshotError::Unavailable(e.to_string()))?;
+            let items = instances
+                .into_iter()
+                .map(|instance| self.runtime_instance_wire(instance))
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(Some(Value::Array(items)));
         }
         let Some((instance_id, activity)) = strategy_activity_path(path) else {
             return Ok(None);
@@ -49,6 +331,43 @@ impl StrategyReadSnapshotPort for ProductionStrategyRuntimePort {
 }
 
 impl ProductionStrategyRuntimePort {
+    fn effective_binding(
+        &self,
+        instance: &jftrade_store_sqlite::StoredRuntimeInstance,
+    ) -> Result<Value, StrategyRuntimeWritePortError> {
+        let mut binding = instance.binding.clone();
+        let object =
+            binding
+                .as_object_mut()
+                .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+                    status: 400,
+                    code: "STRATEGY_BINDING_INVALID".to_owned(),
+                    message: "strategy binding must be an object".to_owned(),
+                })?;
+        if let Some(definition_id) = instance.definition_id.as_deref() {
+            if let Some(definition) = self
+                .definitions
+                .get_definition(definition_id, false)
+                .map_err(|error| StrategyRuntimeWritePortError::Failed {
+                    status: 500,
+                    code: "STRATEGY_DEFINITION_READ_FAILED".to_owned(),
+                    message: error.to_string(),
+                })?
+            {
+                if !object.contains_key("script") && !definition.script.trim().is_empty() {
+                    object.insert("script".to_owned(), Value::String(definition.script));
+                }
+                if !object.contains_key("symbol") && !definition.symbol.trim().is_empty() {
+                    object.insert("symbols".to_owned(), json!([definition.symbol]));
+                }
+                if !object.contains_key("interval") && !definition.interval.trim().is_empty() {
+                    object.insert("interval".to_owned(), Value::String(definition.interval));
+                }
+            }
+        }
+        Ok(binding)
+    }
+
     fn runtime_instance_wire(
         &self,
         instance: jftrade_store_sqlite::StoredRuntimeInstance,
@@ -66,9 +385,15 @@ impl ProductionStrategyRuntimePort {
             "definitionRevision".to_owned(),
             Value::from(instance.definition_revision),
         );
-        object.insert("runtimeActive".to_owned(), Value::Bool(instance.runtime_active));
+        object.insert(
+            "runtimeActive".to_owned(),
+            Value::Bool(instance.runtime_active),
+        );
         if !instance.plugin_id.is_empty() {
-            object.insert("pluginId".to_owned(), Value::String(instance.plugin_id.clone()));
+            object.insert(
+                "pluginId".to_owned(),
+                Value::String(instance.plugin_id.clone()),
+            );
         }
         if let Some(created_at) = instance
             .created_at
@@ -78,7 +403,10 @@ impl ProductionStrategyRuntimePort {
             object.insert("createdAt".to_owned(), Value::String(created_at));
         }
         if !instance.updated_at.is_empty() {
-            object.insert("updatedAt".to_owned(), Value::String(instance.updated_at.clone()));
+            object.insert(
+                "updatedAt".to_owned(),
+                Value::String(instance.updated_at.clone()),
+            );
         }
         // Older catalog rows may not have copied definition metadata into the
         // operation payload. Recover the identity from the persisted binding
@@ -95,12 +423,16 @@ impl ProductionStrategyRuntimePort {
             let definition_name = instance
                 .definition_name
                 .clone()
-                .or_else(|| binding_string_opt(&instance.binding, &["definitionName", "strategyName"]))
+                .or_else(|| {
+                    binding_string_opt(&instance.binding, &["definitionName", "strategyName"])
+                })
                 .unwrap_or_default();
             let definition_version = instance
                 .definition_version
                 .clone()
-                .or_else(|| binding_string_opt(&instance.binding, &["definitionVersion", "version"]))
+                .or_else(|| {
+                    binding_string_opt(&instance.binding, &["definitionVersion", "version"])
+                })
                 .unwrap_or_default();
             object.insert(
                 "definition".to_owned(),
@@ -145,7 +477,10 @@ impl ProductionStrategyRuntimePort {
             object.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
         }
         if let Some(source_format) = source_format {
-            object.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
+            object.insert(
+                "sourceFormat".to_owned(),
+                Value::String(source_format.to_owned()),
+            );
         }
         object.insert(
             "startable".to_owned(),
@@ -162,7 +497,10 @@ impl ProductionStrategyRuntimePort {
             params.insert("runtime".to_owned(), Value::String(runtime.to_owned()));
         }
         if let Some(source_format) = source_format {
-            params.insert("sourceFormat".to_owned(), Value::String(source_format.to_owned()));
+            params.insert(
+                "sourceFormat".to_owned(),
+                Value::String(source_format.to_owned()),
+            );
         }
         object.insert("params".to_owned(), Value::Object(params));
         let logs = self
@@ -173,7 +511,10 @@ impl ProductionStrategyRuntimePort {
             .take(20)
             .map(|event| event.raw)
             .collect::<Vec<_>>();
-        object.insert("logs".to_owned(), Value::Array(logs.into_iter().map(Value::String).collect()));
+        object.insert(
+            "logs".to_owned(),
+            Value::Array(logs.into_iter().map(Value::String).collect()),
+        );
         if let Some(observation) = observation {
             object.insert(
                 "runtimeObservation".to_owned(),
@@ -250,8 +591,7 @@ struct StrategyActivityQuery {
 
 impl StrategyActivityQuery {
     fn includes(&self, at_ms: i64) -> bool {
-        self.from_ms.is_none_or(|from| at_ms >= from)
-            && self.to_ms.is_none_or(|to| at_ms <= to)
+        self.from_ms.is_none_or(|from| at_ms >= from) && self.to_ms.is_none_or(|to| at_ms <= to)
     }
 }
 
@@ -266,9 +606,7 @@ fn parse_activity_query(
     raw_query: &str,
     activity: &str,
 ) -> Result<StrategyActivityQuery, StrategyReadSnapshotError> {
-    let invalid = || {
-        StrategyReadSnapshotError::Invalid(format!("invalid {activity} query"))
-    };
+    let invalid = || StrategyReadSnapshotError::Invalid(format!("invalid {activity} query"));
     let mut query = StrategyActivityQuery {
         limit: 500,
         offset: 0,
@@ -310,21 +648,17 @@ fn parse_timestamp_millis(
     value: &str,
     invalid: StrategyReadSnapshotError,
 ) -> Result<i64, StrategyReadSnapshotError> {
-    let timestamp = time::OffsetDateTime::parse(
-        value,
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|_| invalid)?;
+    let timestamp =
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+            .map_err(|_| invalid)?;
     i64::try_from(timestamp.unix_timestamp_nanos() / 1_000_000).map_err(|_| {
         StrategyReadSnapshotError::Invalid("strategy activity timestamp is out of range".to_owned())
     })
 }
 
 fn timestamp_from_millis(value: i64) -> Result<String, StrategyReadSnapshotError> {
-    let timestamp =
-        time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(value) * 1_000_000)
-        .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))
-        ?;
+    let timestamp = time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(value) * 1_000_000)
+        .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))?;
     timestamp
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| StrategyReadSnapshotError::Unavailable(error.to_string()))
@@ -382,10 +716,9 @@ impl StrategyRuntimeStatusPort for ProductionStrategyRuntimePort {
                     };
                 }
             };
-            let binding_definition_name = instance
-                .definition_name
-                .clone()
-                .unwrap_or_else(|| binding_string(&instance.binding, &["definitionName", "strategyName"]));
+            let binding_definition_name = instance.definition_name.clone().unwrap_or_else(|| {
+                binding_string(&instance.binding, &["definitionName", "strategyName"])
+            });
             let binding_symbols = binding_symbols(&instance.binding);
             let actual_status = observation
                 .as_ref()
@@ -448,18 +781,27 @@ fn binding_string_opt(binding: &Value, keys: &[&str]) -> Option<String> {
 }
 
 fn binding_symbols(binding: &Value) -> Option<Vec<String>> {
-    ["activeSymbols", "symbols"].iter().find_map(|key| {
-        let values = binding.get(*key)?.as_array()?;
-        Some(
-            values
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(ToOwned::to_owned)
-                .collect(),
-        )
-    })
+    ["activeSymbols", "symbols"]
+        .iter()
+        .find_map(|key| {
+            let values = binding.get(*key)?.as_array()?;
+            Some(
+                values
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect(),
+            )
+        })
+        .or_else(|| {
+            binding
+                .get("symbol")
+                .and_then(Value::as_str)
+                .map(|symbol| vec![symbol.trim().to_owned()])
+                .filter(|symbols| !symbols[0].is_empty())
+        })
 }
 
 impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
@@ -471,30 +813,90 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_else(|_| "2026-08-27T00:00:00Z".to_owned());
 
+        let current = self
+            .store
+            .get_instance(&input.instance_id)
+            .map_err(|e| StrategyRuntimeWritePortError::Failed {
+                status: 500,
+                code: "STRATEGY_RUNTIME_READ_FAILED".to_owned(),
+                message: e.to_string(),
+            })?
+            .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+                status: 404,
+                code: "NOT_FOUND".to_owned(),
+                message: "strategy instance not found".to_owned(),
+            })?;
         let result = match input.operation {
             StrategyRuntimeWriteOperation::Start => {
-                self.store.update_status(&input.instance_id, "RUNNING", &timestamp)
+                if current.runtime_active || current.status.eq_ignore_ascii_case("RUNNING") {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "CONFLICT".to_owned(),
+                        message: "strategy instance is already running".to_owned(),
+                    });
+                }
+                if let Some(error) = self.manager.dependency_error() {
+                    return Err(error);
+                }
+                let runtime_binding = self.effective_binding(&current)?;
+                self.manager
+                    .acquire_demand(&input.instance_id, &runtime_binding)?;
+                match self
+                    .store
+                    .update_status(&input.instance_id, "RUNNING", &timestamp)
+                {
+                    Ok(instance) => {
+                        if let Err(error) = self.manager.spawn_task(
+                            input.instance_id.clone(),
+                            runtime_binding,
+                            Arc::clone(&self.store),
+                        ) {
+                            let _ =
+                                self.store
+                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
+                            self.manager.release_demand(&input.instance_id);
+                            Err(error)
+                        } else {
+                            Ok(instance)
+                        }
+                    }
+                    Err(error) => {
+                        self.manager.release_demand(&input.instance_id);
+                        Err(error.into())
+                    }
+                }
             }
-            StrategyRuntimeWriteOperation::Stop => {
-                self.store.update_status(&input.instance_id, "STOPPED", &timestamp)
-            }
-            StrategyRuntimeWriteOperation::Pause => {
-                self.store.update_status(&input.instance_id, "PAUSED", &timestamp)
+            StrategyRuntimeWriteOperation::Stop | StrategyRuntimeWriteOperation::Pause => {
+                if input.operation == StrategyRuntimeWriteOperation::Pause
+                    && !current.status.eq_ignore_ascii_case("RUNNING")
+                {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "CONFLICT".to_owned(),
+                        message: "strategy instance is not running".to_owned(),
+                    });
+                }
+                if input.operation == StrategyRuntimeWriteOperation::Stop
+                    && current.status.eq_ignore_ascii_case("STOPPED")
+                {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "CONFLICT".to_owned(),
+                        message: "strategy instance is already stopped".to_owned(),
+                    });
+                }
+                self.manager.cancel(&input.instance_id);
+                self.manager.release_demand(&input.instance_id);
+                let status = if input.operation == StrategyRuntimeWriteOperation::Pause {
+                    "PAUSED"
+                } else {
+                    "STOPPED"
+                };
+                self.store
+                    .update_status(&input.instance_id, status, &timestamp)
+                    .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::Delete => {
-                let current = self
-                    .store
-                    .get_instance(&input.instance_id)
-                    .map_err(|e| StrategyRuntimeWritePortError::Failed {
-                        status: 400,
-                        code: "BAD_REQUEST".to_owned(),
-                        message: e.to_string(),
-                    })?
-                    .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
-                        status: 404,
-                        code: "NOT_FOUND".to_owned(),
-                        message: "strategy resource not found".to_owned(),
-                    })?;
                 if current.runtime_active || current.status == "RUNNING" {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,
@@ -502,18 +904,171 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "strategy instance is busy".to_owned(),
                     });
                 }
-                self.store.delete_instance(&input.instance_id, &timestamp)
+                self.manager.cancel(&input.instance_id);
+                self.manager.release_demand(&input.instance_id);
+                self.store
+                    .delete_instance(&input.instance_id, &timestamp)
+                    .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::Update => {
-                let binding = input.binding.clone().unwrap_or(Value::Null);
-                self.store.update_binding(&input.instance_id, binding, &timestamp)
+                let binding =
+                    input
+                        .binding
+                        .clone()
+                        .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+                            status: 400,
+                            code: "BAD_REQUEST".to_owned(),
+                            message: "strategy binding is required".to_owned(),
+                        })?;
+                let was_running = current.runtime_active || current.status == "RUNNING";
+                if was_running {
+                    self.manager.cancel(&input.instance_id);
+                    self.manager.release_demand(&input.instance_id);
+                }
+                let updated =
+                    match self
+                        .store
+                        .update_binding(&input.instance_id, binding.clone(), &timestamp)
+                    {
+                        Ok(updated) => updated,
+                        Err(error) => {
+                            if was_running {
+                                let _ = self.store.update_status(
+                                    &input.instance_id,
+                                    "STOPPED",
+                                    &timestamp,
+                                );
+                            }
+                            return Err(error.into());
+                        }
+                    };
+                if was_running {
+                    if let Some(error) = self.manager.dependency_error() {
+                        let _ = self
+                            .store
+                            .update_status(&input.instance_id, "STOPPED", &timestamp);
+                        return Err(error);
+                    }
+                    if let Err(error) = self.manager.acquire_demand(&input.instance_id, &binding) {
+                        let _ = self
+                            .store
+                            .update_status(&input.instance_id, "STOPPED", &timestamp);
+                        return Err(error);
+                    }
+                    let running =
+                        match self
+                            .store
+                            .update_status(&input.instance_id, "RUNNING", &timestamp)
+                        {
+                            Ok(running) => running,
+                            Err(error) => {
+                                self.manager.release_demand(&input.instance_id);
+                                return Err(error.into());
+                            }
+                        };
+                    match self.manager.spawn_task(
+                        input.instance_id.clone(),
+                        binding,
+                        Arc::clone(&self.store),
+                    ) {
+                        Ok(()) => Ok(running),
+                        Err(error) => {
+                            let _ =
+                                self.store
+                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
+                            self.manager.release_demand(&input.instance_id);
+                            Err(error)
+                        }
+                    }
+                } else {
+                    Ok(updated)
+                }
             }
             StrategyRuntimeWriteOperation::UpdateRuntimeRisk => {
-                let risk = input.runtime_risk.clone().unwrap_or(Value::Null);
-                self.store.update_risk(&input.instance_id, risk, &timestamp)
+                let risk = input.runtime_risk.clone().ok_or_else(|| {
+                    StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "runtime risk is required".to_owned(),
+                    }
+                })?;
+                self.store
+                    .update_risk(&input.instance_id, risk, &timestamp)
+                    .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::RefreshDefinition => {
-                self.store.refresh_definition(&input.instance_id, &timestamp)
+                let was_running = current.runtime_active || current.status == "RUNNING";
+                if was_running {
+                    self.manager.cancel(&input.instance_id);
+                    self.manager.release_demand(&input.instance_id);
+                }
+                let refreshed = match self
+                    .store
+                    .refresh_definition(&input.instance_id, &timestamp)
+                {
+                    Ok(refreshed) => refreshed,
+                    Err(error) => {
+                        if was_running {
+                            let _ =
+                                self.store
+                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
+                        }
+                        return Err(error.into());
+                    }
+                };
+                if was_running {
+                    if let Some(error) = self.manager.dependency_error() {
+                        let _ = self
+                            .store
+                            .update_status(&input.instance_id, "STOPPED", &timestamp);
+                        return Err(error);
+                    }
+                    let runtime_binding = match self.effective_binding(&refreshed) {
+                        Ok(binding) => binding,
+                        Err(error) => {
+                            let _ =
+                                self.store
+                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
+                            return Err(error);
+                        }
+                    };
+                    if let Err(error) = self
+                        .manager
+                        .acquire_demand(&input.instance_id, &runtime_binding)
+                    {
+                        let _ = self
+                            .store
+                            .update_status(&input.instance_id, "STOPPED", &timestamp);
+                        return Err(error);
+                    }
+                    let running =
+                        match self
+                            .store
+                            .update_status(&input.instance_id, "RUNNING", &timestamp)
+                        {
+                            Ok(running) => running,
+                            Err(error) => {
+                                self.manager.release_demand(&input.instance_id);
+                                return Err(error.into());
+                            }
+                        };
+                    match self.manager.spawn_task(
+                        input.instance_id.clone(),
+                        runtime_binding,
+                        Arc::clone(&self.store),
+                    ) {
+                        Ok(()) => Ok(running),
+                        Err(error) => {
+                            let _ =
+                                self.store
+                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
+                            self.manager.release_demand(&input.instance_id);
+                            Err(error)
+                        }
+                    }
+                } else {
+                    Ok(refreshed)
+                }
             }
         };
 
@@ -527,32 +1082,7 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 "runtimeActive": inst.runtime_active,
                 "deleted": inst.deleted,
             })),
-            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::NotFound) => {
-                Err(StrategyRuntimeWritePortError::Failed {
-                    status: 404,
-                    code: "NOT_FOUND".to_owned(),
-                    message: "strategy instance not found".to_owned(),
-                })
-            }
-            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::Conflict) => {
-                Err(StrategyRuntimeWritePortError::Failed {
-                    status: 409,
-                    code: "CONFLICT".to_owned(),
-                    message: "strategy state conflict".to_owned(),
-                })
-            }
-            Err(jftrade_store_sqlite::StrategyRuntimeStoreError::Validation(msg)) => {
-                Err(StrategyRuntimeWritePortError::Failed {
-                    status: 400,
-                    code: "VALIDATION_FAILED".to_owned(),
-                    message: msg,
-                })
-            }
-            Err(e) => Err(StrategyRuntimeWritePortError::Failed {
-                status: 500,
-                code: "STRATEGY_RUNTIME_MUTATION_FAILED".to_owned(),
-                message: e.to_string(),
-            }),
+            Err(error) => Err(error),
         }
     }
 }

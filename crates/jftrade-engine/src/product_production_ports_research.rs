@@ -1,17 +1,24 @@
 //! Production research preset and read adapters.
-use std::sync::Arc;
-use std::thread;
-use jftrade_research::normalize_definition_v2;
-use jftrade_store_sqlite::{ResearchPresetMutation, ResearchPresetStore, ResearchPresetStoreError};
-use serde_json::{Value, json};
-use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
+use super::generate_strategy_id;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
 use crate::product::product_query::QueryMap;
-use crate::product::product_research_preset_write_port::{ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError};
-use crate::product::product_research_screen_write_port::{ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery};
-use crate::product::{ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, ResearchReadSnapshotError, ResearchReadSnapshotPort};
-use super::generate_strategy_id;
+use crate::product::product_research_preset_write_port::{
+    ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError,
+};
+use crate::product::product_research_screen_write_port::{
+    ResearchScreenWritePort, ResearchScreenWritePortError, ResearchScreenWriteQuery,
+};
+use crate::product::{
+    ResearchPresetReadSnapshotError, ResearchPresetReadSnapshotPort, ResearchReadSnapshotError,
+    ResearchReadSnapshotPort,
+};
+use jftrade_integration_marketdata_helper::{HelperClient, HttpAdapterError};
+use jftrade_research::normalize_definition_v2;
+use jftrade_store_sqlite::{ResearchPresetMutation, ResearchPresetStore, ResearchPresetStoreError};
+use serde_json::{Value, json};
+use std::sync::Arc;
+use std::thread;
 
 #[path = "product_production_ports_research_company.rs"]
 mod company;
@@ -30,9 +37,11 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
                 .map_err(|e| ResearchPresetReadSnapshotError::Unavailable(e.to_string()))?;
             let items: Vec<Value> = presets
                 .into_iter()
-                .map(|p| serde_json::to_value(&p).map_err(|error| {
-                    ResearchPresetReadSnapshotError::Unavailable(error.to_string())
-                }))
+                .map(|p| {
+                    serde_json::to_value(&p).map_err(|error| {
+                        ResearchPresetReadSnapshotError::Unavailable(error.to_string())
+                    })
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             return Ok(json!({ "presets": items }));
         }
@@ -40,13 +49,10 @@ impl ResearchPresetReadSnapshotPort for ProductionResearchPresetPort {
             if id.is_empty() || id.contains('/') {
                 return Err(ResearchPresetReadSnapshotError::NotFound);
             }
-            let preset = self
-                .store
-                .get(id)
-                .map_err(|e| match e {
-                    ResearchPresetStoreError::NotFound => ResearchPresetReadSnapshotError::NotFound,
-                    other => ResearchPresetReadSnapshotError::Unavailable(other.to_string()),
-                })?;
+            let preset = self.store.get(id).map_err(|e| match e {
+                ResearchPresetStoreError::NotFound => ResearchPresetReadSnapshotError::NotFound,
+                other => ResearchPresetReadSnapshotError::Unavailable(other.to_string()),
+            })?;
             return serde_json::to_value(&preset)
                 .map_err(|error| ResearchPresetReadSnapshotError::Unavailable(error.to_string()));
         }
@@ -88,7 +94,9 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                     .insert(&preset, &timestamp)
                     .map_err(map_research_preset_store_error)?;
                 serde_json::to_value(&stored).map_err(|e| {
-                    ResearchPresetWritePortError::Failed(format!("encode stored research preset: {e}"))
+                    ResearchPresetWritePortError::Failed(format!(
+                        "encode stored research preset: {e}"
+                    ))
                 })
             }
             ResearchPresetWriteMutation::Update { preset_id, payload } => {
@@ -108,7 +116,10 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                 if !has_name && !has_definition {
                     return Err(invalid_preset("name or definition is required"));
                 }
-                let current = self.store.get(preset_id).map_err(map_research_preset_store_error)?;
+                let current = self
+                    .store
+                    .get(preset_id)
+                    .map_err(map_research_preset_store_error)?;
                 let name = if has_name {
                     normalized_preset_name(object.get("name"))?
                 } else {
@@ -119,9 +130,9 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                 } else {
                     current.preset.definition.clone()
                 };
-                let next_revision = expected_revision.checked_add(1).ok_or_else(|| {
-                    invalid_preset("expectedRevision exceeds supported range")
-                })?;
+                let next_revision = expected_revision
+                    .checked_add(1)
+                    .ok_or_else(|| invalid_preset("expectedRevision exceeds supported range"))?;
                 let preset = ResearchPresetMutation {
                     preset_id: current.preset.preset_id,
                     name,
@@ -134,14 +145,18 @@ impl ResearchPresetWritePort for ProductionResearchPresetPort {
                     .replace_revision(&preset, expected_revision, &timestamp)
                     .map_err(map_research_preset_store_error)?;
                 serde_json::to_value(&stored).map_err(|e| {
-                    ResearchPresetWritePortError::Failed(format!("encode stored research preset: {e}"))
+                    ResearchPresetWritePortError::Failed(format!(
+                        "encode stored research preset: {e}"
+                    ))
                 })
             }
             ResearchPresetWriteMutation::Delete { preset_id } => {
                 if preset_id.trim().is_empty() {
                     return Err(invalid_preset("preset id is required"));
                 }
-                self.store.delete(preset_id).map_err(map_research_preset_store_error)?;
+                self.store
+                    .delete(preset_id)
+                    .map_err(map_research_preset_store_error)?;
                 Ok(json!({"deleted": true}))
             }
         }
@@ -158,7 +173,9 @@ fn normalized_preset_name(value: Option<&Value>) -> Result<String, ResearchPrese
     }
     Ok(name.to_owned())
 }
-fn normalized_preset_definition(value: Option<&Value>) -> Result<Value, ResearchPresetWritePortError> {
+fn normalized_preset_definition(
+    value: Option<&Value>,
+) -> Result<Value, ResearchPresetWritePortError> {
     let value = value
         .cloned()
         .ok_or_else(|| invalid_preset("definition is required"))?;
@@ -170,7 +187,9 @@ fn invalid_preset(message: impl Into<String>) -> ResearchPresetWritePortError {
         message.into()
     ))
 }
-fn map_research_preset_store_error(error: ResearchPresetStoreError) -> ResearchPresetWritePortError {
+fn map_research_preset_store_error(
+    error: ResearchPresetStoreError,
+) -> ResearchPresetWritePortError {
     match error {
         ResearchPresetStoreError::NotFound => {
             ResearchPresetWritePortError::NotFound("research screen preset not found".to_owned())
@@ -230,13 +249,39 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
                 &format!("requested broker {requested:?} does not match active provider"),
             ));
         }
-        if matches!(path, "/api/v1/research/rankings" | "/api/v1/research/industries") {
-            return super::read_market_research(provider, snapshot.helper_ready, self.helper.as_ref(), path, query);
+        if matches!(
+            path,
+            "/api/v1/research/rankings" | "/api/v1/research/industries"
+        ) {
+            return super::read_market_research(
+                provider,
+                snapshot.helper_ready,
+                self.helper.as_ref(),
+                path,
+                query,
+            );
         }
-        if matches!(path, "/api/v1/research/calendars" | "/api/v1/research/macro") {
-            return super::read_market_calendar(provider, snapshot.helper_ready, self.helper.as_ref(), path, query);
+        if matches!(
+            path,
+            "/api/v1/research/calendars" | "/api/v1/research/macro"
+        ) {
+            return super::read_market_calendar(
+                provider,
+                snapshot.helper_ready,
+                self.helper.as_ref(),
+                path,
+                query,
+            );
         }
         if provider == jftrade_settings::MarketDataProvider::Futu {
+            if path.starts_with("/api/v1/research/corporate-actions/") {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD corporate actions runtime is not ready".to_owned(),
+                    ));
+                }
+                return read_futu_corporate_actions(self.trade_runtime.as_ref(), path, query);
+            }
             if !path.starts_with("/api/v1/research/valuation/") {
                 return Err(capability(
                     "research",
@@ -288,7 +333,9 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
             ))
         })
         .join()
-        .map_err(|_| ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned()))?;
+        .map_err(|_| {
+            ResearchReadSnapshotError::Unavailable("research helper task panicked".to_owned())
+        })?;
         let payload = result.map_err(map_research_helper_error)?;
         project_research_payload(
             operation,
@@ -301,6 +348,81 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
     }
 }
 
+fn read_futu_corporate_actions(
+    runtime: Option<&Arc<SharedTradeReadRuntime>>,
+    path: &str,
+    query: &str,
+) -> Result<Value, ResearchReadSnapshotError> {
+    let runtime = runtime.ok_or_else(|| {
+        ResearchReadSnapshotError::Unavailable(
+            "Futu corporate actions runtime is not configured".to_owned(),
+        )
+    })?;
+    if !runtime.corporate_actions_reader_available() {
+        return Err(ResearchReadSnapshotError::Unavailable(
+            "Futu corporate actions reader is not ready".to_owned(),
+        ));
+    }
+    let (_, market, symbol, _) = research_helper_request(path, query)?;
+    let synthetic_path = format!("/api/v1/market-data/corporate-actions/{market}/{symbol}");
+    let payload = super::super::product_production_ports_market_data::product_production_ports_market_data_news_actions::read_futu(
+        Some(runtime),
+        &synthetic_path,
+        query,
+    )
+    .map_err(map_futu_corporate_actions_error)?;
+    let events = payload
+        .get("events")
+        .cloned()
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    let as_of = super::super::provider_now_rfc3339();
+    Ok(json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "research.corporate_actions",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "resolvedInstrument": {
+            "instrumentId": format!("{market}.{symbol}"),
+            "code": symbol,
+            "productClass": "unknown",
+            "marketSegment": "securities",
+            "quoteMarket": market,
+            "tradeMarket": market,
+            "quantityMode": "units",
+        },
+        "asOf": as_of,
+        "entries": events,
+        "hasMore": false,
+        "total": payload.get("events").and_then(Value::as_array).map_or(0, Vec::len),
+    }))
+}
+
+fn map_futu_corporate_actions_error(
+    error: crate::product::MarketDataNewsActionsReadSnapshotError,
+) -> ResearchReadSnapshotError {
+    match error {
+        crate::product::MarketDataNewsActionsReadSnapshotError::Unavailable(message) => {
+            ResearchReadSnapshotError::Unavailable(message)
+        }
+        crate::product::MarketDataNewsActionsReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => ResearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
 fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotError {
     match error {
         HttpAdapterError::Remote {
@@ -310,7 +432,11 @@ fn map_research_helper_error(error: HttpAdapterError) -> ResearchReadSnapshotErr
             retry_after_seconds,
         } => ResearchReadSnapshotError::Failed {
             status,
-            code: if code.is_empty() { "BAD_GATEWAY".to_owned() } else { code },
+            code: if code.is_empty() {
+                "BAD_GATEWAY".to_owned()
+            } else {
+                code
+            },
             message,
             retry_after_seconds,
         },
@@ -359,7 +485,9 @@ fn read_futu_valuation(
     let instrument = path
         .strip_prefix("/api/v1/research/valuation/")
         .filter(|value| !value.is_empty() && !value.contains('/'))
-        .ok_or_else(|| ResearchReadSnapshotError::Invalid("unsupported valuation route".to_owned()))?;
+        .ok_or_else(|| {
+            ResearchReadSnapshotError::Invalid("unsupported valuation route".to_owned())
+        })?;
     let (market, code) = instrument.split_once('.').ok_or_else(|| {
         ResearchReadSnapshotError::Invalid("instrumentId must be MARKET.CODE".to_owned())
     })?;
@@ -367,7 +495,9 @@ fn read_futu_valuation(
     let code = code.trim().to_ascii_uppercase();
     if market.is_empty()
         || code.is_empty()
-        || code.chars().any(|value| value.is_whitespace() || value.is_control())
+        || code
+            .chars()
+            .any(|value| value.is_whitespace() || value.is_control())
     {
         return Err(ResearchReadSnapshotError::Invalid(
             "instrumentId must be MARKET.CODE".to_owned(),
@@ -415,8 +545,8 @@ fn read_futu_valuation(
     let snapshot = runtime
         .valuation_detail(&request)
         .map_err(map_valuation_error)?;
-    let entry = serde_json::to_value(snapshot)
-        .map_err(|error| ResearchReadSnapshotError::Failed {
+    let entry =
+        serde_json::to_value(snapshot).map_err(|error| ResearchReadSnapshotError::Failed {
             status: 502,
             code: "BAD_GATEWAY".to_owned(),
             message: format!("serialize Futu valuation detail response: {error}"),
@@ -466,9 +596,11 @@ fn parse_optional_i32(
             "{key} must be an integer"
         )));
     }
-    value.trim().parse::<i32>().map(Some).map_err(|_| {
-        ResearchReadSnapshotError::Invalid(format!("{key} must be an integer"))
-    })
+    value
+        .trim()
+        .parse::<i32>()
+        .map(Some)
+        .map_err(|_| ResearchReadSnapshotError::Invalid(format!("{key} must be an integer")))
 }
 
 fn map_valuation_error(
@@ -491,7 +623,9 @@ fn map_valuation_error(
         } => ResearchReadSnapshotError::Failed {
             status: 502,
             code: "FUTU_VALUATION_REJECTED".to_owned(),
-            message: format!("OpenD valuation detail retType={ret_type} errCode={err_code}: {message}"),
+            message: format!(
+                "OpenD valuation detail retType={ret_type} errCode={err_code}: {message}"
+            ),
             retry_after_seconds: None,
         },
         ValuationDetailQueryError::Session(error) => ResearchReadSnapshotError::Failed {
@@ -506,13 +640,14 @@ fn map_valuation_error(
             message: error.to_string(),
             retry_after_seconds: None,
         },
-        ValuationDetailQueryError::MissingS2c
-        | ValuationDetailQueryError::InvalidResponse(_) => ResearchReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: error.to_string(),
-            retry_after_seconds: None,
-        },
+        ValuationDetailQueryError::MissingS2c | ValuationDetailQueryError::InvalidResponse(_) => {
+            ResearchReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: error.to_string(),
+                retry_after_seconds: None,
+            }
+        }
     }
 }
 
@@ -533,211 +668,6 @@ fn valuation_market_code(market: &str) -> Option<i32> {
     }
 }
 
-#[cfg(test)]
-mod research_helper_tests {
-    use super::*;
-    use std::time::Duration;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
-
-    fn helper(base_url: String) -> HelperClient {
-        HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
-            base_url,
-            bearer_token: None,
-            request_timeout: Duration::from_secs(1),
-            max_attempts: 1,
-            retry_delay: Duration::ZERO,
-        })
-        .expect("helper client")
-    }
-
-    #[test]
-    fn research_helper_request_rejects_unsupported_or_malformed_paths() {
-        assert!(matches!(
-            research_helper_request("/api/v1/research/technical-indicators/US.AAPL", ""),
-            Err(ResearchReadSnapshotError::Unavailable(_))
-        ));
-        assert!(matches!(
-            research_helper_request("/api/v1/research/financials/US/AAPL", ""),
-            Err(ResearchReadSnapshotError::Invalid(_))
-        ));
-    }
-
-    #[test]
-    fn research_helper_request_parses_canonical_instrument_ids() {
-        for (path, operation) in [
-            ("/api/v1/research/instruments/us.aapl", "profile"),
-            ("/api/v1/research/financials/us.aapl", "financials"),
-            ("/api/v1/research/analyst/us.aapl", "analyst"),
-            ("/api/v1/research/ownership/us.aapl", "ownership"),
-            ("/api/v1/research/corporate-actions/us.aapl", "corporate-actions"),
-        ] {
-            let (actual_operation, market, symbol, query) =
-                research_helper_request(path, "").expect("canonical instrument");
-            assert_eq!(actual_operation, operation);
-            assert_eq!(market, "US");
-            assert_eq!(symbol, "AAPL");
-            assert!(query.is_empty());
-        }
-        let (_, market, symbol, _) =
-            research_helper_request("/api/v1/research/analyst/US.BRK.B", "")
-                .expect("dot-qualified US symbols remain valid");
-        assert_eq!(market, "US");
-        assert_eq!(symbol, "BRK.B");
-        assert!(matches!(
-            research_helper_request("/api/v1/research/analyst/US/AAPL", ""),
-            Err(ResearchReadSnapshotError::Invalid(_))
-        ));
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn production_research_port_forwards_financials_to_helper() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
-        let address = listener.local_addr().expect("address");
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.expect("accept");
-            let mut request = vec![0_u8; 4096];
-            let read = stream.read(&mut request).await.expect("read");
-            let request = String::from_utf8_lossy(&request[..read]);
-            assert!(request.starts_with(
-                "GET /providers/yfinance/financials/US/AAPL?statement=balance HTTP/1.1\r\n"
-            ));
-            let body = r#"{"instrumentId":"US.AAPL","statement":"balance","fields":[],"periods":[]}"#;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
-            );
-            stream.write_all(response.as_bytes()).await.expect("write");
-        });
-        let state = Arc::new(ActiveProviderState::new(Some(
-            jftrade_settings::MarketDataProvider::Yfinance,
-        )));
-        state.set_readiness(true, false, false);
-        let port = ProductionResearchPort {
-            active_provider_state: state,
-            helper: Some(helper(format!("http://{address}"))),
-            trade_runtime: None,
-        };
-        let value = port
-            .read(
-                "/api/v1/research/financials/US.AAPL",
-                "statement=balance",
-            )
-            .expect("research response");
-        assert_eq!(value["statement"], "balance");
-        server.await.expect("server");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn production_research_port_preserves_helper_http_errors() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
-        let address = listener.local_addr().expect("address");
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await.expect("accept");
-            let body = r#"{"error":{"code":"NOT_FOUND","message":"financials not found"}}"#;
-            let response = format!(
-                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nRetry-After: 3\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
-            );
-            stream.write_all(response.as_bytes()).await.expect("write");
-            let mut request = [0_u8; 1024];
-            let _ = stream.read(&mut request).await;
-        });
-        let state = Arc::new(ActiveProviderState::new(Some(
-            jftrade_settings::MarketDataProvider::Yfinance,
-        )));
-        state.set_readiness(true, false, false);
-        let port = ProductionResearchPort {
-            active_provider_state: state,
-            helper: Some(helper(format!("http://{address}"))),
-            trade_runtime: None,
-        };
-        let result = port.read("/api/v1/research/analyst/US.AAPL", "");
-        assert!(matches!(
-            result,
-            Err(ResearchReadSnapshotError::Failed {
-                status: 404,
-                ref code,
-                ref message,
-                retry_after_seconds: Some(3),
-            }) if code == "NOT_FOUND" && message == "financials not found"
-        ));
-        server.await.expect("server");
-    }
-
-    #[derive(Debug)]
-    struct FixtureValuationReader;
-
-    impl jftrade_integration_futu::ValuationDetailReadPort for FixtureValuationReader {
-        fn query(
-            &self,
-            query: &jftrade_integration_futu::ValuationDetailQuery,
-        ) -> Result<jftrade_integration_futu::ValuationDetailSnapshot, jftrade_integration_futu::ValuationDetailQueryError> {
-            assert_eq!(query.market, 11);
-            assert_eq!(query.code, "AAPL");
-            assert_eq!(query.valuation_type, Some(1));
-            assert_eq!(query.interval_type, Some(2));
-            Ok(jftrade_integration_futu::ValuationDetailSnapshot {
-                security: jftrade_integration_futu::ValuationDetailSecurity {
-                    market: "US".to_owned(),
-                    code: "AAPL".to_owned(),
-                    instrument_id: "US.AAPL".to_owned(),
-                },
-                valuation_type: Some(1),
-                last_update_time: None,
-                last_update_time_str: None,
-                trend: None,
-                market_distribution: None,
-                plate_distribution: None,
-                profit_growth_rate: None,
-            })
-        }
-    }
-
-    #[test]
-    fn futu_valuation_route_projects_typed_reader_and_query() {
-        let state = Arc::new(ActiveProviderState::new(Some(
-            jftrade_settings::MarketDataProvider::Futu,
-        )));
-        state.set_readiness(false, true, false);
-        let runtime = Arc::new(SharedTradeReadRuntime::default());
-        runtime.set_valuation_detail(Some(Arc::new(FixtureValuationReader)));
-        let port = ProductionResearchPort {
-            active_provider_state: state,
-            helper: None,
-            trade_runtime: Some(runtime),
-        };
-        let value = port
-            .read(
-                "/api/v1/research/valuation/US.AAPL",
-                "brokerId=futu&operation=detail&valuationType=1&intervalType=2",
-            )
-            .expect("valuation response");
-        assert_eq!(value["provider"]["brokerId"], "futu");
-        assert_eq!(value["entries"][0]["security"]["instrumentId"], "US.AAPL");
-        assert_eq!(value["entries"][0]["valuationType"], 1);
-        assert_eq!(value["hasMore"], false);
-    }
-
-    #[test]
-    fn futu_valuation_route_fails_closed_when_reader_is_missing() {
-        let state = Arc::new(ActiveProviderState::new(Some(
-            jftrade_settings::MarketDataProvider::Futu,
-        )));
-        state.set_readiness(false, true, false);
-        let port = ProductionResearchPort {
-            active_provider_state: state,
-            helper: None,
-            trade_runtime: Some(Arc::new(SharedTradeReadRuntime::default())),
-        };
-        assert!(matches!(
-            port.read("/api/v1/research/valuation/US.AAPL", ""),
-            Err(ResearchReadSnapshotError::Unavailable(message))
-                if message == "Futu valuation detail reader is not ready"
-        ));
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct ProductionResearchScreenPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
@@ -755,3 +685,7 @@ impl ResearchScreenWritePort for ProductionResearchScreenPort {
         Err(ResearchScreenWritePortError::Unavailable)
     }
 }
+
+#[cfg(test)]
+#[path = "product_production_ports_research_tests.rs"]
+mod research_helper_tests;

@@ -8,104 +8,99 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_adk_model_runtime::ProductionAdkChatRuntime;
+use crate::product::{ProductConfig, product_data_management};
 use jftrade_calendar::{
-    CalendarManager, CalendarManagerSettings, CalendarSnapshotStore, CalendarSourcePolicy,
-    CalendarSourceRegistry, CalendarManualOverride, CalendarSessionOverride,
+    CalendarManager, CalendarManagerSettings, CalendarManualOverride, CalendarSessionOverride,
+    CalendarSnapshotStore, CalendarSourcePolicy, CalendarSourceRegistry,
 };
 use jftrade_datamanagement::{
-    DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST_RUNS,
-    DATABASE_BACKTEST, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
+    DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
+    DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
     DATABASE_WATCHLIST,
 };
 use jftrade_settings::{
-    BrokerSettingsStorePort, InterfaceSettingsStorePort,
-    MarketDataProviderSettingsStorePort, SecuritySettingsService,
-    ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort,
-    normalize_live_websocket_connection_limit, normalize_market_data_provider,
+    BrokerSettingsStorePort, ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort,
+    InterfaceSettingsStorePort, MarketDataProviderSettingsStorePort, SecuritySettingsService,
+    normalize_live_websocket_connection_limit, parse_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{
     ADK_ARTIFACT_PRODUCTION_PROFILE, ADK_PRODUCTION_PROFILE, ADK_SESSION_PRODUCTION_PROFILE,
     AdkArtifactStore, AdkSessionStore, AdkStore, BACKTEST_MARKET_DATA_PRODUCTION_PROFILE,
     BACKTEST_RUNS_PRODUCTION_PROFILE, BacktestMarketDataStore, BacktestRunStore,
-    BacktestSyncTaskStore,
-    EXECUTION_ORDERS_PRODUCTION_PROFILE, ExecutionOrderStore,
+    BacktestSyncTaskStore, EXECUTION_ORDERS_PRODUCTION_PROFILE, ExecutionOrderStore,
     RESEARCH_PRESET_PRODUCTION_PROFILE, ResearchPresetStore,
     STRATEGY_DEFINITION_PRODUCTION_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
     WATCHLIST_PRODUCTION_PROFILE, WatchlistStore,
 };
-use crate::product::product_active_provider_state::ActiveProviderState;
-use crate::product::{
-    ProductConfig, product_data_management,
-};
 
-#[path = "product_production_ports_plugins.rs"]
-mod product_production_ports_plugins;
-#[path = "product_production_ports_unavailable.rs"]
-mod product_production_ports_unavailable;
-#[path = "product_production_ports_watchlist.rs"]
-mod product_production_ports_watchlist;
-#[path = "product_production_ports_strategy.rs"]
-mod product_production_ports_strategy;
-#[path = "product_production_ports_execution.rs"]
-mod product_production_ports_execution;
-#[path = "product_production_ports_trade.rs"]
-mod product_production_ports_trade;
 #[path = "product_backtest_sync_registry.rs"]
 mod product_backtest_sync_registry;
-#[path = "product_production_ports_system.rs"]
-mod product_production_ports_system;
-#[path = "product_production_ports_market_data.rs"]
-mod product_production_ports_market_data;
-#[path = "product_production_ports_provider.rs"]
-mod product_production_ports_provider;
-#[path = "product_production_ports_adk.rs"]
-mod product_production_ports_adk;
 #[path = "product_production_adapter_bindings.rs"]
 mod product_production_adapter_bindings;
 #[path = "product_production_database_leases.rs"]
 mod product_production_database_leases;
+#[path = "product_production_ports_adk.rs"]
+mod product_production_ports_adk;
+#[path = "product_production_ports_execution.rs"]
+mod product_production_ports_execution;
+#[path = "product_production_ports_market_data.rs"]
+mod product_production_ports_market_data;
+#[path = "product_production_ports_plugins.rs"]
+mod product_production_ports_plugins;
+#[path = "product_production_ports_provider.rs"]
+mod product_production_ports_provider;
+#[path = "product_production_ports_strategy.rs"]
+mod product_production_ports_strategy;
+#[path = "product_production_ports_system.rs"]
+mod product_production_ports_system;
+#[path = "product_production_ports_trade.rs"]
+mod product_production_ports_trade;
 #[path = "product_production_ports_types.rs"]
 mod product_production_ports_types;
+#[path = "product_production_ports_unavailable.rs"]
+mod product_production_ports_unavailable;
+#[path = "product_production_ports_watchlist.rs"]
+mod product_production_ports_watchlist;
 
+pub(crate) use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
+pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
+pub(crate) use product_production_adapter_bindings::production_adapter_bindings;
+pub(crate) use product_production_adapter_bindings::{
+    MarketDataCapabilityMatrix, OPTION_ANALYSIS_OPERATIONS, ProductionAdapterBinding,
+};
+pub(crate) use product_production_database_leases::{
+    PRODUCTION_DATABASE_IDS, ProductionDatabaseLeaseSnapshot,
+};
+pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
 pub(crate) use product_production_ports_execution::{
     ProductionBacktestPort, ProductionExecutionPort,
 };
-pub(crate) use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
-pub(crate) use product_production_ports_trade::{ProductionBrokerPort, ProductionPortfolioPort};
-pub(crate) use product_production_ports_trade::SharedTradeReadRuntime;
-pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
 pub(crate) use product_production_ports_market_data::{
     ProductionMarketDataCatalogPort, ProductionMarketDataDerivativePort,
     ProductionMarketDataNewsPort, ProductionMarketDataOptionsPort,
     ProductionMarketDataPredictionPort, ProductionMarketDataProviderActionsPort,
     ProductionMarketDataQuotePort, ProductionMarketDataSubscriptionMutationPort,
 };
+pub(crate) use product_production_ports_plugins::ProductionPluginPort;
 pub(crate) use product_production_ports_provider::ProductionMarketDataProviderPort;
 pub(crate) use product_production_ports_provider::provider_now_rfc3339;
-pub(crate) use product_production_ports_plugins::ProductionPluginPort;
-pub(crate) use product_production_ports_unavailable::ProductionWsLivePort;
-pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
-pub(crate) use product_production_adapter_bindings::{
-    MarketDataCapabilityMatrix, ProductionAdapterBinding,
-};
-pub(crate) use product_production_adapter_bindings::production_adapter_bindings;
-pub(crate) use product_production_ports_system::{
-    ProductionSystemPort, ProductionSystemWritePort,
-};
 pub(crate) use product_production_ports_strategy::{
     ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort,
-    ProductionStrategyDefinitionPort, ProductionStrategyPinePort,
-    ProductionStrategyRuntimePort,
+    ProductionStrategyDefinitionPort, ProductionStrategyPinePort, ProductionStrategyRuntimePort,
+    StrategyRuntimeManager,
 };
+pub(crate) use product_production_ports_system::{ProductionSystemPort, ProductionSystemWritePort};
+pub(crate) use product_production_ports_trade::SharedTradeReadRuntime;
+pub(crate) use product_production_ports_trade::{ProductionBrokerPort, ProductionPortfolioPort};
+pub(crate) use product_production_ports_types::{
+    ProductionAlertPort, ProductionPortBundle, provider_request_matches, research_tool_binding,
+};
+pub(crate) use product_production_ports_unavailable::ProductionWsLivePort;
 pub(crate) use product_production_ports_watchlist::{
     ProductionRemoteWatchlistPort, ProductionWatchlistPort,
-};
-pub(crate) use product_production_database_leases::{
-    ProductionDatabaseLeaseSnapshot, PRODUCTION_DATABASE_IDS,
-};
-pub(crate) use product_production_ports_types::{
-    provider_request_matches, research_tool_binding, ProductionAlertPort, ProductionPortBundle,
 };
 
 const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
@@ -125,7 +120,9 @@ fn exchange_calendar_snapshot_root(settings_path: &std::path::Path) -> PathBuf {
         })
 }
 
-pub(crate) fn calendar_manager_settings(input: ExchangeCalendarSettings) -> CalendarManagerSettings {
+pub(crate) fn calendar_manager_settings(
+    input: ExchangeCalendarSettings,
+) -> CalendarManagerSettings {
     CalendarManagerSettings {
         auto_refresh_enabled: input.auto_refresh_enabled,
         error_notifications_enabled: input.error_notifications_enabled,
@@ -165,8 +162,8 @@ pub(crate) fn calendar_manager_settings(input: ExchangeCalendarSettings) -> Cale
             .collect(),
     }
 }
-use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
 use crate::product::ProductError;
+use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
 use crate::product::product_production_route_registry::ProductionRouteAdapter;
 
 pub(crate) fn production_ports(
@@ -231,10 +228,13 @@ pub(crate) fn production_ports(
 
     let backtest_path = get_path(DATABASE_BACKTEST_RUNS)?;
     let backtest_store = Arc::new(
-        BacktestRunStore::open_existing(&backtest_path, BACKTEST_RUNS_PRODUCTION_PROFILE)
-            .map_err(|e| {
-                ProductError::Storage(format!("failed to open backtest runs production store: {e}"))
-            })?,
+        BacktestRunStore::open_existing(&backtest_path, BACKTEST_RUNS_PRODUCTION_PROFILE).map_err(
+            |e| {
+                ProductError::Storage(format!(
+                    "failed to open backtest runs production store: {e}"
+                ))
+            },
+        )?,
     );
     let backtest_sync_tasks = Arc::new(BacktestSyncTaskStore::new(Arc::clone(&backtest_store)));
     acquired_databases.push(DATABASE_BACKTEST_RUNS.to_owned());
@@ -303,10 +303,6 @@ pub(crate) fn production_ports(
     let strategy_def_port = Arc::new(ProductionStrategyDefinitionPort {
         store: strategy_def_store.clone(),
     });
-    let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
-        store: strategy_runtime_store,
-        definitions: strategy_def_store.clone(),
-    });
     let research_preset_port = Arc::new(ProductionResearchPresetPort {
         store: research_store,
     });
@@ -339,9 +335,7 @@ pub(crate) fn production_ports(
     let broker_settings = market_data_settings
         .load_broker_settings_inputs()
         .map_err(|error| {
-            ProductError::Storage(format!(
-                "failed to load broker runtime settings: {error}"
-            ))
+            ProductError::Storage(format!("failed to load broker runtime settings: {error}"))
         })?;
     let interface_settings = market_data_settings
         .load_interface_settings()
@@ -368,7 +362,14 @@ pub(crate) fn production_ports(
                 ))
             })?
             .as_deref()
-            .map(normalize_market_data_provider);
+            .map(|provider| {
+                parse_market_data_provider(provider).map_err(|error| {
+                    ProductError::Storage(format!(
+                        "invalid active market-data provider settings: {error}"
+                    ))
+                })
+            })
+            .transpose()?;
         Arc::new(ActiveProviderState::new(initial_provider))
     };
     active_provider_state.set_readiness(
@@ -383,6 +384,16 @@ pub(crate) fn production_ports(
     let active_provider = provider_snapshot.provider;
     let has_helper = provider_snapshot.helper_ready;
     let has_router = provider_snapshot.router_ready;
+    let strategy_runtime_manager = Arc::new(StrategyRuntimeManager::new(
+        config.market_data_router.clone(),
+        config.strategy_pine_worker_port.clone(),
+        Arc::clone(&active_provider_state),
+    ));
+    let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
+        store: strategy_runtime_store,
+        definitions: strategy_def_store.clone(),
+        manager: Arc::clone(&strategy_runtime_manager),
+    });
     let backtest_sync_workers = Arc::new(BacktestSyncWorkerRegistry::default());
     let backtest_execution_workers = Arc::new(BacktestExecutionTaskRegistry::default());
     let backtest_port = Arc::new(ProductionBacktestPort {
@@ -402,12 +413,17 @@ pub(crate) fn production_ports(
         Some(jftrade_settings::MarketDataProvider::Akshare) => Some("akshare"),
         None => None,
     };
-    let capability_matrix = MarketDataCapabilityMatrix::new(
-        active_provider_str,
-        has_helper,
-        has_router,
-    );
+    let capability_matrix =
+        MarketDataCapabilityMatrix::new(active_provider_str, has_helper, has_router);
     let mut bound_adapters = production_adapter_bindings(&capability_matrix);
+    bound_adapters.insert(
+        ProductionRouteAdapter::StrategyPine,
+        if config.strategy_pine_worker_port.is_some() {
+            ProductionAdapterBinding::Ready
+        } else {
+            ProductionAdapterBinding::ExternalUnavailable
+        },
+    );
     // ResearchRead is a shared adapter for helper-backed company research
     // operations.  Reflect helper readiness in the ADK catalog; otherwise all
     // research tools would remain non-callable even when the selected helper
@@ -490,22 +506,33 @@ pub(crate) fn production_ports(
         ),
     ]);
     let tool_catalog = Arc::new(
-        ProductionToolCatalog::from_bindings_with_research(&bound_adapters, &research_tool_bindings)
-            .map_err(|adapter| ProductError::MissingProductionAdapter {
-                method: "GET".to_owned(),
-                path: "/api/v1/adk/tools".to_owned(),
-                adapter,
-            })?,
+        ProductionToolCatalog::from_bindings_with_research(
+            &bound_adapters,
+            &research_tool_bindings,
+        )
+        .map_err(|adapter| ProductError::MissingProductionAdapter {
+            method: "GET".to_owned(),
+            path: "/api/v1/adk/tools".to_owned(),
+            adapter,
+        })?
+        .with_active_provider_state(Arc::clone(&active_provider_state)),
     );
+    let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
+        Arc::clone(&adk_store),
+        Arc::clone(&adk_session_store),
+        config.settings_path(),
+    ));
     let adk_port = Arc::new(ProductionAdkPort {
         store: adk_store,
         session_store: adk_session_store,
         artifact_store: adk_artifact_store,
         tool_catalog,
         settings_path: config.settings_path().to_owned(),
+        chat_runtime: Some(adk_chat_runtime),
     });
     let alert_port = Arc::new(ProductionAlertPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let broker_port = Arc::new(ProductionBrokerPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -529,11 +556,12 @@ pub(crate) fn production_ports(
         active_provider_state: Arc::clone(&active_provider_state),
     });
     let strategy_pine_port = Arc::new(ProductionStrategyPinePort {
-        worker_status: config.worker_runtime_status.as_str(),
+        worker: config.strategy_pine_worker_port.clone(),
     });
     let remote_watchlist_port = Arc::new(ProductionRemoteWatchlistPort {
         _store: watchlist_store.clone(),
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let market_data_derivative_port = Arc::new(ProductionMarketDataDerivativePort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -546,6 +574,7 @@ pub(crate) fn production_ports(
     let market_data_news_port = Arc::new(ProductionMarketDataNewsPort {
         active_provider_state: Arc::clone(&active_provider_state),
         helper: config.market_data_helper.clone(),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let market_data_prediction_port = Arc::new(ProductionMarketDataPredictionPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -571,12 +600,15 @@ pub(crate) fn production_ports(
         )
         .map_err(ProductError::Calendar)?,
     );
-    let market_data_quote_port = Arc::new(ProductionMarketDataQuotePort::new(
-        Arc::clone(&active_provider_state),
-        config.market_data_router.clone(),
-        config.market_data_helper.clone(),
-        config.physical_subscription_port.clone(),
-    ).with_calendar(Arc::clone(&calendar_manager)));
+    let market_data_quote_port = Arc::new(
+        ProductionMarketDataQuotePort::new(
+            Arc::clone(&active_provider_state),
+            config.market_data_router.clone(),
+            config.market_data_helper.clone(),
+            config.physical_subscription_port.clone(),
+        )
+        .with_calendar(Arc::clone(&calendar_manager)),
+    );
     let market_data_sub_port = Arc::new(ProductionMarketDataSubscriptionMutationPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_router.clone(),
@@ -604,7 +636,12 @@ pub(crate) fn production_ports(
         watchlist_memberships: watchlist_port.clone(),
         watchlist_write: watchlist_port,
         catalog: market_data_catalog_port,
-        provider: Arc::new(ProductionMarketDataProviderPort { active_provider_state, runtime_status: config.market_data_runtime_status_port.clone() }),
+        provider: Arc::new(ProductionMarketDataProviderPort {
+            active_provider_state,
+            runtime_status: config.market_data_runtime_status_port.clone(),
+            router: config.market_data_router.clone(),
+            physical: config.physical_subscription_port.clone(),
+        }),
         plugins: plugin_port.clone(),
         plugin_guidance: plugin_port.clone(),
         plugin_write: plugin_port,
@@ -615,6 +652,7 @@ pub(crate) fn production_ports(
         strategy_read: strategy_runtime_port.clone(),
         strategy_runtime_status: strategy_runtime_port.clone(),
         strategy_runtime_write: strategy_runtime_port,
+        strategy_runtime_manager,
         research_preset_read: research_preset_port.clone(),
         research_preset_write: research_preset_port,
         backtest_read: backtest_port.clone(),

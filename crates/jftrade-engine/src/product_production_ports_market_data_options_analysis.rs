@@ -18,24 +18,15 @@ pub(crate) fn read(
             "Futu option analysis runtime is not configured".to_owned(),
         )
     })?;
-    if !runtime.option_quotes_available()
-        && !runtime.option_volatility_available()
-        && !runtime.option_exercise_probability_available()
-        && !runtime.option_underlying_overview_available()
-        && !runtime.option_underlying_his_volatility_available()
-        && !runtime.option_market_statistic_available()
-        && !runtime.option_underlying_his_statistic_available()
-        && !runtime.option_strategy_available()
-        && !runtime.option_strategy_analysis_available()
-        && !runtime.option_strategy_spread_available()
-        && !runtime.option_underlying_rank_available()
-        && !runtime.option_contract_rank_available()
-    {
-        return Err(MarketDataOptionsReadSnapshotError::Unavailable(
-            "Futu option analysis readers are not ready".to_owned(),
-        ));
-    }
     let operation = parse_operation(query)?;
+    // This endpoint multiplexes independent OpenD readers.  Check the
+    // selected operation before dispatch so an available reader cannot mask
+    // an unavailable sibling operation as a route-level success.
+    if !operation_is_ready(runtime, &operation) {
+        return Err(MarketDataOptionsReadSnapshotError::Unavailable(format!(
+            "Futu option analysis operation `{operation}` is not ready"
+        )));
+    }
     if operation == "volatility" {
         return read_volatility(runtime, path, query);
     }
@@ -400,6 +391,26 @@ fn parse_operation(query: &str) -> Result<String, MarketDataOptionsReadSnapshotE
         .unwrap_or_else(|| "underlying_overview".to_owned()))
 }
 
+fn operation_is_ready(runtime: &SharedTradeReadRuntime, operation: &str) -> bool {
+    match operation {
+        "quote" => runtime.option_quotes_available(),
+        "volatility" => runtime.option_volatility_available(),
+        "exercise_probability" => runtime.option_exercise_probability_available(),
+        "underlying_overview" => runtime.option_underlying_overview_available(),
+        "market_statistics" => runtime.option_market_statistic_available(),
+        "historical_statistics" => runtime.option_underlying_his_statistic_available(),
+        "historical_volatility" => runtime.option_underlying_his_volatility_available(),
+        "strategy_spread" => runtime.option_strategy_spread_available(),
+        "strategy" => runtime.option_strategy_available(),
+        "strategy_analysis" => runtime.option_strategy_analysis_available(),
+        "underlying_rank" => runtime.option_underlying_rank_available(),
+        "contract_rank" => runtime.option_contract_rank_available(),
+        // Preserve the existing 400 validation path for unknown operations;
+        // dispatch below emits the baseline error envelope.
+        _ => true,
+    }
+}
+
 fn parse_volatility_request(
     path: &str,
     query: &str,
@@ -648,19 +659,16 @@ fn is_us_option_contract_code(value: &str) -> bool {
     if bytes.is_empty() || !bytes[0].is_ascii_uppercase() {
         return false;
     }
-    if bytes
-        .iter()
-        .any(|value| !value.is_ascii_uppercase() && !value.is_ascii_digit() && *value != b'.' && *value != b'-')
-    {
+    if bytes.iter().any(|value| {
+        !value.is_ascii_uppercase() && !value.is_ascii_digit() && *value != b'.' && *value != b'-'
+    }) {
         return false;
     }
     if bytes.len() < 8 {
         return false;
     }
     for index in 0..=bytes.len() - 8 {
-        if !bytes[index..index + 6]
-            .iter()
-            .all(u8::is_ascii_digit)
+        if !bytes[index..index + 6].iter().all(u8::is_ascii_digit)
             || !matches!(bytes[index + 6], b'C' | b'P')
             || bytes[index + 7..].is_empty()
             || !bytes[index + 7..].iter().all(u8::is_ascii_digit)
@@ -784,14 +792,5 @@ fn map_underlying_rank_error(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::is_us_option_contract_code;
-
-    #[test]
-    fn option_contract_detection_requires_a_strike_suffix() {
-        assert!(!is_us_option_contract_code("AAPL260918C"));
-        assert!(!is_us_option_contract_code("AAPL260918P"));
-        assert!(is_us_option_contract_code("AAPL260918C00100000"));
-        assert!(is_us_option_contract_code("AAPL260918P100"));
-    }
-}
+#[path = "product_production_ports_market_data_options_analysis_tests.rs"]
+mod tests;

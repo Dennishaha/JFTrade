@@ -1,9 +1,11 @@
 //! Production market-data provider actions adapter.
 
-use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::sync::Arc;
 
+use super::super::product_production_ports_trade::SharedTradeReadRuntime;
+use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_market_data_provider_actions_port::{
     BATCH_SNAPSHOTS_PATH, MarketDataProviderActionsFuture, MarketDataProviderActionsPort,
     MarketDataProviderActionsPortError, MarketDataProviderActionsRequest,
@@ -11,8 +13,6 @@ use crate::product::product_market_data_provider_actions_port::{
     ZERO_DTE_CONTRACTS_PATH, is_market_data_provider_action_path,
 };
 use crate::product::{MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort};
-use crate::product::product_active_provider_state::ActiveProviderState;
-use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 
 #[derive(Clone, Default)]
 pub(crate) struct ProductionMarketDataProviderActionsPort {
@@ -27,7 +27,10 @@ impl std::fmt::Debug for ProductionMarketDataProviderActionsPort {
             .debug_struct("ProductionMarketDataProviderActionsPort")
             .field("has_quote_port", &self.quote_port.is_some())
             .field("has_trade_runtime", &self.trade_runtime.is_some())
-            .field("has_active_provider_state", &self.active_provider_state.is_some())
+            .field(
+                "has_active_provider_state",
+                &self.active_provider_state.is_some(),
+            )
             .finish()
     }
 }
@@ -113,7 +116,10 @@ fn parse_zero_dte_owner(
     })?;
     let market = market.trim().to_ascii_uppercase();
     let code = code.trim().to_ascii_uppercase();
-    if market != "US" || code.is_empty() || code.contains('.') || code.chars().any(char::is_whitespace)
+    if market != "US"
+        || code.is_empty()
+        || code.contains('.')
+        || code.chars().any(char::is_whitespace)
     {
         return Err(action_bad_request(
             "OPTION_CHAIN_CONTEXT_REQUIRED",
@@ -277,16 +283,23 @@ impl ProductionMarketDataProviderActionsPort {
                 ));
             }
         }
-        let body: ZeroDteContractsRequest = serde_json::from_slice(&request.body).map_err(|_| {
-            action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
-        })?;
+        let body: ZeroDteContractsRequest =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                action_bad_request(
+                    "OPTION_CHAIN_CONTEXT_REQUIRED",
+                    "invalid 0DTE chain context",
+                )
+            })?;
         let market = body
             .market
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .ok_or_else(|| {
-                action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
+                action_bad_request(
+                    "OPTION_CHAIN_CONTEXT_REQUIRED",
+                    "invalid 0DTE chain context",
+                )
             })?
             .to_ascii_uppercase();
         if market != "US" {
@@ -300,7 +313,10 @@ impl ProductionMarketDataProviderActionsPort {
         let owner = parse_zero_dte_owner(body.underlying_instrument_id.as_deref())?;
         let expiry = body.expiry_timestamp.unwrap_or_default();
         let locator = body.chain.ok_or_else(|| {
-            action_bad_request("OPTION_CHAIN_CONTEXT_REQUIRED", "invalid 0DTE chain context")
+            action_bad_request(
+                "OPTION_CHAIN_CONTEXT_REQUIRED",
+                "invalid 0DTE chain context",
+            )
         })?;
         let product_code = locator.product_code.trim().to_owned();
         if expiry <= 0 || product_code.is_empty() {
@@ -483,7 +499,8 @@ impl ProductionMarketDataProviderActionsPort {
             return Err(MarketDataProviderActionsPortError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
-                message: "invalid product feature query: at least one instrumentId is required".to_owned(),
+                message: "invalid product feature query: at least one instrumentId is required"
+                    .to_owned(),
                 retry_after_seconds: None,
             });
         }
@@ -502,25 +519,26 @@ impl ProductionMarketDataProviderActionsPort {
             };
 
             let snapshot_path = format!("/api/v1/market-data/snapshots/{market}/{symbol}");
-            let snap_res = quote_port
-                .read(&snapshot_path, "")
-                .await
-                .map_err(|error| match error {
-                    MarketDataQuoteReadSnapshotError::Unavailable(msg) => {
-                        MarketDataProviderActionsPortError::Unavailable(msg)
-                    }
-                    MarketDataQuoteReadSnapshotError::Failed {
-                        status,
-                        code,
-                        message,
-                        retry_after_seconds,
-                    } => MarketDataProviderActionsPortError::Failed {
-                        status,
-                        code,
-                        message,
-                        retry_after_seconds,
-                    },
-                })?;
+            let snap_res =
+                quote_port
+                    .read(&snapshot_path, "")
+                    .await
+                    .map_err(|error| match error {
+                        MarketDataQuoteReadSnapshotError::Unavailable(msg) => {
+                            MarketDataProviderActionsPortError::Unavailable(msg)
+                        }
+                        MarketDataQuoteReadSnapshotError::Failed {
+                            status,
+                            code,
+                            message,
+                            retry_after_seconds,
+                        } => MarketDataProviderActionsPortError::Failed {
+                            status,
+                            code,
+                            message,
+                            retry_after_seconds,
+                        },
+                    })?;
 
             let snap_obj = snap_res.get("snapshot").ok_or_else(|| {
                 MarketDataProviderActionsPortError::Failed {

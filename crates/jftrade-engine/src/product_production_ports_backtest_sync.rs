@@ -1,23 +1,26 @@
 //! Historical candle sync request and task lifecycle.
 
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 
 use jftrade_integration_marketdata_helper::{HelperCandlesResponse, HelperClient};
 use jftrade_settings::MarketDataProvider;
 use jftrade_store_sqlite::{
-    BacktestMarketDataStore, BacktestSyncTaskStore, CancelBacktestSyncResult,
-    StoredBacktestCandle, StoredBacktestSyncTask,
+    BacktestMarketDataStore, BacktestSyncTaskStore, CancelBacktestSyncResult, StoredBacktestCandle,
+    StoredBacktestSyncTask,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
+use super::ProductionBacktestPort;
+use super::product_backtest_sync_request::{
+    SyncRequest, format_timestamp, parse_sync_request, parse_timestamp,
+};
 use crate::product::product_backtests_write_port::{
     BacktestsWritePortError, BacktestsWritePortResult,
 };
-use super::product_backtest_sync_request::{
-    format_timestamp, parse_sync_request, parse_timestamp, SyncRequest,
-};
-use super::ProductionBacktestPort;
 
 static SYNC_TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -27,7 +30,9 @@ impl ProductionBacktestPort {
         payload: &Value,
     ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
         let provider = self.active_provider_state.get().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable("active market-data provider is not configured".to_owned())
+            BacktestsWritePortError::Unavailable(
+                "active market-data provider is not configured".to_owned(),
+            )
         })?;
         let provider_id = match provider {
             MarketDataProvider::Yfinance => "yfinance",
@@ -128,14 +133,11 @@ impl ProductionBacktestPort {
                     BacktestsWritePortError::Conflict(message)
                 }
                 other => BacktestsWritePortError::Failed(other.to_string()),
-            })?
-        {
+            })? {
             CancelBacktestSyncResult::Cancelled => {
                 Ok(BacktestsWritePortResult::SyncCancelled(true))
             }
-            CancelBacktestSyncResult::Missing => {
-                Ok(BacktestsWritePortResult::SyncCancelled(false))
-            }
+            CancelBacktestSyncResult::Missing => Ok(BacktestsWritePortResult::SyncCancelled(false)),
             // Go's CancelSync intentionally collapses a terminal task and an
             // unknown task into the same 404 response.
             CancelBacktestSyncResult::AlreadyTerminal => {
@@ -143,7 +145,6 @@ impl ProductionBacktestPort {
             }
         }
     }
-
 }
 
 async fn run_sync_task(
@@ -161,7 +162,9 @@ async fn run_sync_task(
             return;
         }
     };
-    let Some(mut task) = task_snapshot else { return };
+    let Some(mut task) = task_snapshot else {
+        return;
+    };
     if matches!(task.status.as_str(), "cancelled" | "completed" | "failed") {
         return;
     }
@@ -169,7 +172,16 @@ async fn run_sync_task(
         eprintln!("backtest sync {task_id} failed to mark running: {error}");
         return;
     }
-    let result = sync_request_pages(&tasks, &market_store, &helper, provider, &request, &task_id, &mut task).await;
+    let result = sync_request_pages(
+        &tasks,
+        &market_store,
+        &helper,
+        provider,
+        &request,
+        &task_id,
+        &mut task,
+    )
+    .await;
     let cancelled = match is_cancelled(&tasks, &task_id) {
         Ok(cancelled) => cancelled,
         Err(error) => {
@@ -205,7 +217,9 @@ async fn sync_request_pages(
     let since = parse_timestamp(&request.since)?;
     let until = parse_timestamp(&request.until)?;
     for (index, interval) in request.intervals.iter().enumerate() {
-        if is_cancelled(tasks, task_id)? { return Ok(()); }
+        if is_cancelled(tasks, task_id)? {
+            return Ok(());
+        }
         task.current_interval = interval.clone();
         persist_task(tasks, task, "running", None)?;
         // Go's historical source asks for `until + 1ns` so a candle exactly
@@ -214,36 +228,80 @@ async fn sync_request_pages(
         let mut seen = std::collections::BTreeSet::new();
         let mut interval_inserted = false;
         loop {
-            if is_cancelled(tasks, task_id)? { return Ok(()); }
+            if is_cancelled(tasks, task_id)? {
+                return Ok(());
+            }
             let before_text = format_timestamp(before);
-            let sessions = if request.session_scope == "extended" { "regular,extended" } else { "regular" };
-            let query = [("period", interval.as_str()), ("limit", "1000"), ("before", before_text.as_str()), ("sessions", sessions)];
+            let sessions = if request.session_scope == "extended" {
+                "regular,extended"
+            } else {
+                "regular"
+            };
+            let query = [
+                ("period", interval.as_str()),
+                ("limit", "1000"),
+                ("before", before_text.as_str()),
+                ("sessions", sessions),
+            ];
             let helper_market = if request.market == "CN" {
                 symbol_market(&request.symbol)
             } else {
                 request.market.as_str()
             };
             let response: HelperCandlesResponse = helper
-                .get_provider_json_with_query(provider, &["candles", helper_market, symbol_code(&request.symbol)], &query)
+                .get_provider_json_with_query(
+                    provider,
+                    &["candles", helper_market, symbol_code(&request.symbol)],
+                    &query,
+                )
                 .await
                 .map_err(|error| error.to_string())?;
             validate_helper_page(&response, helper_market, &request.symbol, interval)?;
             let mut rows = Vec::with_capacity(response.candles.len());
             for candle in response.candles {
                 let at = parse_timestamp(&candle.at)?;
-                if at < since || at >= until { continue; }
+                if at < since || at >= until {
+                    continue;
+                }
                 let end = at + interval_duration(interval) - time::Duration::milliseconds(1);
-                rows.push(StoredBacktestCandle { start_time: at.unix_timestamp_nanos() as i64 / 1_000_000, end_time: end.unix_timestamp_nanos() as i64 / 1_000_000, open: candle.open.0, high: candle.high.0, low: candle.low.0, close: candle.close.0, volume: candle.volume.map_or_else(|| "0".to_owned(), |value| value.0) });
+                rows.push(StoredBacktestCandle {
+                    start_time: at.unix_timestamp_nanos() as i64 / 1_000_000,
+                    end_time: end.unix_timestamp_nanos() as i64 / 1_000_000,
+                    open: candle.open.0,
+                    high: candle.high.0,
+                    low: candle.low.0,
+                    close: candle.close.0,
+                    volume: candle
+                        .volume
+                        .map_or_else(|| "0".to_owned(), |value| value.0),
+                });
             }
             interval_inserted |= !rows.is_empty();
             if !rows.is_empty() {
-                market_store.insert_candles(provider, &request.symbol, interval, &request.rehab_type, &request.session_scope, &rows).map_err(|error| error.to_string())?;
+                market_store
+                    .insert_candles(
+                        provider,
+                        &request.symbol,
+                        interval,
+                        &request.rehab_type,
+                        &request.session_scope,
+                        &rows,
+                    )
+                    .map_err(|error| error.to_string())?;
             }
             task.completed_batches += 1;
             persist_task(tasks, task, "running", None)?;
-            if !response.has_more { break; }
-            let next = response.next_before.as_deref().ok_or_else(|| "helper returned hasMore without nextBefore".to_owned()).and_then(parse_timestamp)?;
-            if next >= before || !seen.insert(next.unix_timestamp_nanos()) { return Err("helper pagination cursor did not move backward".to_owned()); }
+            if !response.has_more {
+                break;
+            }
+            let next = response
+                .next_before
+                .as_deref()
+                .ok_or_else(|| "helper returned hasMore without nextBefore".to_owned())
+                .and_then(parse_timestamp)?;
+            if next >= before || !seen.insert(next.unix_timestamp_nanos()) {
+                return Err("helper pagination cursor did not move backward".to_owned());
+            }
             if next <= since {
                 if !interval_inserted {
                     return Err("helper returned no candles in the requested range".to_owned());
@@ -261,17 +319,44 @@ async fn sync_request_pages(
     Ok(())
 }
 
-fn symbol_code(symbol: &str) -> &str { symbol.split_once('.').map_or(symbol, |(_, code)| code) }
-
-fn symbol_market(symbol: &str) -> &str { symbol.split_once('.').map_or("", |(market, _)| market) }
-
-fn interval_duration(interval: &str) -> time::Duration {
-    match interval { "1m" => time::Duration::minutes(1), "5m" => time::Duration::minutes(5), "15m" => time::Duration::minutes(15), "30m" => time::Duration::minutes(30), "1h" => time::Duration::hours(1), "1w" => time::Duration::days(7), "1mo" => time::Duration::days(30), _ => time::Duration::days(1) }
+fn symbol_code(symbol: &str) -> &str {
+    symbol.split_once('.').map_or(symbol, |(_, code)| code)
 }
 
-fn validate_helper_page(response: &HelperCandlesResponse, market: &str, symbol: &str, interval: &str) -> Result<(), String> {
+fn symbol_market(symbol: &str) -> &str {
+    symbol.split_once('.').map_or("", |(market, _)| market)
+}
+
+fn interval_duration(interval: &str) -> time::Duration {
+    match interval {
+        "1m" => time::Duration::minutes(1),
+        "5m" => time::Duration::minutes(5),
+        "15m" => time::Duration::minutes(15),
+        "30m" => time::Duration::minutes(30),
+        "1h" => time::Duration::hours(1),
+        "1w" => time::Duration::days(7),
+        "1mo" => time::Duration::days(30),
+        _ => time::Duration::days(1),
+    }
+}
+
+fn validate_helper_page(
+    response: &HelperCandlesResponse,
+    market: &str,
+    symbol: &str,
+    interval: &str,
+) -> Result<(), String> {
     let expected_instrument = format!("{market}.{}", symbol_code(symbol));
-    if !response.market.eq_ignore_ascii_case(market) || !response.symbol.eq_ignore_ascii_case(symbol_code(symbol)) || !response.instrument_id.eq_ignore_ascii_case(&expected_instrument) || response.period != interval || response.total_returned != response.candles.len() { return Err("helper candle response identity is invalid".to_owned()); }
+    if !response.market.eq_ignore_ascii_case(market)
+        || !response.symbol.eq_ignore_ascii_case(symbol_code(symbol))
+        || !response
+            .instrument_id
+            .eq_ignore_ascii_case(&expected_instrument)
+        || response.period != interval
+        || response.total_returned != response.candles.len()
+    {
+        return Err("helper candle response identity is invalid".to_owned());
+    }
     if response.has_more && response.candles.is_empty() {
         return Err("helper returned hasMore with an empty candle page".to_owned());
     }
@@ -299,10 +384,17 @@ fn is_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) -> Result<bool, St
 
 fn mark_task_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) {
     let timestamp = format_timestamp(time::OffsetDateTime::now_utc());
-    let _ = tasks.cancel(task_id, &timestamp);
+    if let Err(error) = tasks.cancel(task_id, &timestamp) {
+        eprintln!("backtest sync {task_id} cancellation persistence failed: {error}");
+    }
 }
 
-fn persist_task(tasks: &BacktestSyncTaskStore, task: &mut StoredBacktestSyncTask, status: &str, error: Option<String>) -> Result<(), String> {
+fn persist_task(
+    tasks: &BacktestSyncTaskStore,
+    task: &mut StoredBacktestSyncTask,
+    status: &str,
+    error: Option<String>,
+) -> Result<(), String> {
     task.status = status.to_owned();
     task.error = error;
     task.updated_at = format_timestamp(time::OffsetDateTime::now_utc());

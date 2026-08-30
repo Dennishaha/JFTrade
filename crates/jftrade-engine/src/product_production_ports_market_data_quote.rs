@@ -1,6 +1,5 @@
 //! Production market-data quote adapter for subscriptions, securities, snapshots, candles, and depth.
 
-use std::sync::{Arc, Mutex};
 use jftrade_calendar::CalendarManager;
 use jftrade_integration_marketdata_helper::{
     HelperCandlesResponse, HelperClient, HelperPriceValue, HelperSecurityResponse,
@@ -9,6 +8,7 @@ use jftrade_integration_marketdata_helper::{
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
+use std::sync::{Arc, Mutex};
 
 use super::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339, map_helper_quote_error,
@@ -65,24 +65,16 @@ impl ProductionMarketDataQuotePort {
     }
 
     fn active_provider(&self) -> Result<MarketDataProvider, MarketDataQuoteReadSnapshotError> {
-        self.active_provider_state
-            .get()
-            .ok_or_else(|| {
-                MarketDataQuoteReadSnapshotError::Unavailable(
-                    "active market-data provider is not configured".to_owned(),
-                )
-            })
+        self.active_provider_state.get().ok_or_else(|| {
+            MarketDataQuoteReadSnapshotError::Unavailable(
+                "active market-data provider is not configured".to_owned(),
+            )
+        })
     }
 }
 
-
-
 impl MarketDataQuoteReadSnapshotPort for ProductionMarketDataQuotePort {
-    fn read<'a>(
-        &'a self,
-        path: &'a str,
-        query: &'a str,
-    ) -> MarketDataQuoteReadFuture<'a> {
+    fn read<'a>(&'a self, path: &'a str, query: &'a str) -> MarketDataQuoteReadFuture<'a> {
         Box::pin(async move {
             if path == "/api/v1/market-data/subscriptions" {
                 return self.read_subscriptions();
@@ -229,14 +221,13 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
-        let query_map = QueryMap::parse(query).map_err(|_| {
-            MarketDataQuoteReadSnapshotError::Failed {
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
-            }
-        })?;
+            })?;
         let refresh = match query_map.get_first("refresh") {
             Some("true") | Some("1") => true,
             Some("false") | Some("0") | None => false,
@@ -403,14 +394,13 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
-        let query_map = QueryMap::parse(query).map_err(|_| {
-            MarketDataQuoteReadSnapshotError::Failed {
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
-            }
-        })?;
+            })?;
         let period_raw = query_map.get_first("period").unwrap_or("1m");
         let period = normalize_candle_period(period_raw).map_err(|_| {
             MarketDataQuoteReadSnapshotError::Failed {
@@ -441,20 +431,21 @@ impl ProductionMarketDataQuotePort {
             None => 200,
         };
 
-        let sessions_opt = parse_candle_sessions(query_map.get_all("sessions")).map_err(|err| match err {
-            CandleSessionError::Empty => MarketDataQuoteReadSnapshotError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid candle sessions: at least one session is required".to_owned(),
-                retry_after_seconds: None,
-            },
-            CandleSessionError::Invalid(token) => MarketDataQuoteReadSnapshotError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: format!("invalid candle sessions: {token:?}"),
-                retry_after_seconds: None,
-            },
-        })?;
+        let sessions_opt =
+            parse_candle_sessions(query_map.get_all("sessions")).map_err(|err| match err {
+                CandleSessionError::Empty => MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid candle sessions: at least one session is required".to_owned(),
+                    retry_after_seconds: None,
+                },
+                CandleSessionError::Invalid(token) => MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: format!("invalid candle sessions: {token:?}"),
+                    retry_after_seconds: None,
+                },
+            })?;
         let sessions = match sessions_opt {
             Some(s) => s,
             None => {
@@ -590,14 +581,13 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
-        let query_map = QueryMap::parse(query).map_err(|_| {
-            MarketDataQuoteReadSnapshotError::Failed {
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
-            }
-        })?;
+            })?;
         if let Some(num_str) = query_map.get_first("num")
             && num_str.parse::<usize>().is_err()
         {
@@ -630,14 +620,13 @@ impl ProductionMarketDataQuotePort {
         _instrument_id: &str,
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
-        let query_map = QueryMap::parse(query).map_err(|_| {
-            MarketDataQuoteReadSnapshotError::Failed {
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
-            }
-        })?;
+            })?;
         let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
         Err(MarketDataQuoteReadSnapshotError::Failed {
             status: 409,

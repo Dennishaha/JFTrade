@@ -52,11 +52,7 @@ impl ProductionUnavailablePort {
 macro_rules! impl_unavailable_read_port {
     ($trait_name:ident, $error_name:ident) => {
         impl $trait_name for ProductionUnavailablePort {
-            fn read(
-                &self,
-                _path: &str,
-                _query: &str,
-            ) -> Result<Value, $error_name> {
+            fn read(&self, _path: &str, _query: &str) -> Result<Value, $error_name> {
                 Err($error_name::Unavailable(self.reason.to_owned()))
             }
         }
@@ -66,11 +62,26 @@ macro_rules! impl_unavailable_read_port {
 impl_unavailable_read_port!(PortfolioSnapshotPort, PortfolioSnapshotError);
 impl_unavailable_read_port!(ResearchReadSnapshotPort, ResearchReadSnapshotError);
 impl_unavailable_read_port!(BrokerReadSnapshotPort, BrokerReadSnapshotError);
-impl_unavailable_read_port!(MarketDataDerivativeReadSnapshotPort, MarketDataDerivativeReadSnapshotError);
-impl_unavailable_read_port!(MarketDataOptionsReadSnapshotPort, MarketDataOptionsReadSnapshotError);
-impl_unavailable_read_port!(MarketDataNewsActionsReadSnapshotPort, MarketDataNewsActionsReadSnapshotError);
-impl_unavailable_read_port!(MarketDataNewsSearchReadSnapshotPort, MarketDataNewsSearchReadSnapshotError);
-impl_unavailable_read_port!(MarketDataPredictionReadSnapshotPort, MarketDataPredictionReadSnapshotError);
+impl_unavailable_read_port!(
+    MarketDataDerivativeReadSnapshotPort,
+    MarketDataDerivativeReadSnapshotError
+);
+impl_unavailable_read_port!(
+    MarketDataOptionsReadSnapshotPort,
+    MarketDataOptionsReadSnapshotError
+);
+impl_unavailable_read_port!(
+    MarketDataNewsActionsReadSnapshotPort,
+    MarketDataNewsActionsReadSnapshotError
+);
+impl_unavailable_read_port!(
+    MarketDataNewsSearchReadSnapshotPort,
+    MarketDataNewsSearchReadSnapshotError
+);
+impl_unavailable_read_port!(
+    MarketDataPredictionReadSnapshotPort,
+    MarketDataPredictionReadSnapshotError
+);
 
 impl MarketDataCatalogReadSnapshotPort for ProductionUnavailablePort {
     fn read<'a>(
@@ -79,9 +90,7 @@ impl MarketDataCatalogReadSnapshotPort for ProductionUnavailablePort {
         _query: &'a str,
     ) -> crate::product::MarketDataCatalogReadFuture<'a> {
         let reason = self.reason.to_owned();
-        Box::pin(async move {
-            Err(MarketDataCatalogReadSnapshotError::Unavailable(reason))
-        })
+        Box::pin(async move { Err(MarketDataCatalogReadSnapshotError::Unavailable(reason)) })
     }
 }
 
@@ -92,15 +101,15 @@ impl MarketDataQuoteReadSnapshotPort for ProductionUnavailablePort {
         _query: &'a str,
     ) -> crate::product::MarketDataQuoteReadFuture<'a> {
         let reason = self.reason.to_owned();
-        Box::pin(async move {
-            Err(MarketDataQuoteReadSnapshotError::Unavailable(reason))
-        })
+        Box::pin(async move { Err(MarketDataQuoteReadSnapshotError::Unavailable(reason)) })
     }
 }
 
 impl RemoteWatchlistSnapshotPort for ProductionUnavailablePort {
     fn read(&self, _query: &str) -> Result<Value, RemoteWatchlistSnapshotError> {
-        Err(RemoteWatchlistSnapshotError::Unavailable(self.reason.to_owned()))
+        Err(RemoteWatchlistSnapshotError::Unavailable(
+            self.reason.to_owned(),
+        ))
     }
 }
 
@@ -108,11 +117,9 @@ impl MarketDataProviderActionsPort for ProductionUnavailablePort {
     fn dispatch<'a>(
         &'a self,
         _request: &'a MarketDataProviderActionsRequest,
-    ) -> crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsFuture<'a> {
+    ) -> crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsFuture<'a>{
         let reason = self.reason.to_owned();
-        Box::pin(async move {
-            Err(MarketDataProviderActionsPortError::Unavailable(reason))
-        })
+        Box::pin(async move { Err(MarketDataProviderActionsPortError::Unavailable(reason)) })
     }
 }
 

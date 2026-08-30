@@ -4,9 +4,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use jftrade_store_sqlite::BacktestRunStore;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
+use super::ProductionBacktestPort;
+use super::product_production_ports_backtest_parse::provider_id;
+use super::product_production_ports_backtest_strategy::{
+    parse_start_request, resolve_strategy_payload,
+};
 use crate::product::product_backtest_execution::{
     BacktestExecutionCandle, BacktestExecutionPort, BacktestExecutionRequest, EXECUTION_TIMEOUT,
     next_run_id, now_timestamp,
@@ -14,17 +19,17 @@ use crate::product::product_backtest_execution::{
 use crate::product::product_backtests_write_port::{
     BacktestsWritePortError, BacktestsWritePortResult,
 };
-use super::product_production_ports_backtest_parse::provider_id;
-use super::product_production_ports_backtest_strategy::{
-    parse_start_request, resolve_strategy_payload,
-};
-use super::ProductionBacktestPort;
 
 impl ProductionBacktestPort {
     #[allow(dead_code)]
     pub(crate) fn cancel_backtest(&self, run_id: &str) -> bool {
-        let Some(run) = self.store.get_run(run_id).ok().flatten() else {
-            return false;
+        let run = match self.store.get_run(run_id) {
+            Ok(Some(run)) => run,
+            Ok(None) => return false,
+            Err(error) => {
+                eprintln!("backtest {run_id} failed to load before cancellation: {error}");
+                return false;
+            }
         };
         if matches!(run.status.as_str(), "completed" | "failed" | "cancelled") {
             return false;
@@ -36,18 +41,37 @@ impl ProductionBacktestPort {
             updated_at: timestamp.clone(),
             ..run
         };
-        if !self
-            .store
-            .update_run_if_status(run_id, "queued", cancelled.clone(), &timestamp)
-            .unwrap_or(false)
-            && !self
+        let queued =
+            match self
+                .store
+                .update_run_if_status(run_id, "queued", cancelled.clone(), &timestamp)
+            {
+                Ok(changed) => changed,
+                Err(error) => {
+                    eprintln!("backtest {run_id} queued cancellation failed: {error}");
+                    false
+                }
+            };
+        let running = if queued {
+            false
+        } else {
+            match self
                 .store
                 .update_run_if_status(run_id, "running", cancelled, &timestamp)
-                .unwrap_or(false)
-        {
+            {
+                Ok(changed) => changed,
+                Err(error) => {
+                    eprintln!("backtest {run_id} running cancellation failed: {error}");
+                    false
+                }
+            }
+        };
+        if !queued && !running {
             return false;
         }
-        let _ = self.execution_workers.cancel(run_id);
+        if !self.execution_workers.cancel(run_id) {
+            eprintln!("backtest {run_id} has no live execution worker to cancel");
+        }
         true
     }
 
@@ -56,7 +80,9 @@ impl ProductionBacktestPort {
         payload: &Value,
     ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
         let execution = self.execution.clone().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable("backtest worker runtime is not configured".to_owned())
+            BacktestsWritePortError::Unavailable(
+                "backtest worker runtime is not configured".to_owned(),
+            )
         })?;
         let execution_payload = resolve_strategy_payload(payload, &self.strategy_definitions)?;
         let provider = self.active_provider_state.get().ok_or_else(|| {
@@ -88,7 +114,9 @@ impl ProductionBacktestPort {
             ));
         }
         let runtime = tokio::runtime::Handle::try_current().map_err(|_| {
-            BacktestsWritePortError::Unavailable("backtest execution runtime is not available".to_owned())
+            BacktestsWritePortError::Unavailable(
+                "backtest execution runtime is not available".to_owned(),
+            )
         })?;
         let run_id = next_run_id();
         let timestamp = now_timestamp();
@@ -100,9 +128,9 @@ impl ProductionBacktestPort {
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
         };
-        self.store
-            .save_run(run, &timestamp)
-            .map_err(|error| BacktestsWritePortError::Failed(format!("persist backtest run: {error}")))?;
+        self.store.save_run(run, &timestamp).map_err(|error| {
+            BacktestsWritePortError::Failed(format!("persist backtest run: {error}"))
+        })?;
 
         let worker_request = BacktestExecutionRequest {
             run_id: run_id.clone(),
@@ -153,19 +181,41 @@ async fn execute_backtest_task(
     timeout: Duration,
 ) {
     let timestamp = now_timestamp();
-    let Some(run) = store.get_run(&request.run_id).ok().flatten() else {
-        return;
+    let run = match store.get_run(&request.run_id) {
+        Ok(Some(run)) => run,
+        Ok(None) => {
+            eprintln!("backtest {} disappeared before execution", request.run_id);
+            return;
+        }
+        Err(error) => {
+            eprintln!(
+                "backtest {} failed to load before execution: {error}",
+                request.run_id
+            );
+            return;
+        }
     };
     let running = jftrade_store_sqlite::StoredBacktestRun {
         status: "running".to_owned(),
         updated_at: timestamp.clone(),
         ..run.clone()
     };
-    if !store
-        .update_run_if_status(&request.run_id, "queued", running, &timestamp)
-        .unwrap_or(false)
-    {
-        return;
+    match store.update_run_if_status(&request.run_id, "queued", running, &timestamp) {
+        Ok(true) => {}
+        Ok(false) => {
+            eprintln!(
+                "backtest {} was changed before execution started",
+                request.run_id
+            );
+            return;
+        }
+        Err(error) => {
+            eprintln!(
+                "backtest {} failed to persist running state: {error}",
+                request.run_id
+            );
+            return;
+        }
     }
     let execution_request = request.clone();
     let join = tokio::task::spawn_blocking(move || execution.execute(execution_request));
@@ -191,8 +241,19 @@ async fn execute_backtest_task(
         TaskOutcome::Failed(message) => ("failed", json!({"error": message})),
     };
     let timestamp = now_timestamp();
-    let Some(run) = store.get_run(&request.run_id).ok().flatten() else {
-        return;
+    let run = match store.get_run(&request.run_id) {
+        Ok(Some(run)) => run,
+        Ok(None) => {
+            eprintln!("backtest {} disappeared before completion", request.run_id);
+            return;
+        }
+        Err(error) => {
+            eprintln!(
+                "backtest {} failed to load before completion: {error}",
+                request.run_id
+            );
+            return;
+        }
     };
     let terminal = jftrade_store_sqlite::StoredBacktestRun {
         status: status.to_owned(),
@@ -200,7 +261,17 @@ async fn execute_backtest_task(
         updated_at: timestamp.clone(),
         ..run
     };
-    let _ = store.update_run_if_status(&request.run_id, "running", terminal, &timestamp);
+    match store.update_run_if_status(&request.run_id, "running", terminal, &timestamp) {
+        Ok(true) => {}
+        Ok(false) => eprintln!(
+            "backtest {} completion was superseded by another state transition",
+            request.run_id
+        ),
+        Err(error) => eprintln!(
+            "backtest {} failed to persist terminal state: {error}",
+            request.run_id
+        ),
+    }
 }
 
 enum TaskOutcome {

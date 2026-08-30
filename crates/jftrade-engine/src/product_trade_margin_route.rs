@@ -5,13 +5,10 @@ use std::sync::Arc;
 use jftrade_integration_futu::{TradeMarginRatioSnapshot, TradeReadPort, TradeSecurity};
 use serde_json::{Value, json};
 
-use super::product_trade_margin_cache::{
-    MARGIN_RATIO_CACHE_FALLBACK_TTL, MARGIN_RATIO_CACHE_TTL,
-};
+use super::product_trade_margin_cache::{MARGIN_RATIO_CACHE_FALLBACK_TTL, MARGIN_RATIO_CACHE_TTL};
 use super::{
-    BrokerReadSnapshotError, ResolvedTradeRequest,
-    SharedTradeReadRuntime, TradeRequest, checked_at, map_broker_header_error,
-    margin_ratio_value, session_error, qot_market_label,
+    BrokerReadSnapshotError, ResolvedTradeRequest, SharedTradeReadRuntime, TradeRequest,
+    checked_at, map_broker_header_error, margin_ratio_value, qot_market_label, session_error,
 };
 
 impl SharedTradeReadRuntime {
@@ -44,9 +41,9 @@ pub(super) fn read_margin_ratios(
         .resolve_account_real_for_market(client, securities[0].market)
         .map_err(map_broker_header_error)?;
     let cache_key = margin_ratio_cache_key(&resolved, &securities);
-    if let Some(ratios) = runtime.and_then(|runtime| {
-        runtime.margin_ratio_cache_get(&cache_key, MARGIN_RATIO_CACHE_TTL)
-    }) {
+    if let Some(ratios) = runtime
+        .and_then(|runtime| runtime.margin_ratio_cache_get(&cache_key, MARGIN_RATIO_CACHE_TTL))
+    {
         return Ok(project_margin_ratios(&resolved, ratios));
     }
 
@@ -82,10 +79,7 @@ fn project_margin_ratios(
     })
 }
 
-fn margin_ratio_cache_key(
-    resolved: &ResolvedTradeRequest,
-    securities: &[TradeSecurity],
-) -> String {
+fn margin_ratio_cache_key(resolved: &ResolvedTradeRequest, securities: &[TradeSecurity]) -> String {
     let mut symbols = securities
         .iter()
         .map(|security| {

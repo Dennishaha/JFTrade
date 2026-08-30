@@ -8,9 +8,7 @@ use super::{AdkReadSnapshot, AdkReadSnapshotError, ProductionAdkPort, invalid_pa
 
 const WINDOW_DAYS: i64 = 7;
 
-pub(super) fn read(
-    port: &ProductionAdkPort,
-) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
+pub(super) fn read(port: &ProductionAdkPort) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {
     let now = OffsetDateTime::now_utc();
     let since = now - Duration::days(WINDOW_DAYS);
     let runs = port.store.list_runs()?;
@@ -362,7 +360,10 @@ fn provider_id<'a>(
     if !run_provider.is_empty() {
         return run_provider;
     }
-    let agent_provider = agent_providers.get(agent_id).map_or("", String::as_str).trim();
+    let agent_provider = agent_providers
+        .get(agent_id)
+        .map_or("", String::as_str)
+        .trim();
     if agent_provider.is_empty() {
         "unbound"
     } else {
@@ -414,7 +415,7 @@ fn parse_timestamp(value: &str) -> Option<OffsetDateTime> {
 }
 
 fn format_timestamp(value: OffsetDateTime) -> Result<String, AdkReadSnapshotError> {
-    value
-        .format(&Rfc3339)
-        .map_err(|error| AdkReadSnapshotError::Unavailable(format!("format ADK metrics timestamp: {error}")))
+    value.format(&Rfc3339).map_err(|error| {
+        AdkReadSnapshotError::Unavailable(format!("format ADK metrics timestamp: {error}"))
+    })
 }

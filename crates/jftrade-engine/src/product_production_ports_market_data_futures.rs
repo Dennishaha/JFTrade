@@ -390,14 +390,14 @@ mod tests {
     #[test]
     fn rejects_unsupported_operation_empty_symbol_and_non_futu_market() {
         let reader = FixtureReader { values: Vec::new() };
-        for query in [
-            "market=US&instrumentId=",
-            "market=SH",
-        ] {
-            assert!(matches!(
-                read(Some(&reader), "/api/v1/market-data/futures", query),
-                Err(MarketDataDerivativeReadSnapshotError::Failed { status: 400, .. }),
-            ), "query {query}");
+        for query in ["market=US&instrumentId=", "market=SH"] {
+            assert!(
+                matches!(
+                    read(Some(&reader), "/api/v1/market-data/futures", query),
+                    Err(MarketDataDerivativeReadSnapshotError::Failed { status: 400, .. }),
+                ),
+                "query {query}"
+            );
         }
         let error = read(
             Some(&reader),
@@ -418,11 +418,9 @@ mod tests {
 
     #[test]
     fn maps_closed_opend_session_to_unavailable() {
-        let error = map_reader_error(
-            jftrade_integration_futu::FutureInfoQueryError::Session(
-                jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
-            ),
-        );
+        let error = map_reader_error(jftrade_integration_futu::FutureInfoQueryError::Session(
+            jftrade_integration_futu::OpenDSessionCoordinatorError::Closed,
+        ));
         assert!(matches!(
             error,
             MarketDataDerivativeReadSnapshotError::Unavailable(message)

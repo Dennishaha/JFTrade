@@ -1,18 +1,15 @@
-use super::*;
 use super::product_backtest_sync_request::parse_sync_request;
-use jftrade_settings::MarketDataProvider;
-use jftrade_store_sqlite::{StoredBacktestCandle, StoredBacktestSyncTask};
+use super::*;
 use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 use crate::product::{BacktestExecutionError, BacktestExecutionPort, BacktestExecutionRequest};
+use jftrade_settings::MarketDataProvider;
+use jftrade_store_sqlite::{StoredBacktestCandle, StoredBacktestSyncTask};
 
 #[derive(Debug)]
 struct FixtureExecution;
 
 impl BacktestExecutionPort for FixtureExecution {
-    fn execute(
-        &self,
-        request: BacktestExecutionRequest,
-    ) -> Result<Value, BacktestExecutionError> {
+    fn execute(&self, request: BacktestExecutionRequest) -> Result<Value, BacktestExecutionError> {
         Ok(json!({
             "runId": request.run_id,
             "bars": request.candles.len(),
@@ -53,7 +50,10 @@ fn sync_request_defaults_match_public_contract_without_provider_success() {
     assert_eq!(request.symbol, "HK.00700");
     assert_eq!(request.session_scope, "regular");
     assert_eq!(request.rehab_type, "forward");
-    assert_eq!(request.intervals, ["1m", "5m", "15m", "30m", "1h", "1d", "1w"]);
+    assert_eq!(
+        request.intervals,
+        ["1m", "5m", "15m", "30m", "1h", "1d", "1w"]
+    );
 }
 
 fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
@@ -103,9 +103,9 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             sync_tasks,
             _market_data_store: market_data,
             helper: None,
-            active_provider_state: std::sync::Arc::new(
-                ActiveProviderState::new(Some(MarketDataProvider::Yfinance)),
-            ),
+            active_provider_state: std::sync::Arc::new(ActiveProviderState::new(Some(
+                MarketDataProvider::Yfinance,
+            ))),
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
             execution: None,
             execution_workers: std::sync::Arc::new(BacktestExecutionTaskRegistry::default()),
@@ -136,7 +136,10 @@ fn production_sync_read_projects_persisted_task() {
             revision: 0,
         })
         .expect("persist task");
-    let projected = port.progress("sync-production").expect("project task").unwrap();
+    let projected = port
+        .progress("sync-production")
+        .expect("project task")
+        .unwrap();
     assert_eq!(projected["status"], "running");
     assert_eq!(projected["completedIntervals"], 1);
     assert!(port.progress("missing").expect("missing task").is_none());

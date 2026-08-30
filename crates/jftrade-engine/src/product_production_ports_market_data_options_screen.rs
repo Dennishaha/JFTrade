@@ -20,19 +20,15 @@ pub(crate) fn read(
         ));
     }
     let request = parse_request(query)?;
-    let page = runtime
-        .option_screens(&request)
-        .map_err(map_error)?;
+    let page = runtime.option_screens(&request).map_err(map_error)?;
     let entries = page
         .items
         .into_iter()
         .map(|item| {
-            serde_json::to_value(item).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!("failed to serialize OpenD option screen: {error}"),
-                }
+            serde_json::to_value(item).map_err(|error| MarketDataOptionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: format!("failed to serialize OpenD option screen: {error}"),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -75,11 +71,7 @@ fn parse_request(
         "HK" => 3,
         _ => return Err(bad_request("option screen market must be HK or US")),
     };
-    let market_categories = parse_list(
-        &query_map,
-        "marketCategoryList",
-        Some(default_category),
-    )?;
+    let market_categories = parse_list(&query_map, "marketCategoryList", Some(default_category))?;
     let page_from = parse_optional_i32(&query_map, "pageFrom")?;
     let page_count = query_map
         .get_first("pageSize")
@@ -129,9 +121,10 @@ fn parse_optional_i32(
 }
 
 fn parse_i32(value: &str, key: &str) -> Result<i32, MarketDataOptionsReadSnapshotError> {
-    value.trim().parse::<i32>().map_err(|_| {
-        bad_request(&format!("{key} must contain integer values"))
-    })
+    value
+        .trim()
+        .parse::<i32>()
+        .map_err(|_| bad_request(&format!("{key} must contain integer values")))
 }
 
 fn bad_request(message: &str) -> MarketDataOptionsReadSnapshotError {

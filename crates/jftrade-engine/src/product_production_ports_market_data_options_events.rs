@@ -5,6 +5,10 @@ use serde_json::{Value, json};
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::MarketDataOptionsReadSnapshotError;
 
+#[path = "product_production_ports_market_data_options_events_errors.rs"]
+mod errors;
+use errors::*;
+
 pub(crate) fn read(
     runtime: Option<&Arc<SharedTradeReadRuntime>>,
     query: &str,
@@ -101,13 +105,21 @@ fn read_zero_dte(
             "Futu 0DTE screener reader is not ready".to_owned(),
         ));
     }
-    let request = jftrade_integration_futu::OptionZeroDteScreenerQuery { option_market, sort_type, is_asc, count, page, filters };
+    let request = jftrade_integration_futu::OptionZeroDteScreenerQuery {
+        option_market,
+        sort_type,
+        is_asc,
+        count,
+        page,
+        filters,
+    };
     let page = runtime
         .option_zero_dte_screener(&request)
         .map_err(map_zero_dte_error)?;
     let mut entries = Vec::with_capacity(page.items.len());
     for item in page.items {
-        let mut value = serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string()))?;
+        let mut value =
+            serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string()))?;
         if let Some(chain) = value.get("chainInfo").cloned() {
             let underlying = value
                 .get("owner")
@@ -159,8 +171,16 @@ fn read_earnings(
             "Futu earnings screener reader is not ready".to_owned(),
         ));
     }
-    let (option_market, sort_type, is_asc, count, page, filters) = parse_screener_common(query, false)?;
-    let request = jftrade_integration_futu::OptionEarningsScreenerQuery { option_market, sort_type, is_asc, count, page, filters };
+    let (option_market, sort_type, is_asc, count, page, filters) =
+        parse_screener_common(query, false)?;
+    let request = jftrade_integration_futu::OptionEarningsScreenerQuery {
+        option_market,
+        sort_type,
+        is_asc,
+        count,
+        page,
+        filters,
+    };
     let page = runtime
         .option_earnings_screener(&request)
         .map_err(map_earnings_error)?;
@@ -169,7 +189,12 @@ fn read_earnings(
         .into_iter()
         .map(|item| serde_json::to_value(item).map_err(|error| bad_gateway(error.to_string())))
         .collect::<Result<Vec<_>, _>>()?;
-    screener_result(entries, page.next_page, page.update_timestamp, page.all_count)
+    screener_result(
+        entries,
+        page.next_page,
+        page.update_timestamp,
+        page.all_count,
+    )
 }
 
 fn read_seller(
@@ -310,18 +335,39 @@ fn screener_result(
         "hasMore": has_more,
         "total": total,
     });
-    if let Some(next) = next_page { result["nextCursor"] = Value::String(next); }
-    if let Some(timestamp) = update_timestamp { result["updateTimestamp"] = json!(timestamp); }
+    if let Some(next) = next_page {
+        result["nextCursor"] = Value::String(next);
+    }
+    if let Some(timestamp) = update_timestamp {
+        result["updateTimestamp"] = json!(timestamp);
+    }
     Ok(result)
 }
 
 fn parse_screener_common(
     query: &str,
     zero_dte: bool,
-) -> Result<(i32, Option<i32>, Option<bool>, i32, Option<String>, Vec<jftrade_integration_futu::EventIndicator>), MarketDataOptionsReadSnapshotError> {
-    let map = crate::product::product_query::QueryMap::parse(query).map_err(|_| bad_request("invalid URL escape"))?;
-    let market = map.get_first("market").map(|value| value.trim().to_ascii_uppercase()).unwrap_or_else(|| "US".to_owned());
-    let product_class = map.get_first("underlyingProductClass").map(|value| value.trim().to_ascii_lowercase()).unwrap_or_else(|| "equity".to_owned());
+) -> Result<
+    (
+        i32,
+        Option<i32>,
+        Option<bool>,
+        i32,
+        Option<String>,
+        Vec<jftrade_integration_futu::EventIndicator>,
+    ),
+    MarketDataOptionsReadSnapshotError,
+> {
+    let map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| bad_request("invalid URL escape"))?;
+    let market = map
+        .get_first("market")
+        .map(|value| value.trim().to_ascii_uppercase())
+        .unwrap_or_else(|| "US".to_owned());
+    let product_class = map
+        .get_first("underlyingProductClass")
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "equity".to_owned());
     let option_market = match (market.as_str(), product_class.as_str(), zero_dte) {
         ("US", "equity" | "option" | "", true) => 1,
         ("US", "index", true) => 2,
@@ -329,11 +375,26 @@ fn parse_screener_common(
         ("HK", "equity" | "option" | "", false) => 3,
         ("HK", "index", false) => 4,
         _ if zero_dte => return Err(zero_dte_market_unavailable()),
-        _ => return Err(bad_request("earnings screener supports US/HK security options only")),
+        _ => {
+            return Err(bad_request(
+                "earnings screener supports US/HK security options only",
+            ));
+        }
     };
-    let count = map.get_first("pageSize").or_else(|| map.get_first("count")).map(|value| parse_i32(value, "pageSize")).transpose()?.unwrap_or(50);
-    if !(1..=500).contains(&count) { return Err(bad_request("pageSize must be between 1 and 500")); }
-    let page = map.get_first("cursor").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned);
+    let count = map
+        .get_first("pageSize")
+        .or_else(|| map.get_first("count"))
+        .map(|value| parse_i32(value, "pageSize"))
+        .transpose()?
+        .unwrap_or(50);
+    if !(1..=500).contains(&count) {
+        return Err(bad_request("pageSize must be between 1 and 500"));
+    }
+    let page = map
+        .get_first("cursor")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
     let sort_type = map
         .get_first("sortType")
         .or_else(|| map.get_first("sort"))
@@ -376,9 +437,34 @@ fn parse_screener_common(
             Ok(number)
         })
         .transpose()?;
-    let is_asc = map.get_first("isAsc").map(|value| match value.trim().to_ascii_lowercase().as_str() { "true" | "1" => Ok(true), "false" | "0" => Ok(false), _ => Err(bad_request("isAsc must be true or false")) }).transpose()?;
-    let owner = map.get_first("underlying").or_else(|| map.get_first("instrumentId")).or_else(|| map.get_first("code"));
-    let filters = owner.filter(|value| !value.trim().is_empty()).map(|value| parse_owner(value, &market)).transpose()?.map(|owner| vec![jftrade_integration_futu::EventIndicator { indicator_type: 1, value: Some(jftrade_integration_futu::EventIndicatorValue { value_list: Vec::new(), value_interval: None, string_value_list: Vec::new(), security_list: vec![owner] }) }]).unwrap_or_default();
+    let is_asc = map
+        .get_first("isAsc")
+        .map(|value| match value.trim().to_ascii_lowercase().as_str() {
+            "true" | "1" => Ok(true),
+            "false" | "0" => Ok(false),
+            _ => Err(bad_request("isAsc must be true or false")),
+        })
+        .transpose()?;
+    let owner = map
+        .get_first("underlying")
+        .or_else(|| map.get_first("instrumentId"))
+        .or_else(|| map.get_first("code"));
+    let filters = owner
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| parse_owner(value, &market))
+        .transpose()?
+        .map(|owner| {
+            vec![jftrade_integration_futu::EventIndicator {
+                indicator_type: 1,
+                value: Some(jftrade_integration_futu::EventIndicatorValue {
+                    value_list: Vec::new(),
+                    value_interval: None,
+                    string_value_list: Vec::new(),
+                    security_list: vec![owner],
+                }),
+            }]
+        })
+        .unwrap_or_default();
     Ok((option_market, sort_type, is_asc, count, page, filters))
 }
 
@@ -421,8 +507,7 @@ fn parse_zero_dte_contract_query(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(chain_context_required)?;
-    let owner = parse_owner(instrument_id, "US")
-        .map_err(|_| chain_context_required())?;
+    let owner = parse_owner(instrument_id, "US").map_err(|_| chain_context_required())?;
     let expiry = map
         .get_first("expiryTimestamp")
         .ok_or_else(chain_context_required)?
@@ -588,7 +673,10 @@ fn parse_owner(
 fn parse_sort(
     query: &crate::product::product_query::QueryMap,
 ) -> Result<Option<jftrade_integration_futu::EventSort>, MarketDataOptionsReadSnapshotError> {
-    let Some(value) = query.get_first("sort").filter(|value| !value.trim().is_empty()) else {
+    let Some(value) = query
+        .get_first("sort")
+        .filter(|value| !value.trim().is_empty())
+    else {
         return Ok(None);
     };
     let indicator_type = match value.trim().to_ascii_lowercase().as_str() {
@@ -661,68 +749,5 @@ fn zero_dte_market_unavailable() -> MarketDataOptionsReadSnapshotError {
         status: 422,
         code: "OPTION_ZERO_DTE_UNAVAILABLE".to_owned(),
         message: "0DTE option research is available only in the US market".to_owned(),
-    }
-}
-
-fn map_error(
-    error: jftrade_integration_futu::OptionEventQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    match error {
-        jftrade_integration_futu::OptionEventQueryError::InvalidQuery(message) => {
-            bad_request(&message)
-        }
-        other => MarketDataOptionsReadSnapshotError::Failed {
-            status: 502,
-            code: "BAD_GATEWAY".to_owned(),
-            message: other.to_string(),
-        },
-    }
-}
-
-fn map_zero_dte_error(
-    error: jftrade_integration_futu::OptionZeroDteScreenerQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    use jftrade_integration_futu::OptionZeroDteScreenerQueryError as Error;
-    match error {
-        Error::InvalidQuery(message) => bad_request(&message),
-        other => bad_gateway(other.to_string()),
-    }
-}
-
-fn map_earnings_error(
-    error: jftrade_integration_futu::OptionEarningsScreenerQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    use jftrade_integration_futu::OptionEarningsScreenerQueryError as Error;
-    match error {
-        Error::InvalidQuery(message) => bad_request(&message),
-        other => bad_gateway(other.to_string()),
-    }
-}
-
-fn map_seller_error(
-    error: jftrade_integration_futu::OptionSellerScreenerQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    use jftrade_integration_futu::OptionSellerScreenerQueryError as Error;
-    match error {
-        Error::InvalidQuery(message) => bad_request(&message),
-        other => bad_gateway(other.to_string()),
-    }
-}
-
-fn map_zero_dte_contract_error(
-    error: jftrade_integration_futu::OptionZeroDteContractQueryError,
-) -> MarketDataOptionsReadSnapshotError {
-    use jftrade_integration_futu::OptionZeroDteContractQueryError as Error;
-    match error {
-        Error::InvalidQuery(message) => context_bad_request(&message),
-        other => bad_gateway(other.to_string()),
-    }
-}
-
-fn bad_gateway(message: String) -> MarketDataOptionsReadSnapshotError {
-    MarketDataOptionsReadSnapshotError::Failed {
-        status: 502,
-        code: "BAD_GATEWAY".to_owned(),
-        message,
     }
 }

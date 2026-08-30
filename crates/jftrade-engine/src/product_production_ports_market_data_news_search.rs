@@ -40,6 +40,14 @@ pub(crate) fn read(
             "requested broker {requested:?} does not match active provider"
         )));
     }
+    if provider == MarketDataProvider::Futu {
+        if !snapshot.opend_ready {
+            return Err(MarketDataNewsSearchReadSnapshotError::Unavailable(
+                "Futu OpenD news runtime is not ready".to_owned(),
+            ));
+        }
+        return read_futu_news(port.trade_runtime.as_ref(), query);
+    }
     let provider_name = helper_provider(provider)?;
     if !snapshot.helper_ready {
         return Err(MarketDataNewsSearchReadSnapshotError::Unavailable(
@@ -77,6 +85,158 @@ fn helper_provider(
         MarketDataProvider::Futu => Err(search_capability(
             "Futu news search reader is not registered",
         )),
+    }
+}
+
+pub(crate) fn read_futu_news(
+    runtime: Option<
+        &std::sync::Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>,
+    >,
+    query: &str,
+) -> Result<Value, MarketDataNewsSearchReadSnapshotError> {
+    let runtime = runtime.ok_or_else(|| {
+        MarketDataNewsSearchReadSnapshotError::Unavailable(
+            "Futu news runtime is not configured".to_owned(),
+        )
+    })?;
+    if !runtime.news_reader_available() {
+        return Err(MarketDataNewsSearchReadSnapshotError::Unavailable(
+            "Futu news reader is not ready".to_owned(),
+        ));
+    }
+    let query_map = QueryMap::parse(query).map_err(|_| search_bad_request("invalid URL escape"))?;
+    let instrument = query_map
+        .get_first("instrumentId")
+        .or_else(|| query_map.get_first("instrument"))
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let instrument_keyword = instrument
+        .and_then(|value| value.rsplit_once('.').map(|(_, code)| code))
+        .or(instrument)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let keyword = query_map
+        .get_first("keyword")
+        .or_else(|| query_map.get_first("query"))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or(instrument_keyword)
+        .ok_or_else(|| search_bad_request("news search requires keyword or instrumentId"))?;
+    let max_count = query_map
+        .get_first("pageSize")
+        .or_else(|| query_map.get_first("limit"))
+        .map(|value| value.trim().parse::<i32>().ok())
+        .flatten()
+        .map_or(10, |value| value.clamp(1, 50));
+    let news_sub_type = query_map
+        .get_first("newsSubType")
+        .or_else(|| query_map.get_first("newsType"))
+        .map(|value| {
+            value
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| search_bad_request("newsSubType must be an integer"))
+        })
+        .transpose()?;
+    let request = jftrade_integration_futu::FutuNewsQuery {
+        keyword: keyword.to_owned(),
+        max_count,
+        news_sub_type,
+    };
+    let result = runtime.news(&request).map_err(map_futu_news_error)?;
+    let entries = result
+        .entries
+        .into_iter()
+        .map(|entry| {
+            let mut value = Map::new();
+            value.insert(
+                "title".to_owned(),
+                entry.title.map(Value::String).unwrap_or(Value::Null),
+            );
+            value.insert(
+                "link".to_owned(),
+                entry.url.map(Value::String).unwrap_or(Value::Null),
+            );
+            value.insert(
+                "publisher".to_owned(),
+                entry.source.map(Value::String).unwrap_or(Value::Null),
+            );
+            value.insert(
+                "publishedAt".to_owned(),
+                entry.published_at.map(Value::String).unwrap_or(Value::Null),
+            );
+            if let Some(view_count) = entry.view_count {
+                value.insert("viewCount".to_owned(), json!(view_count));
+            }
+            if !entry.related_securities.is_empty() {
+                value.insert(
+                    "relatedSecurities".to_owned(),
+                    json!(entry.related_securities),
+                );
+            }
+            Value::Object(value)
+        })
+        .collect::<Vec<_>>();
+    let as_of = entries
+        .iter()
+        .filter_map(|entry| entry.get("publishedAt").and_then(Value::as_str))
+        .filter_map(|value| {
+            time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
+        })
+        .max()
+        .and_then(|value| {
+            value
+                .format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
+        .unwrap_or_else(|| super::super::provider_now_rfc3339());
+    let total = entries.len();
+    let mut response = json!({
+        "provider": {
+            "brokerId": "futu",
+            "securityFirm": "Futu/Moomoo via OpenD",
+            "featureId": "research.news",
+            "capability": "available",
+            "selectionReason": "adapter_request",
+            "resolvedAt": as_of,
+            "asOf": as_of,
+        },
+        "asOf": as_of,
+        "entries": entries,
+        "hasMore": false,
+        "total": total,
+        "metadata": {"source": "futu-opend", "keyword": keyword},
+    });
+    if let Some(instrument) = instrument {
+        let (market, code) = instrument
+            .split_once('.')
+            .map_or(("", instrument), |pair| pair);
+        let market = market.trim().to_ascii_uppercase();
+        let code = code.trim().to_ascii_uppercase();
+        if !market.is_empty() && !code.is_empty() {
+            response["resolvedInstrument"] = json!({
+                "instrumentId": format!("{market}.{code}"),
+                "code": code,
+                "productClass": "unknown",
+                "marketSegment": "securities",
+                "quoteMarket": market,
+                "tradeMarket": market,
+                "quantityMode": "units",
+            });
+        }
+    }
+    Ok(response)
+}
+
+fn map_futu_news_error(message: String) -> MarketDataNewsSearchReadSnapshotError {
+    if message.starts_with("invalid OpenD news query") {
+        return search_bad_request(&message);
+    }
+    MarketDataNewsSearchReadSnapshotError::Failed {
+        status: 502,
+        code: "FUTU_NEWS_FAILED".to_owned(),
+        message,
+        retry_after_seconds: None,
     }
 }
 

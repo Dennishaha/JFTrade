@@ -37,14 +37,10 @@ pub(crate) fn read(
     let entries = items
         .into_iter()
         .map(|item| {
-            serde_json::to_value(item).map_err(|error| {
-                MarketDataOptionsReadSnapshotError::Failed {
-                    status: 502,
-                    code: "BAD_GATEWAY".to_owned(),
-                    message: format!(
-                        "failed to serialize OpenD option historical volatility: {error}"
-                    ),
-                }
+            serde_json::to_value(item).map_err(|error| MarketDataOptionsReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: format!("failed to serialize OpenD option historical volatility: {error}"),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -108,7 +104,11 @@ fn parse_request(
     let market_code = match market.as_str() {
         "HK" => 1,
         "US" => 11,
-        _ => return Err(bad_request("option historical volatility market must be HK or US")),
+        _ => {
+            return Err(bad_request(
+                "option historical volatility market must be HK or US",
+            ));
+        }
     };
     let code = code.trim();
     if code.is_empty()
@@ -195,9 +195,9 @@ fn map_error(
     error: jftrade_integration_futu::OptionUnderlyingHisVolatilityQueryError,
 ) -> MarketDataOptionsReadSnapshotError {
     match error {
-        jftrade_integration_futu::OptionUnderlyingHisVolatilityQueryError::InvalidQuery(message) => {
-            bad_request(&message)
-        }
+        jftrade_integration_futu::OptionUnderlyingHisVolatilityQueryError::InvalidQuery(
+            message,
+        ) => bad_request(&message),
         other => MarketDataOptionsReadSnapshotError::Failed {
             status: 502,
             code: "BAD_GATEWAY".to_owned(),

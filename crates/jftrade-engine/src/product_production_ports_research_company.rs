@@ -7,8 +7,8 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::product::product_query::QueryMap;
 use crate::product::ResearchReadSnapshotError;
+use crate::product::product_query::QueryMap;
 
 pub(super) type ResearchHelperRequest = (&'static str, String, String, Vec<(&'static str, String)>);
 
@@ -16,7 +16,8 @@ pub(super) fn research_helper_request(
     path: &str,
     query: &str,
 ) -> Result<ResearchHelperRequest, ResearchReadSnapshotError> {
-    let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/research/financials/") {
+    let (operation, suffix) = if let Some(value) = path.strip_prefix("/api/v1/research/financials/")
+    {
         ("financials", value)
     } else if let Some(value) = path.strip_prefix("/api/v1/research/analyst/") {
         ("analyst", value)
@@ -46,8 +47,7 @@ pub(super) fn research_helper_request(
     }
     let market = market.to_ascii_uppercase();
     let symbol = canonical_symbol(&market, symbol);
-    let query_map = QueryMap::parse(query)
-        .map_err(|_| invalid("invalid URL escape"))?;
+    let query_map = QueryMap::parse(query).map_err(|_| invalid("invalid URL escape"))?;
     if let Some(requested) = query_map
         .get_first("operation")
         .map(str::trim)
@@ -61,7 +61,10 @@ pub(super) fn research_helper_request(
             "corporate-actions" => ["dividends"].as_slice(),
             _ => [].as_slice(),
         };
-        if !accepted.iter().any(|value| value.eq_ignore_ascii_case(requested)) {
+        if !accepted
+            .iter()
+            .any(|value| value.eq_ignore_ascii_case(requested))
+        {
             return Err(capability(operation, requested));
         }
     }
@@ -105,7 +108,9 @@ pub(super) fn project_research_payload(
     let requested_symbol = canonical_symbol(requested_market, requested_symbol);
     let expected_id = format!("{}.{}", requested_market, requested_symbol).to_ascii_uppercase();
     if !instrument_id.eq_ignore_ascii_case(&expected_id) {
-        return Err(bad_gateway("research response instrument_id does not match request"));
+        return Err(bad_gateway(
+            "research response instrument_id does not match request",
+        ));
     }
     if operation == "profile" {
         let market = required_text(object, "market")?;
@@ -261,7 +266,10 @@ fn project_financials(
     expected_statement: Option<&str>,
 ) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
     let statement = required_text(object, "statement")?;
-    if !matches!(statement.to_ascii_lowercase().as_str(), "income" | "balance" | "cashflow") {
+    if !matches!(
+        statement.to_ascii_lowercase().as_str(),
+        "income" | "balance" | "cashflow"
+    ) {
         return Err(bad_gateway("financial statement kind is invalid"));
     }
     if expected_statement.is_some_and(|expected| !statement.eq_ignore_ascii_case(expected)) {
@@ -288,7 +296,9 @@ fn project_financials(
             .ok_or_else(|| bad_gateway("financial period values must be an object"))?;
         let mut item_list = Vec::new();
         for field_id in &field_ids {
-            let Some(value) = values.get(field_id) else { continue };
+            let Some(value) = values.get(field_id) else {
+                continue;
+            };
             let value = object_entry(value, "financial value")?;
             let mut item = Map::new();
             item.insert("fieldId".to_owned(), json!(field_id));
@@ -335,7 +345,11 @@ fn project_analyst(
     if let Some(update_time) = optional_text(object, "update_time")? {
         entry.insert("updateTimeStr".to_owned(), json!(update_time));
     }
-    Ok((vec![Value::Object(entry)], Map::new(), "market-data-analyst".to_owned()))
+    Ok((
+        vec![Value::Object(entry)],
+        Map::new(),
+        "market-data-analyst".to_owned(),
+    ))
 }
 
 fn project_ownership(
@@ -390,7 +404,9 @@ fn project_corporate_actions(
     if !market.eq_ignore_ascii_case(requested_market)
         || !symbol.eq_ignore_ascii_case(&requested_symbol)
     {
-        return Err(bad_gateway("corporate actions identity does not match request"));
+        return Err(bad_gateway(
+            "corporate actions identity does not match request",
+        ));
     }
     let source = required_text(object, "source")?.to_owned();
     let mut entries = Vec::new();
@@ -430,7 +446,10 @@ fn project_corporate_actions(
     Ok((entries, Map::new(), source))
 }
 
-fn required_text<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a str, ResearchReadSnapshotError> {
+fn required_text<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a str, ResearchReadSnapshotError> {
     object
         .get(key)
         .and_then(Value::as_str)
@@ -439,17 +458,28 @@ fn required_text<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a st
         .ok_or_else(|| bad_gateway(format!("research response is missing {key}")))
 }
 
-fn optional_text<'a>(object: &'a Map<String, Value>, key: &str) -> Result<Option<&'a str>, ResearchReadSnapshotError> {
-    let Some(value) = object.get(key) else { return Ok(None) };
-    if value.is_null() { return Ok(None) }
-    value.as_str()
+fn optional_text<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Option<&'a str>, ResearchReadSnapshotError> {
+    let Some(value) = object.get(key) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    value
+        .as_str()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(Some)
         .ok_or_else(|| bad_gateway(format!("research response field {key} must be a string")))
 }
 
-fn required_array<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a [Value], ResearchReadSnapshotError> {
+fn required_array<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<&'a [Value], ResearchReadSnapshotError> {
     match object.get(key) {
         None | Some(Value::Null) => Ok(&[]),
         Some(value) => value
@@ -459,21 +489,45 @@ fn required_array<'a>(object: &'a Map<String, Value>, key: &str) -> Result<&'a [
     }
 }
 
-fn object_entry<'a>(value: &'a Value, label: &str) -> Result<&'a Map<String, Value>, ResearchReadSnapshotError> {
-    value.as_object().ok_or_else(|| bad_gateway(format!("{label} must be an object")))
+fn object_entry<'a>(
+    value: &'a Value,
+    label: &str,
+) -> Result<&'a Map<String, Value>, ResearchReadSnapshotError> {
+    value
+        .as_object()
+        .ok_or_else(|| bad_gateway(format!("{label} must be an object")))
 }
 
-fn optional_object<'a>(object: &'a Map<String, Value>, key: &str) -> Result<Option<&'a Map<String, Value>>, ResearchReadSnapshotError> {
-    let Some(value) = object.get(key) else { return Ok(None) };
-    if value.is_null() { return Ok(None) }
-    value.as_object().map(Some).ok_or_else(|| bad_gateway(format!("research response field {key} must be an object")))
+fn optional_object<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Option<&'a Map<String, Value>>, ResearchReadSnapshotError> {
+    let Some(value) = object.get(key) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    value
+        .as_object()
+        .map(Some)
+        .ok_or_else(|| bad_gateway(format!("research response field {key} must be an object")))
 }
 
-fn optional_number(object: &Map<String, Value>, key: &str) -> Result<Option<Value>, ResearchReadSnapshotError> {
-    let Some(value) = object.get(key) else { return Ok(None) };
-    if value.is_null() { return Ok(None) }
+fn optional_number(
+    object: &Map<String, Value>,
+    key: &str,
+) -> Result<Option<Value>, ResearchReadSnapshotError> {
+    let Some(value) = object.get(key) else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
     if !value.is_number() || value.as_f64().is_none_or(|number| !number.is_finite()) {
-        return Err(bad_gateway(format!("research response field {key} must be numeric")));
+        return Err(bad_gateway(format!(
+            "research response field {key} must be numeric"
+        )));
     }
     Ok(Some(value.clone()))
 }
@@ -496,7 +550,8 @@ fn copy_required_number(
     from: &str,
     to: &str,
 ) -> Result<(), ResearchReadSnapshotError> {
-    let value = optional_number(source, from)?.ok_or_else(|| bad_gateway(format!("research response is missing {from}")))?;
+    let value = optional_number(source, from)?
+        .ok_or_else(|| bad_gateway(format!("research response is missing {from}")))?;
     target.insert(to.to_owned(), value);
     Ok(())
 }
@@ -507,10 +562,20 @@ fn copy_optional_integer(
     from: &str,
     to: &str,
 ) -> Result<(), ResearchReadSnapshotError> {
-    let Some(value) = source.get(from) else { return Ok(()) };
-    if value.is_null() { return Ok(()) }
-    let number = value.as_i64().ok_or_else(|| bad_gateway(format!("research response field {from} must be an integer")))?;
-    if number < 0 { return Err(bad_gateway(format!("research response field {from} must be non-negative"))); }
+    let Some(value) = source.get(from) else {
+        return Ok(());
+    };
+    if value.is_null() {
+        return Ok(());
+    }
+    let number = value
+        .as_i64()
+        .ok_or_else(|| bad_gateway(format!("research response field {from} must be an integer")))?;
+    if number < 0 {
+        return Err(bad_gateway(format!(
+            "research response field {from} must be non-negative"
+        )));
+    }
     target.insert(to.to_owned(), json!(number));
     Ok(())
 }
@@ -527,7 +592,9 @@ fn capability(feature: &str, operation: &str) -> ResearchReadSnapshotError {
     ResearchReadSnapshotError::Failed {
         status: 409,
         code: "CAPABILITY_UNAVAILABLE".to_owned(),
-        message: format!("embedded market-data provider does not serve {feature} operation {operation:?}"),
+        message: format!(
+            "embedded market-data provider does not serve {feature} operation {operation:?}"
+        ),
         retry_after_seconds: None,
     }
 }

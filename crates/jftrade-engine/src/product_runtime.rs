@@ -11,7 +11,7 @@ use jftrade_integration_pine::{
 };
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
 use jftrade_settings::{
-    MarketDataProvider, MarketDataProviderSettingsStorePort, normalize_market_data_provider,
+    MarketDataProvider, MarketDataProviderSettingsStorePort,
 };
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
@@ -70,6 +70,9 @@ pub struct ProductRuntimeConfig {
     /// healthy configured Pine worker is composed into this port at startup;
     /// absent worker configuration keeps POST /api/v1/backtests fail closed.
     pub backtest_execution_port: Option<Arc<dyn crate::product::BacktestExecutionPort>>,
+    /// Native PineTS AnalyzeScript adapter created after worker readiness.
+    pub strategy_pine_worker_port:
+        Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
     pub(crate) shutdown_recorder: Option<product_runtime_supervisor::ShutdownEventRecorder>,
     #[cfg(test)]
     pub inject_startup_failure: bool,
@@ -127,6 +130,7 @@ impl ProductRuntimeConfig {
             market_data_opend_provider: None,
             strategy_runtime_registry: None,
             backtest_execution_port: None,
+            strategy_pine_worker_port: None,
             shutdown_recorder: None,
             #[cfg(test)]
             inject_startup_failure: false,
@@ -190,6 +194,14 @@ impl ProductRuntimeConfig {
         port: Arc<dyn crate::product::BacktestExecutionPort>,
     ) -> Self {
         self.backtest_execution_port = Some(port);
+        self
+    }
+
+    pub fn with_strategy_pine_worker_port(
+        mut self,
+        port: Arc<jftrade_integration_pine::GrpcPineExecutionPort>,
+    ) -> Self {
+        self.strategy_pine_worker_port = Some(port);
         self
     }
 }

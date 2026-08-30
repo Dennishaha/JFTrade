@@ -5,15 +5,16 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
-use jftrade_settings::{FutuOpenDInstallSettings, FutuOpenDInstallSettingsStorePort};
+use jftrade_settings::FutuOpenDInstallSettingsStorePort;
 use jftrade_settings::InterfaceSettingsStorePort;
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_trading::{
-    RealTradeControlEvent, RealTradeControlState, RealTradeHardStopEntry,
-    RealTradeKillSwitchEntry, RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
+    RealTradeControlEvent, RealTradeControlState, RealTradeHardStopEntry, RealTradeKillSwitchEntry,
+    RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
 };
 use serde_json::{Value, json};
 
+use super::provider_now_rfc3339;
 use crate::product::product_system_write_port::{
     RealTradeHardStopCommand, RealTradeKillSwitchCommand, RealTradeRuntimeRiskCommand,
     SystemWriteInput, SystemWriteOperation, SystemWritePort, SystemWritePortError,
@@ -22,7 +23,6 @@ use crate::product::{
     MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
     SystemReadSnapshotPort,
 };
-use super::provider_now_rfc3339;
 
 pub(crate) struct ProductionSystemPort {
     pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
@@ -82,7 +82,16 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
     fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
         match path {
             "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
-            "/api/v1/system/worker/broker-order-updates" => Ok(json!({})),
+            // There is no production broker-order update worker wired into
+            // the Rust composition yet.  Returning Go's default `{}` here
+            // would make an unowned capability look healthy and would hide
+            // a missing lifecycle owner.  Keep the route registered, but
+            // fail closed until a concrete worker snapshot port is injected.
+            "/api/v1/system/worker/broker-order-updates" => {
+                Err(SystemReadSnapshotError::Unavailable(
+                    "broker order updates worker is not configured".to_owned(),
+                ))
+            }
             "/api/v1/system/info" => Ok(json!({
                 "version": env!("CARGO_PKG_VERSION"),
                 "architecture": std::env::consts::ARCH,
@@ -125,17 +134,21 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
 
 impl ProductionSystemPort {
     fn futu_opend_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
-        let settings = self
-            .settings
-            .load_futu_open_d_install_settings()
-            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?
-            .unwrap_or_else(FutuOpenDInstallSettings::default);
         let Some(runtime_status) = self.runtime_status.as_ref() else {
             return Ok(json!({
                 "status": "unavailable",
                 "reason": "broker integration not enabled",
             }));
         };
+        let settings = self
+            .settings
+            .load_futu_open_d_install_settings()
+            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?
+            .ok_or_else(|| {
+                SystemReadSnapshotError::Unavailable(
+                    "Futu OpenD settings are not configured".to_owned(),
+                )
+            })?;
         let state = runtime_status.snapshot();
         let has_error = state
             .quote_last_error

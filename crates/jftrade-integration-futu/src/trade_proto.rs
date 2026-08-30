@@ -12,6 +12,27 @@ pub mod qot_option_common {
 pub mod qot_get_security_snapshot {
     include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
 }
+pub mod qot_get_user_security_group {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_user_security_group.rs"));
+}
+pub mod qot_get_user_security {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_user_security.rs"));
+}
+pub mod qot_modify_user_security {
+    include!(concat!(env!("OUT_DIR"), "/qot_modify_user_security.rs"));
+}
+pub mod qot_get_price_reminder {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_price_reminder.rs"));
+}
+pub mod qot_set_price_reminder {
+    include!(concat!(env!("OUT_DIR"), "/qot_set_price_reminder.rs"));
+}
+pub mod qot_get_option_event_alert {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_option_event_alert.rs"));
+}
+pub mod qot_set_option_event_alert {
+    include!(concat!(env!("OUT_DIR"), "/qot_set_option_event_alert.rs"));
+}
 pub mod qot_get_future_info {
     include!(concat!(env!("OUT_DIR"), "/qot_get_future_info.rs"));
     pub const PROTOCOL_ID: u32 = 3218;
@@ -19,6 +40,31 @@ pub mod qot_get_future_info {
 pub mod qot_get_valuation_detail {
     include!(concat!(env!("OUT_DIR"), "/qot_get_valuation_detail.rs"));
     pub const PROTOCOL_ID: u32 = 3232;
+}
+pub mod qot_get_search_news {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_search_news.rs"));
+    pub const PROTOCOL_ID: u32 = 3263;
+}
+pub mod qot_get_corporate_actions_dividends {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_corporate_actions_dividends.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3234;
+}
+pub mod qot_get_corporate_actions_buybacks {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_corporate_actions_buybacks.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3235;
+}
+pub mod qot_get_corporate_actions_stock_splits {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_corporate_actions_stock_splits.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3236;
 }
 pub mod qot_get_option_expiration_date {
     include!(concat!(

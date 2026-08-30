@@ -16,9 +16,8 @@ use crate::product::product_watchlist_write_port::{
     WatchlistWriteMutation, WatchlistWritePort, WatchlistWritePortError,
 };
 use crate::product::{
-    RemoteWatchlistSnapshotError, RemoteWatchlistSnapshotPort,
-    WatchlistMembershipSnapshotError, WatchlistMembershipSnapshotPort,
-    WatchlistReadSnapshotError, WatchlistReadSnapshotPort,
+    RemoteWatchlistSnapshotError, RemoteWatchlistSnapshotPort, WatchlistMembershipSnapshotError,
+    WatchlistMembershipSnapshotPort, WatchlistReadSnapshotError, WatchlistReadSnapshotPort,
 };
 
 #[derive(Debug)]
@@ -183,16 +182,18 @@ fn parse_remote_read_query(
         let (raw_key, raw_value) = pair.split_once('=').unwrap_or((pair, ""));
         let key_input = raw_key.replace('+', " ");
         let value_input = raw_value.replace('+', " ");
-        let key = percent_decode_str(&key_input)
-            .decode_utf8()
-            .map_err(|_| RemoteWatchlistSnapshotError::Invalid(
+        let key = percent_decode_str(&key_input).decode_utf8().map_err(|_| {
+            RemoteWatchlistSnapshotError::Invalid(
                 "invalid remote watchlist query encoding".to_owned(),
-            ))?;
+            )
+        })?;
         let value = percent_decode_str(&value_input)
             .decode_utf8()
-            .map_err(|_| RemoteWatchlistSnapshotError::Invalid(
-                "invalid remote watchlist query encoding".to_owned(),
-            ))?;
+            .map_err(|_| {
+                RemoteWatchlistSnapshotError::Invalid(
+                    "invalid remote watchlist query encoding".to_owned(),
+                )
+            })?;
         match key.as_ref() {
             "operation" => {
                 let operation = value.trim().to_ascii_lowercase();
@@ -337,9 +338,7 @@ fn watchlist_read_store_error(error: WatchlistStoreError) -> WatchlistReadSnapsh
     match error {
         WatchlistStoreError::NotFound => WatchlistReadSnapshotError::NotFound,
         WatchlistStoreError::InvalidInstrument(message)
-        | WatchlistStoreError::Validation(message) => {
-            WatchlistReadSnapshotError::Invalid(message)
-        }
+        | WatchlistStoreError::Validation(message) => WatchlistReadSnapshotError::Invalid(message),
         other => WatchlistReadSnapshotError::Unavailable(other.to_string()),
     }
 }
@@ -595,27 +594,66 @@ impl WatchlistWritePort for ProductionWatchlistPort {
 pub(crate) struct ProductionRemoteWatchlistPort {
     pub(crate) _store: Arc<WatchlistStore>,
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) trade_runtime: Option<Arc<super::SharedTradeReadRuntime>>,
 }
 
 impl RemoteWatchlistSnapshotPort for ProductionRemoteWatchlistPort {
     fn read(&self, query: &str) -> Result<Value, RemoteWatchlistSnapshotError> {
-        let _query = parse_remote_read_query(query)?;
+        let parsed = parse_remote_read_query(query)?;
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider.is_none() || !snapshot.opend_ready {
             return Err(RemoteWatchlistSnapshotError::Unavailable(
                 "remote watchlist provider is not configured".to_owned(),
             ));
         }
-        Err(RemoteWatchlistSnapshotError::Unavailable(
-            "remote watchlist provider is not configured".to_owned(),
-        ))
+        let reader = self
+            .trade_runtime
+            .as_ref()
+            .and_then(|runtime| runtime.remote_watchlist_reader())
+            .ok_or_else(|| {
+                RemoteWatchlistSnapshotError::Unavailable(
+                    "remote watchlist reader is unavailable".to_owned(),
+                )
+            })?;
+        let now = crate::product::product_production_ports::provider_now_rfc3339();
+        let entries = if parsed.operation == "groups" {
+            reader
+                .groups()
+                .map_err(|error| RemoteWatchlistSnapshotError::Unavailable(error.to_string()))?
+                .into_iter()
+                .map(|mut value| {
+                    if let Some(name) = value.get("name").and_then(Value::as_str).map(str::to_owned)
+                    {
+                        value["sourceId"] = json!("futu:default");
+                        value["remoteGroupId"] = json!(format!("futu-group:{name}"));
+                    }
+                    value
+                })
+                .collect::<Vec<_>>()
+        } else {
+            let group_id = parsed
+                .remote_group_id
+                .strip_prefix("futu-group:")
+                .unwrap_or(&parsed.remote_group_id);
+            reader
+                .members(group_id)
+                .map_err(|error| RemoteWatchlistSnapshotError::Unavailable(error.to_string()))?
+        };
+        Ok(json!({
+            "asOf": now,
+            "entries": entries,
+            "hasMore": false,
+            "total": entries.len(),
+            "metadata": {"source": "futu-opend"},
+            "provider": {"brokerId": "futu", "featureId": "watchlist.remote.list", "capability": "available", "selectionReason": "active_provider", "resolvedAt": now, "asOf": now}
+        }))
     }
 }
 
 impl RemoteWatchlistWritePort for ProductionRemoteWatchlistPort {
     fn resolve(
         &self,
-        _broker_id: Option<&str>,
+        broker_id: Option<&str>,
         _account_id: Option<&str>,
     ) -> Result<RemoteWatchlistWriteResolution, RemoteWatchlistWritePortError> {
         let snapshot = self.active_provider_state.snapshot();
@@ -624,15 +662,27 @@ impl RemoteWatchlistWritePort for ProductionRemoteWatchlistPort {
                 "remote watchlist provider is not configured".to_owned(),
             ));
         }
-        Err(RemoteWatchlistWritePortError::Unavailable(
-            "remote watchlist provider is not configured".to_owned(),
-        ))
+        if broker_id.is_some_and(|id| !id.eq_ignore_ascii_case("futu")) {
+            return Err(RemoteWatchlistWritePortError::CapabilityUnavailable(
+                "only futu remote watchlists are supported".to_owned(),
+            ));
+        }
+        Ok(RemoteWatchlistWriteResolution {
+            broker_id: "futu".to_owned(),
+            security_firm: "Futu/Moomoo via OpenD".to_owned(),
+            capability: "available".to_owned(),
+            selection_reason: if broker_id.is_some() {
+                "explicit_broker".to_owned()
+            } else {
+                "active_provider".to_owned()
+            },
+        })
     }
 
     fn apply(
         &self,
         _resolution: &RemoteWatchlistWriteResolution,
-        _action: &RemoteWatchlistWriteAction,
+        action: &RemoteWatchlistWriteAction,
     ) -> Result<Option<Value>, RemoteWatchlistWritePortError> {
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider.is_none() || !snapshot.opend_ready {
@@ -640,10 +690,100 @@ impl RemoteWatchlistWritePort for ProductionRemoteWatchlistPort {
                 "remote watchlist provider is not configured".to_owned(),
             ));
         }
-        Err(RemoteWatchlistWritePortError::Unavailable(
-            "remote watchlist provider is not configured".to_owned(),
-        ))
+        let runtime = self
+            .trade_runtime
+            .as_ref()
+            .and_then(|runtime| runtime.remote_watchlist_writer())
+            .ok_or_else(|| {
+                RemoteWatchlistWritePortError::Unavailable(
+                    "remote watchlist writer is unavailable".to_owned(),
+                )
+            })?;
+        let payload = action.payload.as_ref().ok_or_else(|| {
+            RemoteWatchlistWritePortError::Internal(
+                "remote watchlist payload is required".to_owned(),
+            )
+        })?;
+        let group_name = payload
+            .get("groupName")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| RemoteWatchlistWritePortError::Provider {
+                status: Some(400),
+                message: "groupName is required".to_owned(),
+            })?;
+        let operation = payload
+            .get("op")
+            .and_then(Value::as_i64)
+            .and_then(|value| match value {
+                1 => Some("add"),
+                2 => Some("delete"),
+                3 => Some("move_out"),
+                _ => None,
+            })
+            .ok_or_else(|| RemoteWatchlistWritePortError::Provider {
+                status: Some(400),
+                message: "op must be 1 (add), 2 (delete), or 3 (move_out)".to_owned(),
+            })?;
+        let securities = payload
+            .get("securityList")
+            .and_then(Value::as_array)
+            .filter(|values| !values.is_empty())
+            .ok_or_else(|| RemoteWatchlistWritePortError::Provider {
+                status: Some(400),
+                message: "securityList must contain at least one security".to_owned(),
+            })?;
+        validate_remote_security_list(securities)?;
+        runtime
+            .modify(group_name, operation, securities)
+            .map(Some)
+            .map_err(|error| RemoteWatchlistWritePortError::Provider {
+                status: None,
+                message: error.to_string(),
+            })
     }
+}
+
+fn validate_remote_security_list(
+    securities: &[Value],
+) -> Result<(), RemoteWatchlistWritePortError> {
+    for (index, security) in securities.iter().enumerate() {
+        let object =
+            security
+                .as_object()
+                .ok_or_else(|| RemoteWatchlistWritePortError::Provider {
+                    status: Some(400),
+                    message: format!("securityList[{index}] must be an object"),
+                })?;
+        let market = object
+            .get("market")
+            .and_then(Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok());
+        if !market.is_some_and(|value| {
+            matches!(
+                value,
+                1 | 11 | 21 | 22 | 31 | 41 | 51 | 61 | 71 | 81 | 91 | 101
+            )
+        }) {
+            return Err(RemoteWatchlistWritePortError::Provider {
+                status: Some(400),
+                message: format!("securityList[{index}].market is invalid"),
+            });
+        }
+        let valid_code = object
+            .get("code")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty() && !value.chars().any(char::is_control));
+        if !valid_code {
+            return Err(RemoteWatchlistWritePortError::Provider {
+                status: Some(400),
+                message: format!("securityList[{index}].code is required"),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -652,8 +792,8 @@ mod remote_watchlist_tests {
 
     #[test]
     fn remote_read_query_defaults_to_groups() {
-        let query = parse_remote_read_query("brokerId=futu&sourceId=futu%3Adefault")
-            .expect("groups query");
+        let query =
+            parse_remote_read_query("brokerId=futu&sourceId=futu%3Adefault").expect("groups query");
         assert_eq!(query.operation, "groups");
         assert!(query.remote_group_id.is_empty());
     }

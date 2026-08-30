@@ -76,6 +76,21 @@ mod product_production_assembly_tests {
         (temp_dir, settings_path, config, security)
     }
 
+    #[test]
+    fn production_route_fence_discards_embedding_ports() {
+        let (_temp_dir, _settings_path, config, _security) = setup_test_env();
+        let injected = Arc::new(jftrade_strategy::StrategyRuntimeRegistry::default());
+        let mut config = config.with_strategy_runtime_status_port(injected);
+        assert!(config.strategy_runtime_status_port.is_some());
+
+        config.fence_production_route_ports();
+
+        assert!(
+            config.strategy_runtime_status_port.is_none(),
+            "production must source strategy runtime status from ProductionPortBundle"
+        );
+    }
+
     #[derive(Debug)]
     struct HttpTradeRead;
 
@@ -1155,8 +1170,12 @@ mod product_production_assembly_tests {
         let order_updates = ports
             .system_read
             .read("/api/v1/system/worker/broker-order-updates")
-            .expect("worker snapshot");
-        assert_eq!(order_updates, json!({}));
+            .expect_err("unowned broker-order worker must fail closed");
+        assert!(matches!(
+            order_updates,
+            crate::product::SystemReadSnapshotError::Unavailable(message)
+                if message == "broker order updates worker is not configured"
+        ));
     }
 
     #[test]

@@ -1,11 +1,11 @@
 //! File-backed production plugin adapter and lifecycle operations.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::product::product_plugins_write_port::{
     PluginWriteOperation, PluginWritePort, PluginWritePortError,
@@ -66,7 +66,7 @@ impl ProductionPluginPort {
                 return Err(PluginSnapshotError::Unavailable(format!(
                     "read plugin directory {}: {error}",
                     self.root.display()
-                )))
+                )));
             }
         };
         for entry in entries {
@@ -81,10 +81,16 @@ impl ProductionPluginPort {
                 continue;
             };
             let marker = std::fs::read(&path).map_err(|error| {
-                PluginSnapshotError::Unavailable(format!("read plugin marker {}: {error}", path.display()))
+                PluginSnapshotError::Unavailable(format!(
+                    "read plugin marker {}: {error}",
+                    path.display()
+                ))
             })?;
             let marker: Value = serde_json::from_slice(&marker).map_err(|error| {
-                PluginSnapshotError::Unavailable(format!("decode plugin marker {}: {error}", path.display()))
+                PluginSnapshotError::Unavailable(format!(
+                    "decode plugin marker {}: {error}",
+                    path.display()
+                ))
             })?;
             let descriptor = marker.get("descriptor").cloned().ok_or_else(|| {
                 PluginSnapshotError::Unavailable(format!(
@@ -99,9 +105,7 @@ impl ProductionPluginPort {
                 )));
             }
             let install_path = self.root.join(format!("{id}.so"));
-            let installation = marker
-                .get("installation")
-                .and_then(Value::as_object);
+            let installation = marker.get("installation").and_then(Value::as_object);
             // The artifact on disk is the source of truth.  A stale marker
             // must not report a plugin as installed after the file was
             // removed by an operator or a failed upgrade.
@@ -110,7 +114,11 @@ impl ProductionPluginPort {
                 .and_then(|value| value.get("status"))
                 .and_then(Value::as_str)
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or(if installed { "INSTALLED" } else { "NOT_INSTALLED" });
+                .unwrap_or(if installed {
+                    "INSTALLED"
+                } else {
+                    "NOT_INSTALLED"
+                });
             plugins.push(json!({
                 "descriptor": descriptor,
                 "installation": {
@@ -126,7 +134,11 @@ impl ProductionPluginPort {
                 "compatibility": {"mode": "plugin", "supported": true, "requiresRebuild": false, "host": {"goos": std::env::consts::OS, "goarch": std::env::consts::ARCH}},
             }));
         }
-        plugins.sort_by(|left, right| left["descriptor"]["id"].as_str().cmp(&right["descriptor"]["id"].as_str()));
+        plugins.sort_by(|left, right| {
+            left["descriptor"]["id"]
+                .as_str()
+                .cmp(&right["descriptor"]["id"].as_str())
+        });
         Ok(json!({"plugins": plugins, "targetDir": self.root}))
     }
 }
@@ -166,10 +178,16 @@ impl PluginSnapshotPort for ProductionPluginPort {
                 continue;
             }
             let marker = std::fs::read(&path).map_err(|error| {
-                PluginSnapshotError::Unavailable(format!("read plugin marker {}: {error}", path.display()))
+                PluginSnapshotError::Unavailable(format!(
+                    "read plugin marker {}: {error}",
+                    path.display()
+                ))
             })?;
             let marker: Value = serde_json::from_slice(&marker).map_err(|error| {
-                PluginSnapshotError::Unavailable(format!("decode plugin marker {}: {error}", path.display()))
+                PluginSnapshotError::Unavailable(format!(
+                    "decode plugin marker {}: {error}",
+                    path.display()
+                ))
             })?;
             let Some(operations) = marker.get("operations").and_then(Value::as_array) else {
                 continue;
@@ -194,17 +212,20 @@ impl PluginUninstallGuidanceSnapshotPort for ProductionPluginPort {
     ) -> Result<Option<PluginUninstallGuidance>, PluginUninstallGuidanceSnapshotError> {
         let marker_path = self.root.join(format!("{plugin_id}.json"));
         let path = self.root.join(format!("{plugin_id}.so"));
-        Ok((marker_path.is_file() || path.is_file()).then(|| {
-                PluginUninstallGuidance {
-                    plugin_id: plugin_id.to_owned(),
-                    path: path.to_string_lossy().into_owned(),
-                    exists: path.is_file(),
-                    commands: jftrade_strategy::PluginUninstallCommands {
-                        posix: format!("rm -f '{}'", path.to_string_lossy().replace('\'', "'\\''")),
-                        powershell: format!("Remove-Item -LiteralPath '{}' -Force", path.to_string_lossy().replace('\'', "''")),
-                    },
-                }
-            }))
+        Ok(
+            (marker_path.is_file() || path.is_file()).then(|| PluginUninstallGuidance {
+                plugin_id: plugin_id.to_owned(),
+                path: path.to_string_lossy().into_owned(),
+                exists: path.is_file(),
+                commands: jftrade_strategy::PluginUninstallCommands {
+                    posix: format!("rm -f '{}'", path.to_string_lossy().replace('\'', "'\\''")),
+                    powershell: format!(
+                        "Remove-Item -LiteralPath '{}' -Force",
+                        path.to_string_lossy().replace('\'', "''")
+                    ),
+                },
+            }),
+        )
     }
 }
 
@@ -251,7 +272,11 @@ impl PluginWritePort for ProductionPluginPort {
         })?;
         let now = provider_now_rfc3339();
         let installed = matches!(operation, PluginWriteOperation::Install);
-        let phase = if installed { "installed" } else { "uninstalled" };
+        let phase = if installed {
+            "installed"
+        } else {
+            "uninstalled"
+        };
         let operation_value = json!({
             "operationId": next_plugin_operation_id(plugin_id),
             "pluginId": plugin_id,
@@ -275,7 +300,14 @@ impl PluginWritePort for ProductionPluginPort {
         installation.insert("installed".to_owned(), Value::Bool(installed));
         installation.insert(
             "status".to_owned(),
-            Value::String(if installed { "INSTALLED" } else { "NOT_INSTALLED" }.to_owned()),
+            Value::String(
+                if installed {
+                    "INSTALLED"
+                } else {
+                    "NOT_INSTALLED"
+                }
+                .to_owned(),
+            ),
         );
         installation.insert("currentOperation".to_owned(), Value::Null);
         installation.insert("lastOperation".to_owned(), operation_value.clone());
@@ -379,7 +411,11 @@ fn resolve_plugin_artifact_source(
         .get("installation")
         .and_then(Value::as_object)
         .and_then(|installation| installation.get("sourcePath"))
-        .or_else(|| marker.get("artifact").and_then(|artifact| artifact.get("path")))
+        .or_else(|| {
+            marker
+                .get("artifact")
+                .and_then(|artifact| artifact.get("path"))
+        })
         .or_else(|| marker.get("sourcePath"))
         .and_then(Value::as_str)
         .map(str::trim)
@@ -442,10 +478,7 @@ fn remove_plugin_artifact(path: &Path) -> Result<PluginArtifactChange, PluginWri
         )));
     }
     let contents = std::fs::read(path).map_err(|error| {
-        PluginWritePortError::Internal(format!(
-            "read plugin artifact {}: {error}",
-            path.display()
-        ))
+        PluginWritePortError::Internal(format!("read plugin artifact {}: {error}", path.display()))
     })?;
     std::fs::remove_file(path).map_err(|error| {
         PluginWritePortError::Internal(format!(
@@ -456,10 +489,7 @@ fn remove_plugin_artifact(path: &Path) -> Result<PluginArtifactChange, PluginWri
     Ok(PluginArtifactChange::Removed(contents))
 }
 
-fn rollback_plugin_artifact(
-    path: &Path,
-    change: PluginArtifactChange,
-) -> Result<(), String> {
+fn rollback_plugin_artifact(path: &Path, change: PluginArtifactChange) -> Result<(), String> {
     match change {
         PluginArtifactChange::Created => match std::fs::remove_file(path) {
             Ok(()) => Ok(()),
@@ -501,13 +531,18 @@ fn next_plugin_operation_id(plugin_id: &str) -> String {
     )
 }
 
-fn persist_plugin_marker(path: &std::path::Path, marker: &Value) -> Result<(), PluginWritePortError> {
+fn persist_plugin_marker(
+    path: &std::path::Path,
+    marker: &Value,
+) -> Result<(), PluginWritePortError> {
     let bytes = serde_json::to_vec_pretty(marker).map_err(|error| {
         PluginWritePortError::Internal(format!("encode plugin marker {}: {error}", path.display()))
     })?;
     let temp_path = path.with_file_name(format!(
         ".{}.tmp-{}-{}-{}",
-        path.file_name().and_then(|name| name.to_str()).unwrap_or("plugin.json"),
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("plugin.json"),
         std::process::id(),
         PLUGIN_MARKER_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed),
         timestamp_suffix()
@@ -548,11 +583,12 @@ mod tests {
         std::fs::write(&settings, b"{}").expect("settings");
         let plugin_dir = dir.path().join("plugins");
         std::fs::create_dir_all(&plugin_dir).expect("plugins");
-        std::fs::write(plugin_dir.join("broken.json"), br#"{"installation":{}}"#)
-            .expect("marker");
+        std::fs::write(plugin_dir.join("broken.json"), br#"{"installation":{}}"#).expect("marker");
 
         let port = ProductionPluginPort::open(&settings).expect("open plugin port");
-        let error = port.catalog().expect_err("malformed marker must fail closed");
+        let error = port
+            .catalog()
+            .expect_err("malformed marker must fail closed");
         assert!(error.to_string().contains("missing descriptor"));
     }
 }

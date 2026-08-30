@@ -87,7 +87,11 @@ mod tests {
             Vec::new(),
             Instant::now() - MARGIN_RATIO_CACHE_FALLBACK_TTL - Duration::from_secs(1),
         );
-        assert!(cache.get("stale", MARGIN_RATIO_CACHE_FALLBACK_TTL).is_none());
+        assert!(
+            cache
+                .get("stale", MARGIN_RATIO_CACHE_FALLBACK_TTL)
+                .is_none()
+        );
 
         snapshots.push(TradeMarginRatioSnapshot {
             header: jftrade_integration_futu::TradeHeader {
@@ -114,6 +118,9 @@ mod tests {
         cache.put("clone".to_owned(), snapshots.clone());
         let mut first = cache.get("clone", MARGIN_RATIO_CACHE_TTL).expect("cache");
         first[0].symbol = "MUTATED".to_owned();
-        assert_eq!(cache.get("clone", MARGIN_RATIO_CACHE_TTL).unwrap()[0].symbol, "HK.00700");
+        assert_eq!(
+            cache.get("clone", MARGIN_RATIO_CACHE_TTL).unwrap()[0].symbol,
+            "HK.00700"
+        );
     }
 }

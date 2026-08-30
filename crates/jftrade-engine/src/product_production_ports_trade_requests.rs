@@ -1,17 +1,20 @@
 //! Trade request parsing and Futu projection helpers.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use super::trade_projection::*;
+use crate::product::product_query::QueryMap;
 #[allow(unused_imports)]
-use jftrade_integration_futu::{TradeFilter, TradeFunds, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort, TradeSecurity, trade_header};
+use jftrade_integration_futu::{
+    TradeFilter, TradeFunds, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort,
+    TradeSecurity, trade_header,
+};
 #[allow(unused_imports)]
 use jftrade_settings::MarketDataProvider;
 #[allow(unused_imports)]
 use serde_json::{Value, json};
-use time::format_description::{FormatItem, parse_borrowed};
-use time::format_description::well_known::Rfc3339;
+use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;
-use crate::product::product_query::QueryMap;
-use super::trade_projection::*;
+use time::format_description::well_known::Rfc3339;
+use time::format_description::{FormatItem, parse_borrowed};
 
 #[derive(Debug)]
 pub(crate) struct TradeRequest {
@@ -25,7 +28,11 @@ impl TradeRequest {
         Self::parse_with_prefix(path, raw_query, "/api/v1/brokers/")
     }
 
-    pub(crate) fn parse_with_prefix(path: &str, raw_query: &str, prefix: &str) -> Result<Self, String> {
+    pub(crate) fn parse_with_prefix(
+        path: &str,
+        raw_query: &str,
+        prefix: &str,
+    ) -> Result<Self, String> {
         let query = QueryMap::parse(raw_query).map_err(|_| "invalid query encoding".to_owned())?;
         let suffix = path.strip_prefix(prefix).unwrap_or(path);
         let (broker_id, resource) = suffix
@@ -34,14 +41,28 @@ impl TradeRequest {
         if broker_id.is_empty() || resource.is_empty() || resource.contains('/') {
             return Err("invalid broker path".to_owned());
         }
-        Ok(Self { broker_id: broker_id.to_owned(), resource: resource.to_owned(), query })
+        Ok(Self {
+            broker_id: broker_id.to_owned(),
+            resource: resource.to_owned(),
+            query,
+        })
     }
 
     #[allow(dead_code)]
     pub(crate) fn header(&self) -> Result<TradeHeader, String> {
-        let account = self.account_id().ok_or_else(|| "accountId is required".to_owned())?;
-        let acc_id = account.parse::<u64>().map_err(|_| "accountId must be a numeric Futu account id".to_owned())?;
-        let env = match self.query.get_first("tradingEnvironment").unwrap_or("real").to_ascii_lowercase().as_str() {
+        let account = self
+            .account_id()
+            .ok_or_else(|| "accountId is required".to_owned())?;
+        let acc_id = account
+            .parse::<u64>()
+            .map_err(|_| "accountId must be a numeric Futu account id".to_owned())?;
+        let env = match self
+            .query
+            .get_first("tradingEnvironment")
+            .unwrap_or("real")
+            .to_ascii_lowercase()
+            .as_str()
+        {
             "sim" | "simulate" | "paper" => 0,
             "real" | "production" => 1,
             value => return Err(format!("invalid tradingEnvironment: {value}")),
@@ -51,7 +72,10 @@ impl TradeRequest {
         Ok(trade_header(env, acc_id, market))
     }
 
-    pub(crate) fn resolve_account(&self, client: &dyn TradeReadPort) -> Result<ResolvedTradeRequest, String> {
+    pub(crate) fn resolve_account(
+        &self,
+        client: &dyn TradeReadPort,
+    ) -> Result<ResolvedTradeRequest, String> {
         self.resolve_account_with_environment(client, None, None)
     }
 
@@ -79,23 +103,38 @@ impl TradeRequest {
         let requested_environment = forced_environment.or(self.environment_code()?);
         let requested_market = forced_market
             .map(normalize_trade_account_market)
-            .or_else(|| self.query.get_first("market").map(str::trim).filter(|market| !market.is_empty()).map(normalize_trade_account_market));
-        let mut candidates = accounts.into_iter().filter(|account| {
-            let account_id = account_identity(account);
-            let account_matches = requested_account
-                .as_deref()
-                .is_none_or(|requested| account_id.as_deref().is_some_and(|id| id.eq_ignore_ascii_case(requested)));
-            let environment_matches = requested_environment.is_none_or(|environment| account.trd_env == environment);
-            let market_matches = requested_market.as_ref().is_none_or(|requested| {
-                account
-                    .trd_market_auth_list
-                    .iter()
-                    .any(|market| trade_market_authority(*market) == Some(requested.as_str()))
+            .or_else(|| {
+                self.query
+                    .get_first("market")
+                    .map(str::trim)
+                    .filter(|market| !market.is_empty())
+                    .map(normalize_trade_account_market)
             });
-            account_matches && environment_matches && market_matches
-        }).collect::<Vec<_>>();
+        let mut candidates = accounts
+            .into_iter()
+            .filter(|account| {
+                let account_id = account_identity(account);
+                let account_matches = requested_account.as_deref().is_none_or(|requested| {
+                    account_id
+                        .as_deref()
+                        .is_some_and(|id| id.eq_ignore_ascii_case(requested))
+                });
+                let environment_matches =
+                    requested_environment.is_none_or(|environment| account.trd_env == environment);
+                let market_matches = requested_market.as_ref().is_none_or(|requested| {
+                    account
+                        .trd_market_auth_list
+                        .iter()
+                        .any(|market| trade_market_authority(*market) == Some(requested.as_str()))
+                });
+                account_matches && environment_matches && market_matches
+            })
+            .collect::<Vec<_>>();
         if requested_environment.is_none() {
-            let simulated = candidates.iter().filter(|account| account.trd_env == 0).count();
+            let simulated = candidates
+                .iter()
+                .filter(|account| account.trd_env == 0)
+                .count();
             if simulated > 0 {
                 candidates.retain(|account| account.trd_env == 0);
             }
@@ -114,12 +153,15 @@ impl TradeRequest {
         let account_id = account_identity(&account)
             .ok_or_else(|| "selected Futu account has no usable account identity".to_owned())?;
         let acc_id = account.acc_id;
-        let selected_market = requested_market.clone().or_else(|| {
-            account
-                .trd_market_auth_list
-                .iter()
-                .find_map(|market| trade_market_authority(*market).map(str::to_owned))
-        }).unwrap_or_else(|| "HK".to_owned());
+        let selected_market = requested_market
+            .clone()
+            .or_else(|| {
+                account
+                    .trd_market_auth_list
+                    .iter()
+                    .find_map(|market| trade_market_authority(*market).map(str::to_owned))
+            })
+            .unwrap_or_else(|| "HK".to_owned());
         let header_market = account
             .trd_market_auth_list
             .iter()
@@ -130,11 +172,7 @@ impl TradeRequest {
             account_id,
             environment: environment_label_from_code(account.trd_env).to_owned(),
             market: selected_market,
-            header: trade_header(
-                account.trd_env,
-                acc_id,
-                header_market,
-            ),
+            header: trade_header(account.trd_env, acc_id, header_market),
         })
     }
 
@@ -157,15 +195,28 @@ impl TradeRequest {
     }
 
     pub(crate) fn account_id(&self) -> Option<&str> {
-        self.query.get_first("accountId").map(str::trim).filter(|value| !value.is_empty())
+        self.query
+            .get_first("accountId")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
     }
 
     pub(crate) fn market_label(&self) -> String {
-        self.query.get_first("market").map(str::trim).unwrap_or("HK").to_owned()
+        self.query
+            .get_first("market")
+            .map(str::trim)
+            .unwrap_or("HK")
+            .to_owned()
     }
 
     pub(crate) fn refresh_cache(&self) -> Option<bool> {
-        self.query.get_first("refreshCache").and_then(|v| match v.to_ascii_lowercase().as_str() { "1" | "true" => Some(true), "0" | "false" => Some(false), _ => None })
+        self.query
+            .get_first("refreshCache")
+            .and_then(|v| match v.to_ascii_lowercase().as_str() {
+                "1" | "true" => Some(true),
+                "0" | "false" => Some(false),
+                _ => None,
+            })
     }
 
     pub(crate) fn clearing_date(&self) -> Option<String> {
@@ -203,7 +254,12 @@ impl TradeRequest {
     pub(crate) fn securities(&self) -> Result<Vec<TradeSecurity>, String> {
         let mut securities = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        let explicit_market = self.query.get_first("market").map(str::trim).filter(|v| !v.is_empty()).map(str::to_ascii_uppercase);
+        let explicit_market = self
+            .query
+            .get_first("market")
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_ascii_uppercase);
         for key in ["symbol", "symbols"] {
             let default_market = self.market_label();
             for raw in self.query.get_all(key).unwrap_or(&[]) {
@@ -212,7 +268,9 @@ impl TradeRequest {
                     if value.is_empty() {
                         continue;
                     }
-                    let (market, code) = value.split_once('.').unwrap_or((default_market.as_str(), value));
+                    let (market, code) = value
+                        .split_once('.')
+                        .unwrap_or((default_market.as_str(), value));
                     let market = market.trim().to_ascii_uppercase();
                     let code = code.trim().to_ascii_uppercase();
                     if code.is_empty() {
@@ -223,12 +281,17 @@ impl TradeRequest {
                         && market != expected
                         && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ"))
                     {
-                        return Err(format!("query parameter symbol {value:?} is invalid for market {expected}"));
+                        return Err(format!(
+                            "query parameter symbol {value:?} is invalid for market {expected}"
+                        ));
                     }
                     let market_code = quote_market_code(&market)
                         .ok_or_else(|| format!("invalid market: {market}"))?;
                     if seen.insert(format!("{market}:{code}")) {
-                        securities.push(TradeSecurity { market: market_code, code });
+                        securities.push(TradeSecurity {
+                            market: market_code,
+                            code,
+                        });
                     }
                 }
             }
@@ -246,7 +309,9 @@ impl TradeRequest {
             .get_first("symbol")
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+            .ok_or_else(|| {
+                "query parameters symbol, orderType, and price are required".to_owned()
+            })?;
         let qualified = raw.contains('.') || raw.contains(':');
         let (market, code) = raw
             .split_once('.')
@@ -267,9 +332,10 @@ impl TradeRequest {
             .filter(|value| !value.is_empty())
         {
             let expected = expected.to_ascii_uppercase();
-            if market != expected && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ"))
-            {
-                return Err(format!("query parameter symbol {raw:?} is invalid for market {expected}"));
+            if market != expected && !(expected == "CN" && matches!(market.as_str(), "SH" | "SZ")) {
+                return Err(format!(
+                    "query parameter symbol {raw:?} is invalid for market {expected}"
+                ));
             }
         }
         let sec_market = match market.as_str() {
@@ -298,7 +364,9 @@ impl TradeRequest {
             .get_first("orderType")
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+            .ok_or_else(|| {
+                "query parameters symbol, orderType, and price are required".to_owned()
+            })?;
         let order_type = match order_type.to_ascii_uppercase().as_str() {
             "LIMIT" | "LIMIT_MAKER" | "NORMAL" => 1,
             "MARKET" => 2,
@@ -313,27 +381,60 @@ impl TradeRequest {
             .get_first("price")
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| "query parameters symbol, orderType, and price are required".to_owned())?;
+            .ok_or_else(|| {
+                "query parameters symbol, orderType, and price are required".to_owned()
+            })?;
         let price = price_raw
             .parse::<f64>()
             .map_err(|_| "query parameter price is invalid".to_owned())?;
         if !price.is_finite() || price <= 0.0 {
             return Err("query parameter price must be positive".to_owned());
         }
-        let adjust_side_and_limit = self.query.get_first("adjustSideAndLimit").map(str::trim).filter(|value| !value.is_empty()).map(|value| value.parse::<f64>().map_err(|_| "query parameter adjustSideAndLimit is invalid".to_owned())).transpose()?;
+        let adjust_side_and_limit = self
+            .query
+            .get_first("adjustSideAndLimit")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                value
+                    .parse::<f64>()
+                    .map_err(|_| "query parameter adjustSideAndLimit is invalid".to_owned())
+            })
+            .transpose()?;
         if adjust_side_and_limit.is_some_and(|value| !value.is_finite()) {
             return Err("query parameter adjustSideAndLimit is invalid".to_owned());
         }
-        let session = self.query.get_first("session").map(str::trim).filter(|value| !value.is_empty()).map(|value| match value.to_ascii_uppercase().as_str() {
-            "NONE" | "SESSION_NONE" => Ok(0),
-            "RTH" | "SESSION_RTH" => Ok(1),
-            "ETH" | "SESSION_ETH" => Ok(2),
-            "ALL" | "SESSION_ALL" => Ok(3),
-            "OVERNIGHT" | "SESSION_OVERNIGHT" => Ok(4),
-            _ => Err(format!("unsupported session {value:?}")),
-        }).transpose()?;
-        let position_id = self.query.get_first("positionId").map(str::trim).filter(|value| !value.is_empty()).map(|value| value.parse::<u64>().map_err(|_| "query parameter positionId is invalid".to_owned())).transpose()?;
-        let order_id_ex = self.query.get_first("orderIdEx").map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned);
+        let session = self
+            .query
+            .get_first("session")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| match value.to_ascii_uppercase().as_str() {
+                "NONE" | "SESSION_NONE" => Ok(0),
+                "RTH" | "SESSION_RTH" => Ok(1),
+                "ETH" | "SESSION_ETH" => Ok(2),
+                "ALL" | "SESSION_ALL" => Ok(3),
+                "OVERNIGHT" | "SESSION_OVERNIGHT" => Ok(4),
+                _ => Err(format!("unsupported session {value:?}")),
+            })
+            .transpose()?;
+        let position_id = self
+            .query
+            .get_first("positionId")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                value
+                    .parse::<u64>()
+                    .map_err(|_| "query parameter positionId is invalid".to_owned())
+            })
+            .transpose()?;
+        let order_id_ex = self
+            .query
+            .get_first("orderIdEx")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned);
         Ok(TradeMaxTradeQuantityRequest {
             header,
             order_type,
@@ -350,7 +451,13 @@ impl TradeRequest {
     }
 
     pub(crate) fn cash_flow_direction(&self) -> Option<i32> {
-        match self.query.get_first("direction").map(str::trim).map(str::to_ascii_uppercase).as_deref() {
+        match self
+            .query
+            .get_first("direction")
+            .map(str::trim)
+            .map(str::to_ascii_uppercase)
+            .as_deref()
+        {
             Some("IN") | Some("CASH_FLOW_DIRECTION_IN") => Some(1),
             Some("OUT") | Some("CASH_FLOW_DIRECTION_OUT") => Some(2),
             _ => None,
@@ -358,27 +465,67 @@ impl TradeRequest {
     }
 
     pub(crate) fn filter(&self) -> Option<TradeFilter> {
-        self.query.get_first("symbol").map(|symbol| TradeFilter { code_list: vec![symbol.trim().to_ascii_uppercase()], ..TradeFilter::default() })
+        self.query.get_first("symbol").map(|symbol| TradeFilter {
+            code_list: vec![symbol.trim().to_ascii_uppercase()],
+            ..TradeFilter::default()
+        })
     }
 
     pub(crate) fn history_scope(&self) -> Result<bool, String> {
-        match self.query.get_first("scope").map(str::trim).unwrap_or("").to_ascii_uppercase().as_str() {
+        match self
+            .query
+            .get_first("scope")
+            .map(str::trim)
+            .unwrap_or("")
+            .to_ascii_uppercase()
+            .as_str()
+        {
             "" | "CURRENT" => Ok(false),
             "HISTORY" => Ok(true),
             _ => Err("query parameter scope is invalid".to_owned()),
         }
     }
 
-    pub(crate) fn trade_filter(&self, history: bool, market: &str) -> Result<Option<TradeFilter>, String> {
-        let symbol = self.query.get_first("symbol").map(str::trim).filter(|value| !value.is_empty());
-        let begin_time = if history { self.query.get_first("startTime").map(|value| normalize_history_time(value, market)).transpose()? } else { None };
-        let end_time = if history { self.query.get_first("endTime").map(|value| normalize_history_time(value, market)).transpose()? } else { None };
-        if !history && (self.query.get_first("startTime").is_some() || self.query.get_first("endTime").is_some()) {
-            return Ok(symbol.map(|code| TradeFilter { code_list: vec![code.to_ascii_uppercase()], ..TradeFilter::default() }));
+    pub(crate) fn trade_filter(
+        &self,
+        history: bool,
+        market: &str,
+    ) -> Result<Option<TradeFilter>, String> {
+        let symbol = self
+            .query
+            .get_first("symbol")
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let begin_time = if history {
+            self.query
+                .get_first("startTime")
+                .map(|value| normalize_history_time(value, market))
+                .transpose()?
+        } else {
+            None
+        };
+        let end_time = if history {
+            self.query
+                .get_first("endTime")
+                .map(|value| normalize_history_time(value, market))
+                .transpose()?
+        } else {
+            None
+        };
+        if !history
+            && (self.query.get_first("startTime").is_some()
+                || self.query.get_first("endTime").is_some())
+        {
+            return Ok(symbol.map(|code| TradeFilter {
+                code_list: vec![code.to_ascii_uppercase()],
+                ..TradeFilter::default()
+            }));
         }
         let has_filter = symbol.is_some() || begin_time.is_some() || end_time.is_some();
         Ok(has_filter.then(|| TradeFilter {
-            code_list: symbol.map(|code| vec![code.to_ascii_uppercase()]).unwrap_or_default(),
+            code_list: symbol
+                .map(|code| vec![code.to_ascii_uppercase()])
+                .unwrap_or_default(),
             begin_time,
             end_time,
             ..TradeFilter::default()
@@ -388,9 +535,21 @@ impl TradeRequest {
     pub(crate) fn status_codes(&self) -> Result<Vec<i32>, String> {
         let mut values = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
-        for raw in self.query.get_all("status").into_iter().flatten().chain(self.query.get_all("statuses").into_iter().flatten()) {
-            for token in raw.split(',').map(str::trim).filter(|token| !token.is_empty()) {
-                if let Some(code) = order_status_code(token) && seen.insert(code) {
+        for raw in self
+            .query
+            .get_all("status")
+            .into_iter()
+            .flatten()
+            .chain(self.query.get_all("statuses").into_iter().flatten())
+        {
+            for token in raw
+                .split(',')
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+            {
+                if let Some(code) = order_status_code(token)
+                    && seen.insert(code)
+                {
                     values.push(code);
                 }
             }
@@ -430,11 +589,12 @@ pub(crate) fn normalize_history_time(value: &str, market: &str) -> Result<String
         "FUTURES" | "CRYPTO" => "UTC",
         _ => "UTC",
     };
-    let local = timestamp
-        .to_zoned(jiff::tz::TimeZone::get(timezone).map_err(|error| error.to_string())?);
+    let local =
+        timestamp.to_zoned(jiff::tz::TimeZone::get(timezone).map_err(|error| error.to_string())?);
     let wall_clock = local.strftime("%Y-%m-%d %H:%M:%S").to_string();
-    let format: &[FormatItem<'_>] = &parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]:[second]")
-        .map_err(|_| "invalid history time format".to_owned())?;
+    let format: &[FormatItem<'_>] =
+        &parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]:[second]")
+            .map_err(|_| "invalid history time format".to_owned())?;
     parsed
         .format(format)
         .map_err(|_| "invalid history time format".to_owned())
@@ -443,13 +603,24 @@ pub(crate) fn normalize_history_time(value: &str, market: &str) -> Result<String
 
 pub(crate) fn order_status_code(value: &str) -> Option<i32> {
     match value.trim().to_ascii_uppercase().as_str() {
-        "UNKNOWN" => Some(-1), "UNSUBMITTED" => Some(0), "WAITINGSUBMIT" => Some(1),
-        "SUBMITTING" => Some(2), "SUBMITFAILED" => Some(3), "TIMEOUT" => Some(4),
-        "SUBMITTED" => Some(5), "FILLEDPART" | "FILLED_PART" => Some(10),
-        "FILLEDALL" | "FILLED_ALL" => Some(11), "CANCELLINGPART" | "CANCELLING_PART" => Some(12),
-        "CANCELLINGALL" | "CANCELLING_ALL" => Some(13), "CANCELLEDPART" | "CANCELLED_PART" => Some(14),
-        "CANCELLEDALL" | "CANCELLED_ALL" => Some(15), "FAILED" => Some(21), "DISABLED" => Some(22),
-        "DELETED" => Some(23), "FILLCANCELLED" | "FILL_CANCELLED" => Some(24), _ => None,
+        "UNKNOWN" => Some(-1),
+        "UNSUBMITTED" => Some(0),
+        "WAITINGSUBMIT" => Some(1),
+        "SUBMITTING" => Some(2),
+        "SUBMITFAILED" => Some(3),
+        "TIMEOUT" => Some(4),
+        "SUBMITTED" => Some(5),
+        "FILLEDPART" | "FILLED_PART" => Some(10),
+        "FILLEDALL" | "FILLED_ALL" => Some(11),
+        "CANCELLINGPART" | "CANCELLING_PART" => Some(12),
+        "CANCELLINGALL" | "CANCELLING_ALL" => Some(13),
+        "CANCELLEDPART" | "CANCELLED_PART" => Some(14),
+        "CANCELLEDALL" | "CANCELLED_ALL" => Some(15),
+        "FAILED" => Some(21),
+        "DISABLED" => Some(22),
+        "DELETED" => Some(23),
+        "FILLCANCELLED" | "FILL_CANCELLED" => Some(24),
+        _ => None,
     }
 }
 
@@ -460,7 +631,9 @@ pub(crate) struct ResolvedTradeRequest {
     pub(crate) header: TradeHeader,
 }
 
-pub(crate) fn account_identity(account: &jftrade_integration_futu::TradeAccountSnapshot) -> Option<String> {
+pub(crate) fn account_identity(
+    account: &jftrade_integration_futu::TradeAccountSnapshot,
+) -> Option<String> {
     if account.acc_id != 0 {
         return Some(account.acc_id.to_string());
     }
@@ -542,5 +715,8 @@ pub(crate) fn normalize_trade_account_market(value: &str) -> String {
 }
 
 pub(crate) fn checked_at() -> String {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis().to_string()).unwrap_or_else(|_| "0".to_owned())
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_owned())
 }

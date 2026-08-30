@@ -2,14 +2,12 @@
 
 use std::sync::Arc;
 
+use jftrade_settings::MarketDataProvider;
 use percent_encoding::percent_decode_str;
 use serde_json::Value;
-use jftrade_settings::MarketDataProvider;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
-use crate::product::{
-    MarketDataPredictionReadSnapshotError, MarketDataPredictionReadSnapshotPort,
-};
+use crate::product::{MarketDataPredictionReadSnapshotError, MarketDataPredictionReadSnapshotPort};
 
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataPredictionPort {
@@ -17,7 +15,11 @@ pub(crate) struct ProductionMarketDataPredictionPort {
 }
 
 impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort {
-    fn read(&self, path: &str, query: &str) -> Result<Value, MarketDataPredictionReadSnapshotError> {
+    fn read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Value, MarketDataPredictionReadSnapshotError> {
         validate_prediction_read_request(path, query)?;
         let snapshot = self.active_provider_state.snapshot();
         if snapshot.provider.is_none() {
@@ -51,9 +53,20 @@ pub(crate) fn validate_prediction_read_request(
         .map_err(|_| prediction_read_invalid("invalid prediction query encoding"))?;
 
     for key in [
-        "brokerId", "accountId", "tradingEnvironment", "market", "marketSegment",
-        "productClass", "category", "tag", "seriesId", "cursor", "eventId", "code",
-        "instrumentId", "underlying",
+        "brokerId",
+        "accountId",
+        "tradingEnvironment",
+        "market",
+        "marketSegment",
+        "productClass",
+        "category",
+        "tag",
+        "seriesId",
+        "cursor",
+        "eventId",
+        "code",
+        "instrumentId",
+        "underlying",
     ] {
         if let Some(value) = query_map.get_first(key) {
             validate_prediction_scalar(key, value)?;
@@ -63,7 +76,9 @@ pub(crate) fn validate_prediction_read_request(
     if let Some(value) = query_map.get_first("pageSize") {
         let page_size = value.trim().parse::<u16>().ok();
         if !page_size.is_some_and(|value| (1..=300).contains(&value)) {
-            return Err(prediction_read_invalid("pageSize must be between 1 and 300"));
+            return Err(prediction_read_invalid(
+                "pageSize must be between 1 and 300",
+            ));
         }
     }
     if let Some(value) = query_map.get_first("count") {
@@ -73,14 +88,19 @@ pub(crate) fn validate_prediction_read_request(
         }
     }
     if let Some(value) = query_map.get_first("refresh")
-        && !matches!(value.trim().to_ascii_lowercase().as_str(), "true" | "false" | "1" | "0")
+        && !matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "true" | "false" | "1" | "0"
+        )
     {
         return Err(prediction_read_invalid("refresh must be true or false"));
     }
     if let Some(value) = query_map.get_first("operation") {
         let requested = value.trim().to_ascii_lowercase();
         if !requested.is_empty() && requested != operation {
-            return Err(prediction_read_invalid(&format!("operation must be {operation}")));
+            return Err(prediction_read_invalid(&format!(
+                "operation must be {operation}"
+            )));
         }
     }
     if let Some(value) = query_map.get_first("market")
@@ -92,7 +112,9 @@ pub(crate) fn validate_prediction_read_request(
     Ok(())
 }
 
-fn prediction_read_operation(path: &str) -> Result<&'static str, MarketDataPredictionReadSnapshotError> {
+fn prediction_read_operation(
+    path: &str,
+) -> Result<&'static str, MarketDataPredictionReadSnapshotError> {
     if !crate::product::is_market_data_prediction_read_path(path) {
         return Err(prediction_read_invalid("unsupported prediction read route"));
     }
@@ -171,10 +193,15 @@ fn prediction_read_invalid(message: &str) -> MarketDataPredictionReadSnapshotErr
 mod tests {
     use super::*;
 
-    fn port(provider: Option<MarketDataProvider>, opend_ready: bool) -> ProductionMarketDataPredictionPort {
+    fn port(
+        provider: Option<MarketDataProvider>,
+        opend_ready: bool,
+    ) -> ProductionMarketDataPredictionPort {
         let state = Arc::new(ActiveProviderState::new(provider));
         state.set_readiness(false, opend_ready, false);
-        ProductionMarketDataPredictionPort { active_provider_state: state }
+        ProductionMarketDataPredictionPort {
+            active_provider_state: state,
+        }
     }
 
     #[test]
@@ -188,10 +215,26 @@ mod tests {
     #[test]
     fn prediction_read_query_rejects_invalid_schema_before_provider_check() {
         let invalid = [
-            ("/api/v1/market-data/prediction/events", "pageSize=0", "pageSize must be between 1 and 300"),
-            ("/api/v1/market-data/prediction/events", "refresh=maybe", "refresh must be true or false"),
-            ("/api/v1/market-data/prediction/events", "category=%FF", "invalid prediction query encoding"),
-            ("/api/v1/market-data/prediction/contracts/US.EC-42/snapshot", "operation=events", "operation must be snapshot"),
+            (
+                "/api/v1/market-data/prediction/events",
+                "pageSize=0",
+                "pageSize must be between 1 and 300",
+            ),
+            (
+                "/api/v1/market-data/prediction/events",
+                "refresh=maybe",
+                "refresh must be true or false",
+            ),
+            (
+                "/api/v1/market-data/prediction/events",
+                "category=%FF",
+                "invalid prediction query encoding",
+            ),
+            (
+                "/api/v1/market-data/prediction/contracts/US.EC-42/snapshot",
+                "operation=events",
+                "operation must be snapshot",
+            ),
         ];
         for (path, query, message) in invalid {
             assert!(matches!(

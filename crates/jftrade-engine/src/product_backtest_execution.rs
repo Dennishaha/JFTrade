@@ -88,7 +88,9 @@ impl BacktestExecutionTaskRegistry {
             };
             (Arc::clone(&worker.store), cancel)
         };
-        mark_run_cancelled(&store, run_id);
+        if let Err(error) = mark_run_cancelled(&store, run_id) {
+            eprintln!("backtest {run_id} cancellation persistence failed: {error}");
+        }
         let _ = cancel.send(());
         true
     }
@@ -102,7 +104,16 @@ impl BacktestExecutionTaskRegistry {
             if !worker.handle.is_finished() {
                 return true;
             }
-            let run = worker.store.get_run(&worker.run_id).ok().flatten();
+            let run = match worker.store.get_run(&worker.run_id) {
+                Ok(run) => run,
+                Err(error) => {
+                    eprintln!(
+                        "backtest {} failed to inspect finished worker: {error}",
+                        worker.run_id
+                    );
+                    return true;
+                }
+            };
             let terminal = run.as_ref().is_none_or(|run| {
                 matches!(run.status.as_str(), "completed" | "failed" | "cancelled")
             });
@@ -115,12 +126,25 @@ impl BacktestExecutionTaskRegistry {
                     updated_at: timestamp.clone(),
                     ..run
                 };
-                let _ = worker.store.update_run_if_status(
+                match worker.store.update_run_if_status(
                     &worker.run_id,
                     &expected,
                     failed,
                     &timestamp,
-                );
+                ) {
+                    Ok(true) => {}
+                    Ok(false) => eprintln!(
+                        "backtest {} was changed before crash recovery",
+                        worker.run_id
+                    ),
+                    Err(error) => {
+                        eprintln!(
+                            "backtest {} failed to persist crash recovery: {error}",
+                            worker.run_id
+                        );
+                        return true;
+                    }
+                }
             }
             false
         });
@@ -129,7 +153,12 @@ impl BacktestExecutionTaskRegistry {
     pub(crate) async fn shutdown(&self) {
         let mut workers = self.take_workers();
         for worker in &mut workers {
-            mark_run_cancelled(&worker.store, &worker.run_id);
+            if let Err(error) = mark_run_cancelled(&worker.store, &worker.run_id) {
+                eprintln!(
+                    "backtest {} shutdown cancellation persistence failed: {error}",
+                    worker.run_id
+                );
+            }
             if let Some(cancel) = worker.cancel.take() {
                 let _ = cancel.send(());
             }
@@ -141,7 +170,12 @@ impl BacktestExecutionTaskRegistry {
 
     pub(crate) fn terminate(&self) {
         for mut worker in self.take_workers() {
-            mark_run_cancelled(&worker.store, &worker.run_id);
+            if let Err(error) = mark_run_cancelled(&worker.store, &worker.run_id) {
+                eprintln!(
+                    "backtest {} termination cancellation persistence failed: {error}",
+                    worker.run_id
+                );
+            }
             if let Some(cancel) = worker.cancel.take() {
                 let _ = cancel.send(());
             }
@@ -167,12 +201,13 @@ impl BacktestExecutionTaskRegistry {
     }
 }
 
-fn mark_run_cancelled(store: &BacktestRunStore, run_id: &str) {
-    let Ok(Some(run)) = store.get_run(run_id) else {
-        return;
-    };
+fn mark_run_cancelled(store: &BacktestRunStore, run_id: &str) -> Result<(), String> {
+    let run = store
+        .get_run(run_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("backtest run {run_id} not found"))?;
     if !matches!(run.status.as_str(), "queued" | "running") {
-        return;
+        return Ok(());
     }
     let timestamp = now_timestamp();
     let expected = run.status.clone();
@@ -182,7 +217,13 @@ fn mark_run_cancelled(store: &BacktestRunStore, run_id: &str) {
         updated_at: timestamp.clone(),
         ..run
     };
-    let _ = store.update_run_if_status(run_id, &expected, cancelled, &timestamp);
+    match store.update_run_if_status(run_id, &expected, cancelled, &timestamp) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(format!(
+            "backtest run {run_id} changed before cancellation was persisted"
+        )),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 static RUN_SEQUENCE: AtomicU64 = AtomicU64::new(1);

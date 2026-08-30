@@ -5,9 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Map, Value};
 
-use crate::product::product_adk_mutation_port::{
-    AdkMutationInput, AdkMutationPortError,
-};
+use crate::product::product_adk_mutation_port::{AdkMutationInput, AdkMutationPortError};
 
 use super::SESSION_ID_SEQUENCE;
 
@@ -145,13 +143,13 @@ pub(super) fn merged_entity_payload(
     resource: &str,
 ) -> Result<Value, AdkMutationPortError> {
     let mut value = decode_mutation_payload(&stored.payload_json, resource)?;
-    let object = value.as_object_mut().ok_or_else(|| {
-        AdkMutationPortError::Failed {
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| AdkMutationPortError::Failed {
             status: 500,
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: format!("stored ADK {resource} payload must be a JSON object"),
-        }
-    })?;
+        })?;
     let incoming = object_body(incoming, resource)?;
     for (key, member) in incoming {
         if key != "id" && key != "createdAt" && key != "updatedAt" {

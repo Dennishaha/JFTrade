@@ -5,6 +5,7 @@
 //! where helper payloads are validated and projected.
 
 use serde_json::{Map, Value};
+use std::sync::Arc;
 
 use crate::product::MarketDataNewsActionsReadSnapshotError;
 
@@ -55,6 +56,134 @@ pub(super) fn validate_news_actions_payload(
         );
     }
     Ok(Value::Object(projected))
+}
+
+/// Read the broker-owned news/corporate-actions operations through the live
+/// OpenD readers.  This is deliberately separate from the helper projection:
+/// OpenD has no date filter for dividends/splits, so filtering is performed on
+/// the typed events before they cross the product boundary.
+pub(crate) fn read_futu(
+    runtime: Option<&Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>>,
+    path: &str,
+    query: &str,
+) -> Result<Value, MarketDataNewsActionsReadSnapshotError> {
+    let runtime = runtime.ok_or_else(|| {
+        MarketDataNewsActionsReadSnapshotError::Unavailable(
+            "Futu news/actions runtime is not configured".to_owned(),
+        )
+    })?;
+    let (operation, market, symbol, _) = super::news_actions_helper_request(path, query)?;
+    if operation == "news" {
+        let instrument_query = if query.trim().is_empty() {
+            format!("instrumentId={market}.{symbol}")
+        } else {
+            format!("instrumentId={market}.{symbol}&{query}")
+        };
+        return super::product_production_ports_market_data_news_search::read_futu_news(
+            Some(runtime),
+            &instrument_query,
+        )
+        .map_err(|error| match error {
+            crate::product::MarketDataNewsSearchReadSnapshotError::Unavailable(message) => {
+                MarketDataNewsActionsReadSnapshotError::Unavailable(message)
+            }
+            crate::product::MarketDataNewsSearchReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                retry_after_seconds,
+            } => MarketDataNewsActionsReadSnapshotError::Failed {
+                status,
+                code,
+                message,
+                retry_after_seconds,
+            },
+        });
+    }
+    let market_code = futu_market_code(&market).ok_or_else(|| {
+        super::news_actions_capability("Futu corporate actions market is unsupported")
+    })?;
+    let query_map = crate::product::product_query::QueryMap::parse(query)
+        .map_err(|_| super::news_actions_bad_request("invalid URL escape"))?;
+    let from = parse_action_date(&query_map, "from")?;
+    let to = parse_action_date(&query_map, "to")?;
+    let base = |kind| jftrade_integration_futu::FutuCorporateActionsQuery {
+        market: market_code,
+        code: symbol.clone(),
+        kind,
+        from,
+        to,
+        next_key: None,
+        limit: 50,
+    };
+    let dividends = runtime
+        .corporate_actions(&base(
+            jftrade_integration_futu::CorporateActionKind::Dividends,
+        ))
+        .map_err(map_futu_actions_error)?;
+    let splits = runtime
+        .corporate_actions(&base(
+            jftrade_integration_futu::CorporateActionKind::StockSplits,
+        ))
+        .map_err(map_futu_actions_error)?;
+    let mut events = dividends.events;
+    events.extend(splits.events);
+    events.sort_by(|left, right| left.ex_date.cmp(&right.ex_date));
+    let events = events
+        .into_iter()
+        .map(|event| {
+            serde_json::to_value(event)
+                .map_err(|error| news_actions_bad_gateway(&error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(serde_json::json!({
+        "market": market,
+        "symbol": symbol,
+        "instrumentId": format!("{market}.{symbol}"),
+        "events": events,
+        "source": "futu-opend",
+    }))
+}
+
+fn futu_market_code(market: &str) -> Option<i32> {
+    match market.to_ascii_uppercase().as_str() {
+        "HK" => Some(1),
+        "US" => Some(11),
+        "SH" => Some(21),
+        "SZ" => Some(22),
+        _ => None,
+    }
+}
+
+fn parse_action_date(
+    query: &crate::product::product_query::QueryMap,
+    key: &'static str,
+) -> Result<Option<time::Date>, MarketDataNewsActionsReadSnapshotError> {
+    let Some(raw) = query
+        .get_first(key)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+    let parsed = time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339)
+        .map_err(|_| {
+        super::news_actions_bad_request(&format!("{key} must be a valid timestamp"))
+    })?;
+    Ok(Some(parsed.date()))
+}
+
+fn map_futu_actions_error(message: String) -> MarketDataNewsActionsReadSnapshotError {
+    if message.starts_with("invalid OpenD corporate actions query") {
+        super::news_actions_bad_request(&message)
+    } else {
+        MarketDataNewsActionsReadSnapshotError::Failed {
+            status: 502,
+            code: "FUTU_CORPORATE_ACTIONS_FAILED".to_owned(),
+            message,
+            retry_after_seconds: None,
+        }
+    }
 }
 
 fn required_text(

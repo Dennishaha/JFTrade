@@ -1,10 +1,5 @@
 //! Strategy and Research Presets production ports.
 
-use std::sync::Arc;
-use jftrade_store_sqlite::{
-    StrategyDefinitionStore, StrategyDefinitionStoreError, StrategyRuntimeStore,
-};
-use serde_json::{Value, json};
 use crate::product::product_strategy_definition_write_port::{
     StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
     StrategyDefinitionWritePortError,
@@ -15,20 +10,29 @@ use crate::product::strategy_pine::{
 use crate::product::{
     StrategyDefinitionPreview, StrategyDefinitionSnapshotError, StrategyDefinitionSnapshotPort,
 };
+use jftrade_store_sqlite::{
+    StrategyDefinitionStore, StrategyDefinitionStoreError, StrategyRuntimeStore,
+};
+use serde_json::{Value, json};
+use std::sync::Arc;
 
 #[path = "product_production_ports_research.rs"]
 mod product_production_ports_research;
-#[path = "product_production_ports_research_market.rs"]
-mod product_production_ports_research_market;
 #[path = "product_production_ports_research_calendar.rs"]
 mod product_production_ports_research_calendar;
-pub(crate) use product_production_ports_research::{ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort};
-pub(crate) use product_production_ports_research_market::read_market_research;
+#[path = "product_production_ports_research_market.rs"]
+mod product_production_ports_research_market;
+pub(crate) use product_production_ports_research::{
+    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort,
+};
 pub(crate) use product_production_ports_research_calendar::read_market_calendar;
+pub(crate) use product_production_ports_research_market::read_market_research;
 
 #[path = "product_production_ports_strategy_runtime.rs"]
 mod product_production_ports_strategy_runtime;
-pub(crate) use product_production_ports_strategy_runtime::ProductionStrategyRuntimePort;
+pub(crate) use product_production_ports_strategy_runtime::{
+    ProductionStrategyRuntimePort, StrategyRuntimeManager,
+};
 
 // ---------------------------------------------------------------------------
 // Strategy Definition
@@ -181,13 +185,14 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                     .and_then(Value::as_str)
                     .unwrap_or_default()
                     .to_owned();
-                let visual_model_json = if let Some(vm) = def.get("visualModelJson").and_then(Value::as_str) {
-                    vm.to_owned()
-                } else if let Some(vm) = def.get("visualModel") {
-                    serde_json::to_string(vm).unwrap_or_else(|_| "{}".to_owned())
-                } else {
-                    "{}".to_owned()
-                };
+                let visual_model_json =
+                    if let Some(vm) = def.get("visualModelJson").and_then(Value::as_str) {
+                        vm.to_owned()
+                    } else if let Some(vm) = def.get("visualModel") {
+                        serde_json::to_string(vm).unwrap_or_else(|_| "{}".to_owned())
+                    } else {
+                        "{}".to_owned()
+                    };
                 let version = def
                     .get("version")
                     .and_then(Value::as_str)
@@ -303,7 +308,9 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
                     .unwrap_or(existing.script);
-                let visual_model_json = if let Some(vm) = def.get("visualModelJson").and_then(Value::as_str) {
+                let visual_model_json = if let Some(vm) =
+                    def.get("visualModelJson").and_then(Value::as_str)
+                {
                     vm.to_owned()
                 } else if let Some(vm) = def.get("visualModel") {
                     serde_json::to_string(vm).unwrap_or_else(|_| existing.visual_model_json.clone())
@@ -468,7 +475,9 @@ fn generate_instance_id(definition_id: &str) -> String {
     format!("{}-{}", definition_id.trim(), suffix)
 }
 
-fn map_strategy_store_error(error: StrategyDefinitionStoreError) -> StrategyDefinitionWritePortError {
+fn map_strategy_store_error(
+    error: StrategyDefinitionStoreError,
+) -> StrategyDefinitionWritePortError {
     match error {
         StrategyDefinitionStoreError::NotFound => StrategyDefinitionWritePortError::Failed {
             status: 404,
@@ -508,21 +517,94 @@ fn map_strategy_store_error(error: StrategyDefinitionStoreError) -> StrategyDefi
 
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyPinePort {
-    pub(crate) worker_status: &'static str,
+    pub(crate) worker: Option<Arc<jftrade_integration_pine::GrpcPineExecutionPort>>,
 }
 
 impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
     fn analyze(
         &self,
-        _input: &StrategyPineAnalyzeInput,
+        input: &StrategyPineAnalyzeInput,
     ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
-        if self.worker_status != "ready" {
+        let Some(worker) = self.worker.as_ref() else {
             return Err(StrategyPineAnalyzeSnapshotError::Unavailable(
                 "pine analyzer is not configured".to_owned(),
             ));
+        };
+        let worker = Arc::clone(worker);
+        let script = input.script.clone();
+        let include_ast = input.include_ast;
+        let job_id = {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static NEXT_ANALYSIS_ID: AtomicU64 = AtomicU64::new(1);
+            format!(
+                "strategy-pine-{}-{}",
+                time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
+                NEXT_ANALYSIS_ID.fetch_add(1, Ordering::Relaxed)
+            )
+        };
+        let result = std::thread::Builder::new()
+            .name("jftrade-pine-analyze".to_owned())
+            .spawn(move || {
+                let runtime = tokio::runtime::Runtime::new().map_err(|error| {
+                    jftrade_integration_pine::PineExecutionError::Transport(error.to_string())
+                })?;
+                runtime.block_on(worker.analyze_script(
+                    &job_id,
+                    "strategy-pine",
+                    &script,
+                    include_ast,
+                ))
+            })
+            .map_err(|error| StrategyPineAnalyzeSnapshotError::Unavailable(error.to_string()))?;
+        let result = result
+            .join()
+            .map_err(|_| StrategyPineAnalyzeSnapshotError::Failed {
+                status: 502,
+                code: "STRATEGY_PINE_ANALYZE_FAILED".to_owned(),
+                message: "pine analyzer worker thread panicked".to_owned(),
+                retry_after_seconds: None,
+            })?;
+        result.map_err(map_pine_analysis_error)
+    }
+}
+
+fn map_pine_analysis_error(
+    error: jftrade_integration_pine::PineExecutionError,
+) -> StrategyPineAnalyzeSnapshotError {
+    use jftrade_integration_pine::PineExecutionError as PineError;
+    match error {
+        PineError::Unavailable(message) => StrategyPineAnalyzeSnapshotError::Unavailable(message),
+        PineError::InvalidRequest(message) => StrategyPineAnalyzeSnapshotError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message,
+            retry_after_seconds: None,
+        },
+        PineError::Timeout => StrategyPineAnalyzeSnapshotError::Failed {
+            status: 503,
+            code: "STRATEGY_PINE_ANALYZE_TIMEOUT".to_owned(),
+            message: "pine analyzer request timed out".to_owned(),
+            retry_after_seconds: Some(1),
+        },
+        PineError::Cancelled => StrategyPineAnalyzeSnapshotError::Failed {
+            status: 503,
+            code: "STRATEGY_PINE_ANALYZE_CANCELLED".to_owned(),
+            message: "pine analyzer request cancelled".to_owned(),
+            retry_after_seconds: None,
+        },
+        PineError::Remote(message)
+        | PineError::Transport(message)
+        | PineError::InvalidResponse(message) => StrategyPineAnalyzeSnapshotError::Failed {
+            status: 502,
+            code: "STRATEGY_PINE_ANALYZE_FAILED".to_owned(),
+            message,
+            retry_after_seconds: None,
+        },
+        PineError::InvalidEndpoint(message) => {
+            StrategyPineAnalyzeSnapshotError::Unavailable(message)
         }
-        Err(StrategyPineAnalyzeSnapshotError::Unavailable(
-            "pine analyzer is not configured".to_owned(),
-        ))
+        PineError::WeakToken => {
+            StrategyPineAnalyzeSnapshotError::Unavailable("pine worker token is invalid".to_owned())
+        }
     }
 }

@@ -1,11 +1,11 @@
 //! Production market-data catalog adapter for markets and instrument search.
 
-use std::sync::Arc;
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperMarketsResponse, HelperSearchResponse,
 };
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
+use std::sync::Arc;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::{
@@ -40,22 +40,16 @@ impl ProductionMarketDataCatalogPort {
     }
 
     fn active_provider(&self) -> Result<MarketDataProvider, MarketDataCatalogReadSnapshotError> {
-        self.active_provider_state
-            .get()
-            .ok_or_else(|| {
-                MarketDataCatalogReadSnapshotError::Unavailable(
-                    "active market-data provider is not configured".to_owned(),
-                )
-            })
+        self.active_provider_state.get().ok_or_else(|| {
+            MarketDataCatalogReadSnapshotError::Unavailable(
+                "active market-data provider is not configured".to_owned(),
+            )
+        })
     }
 }
 
 impl MarketDataCatalogReadSnapshotPort for ProductionMarketDataCatalogPort {
-    fn read<'a>(
-        &'a self,
-        path: &'a str,
-        query: &'a str,
-    ) -> MarketDataCatalogReadFuture<'a> {
+    fn read<'a>(&'a self, path: &'a str, query: &'a str) -> MarketDataCatalogReadFuture<'a> {
         Box::pin(async move {
             match path {
                 "/api/v1/market-data/markets" => self.read_markets(query).await,
@@ -69,14 +63,17 @@ impl MarketDataCatalogReadSnapshotPort for ProductionMarketDataCatalogPort {
 }
 
 impl ProductionMarketDataCatalogPort {
-    async fn read_markets(&self, _query: &str) -> Result<Value, MarketDataCatalogReadSnapshotError> {
+    async fn read_markets(
+        &self,
+        _query: &str,
+    ) -> Result<Value, MarketDataCatalogReadSnapshotError> {
         let provider = self.active_provider()?;
         match provider {
             MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
                 let Some(helper) = &self.helper else {
-                    return Err(MarketDataCatalogReadSnapshotError::Unavailable(
-                        format!("market data helper is not configured for {provider:?}"),
-                    ));
+                    return Err(MarketDataCatalogReadSnapshotError::Unavailable(format!(
+                        "market data helper is not configured for {provider:?}"
+                    )));
                 };
                 let provider_str = match provider {
                     MarketDataProvider::Yfinance => "yfinance",
@@ -118,13 +115,17 @@ impl ProductionMarketDataCatalogPort {
         }
     }
 
-    async fn read_instruments(&self, query_str: &str) -> Result<Value, MarketDataCatalogReadSnapshotError> {
-        let parsed_query = crate::product::product_query::QueryMap::parse(query_str).map_err(|_| {
-            MarketDataCatalogReadSnapshotError::Invalid {
-                code: "MARKET_INSTRUMENT_INVALID".to_owned(),
-                message: "invalid URL escape".to_owned(),
-            }
-        })?;
+    async fn read_instruments(
+        &self,
+        query_str: &str,
+    ) -> Result<Value, MarketDataCatalogReadSnapshotError> {
+        let parsed_query =
+            crate::product::product_query::QueryMap::parse(query_str).map_err(|_| {
+                MarketDataCatalogReadSnapshotError::Invalid {
+                    code: "MARKET_INSTRUMENT_INVALID".to_owned(),
+                    message: "invalid URL escape".to_owned(),
+                }
+            })?;
         let search_query = parsed_query
             .get_first("query")
             .or_else(|| parsed_query.get_first("q"))
@@ -173,9 +174,9 @@ impl ProductionMarketDataCatalogPort {
         match provider {
             MarketDataProvider::Yfinance | MarketDataProvider::Akshare => {
                 let Some(helper) = &self.helper else {
-                    return Err(MarketDataCatalogReadSnapshotError::Unavailable(
-                        format!("market data helper is not configured for {provider:?}"),
-                    ));
+                    return Err(MarketDataCatalogReadSnapshotError::Unavailable(format!(
+                        "market data helper is not configured for {provider:?}"
+                    )));
                 };
                 let provider_str = match provider {
                     MarketDataProvider::Yfinance => "yfinance",
@@ -183,10 +184,7 @@ impl ProductionMarketDataCatalogPort {
                     MarketDataProvider::Futu => "futu",
                 };
                 let limit_str = limit.to_string();
-                let query_params = [
-                    ("q", search_query),
-                    ("limit", limit_str.as_str()),
-                ];
+                let query_params = [("q", search_query), ("limit", limit_str.as_str())];
                 let search_resp = helper
                     .get_provider_json_with_query::<HelperSearchResponse>(
                         provider_str,
@@ -194,7 +192,9 @@ impl ProductionMarketDataCatalogPort {
                         &query_params,
                     )
                     .await
-                    .map_err(|error| map_helper_catalog_error(error, "MARKET_INSTRUMENT_SEARCH_FAILED"))?;
+                    .map_err(|error| {
+                        map_helper_catalog_error(error, "MARKET_INSTRUMENT_SEARCH_FAILED")
+                    })?;
 
                 let mut entries = if !requested_market.is_empty() {
                     let req_upper = requested_market.to_ascii_uppercase();
@@ -236,23 +236,29 @@ impl ProductionMarketDataCatalogPort {
                 }
 
                 entries.sort_by(|a, b| {
-                    (a.market.as_str(), a.symbol.as_str(), a.instrument_id.as_str()).cmp(&(
-                        b.market.as_str(),
-                        b.symbol.as_str(),
-                        b.instrument_id.as_str(),
-                    ))
+                    (
+                        a.market.as_str(),
+                        a.symbol.as_str(),
+                        a.instrument_id.as_str(),
+                    )
+                        .cmp(&(
+                            b.market.as_str(),
+                            b.symbol.as_str(),
+                            b.instrument_id.as_str(),
+                        ))
                 });
 
                 let total_all_matches = entries.len();
-                let resolution_status = if total_all_matches > 0 && !entries.iter().any(|e| e.selectable) {
-                    "unavailable"
-                } else {
-                    match total_all_matches {
-                        0 => "not_found",
-                        1 => "resolved",
-                        _ => "ambiguous",
-                    }
-                };
+                let resolution_status =
+                    if total_all_matches > 0 && !entries.iter().any(|e| e.selectable) {
+                        "unavailable"
+                    } else {
+                        match total_all_matches {
+                            0 => "not_found",
+                            1 => "resolved",
+                            _ => "ambiguous",
+                        }
+                    };
 
                 if entries.len() > limit {
                     entries.truncate(limit);
@@ -286,7 +292,11 @@ fn map_helper_catalog_error(
             message,
             ..
         } => {
-            let error_code = if !code.is_empty() { code } else { default_code.to_owned() };
+            let error_code = if !code.is_empty() {
+                code
+            } else {
+                default_code.to_owned()
+            };
             MarketDataCatalogReadSnapshotError::Failed {
                 status,
                 code: error_code,

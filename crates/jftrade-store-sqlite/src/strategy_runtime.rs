@@ -421,6 +421,38 @@ impl StrategyRuntimeStore {
             .map_err(StrategyRuntimeStoreError::Query)
     }
 
+    /// Atomically records the worker's latest observation.  Runtime workers
+    /// use this instead of mutating the catalog payload, keeping status and
+    /// liveness projections durable across process restarts.
+    pub fn update_observation(
+        &self,
+        instance_id: &str,
+        actual_status: &str,
+        active_symbols: &[String],
+        last_error: Option<&str>,
+        updated_at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        let connection = self.lock()?;
+        let symbols = serde_json::to_string(active_symbols).map_err(|error| {
+            StrategyRuntimeStoreError::Incompatible(format!("encode active symbols: {error}"))
+        })?;
+        connection
+            .execute(
+                "INSERT INTO strategy_runtime_observations
+                    (instance_id, actual_status_snapshot, active_symbols_json, last_error, updated_at_ms)
+                 VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(instance_id) DO UPDATE SET
+                    actual_status_snapshot = excluded.actual_status_snapshot,
+                    active_symbols_json = excluded.active_symbols_json,
+                    last_error = excluded.last_error,
+                    last_error_at_ms = CASE WHEN excluded.last_error IS NULL OR excluded.last_error = '' THEN strategy_runtime_observations.last_error_at_ms ELSE excluded.updated_at_ms END,
+                    updated_at_ms = excluded.updated_at_ms",
+                params![instance_id, actual_status, symbols, last_error.unwrap_or_default(), updated_at_ms],
+            )
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        Ok(())
+    }
+
     pub fn update_status(
         &self,
         instance_id: &str,

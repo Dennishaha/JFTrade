@@ -126,6 +126,11 @@ impl ProductShutdownSupervisor {
             }
             self.recorder.record("http_join");
         }
+        // Strategy runtime tasks own Pine calls and DemandBook consumers;
+        // stop and join them before tearing down provider workers or stores.
+        if let Some(ports) = self.production_ports.as_ref() {
+            ports.shutdown_strategy_runtime();
+        }
         // 2. Release provider demand & bridge
         let mut had_provider = false;
         if let Some(provider) = self.market_data_opend_provider.take() {
@@ -224,6 +229,9 @@ impl ProductShutdownSupervisor {
         if let Some(mut product) = self.product.take() {
             product.sync_terminate();
             self.recorder.record("http_join");
+        }
+        if let Some(ports) = self.production_ports.as_ref() {
+            ports.shutdown_strategy_runtime();
         }
         // 2. Release provider demand & bridge
         let mut had_provider = false;

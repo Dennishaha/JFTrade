@@ -37,6 +37,7 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
         market_data_opend_provider: None,
         strategy_runtime_registry: None,
         backtest_execution_port: None,
+        strategy_pine_worker_port: None,
         shutdown_recorder: None,
         #[cfg(test)]
         inject_startup_failure: false,
@@ -78,6 +79,7 @@ async fn opend_runtime_task_requires_explicit_session_composition() {
         market_data_opend_provider: None,
         strategy_runtime_registry: None,
         backtest_execution_port: None,
+        strategy_pine_worker_port: None,
         shutdown_recorder: None,
         #[cfg(test)]
         inject_startup_failure: false,
@@ -557,6 +559,7 @@ async fn build_test_runtime_config(
         market_data_opend_provider: Some(provider_config),
         strategy_runtime_registry: None,
         backtest_execution_port: None,
+        strategy_pine_worker_port: None,
         shutdown_recorder: Some(recorder),
         #[cfg(test)]
         inject_startup_failure: inject_fault,
@@ -782,4 +785,46 @@ async fn test_helper_health_failure_dynamically_downgrades_provider_readiness() 
     assert!(monitor.snapshot().last_error.is_none());
 
     handle.shutdown().await.expect("shutdown");
+}
+
+#[tokio::test]
+async fn production_external_worker_failure_keeps_api_degraded() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    std::fs::write(&settings_path, b"{}").expect("settings file");
+    let product = ProductConfig::desktop_production(
+        SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 0),
+        &settings_path,
+        "a".repeat(32),
+    )
+    .expect("product config");
+    let config = ProductRuntimeConfig::desktop(product, DesktopRetainedRuntimeConfig::default())
+        .expect("runtime config");
+    let mut config = config;
+    config.marketdata_helper = Some(MarketDataHelperRuntimeConfig {
+        process: jftrade_integration_marketdata_helper::HelperProcessConfig {
+            executable: std::path::PathBuf::from("/definitely/missing/jftrade-helper"),
+            host: Ipv4Addr::LOCALHOST.into(),
+            port: 9,
+            bearer_token: None,
+            prefix_args: Vec::new(),
+            extra_args: Vec::new(),
+            environment: Default::default(),
+            log_path: None,
+            stop_timeout: Duration::from_millis(50),
+        },
+        startup_timeout: Duration::from_millis(50),
+        initial_retry_delay: Duration::from_millis(1),
+        max_retry_delay: Duration::from_millis(1),
+        request_timeout: Duration::from_millis(20),
+        health_interval: Duration::from_millis(20),
+        health_ttl: Duration::from_millis(50),
+    });
+
+    let runtime = start_product_runtime(config)
+        .await
+        .expect("external helper failure must not abort production API");
+    assert_eq!(runtime.startup_record().worker_status, "unavailable");
+    assert_eq!(runtime.startup_record().runtime_readiness, "degraded");
+    runtime.shutdown().await.expect("shutdown");
 }
