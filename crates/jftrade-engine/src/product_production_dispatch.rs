@@ -7,9 +7,48 @@
 // needed inside a broad capability target; it never decides whether a route
 // is registered.
 
-use crate::product::product_production_route_registry::ProductionRouteAdapter as Target;
+use crate::product::product_production_ports::ProductionAdapterBinding;
+use crate::product::product_production_route_registry::{
+    ProductionRouteAdapter as Target, ProductionRouteBinding,
+};
 
 impl ProductApi {
+    /// Dispatch only through a route binding that was validated by the
+    /// production composition root.  Unavailable external dependencies keep
+    /// their public route but return a stable 503 envelope instead of invoking
+    /// a handler that may fabricate an empty/success response.
+    async fn dispatch_production_binding(
+        &self,
+        binding: &ProductionRouteBinding,
+        request: &ApiRequest,
+    ) -> Result<ApiOutput, ApiFailure> {
+        if binding.adapter != binding.dispatch_target() {
+            return Err(ApiFailure::new(
+                500,
+                "PRODUCTION_ROUTE_BINDING_INVALID",
+                format!(
+                    "route adapter {} does not match dispatch target {}",
+                    binding.adapter.name(),
+                    binding.dispatch_target().name(),
+                ),
+            ));
+        }
+        match binding.adapter_binding {
+            ProductionAdapterBinding::Ready => {
+                self.dispatch_production_target(binding.dispatch_target(), request)
+                    .await
+            }
+            ProductionAdapterBinding::ExternalUnavailable => Err(ApiFailure::new(
+                503,
+                "PRODUCTION_ADAPTER_UNAVAILABLE",
+                format!(
+                    "production adapter {} is unavailable",
+                    binding.adapter.name()
+                ),
+            )),
+        }
+    }
+
     async fn dispatch_production_target(
         &self,
         target: Target,
