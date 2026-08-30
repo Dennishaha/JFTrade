@@ -604,6 +604,38 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
     )
 }
 
+/// Runtime-scoped adapters must not fall back to their startup readiness when
+/// the live capability reader no longer returns a binding (for example after
+/// teardown or a failed reconnect).
+pub(crate) fn runtime_scoped_adapter(adapter: ProductionRouteAdapter) -> bool {
+    is_dynamic_market_data_adapter(adapter)
+        || matches!(
+            adapter,
+            ProductionRouteAdapter::ResearchRead
+                | ProductionRouteAdapter::ExecutionWrite
+                | ProductionRouteAdapter::BrokerRead
+                | ProductionRouteAdapter::BrokerWrite
+                | ProductionRouteAdapter::PortfolioRead
+                | ProductionRouteAdapter::RemoteWatchlistRead
+                | ProductionRouteAdapter::RemoteWatchlistWrite
+                | ProductionRouteAdapter::AlertsRead
+                | ProductionRouteAdapter::AlertsWrite
+                | ProductionRouteAdapter::MarketDataOptionsExpirationsRead
+                | ProductionRouteAdapter::MarketDataFuturesRead
+                | ProductionRouteAdapter::MarketDataOptionsChainRead
+                | ProductionRouteAdapter::MarketDataOptionsScreenRead
+                | ProductionRouteAdapter::MarketDataOptionsAnalysisRead
+                | ProductionRouteAdapter::MarketDataOptionsEventsRead
+                | ProductionRouteAdapter::MarketDataOptionsUnusualRead
+                | ProductionRouteAdapter::MarketDataOptionsZeroDteRead
+                | ProductionRouteAdapter::MarketDataOptionsZeroDteContractRead
+                | ProductionRouteAdapter::MarketDataOptionsEarningsRead
+                | ProductionRouteAdapter::MarketDataOptionsSellerRead
+                | ProductionRouteAdapter::MarketDataZeroDteWrite
+                | ProductionRouteAdapter::WebSocketLive
+        )
+}
+
 #[path = "product_production_adapter_bindings_matrix.rs"]
 mod matrix;
 pub(crate) use matrix::{
