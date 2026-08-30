@@ -103,8 +103,9 @@ pub fn run() -> Result<(), NativeError> {
                 &format!("Rust retained runtime failed to start: {error}"),
             );
         })?;
+        let startup = runtime.startup_record().clone();
         let runtime_config = DesktopRuntimeConfig {
-            api_base_url: format!("http://{}", runtime.startup_record().address),
+            api_base_url: format!("http://{}", startup.address),
             auth_required: false,
             desktop_mode: true,
             desktop_api_token: token.clone(),
@@ -113,7 +114,6 @@ pub fn run() -> Result<(), NativeError> {
         *setup_product
             .lock()
             .map_err(|_| NativeError::RuntimeState)? = Some(runtime);
-        let startup = runtime.startup_record();
         append_native_log(
             &setup_log_path,
             if startup.runtime_readiness == "ready" {
