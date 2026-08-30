@@ -2,6 +2,8 @@
 
 本文是 JFTrade Go/Wails -> Rust/Tauri 迁移的执行细则，供 harness、并行 agent 和集成 agent 使用。它不替代仓库根 AGENTS.md、局部 AGENTS.md 或 go-to-rust-migration.md；冲突时以更深层指令和当前仓库事实为准。
 
+> 适用范围：本文保留给历史 route ledger、Go/Rust compatibility corpus、owner/delete 证据和迁移回归维护。278 条生产路由与 Rust/Tauri owner 接管已经完成，普通 Rust production 修复不得把本文中的阶段工作包或状态为 `passed` 的 closeout gate 重新列为待办；当前实现任务只从 [`docs/roadmap.md`](../roadmap.md) 的未闭合项领取。
+
 ## Harness 启动协议
 
 任何迁移任务在输出目标、选择 route group 或创建分支前，必须按顺序完成：

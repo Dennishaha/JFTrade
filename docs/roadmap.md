@@ -12,9 +12,11 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 按依赖和共享文件冲突依次收口，完成前不再扩展新的 route group。
 
-- [ ] **Rust MCP Streamable HTTP 资格收口**：以 Go SDK v1.7 client compatibility 和 HTTP corpus 确认 stateless method surface；若 baseline 仍为 POST-only，则 `GET`/`DELETE` 保持 `405 Allow: POST`，不得为满足旧清单扩展 SSE session。继续收口 `Accept`/`Content-Type`/`MCP-Protocol-Version`、Origin、initialize、敏感字段白名单、reviewed tool catalog、无 runtime fail-closed、失败回滚和逆序 teardown。
-- [ ] **ADK durable runtime 收口**：workflow 在外部调用前写入 durable invocation 并以 CAS 收敛终态/恢复孤儿任务；Skill 下载消除 DNS rebinding TOCTOU 并补安全 ZIP 安装；compact 使用真实 context/handoff 语义；默认 Provider 切换必须保持事务性唯一。
-- [ ] **Execution reconciliation 解耦收口**：保留 broker ID discovery、订单/成交/费用/历史恢复、未知 broker 状态显式错误和重启幂等；将交易 OpenD/login/trade-reader readiness 与行情 active provider 解耦，确保 yfinance/AKShare 行情模式下交易对账仍可运行或返回准确的 broker unavailable。
+- [ ] **ADK model context 与恢复闭环**：让下一次真实模型请求消费 durable context/handoff；修复仅有 handoff segment、缺少 context row 时的 CAS re-anchor；orphan recovery 失败必须 fail closed，workflow 终态 CAS loser 必须重读 durable winner。已完成的 invocation 预写入、终态 CAS 基础能力、DNS 固定地址下载和 ZIP 安装防护不再派工。
+- [ ] **ADK Provider 唯一默认约束**：Create、Update、SetDefault、Delete 全部通过 store 级原子操作维护唯一 `default=true`；默认 Provider 删除与 secrets/替代项更新必须同一事务或具备可证明的失败回滚，并覆盖并发 mutation。
+- [ ] **Execution reconciliation 生命周期与端到端证据**：在 HTTP/WS 停止后、Provider/OpenD teardown 前停止 reconciliation worker；补 yfinance/AKShare 行情 + Futu 交易的 account/order/history/fill/fee、UNKNOWN 状态、CAS 和重启幂等验证。行情 active provider 与交易 reader 的代码解耦已完成，不再作为实现门禁。
+- [ ] **Rust MCP baseline 资格**：先用 Go SDK v1.7 client 冻结 initialize、tools/list、tools/call、method/header/status corpus，再按 baseline 收口 Host、Origin、Accept、Content-Type、`MCP-Protocol-Version` 和 startup/degraded projection；明确 reviewed tool catalog 是完整兼容还是经批准缩窄。现有 listener、Bearer、body limit、persisted apply、无 runtime fail-closed 和 teardown 不再派工。
+- [ ] **Production route 安装证明**：移除独立手工 `production_installed_adapters()` 事实源，从实际强类型 bundle/adapter 构造结果派生 registry；逐 route 证明 `ExternalUnavailable` 不得返回 2xx，并让 WS readiness 来自 LiveHub 实际状态而非固定 `enabled=true`。278 route count/digest、显式 dispatch、无 501/Go fallback 已完成，不再派工。
 
 ## Release 与终局放行项
 
@@ -29,10 +31,11 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 ## 后续交接顺序
 
-1. 先完成 MCP Streamable HTTP 资格和 ADK durable runtime；两者共享 `product_server`/composition root 时由集成方串行审阅和落地，并分别记录未解决 quirk。
-2. 随后修复 Execution reconciliation 的行情/交易 provider 解耦；不得扩大到无关 route group。
-3. 实现稳定后，由集成方做一次只读全局审计，再按受影响范围运行验证；最终总门禁以仓库脚本的实际编排为准。
-4. 最后审阅完整 diff，在 `main` 上做一次本地提交；不 push。
+1. 先完成 ADK model context/recovery 与 Provider 唯一默认约束；两者共享 ADK store/mutation 文件时由同一实现方串行处理。
+2. MCP baseline 资格可独立推进；在没有 Go SDK corpus 前不得扩展 method surface 或宣称 catalog 兼容。
+3. 随后调整 Execution reconciliation 停机顺序并补端到端证据；Production route 安装证明由集成方最后串行收口，避免与 composition root、dispatch 和 startup status 产生冲突。
+4. 实现稳定后做一次只读全局审计，再按受影响范围运行验证；最终总门禁以仓库脚本的实际编排为准。
+5. 最后审阅完整 diff，在 `main` 上做一次本地提交；不 push。
 
 ## 约束
 
