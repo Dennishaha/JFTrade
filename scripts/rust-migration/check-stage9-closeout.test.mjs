@@ -70,6 +70,20 @@ test("Stage 9 closeout fixture is structurally valid but remains open", () => {
   assert.match(result.blockers.join("\n"), /platform macos-arm64 package is open/);
 });
 
+test("Stage 9 closeout keeps hard-cut and owner-deletion gates open", () => {
+  const manifest = readManifest();
+  const result = evaluateCloseout(manifest, {
+    expectedRouteOwnership: routeOwnershipSnapshot(repositoryRoot),
+  });
+  assert.equal(result.valid, true);
+  assert.equal(manifest.gates.hardCutReadiness.status, "open");
+  assert.equal(manifest.ownerDeletion.go.status, "open");
+  assert.equal(manifest.ownerDeletion.wails.status, "open");
+  assert.ok(
+    !result.blockers.some((blocker) => blocker.includes("is passed while prerequisite gate")),
+  );
+});
+
 test("Stage 9 closeout checker reports open evidence without failing by default", () => {
   assert.equal(main(["--manifest", manifestPath]), 0);
 });
