@@ -14,9 +14,10 @@ use crate::product::product_production_route_registry::{
 
 impl ProductApi {
     /// Dispatch only through a route binding that was validated by the
-    /// production composition root.  Unavailable external dependencies keep
-    /// their public route but return a stable 503 envelope instead of invoking
-    /// a handler that may fabricate an empty/success response.
+    /// production composition root.  Most adapters retain their handler's
+    /// baseline error mapping when an external dependency is unavailable; a
+    /// small set of routes with historically synthetic success projections is
+    /// hard-failed here instead.
     async fn dispatch_production_binding(
         &self,
         binding: &ProductionRouteBinding,
@@ -38,15 +39,41 @@ impl ProductApi {
                 self.dispatch_production_target(binding.dispatch_target(), request)
                     .await
             }
-            ProductionAdapterBinding::ExternalUnavailable => Err(ApiFailure::new(
-                503,
-                "PRODUCTION_ADAPTER_UNAVAILABLE",
-                format!(
-                    "production adapter {} is unavailable",
-                    binding.adapter.name()
-                ),
-            )),
+            ProductionAdapterBinding::ExternalUnavailable => {
+                if self.hard_fail_external_unavailable(binding, request) {
+                    Err(ApiFailure::new(
+                        503,
+                        "PRODUCTION_ADAPTER_UNAVAILABLE",
+                        format!(
+                            "production adapter {} is unavailable",
+                            binding.adapter.name()
+                        ),
+                    ))
+                } else {
+                    self.dispatch_production_target(binding.dispatch_target(), request)
+                        .await
+                }
+            }
         }
+    }
+
+    fn hard_fail_external_unavailable(
+        &self,
+        binding: &ProductionRouteBinding,
+        request: &ApiRequest,
+    ) -> bool {
+        // An ADK chat route with no runtime at all is a missing internal
+        // adapter.  When the runtime exists, it performs provider readiness
+        // checks and projects the established ADK error envelope itself.
+        // Buying-power and combo previews have product-rule readers that
+        // cannot be represented by the generic execution writer; keep their
+        // unavailable status at the registry boundary even though ordinary
+        // order routes use handler mappings.
+        (binding.adapter == Target::AdkChat && self.adk_chat_stream_port.is_none())
+            || matches!(
+                request.path.as_str(),
+                "/api/v1/execution/buying-power" | "/api/v1/execution/combos/previews"
+            )
     }
 
     async fn dispatch_production_target(
