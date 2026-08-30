@@ -801,4 +801,15 @@ impl AdkChatStreamPort for ProductionAdkPort {
             .as_deref()
             .is_some_and(|runtime| runtime.cancel_run(run_id))
     }
+
+    fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
+        self.chat_runtime
+            .as_deref()
+            .ok_or_else(|| {
+                AdkChatPortError::Unavailable(
+                    "assistant approval continuation is unavailable".to_owned(),
+                )
+            })?
+            .resume_approval(run_id)
+    }
 }

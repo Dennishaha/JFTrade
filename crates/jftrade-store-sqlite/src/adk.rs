@@ -146,6 +146,20 @@ pub struct CreateAdkRunParams<'a> {
     pub payload_json: &'a str,
 }
 
+/// Session event committed together with a terminal ADK run projection.
+///
+/// The session database is a separate SQLite file for compatibility with the
+/// existing ADK schema.  `AdkStore` attaches it for the duration of one
+/// transaction so a terminal run cannot become visible without its event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdkRunEvent<'a> {
+    pub id: &'a str,
+    pub session_id: &'a str,
+    pub invocation_id: &'a str,
+    pub author: &'a str,
+    pub content: &'a str,
+}
+
 #[derive(Debug, Error)]
 pub enum AdkStoreError {
     #[error("adk database path is required")]
@@ -723,6 +737,92 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)?;
         transaction.commit().map_err(AdkStoreError::Query)?;
         Ok(affected > 0)
+    }
+
+    /// Atomically transition a run and append its session events.
+    ///
+    /// ADK runs and session events intentionally remain in their historical
+    /// separate SQLite files.  SQLite's attached-database transaction gives
+    /// us one commit/rollback boundary across both files while preserving the
+    /// public schema and ownership model.  A constraint or foreign-key error
+    /// aborts the whole transaction, keeping a failed completion fail-closed.
+    pub fn update_run_state_if_status_and_revision_with_events(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+    ) -> Result<bool, AdkStoreError> {
+        let mut connection = self.lock_connection()?;
+        connection
+            .execute(
+                "ATTACH DATABASE ?1 AS adk_session_events",
+                params![session_db_path.to_string_lossy().as_ref()],
+            )
+            .map_err(AdkStoreError::Query)?;
+        let result = (|| {
+            let now = Self::now_rfc3339();
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_runs
+                     SET status = ?1, payload_json = ?2, updated_at = ?3
+                     WHERE id = ?4 AND status = ?5 AND updated_at = ?6",
+                    params![
+                        status,
+                        payload_json,
+                        now,
+                        id,
+                        expected_status,
+                        expected_updated_at
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected == 1 {
+                if let Some(first) = events.first() {
+                    transaction
+                        .execute(
+                            "INSERT OR IGNORE INTO adk_session_events.sessions
+                             (app_name, user_id, id, state, create_time, update_time)
+                             VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
+                            params![first.session_id, now],
+                        )
+                        .map_err(AdkStoreError::Query)?;
+                }
+                for event in events {
+                    transaction
+                        .execute(
+                            "INSERT INTO adk_session_events.events
+                             (id, app_name, user_id, session_id, invocation_id, author, content, timestamp)
+                             VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
+                            params![
+                                event.id,
+                                event.session_id,
+                                event.invocation_id,
+                                event.author,
+                                event.content,
+                                now,
+                            ],
+                        )
+                        .map_err(AdkStoreError::Query)?;
+                }
+            }
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok(affected == 1)
+        })();
+        let detach = connection
+            .execute("DETACH DATABASE adk_session_events", [])
+            .map_err(AdkStoreError::Query);
+        match (result, detach) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(_)) => Ok(value),
+        }
     }
 
     // --- Approvals ---
@@ -1997,6 +2097,28 @@ impl AdkTestCutoverStore {
             status,
             payload_json,
         )
+    }
+
+    pub fn update_run_state_if_status_and_revision_with_events(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        status: &str,
+        payload_json: &str,
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .update_run_state_if_status_and_revision_with_events(
+                id,
+                expected_status,
+                expected_updated_at,
+                status,
+                payload_json,
+                session_db_path,
+                events,
+            )
     }
 
     pub fn create_approval(

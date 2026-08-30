@@ -22,7 +22,7 @@ mod watchlist;
 pub use schema_manifest::{current_version, initialize_current, validate_current};
 
 pub use adk::{
-    ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkStore,
+    ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkRunEvent, AdkStore,
     AdkStoreError, AdkTestCutoverStore, CreateAdkRunParams, StoredAdkApproval, StoredAdkEntity,
     StoredAdkMemory, StoredAdkRun, StoredAdkTask, StoredAdkWorkflow, StoredAdkWorkflowTrigger,
 };

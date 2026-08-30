@@ -91,6 +91,14 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
     fn cancel_run(&self, _run_id: &str) -> bool {
         false
     }
+
+    /// Schedules a durable approval continuation.  Production runtimes must
+    /// override this; the default keeps fixture ports source-compatible.
+    fn resume_approval(&self, _run_id: &str) -> Result<(), AdkChatPortError> {
+        Err(AdkChatPortError::Unavailable(
+            "assistant approval continuation is unavailable".to_owned(),
+        ))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

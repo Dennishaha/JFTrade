@@ -161,6 +161,11 @@ impl AdkSessionStore {
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
     }
 
+    /// Path used by the production atomic run/event commit boundary.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
     pub fn upsert_session(
         &self,
         app_name: &str,

@@ -12,7 +12,9 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use jftrade_api::ApiStream;
-use jftrade_store_sqlite::{AdkSessionStore, AdkStore, CreateAdkRunParams, RecordAdkEventParams};
+use jftrade_store_sqlite::{
+    AdkRunEvent, AdkSessionStore, AdkStore, CreateAdkRunParams, RecordAdkEventParams,
+};
 
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute, AdkChatStreamFrame,
@@ -120,12 +122,33 @@ impl ProductionAdkChatRuntime {
                         |parent| parent.join("secrets/adk-secrets.json"),
                     )
             });
-        Self {
+        let runtime = Self {
             store,
             session_store,
             secrets_path,
             cancellation_registry,
             tool_catalog,
+        };
+        runtime.recover_approval_continuations();
+        runtime
+    }
+
+    fn recover_approval_continuations(&self) {
+        let Ok(runs) = self.store.list_runs() else {
+            return;
+        };
+        for run in runs {
+            let Ok(payload) = serde_json::from_str::<Value>(&run.payload_json) else {
+                continue;
+            };
+            let recovering = run.status.eq_ignore_ascii_case("RUNNING")
+                && payload
+                    .get("resumeState")
+                    .and_then(Value::as_str)
+                    .is_some_and(|state| state.eq_ignore_ascii_case("approval_resuming"));
+            if recovering {
+                let _ = self.resume_approval(&run.id);
+            }
         }
     }
 
@@ -202,6 +225,18 @@ impl ProductionAdkChatRuntime {
         self.store
             .upsert_session(&session_id, &agent_id, &session_payload.to_string())
             .map_err(storage_unavailable)?;
+        // The ADK session projection and the ADK event journal live in
+        // separate compatibility databases.  Ensure the referenced session
+        // exists before recording the first user event (the event schema has
+        // an FK back to this row).
+        self.session_store
+            .upsert_session(
+                "jftrade",
+                "local",
+                &session_id,
+                &session_payload.to_string(),
+            )
+            .map_err(storage_unavailable)?;
         let run_id = format!("run-{}", input.client_request_id);
         let initial_payload = json!({
             "id": run_id,
@@ -214,6 +249,9 @@ impl ProductionAdkChatRuntime {
             "streamId": run_id,
             "streamEvents": [],
             "providerEvents": [],
+            "requestMessage": message.clone(),
+            "providerId": provider.id.clone(),
+            "model": model.clone(),
         });
         self.store
             .create_run(CreateAdkRunParams {
@@ -254,9 +292,182 @@ impl ProductionAdkChatRuntime {
         }))
     }
 
+    /// Resume a run released from approval.  The durable approval CAS is the
+    /// gate; this method only schedules the actual model continuation after
+    /// validating the persisted request and current provider configuration.
+    pub(crate) fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
+        let run = self
+            .store
+            .get_run(run_id)
+            .map_err(storage_unavailable)?
+            .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+        if run.status.eq_ignore_ascii_case("CANCELLED") {
+            return Ok(());
+        }
+        if !run.status.eq_ignore_ascii_case("RUNNING") {
+            return Err(unavailable(format!(
+                "assistant chat run is already {}",
+                run.status
+            )));
+        }
+        let payload: Value =
+            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let object = payload
+            .as_object()
+            .ok_or_else(|| unavailable("persisted ADK run payload must be an object"))?;
+        let denied = object
+            .get("toolCalls")
+            .and_then(Value::as_array)
+            .is_some_and(|calls| {
+                calls.iter().any(|call| {
+                    call.get("status")
+                        .and_then(Value::as_str)
+                        .is_some_and(|status| status.eq_ignore_ascii_case("DENIED"))
+                })
+            });
+        if denied {
+            let now = run.updated_at.clone();
+            let mut denied_payload = payload;
+            denied_payload["status"] = Value::String("DENIED".to_owned());
+            denied_payload["message"] = Value::String("assistant tool call was denied".to_owned());
+            denied_payload["completedAt"] = Value::String(now.clone());
+            let denied_event_id = format!("{run_id}:denied");
+            let event = AdkRunEvent {
+                id: &denied_event_id,
+                session_id: &run.session_id,
+                invocation_id: &run.id,
+                author: &run.agent_id,
+                content: "assistant tool call was denied",
+            };
+            self.store
+                .update_run_state_if_status_and_revision_with_events(
+                    run_id,
+                    "RUNNING",
+                    &run.updated_at,
+                    "DENIED",
+                    &denied_payload.to_string(),
+                    self.session_store.path(),
+                    &[event],
+                )
+                .map_err(storage_unavailable)?;
+            return Ok(());
+        }
+        let message = object
+            .get("requestMessage")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .or_else(|| {
+                self.session_store
+                    .list_events(&run.session_id)
+                    .ok()?
+                    .into_iter()
+                    .find(|event| event.invocation_id == run.id && event.author == "user")
+                    .map(|event| event.content)
+            })
+            .ok_or_else(|| unavailable("persisted ADK run has no resumable request"))?;
+        let mut request = serde_json::Map::new();
+        if let Some(agent_id) = object.get("agentId").and_then(Value::as_str) {
+            request.insert("agentId".to_owned(), Value::String(agent_id.to_owned()));
+        }
+        if let Some(provider_id) = object.get("providerId").and_then(Value::as_str) {
+            request.insert(
+                "providerId".to_owned(),
+                Value::String(provider_id.to_owned()),
+            );
+        }
+        if let Some(model) = object.get("model").and_then(Value::as_str) {
+            request.insert("model".to_owned(), Value::String(model.to_owned()));
+        }
+        let provider = self.resolve_provider(&request)?;
+        let model = object
+            .get("model")
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(str::to_owned)
+            .or_else(|| provider.agent_model.clone())
+            .unwrap_or(provider.model.clone());
+        if model.trim().is_empty() {
+            return Err(unavailable("assistant model is not configured"));
+        }
+        let chat = ChatExecution {
+            route: AdkChatRoute::Chat,
+            run_id: run.id,
+            session_id: run.session_id,
+            agent_id: run.agent_id,
+            request: ModelRequest {
+                endpoint: provider.endpoint,
+                api_key: provider.api_key,
+                model,
+                instruction: provider.instruction,
+                message,
+                timeout: provider.timeout,
+                tools: self.tool_catalog.openai_tools(),
+            },
+        };
+        let store = Arc::clone(&self.store);
+        let session_store = Arc::clone(&self.session_store);
+        let secrets_path = self.secrets_path.clone();
+        let cancellation_registry = Arc::clone(&self.cancellation_registry);
+        let tool_catalog = Arc::clone(&self.tool_catalog);
+        std::thread::Builder::new()
+            .name("jftrade-adk-approval-resume".to_owned())
+            .spawn(move || {
+                let runtime = ProductionAdkChatRuntime {
+                    store,
+                    session_store,
+                    secrets_path,
+                    cancellation_registry,
+                    tool_catalog,
+                };
+                let cancellation = runtime.cancellation_registry.register(&chat.run_id);
+                let _guard = CancellationGuard {
+                    registry: Arc::clone(&runtime.cancellation_registry),
+                    run_id: chat.run_id.clone(),
+                };
+                if runtime.run_is_cancelled(&chat.run_id) {
+                    return;
+                }
+                let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+                if cancellation.load(Ordering::Acquire) {
+                    let error = cancellation_error();
+                    let _ = runtime.persist_cancelled(&chat, &error);
+                    return;
+                }
+                match result {
+                    Ok(response) if !response.tool_calls.is_empty() => {
+                        let _ = runtime.persist_tool_calls(&chat, &response);
+                    }
+                    Ok(response) => {
+                        let _ = runtime.persist_success(&chat, response);
+                    }
+                    Err(error) => {
+                        let _ = runtime.persist_failure(&chat, &error);
+                    }
+                }
+            })
+            .map_err(|error| unavailable(format!("assistant continuation unavailable: {error}")))?;
+        Ok(())
+    }
+
     fn execute_chat(&self, chat: ChatExecution) -> Result<AdkChatPortOutput, AdkChatPortError> {
         if chat.route == AdkChatRoute::Stream {
-            let result = execute_model_stream(chat.request.clone(), |_| Ok(()), || false);
+            let cancellation = self.cancellation_registry.register(&chat.run_id);
+            let _guard = CancellationGuard {
+                registry: Arc::clone(&self.cancellation_registry),
+                run_id: chat.run_id.clone(),
+            };
+            let cancellation_for_stream = Arc::clone(&cancellation);
+            let run_id = chat.run_id.clone();
+            let result = execute_model_stream(
+                chat.request.clone(),
+                |_| Ok(()),
+                || {
+                    cancellation_for_stream.load(Ordering::Acquire)
+                        || self.run_is_cancelled(&run_id)
+                },
+            );
             return self.finish_chat(&chat, result);
         }
         // Register synchronous model calls as well as streams.  The cancel
@@ -499,6 +710,7 @@ impl ProductionAdkChatRuntime {
             .unwrap_or(DEFAULT_TIMEOUT_MS)
             .clamp(15_000, 600_000);
         Ok(ResolvedProvider {
+            id: selected.id.clone(),
             agent_id,
             endpoint,
             api_key,
@@ -669,10 +881,15 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
     fn cancel_run(&self, run_id: &str) -> bool {
         self.cancellation_registry.cancel(run_id)
     }
+
+    fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
+        ProductionAdkChatRuntime::resume_approval(self, run_id)
+    }
 }
 
 #[derive(Debug)]
 struct ResolvedProvider {
+    id: String,
     agent_id: String,
     endpoint: Url,
     api_key: String,

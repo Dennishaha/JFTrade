@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
 
 use jftrade_api::{ApiStream, ApiStreamSender};
+use jftrade_store_sqlite::AdkRunEvent;
 use serde_json::{Value, json};
 
 use crate::product::product_adk_chat_stream_port::{
@@ -543,9 +544,41 @@ impl ProductionAdkChatRuntime {
             events.push(final_event);
             final_sequence = Some(sequence);
         }
+        let assistant_event_id = format!("{}:{}", chat.run_id, chat.agent_id);
+        let assistant_event = AdkRunEvent {
+            id: &assistant_event_id,
+            session_id: &chat.session_id,
+            invocation_id: &chat.run_id,
+            author: &chat.agent_id,
+            content: &text,
+        };
+        let stream_event_id =
+            final_sequence.map(|sequence| format!("{}:stream:{}", chat.run_id, sequence));
+        let stream_event = stream_event_id.as_ref().map(|id| AdkRunEvent {
+            id,
+            session_id: &chat.session_id,
+            invocation_id: &chat.run_id,
+            author: "assistant.stream",
+            content: response
+                .get("reply")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        });
+        let mut events = vec![assistant_event];
+        if let Some(stream_event) = stream_event.as_ref() {
+            events.push(stream_event.clone());
+        }
         let updated = self
             .store()
-            .update_run_state_if_status(&chat.run_id, "RUNNING", "COMPLETED", &payload.to_string())
+            .update_run_state_if_status_and_revision_with_events(
+                &chat.run_id,
+                "RUNNING",
+                &run.updated_at,
+                "COMPLETED",
+                &payload.to_string(),
+                self.session_store.path(),
+                &events,
+            )
             .map_err(storage_unavailable)?;
         if !updated {
             let current = self
@@ -565,19 +598,6 @@ impl ProductionAdkChatRuntime {
             }
             return super::persisted_response(&current.payload_json)?
                 .ok_or_else(|| unavailable("completed ADK run has no persisted response"));
-        }
-        self.record_event(&chat.run_id, &chat.session_id, &chat.agent_id, &text)?;
-        if let Some(sequence) = final_sequence {
-            self.record_event_with_id(
-                &format!("{}:stream:{}", chat.run_id, sequence),
-                &chat.run_id,
-                &chat.session_id,
-                "assistant.stream",
-                response
-                    .get("reply")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default(),
-            )?;
         }
         Ok(response)
     }

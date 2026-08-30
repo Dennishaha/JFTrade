@@ -1,6 +1,19 @@
 //! Production ADK runs mutation dispatch.
 
 use super::*;
+use crate::product::product_adk_chat_stream_port::AdkChatPortError;
+
+fn continuation_unavailable(error: AdkChatPortError) -> AdkMutationPortError {
+    let message = match error {
+        AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => message,
+        AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
+    };
+    AdkMutationPortError::Failed {
+        status: 503,
+        code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
+        message,
+    }
+}
 
 pub(super) fn handles(operation: AdkMutationOperation) -> bool {
     matches!(
@@ -28,6 +41,19 @@ pub(super) fn dispatch(
             let Some(resolution) = resolution else {
                 return Ok(json!({"approval": {"id": ""}}));
             };
+            if resolution.should_continue {
+                if let Some(runtime) = port.chat_runtime.as_deref() {
+                    runtime
+                        .resume_approval(&resolution.approval.run_id)
+                        .map_err(continuation_unavailable)?;
+                } else {
+                    return Err(AdkMutationPortError::Failed {
+                        status: 503,
+                        code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
+                        message: "assistant approval continuation is unavailable".to_owned(),
+                    });
+                }
+            }
             approval_resolution_value(&resolution)
         }
         AdkMutationOperation::Deny => {
@@ -39,6 +65,19 @@ pub(super) fn dispatch(
             let Some(resolution) = resolution else {
                 return Ok(json!({"approval": {"id": ""}}));
             };
+            if resolution.should_continue {
+                if let Some(runtime) = port.chat_runtime.as_deref() {
+                    runtime
+                        .resume_approval(&resolution.approval.run_id)
+                        .map_err(continuation_unavailable)?;
+                } else {
+                    return Err(AdkMutationPortError::Failed {
+                        status: 503,
+                        code: "ADK_CONTINUATION_UNAVAILABLE".to_owned(),
+                        message: "assistant approval continuation is unavailable".to_owned(),
+                    });
+                }
+            }
             approval_resolution_value(&resolution)
         }
         AdkMutationOperation::CancelRun => {

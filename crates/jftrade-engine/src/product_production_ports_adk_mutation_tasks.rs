@@ -287,7 +287,12 @@ pub(super) fn dispatch(
             if object
                 .get("status")
                 .and_then(Value::as_str)
-                .is_some_and(|status| matches!(status.trim().to_ascii_lowercase().as_str(), "cancelled" | "done" | "completed"))
+                .is_some_and(|status| {
+                    matches!(
+                        status.trim().to_ascii_lowercase().as_str(),
+                        "cancelled" | "done" | "completed"
+                    )
+                })
             {
                 return optimization_payload(&stored);
             }
