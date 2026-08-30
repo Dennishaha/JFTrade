@@ -11,7 +11,7 @@ use jftrade_store_sqlite::{
 };
 use serde_json::{Value, json};
 
-use super::ProductionAdapterBinding;
+use super::{ProductionAdapterBinding, SharedTradeReadRuntime};
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute, AdkChatStreamPort,
 };
@@ -61,6 +61,7 @@ pub(crate) struct ProductionToolCatalog {
     bindings: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     research_bindings: BTreeMap<&'static str, ProductionAdapterBinding>,
     active_provider_state: Option<Arc<ActiveProviderState>>,
+    trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl ProductionToolCatalog {
@@ -131,6 +132,7 @@ impl ProductionToolCatalog {
             bindings: bindings.clone(),
             research_bindings: research_bindings.clone(),
             active_provider_state: None,
+            trade_runtime: None,
         })
     }
 
@@ -144,6 +146,21 @@ impl ProductionToolCatalog {
         active_provider_state: Arc<ActiveProviderState>,
     ) -> Self {
         self.active_provider_state = Some(active_provider_state);
+        self
+    }
+
+    /// Attach the shared trade/OpenD runtime used by provider-backed tools.
+    ///
+    /// OpenD connectivity alone is not sufficient for news or corporate
+    /// actions: those operations require their concrete reader to be wired
+    /// into the runtime.  Keeping the runtime handle on the catalog lets the
+    /// descriptor be re-evaluated after provider activation without turning a
+    /// missing reader into a callable tool.
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
         self
     }
 
@@ -206,13 +223,38 @@ impl ProductionToolCatalog {
         match definition.adapter {
             ProductionRouteAdapter::MarketDataSearchRead
             | ProductionRouteAdapter::MarketDataCandlesRead
-            | ProductionRouteAdapter::MarketDataSecuritiesRead
-            | ProductionRouteAdapter::MarketDataNewsActionsRead
-            | ProductionRouteAdapter::MarketDataNewsSearchRead => {
+            | ProductionRouteAdapter::MarketDataSecuritiesRead => {
+                let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
+                if helper_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataNewsSearchRead => {
                 let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
                 let futu_ready = snapshot.provider
                     == Some(jftrade_settings::MarketDataProvider::Futu)
-                    && snapshot.opend_ready;
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.news_reader_available());
+                if helper_ready || futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataNewsActionsRead => {
+                let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.corporate_actions_reader_available());
                 if helper_ready || futu_ready {
                     ProductionAdapterBinding::Ready
                 } else {
@@ -267,7 +309,11 @@ impl ProductionToolCatalog {
                 let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
                 let futu_ready = snapshot.provider
                     == Some(jftrade_settings::MarketDataProvider::Futu)
-                    && snapshot.opend_ready;
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.news_reader_available());
                 if helper_ready || futu_ready {
                     ProductionAdapterBinding::Ready
                 } else {

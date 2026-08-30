@@ -23,6 +23,20 @@ pub(super) struct ParsedOrder {
     pub(super) session: Option<i32>,
     pub(super) stop_price: Option<f64>,
     pub(super) fill_outside_rth: Option<bool>,
+    pub(super) preview_id: Option<String>,
+    pub(super) product_class: String,
+    pub(super) order_kind: String,
+    pub(super) quantity_mode: String,
+    pub(super) amount: Option<f64>,
+    pub(super) prediction_side: Option<i32>,
+}
+
+pub(super) fn requires_locked_preview(order: &ParsedOrder) -> bool {
+    order.order_kind == "event_single"
+        || matches!(
+            order.product_class.as_str(),
+            "option" | "future" | "event_contract"
+        )
 }
 
 impl ParsedOrder {
@@ -44,8 +58,8 @@ impl ParsedOrder {
             session: self.session,
             position_id: None,
             expire_time: None,
-            amount: None,
-            prediction_side: None,
+            amount: self.amount,
+            prediction_side: self.prediction_side,
             sec_market: Some(sec_market(self.header.trd_market)),
         }
     }
@@ -83,48 +97,277 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
         .map_err(|_| "accountId must be numeric for Futu".to_owned())?;
     let symbol = string_field(object, "symbol")
         .or_else(|| string_field(object, "code"))
+        .or_else(|| string_field(object, "underlyingInstrumentId"))
+        .or_else(|| {
+            object
+                .get("legs")
+                .and_then(Value::as_array)
+                .and_then(|legs| legs.first())
+                .and_then(Value::as_object)
+                .and_then(|leg| {
+                    string_field(leg, "instrumentId")
+                        .or_else(|| string_field(leg, "symbol"))
+                        .or_else(|| string_field(leg, "code"))
+                })
+        })
         .ok_or_else(|| "symbol is required".to_owned())?;
     let code = symbol
         .rsplit_once('.')
         .map_or_else(|| symbol.clone(), |(_, code)| code.to_owned());
     let market = string_field(object, "market").unwrap_or_else(|| "US".to_owned());
-    let quantity =
-        number_field(object, "quantity").ok_or_else(|| "quantity is required".to_owned())?;
+    let trade_market_code = trade_market(&market);
+    if trade_market_code == 0 {
+        return Err(format!("unsupported market {market:?}"));
+    }
+    let has_legs = object.get("legs").is_some();
+    let mut order_kind = string_field(object, "orderKind")
+        .unwrap_or_else(|| "single".to_owned())
+        .to_ascii_lowercase();
+    let product_class_supplied = string_field(object, "productClass").is_some();
+    let mut product_class = string_field(object, "productClass")
+        .unwrap_or_else(|| "equity".to_owned())
+        .to_ascii_lowercase();
+    let requested_quantity = number_field(object, "quantity");
+    let amount = number_field(object, "amount");
+    if !has_legs && (product_class == "event_contract" || order_kind == "event_single") {
+        order_kind = "event_single".to_owned();
+        product_class = "event_contract".to_owned();
+    }
+    if has_legs && !product_class_supplied {
+        product_class = if order_kind == "event_parlay" {
+            "event_contract".to_owned()
+        } else {
+            "option".to_owned()
+        };
+    }
+    if has_legs {
+        if !matches!(order_kind.as_str(), "option_combo" | "event_parlay") {
+            return Err("orderKind must be option_combo or event_parlay".to_owned());
+        }
+    } else if !matches!(order_kind.as_str(), "single" | "event_single") {
+        return Err(format!(
+            "orderKind {order_kind:?} must use the combo execution endpoint"
+        ));
+    }
+    if !matches!(
+        product_class.as_str(),
+        "equity"
+            | "fund"
+            | "option"
+            | "warrant"
+            | "cbbc"
+            | "future"
+            | "event_contract"
+            | "index"
+            | "bond"
+            | "plate"
+    ) {
+        return Err(format!("unsupported productClass {product_class:?}"));
+    }
+    let quantity_mode = string_field(object, "quantityMode")
+        .unwrap_or_else(|| {
+            if matches!(product_class.as_str(), "option" | "future") {
+                "contracts".to_owned()
+            } else if product_class == "event_contract" {
+                "amount".to_owned()
+            } else {
+                "units".to_owned()
+            }
+        })
+        .to_ascii_lowercase();
+    let expected_mode = if product_class == "event_contract" {
+        "amount"
+    } else if matches!(product_class.as_str(), "option" | "future") {
+        "contracts"
+    } else {
+        "units"
+    };
+    if quantity_mode != expected_mode {
+        return Err(format!(
+            "quantityMode {quantity_mode:?} is invalid for productClass {product_class:?}"
+        ));
+    }
+    let quantity = if product_class == "event_contract" {
+        amount.ok_or_else(|| "event-contract amount is required".to_owned())?
+    } else if has_legs {
+        requested_quantity.unwrap_or(1.0)
+    } else {
+        requested_quantity.ok_or_else(|| "quantity is required".to_owned())?
+    };
     if !quantity.is_finite() || quantity <= 0.0 {
         return Err("quantity must be positive".to_owned());
+    }
+    if quantity_mode == "contracts" && quantity.fract() != 0.0 {
+        return Err("option and future quantity must be an integer number of contracts".to_owned());
+    }
+    if !has_legs && product_class != "event_contract" {
+        if amount.is_some() {
+            return Err("amount is supported for event contracts only".to_owned());
+        }
+        if string_field(object, "predictionSide").is_some() {
+            return Err("predictionSide is supported for event contracts only".to_owned());
+        }
+    }
+    let price = number_field(object, "price");
+    let stop_price = number_field(object, "stopPrice");
+    if price.is_some_and(|value| !value.is_finite() || value <= 0.0) {
+        return Err("price must be greater than 0 when provided".to_owned());
+    }
+    if stop_price.is_some_and(|value| !value.is_finite() || value <= 0.0) {
+        return Err("stopPrice must be greater than 0 when provided".to_owned());
+    }
+    let order_type = parse_order_type(
+        string_field(object, "orderType")
+            .as_deref()
+            .unwrap_or("LIMIT"),
+    )?;
+    if !has_legs {
+        if order_type == 1 && price.is_none() {
+            return Err("order type LIMIT requires price".to_owned());
+        }
+        if matches!(order_type, 3) && stop_price.is_none() {
+            return Err("order type STOP requires stopPrice".to_owned());
+        }
+        if matches!(order_type, 4) && (price.is_none() || stop_price.is_none()) {
+            return Err("order type STOP_LIMIT requires price and stopPrice".to_owned());
+        }
+    }
+    let prediction_side = if product_class == "event_contract" && !has_legs {
+        if !market.eq_ignore_ascii_case("US") {
+            return Err("prediction contracts must use market US".to_owned());
+        }
+        let side = string_field(object, "predictionSide")
+            .ok_or_else(|| "predictionSide must be YES or NO".to_owned())?;
+        let side = match side.to_ascii_uppercase().as_str() {
+            "YES" => 1,
+            "NO" => 2,
+            _ => return Err("predictionSide must be YES or NO".to_owned()),
+        };
+        if price.is_none_or(|value| !(0.01..=0.99).contains(&value)) {
+            return Err("event-contract price must be between 0.01 and 0.99".to_owned());
+        }
+        Some(side)
+    } else {
+        None
+    };
+    let raw_session = string_field(object, "session");
+    if raw_session.is_some() && !market.eq_ignore_ascii_case("US") {
+        return Err("session is supported for US market orders only".to_owned());
+    }
+    if raw_session.is_some() && product_class == "option" {
+        return Err("US options do not support stock extended-hours sessions".to_owned());
     }
     let trading_environment = string_field(object, "tradingEnvironment")
         .or_else(|| string_field(object, "env"))
         .unwrap_or_else(|| "SIMULATE".to_owned());
+    let client_order_id = string_field(object, "clientOrderId");
+    let remark = string_field(object, "remark").or_else(|| client_order_id.clone());
+    let time_in_force = parse_time_in_force(string_field(object, "timeInForce").as_deref())?
+        .or(Some(0));
+    let session = if raw_session.is_none()
+        && market.eq_ignore_ascii_case("US")
+        && product_class != "option"
+        && product_class != "event_contract"
+    {
+        Some(0)
+    } else {
+        parse_session(raw_session.as_deref())?
+    };
+    let fill_outside_rth = object.get("fillOutsideRTH").and_then(Value::as_bool).or_else(|| {
+        if matches!(order_type, 1 | 4) {
+            session.map(|value| value != 0)
+        } else {
+            None
+        }
+    });
     Ok(ParsedOrder {
         header: TradeHeader {
             trd_env: i32::from(trading_environment.eq_ignore_ascii_case("REAL")),
             acc_id: account_id,
-            trd_market: trade_market(&market),
+            trd_market: trade_market_code,
             jp_acc_type: None,
         },
         broker_id: string_field(object, "brokerId").unwrap_or_else(|| "futu".to_owned()),
         symbol,
         code,
         side: parse_side(string_field(object, "side").as_deref().unwrap_or("BUY"))?,
-        order_type: parse_order_type(
-            string_field(object, "orderType")
-                .as_deref()
-                .unwrap_or("LIMIT"),
-        )?,
+        order_type,
         quantity,
-        price: number_field(object, "price"),
-        remark: string_field(object, "remark"),
-        client_order_id: string_field(object, "clientOrderId"),
-        time_in_force: parse_time_in_force(string_field(object, "timeInForce").as_deref())?,
-        session: parse_session(string_field(object, "session").as_deref())?,
-        stop_price: number_field(object, "stopPrice"),
-        fill_outside_rth: object.get("fillOutsideRTH").and_then(Value::as_bool),
+        price,
+        remark,
+        client_order_id,
+        time_in_force,
+        session,
+        stop_price,
+        fill_outside_rth,
+        preview_id: string_field(object, "previewId"),
+        product_class,
+        order_kind,
+        quantity_mode,
+        amount,
+        prediction_side,
     })
 }
 
 pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
     let order = parse_order(payload)?;
+    let object = payload
+        .as_object()
+        .ok_or_else(|| "combo payload must be an object".to_owned())?;
+    if !matches!(order.order_kind.as_str(), "option_combo" | "event_parlay") {
+        return Err("orderKind must be option_combo or event_parlay".to_owned());
+    }
+    if string_field(object, "clientOrderId").is_none() {
+        return Err("clientOrderId is required for idempotent combo preview and submission".to_owned());
+    }
+    if order.order_kind == "option_combo" {
+        if order.product_class != "option" {
+            return Err("option_combo requires productClass option".to_owned());
+        }
+        if string_field(object, "underlyingInstrumentId").is_none() {
+            return Err("option combo requires underlyingInstrumentId".to_owned());
+        }
+        if string_field(object, "nearExpiry").is_none() {
+            return Err("option combo requires nearExpiry".to_owned());
+        }
+        let strategy = string_field(object, "optionStrategy")
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        match strategy.as_str() {
+            "vertical" | "strangle" | "butterfly" => {
+                let spread = number_field(object, "spread");
+                if spread.is_none_or(|value| !value.is_finite() || value <= 0.0) {
+                    return Err(format!("{strategy} option combo requires a positive spread"));
+                }
+            }
+            "straddle" => {}
+            "calendar" => {
+                if string_field(object, "farExpiry").is_none() {
+                    return Err("calendar option combo requires farExpiry".to_owned());
+                }
+            }
+            _ => return Err(format!("unsupported optionStrategy {strategy:?}")),
+        }
+    } else {
+        if order.product_class != "event_contract" {
+            return Err("event_parlay requires productClass event_contract".to_owned());
+        }
+        if !order
+            .header
+            .trd_market
+            .eq(&trade_market("US"))
+        {
+            return Err("event parlay must use market US".to_owned());
+        }
+        if string_field(object, "rfqId").is_none()
+            || number_field(object, "amount").is_none_or(|value| !value.is_finite() || value <= 0.0)
+        {
+            return Err("event parlay requires rfqId and positive amount".to_owned());
+        }
+        if number_field(object, "price").is_some() {
+            return Err("event parlay price is bound to the server-side RFQ and must not be provided".to_owned());
+        }
+    }
     let legs = payload
         .get("legs")
         .and_then(Value::as_array)
@@ -142,22 +385,59 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
                 || (order.header.trd_market, instrument.clone()),
                 |(market, code)| (trade_market(market), code.to_owned()),
             );
+            if market == 0 || code.trim().is_empty() {
+                return Err("combo leg instrumentId has an unsupported market".to_owned());
+            }
+            if let Some(product_class) = string_field(object, "productClass")
+                && product_class.to_ascii_lowercase() != order.product_class
+            {
+                return Err("combo cannot mix product classes".to_owned());
+            }
+            let side_value = string_field(object, "side").ok_or_else(|| {
+                "each combo leg requires instrumentId, BUY/SELL side, and positive ratio"
+                    .to_owned()
+            })?;
+            if !matches!(
+                side_value.to_ascii_uppercase().as_str(),
+                "BUY" | "B" | "SELL" | "S"
+            ) {
+                return Err(
+                    "each combo leg requires instrumentId, BUY/SELL side, and positive ratio"
+                        .to_owned(),
+                );
+            }
+            let side = parse_side(&side_value)?;
+            let ratio = number_field(object, "ratio")
+                .or_else(|| number_field(object, "qtyRatio"))
+                .ok_or_else(|| "each combo leg requires instrumentId, BUY/SELL side, and positive ratio".to_owned())?;
+            if !ratio.is_finite() || ratio <= 0.0 || ratio.fract() != 0.0 {
+                return Err("each combo leg requires instrumentId, BUY/SELL side, and positive ratio".to_owned());
+            }
+            let prediction_side = string_field(object, "predictionSide")
+                .map(|value| match value.to_ascii_uppercase().as_str() {
+                    "YES" => Ok(1),
+                    "NO" => Ok(2),
+                    _ => Err("predictionSide must be YES or NO".to_owned()),
+                })
+                .transpose()?;
+            if order.order_kind == "event_parlay" && prediction_side.is_none() {
+                return Err("event parlay legs require predictionSide YES or NO".to_owned());
+            }
+            if order.order_kind == "option_combo" && prediction_side.is_some() {
+                return Err("predictionSide is only supported for event parlay legs".to_owned());
+            }
             Ok(TradeComboLeg {
                 market,
                 code,
-                side: string_field(object, "side")
-                    .as_deref()
-                    .map(parse_side)
-                    .transpose()?,
-                qty_ratio: number_field(object, "ratio")
-                    .or_else(|| number_field(object, "qtyRatio")),
+                side: Some(side),
+                qty_ratio: Some(ratio),
                 position_id: object.get("positionId").and_then(Value::as_u64),
-                pred_side: None,
+                pred_side: prediction_side,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
-    if legs.is_empty() {
-        return Err("legs must not be empty".to_owned());
+    if legs.len() < 2 {
+        return Err("combo requires at least two legs".to_owned());
     }
     Ok(ParsedCombo { order, legs })
 }
@@ -190,13 +470,13 @@ pub(super) fn new_order(id: &str, parsed: &ParsedOrder, timestamp: &str) -> Stor
         submitted_at: None,
         updated_at: timestamp.to_owned(),
         created_at: timestamp.to_owned(),
-        order_kind: "single".to_owned(),
-        product_class: "equity".to_owned(),
-        quantity_mode: "units".to_owned(),
+        order_kind: parsed.order_kind.clone(),
+        product_class: parsed.product_class.clone(),
+        quantity_mode: parsed.quantity_mode.clone(),
         client_order_id: parsed.client_order_id.clone(),
-        preview_id: None,
+        preview_id: parsed.preview_id.clone(),
         normalized_request: "{}".to_owned(),
-        requested_amount: None,
+        requested_amount: parsed.amount,
         payout: None,
         fees: None,
     }
@@ -219,8 +499,6 @@ fn parse_side(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
         "BUY" | "B" => Ok(1),
         "SELL" | "S" => Ok(2),
-        "SELL_SHORT" | "SELLSHORT" => Ok(3),
-        "BUY_BACK" | "BUYBACK" => Ok(4),
         _ => Err(format!("unsupported side {value:?}")),
     }
 }
@@ -229,6 +507,8 @@ fn parse_order_type(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
         "LIMIT" | "NORMAL" => Ok(1),
         "MARKET" => Ok(2),
+        "STOP" | "STOP_MARKET" => Ok(3),
+        "STOP_LIMIT" => Ok(4),
         "ABSOLUTE_LIMIT" => Ok(5),
         "AUCTION" => Ok(6),
         "AUCTION_LIMIT" => Ok(7),
@@ -269,7 +549,7 @@ pub(super) fn trade_market(value: &str) -> i32 {
     }
 }
 
-fn sec_market(trd_market: i32) -> i32 {
+pub(super) fn sec_market(trd_market: i32) -> i32 {
     match trd_market {
         1 => 1,
         2 => 2,
@@ -278,7 +558,7 @@ fn sec_market(trd_market: i32) -> i32 {
     }
 }
 
-fn market_label(value: i32) -> String {
+pub(super) fn market_label(value: i32) -> String {
     match value {
         1 => "HK",
         2 => "US",
@@ -289,7 +569,7 @@ fn market_label(value: i32) -> String {
     .to_owned()
 }
 
-const fn side_label(value: i32) -> &'static str {
+pub(super) const fn side_label(value: i32) -> &'static str {
     match value {
         1 => "BUY",
         2 => "SELL",
@@ -299,10 +579,15 @@ const fn side_label(value: i32) -> &'static str {
     }
 }
 
-const fn order_type_label(value: i32) -> &'static str {
+pub(super) const fn order_type_label(value: i32) -> &'static str {
     match value {
         1 => "LIMIT",
         2 => "MARKET",
+        3 => "STOP",
+        4 => "STOP_LIMIT",
+        5 => "ABSOLUTE_LIMIT",
+        6 => "AUCTION",
+        7 => "AUCTION_LIMIT",
         _ => "UNKNOWN",
     }
 }

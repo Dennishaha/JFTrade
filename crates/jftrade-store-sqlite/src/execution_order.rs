@@ -1,20 +1,16 @@
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
-use std::time::Duration;
-
+use crate::schema_manifest::{SchemaManifestError, validate_current};
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, WriterLeaseError};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
+use std::time::Duration;
 use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-
-use crate::schema_manifest::{SchemaManifestError, validate_current};
-
 const EXECUTION_ORDERS_COMPONENT: &str = "execution-orders";
 const EXECUTION_ORDERS_SCHEMA_VERSION: i64 = 5;
 pub const EXECUTION_ORDERS_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const EXECUTION_ORDERS_PRODUCTION_PROFILE: &str = "production.v1";
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredExecutionOrder {
@@ -53,7 +49,6 @@ pub struct StoredExecutionOrder {
     pub payout: Option<f64>,
     pub fees: Option<f64>,
 }
-
 #[derive(Debug, Error)]
 pub enum ExecutionOrderStoreError {
     #[error("execution orders database path is required")]
@@ -76,18 +71,18 @@ pub enum ExecutionOrderStoreError {
     Query(#[source] rusqlite::Error),
     #[error("execution order not found: {0}")]
     NotFound(String),
+    #[error("execution order state conflict: {0}")]
+    Conflict(String),
     #[error("invalid execution order request: {0}")]
     Validation(String),
     #[error("incompatible execution orders database: {0}")]
     Incompatible(String),
 }
-
 pub struct ExecutionOrderStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
 }
-
 impl std::fmt::Debug for ExecutionOrderStore {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -96,7 +91,6 @@ impl std::fmt::Debug for ExecutionOrderStore {
             .finish()
     }
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredExecutionOrderEvent<'a> {
     pub id: &'a str,
@@ -107,7 +101,6 @@ pub struct StoredExecutionOrderEvent<'a> {
     pub payload_json: &'a str,
     pub created_at: &'a str,
 }
-
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredExecutionOrderEventRecord {
@@ -119,12 +112,10 @@ pub struct StoredExecutionOrderEventRecord {
     pub payload_json: String,
     pub created_at: String,
 }
-
 impl ExecutionOrderStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ExecutionOrderStoreError> {
         Self::open_existing(path, EXECUTION_ORDERS_PRODUCTION_PROFILE)
     }
-
     pub fn open_existing(
         path: impl AsRef<Path>,
         profile: &str,
@@ -149,47 +140,38 @@ impl ExecutionOrderStore {
                 path.display().to_string(),
             ));
         }
-
         let writer_lease = WriterLease::acquire(path, &OwnerDiagnostic::current("rust", profile))?;
-
         let connection = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(ExecutionOrderStoreError::Open)?;
-
         connection
             .busy_timeout(Duration::from_secs(10))
             .map_err(ExecutionOrderStoreError::Configure)?;
-
         connection
             .execute_batch("PRAGMA foreign_keys = ON;")
             .map_err(ExecutionOrderStoreError::Configure)?;
-
         validate_current(
             &connection,
             &path.display().to_string(),
             EXECUTION_ORDERS_COMPONENT,
             EXECUTION_ORDERS_SCHEMA_VERSION,
         )?;
-
         Ok(Self {
             path: path.to_path_buf(),
             connection: Mutex::new(connection),
             _writer_lease: writer_lease,
         })
     }
-
     pub fn path(&self) -> &Path {
         &self.path
     }
-
-    fn lock(&self) -> Result<MutexGuard<'_, Connection>, ExecutionOrderStoreError> {
+    pub(crate) fn lock(&self) -> Result<MutexGuard<'_, Connection>, ExecutionOrderStoreError> {
         self.connection
             .lock()
             .map_err(|_| ExecutionOrderStoreError::LockUnavailable)
     }
-
     pub fn save_order(
         &self,
         order: StoredExecutionOrder,
@@ -200,25 +182,20 @@ impl ExecutionOrderStore {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(ExecutionOrderStoreError::Query)?;
-
         let created_at = if order.created_at.is_empty() {
             timestamp.to_owned()
         } else {
             order.created_at.clone()
         };
-
         upsert_order(&transaction, &order, timestamp, &created_at)?;
-
         transaction
             .commit()
             .map_err(ExecutionOrderStoreError::Query)?;
-
         let mut saved = order;
         saved.created_at = created_at;
         saved.updated_at = timestamp.to_owned();
         Ok(saved)
     }
-
     /// Atomically persists an order projection and its lifecycle event.
     ///
     /// Command handlers use this for every broker acknowledgement/failure so
@@ -256,7 +233,76 @@ impl ExecutionOrderStore {
         saved.updated_at = timestamp.to_owned();
         Ok(saved)
     }
-
+    /// Atomically applies a lifecycle transition fenced by the state observed
+    /// by the caller.  The execution-orders schema is shared with Go and does
+    /// not expose a revision column, so the durable CAS token is the pair of
+    /// `status` and `updated_at`.  Both values are checked inside the same
+    /// immediate transaction as the order/event write; a stale worker can
+    /// therefore never overwrite a newer broker update.
+    pub fn transition_order_and_event(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+        expected_status: &str,
+        expected_updated_at: &str,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        validate_rfc3339_timestamp(timestamp)?;
+        validate_rfc3339_timestamp(event.created_at)?;
+        if event.internal_order_id != order.internal_order_id {
+            return Err(ExecutionOrderStoreError::Validation(
+                "order and event internal ids must match".to_owned(),
+            ));
+        }
+        if event.previous_status != Some(expected_status) {
+            return Err(ExecutionOrderStoreError::Validation(
+                "event previous status does not match the CAS status".to_owned(),
+            ));
+        }
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let current = transaction
+            .query_row(
+                "SELECT status, updated_at FROM execution_orders
+                 WHERE internal_order_id = ?1",
+                params![order.internal_order_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let Some((current_status, current_updated_at)) = current else {
+            return Err(ExecutionOrderStoreError::NotFound(
+                order.internal_order_id.clone(),
+            ));
+        };
+        if current_status != expected_status || current_updated_at != expected_updated_at {
+            return Err(ExecutionOrderStoreError::Conflict(format!(
+                "order {} changed while applying {} (expected status={} updatedAt={}, got status={} updatedAt={})",
+                order.internal_order_id,
+                event.event_type,
+                expected_status,
+                expected_updated_at,
+                current_status,
+                current_updated_at,
+            )));
+        }
+        let created_at = if order.created_at.is_empty() {
+            timestamp.to_owned()
+        } else {
+            order.created_at.clone()
+        };
+        upsert_order(&transaction, &order, timestamp, &created_at)?;
+        insert_event(&transaction, event)?;
+        transaction
+            .commit()
+            .map_err(ExecutionOrderStoreError::Query)?;
+        let mut saved = order;
+        saved.created_at = created_at;
+        saved.updated_at = timestamp.to_owned();
+        Ok(saved)
+    }
     pub fn get_order(
         &self,
         id: &str,
@@ -317,7 +363,6 @@ impl ExecutionOrderStore {
             .map_err(ExecutionOrderStoreError::Query)?;
         Ok(row)
     }
-
     pub fn order_count(&self) -> Result<u64, ExecutionOrderStoreError> {
         let connection = self.lock()?;
         let count: i64 = connection
@@ -327,7 +372,6 @@ impl ExecutionOrderStore {
             .map_err(ExecutionOrderStoreError::Query)?;
         Ok(count as u64)
     }
-
     pub fn list_orders(&self) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
         let connection = self.lock()?;
         let mut statement = connection
@@ -389,7 +433,6 @@ impl ExecutionOrderStore {
         }
         Ok(orders)
     }
-
     pub fn cancel_order(
         &self,
         id: &str,
@@ -400,7 +443,6 @@ impl ExecutionOrderStore {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(ExecutionOrderStoreError::Query)?;
-
         let changes = transaction
             .execute(
                 "UPDATE execution_orders SET status = 'cancelled', updated_at = ?2
@@ -408,14 +450,11 @@ impl ExecutionOrderStore {
                 params![id, timestamp],
             )
             .map_err(ExecutionOrderStoreError::Query)?;
-
         transaction
             .commit()
             .map_err(ExecutionOrderStoreError::Query)?;
-
         Ok(changes > 0)
     }
-
     pub fn record_event(
         &self,
         event: &StoredExecutionOrderEvent<'_>,
@@ -426,13 +465,11 @@ impl ExecutionOrderStore {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(ExecutionOrderStoreError::Query)?;
         insert_event(&transaction, event)?;
-
         transaction
             .commit()
             .map_err(ExecutionOrderStoreError::Query)?;
         Ok(())
     }
-
     pub fn event_count(&self, event_type: &str) -> Result<u64, ExecutionOrderStoreError> {
         let connection = self.lock()?;
         let count: i64 = connection
@@ -444,7 +481,6 @@ impl ExecutionOrderStore {
             .map_err(ExecutionOrderStoreError::Query)?;
         Ok(count as u64)
     }
-
     pub fn list_order_events(
         &self,
         internal_order_id: &str,
@@ -474,13 +510,11 @@ impl ExecutionOrderStore {
         rows.map(|row| row.map_err(ExecutionOrderStoreError::Query))
             .collect()
     }
-
     pub fn next_sequence(&self, name: &str) -> Result<i64, ExecutionOrderStoreError> {
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(ExecutionOrderStoreError::Query)?;
-
         transaction
             .execute(
                 "INSERT INTO execution_sequences (name, value) VALUES (?1, 1)
@@ -488,7 +522,6 @@ impl ExecutionOrderStore {
                 params![name],
             )
             .map_err(ExecutionOrderStoreError::Query)?;
-
         let val: i64 = transaction
             .query_row(
                 "SELECT value FROM execution_sequences WHERE name = ?1",
@@ -496,14 +529,12 @@ impl ExecutionOrderStore {
                 |row| row.get(0),
             )
             .map_err(ExecutionOrderStoreError::Query)?;
-
         transaction
             .commit()
             .map_err(ExecutionOrderStoreError::Query)?;
         Ok(val)
     }
 }
-
 fn upsert_order(
     transaction: &rusqlite::Transaction<'_>,
     order: &StoredExecutionOrder,
@@ -603,7 +634,6 @@ fn upsert_order(
         .map_err(ExecutionOrderStoreError::Query)?;
     Ok(())
 }
-
 fn insert_event(
     transaction: &rusqlite::Transaction<'_>,
     event: &StoredExecutionOrderEvent<'_>,
@@ -626,7 +656,6 @@ fn insert_event(
         .map_err(ExecutionOrderStoreError::Query)?;
     Ok(())
 }
-
 fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), ExecutionOrderStoreError> {
     OffsetDateTime::parse(timestamp, &Rfc3339)
         .map(|_| ())
@@ -636,12 +665,10 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), ExecutionOrderStore
             ))
         })
 }
-
 #[derive(Debug)]
 pub struct ExecutionOrderTestCutoverStore {
     inner: ExecutionOrderStore,
 }
-
 impl ExecutionOrderTestCutoverStore {
     pub fn open_existing(
         path: impl AsRef<Path>,
@@ -650,11 +677,9 @@ impl ExecutionOrderTestCutoverStore {
         let inner = ExecutionOrderStore::open_existing(path, profile)?;
         Ok(Self { inner })
     }
-
     pub fn path(&self) -> &Path {
         self.inner.path()
     }
-
     pub fn save_order(
         &self,
         order: StoredExecutionOrder,
@@ -662,7 +687,6 @@ impl ExecutionOrderTestCutoverStore {
     ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
         self.inner.save_order(order, timestamp)
     }
-
     pub fn save_order_and_event(
         &self,
         order: StoredExecutionOrder,
@@ -671,22 +695,34 @@ impl ExecutionOrderTestCutoverStore {
     ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
         self.inner.save_order_and_event(order, timestamp, event)
     }
-
+    pub fn transition_order_and_event(
+        &self,
+        order: StoredExecutionOrder,
+        timestamp: &str,
+        event: &StoredExecutionOrderEvent<'_>,
+        expected_status: &str,
+        expected_updated_at: &str,
+    ) -> Result<StoredExecutionOrder, ExecutionOrderStoreError> {
+        self.inner.transition_order_and_event(
+            order,
+            timestamp,
+            event,
+            expected_status,
+            expected_updated_at,
+        )
+    }
     pub fn get_order(
         &self,
         id: &str,
     ) -> Result<Option<StoredExecutionOrder>, ExecutionOrderStoreError> {
         self.inner.get_order(id)
     }
-
     pub fn order_count(&self) -> Result<u64, ExecutionOrderStoreError> {
         self.inner.order_count()
     }
-
     pub fn list_orders(&self) -> Result<Vec<StoredExecutionOrder>, ExecutionOrderStoreError> {
         self.inner.list_orders()
     }
-
     pub fn cancel_order(
         &self,
         id: &str,
@@ -694,25 +730,21 @@ impl ExecutionOrderTestCutoverStore {
     ) -> Result<bool, ExecutionOrderStoreError> {
         self.inner.cancel_order(id, timestamp)
     }
-
     pub fn record_event(
         &self,
         event: &StoredExecutionOrderEvent<'_>,
     ) -> Result<(), ExecutionOrderStoreError> {
         self.inner.record_event(event)
     }
-
     pub fn event_count(&self, event_type: &str) -> Result<u64, ExecutionOrderStoreError> {
         self.inner.event_count(event_type)
     }
-
     pub fn list_order_events(
         &self,
         internal_order_id: &str,
     ) -> Result<Vec<StoredExecutionOrderEventRecord>, ExecutionOrderStoreError> {
         self.inner.list_order_events(internal_order_id)
     }
-
     pub fn next_sequence(&self, name: &str) -> Result<i64, ExecutionOrderStoreError> {
         self.inner.next_sequence(name)
     }

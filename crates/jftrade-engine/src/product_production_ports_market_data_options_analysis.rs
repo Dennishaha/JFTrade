@@ -651,7 +651,7 @@ fn parse_rank_bool(value: &str) -> Result<bool, MarketDataOptionsReadSnapshotErr
 
 /// Match the broker service's US option-contract discriminator.  Underlying
 /// overview is intentionally an owner-level query; forwarding a concrete
-/// US contract to OpenD would produce a misleading empty/synthetic owner
+/// US contract to OpenD would produce a misleading empty/fabricated owner
 /// projection, so reject it at the HTTP adapter boundary.
 fn is_us_option_contract_code(value: &str) -> bool {
     let code = value.trim().to_ascii_uppercase();

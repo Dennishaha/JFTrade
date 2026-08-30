@@ -120,7 +120,13 @@ impl ProductApi {
             | Target::MarketDataPredictionCombosWrite => {
                 self.market_data_provider_actions.dispatch(request).await
             }
-            Target::PluginsRead => self.plugin_catalog(),
+            Target::PluginsRead => {
+                if request.path == "/api/v1/plugins" {
+                    self.plugin_catalog()
+                } else {
+                    self.plugin_operation(&request.path)
+                }
+            }
             Target::PluginsWrite => self.plugin_write(request),
             Target::PluginGuidanceRead => self.plugin_uninstall_guidance(&request.path),
             Target::AlertsRead => {
@@ -211,6 +217,9 @@ impl ProductApi {
                 self.save_backtest_market_data_provider(&request.body)
             }
             ("GET", "/api/v1/settings/exchange-calendars") => self.exchange_calendar_settings(),
+            ("PUT", "/api/v1/settings/exchange-calendars") => {
+                self.save_exchange_calendar_settings(&request.body)
+            }
             _ => Err(registered_target_mismatch(Target::Settings, request)),
         }
     }

@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 use crate::product::product_plugins_write_port::{
     PluginWriteOperation, PluginWritePort, PluginWritePortError,
@@ -109,7 +110,7 @@ impl ProductionPluginPort {
             // The artifact on disk is the source of truth.  A stale marker
             // must not report a plugin as installed after the file was
             // removed by an operator or a failed upgrade.
-            let installed = install_path.is_file();
+            let installed = is_regular_file(&install_path);
             let status = installation
                 .and_then(|value| value.get("status"))
                 .and_then(Value::as_str)
@@ -149,7 +150,7 @@ fn plugin_guidance_value(id: &str, path: &std::path::Path) -> Value {
     json!({
         "pluginId": id,
         "path": display,
-        "exists": path.is_file(),
+        "exists": is_regular_file(path),
         "commands": {
             "posix": format!("rm -f '{posix}'"),
             "powershell": format!("Remove-Item -LiteralPath '{}' -Force", display.replace('\'', "''")),
@@ -213,10 +214,10 @@ impl PluginUninstallGuidanceSnapshotPort for ProductionPluginPort {
         let marker_path = self.root.join(format!("{plugin_id}.json"));
         let path = self.root.join(format!("{plugin_id}.so"));
         Ok(
-            (marker_path.is_file() || path.is_file()).then(|| PluginUninstallGuidance {
+            (marker_path.is_file() || is_regular_file(&path)).then(|| PluginUninstallGuidance {
                 plugin_id: plugin_id.to_owned(),
                 path: path.to_string_lossy().into_owned(),
-                exists: path.is_file(),
+                exists: is_regular_file(&path),
                 commands: jftrade_strategy::PluginUninstallCommands {
                     posix: format!("rm -f '{}'", path.to_string_lossy().replace('\'', "'\\''")),
                     powershell: format!(
@@ -350,6 +351,16 @@ fn is_safe_plugin_id(plugin_id: &str) -> bool {
         && !plugin_id.chars().any(char::is_control)
 }
 
+/// Return true only for a regular file entry, never for a symlink that merely
+/// resolves to one.  Plugin artifacts are installed and reported by path, so
+/// following symlinks here would allow an operator-created link to masquerade
+/// as a validated installation.
+fn is_regular_file(path: &Path) -> bool {
+    std::fs::symlink_metadata(path)
+        .map(|metadata| metadata.file_type().is_file())
+        .unwrap_or(false)
+}
+
 fn ensure_plugin_artifact(
     root: &Path,
     marker_path: &Path,
@@ -358,6 +369,12 @@ fn ensure_plugin_artifact(
 ) -> Result<PluginArtifactChange, PluginWritePortError> {
     match std::fs::symlink_metadata(install_path) {
         Ok(metadata) if metadata.file_type().is_file() => {
+            // An existing artifact is not automatically trusted: upgrades or
+            // manual edits may have left a stale, world-writable, oversized,
+            // or checksum-mismatched file behind.  Re-run the exact same
+            // safety/manifest validation used for a newly staged source
+            // before reporting the install as unchanged.
+            validate_plugin_source(install_path, marker)?;
             return Ok(PluginArtifactChange::Unchanged);
         }
         Ok(_) => {
@@ -376,7 +393,15 @@ fn ensure_plugin_artifact(
     }
 
     let source = resolve_plugin_artifact_source(root, marker_path, marker)?;
-    let temporary_path = install_path.with_file_name(format!(
+    validate_plugin_source(&source, marker)?;
+    let staging_dir = root.join(".staging");
+    std::fs::create_dir_all(&staging_dir).map_err(|error| {
+        PluginWritePortError::Internal(format!(
+            "create plugin staging directory {}: {error}",
+            staging_dir.display()
+        ))
+    })?;
+    let temporary_path = staging_dir.join(format!(
         ".{}.tmp-{}",
         install_path
             .file_name()
@@ -400,6 +425,66 @@ fn ensure_plugin_artifact(
         )));
     }
     Ok(PluginArtifactChange::Created)
+}
+
+fn validate_plugin_source(source: &Path, marker: &Value) -> Result<(), PluginWritePortError> {
+    let metadata = std::fs::metadata(source).map_err(|error| {
+        PluginWritePortError::Unavailable(format!(
+            "inspect plugin source {}: {error}",
+            source.display()
+        ))
+    })?;
+    if !metadata.is_file() {
+        return Err(PluginWritePortError::Unavailable(
+            "plugin source must be a regular file".to_owned(),
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o022 != 0 {
+            return Err(PluginWritePortError::Unavailable(
+                "plugin artifact must not be group/world writable".to_owned(),
+            ));
+        }
+    }
+    const MAX_PLUGIN_BYTES: u64 = 256 * 1024 * 1024;
+    if metadata.len() == 0 || metadata.len() > MAX_PLUGIN_BYTES {
+        return Err(PluginWritePortError::Unavailable(
+            "plugin artifact size is outside the allowed range".to_owned(),
+        ));
+    }
+    let expected = marker
+        .get("installation")
+        .and_then(Value::as_object)
+        .and_then(|installation| installation.get("sha256"))
+        .or_else(|| marker.get("sha256"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    if let Some(expected) = expected {
+        if expected.len() != 64 || !expected.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(PluginWritePortError::Unavailable(
+                "plugin artifact sha256 must be a 64-character hex digest".to_owned(),
+            ));
+        }
+        let contents = std::fs::read(source).map_err(|error| {
+            PluginWritePortError::Unavailable(format!(
+                "read plugin source {}: {error}",
+                source.display()
+            ))
+        })?;
+        let actual = Sha256::digest(contents)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        if !actual.eq_ignore_ascii_case(expected) {
+            return Err(PluginWritePortError::Unavailable(
+                "plugin artifact sha256 does not match manifest".to_owned(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn resolve_plugin_artifact_source(

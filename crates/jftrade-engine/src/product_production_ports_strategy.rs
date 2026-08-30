@@ -28,7 +28,7 @@ pub(crate) use product_production_ports_research::{
 pub(crate) use product_production_ports_research_calendar::read_market_calendar;
 pub(crate) use product_production_ports_research_market::read_market_research;
 
-#[path = "product_production_ports_strategy_runtime.rs"]
+#[path = "strategy_runtime.rs"]
 mod product_production_ports_strategy_runtime;
 pub(crate) use product_production_ports_strategy_runtime::{
     ProductionStrategyRuntimePort, StrategyRuntimeManager,
@@ -380,21 +380,38 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                         code: "NOT_FOUND".to_owned(),
                         message: "resource not found".to_owned(),
                     })?;
-                if self
+                let definition = self
                     .store
                     .get_definition(definition_id, false)
                     .map_err(map_strategy_store_error)?
-                    .is_none()
-                {
-                    return Err(StrategyDefinitionWritePortError::Failed {
+                    .ok_or_else(|| StrategyDefinitionWritePortError::Failed {
                         status: 404,
                         code: "NOT_FOUND".to_owned(),
                         message: "resource not found".to_owned(),
-                    });
-                }
-                Err(StrategyDefinitionWritePortError::Unavailable(
-                    "linked strategy runtime is not configured".to_owned(),
-                ))
+                    })?;
+                let runtime = StrategyRuntimeStore::from_definition_store(&self.store);
+                let applied = runtime
+                    .apply_definition_to_linked(
+                        &definition,
+                        &timestamp,
+                    )
+                    .map_err(|error| StrategyDefinitionWritePortError::Failed {
+                        status: match &error {
+                            jftrade_store_sqlite::StrategyRuntimeStoreError::Conflict => 409,
+                            jftrade_store_sqlite::StrategyRuntimeStoreError::Validation(_) => 400,
+                            _ => 500,
+                        },
+                        code: "STRATEGY_LINKED_APPLY_FAILED".to_owned(),
+                        message: error.to_string(),
+                    })?;
+                Ok(json!({
+                    "definitionId": definition.id,
+                    "latestVersion": definition.version,
+                    "totalLinked": applied.total_linked,
+                    "applied": applied.applied,
+                    "alreadyLatest": applied.already_latest,
+                    "skippedBusy": applied.skipped_busy,
+                }))
             }
             StrategyDefinitionWriteOperation::Instantiate => {
                 let definition_id = input

@@ -138,9 +138,12 @@ pub(super) fn provider_activation(
                             )
                             .ok()
                         })
-                        .map(|client| {
-                            Arc::new(client) as Arc<dyn jftrade_integration_futu::TradeReadPort>
-                        });
+                        .map(Arc::new);
+                    let read_client = client
+                        .clone()
+                        .map(|client| client as Arc<dyn jftrade_integration_futu::TradeReadPort>);
+                    let write_client = client
+                        .map(|client| client as Arc<dyn jftrade_integration_futu::TradeWritePort>);
                     let historical_reader = {
                         let coordinator = provider.coordinator();
                         Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
@@ -161,7 +164,8 @@ pub(super) fn provider_activation(
                         ))
                             as Arc<dyn jftrade_integration_futu::SecuritySnapshotReadPort>
                     };
-                    trade_runtime_for_activation.set(client, trade_logged_in);
+                    trade_runtime_for_activation.set(read_client, trade_logged_in);
+                    trade_runtime_for_activation.set_writer(write_client);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
                     trade_runtime_for_activation.set_news_reader(Some(Arc::new(
                         jftrade_integration_futu::OpenDNewsReader::new(provider.coordinator()),

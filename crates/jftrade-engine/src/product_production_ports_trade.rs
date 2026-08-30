@@ -40,6 +40,8 @@ pub(crate) use product_trade_runtime_projection::SharedTradeReadRuntime;
 mod product_production_ports_trade_requests;
 #[path = "product_trade_runtime_options.rs"]
 mod product_trade_runtime_options;
+#[path = "product_broker_capabilities_projection.rs"]
+mod product_broker_capabilities_projection;
 #[cfg(test)]
 pub(crate) use product_production_ports_trade_requests::market_code;
 pub(crate) use product_production_ports_trade_requests::{
@@ -87,13 +89,9 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
             if !runtime.market_data_reader_available() {
                 return Err(unavailable("Futu market-data reader is unavailable"));
             }
-            let descriptor = serde_json::to_value(jftrade_integration_futu::broker_descriptor())
-                .map_err(|error| unavailable(error.to_string()))?;
-            return Ok(json!({
-                "brokers": [{"id": "futu", "displayName": "Futu", "status": "ready", "descriptor": descriptor}],
-                "catalog": {"brokers": ["futu"]},
-                "runtime": []
-            }));
+            let provider = self.active_provider_state.snapshot();
+            return product_broker_capabilities_projection::project(runtime, &provider, query)
+                .map_err(unavailable);
         }
         let request = TradeRequest::parse(path, query).map_err(BrokerReadSnapshotError::Invalid)?;
         self.ensure_ready()?;

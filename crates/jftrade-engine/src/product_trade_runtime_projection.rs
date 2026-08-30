@@ -15,7 +15,7 @@ use jftrade_integration_futu::{
     ValuationDetailReadPort,
     FutuCorporateActionsReadPort, FutuCorporateActionsQuery, FutuCorporateActionsResult,
     FutuNewsQuery, FutuNewsReadPort, FutuNewsResult,
-    TradeReadPort, TradeSecurity,
+    TradeReadPort, TradeSecurity, TradeWritePort,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::FutuIntegrationConfig;
@@ -53,6 +53,11 @@ use product_trade_runtime_projection_values::{
 #[derive(Clone, Default)]
 pub(crate) struct SharedTradeReadRuntime {
     state: Arc<RwLock<TradeRuntimeState>>,
+    /// The command-side client is tracked separately from the read snapshot.
+    /// Provider activation can replace the OpenD session after the product
+    /// ports have been constructed, so execution writes must resolve this
+    /// handle at call time rather than retaining a startup-only `Option`.
+    trade_writer: Arc<RwLock<Option<Arc<dyn TradeWritePort>>>>,
     pub(crate) margin_ratio_cache: MarginRatioCache,
     connection: Arc<RwLock<Option<TradeRuntimeConnection>>>,
     live_hub: Arc<RwLock<Option<Arc<LiveHub>>>>,
@@ -177,6 +182,13 @@ impl SharedTradeReadRuntime {
             .historical_klines
             .write()
             .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn historical_klines_available(&self) -> bool {
+        self.historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
     }
 
     pub(crate) fn set_security_snapshots(&self, reader: Option<Arc<dyn SecuritySnapshotReadPort>>) {
@@ -487,8 +499,23 @@ impl SharedTradeReadRuntime {
             client.map(|c| (c, logged_in == Some(true)));
     }
 
+    pub(crate) fn set_writer(&self, writer: Option<Arc<dyn TradeWritePort>>) {
+        *self
+            .trade_writer
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = writer;
+    }
+
+    pub(crate) fn writer_snapshot(&self) -> Option<Arc<dyn TradeWritePort>> {
+        self.trade_writer
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
     pub(crate) fn clear(&self) {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
+        self.set_writer(None);
         self.set_news_reader(None);
         self.set_corporate_actions_reader(None);
         self.set_customization_readers(None, None);

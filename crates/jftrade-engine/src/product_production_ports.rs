@@ -316,6 +316,8 @@ pub(crate) fn production_ports(
         trade_read_port: config.trade_read_port.clone(),
         trade_write_port: config.trade_write_port.clone(),
         trade_logged_in: config.trade_logged_in,
+        trade_runtime: config.trade_runtime.clone(),
+        cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
     });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
@@ -392,16 +394,6 @@ pub(crate) fn production_ports(
     let active_provider = provider_snapshot.provider;
     let has_helper = provider_snapshot.helper_ready;
     let has_router = provider_snapshot.router_ready;
-    let strategy_runtime_manager = Arc::new(StrategyRuntimeManager::new(
-        config.market_data_router.clone(),
-        config.strategy_pine_worker_port.clone(),
-        Arc::clone(&active_provider_state),
-    ));
-    let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
-        store: strategy_runtime_store,
-        definitions: strategy_def_store.clone(),
-        manager: Arc::clone(&strategy_runtime_manager),
-    });
     let backtest_sync_workers = Arc::new(BacktestSyncWorkerRegistry::default());
     let backtest_execution_workers = Arc::new(BacktestExecutionTaskRegistry::default());
     let backtest_port = Arc::new(ProductionBacktestPort {
@@ -523,7 +515,8 @@ pub(crate) fn production_ports(
             path: "/api/v1/adk/tools".to_owned(),
             adapter,
         })?
-        .with_active_provider_state(Arc::clone(&active_provider_state)),
+        .with_active_provider_state(Arc::clone(&active_provider_state))
+        .with_trade_runtime(config.trade_runtime.clone()),
     );
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
         Arc::clone(&adk_store),
@@ -617,6 +610,21 @@ pub(crate) fn production_ports(
         )
         .with_calendar(Arc::clone(&calendar_manager)),
     );
+    let strategy_runtime_manager = Arc::new(StrategyRuntimeManager::new(
+        config.market_data_router.clone(),
+        config.strategy_pine_worker_port.clone(),
+        Some(market_data_quote_port.clone()),
+        Some(execution_port.clone()),
+        Arc::clone(&active_provider_state),
+    ));
+    let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
+        store: strategy_runtime_store,
+        definitions: strategy_def_store.clone(),
+        manager: Arc::clone(&strategy_runtime_manager),
+    });
+    strategy_runtime_port
+        .restore_running_instances()
+        .map_err(|error| ProductError::Storage(format!("recover strategy runtime instances: {error}")))?;
     let market_data_sub_port = Arc::new(ProductionMarketDataSubscriptionMutationPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_router.clone(),
@@ -625,7 +633,7 @@ pub(crate) fn production_ports(
     let market_data_actions_port = Arc::new(
         ProductionMarketDataProviderActionsPort::new(Some(market_data_quote_port.clone()))
             .with_trade_runtime(config.trade_runtime.clone())
-            .with_active_provider_state(config.active_provider_state.clone()),
+            .with_active_provider_state(Some(Arc::clone(&active_provider_state))),
     );
 
     Ok(ProductionPortBundle {

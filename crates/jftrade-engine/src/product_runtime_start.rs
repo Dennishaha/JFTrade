@@ -111,6 +111,7 @@ pub async fn start_product_runtime(
                     .clone()
                     .with_trade_write_port(trade_write_port);
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
+                trade_runtime.set_writer(config.product.trade_write_port.clone());
                 trade_runtime.set_historical_klines(Some(historical_reader));
                 let customization_reader = Arc::new(
                     jftrade_integration_futu::FutuRemoteWatchlistReader::new(runtime.coordinator()),
@@ -284,8 +285,9 @@ pub async fn start_product_runtime(
             config.product = config
                 .product
                 .clone()
-                .with_trade_write_port(Some(client as Arc<dyn TradeWritePort>));
+                .with_trade_write_port(Some(client.clone() as Arc<dyn TradeWritePort>));
         }
+        trade_runtime.set_writer(config.product.trade_write_port.clone());
     }
     if let Some(coordinator) = market_data_opend.as_ref() {
         let customization_reader = Arc::new(

@@ -126,10 +126,18 @@ impl ProductionPortBundle {
             ProductionRouteAdapter::ExecutionWrite | ProductionRouteAdapter::BrokerWrite
         ) {
             let snapshot = self.active_provider_state.snapshot();
+            // A runtime handle is authoritative once it has been installed.
+            // Never retain a startup writer/login bit after a reconnect or
+            // teardown: doing so advertises a ready route while dispatch will
+            // fail (or, worse, sends a command through a stale session).
+            let trade_ready = if let Some(runtime) = self.trade_runtime.as_ref() {
+                runtime.snapshot().is_ready() && runtime.writer_snapshot().is_some()
+            } else {
+                self.trade_logged_in == Some(true) && self.trade_write_port.is_some()
+            };
             let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
                 && snapshot.opend_ready
-                && self.trade_logged_in == Some(true)
-                && self.trade_write_port.is_some();
+                && trade_ready;
             return Some(if ready {
                 ProductionAdapterBinding::Ready
             } else {

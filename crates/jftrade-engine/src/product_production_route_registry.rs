@@ -10,8 +10,7 @@ use super::*;
 const EXPECTED_PRODUCTION_ROUTE_COUNT: usize = 278;
 const EXPECTED_PRODUCTION_ROUTE_DIGEST: &str =
     "afa112435ed280dd24d43bb4acaa0f7ca2ab45c01e4e5701efc5ce149e5b85b2";
-const CANONICAL_ROUTE_LEDGER: &str =
-    include_str!("../../../tests/fixtures/rust-migration/stage9/route-ownership.json");
+const PRODUCTION_ROUTE_MANIFEST: &str = include_str!("product_production_route_manifest.json");
 
 const OPTION_EVENT_OPERATION_ADAPTERS: &[(&str, ProductionRouteAdapter)] = &[
     ("unusual", ProductionRouteAdapter::MarketDataOptionsUnusualRead),
@@ -230,18 +229,8 @@ pub(crate) struct ProductionRouteBinding {
     pub(crate) path: String,
     pub(crate) route_group: String,
     pub(crate) adapter: ProductionRouteAdapter,
-    /// The concrete dispatch target selected by the production composition.
-    ///
-    /// This is intentionally kept separate from `adapter`: the adapter names
-    /// the capability/readiness contract, while this target is the value that
-    /// the API dispatcher consumes.  Keeping both values in the binding makes
-    /// it impossible for the production route catalog and dispatch resolver
-    /// to silently drift apart.
     pub(crate) dispatch_target: ProductionRouteAdapter,
     pub(crate) adapter_binding: ProductionAdapterBinding,
-    /// Readiness for operations selected by query on a shared public route.
-    /// Options/events and instrument research routes expose operation aliases
-    /// here so callers can inspect the same binding that dispatch will use.
     pub(crate) operation_bindings: BTreeMap<String, ProductionAdapterBinding>,
 }
 
@@ -269,9 +258,14 @@ pub(crate) struct ProductionRouteRegistry {
 
 impl ProductionRouteRegistry {
     pub(crate) fn bind(ports: &ProductionPortBundle) -> Result<Self, ProductError> {
-        let ledger: RouteLedger = serde_json::from_str(CANONICAL_ROUTE_LEDGER).map_err(|error| {
+        let ledger: RouteLedger = serde_json::from_str(PRODUCTION_ROUTE_MANIFEST).map_err(|error| {
             ProductError::RouteRegistry(format!("invalid canonical ledger: {error}"))
         })?;
+        if ledger.version.as_deref() != Some("production.v1") {
+            return Err(ProductError::RouteRegistry(
+                "production route manifest version is not production.v1".to_owned(),
+            ));
+        }
         let canonical_routes = ledger
             .operations
             .iter()
@@ -284,6 +278,12 @@ impl ProductionRouteRegistry {
             })
             .collect::<Vec<_>>();
         let canonical_digest = route_profile_digest(&canonical_routes);
+        if ledger.route_digest.as_deref() != Some(canonical_digest.as_str()) {
+            return Err(ProductError::RouteRegistry(format!(
+                "production route manifest digest {:?} does not match computed {canonical_digest}",
+                ledger.route_digest
+            )));
+        }
         if canonical_routes.len() != EXPECTED_PRODUCTION_ROUTE_COUNT {
             return Err(ProductError::RouteRegistry(format!(
                 "canonical ledger contains {} routes, expected {EXPECTED_PRODUCTION_ROUTE_COUNT}",
@@ -306,7 +306,14 @@ impl ProductionRouteRegistry {
                     adapter: "unclassified-route".to_owned(),
                 }
             })?;
-            let adapter_binding = if adapter == ProductionRouteAdapter::ResearchRead {
+            let adapter_binding = if execution_preview_is_external_unavailable(&method, &path) {
+                // Execution preview and buying-power operations require a
+                // dedicated ProductRule/OpenD adapter. The generic execution
+                // writer only proves order placement/cancellation readiness;
+                // never advertise these preview routes as ready merely
+                // because the trade session is connected.
+                Some(ProductionAdapterBinding::ExternalUnavailable)
+            } else if adapter == ProductionRouteAdapter::ResearchRead {
                 // ResearchRead is a compatibility umbrella for several
                 // operations. Resolve readiness from the concrete path so a
                 // helper-backed profile/financials route (or Futu valuation)
@@ -420,11 +427,6 @@ impl ProductionRouteRegistry {
         &self.digest
     }
 
-    /// Resolves a concrete request path against the canonical production
-    /// binding table.  `RouteCatalog::allows` intentionally exposes only a
-    /// boolean; production dispatch also needs the selected target, so this
-    /// resolver is the single source of truth for both registration and
-    /// request routing.
     pub(crate) fn resolve(
         &self,
         method: &str,
@@ -480,8 +482,21 @@ fn research_operation_bindings(
     bindings
 }
 
+fn execution_preview_is_external_unavailable(method: &str, path: &str) -> bool {
+    method == "POST"
+        && matches!(
+            path,
+            "/api/v1/execution/buying-power"
+                | "/api/v1/execution/previews"
+                | "/api/v1/execution/combos/previews"
+        )
+}
+
 #[derive(Debug, Deserialize)]
 struct RouteLedger {
+    version: Option<String>,
+    #[serde(rename = "routeDigest")]
+    route_digest: Option<String>,
     operations: Vec<RouteLedgerOperation>,
 }
 
@@ -774,88 +789,5 @@ fn adk_adapter(method: &str, path: &str) -> ProductionRouteAdapter {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn fixture_registry() -> ProductionRouteRegistry {
-        let ledger: RouteLedger = serde_json::from_str(CANONICAL_ROUTE_LEDGER).expect("ledger");
-        let canonical_routes = ledger
-            .operations
-            .iter()
-            .map(|operation| {
-                format!(
-                    "{} {}",
-                    operation.method.trim().to_uppercase(),
-                    operation.path.trim()
-                )
-            })
-            .collect::<Vec<_>>();
-        let bindings = ledger
-            .operations
-            .into_iter()
-            .map(|operation| {
-                let method = operation.method.trim().to_uppercase();
-                let path = operation.path.trim().to_owned();
-                let adapter = adapter_for(&operation.capability, &method, &path)
-                    .expect("canonical operation adapter");
-                ProductionRouteBinding {
-                    method,
-                    path,
-                    route_group: operation.capability,
-                    adapter,
-                    dispatch_target: adapter,
-                    adapter_binding: ProductionAdapterBinding::Ready,
-                    operation_bindings: BTreeMap::new(),
-                }
-            })
-            .collect::<Vec<_>>();
-        ProductionRouteRegistry::finish(bindings, route_profile_digest(&canonical_routes))
-            .expect("fixture registry")
-    }
-
-    #[test]
-    fn resolver_returns_registered_target_for_dynamic_paths() {
-        let registry = fixture_registry();
-        let binding = registry
-            .resolve("get", "/api/v1/market-data/candles/US/AAPL")
-            .expect("dynamic route");
-        assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::MarketDataCandlesRead);
-        let binding = registry
-            .resolve("POST", "/api/v1/strategies/instance-1/start")
-            .expect("strategy start");
-        assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::StrategyRuntimeWrite);
-    }
-
-    #[test]
-    fn resolver_rejects_unknown_method_and_path() {
-        let registry = fixture_registry();
-        assert!(registry.resolve("PATCH", "/api/v1/market-data/markets").is_none());
-        assert!(registry
-            .resolve("GET", "/api/v1/market-data/markets/extra")
-            .is_none());
-        assert!(registry.resolve("GET", "/api/v1/unknown").is_none());
-    }
-
-    #[test]
-    fn every_canonical_template_has_a_dispatch_target() {
-        let registry = fixture_registry();
-        for binding in registry.bindings() {
-            let concrete = binding
-                .path
-                .split('/')
-                .map(|segment| {
-                    if segment.starts_with('{') && segment.ends_with('}') {
-                        "fixture-id"
-                    } else {
-                        segment
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("/");
-            let resolved = registry
-                .resolve(&binding.method, &concrete)
-                .expect("canonical operation resolves");
-            assert_eq!(resolved.dispatch_target(), binding.dispatch_target());
-        }
-    }
-}
+#[path = "product_production_route_registry_tests.rs"]
+mod tests;

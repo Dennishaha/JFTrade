@@ -49,6 +49,17 @@ pub struct StoredRuntimeObservation {
     pub updated_at: Option<String>,
 }
 
+/// Result of applying one definition version to its linked, stopped runtime
+/// instances. The store computes this result inside the same transaction as
+/// the catalog updates, so callers never observe a partially applied batch.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LinkedDefinitionApplyResult {
+    pub total_linked: usize,
+    pub applied: Vec<String>,
+    pub already_latest: Vec<String>,
+    pub skipped_busy: Vec<String>,
+}
+
 type RuntimeObservationRow = (
     String,
     String,
@@ -107,7 +118,8 @@ pub enum StrategyRuntimeStoreError {
 }
 
 use crate::strategy_definition::{
-    StrategyDefinitionStore, StrategyDefinitionStoreError, StrategyStoreInner,
+    StoredStrategyDefinition, StrategyDefinitionStore, StrategyDefinitionStoreError,
+    StrategyStoreInner,
 };
 use std::sync::Arc;
 
@@ -226,7 +238,7 @@ impl StrategyRuntimeStore {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(StrategyRuntimeStoreError::Query)?;
-        let is_running = status == "RUNNING";
+        let is_running = status.eq_ignore_ascii_case("RUNNING");
         let runtime_risk = binding
             .get("runtimeRisk")
             .cloned()
@@ -432,6 +444,34 @@ impl StrategyRuntimeStore {
         last_error: Option<&str>,
         updated_at_ms: i64,
     ) -> Result<(), StrategyRuntimeStoreError> {
+        self.update_observation_with_events(
+            instance_id,
+            actual_status,
+            active_symbols,
+            last_error,
+            None,
+            None,
+            None,
+            updated_at_ms,
+        )
+    }
+
+    /// Persist a worker observation together with the latest market/signal/order
+    /// timestamps.  The event timestamps are monotonic projections: a worker
+    /// may omit an event on a heartbeat, but it must never erase a timestamp
+    /// already recovered from a previous process invocation.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_observation_with_events(
+        &self,
+        instance_id: &str,
+        actual_status: &str,
+        active_symbols: &[String],
+        last_error: Option<&str>,
+        last_closed_kline_at_ms: Option<i64>,
+        last_signal_at_ms: Option<i64>,
+        last_order_at_ms: Option<i64>,
+        updated_at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
         let connection = self.lock()?;
         let symbols = serde_json::to_string(active_symbols).map_err(|error| {
             StrategyRuntimeStoreError::Incompatible(format!("encode active symbols: {error}"))
@@ -439,15 +479,83 @@ impl StrategyRuntimeStore {
         connection
             .execute(
                 "INSERT INTO strategy_runtime_observations
-                    (instance_id, actual_status_snapshot, active_symbols_json, last_error, updated_at_ms)
-                 VALUES (?1, ?2, ?3, ?4, ?5)
+                    (instance_id, actual_status_snapshot, active_symbols_json,
+                     last_closed_kline_at_ms, last_signal_at_ms, last_order_at_ms,
+                     last_error, updated_at_ms)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                  ON CONFLICT(instance_id) DO UPDATE SET
                     actual_status_snapshot = excluded.actual_status_snapshot,
                     active_symbols_json = excluded.active_symbols_json,
+                    last_closed_kline_at_ms = COALESCE(excluded.last_closed_kline_at_ms,
+                        strategy_runtime_observations.last_closed_kline_at_ms),
+                    last_signal_at_ms = COALESCE(excluded.last_signal_at_ms,
+                        strategy_runtime_observations.last_signal_at_ms),
+                    last_order_at_ms = COALESCE(excluded.last_order_at_ms,
+                        strategy_runtime_observations.last_order_at_ms),
                     last_error = excluded.last_error,
                     last_error_at_ms = CASE WHEN excluded.last_error IS NULL OR excluded.last_error = '' THEN strategy_runtime_observations.last_error_at_ms ELSE excluded.updated_at_ms END,
                     updated_at_ms = excluded.updated_at_ms",
-                params![instance_id, actual_status, symbols, last_error.unwrap_or_default(), updated_at_ms],
+                params![
+                    instance_id,
+                    actual_status,
+                    symbols,
+                    last_closed_kline_at_ms,
+                    last_signal_at_ms,
+                    last_order_at_ms,
+                    last_error.unwrap_or_default(),
+                    updated_at_ms,
+                ],
+            )
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        Ok(())
+    }
+
+    /// Append a worker diagnostic to the durable strategy activity stream.
+    /// Callers are expected to pass a validated instance id; SQLite foreign
+    /// key enforcement remains the source of truth for malformed ids.
+    pub fn append_log_event(
+        &self,
+        instance_id: &str,
+        raw: &str,
+        level: &str,
+        at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        if instance_id.trim().is_empty() || raw.trim().is_empty() {
+            return Err(StrategyRuntimeStoreError::Validation(
+                "strategy log instance and message are required".to_owned(),
+            ));
+        }
+        let connection = self.lock()?;
+        connection
+            .execute(
+                "INSERT INTO strategy_log_events (instance_id, at_ms, raw, level, source)
+                 VALUES (?1, ?2, ?3, ?4, 'rust-production-runtime')",
+                params![instance_id, at_ms, raw, level],
+            )
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        Ok(())
+    }
+
+    /// Append a state transition/audit diagnostic using the same durable
+    /// stream read by the strategy activity endpoints.
+    pub fn append_audit_event(
+        &self,
+        instance_id: &str,
+        kind: &str,
+        detail: &str,
+        at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        if instance_id.trim().is_empty() || kind.trim().is_empty() {
+            return Err(StrategyRuntimeStoreError::Validation(
+                "strategy audit instance and kind are required".to_owned(),
+            ));
+        }
+        let connection = self.lock()?;
+        connection
+            .execute(
+                "INSERT INTO strategy_audit_events (instance_id, kind, detail, at_ms)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![instance_id, kind, detail, at_ms],
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
         Ok(())
@@ -460,6 +568,7 @@ impl StrategyRuntimeStore {
         timestamp: &str,
     ) -> Result<StoredRuntimeInstance, StrategyRuntimeStoreError> {
         validate_rfc3339_timestamp(timestamp)?;
+        let timestamp_ms = strategy_timestamp_millis(timestamp)?;
         let mut connection = self.lock()?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -473,7 +582,7 @@ impl StrategyRuntimeStore {
         }
 
         instance.status = new_status.to_owned();
-        instance.runtime_active = new_status == "RUNNING";
+        instance.runtime_active = new_status.eq_ignore_ascii_case("RUNNING");
         instance.updated_at = timestamp.to_owned();
 
         let payload = instance_payload(&instance);
@@ -496,17 +605,20 @@ impl StrategyRuntimeStore {
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
-        let event_kind = match new_status {
-            "RUNNING" => "STARTED",
-            "STOPPED" => "STOPPED",
-            "PAUSED" => "PAUSED",
-            _ => "STATUS_CHANGE",
+        let event_kind = if new_status.eq_ignore_ascii_case("RUNNING") {
+            "STARTED"
+        } else if new_status.eq_ignore_ascii_case("STOPPED") {
+            "STOPPED"
+        } else if new_status.eq_ignore_ascii_case("PAUSED") {
+            "PAUSED"
+        } else {
+            "STATUS_CHANGE"
         };
         transaction
             .execute(
                 "INSERT INTO strategy_audit_events (instance_id, kind, detail, at_ms)
-                 VALUES (?1, ?2, '', 0)",
-                params![instance_id, event_kind],
+                 VALUES (?1, ?2, '', ?3)",
+                params![instance_id, event_kind, timestamp_ms],
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
@@ -677,6 +789,191 @@ impl StrategyRuntimeStore {
             .map_err(StrategyRuntimeStoreError::Query)?;
         Ok(instance)
     }
+
+    /// Apply a definition's current version to every linked stopped instance
+    /// in one immediate SQLite transaction. Busy instances are deliberately
+    /// skipped (matching the Go lifecycle contract); malformed payloads or a
+    /// concurrent CAS miss abort the whole batch and leave prior rows intact.
+    pub fn apply_definition_to_linked(
+        &self,
+        definition: &StoredStrategyDefinition,
+        timestamp: &str,
+    ) -> Result<LinkedDefinitionApplyResult, StrategyRuntimeStoreError> {
+        validate_rfc3339_timestamp(timestamp)?;
+        let definition_id = definition.id.trim();
+        if definition_id.is_empty() {
+            return Err(StrategyRuntimeStoreError::Validation(
+                "strategy definition id is required".to_owned(),
+            ));
+        }
+        let timestamp_ms = strategy_timestamp_millis(timestamp)?;
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        let mut statement = transaction
+            .prepare(
+                "SELECT operation_id, plugin_id, status, updated_at, payload_json
+                 FROM strategy_catalog_operations
+                 ORDER BY operation_id ASC",
+            )
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        let mut linked = Vec::new();
+        for row in rows {
+            let (id, plugin_id, status, updated_at, payload_json) =
+                row.map_err(StrategyRuntimeStoreError::Query)?;
+            let instance = decode_instance(id, plugin_id, status, updated_at, &payload_json)?;
+            let linked_id = instance
+                .definition_id
+                .as_deref()
+                .or_else(|| binding_definition_id(&instance.binding));
+            if !instance.deleted && linked_id == Some(definition_id) {
+                linked.push(instance);
+            }
+        }
+        drop(statement);
+
+        let mut result = LinkedDefinitionApplyResult {
+            total_linked: linked.len(),
+            ..LinkedDefinitionApplyResult::default()
+        };
+        for mut instance in linked {
+            if instance.runtime_active || !instance.status.eq_ignore_ascii_case("STOPPED") {
+                result.skipped_busy.push(instance.id);
+                continue;
+            }
+            if instance
+                .definition_version
+                .as_deref()
+                .is_some_and(|version| version.trim() == definition.version.trim())
+            {
+                result.already_latest.push(instance.id);
+                continue;
+            }
+
+            let expected_updated_at = instance.updated_at.clone();
+            instance.definition_revision =
+                instance.definition_revision.checked_add(1).ok_or_else(|| {
+                    StrategyRuntimeStoreError::Incompatible(format!(
+                        "strategy instance {:?} definition revision overflow",
+                        instance.id
+                    ))
+                })?;
+            instance.definition_id = Some(definition_id.to_owned());
+            instance.definition_name = Some(definition.name.trim().to_owned());
+            instance.definition_version = Some(definition.version.trim().to_owned());
+            apply_definition_binding(&mut instance.binding, definition)?;
+            instance.updated_at = timestamp.to_owned();
+            let payload = instance_payload(&instance);
+            let changed = transaction
+                .execute(
+                    "UPDATE strategy_catalog_operations
+                     SET updated_at = ?1, payload_json = ?2
+                     WHERE operation_id = ?3 AND updated_at = ?4 AND status = ?5",
+                    params![
+                        timestamp,
+                        payload.to_string(),
+                        instance.id,
+                        expected_updated_at,
+                        instance.status,
+                    ],
+                )
+                .map_err(StrategyRuntimeStoreError::Query)?;
+            if changed != 1 {
+                return Err(StrategyRuntimeStoreError::Conflict);
+            }
+            transaction
+                .execute(
+                    "INSERT INTO strategy_audit_events (instance_id, kind, detail, at_ms)
+                     VALUES (?1, 'definition.refreshed', ?2, ?3)",
+                    params![
+                        instance.id,
+                        format!(
+                            "refreshed strategy definition {} to v{}",
+                            definition_id,
+                            definition.version.trim()
+                        ),
+                        timestamp_ms,
+                    ],
+                )
+                .map_err(StrategyRuntimeStoreError::Query)?;
+            result.applied.push(instance.id);
+        }
+        transaction
+            .commit()
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        Ok(result)
+    }
+}
+
+fn binding_definition_id(binding: &Value) -> Option<&str> {
+    binding
+        .as_object()
+        .and_then(|object| {
+            object
+                .get("definitionId")
+                .or_else(|| object.get("strategyId"))
+        })
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn apply_definition_binding(
+    binding: &mut Value,
+    definition: &StoredStrategyDefinition,
+) -> Result<(), StrategyRuntimeStoreError> {
+    let object = binding.as_object_mut().ok_or_else(|| {
+        StrategyRuntimeStoreError::Incompatible(
+            "linked strategy instance binding must be a JSON object".to_owned(),
+        )
+    })?;
+    object.insert(
+        "definitionId".to_owned(),
+        Value::String(definition.id.trim().to_owned()),
+    );
+    object.insert(
+        "definitionName".to_owned(),
+        Value::String(definition.name.trim().to_owned()),
+    );
+    object.insert(
+        "definitionVersion".to_owned(),
+        Value::String(definition.version.trim().to_owned()),
+    );
+    if !definition.script.trim().is_empty() {
+        object.insert(
+            "script".to_owned(),
+            Value::String(definition.script.clone()),
+        );
+    }
+    if !definition.symbol.trim().is_empty() {
+        object.insert(
+            "symbol".to_owned(),
+            Value::String(definition.symbol.clone()),
+        );
+        object.insert(
+            "symbols".to_owned(),
+            Value::Array(vec![Value::String(definition.symbol.clone())]),
+        );
+    }
+    if !definition.interval.trim().is_empty() {
+        object.insert(
+            "interval".to_owned(),
+            Value::String(definition.interval.clone()),
+        );
+    }
+    Ok(())
 }
 
 fn get_instance_query(
@@ -738,11 +1035,11 @@ fn decode_instance(
     let runtime_active = object
         .get("runtimeActive")
         .and_then(Value::as_bool)
-        .unwrap_or(status == "RUNNING");
+        .unwrap_or_else(|| status.eq_ignore_ascii_case("RUNNING"));
     let deleted = object
         .get("deleted")
         .and_then(Value::as_bool)
-        .unwrap_or(status == "DELETED");
+        .unwrap_or_else(|| status.eq_ignore_ascii_case("DELETED"));
     let optional_string = |key: &str| {
         object
             .get(key)
@@ -790,6 +1087,19 @@ fn validate_rfc3339_timestamp(timestamp: &str) -> Result<(), StrategyRuntimeStor
                 "invalid RFC3339 timestamp {timestamp:?}: {error}"
             ))
         })
+}
+
+fn strategy_timestamp_millis(timestamp: &str) -> Result<i64, StrategyRuntimeStoreError> {
+    let parsed = OffsetDateTime::parse(timestamp, &Rfc3339).map_err(|error| {
+        StrategyRuntimeStoreError::Incompatible(format!(
+            "invalid RFC3339 timestamp {timestamp:?}: {error}"
+        ))
+    })?;
+    i64::try_from(parsed.unix_timestamp_nanos() / 1_000_000).map_err(|_| {
+        StrategyRuntimeStoreError::Incompatible(
+            "strategy definition timestamp is outside SQLite millisecond range".to_owned(),
+        )
+    })
 }
 
 fn observation_timestamp(value: Option<i64>) -> Result<Option<String>, StrategyRuntimeStoreError> {

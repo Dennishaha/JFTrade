@@ -10,6 +10,7 @@ mod backtest_run;
 mod backtest_sync_task;
 mod data_management;
 mod execution_order;
+mod execution_order_preview;
 mod maintenance;
 mod research_preset;
 mod schema_manifest;
@@ -50,6 +51,7 @@ pub use execution_order::{
     ExecutionOrderStore, ExecutionOrderStoreError, ExecutionOrderTestCutoverStore,
     StoredExecutionOrder, StoredExecutionOrderEvent, StoredExecutionOrderEventRecord,
 };
+pub use execution_order_preview::StoredExecutionOrderPreview;
 pub use maintenance::ManagedDatabaseMaintenanceStore;
 pub use research_preset::{
     RESEARCH_PRESET_PRODUCTION_PROFILE, RESEARCH_PRESET_TEST_CUTOVER_PROFILE,
