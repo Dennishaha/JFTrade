@@ -327,26 +327,6 @@ pub(crate) async fn prepare_product_with_runtime_state(
     let route_count = production_registry
         .as_ref()
         .map_or_else(|| routes.routes().len(), |registry| registry.bindings().len());
-    let ready_route_count = production_registry.as_ref().map_or(route_count, |registry| {
-        registry
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                binding.adapter_binding
-                    == product_production_ports::ProductionAdapterBinding::Ready
-            })
-            .count()
-    });
-    let external_unavailable_route_count = production_registry.as_ref().map_or(0, |registry| {
-        registry
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                binding.adapter_binding
-                    == product_production_ports::ProductionAdapterBinding::ExternalUnavailable
-            })
-            .count()
-    });
     let route_capabilities = routes
         .routes()
         .iter()
@@ -393,6 +373,33 @@ pub(crate) async fn prepare_product_with_runtime_state(
         config.market_data_runtime_status_port.is_some(),
         config.market_data_router.is_some(),
     );
+    // Report the same live readiness that dispatch will use.  The canonical
+    // route count and digest remain immutable, while these status counters
+    // reflect the provider/helper/router state published above.
+    let ready_route_count = production_registry.as_ref().map_or(route_count, |registry| {
+        production_ports.as_ref().map_or(0, |ports| {
+            registry
+                .bindings()
+                .iter()
+                .filter(|binding| {
+                    registry.current_binding(binding, ports)
+                        == product_production_ports::ProductionAdapterBinding::Ready
+                })
+                .count()
+        })
+    });
+    let external_unavailable_route_count = production_registry.as_ref().map_or(0, |registry| {
+        production_ports.as_ref().map_or(0, |ports| {
+            registry
+                .bindings()
+                .iter()
+                .filter(|binding| {
+                    registry.current_binding(binding, ports)
+                        == product_production_ports::ProductionAdapterBinding::ExternalUnavailable
+                })
+                .count()
+        })
+    });
     let port = Arc::new(ProductApi::new(
         address.port(),
         ProductSettingsServices {
