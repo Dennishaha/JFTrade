@@ -6,9 +6,9 @@
 
 当前系统至少有三层：
 
-- `cmd/jftrade-desktop`：Wails v3 桌面壳、桌面专属服务和内置 sidecar 生命周期
-- `cmd/jftrade-api`：启动 API sidecar
-- `internal/app/apiserver` + `internal/api/*`：提供前端默认使用的 `/api/v1/*`
+- `apps/desktop/src-tauri`：Tauri 2 桌面壳、桌面专属服务和受管 API 生命周期
+- `crates/jftrade-engine` + `crates/jftrade-api`：提供前端默认使用的 `/api/v1/*`
+- `cmd/jftrade-api`、`internal/app/apiserver` 和 `internal/api/*`：Go reference/differential harness，不是生产入口
 - `pkg/futu`、`pkg/strategy`、`pkg/backtest`：复用 bbgo 公共类型和运行时能力，但不提供独立 bbgo CLI 模式
 
 排查时先分层，不要一上来假设所有问题都在 bbgo 或前端。
@@ -17,10 +17,10 @@
 
 | 术语                 | 当前含义                                                                            |
 | -------------------- | ----------------------------------------------------------------------------------- |
-| API sidecar          | `go run ./cmd/jftrade-api`，用于前端开发和控制平面调试                              |
-| JFTrade Dev          | `go tool wails3 dev` 启动的 Wails 原生开发通道，默认 API `3008`，使用仓库数据目录      |
-| JFTrade              | `release_assets` 构建的正式桌面通道，内部 sidecar `6699`，可选 Web 默认 `6688`      |
-| sidecar              | `internal/app/apiserver` 装配、`internal/api/*` 提供 transport 的前端适配与控制平面 |
+| 独立 Rust API        | `cargo run -p jftrade-engine --bin jftrade-api-rust`，用于前端开发和控制平面调试       |
+| JFTrade Dev          | `pnpm run dev:desktop` 启动的 Tauri 原生开发通道，默认 API `3008`，使用仓库数据目录    |
+| JFTrade              | `pnpm run build:desktop` 构建的正式桌面通道，内部 sidecar `6699`，可选 Web 默认 `6688` |
+| sidecar              | `crates/jftrade-engine` 装配、`crates/jftrade-api` 提供 transport 的前端适配与控制平面 |
 | `/api/v1/*`          | JFTrade 自有 API 契约                                                               |
 | `/api/*`             | bbgo 原生路由，不是当前控制台接口                                                   |
 | OpenD API port       | 默认 `11110`，Go 原生 TCP/protobuf 使用                                             |
@@ -41,7 +41,7 @@
 页面异常
   -> 先看当前模式的 sidecar/gateway 端口是否还在
   -> 浏览器开发态默认 127.0.0.1:3000，JFTrade Dev 默认 127.0.0.1:3008
-  -> 可选 Web 入口默认 127.0.0.1:6688（端口可设置），正式 Wails 桌面 sidecar 默认 127.0.0.1:6699 且不作为浏览器入口
+  -> 可选 Web 入口默认 127.0.0.1:6688（端口可设置），正式 Tauri 桌面 sidecar 默认 127.0.0.1:6699 且不作为浏览器入口
   -> 如果 settings.json 的 interfaces 或环境变量改过绑定地址，先按实际配置检查
   -> 如果当前模式对应的 3000/3008/6688/6699 不在：查启动模式和启动退出日志
   -> 如果 3000 在但实时 SSE 断开：查 /api/v1/stream/live 和 sidecar

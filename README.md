@@ -48,7 +48,7 @@ pnpm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。
 
-本地按可选 Web 发布包的方式验收：
+本地按可选 Web 发布包的方式验收（兼容包装器，生产桌面入口仍使用 Tauri）：
 
 ```bash
 ./start.sh
@@ -125,7 +125,7 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 
 ## 运行时文件
 
-浏览器开发、独立 API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：
+浏览器开发、独立 Rust API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：
 
 - `settings.json`：本地设置
 - `backtest.db`：回测和历史数据相关存储
@@ -133,7 +133,7 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 
 配置优先级是：环境变量 > `settings.json` > 内置默认值。配置细节见 [docs/configuration.md](docs/configuration.md)，端口和启动排障见 [docs/troubleshooting/startup-ports.md](docs/troubleshooting/startup-ports.md)。
 
-正式 Wails 产品不迁移开发数据，也不在安装目录写入业务数据，默认使用系统用户数据目录：
+正式 Tauri 产品不迁移开发数据，也不在安装目录写入业务数据，默认使用系统用户数据目录：
 
 - macOS：`~/Library/Application Support/JFTrade`
 - Windows：`%LOCALAPPDATA%/JFTrade`
@@ -144,9 +144,9 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 - `127.0.0.1:3003`：前端开发服务器
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
-- `127.0.0.1:3008`：`JFTrade Dev` 桌面 sidecar
+- `127.0.0.1:3008`：`JFTrade Dev` Tauri sidecar
 - `127.0.0.1:6688`：默认的可选 Web 入口；端口可在设置中修改，桌面 Web 关闭时不创建该监听器
-- `127.0.0.1:6699`：正式 Wails 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
+- `127.0.0.1:6699`：正式 Tauri 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
 - `127.0.0.1:11110`：Futu OpenD API
 - `127.0.0.1:11111`：Futu OpenD WebSocket
 
@@ -155,7 +155,7 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 - 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
 - 想改启动、端口或可选 Web 访问：读 [docs/configuration.md](docs/configuration.md)
-- 想构建或排查 Wails 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
+- 想构建或排查 Tauri 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
 - 想理解模块边界和数据流：读 [docs/architecture.md](docs/architecture.md)
 - 想管理或扩展自选、Futu 分组导入和自选快照：读 [docs/watchlist.md](docs/watchlist.md)
@@ -165,11 +165,10 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 ## 目录导览
 
 ```text
-cmd/jftrade-api/           后端入口
-cmd/jftrade-desktop/       Wails v3 桌面入口与桌面专属服务
-internal/app/apiserver/    后端启动、装配、运行时目录
-internal/desktop/          正式产品系统用户数据目录解析
-internal/api/              /api/v1/*、SSE、WebSocket
+crates/jftrade-engine/     Rust 后端入口与 product composition
+crates/jftrade-api/        /api/v1/*、SSE、WebSocket transport
+apps/desktop/src-tauri/    Tauri 2 桌面入口与桌面专属服务
+cmd/jftrade-api/           Go reference/differential harness
 internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}/
                            控制台业务能力
 internal/integration/futu/ 后端内部的 Futu/OpenD 集成
@@ -179,7 +178,7 @@ pkg/backtest/              回测与历史数据存储
 apps/web/                  Vue 3 控制台
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
-build/                     Wails 配置、平台 Taskfile 与桌面资源
+build/                     桌面资源与平台构建辅助文件
 ```
 
 ## 开源许可

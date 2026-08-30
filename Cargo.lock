@@ -2164,6 +2164,7 @@ dependencies = [
  "jftrade-integration-pine",
  "jftrade-kernel",
  "jftrade-marketdata",
+ "jftrade-owner-lock",
  "jftrade-research",
  "jftrade-settings",
  "jftrade-store-settings-file",

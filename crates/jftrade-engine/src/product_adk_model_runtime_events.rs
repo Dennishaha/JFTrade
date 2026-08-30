@@ -135,16 +135,29 @@ impl ProductionAdkChatRuntime {
             "route": match route { AdkChatRoute::Chat => "chat", AdkChatRoute::Stream => "stream" },
             "toolResults": [],
         });
+        let initial_payload_json = initial_payload.to_string();
+        let initial_event_id = format!("{run_id}:user");
+        let initial_event = AdkRunEvent {
+            id: &initial_event_id,
+            session_id: &session_id,
+            invocation_id: &run_id,
+            author: "user",
+            content: &message,
+        };
         self.store
-            .create_run(CreateAdkRunParams {
-                id: &run_id,
-                session_id: &session_id,
-                agent_id: &agent_id,
-                status: "RUNNING",
-                client_request_id: &input.client_request_id,
-                request_fingerprint: &fingerprint,
-                payload_json: &initial_payload.to_string(),
-            })
+            .create_run_with_event(
+                CreateAdkRunParams {
+                    id: &run_id,
+                    session_id: &session_id,
+                    agent_id: &agent_id,
+                    status: "RUNNING",
+                    client_request_id: &input.client_request_id,
+                    request_fingerprint: &fingerprint,
+                    payload_json: &initial_payload_json,
+                },
+                self.session_store.path(),
+                &initial_event,
+            )
             .map_err(|error| {
                 if error
                     .to_string()
@@ -156,7 +169,6 @@ impl ProductionAdkChatRuntime {
                     storage_unavailable(error)
                 }
             })?;
-        self.record_event(&run_id, &session_id, "user", &message)?;
         let tools = self
             .tool_catalog
             .openai_tools()
@@ -230,8 +242,10 @@ impl ProductionAdkChatRuntime {
                 author: &run.agent_id,
                 content: "assistant tool call was denied",
             };
+            let owner_id = lease_owner_id(run_id);
+            let run_lease = RunLeaseGuard::acquire(Arc::clone(&self.store), run_id, &owner_id)?;
             self.store
-                .update_run_state_if_status_and_revision_with_events(
+                .update_run_state_if_status_and_revision_with_events_with_lease(
                     run_id,
                     "RUNNING",
                     &run.updated_at,
@@ -239,6 +253,8 @@ impl ProductionAdkChatRuntime {
                     &denied_payload.to_string(),
                     self.session_store.path(),
                     &[event],
+                    run_lease.owner_id(),
+                    run_lease.token(),
                 )
                 .map_err(storage_unavailable)?;
             return Ok(());
@@ -754,43 +770,4 @@ impl ProductionAdkChatRuntime {
         ))
     }
 
-    fn record_event(
-        &self,
-        run_id: &str,
-        session_id: &str,
-        author: &str,
-        content: &str,
-    ) -> Result<(), AdkChatPortError> {
-        let id = format!("{run_id}:{author}");
-        self.record_event_with_id(&id, run_id, session_id, author, content)
-    }
-
-    fn record_event_with_id(
-        &self,
-        id: &str,
-        run_id: &str,
-        session_id: &str,
-        author: &str,
-        content: &str,
-    ) -> Result<(), AdkChatPortError> {
-        let exists = self
-            .session_store
-            .list_events(session_id)
-            .map(|events| events.into_iter().any(|event| event.id == id))
-            .map_err(storage_unavailable)?;
-        if !exists {
-            self.session_store
-                .record_event(RecordAdkEventParams {
-                    id: &id,
-                    app_name: "jftrade",
-                    user_id: "local",
-                    session_id,
-                    invocation_id: run_id,
-                    author,
-                    content,
-                })
-                .map_err(storage_unavailable)?;
-        }
-        Ok(())
-    }
 }

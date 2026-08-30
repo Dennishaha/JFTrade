@@ -149,7 +149,7 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 
 ## API 访问权限
 
-- Wails 桌面端使用每进程临时能力凭证，无需用户输入密码或 Key。
+- Tauri 桌面端使用每进程临时能力凭证，无需用户输入密码或 Key。
 - Web 默认关闭。用户在桌面设置中开启后，所有 `/api/v1/adk/*` 以及交易、策略、回测、设置和插件 API 都要求 Web 密码会话。
 - 浏览器以 Web 访问密码调用 `POST /api/v1/auth/login` 后获得 `HttpOnly`、`SameSite=Strict` 会话；会话默认 12 小时过期。
 - cookie 写请求必须来自配置的 GUI Origin，并携带登录或 session 状态接口返回的 `X-CSRF-Token`。

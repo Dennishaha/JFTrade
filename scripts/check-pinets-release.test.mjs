@@ -50,7 +50,7 @@ try {
   assert(passLog.includes("pnpm run build:pineworker"), "unblocked release check did not build worker assets");
   assert(passLog.includes("pnpm run build:marketdata-sidecar"), "unblocked release check did not build the native market-data helper");
   assert(passLog.includes("go test -tags release_assets ./internal/marketdataassets -run Test"), "unblocked release check did not verify embedded market-data assets");
-  assert(passLog.includes(`go build -tags release_assets -o ${releaseOut} ./cmd/jftrade-api`), "unblocked release check did not build release_assets API binary");
+  assert(passLog.includes("cargo build --release -p jftrade-engine --bin jftrade-api-rust"), "unblocked release check did not build the Rust API release binary");
   assert(existsSync(releaseOut), "unblocked release check did not leave an artifact");
 
   const missingArtifact = runCheck([], {

@@ -787,4 +787,5 @@ fn validate_remote_security_list(
 }
 
 #[cfg(test)]
+#[path = "product_production_ports_watchlist/remote_watchlist_tests.rs"]
 mod remote_watchlist_tests;

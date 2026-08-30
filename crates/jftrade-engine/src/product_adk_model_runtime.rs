@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use jftrade_api::ApiStream;
 use jftrade_store_sqlite::{
     AdkApprovalStage, AdkRunEvent, AdkSessionStore, AdkStore, AdkStoreError,
-    AdkToolInvocationClaim, CreateAdkRunParams, RecordAdkEventParams, StoredAdkRunLease,
+    AdkToolInvocationClaim, CreateAdkRunParams, StoredAdkRunLease,
 };
 
 use crate::product::product_adk_chat_stream_port::{

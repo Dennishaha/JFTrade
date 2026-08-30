@@ -55,6 +55,14 @@ impl ProductApi {
                         .await
                 }
             }
+            ProductionAdapterBinding::MissingInternalAdapter => Err(ApiFailure::new(
+                500,
+                "PRODUCTION_INTERNAL_ADAPTER_MISSING",
+                format!(
+                    "production adapter {} is not installed",
+                    binding.adapter.name()
+                ),
+            )),
         }
     }
 

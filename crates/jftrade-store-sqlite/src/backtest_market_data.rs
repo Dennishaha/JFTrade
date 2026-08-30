@@ -398,8 +398,10 @@ fn kline_table_name(
     rehab_type: &str,
     session_scope: &str,
 ) -> Result<String, BacktestMarketDataStoreError> {
-    let provider = normalize_component(provider_id, "futu");
-    let symbol = normalize_component(symbol, "value");
+    let raw_provider = normalize_provider_id(provider_id);
+    let raw_symbol = symbol.trim().to_ascii_lowercase();
+    let provider = normalize_component(&raw_provider, "futu");
+    let symbol = normalize_component(&raw_symbol, "value");
     let interval = normalize_component(interval, "value");
     let rehab = match rehab_type.trim().to_ascii_lowercase().as_str() {
         "forward" | "backward" | "none" => rehab_type.trim().to_ascii_lowercase(),
@@ -418,10 +420,18 @@ fn kline_table_name(
             ));
         }
     };
-    let hash = fnv1a(format!("{provider}|{symbol}").as_bytes());
+    let hash = fnv1a(format!("{raw_provider}|{raw_symbol}").as_bytes());
     Ok(format!(
         "local_klines__{provider}__{symbol}__{interval}__{rehab}__{scope_tag}__{hash:08x}"
     ))
+}
+
+fn normalize_provider_id(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "yfinance" => "yfinance".to_owned(),
+        "akshare" => "akshare".to_owned(),
+        _ => "futu".to_owned(),
+    }
 }
 
 fn normalize_component(value: &str, default: &str) -> String {

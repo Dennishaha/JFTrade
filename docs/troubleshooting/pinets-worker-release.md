@@ -1,6 +1,6 @@
 # PineTS Worker 发布与运行清单
 
-本文面向发布、部署和现场排障。当前 Pine 执行路径是 Go 主进程启动 Node/PineTS gRPC worker pool；Go 仍负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 RollDown 生成平台无关的 Node ESM bundle，再由 Go `release_assets` 嵌入到 `trading-engine` 二进制；目标机器必须安装 Node。
+本文面向发布、部署和现场排障。当前 Pine 执行路径是 Rust product runtime 启动 Node/PineTS gRPC worker pool；Rust engine 负责行情、K 线缓存、策略调度、回测撮合、资金曲线、风控、下单和交易所 API。发布打包采用 RollDown 生成平台无关的 Node ESM bundle，再由受管 Rust/Tauri runtime 加载；目标机器必须安装 Node（或使用随产品提供的 runtime）。Go worker 实现仅保留为 reference/differential harness。
 
 ## 发布放行条件
 
@@ -13,21 +13,21 @@
 - 真实 worker 进程通过 localhost gRPC smoke，覆盖 `HealthCheck` 和 `RunScript`。
 - `pnpm run build:pineworker` 通过 RollDown 生成平台无关的 `worker.mjs` Node ESM bundle。
 - `go test -tags release_assets ./internal/pineworkerassets -run Test` 通过，确认 embedded asset 选择逻辑可用。
-- `go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api` 后的发布产物必须存在、非空且可执行。
-- Go、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
+- `cargo build --release -p jftrade-engine --bin jftrade-api-rust` 后的 Rust API 发布产物必须存在、非空且可执行。
+- Rust、worker、前端 focused test、coverage、performance gate、PineTS AGPL notice/source-offer check 和 `git diff --check` 通过。
 
 当前仓库已通过 workspace 依赖锁定公开 `pinets@0.9.31`，真实非 mock PineTS worker 进程 smoke 已可作为放行依据；完整 strict release gate 已可通过 `pnpm run check:pinets-release` 在 Windows 和 CI 风格环境中直接运行。
 
 ## 运行模式
 
-Wails 桌面开发使用仓库内固定的外部 worker 路径。首次开发或修改 worker 后显式准备一次，再启动 Wails：
+Tauri 桌面开发使用仓库内固定的外部 worker 路径。首次开发或修改 worker 后显式准备一次，再启动 Tauri：
 
 ```bash
 pnpm run prepare:desktop-dev
-go tool wails3 dev -config ./build/config.yml -port 3003
+pnpm run dev:desktop
 ```
 
-官方 Wails `run` 任务会把 `JFTRADE_PINEWORKER_BUNDLE=var/pineworker/worker.mjs` 传给桌面 sidecar；它不会在 `dev`、`build` 或 `run` 生命周期中自动构建、发现或选择 worker。也可以在启动前设置 `JFTRADE_PINEWORKER_BUNDLE` 覆盖这个固定路径。
+官方 Tauri `run-tauri` 任务会把 `JFTRADE_PINEWORKER_BUNDLE=var/pineworker/worker.mjs` 传给桌面 sidecar；它不会在 `dev`、`build` 或 `run` 生命周期中自动构建、发现或选择 worker。也可以在启动前设置 `JFTRADE_PINEWORKER_BUNDLE` 覆盖这个固定路径。
 
 独立 API 开发仍可直接使用外部 worker：
 
@@ -39,7 +39,7 @@ pnpm run dev:api:pineworker
 
 ```powershell
 $env:JFTRADE_PINEWORKER_BUNDLE = (pnpm --silent run build:pineworker:dev | Select-Object -Last 1)
-go run ./cmd/jftrade-api
+cargo run -p jftrade-engine --bin jftrade-api-rust
 ```
 
 `pnpm run prepare:desktop-dev`、`pnpm run build:pineworker:dev` 和 `pnpm run dev:api:pineworker` 都走 Node 入口，不需要 Git Bash 或 WSL。设置 `JFTRADE_PINEWORKER_DEV_ENV_FILE` 时，dev build 会写出 `JFTRADE_PINEWORKER_BUNDLE=...` 和 `JFTRADE_PINEWORKER_RUNTIME=...` 供 VS Code launch 配置读取。
@@ -48,7 +48,7 @@ go run ./cmd/jftrade-api
 
 ```bash
 pnpm run build:pineworker
-go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
+cargo build --release -p jftrade-engine --bin jftrade-api-rust
 ```
 
 `pnpm run build:pineworker` 会先确认 `pinets` 包已安装并输出其 license。未安装 `pinets` 时，脚本会在调用 RollDown 前失败。`scripts/build-pineworker-assets.sh` 仍保留为兼容入口，但会转发到 Node 版 builder。
@@ -57,16 +57,16 @@ go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 
 `pnpm run test:pineworker` 和 worker package 的 `pnpm test` 通过 Vitest 在 Node 下运行，不需要额外 worker runtime shim。
 
-worker 资产构建采用 Node ESM bundle 路线：只生成一个平台无关的 `worker.mjs`，暂存到 `internal/pineworkerassets/assets/bin`，再通过 `release_assets` 构建嵌入 Go。运行时 Go 会释放 bundle 到临时目录、校验 SHA256，并通过目标机器上的 Node 启动固定数量的 localhost gRPC 子进程，关闭时清理临时 bundle。Go 发布文件不包含 Node runtime，因此部署时必须把 Node 放入 `PATH` 或设置 `JFTRADE_PINEWORKER_RUNTIME`。
+worker 资产构建采用 Node ESM bundle 路线：只生成一个平台无关的 `worker.mjs`，暂存到 `internal/pineworkerassets/assets/bin`，再由 Rust/Tauri 受管 runtime 加载。运行时 Rust 会释放 bundle 到临时目录、校验 SHA256，并通过目标机器上的 Node 启动固定数量的 localhost gRPC 子进程，关闭时清理临时 bundle。发布文件不包含 Node runtime，因此部署时必须把 Node 放入 `PATH` 或设置 `JFTRADE_PINEWORKER_RUNTIME`。
 
-API 启动时会先读 `JFTRADE_PINEWORKER_BUNDLE`。未配置外部 bundle 时，`release_assets` 构建会选择内嵌 `worker.mjs`。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
+Rust API 启动时会先读 `JFTRADE_PINEWORKER_BUNDLE`。未配置外部 bundle 时，发布构建会选择受管 runtime 的 `worker.mjs`。若两者都不可用，Pine worker manager 不启动；回测和实盘策略执行会失败返回配置错误，不会回退到旧 Go 执行器。
 
 ## 环境变量
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
 | `JFTRADE_PINEWORKER_DISABLED` | `false` | 显式关闭 worker manager。 |
-| `JFTRADE_PINEWORKER_BUNDLE` | Wails 桌面开发为 `var/pineworker/worker.mjs`；独立 API 为空 | 外部 `worker.mjs` bundle 路径；配置后优先于 embedded asset。 |
+| `JFTRADE_PINEWORKER_BUNDLE` | Tauri 桌面开发为 `var/pineworker/worker.mjs`；独立 Rust API 为空 | 外部 `worker.mjs` bundle 路径；配置后优先于受管 runtime asset。 |
 | `JFTRADE_PINEWORKER_RUNTIME` | `node` | Node 可执行文件路径。 |
 | `JFTRADE_PINEWORKER_SHA256` | embedded asset hash 或运行时计算值 | 校验外部 worker bundle。 |
 | `JFTRADE_PINEWORKER_BACKTEST_WORKERS` | `2` | 回测 worker 进程最大值；回测请求超过池容量时等待排队。 |
@@ -97,7 +97,7 @@ API 启动时会先读 `JFTRADE_PINEWORKER_BUNDLE`。未配置外部 bundle 时�
 | 普通回测 | CPU 核心数的一半，给 Go 撮合和系统保留资源。 |
 | 参数优化 | 接近 CPU 核心数，并结合队列和 performance gate 观察吞吐。 |
 
-worker 不长期持有全量历史 K 线；K 线主存储仍在 Go 侧。策略实例也不绑定固定 worker，调度由 `WorkerManager` 轮询健康 worker 完成。
+worker 不长期持有全量历史 K 线；K 线主存储仍在 Rust engine。策略实例也不绑定固定 worker，调度由 `WorkerManager` 轮询健康 worker 完成。
 
 ## 发布构建步骤
 
@@ -111,7 +111,7 @@ pnpm run build:pineworker
 go test -tags release_assets ./internal/pineworkerassets -run Test
 go test ./pkg/strategy/pineworker -run Test -cover
 go test ./pkg/strategy/pineworker -bench BenchmarkCheckPerformanceGate -run '^$' -benchmem
-go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
+cargo build --release -p jftrade-engine --bin jftrade-api-rust
 ```
 
 也可以直接运行发布验收脚本：
@@ -120,7 +120,7 @@ go build -tags release_assets -o dist/trading-engine ./cmd/jftrade-api
 pnpm run check:pinets-release
 ```
 
-严格模式默认输出单文件 `dist/trading-engine`。临时验证其他输出路径时可以设置 `JFTRADE_PINETS_RELEASE_OUT`。
+严格模式默认输出单文件 `dist/jftrade-api-rust`。临时验证其他输出路径时可以设置 `JFTRADE_PINETS_RELEASE_OUT`。
 
 严格模式还会读取 `node_modules/pinets/package.json` 的 `license` 字段并打印出来，供发布记录和合规检查使用；公开 `AGPL-3.0-only` 包不会再因为缺少商业 attestation 被脚本阻塞。
 严格模式同时运行 `pnpm run check:pinets-compliance`，确认 `docs/legal/third-party-notices.md` 记录生产 worker 集成、源码提供入口、上游地址、构建命令和 AGPL-3.0-only 许可证事实。
@@ -157,8 +157,8 @@ JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 \
 ## 排障顺序
 
 1. 先看 API 日志是否出现 `JFTrade PineTS worker manager started`。
-2. 若提示未配置 worker，检查 `JFTRADE_PINEWORKER_BUNDLE` 或是否使用了 `release_assets` 构建。
+2. 若提示未配置 worker，检查 `JFTRADE_PINEWORKER_BUNDLE`、Tauri runtime manifest 和发布资源是否完整。
 3. 若提示 checksum 失败，重新计算外部 worker 的 SHA256 或清空 `JFTRADE_PINEWORKER_SHA256` 让启动时按当前二进制计算。
 4. 若 worker 启动但请求失败，先调低 worker 数量并检查端口区间是否被占用。
 5. 若回测失败为超时或性能门禁，检查 K 线数量、gRPC message size、timeout 和 performance gate。
-6. 若实盘没有下单，先确认 worker 返回的是当前已收盘 K 线的 order intent，再看 Go 风控和 notify-only 设置。
+6. 若实盘没有下单，先确认 worker 返回的是当前已收盘 K 线的 order intent，再看 Rust 风控和 notify-only 设置。

@@ -25,6 +25,12 @@ pub(crate) const OPTION_ANALYSIS_OPERATIONS: &[&str] = &[
 pub(crate) enum ProductionAdapterBinding {
     Ready,
     ExternalUnavailable,
+    /// The route is backed by a production-owned adapter, but the
+    /// composition root did not install that adapter.  This is distinct from
+    /// an unavailable external dependency: silently treating an internal
+    /// omission as unavailable would let the route reach a fallback handler
+    /// (or a static fixture) and report a misleading success.
+    MissingInternalAdapter,
 }
 
 impl ProductionPortBundle {
@@ -36,6 +42,23 @@ impl ProductionPortBundle {
         &self,
         path: &str,
     ) -> Option<ProductionAdapterBinding> {
+        if !self
+            .installed_adapters
+            .contains(&ProductionRouteAdapter::ExecutionWrite)
+        {
+            return None;
+        }
+        if !self
+            .bound_adapters
+            .contains_key(&ProductionRouteAdapter::ExecutionWrite)
+        {
+            return None;
+        }
+        if self.bound_adapters.get(&ProductionRouteAdapter::ExecutionWrite)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return Some(ProductionAdapterBinding::MissingInternalAdapter);
+        }
         match path {
             // The Rust product-rule port is intentionally fail-closed until a
             // real broker implementation is installed; local parsing alone
@@ -90,6 +113,22 @@ impl ProductionPortBundle {
         &self,
         adapter: ProductionRouteAdapter,
     ) -> Option<ProductionAdapterBinding> {
+        if !self.installed_adapters.contains(&adapter) {
+            return None;
+        }
+        // Presence in the installation set is the composition-root proof;
+        // this readiness map then supplies the startup/status projection.
+        // Dynamic readiness below may downgrade an installed adapter when an
+        // external provider/runtime is absent, but it must never manufacture
+        // a status for an adapter that was not wired at all.
+        if !self.bound_adapters.contains_key(&adapter) {
+            return None;
+        }
+        if self.bound_adapters.get(&adapter)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return Some(ProductionAdapterBinding::MissingInternalAdapter);
+        }
         if let Some(operation) = option_event_operation(adapter) {
             let snapshot = self.active_provider_state.snapshot();
             let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
@@ -435,6 +474,18 @@ impl ProductionPortBundle {
         self.bound_adapters.get(&adapter).copied()
     }
 
+    /// Resolve a binding for composition-root validation.  Every internal
+    /// production adapter must be present in the bundle; an absent entry is
+    /// not an external outage and must not be downgraded to
+    /// `ExternalUnavailable`.
+    pub(crate) fn adapter_binding_or_missing(
+        &self,
+        adapter: ProductionRouteAdapter,
+    ) -> ProductionAdapterBinding {
+        self.adapter_binding(adapter)
+            .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter)
+    }
+
     /// Resolve readiness for one `operation=` value on the shared options
     /// analysis route.  The route remains registered when at least one
     /// operation is available, while callers can distinguish unsupported
@@ -443,6 +494,25 @@ impl ProductionPortBundle {
         &self,
         operation: &str,
     ) -> Option<ProductionAdapterBinding> {
+        if !self
+            .installed_adapters
+            .contains(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
+        {
+            return None;
+        }
+        if !self
+            .bound_adapters
+            .contains_key(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
+        {
+            return None;
+        }
+        if self
+            .bound_adapters
+            .get(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return Some(ProductionAdapterBinding::MissingInternalAdapter);
+        }
         let snapshot = self.active_provider_state.snapshot();
         let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
             && snapshot.opend_ready
@@ -482,6 +552,23 @@ impl ProductionPortBundle {
         &self,
         path: &str,
     ) -> Option<ProductionAdapterBinding> {
+        if !self
+            .installed_adapters
+            .contains(&ProductionRouteAdapter::ResearchRead)
+        {
+            return None;
+        }
+        if !self
+            .bound_adapters
+            .contains_key(&ProductionRouteAdapter::ResearchRead)
+        {
+            return None;
+        }
+        if self.bound_adapters.get(&ProductionRouteAdapter::ResearchRead)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return Some(ProductionAdapterBinding::MissingInternalAdapter);
+        }
         let snapshot = self.active_provider_state.snapshot();
         let corporate_actions_route = path
             .strip_prefix("/api/v1/research/corporate-actions/")

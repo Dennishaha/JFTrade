@@ -14,6 +14,8 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 
 const ADK_COMPONENT: &str = "adk";
 const ADK_SCHEMA_VERSION: i64 = 4;
+const ADK_SESSION_COMPONENT: &str = "adk-session";
+const ADK_SESSION_SCHEMA_VERSION: i64 = 4;
 pub const ADK_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const ADK_PRODUCTION_PROFILE: &str = "production.v1";
 
@@ -850,6 +852,71 @@ impl AdkStore {
         })
     }
 
+    /// Create a run projection and its initial session event in one attached
+    /// transaction.  This prevents a newly accepted chat request from being
+    /// durable without the user message that established its transcript.
+    pub fn create_run_with_event(
+        &self,
+        params: CreateAdkRunParams<'_>,
+        session_db_path: &Path,
+        event: &AdkRunEvent<'_>,
+    ) -> Result<StoredAdkRun, AdkStoreError> {
+        if params.id.trim().is_empty()
+            || params.session_id.trim().is_empty()
+            || event.id.trim().is_empty()
+            || event.session_id != params.session_id
+        {
+            return Err(AdkStoreError::Validation(
+                "run and initial session event identities must be present and match".to_owned(),
+            ));
+        }
+        let mut connection = self.lock_connection()?;
+        attach_adk_session_database(&connection, session_db_path)?;
+        let now = Self::now_rfc3339();
+        let result = (|| {
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            transaction
+                .execute(
+                    "INSERT INTO adk_runs (id, session_id, agent_id, status, client_request_id, request_fingerprint, payload_json, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                    params![
+                        params.id,
+                        params.session_id,
+                        params.agent_id,
+                        params.status,
+                        params.client_request_id,
+                        params.request_fingerprint,
+                        params.payload_json,
+                        now,
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            append_adk_session_events(&transaction, &now, params.id, std::slice::from_ref(event))?;
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok(StoredAdkRun {
+                id: params.id.to_owned(),
+                session_id: params.session_id.to_owned(),
+                agent_id: params.agent_id.to_owned(),
+                status: params.status.to_owned(),
+                client_request_id: params.client_request_id.to_owned(),
+                request_fingerprint: params.request_fingerprint.to_owned(),
+                payload_json: params.payload_json.to_owned(),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            })
+        })();
+        let detach = connection
+            .execute("DETACH DATABASE adk_session_events", [])
+            .map_err(AdkStoreError::Query);
+        match (result, detach) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(_)) => Ok(value),
+        }
+    }
+
     pub fn update_run_status(&self, id: &str, status: &str) -> Result<bool, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
@@ -1090,6 +1157,57 @@ impl AdkStore {
         Ok(affected == 1)
     }
 
+    /// Atomically update a run payload and append its ADK session events.
+    ///
+    /// Streaming projections mutate `streamEvents` and `providerEvents`
+    /// without changing the indexed run status.  Keeping this CAS and the
+    /// attached session journal write in one transaction closes the crash
+    /// window where a run projection could become visible without its event.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_run_payload_if_status_and_revision_with_events_with_lease(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+        owner_id: &str,
+        run_lease_token: i64,
+    ) -> Result<bool, AdkStoreError> {
+        validate_run_lease_identity(owner_id, run_lease_token)?;
+        let mut connection = self.lock_connection()?;
+        attach_adk_session_database(&connection, session_db_path)?;
+        let result = (|| {
+            let now = Self::now_rfc3339();
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            ensure_current_run_lease(&transaction, id, owner_id, run_lease_token)?;
+            let affected = transaction
+                .execute(
+                    "UPDATE adk_runs
+                     SET payload_json = ?1, updated_at = ?2
+                     WHERE id = ?3 AND status = ?4 AND updated_at = ?5",
+                    params![payload_json, now, id, expected_status, expected_updated_at],
+                )
+                .map_err(AdkStoreError::Query)?;
+            if affected == 1 {
+                append_adk_session_events(&transaction, &now, id, events)?;
+            }
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok(affected == 1)
+        })();
+        let detach = connection
+            .execute("DETACH DATABASE adk_session_events", [])
+            .map_err(AdkStoreError::Query);
+        match (result, detach) {
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(_)) => Ok(value),
+        }
+    }
+
     /// Atomically transition a run and append its session events.
     ///
     /// ADK runs and session events intentionally remain in their historical
@@ -1161,12 +1279,7 @@ impl AdkStore {
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
-        connection
-            .execute(
-                "ATTACH DATABASE ?1 AS adk_session_events",
-                params![session_db_path.to_string_lossy().as_ref()],
-            )
-            .map_err(AdkStoreError::Query)?;
+        attach_adk_session_database(&connection, session_db_path)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1191,33 +1304,7 @@ impl AdkStore {
                 )
                 .map_err(AdkStoreError::Query)?;
             if affected == 1 {
-                if let Some(first) = events.first() {
-                    transaction
-                        .execute(
-                            "INSERT OR IGNORE INTO adk_session_events.sessions
-                             (app_name, user_id, id, state, create_time, update_time)
-                             VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
-                            params![first.session_id, now],
-                        )
-                        .map_err(AdkStoreError::Query)?;
-                }
-                for event in events {
-                    transaction
-                        .execute(
-                            "INSERT INTO adk_session_events.events
-                             (id, app_name, user_id, session_id, invocation_id, author, content, timestamp)
-                             VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
-                            params![
-                                event.id,
-                                event.session_id,
-                                event.invocation_id,
-                                event.author,
-                                event.content,
-                                now,
-                            ],
-                        )
-                        .map_err(AdkStoreError::Query)?;
-                }
+                append_adk_session_events(&transaction, &now, id, events)?;
             }
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(affected == 1)
@@ -1491,12 +1578,7 @@ impl AdkStore {
         })?;
 
         let mut connection = self.lock_connection()?;
-        connection
-            .execute(
-                "ATTACH DATABASE ?1 AS adk_session_events",
-                params![session_db_path.to_string_lossy().as_ref()],
-            )
-            .map_err(AdkStoreError::Query)?;
+        attach_adk_session_database(&connection, session_db_path)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1616,30 +1698,7 @@ impl AdkStore {
                     "tool invocation {idempotency_key} lease is no longer current"
                 )));
             }
-            transaction
-                .execute(
-                    "INSERT OR IGNORE INTO adk_session_events.sessions
-                     (app_name, user_id, id, state, create_time, update_time)
-                     VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
-                    params![event.session_id, now],
-                )
-                .map_err(AdkStoreError::Query)?;
-            transaction
-                .execute(
-                    "INSERT OR IGNORE INTO adk_session_events.events
-                     (id, app_name, user_id, session_id, invocation_id, author,
-                      content, timestamp)
-                     VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
-                    params![
-                        event.id,
-                        event.session_id,
-                        event.invocation_id,
-                        event.author,
-                        event.content,
-                        now,
-                    ],
-                )
-                .map_err(AdkStoreError::Query)?;
+            append_adk_session_events(&transaction, &now, id, std::slice::from_ref(event))?;
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(AdkToolResultCommit {
                 changed: true,
@@ -1745,12 +1804,7 @@ impl AdkStore {
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
-        connection
-            .execute(
-                "ATTACH DATABASE ?1 AS adk_session_events",
-                params![session_db_path.to_string_lossy().as_ref()],
-            )
-            .map_err(AdkStoreError::Query)?;
+        attach_adk_session_database(&connection, session_db_path)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -1810,34 +1864,7 @@ impl AdkStore {
                     )
                     .map_err(AdkStoreError::Query)?;
             }
-            if let Some(first) = events.first() {
-                transaction
-                    .execute(
-                        "INSERT OR IGNORE INTO adk_session_events.sessions
-                         (app_name, user_id, id, state, create_time, update_time)
-                         VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
-                        params![first.session_id, now],
-                    )
-                    .map_err(AdkStoreError::Query)?;
-            }
-            for event in events {
-                transaction
-                    .execute(
-                        "INSERT OR IGNORE INTO adk_session_events.events
-                         (id, app_name, user_id, session_id, invocation_id, author,
-                          content, timestamp)
-                         VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)",
-                        params![
-                            event.id,
-                            event.session_id,
-                            event.invocation_id,
-                            event.author,
-                            event.content,
-                            now
-                        ],
-                    )
-                    .map_err(AdkStoreError::Query)?;
-            }
+            append_adk_session_events(&transaction, &now, id, events)?;
             transaction.commit().map_err(AdkStoreError::Query)?;
             Ok(true)
         })();
@@ -3036,6 +3063,180 @@ fn ensure_current_run_lease(
     Ok(())
 }
 
+fn attach_adk_session_database(
+    connection: &Connection,
+    session_db_path: &Path,
+) -> Result<(), AdkStoreError> {
+    let uri = preflight_adk_session_database(session_db_path)?;
+    connection
+        .execute("ATTACH DATABASE ?1 AS adk_session_events", params![uri])
+        .map_err(AdkStoreError::Query)?;
+    Ok(())
+}
+
+fn preflight_adk_session_database(session_db_path: &Path) -> Result<String, AdkStoreError> {
+    if !session_db_path
+        .metadata()
+        .map(|metadata| metadata.is_file())
+        .unwrap_or(false)
+    {
+        return Err(AdkStoreError::NotRegularFile(
+            session_db_path.display().to_string(),
+        ));
+    }
+    let canonical = session_db_path
+        .canonicalize()
+        .map_err(|_| AdkStoreError::NotRegularFile(session_db_path.display().to_string()))?;
+    let session = Connection::open_with_flags(
+        &canonical,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .map_err(AdkStoreError::Open)?;
+    session
+        .busy_timeout(Duration::from_millis(5_000))
+        .map_err(AdkStoreError::Configure)?;
+    session
+        .pragma_update(None, "foreign_keys", "ON")
+        .map_err(AdkStoreError::Configure)?;
+    validate_current(
+        &session,
+        &canonical.display().to_string(),
+        ADK_SESSION_COMPONENT,
+        ADK_SESSION_SCHEMA_VERSION,
+    )?;
+    drop(session);
+    Ok(sqlite_read_write_uri(&canonical))
+}
+
+fn sqlite_read_write_uri(path: &Path) -> String {
+    let raw = path.to_string_lossy().replace('\\', "/");
+    let mut uri = String::from("file:");
+    for byte in raw.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'/' | b':') {
+            uri.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(uri, "%{byte:02X}");
+        }
+    }
+    uri.push_str("?mode=rw");
+    uri
+}
+
+fn append_adk_session_events(
+    transaction: &rusqlite::Transaction<'_>,
+    now: &str,
+    run_id: &str,
+    events: &[AdkRunEvent<'_>],
+) -> Result<(), AdkStoreError> {
+    let run_session_id = transaction
+        .query_row(
+            "SELECT session_id FROM adk_runs WHERE id = ?1",
+            params![run_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(AdkStoreError::Query)?
+        .ok_or_else(|| AdkStoreError::NotFound(format!("run {run_id}")))?;
+    validate_adk_session_events(run_id, &run_session_id, events)?;
+    if !events.is_empty() {
+        transaction
+            .execute(
+                "INSERT OR IGNORE INTO adk_session_events.sessions
+                 (app_name, user_id, id, state, create_time, update_time)
+                 VALUES ('jftrade', 'local', ?1, '{}', ?2, ?2)",
+                params![run_session_id, now],
+            )
+            .map_err(AdkStoreError::Query)?;
+    }
+    for event in events {
+        let affected = transaction
+            .execute(
+                "INSERT INTO adk_session_events.events
+                 (id, app_name, user_id, session_id, invocation_id, author,
+                  content, timestamp)
+                 VALUES (?1, 'jftrade', 'local', ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT(id, app_name, user_id, session_id) DO NOTHING",
+                params![
+                    event.id,
+                    event.session_id,
+                    event.invocation_id,
+                    event.author,
+                    event.content,
+                    now,
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected == 0 {
+            ensure_existing_adk_session_event_matches(transaction, event)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_adk_session_events(
+    run_id: &str,
+    run_session_id: &str,
+    events: &[AdkRunEvent<'_>],
+) -> Result<(), AdkStoreError> {
+    for event in events {
+        if event.id.trim().is_empty()
+            || event.session_id.trim().is_empty()
+            || event.invocation_id.trim().is_empty()
+            || event.author.trim().is_empty()
+        {
+            return Err(AdkStoreError::Validation(
+                "session event identity and author are required".to_owned(),
+            ));
+        }
+        if event.session_id != run_session_id || event.invocation_id != run_id {
+            return Err(AdkStoreError::Conflict(format!(
+                "session event {} does not belong to run {run_id} and session {run_session_id}",
+                event.id
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn ensure_existing_adk_session_event_matches(
+    transaction: &rusqlite::Transaction<'_>,
+    event: &AdkRunEvent<'_>,
+) -> Result<(), AdkStoreError> {
+    let existing = transaction
+        .query_row(
+            "SELECT invocation_id, author, content
+             FROM adk_session_events.events
+             WHERE id = ?1 AND app_name = 'jftrade' AND user_id = 'local'
+               AND session_id = ?2",
+            params![event.id, event.session_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(AdkStoreError::Query)?;
+    match existing {
+        Some((invocation_id, author, content))
+            if invocation_id == event.invocation_id
+                && author == event.author
+                && content == event.content =>
+        {
+            Ok(())
+        }
+        _ => Err(AdkStoreError::Conflict(format!(
+            "session event key {} was reused with different content",
+            event.id
+        ))),
+    }
+}
+
 fn stored_entity(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredAdkEntity> {
     Ok(StoredAdkEntity {
         id: row.get(0)?,
@@ -3240,6 +3441,16 @@ impl AdkTestCutoverStore {
         self.inner.create_run(params)
     }
 
+    pub fn create_run_with_event(
+        &self,
+        params: CreateAdkRunParams<'_>,
+        session_db_path: &Path,
+        event: &AdkRunEvent<'_>,
+    ) -> Result<StoredAdkRun, AdkStoreError> {
+        self.inner
+            .create_run_with_event(params, session_db_path, event)
+    }
+
     pub fn claim_run_lease(
         &self,
         run_id: &str,
@@ -3313,6 +3524,31 @@ impl AdkTestCutoverStore {
                 expected_status,
                 expected_updated_at,
                 payload_json,
+                owner_id,
+                run_lease_token,
+            )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_run_payload_if_status_and_revision_with_events_with_lease(
+        &self,
+        id: &str,
+        expected_status: &str,
+        expected_updated_at: &str,
+        payload_json: &str,
+        session_db_path: &Path,
+        events: &[AdkRunEvent<'_>],
+        owner_id: &str,
+        run_lease_token: i64,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .update_run_payload_if_status_and_revision_with_events_with_lease(
+                id,
+                expected_status,
+                expected_updated_at,
+                payload_json,
+                session_db_path,
+                events,
                 owner_id,
                 run_lease_token,
             )

@@ -5,24 +5,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-EMBED_DIR="$ROOT_DIR/internal/frontendassets/dist"
-EMBED_ARCHIVE="$ROOT_DIR/internal/frontendassets/dist.zip"
-WEB_DIST_DIR="$ROOT_DIR/apps/web/dist"
-OUTPUT_DIR="$ROOT_DIR/dist"
-TARGETS=(
-  "darwin/arm64"
-  "linux/amd64"
-  "windows/amd64"
-  "windows/arm64"
-)
-MARKETDATA_ASSET_DIR="$ROOT_DIR/internal/marketdataassets/assets/bin"
-MARKETDATA_ASSETS=(
-  "marketdata-sidecar-darwin-arm64"
-  "marketdata-sidecar-linux-amd64"
-  "marketdata-sidecar-windows-amd64"
-  "marketdata-sidecar-windows-arm64"
-)
-
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "$1 is not installed or not on PATH" >&2
@@ -30,122 +12,18 @@ require_command() {
   fi
 }
 
-resolve_version() {
-  if [[ -n "${JFTRADE_VERSION:-}" ]]; then
-    printf '%s' "$JFTRADE_VERSION"
-    return
-  fi
-  if command -v git >/dev/null 2>&1 && git describe --tags --always --dirty >/dev/null 2>&1; then
-    git describe --tags --always --dirty
-    return
-  fi
-  printf '%s' 'dev'
-}
-
-resolve_commit() {
-  if [[ -n "${JFTRADE_COMMIT:-}" ]]; then
-    printf '%s' "$JFTRADE_COMMIT"
-    return
-  fi
-  if command -v git >/dev/null 2>&1 && git rev-parse --short HEAD >/dev/null 2>&1; then
-    git rev-parse --short HEAD
-    return
-  fi
-  printf '%s' 'unknown'
-}
-
-install_frontend_dependencies() {
-  if [[ "${JFTRADE_RELEASE_SKIP_PNPM_INSTALL:-}" == "1" ]]; then
-    echo "Skipping pnpm install because JFTRADE_RELEASE_SKIP_PNPM_INSTALL=1"
-    return
-  fi
-
-  if [[ ! -f "$ROOT_DIR/pnpm-lock.yaml" ]]; then
-    echo "pnpm-lock.yaml is required for release builds" >&2
-    exit 1
-  fi
-
-  pnpm install --frozen-lockfile
-}
-
-require_marketdata_assets() {
-  local missing=()
-  local asset
-  for asset in "${MARKETDATA_ASSETS[@]}"; do
-    local executable="$MARKETDATA_ASSET_DIR/$asset/$asset"
-    if [[ "$asset" == *-windows-* ]]; then
-      executable+=".exe"
-    fi
-    if [[ ! -d "$MARKETDATA_ASSET_DIR/$asset" || ! -s "$executable" ]]; then
-      missing+=("$asset")
-    fi
-  done
-  if (( ${#missing[@]} > 0 )); then
-    echo "Cross-target API release requires pre-staged native market-data helpers." >&2
-    echo "Build each helper on its matching OS/architecture with 'pnpm run build:marketdata-sidecar', then stage it in $MARKETDATA_ASSET_DIR." >&2
-    printf 'Missing market-data helper: %s\n' "${missing[@]}" >&2
-    exit 1
-  fi
-}
-
-require_command go
-require_command node
-require_command pnpm
-
-VERSION="$(resolve_version)"
-COMMIT="$(resolve_commit)"
-BUILD_TIME="${JFTRADE_BUILD_TIME:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}"
-BUILD_TAGS="release_assets,netgo,osusergo"
-BUILD_LDFLAGS="-s -w -X github.com/jftrade/jftrade-main/internal/buildinfo.Version=$VERSION -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit=$COMMIT -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime=$BUILD_TIME"
-BUILD_TARGET="./cmd/jftrade-api"
-ARTIFACT_PREFIX="jftrade"
-
-echo "Installing frontend dependencies..."
-install_frontend_dependencies
-
-echo "Auditing locked frontend dependencies..."
-pnpm run audit:dependencies
-
-echo "Building frontend bundle..."
-pnpm run build:web
-
-echo "Building documentation bundle..."
-pnpm run build:docs
-pnpm run stage:docs
-
-echo "Staging embedded frontend assets..."
-rm -rf "$EMBED_DIR" "$EMBED_ARCHIVE" "$OUTPUT_DIR"
-mkdir -p "$(dirname "$EMBED_DIR")" "$OUTPUT_DIR"
-cp -R "$WEB_DIST_DIR" "$EMBED_DIR"
-go run ./scripts/archive_frontend_assets.go -src "$WEB_DIST_DIR" -dst "$EMBED_ARCHIVE"
-
-echo "Building embedded PineTS worker assets..."
-pnpm run build:pineworker
-
-echo "Verifying pre-staged native market-data helpers..."
-require_marketdata_assets
-
-echo "Running tests..."
-go test ./... -count=1 -timeout 300s || { echo "Tests failed"; exit 1; }
-
-for target in "${TARGETS[@]}"; do
-  IFS='/' read -r goos goarch <<<"$target"
-  artifact_dir="$OUTPUT_DIR/${ARTIFACT_PREFIX}-${VERSION}-${goos}-${goarch}"
-  mkdir -p "$artifact_dir"
-
-  output_name="$ARTIFACT_PREFIX"
-  if [[ "$goos" == "windows" ]]; then
-    output_name="$ARTIFACT_PREFIX.exe"
-  fi
-
-  echo "Building api-only ${goos}/${goarch}..."
-  CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build \
-    -trimpath \
-    -buildvcs=false \
-    -tags "$BUILD_TAGS" \
-    -ldflags "$BUILD_LDFLAGS" \
-    -o "$artifact_dir/$output_name" \
-    "$BUILD_TARGET"
+for command in cargo rustup node pnpm; do
+  require_command "$command"
 done
 
-echo "Release artifacts written to $OUTPUT_DIR"
+if [[ -z "${JFTRADE_DESKTOP_RELEASE_TAG:-}" ]]; then
+  echo "Set JFTRADE_DESKTOP_RELEASE_TAG=vX.Y.Z before building a release." >&2
+  exit 1
+fi
+
+echo "Building the Rust/Tauri desktop release for the current host..."
+echo "Cross-platform release artifacts are produced by the Tauri CI matrix."
+pnpm install --frozen-lockfile
+pnpm run build:desktop
+
+echo "Tauri release artifacts are under apps/desktop/src-tauri/target/release/bundle."

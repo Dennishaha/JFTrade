@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
@@ -16,7 +16,9 @@ for (const arg of process.argv.slice(2)) {
 }
 
 const runLog = process.env.JFTRADE_PINETS_RELEASE_RUN_LOG || "";
-const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/trading-engine";
+const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/jftrade-api-rust";
+const rustReleaseArtifact = process.env.JFTRADE_PINETS_RELEASE_RUST_ARTIFACT
+  || join(process.env.CARGO_TARGET_DIR || "target", "release", "jftrade-api-rust");
 const dryRun = process.env.JFTRADE_PINETS_RELEASE_DRY_RUN === "1";
 
 let blocked = false;
@@ -46,7 +48,8 @@ if (!blocked) {
   run("pnpm", ["run", "build:marketdata-sidecar"]);
   run("go", ["test", "-tags", "release_assets", "./internal/marketdataassets", "-run", "Test"]);
   prepareReleaseArtifactPath();
-  run("go", ["build", "-tags", "release_assets", "-o", releaseOut, "./cmd/jftrade-api"]);
+  run("cargo", ["build", "--release", "-p", "jftrade-engine", "--bin", "jftrade-api-rust"]);
+  copyRustReleaseArtifact();
   verifyReleaseArtifact();
 } else {
   console.log("==> Skipping real PineTS process smoke and release asset build until pinets is installed");
@@ -82,6 +85,20 @@ function prepareReleaseArtifactPath() {
   rmSync(releaseOut, { force: true });
 }
 
+function copyRustReleaseArtifact() {
+  if (dryRun) {
+    return;
+  }
+  if (!existsSync(rustReleaseArtifact)) {
+    console.error(`Rust API release artifact is missing: ${rustReleaseArtifact}`);
+    process.exit(1);
+  }
+  copyFileSync(rustReleaseArtifact, releaseOut);
+  if (process.platform !== "win32") {
+    chmodSync(releaseOut, 0o755);
+  }
+}
+
 function verifyReleaseArtifact() {
   if (!existsSync(releaseOut) || statSync(releaseOut).size === 0) {
     console.error(`release artifact is missing or empty: ${releaseOut}`);
@@ -94,20 +111,15 @@ function verifyReleaseArtifact() {
 }
 
 function maybeWriteDryRunArtifact(command, args) {
-  if (command !== "go" || args[0] !== "build") {
+  if (command !== "cargo" || args[0] !== "build" || !args.includes("--release")) {
     return;
   }
   if (process.env.JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT === "1") {
     return;
   }
-  const outFlag = args.indexOf("-o");
-  if (outFlag < 0 || !args[outFlag + 1]) {
-    return;
-  }
-  const outPath = args[outFlag + 1];
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, "#!/bin/sh\nexit 0\n");
-  chmodSync(outPath, 0o755);
+  mkdirSync(dirname(releaseOut), { recursive: true });
+  writeFileSync(releaseOut, "#!/bin/sh\nexit 0\n");
+  chmodSync(releaseOut, 0o755);
 }
 
 function formatCommand(command, args, extraEnv) {

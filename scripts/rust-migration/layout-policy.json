@@ -211,6 +211,7 @@
         "jftrade-integration-marketdata-helper",
         "jftrade-integration-pine",
         "jftrade-marketdata",
+        "jftrade-owner-lock",
         "jftrade-research",
         "jftrade-settings",
         "jftrade-store-settings-file",

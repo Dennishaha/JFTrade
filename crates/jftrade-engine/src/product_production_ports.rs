@@ -4,7 +4,7 @@
 //! SQLite databases (under `production.v1` lease profile) and production services
 //! without falling back to test cutover or dummy fixtures.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -107,6 +107,30 @@ pub(crate) use product_production_ports_watchlist::{
 };
 
 const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
+
+/// Record the concrete production route adapters assembled below.  This is
+/// deliberately independent from `production_adapter_bindings`: that map is
+/// a readiness projection and is populated for external capabilities even
+/// when their provider/worker is down.  The installation set is the proof
+/// that a dispatch target was actually constructed and wired.
+fn production_installed_adapters() -> BTreeSet<ProductionRouteAdapter> {
+    use ProductionRouteAdapter as Adapter;
+    let mut adapters = BTreeSet::new();
+    macro_rules! register {
+        ($($adapter:ident),+ $(,)?) => { adapters.extend([$(Adapter::$adapter),+]); };
+    }
+    register!(AuthSessionRead, AuthSessionWrite, Settings, DataManagement, SystemCore, SystemRead, SystemOpenDWrite, RealTradeControlWrite, Calendar);
+    register!(WatchlistMemberships, WatchlistRead, WatchlistWrite, RemoteWatchlistRead, RemoteWatchlistWrite);
+    register!(StrategyDefinitionRead, StrategyDefinitionWrite, StrategyRuntimeRead, StrategyRuntimeWrite, StrategyPine);
+    register!(ResearchCatalog, ResearchRead, ResearchRankingsRead, ResearchIndustriesRead, ResearchCalendarRead, ResearchMacroRead, ResearchPresetRead, ResearchPresetWrite, ResearchScreenWrite);
+    register!(BacktestRead, BacktestSyncRead, BacktestStart, BacktestDelete, BacktestSyncStart, BacktestSyncCancel);
+    register!(ExecutionRead, ExecutionWrite, BrokerRead, BrokerWrite, PortfolioRead);
+    register!(MarketDataProviderRead, MarketDataMarketsRead, MarketDataSearchRead, MarketDataSubscriptionRead, MarketDataSecuritiesRead, MarketDataSnapshotsRead, MarketDataCandlesRead, MarketDataDepthRead, MarketDataTicksRead, MarketDataBrokerQueueRead, MarketDataCapitalFlowRead, MarketDataIntradayRead, MarketDataProfileRead);
+    register!(MarketDataDerivativeRead, MarketDataFuturesRead, MarketDataOptionsRead, MarketDataOptionsChainRead, MarketDataOptionsExpirationsRead, MarketDataOptionsScreenRead, MarketDataOptionsAnalysisRead, MarketDataOptionsEventsRead, MarketDataOptionsUnusualRead, MarketDataOptionsZeroDteRead, MarketDataOptionsZeroDteContractRead, MarketDataOptionsEarningsRead, MarketDataOptionsSellerRead);
+    register!(MarketDataNewsActionsRead, MarketDataNewsSearchRead, MarketDataPredictionRead, MarketDataSubscriptionAcquireWrite, MarketDataSubscriptionReleaseWrite, MarketDataSubscriptionClearWrite, MarketDataSubscriptionHeartbeatWrite, MarketDataPredictionSubscriptionAcquireWrite, MarketDataPredictionSubscriptionReleaseWrite, MarketDataInstrumentsNormalizeWrite, MarketDataBatchSnapshotsWrite, MarketDataOptionsAnalysisWrite, MarketDataZeroDteWrite, MarketDataPredictionCombosWrite);
+    register!(PluginsRead, PluginsWrite, PluginGuidanceRead, AlertsRead, AlertsWrite, AdkTemplatesRead, AdkRead, AdkMutation, AdkChat, WebSocketLive);
+    adapters
+}
 
 fn exchange_calendar_snapshot_root(settings_path: &std::path::Path) -> PathBuf {
     std::env::var_os(EXCHANGE_CALENDAR_DIR_ENV)
@@ -309,13 +333,37 @@ pub(crate) fn production_ports(
     let research_preset_port = Arc::new(ProductionResearchPresetPort {
         store: research_store,
     });
-    let execution_active_provider_state = config
-        .active_provider_state
-        .clone()
-        .ok_or_else(|| ProductError::Storage("active provider state is missing".to_owned()))?;
+    let market_data_settings = Arc::new(
+        SettingsFileStore::open_read_only(config.settings_path()).map_err(|error| {
+            ProductError::Storage(format!(
+                "failed to open market-data provider settings: {error}"
+            ))
+        })?,
+    );
+    let active_provider_state = if let Some(state) = config.active_provider_state.as_ref() {
+        Arc::clone(state)
+    } else {
+        let initial_provider = market_data_settings
+            .load_active_market_data_provider()
+            .map_err(|error| {
+                ProductError::Storage(format!(
+                    "failed to load active market-data provider settings: {error}"
+                ))
+            })?
+            .as_deref()
+            .map(|provider| {
+                parse_market_data_provider(provider).map_err(|error| {
+                    ProductError::Storage(format!(
+                        "invalid active market-data provider settings: {error}"
+                    ))
+                })
+            })
+            .transpose()?;
+        Arc::new(ActiveProviderState::new(initial_provider))
+    };
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
-        active_provider_state: execution_active_provider_state,
+        active_provider_state: Arc::clone(&active_provider_state),
         trade_read_port: config.trade_read_port.clone(),
         trade_write_port: config.trade_write_port.clone(),
         trade_logged_in: config.trade_logged_in,
@@ -339,13 +387,6 @@ pub(crate) fn production_ports(
         });
     let plugin_port = Arc::new(
         ProductionPluginPort::open(config.settings_path()).map_err(ProductError::Storage)?,
-    );
-    let market_data_settings = Arc::new(
-        SettingsFileStore::open_read_only(config.settings_path()).map_err(|error| {
-            ProductError::Storage(format!(
-                "failed to open market-data provider settings: {error}"
-            ))
-        })?,
     );
     let calendar_settings = market_data_settings
         .load_exchange_calendars()
@@ -379,27 +420,6 @@ pub(crate) fn production_ports(
             normalize_live_websocket_connection_limit(interface_settings.as_ref()),
         );
     }
-    let active_provider_state = if let Some(state) = config.active_provider_state.as_ref() {
-        Arc::clone(state)
-    } else {
-        let initial_provider = market_data_settings
-            .load_active_market_data_provider()
-            .map_err(|error| {
-                ProductError::Storage(format!(
-                    "failed to load active market-data provider settings: {error}"
-                ))
-            })?
-            .as_deref()
-            .map(|provider| {
-                parse_market_data_provider(provider).map_err(|error| {
-                    ProductError::Storage(format!(
-                        "invalid active market-data provider settings: {error}"
-                    ))
-                })
-            })
-            .transpose()?;
-        Arc::new(ActiveProviderState::new(initial_provider))
-    };
     active_provider_state.set_readiness(
         config.market_data_helper.is_some(),
         config.market_data_runtime_status_port.is_some(),
@@ -728,6 +748,7 @@ pub(crate) fn production_ports(
         research_screen_write: research_screen_port,
         strategy_pine_analyze: strategy_pine_port,
         ws_live: Arc::new(ProductionWsLivePort),
+        installed_adapters: production_installed_adapters(),
         bound_adapters,
         backtest_sync_workers,
         backtest_execution_workers,

@@ -12,12 +12,12 @@ try {
 
 if (process.env.JFTRADE_DEV_API_PINEWORKER_DRY_RUN === "1") {
   const workers = pineWorkerCount();
-  console.log(`DRY RUN JFTRADE_PINEWORKER_BUNDLE=${workerPath} JFTRADE_PINEWORKER_RUNTIME=${nodeRuntimePath()} JFTRADE_PINEWORKER_WORKERS=${workers} go run ./cmd/jftrade-api`);
+  console.log(`DRY RUN JFTRADE_PINEWORKER_BUNDLE=${workerPath} JFTRADE_PINEWORKER_RUNTIME=${nodeRuntimePath()} JFTRADE_PINEWORKER_WORKERS=${workers} cargo run -p jftrade-engine --bin jftrade-api-rust`);
   process.exit(0);
 }
 
 const workers = pineWorkerCount();
-const status = spawnChecked("go", ["run", "./cmd/jftrade-api"], {
+const status = spawnChecked("cargo", ["run", "-p", "jftrade-engine", "--bin", "jftrade-api-rust"], {
   env: {
     ...process.env,
     JFTRADE_PINEWORKER_BUNDLE: workerPath,

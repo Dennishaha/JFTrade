@@ -19,7 +19,7 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 判断方式：
 
 - 连接被拒绝：helper 没启动、启动后退出，或开发态 `JFTRADE_MARKETDATA_SIDECAR` 路径无效。
-- 发布版提示 helper 缺失：安装包不是对应平台的 `release_assets` 构建，或资产校验失败；重新安装匹配平台的产品包。
+- 发布版提示 helper 缺失：Tauri bundle 缺少对应平台资源，或 runtime 资产校验失败；重新准备并安装匹配平台的产品包。
 - `/healthz` 返回 `200`，JFTrade 仍报不可用：继续检查当前 Provider 的独立健康状态和 helper 日志。
 - Provider health 为 `warming` 且查询返回 `503 *_RUNTIME_WARMING`：运行时仍在后台导入；遵循 `Retry-After: 1`。
 - Provider health 为 `failed`：查看 `warmup_error`；Yahoo 导入失败不会阻断 AKShare，反之亦然。
@@ -33,7 +33,7 @@ Invoke-RestMethod http://127.0.0.1:3000/api/v1/market-data/provider
 
 ```bash
 JFTRADE_MARKETDATA_SIDECAR=/absolute/path/to/marketdata-sidecar-<platform>/marketdata-sidecar-<platform> \
-  go run ./cmd/jftrade-api
+  cargo run -p jftrade-engine --bin jftrade-api-rust
 ```
 
 构建开发 helper：
@@ -78,7 +78,7 @@ sidecar 会把网络错误、限流和无法解析的上游响应转换为结构
 3. 标的是否使用受支持的 JFTrade 标识：`US.AAPL`、`HK.00700`、`SH.600519` 或 `SZ.000001`。`CN` 只是前端聚合分类，必须携带 `SH.` 或 `SZ.` 前缀。
 4. 请求是否过于密集。`yfinance` 不提供可依赖的免费服务等级或稳定限额，持续重试可能加重限流。
 
-每次 Yahoo 上游传输调用最多等待 10 秒；JFTrade 设置中的请求总超时还包含 Go 侧安全重试，因此两者不是同一个超时。若持续出现超时，应先排查网络或上游限流，而不是不断放大总超时。
+每次 Yahoo 上游传输调用最多等待 10 秒；JFTrade 设置中的请求总超时还包含 Rust API 侧安全重试，因此两者不是同一个超时。若持续出现超时，应先排查网络或上游限流，而不是不断放大总超时。
 
 `/healthz` 与 Provider health 都不访问 Yahoo 或 AKShare 行情网络；即使状态为 `ready`，也不能证明外部上游行情可用。
 

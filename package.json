@@ -23,7 +23,7 @@
     "build:web:report": "pnpm run build:web:generated && pnpm run check:web-bundle",
     "build:docs": "pnpm run generate:docs && pnpm run build:docs:generated",
     "build:docs:generated": "pnpm --filter @jftrade/web run docs:build",
-    "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
+    "build:backend": "cargo build -p jftrade-engine --bin jftrade-api-rust",
     "build:rust": "cargo build --workspace",
     "benchmark:rust:stage2": "node scripts/rust-migration/benchmark-readonly.mjs",
     "benchmark:rust:stage3": "node scripts/rust-migration/benchmark-backtest.mjs",

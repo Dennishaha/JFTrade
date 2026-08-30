@@ -24,6 +24,9 @@ use super::{
     run_cancelled, storage_unavailable, stream_from_payload, unavailable,
 };
 
+#[path = "product_adk_model_runtime_stream_events.rs"]
+mod stream_events;
+
 impl ProductionAdkChatRuntime {
     pub(super) fn start_live_stream(
         &self,
@@ -244,61 +247,6 @@ impl ProductionAdkChatRuntime {
         }
     }
 
-    fn emit_post_terminal_event(
-        &self,
-        chat: &super::ChatExecution,
-        mut event: Value,
-        expected_status: &str,
-        run_lease: &RunLeaseGuard,
-    ) -> Result<Value, AdkChatPortError> {
-        let run = self
-            .store()
-            .get_run(&chat.run_id)
-            .map_err(super::storage_unavailable)?
-            .ok_or_else(|| super::unavailable("persisted ADK run disappeared"))?;
-        if !run.status.eq_ignore_ascii_case(expected_status) {
-            return Err(self.run_state_changed(&chat.run_id));
-        }
-        let mut payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
-        let events = payload
-            .get_mut("streamEvents")
-            .and_then(Value::as_array_mut)
-            .ok_or_else(|| super::unavailable("persisted ADK run has no stream event list"))?;
-        let sequence = events.len() as u64 + 1;
-        if let Some(object) = event.as_object_mut() {
-            object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
-            object.insert("sequence".to_owned(), Value::from(sequence));
-            object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
-        }
-        events.push(event.clone());
-        let updated = self
-            .store()
-            .update_run_payload_if_status_and_revision_with_lease(
-                &chat.run_id,
-                expected_status,
-                &run.updated_at,
-                &payload.to_string(),
-                run_lease.owner_id(),
-                run_lease.token(),
-            )
-            .map_err(super::storage_unavailable)?;
-        if !updated {
-            return Err(self.run_state_changed(&chat.run_id));
-        }
-        self.record_event_with_id(
-            &format!("{}:stream:{}", chat.run_id, sequence),
-            &chat.run_id,
-            &chat.session_id,
-            "assistant.stream",
-            event
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-        )?;
-        Ok(event)
-    }
-
     pub(super) fn forward_provider_event(
         &self,
         chat: &super::ChatExecution,
@@ -336,125 +284,6 @@ impl ProductionAdkChatRuntime {
         let event = self.emit_stream_event(chat, value, Some(sender), run_lease)?;
         let _ = sender.send(super::encode_sse_event(&event));
         Ok(())
-    }
-
-    fn stream_text_prefix(&self, run_id: &str) -> Result<String, AdkChatPortError> {
-        let Some(run) = self
-            .store()
-            .get_run(run_id)
-            .map_err(super::storage_unavailable)?
-        else {
-            return Ok(String::new());
-        };
-        let payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
-        let mut text = String::new();
-        if let Some(events) = payload.get("streamEvents").and_then(Value::as_array) {
-            for event in events {
-                if event.get("type").and_then(Value::as_str) != Some("timeline") {
-                    continue;
-                }
-                if let Some(value) = event.pointer("/timeline/text").and_then(Value::as_str) {
-                    text = value.to_owned();
-                }
-            }
-        }
-        Ok(text)
-    }
-
-    fn append_provider_event(
-        &self,
-        chat: &super::ChatExecution,
-        event: &Value,
-        run_lease: &RunLeaseGuard,
-    ) -> Result<(), AdkChatPortError> {
-        let run = self
-            .store()
-            .get_run(&chat.run_id)
-            .map_err(super::storage_unavailable)?
-            .ok_or_else(|| super::unavailable("persisted ADK run disappeared"))?;
-        let mut payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
-        payload
-            .get_mut("providerEvents")
-            .and_then(Value::as_array_mut)
-            .map(|events| events.push(event.clone()));
-        let updated = self
-            .store()
-            .update_run_payload_if_status_and_revision_with_lease(
-                &chat.run_id,
-                "RUNNING",
-                &run.updated_at,
-                &payload.to_string(),
-                run_lease.owner_id(),
-                run_lease.token(),
-            )
-            .map_err(super::storage_unavailable)?;
-        if !updated {
-            return Err(self.run_state_changed(&chat.run_id));
-        }
-        Ok(())
-    }
-
-    pub(super) fn emit_stream_event(
-        &self,
-        chat: &super::ChatExecution,
-        mut event: Value,
-        sender: Option<&ApiStreamSender>,
-        run_lease: &RunLeaseGuard,
-    ) -> Result<Value, AdkChatPortError> {
-        let run = self
-            .store()
-            .get_run(&chat.run_id)
-            .map_err(super::storage_unavailable)?
-            .ok_or_else(|| super::unavailable("persisted ADK run disappeared"))?;
-        let mut payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(super::storage_unavailable)?;
-        let events = payload
-            .get_mut("streamEvents")
-            .and_then(Value::as_array_mut)
-            .ok_or_else(|| super::unavailable("persisted ADK run has no stream event list"))?;
-        let sequence = events.len() as u64 + 1;
-        if let Some(object) = event.as_object_mut() {
-            object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
-            object.insert("sequence".to_owned(), Value::from(sequence));
-            object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
-        }
-        events.push(event.clone());
-        let updated = self
-            .store()
-            .update_run_payload_if_status_and_revision_with_lease(
-                &chat.run_id,
-                "RUNNING",
-                &run.updated_at,
-                &payload.to_string(),
-                run_lease.owner_id(),
-                run_lease.token(),
-            )
-            .map_err(super::storage_unavailable)?;
-        if !updated {
-            return Err(self.run_state_changed(&chat.run_id));
-        }
-        let content = event
-            .pointer("/timeline/text")
-            .and_then(Value::as_str)
-            .or_else(|| event.pointer("/response/reply").and_then(Value::as_str))
-            .unwrap_or_default();
-        self.record_event_with_id(
-            &format!("{}:stream:{}", chat.run_id, sequence),
-            &chat.run_id,
-            &chat.session_id,
-            "assistant.stream",
-            content,
-        )?;
-        if sender.is_some_and(ApiStreamSender::is_closed) {
-            return Err(AdkChatPortError::Failed {
-                status: 499,
-                code: "CLIENT_DISCONNECTED".to_owned(),
-                message: "assistant chat client disconnected".to_owned(),
-            });
-        }
-        Ok(event)
     }
 
     pub(super) fn run_is_cancelled(&self, run_id: &str) -> bool {
@@ -681,7 +510,7 @@ impl ProductionAdkChatRuntime {
         } else {
             "FAILED"
         };
-        let mut run = self
+        let run = self
             .store()
             .get_run(&chat.run_id)
             .map_err(storage_unavailable)?
@@ -705,6 +534,8 @@ impl ProductionAdkChatRuntime {
         payload["id"] = Value::String(chat.run_id.clone());
         payload["status"] = Value::String(status.to_owned());
         payload["message"] = Value::String(message.clone());
+        let mut stream_event_id = None;
+        let mut stream_event_content = None;
         if chat.route == AdkChatRoute::Stream {
             let has_terminal = payload
                 .get("streamEvents")
@@ -714,30 +545,60 @@ impl ProductionAdkChatRuntime {
                 .and_then(Value::as_str)
                 .is_some_and(|kind| matches!(kind, "final" | "error"));
             if !has_terminal {
-                let event = json!({"type":"error","message":message});
-                let _ = self.emit_stream_event(chat, event, None, run_lease)?;
-                run = self
-                    .store()
-                    .get_run(&chat.run_id)
-                    .map_err(storage_unavailable)?
-                    .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
-                payload = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+                let sequence = payload
+                    .get("streamEvents")
+                    .and_then(Value::as_array)
+                    .map_or(1, |events| events.len() as u64 + 1);
+                let mut event = json!({"type":"error","message":message});
+                if let Some(object) = event.as_object_mut() {
+                    object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
+                    object.insert("sequence".to_owned(), Value::from(sequence));
+                    object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
+                }
+                payload
+                    .get_mut("streamEvents")
+                    .and_then(Value::as_array_mut)
+                    .ok_or_else(|| unavailable("persisted ADK run has no stream event list"))?
+                    .push(event);
+                stream_event_id = Some(format!("{}:stream:{}", chat.run_id, sequence));
+                stream_event_content = Some(message.clone());
             }
-            payload["status"] = Value::String(status.to_owned());
-            payload["message"] = Value::String(message);
         }
-        let updated = self
-            .store()
-            .update_run_state_if_status_and_revision_with_lease(
-                &chat.run_id,
-                "RUNNING",
-                &run.updated_at,
-                status,
-                &payload.to_string(),
-                run_lease.owner_id(),
-                run_lease.token(),
-            )
-            .map_err(storage_unavailable)?;
+        payload["status"] = Value::String(status.to_owned());
+        payload["message"] = Value::String(message);
+        let updated = match (stream_event_id.as_ref(), stream_event_content.as_ref()) {
+            (Some(event_id), Some(content)) => self
+                .store()
+                .update_run_state_if_status_and_revision_with_events_with_lease(
+                    &chat.run_id,
+                    "RUNNING",
+                    &run.updated_at,
+                    status,
+                    &payload.to_string(),
+                    self.session_store.path(),
+                    &[AdkRunEvent {
+                        id: event_id,
+                        session_id: &chat.session_id,
+                        invocation_id: &chat.run_id,
+                        author: "assistant.stream",
+                        content,
+                    }],
+                    run_lease.owner_id(),
+                    run_lease.token(),
+                ),
+            _ => self
+                .store()
+                .update_run_state_if_status_and_revision_with_lease(
+                    &chat.run_id,
+                    "RUNNING",
+                    &run.updated_at,
+                    status,
+                    &payload.to_string(),
+                    run_lease.owner_id(),
+                    run_lease.token(),
+                ),
+        }
+        .map_err(storage_unavailable)?;
         if !updated {
             let current = self
                 .store()

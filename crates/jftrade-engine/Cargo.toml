@@ -22,6 +22,7 @@ jftrade-integration-marketdata-helper.workspace = true
 jftrade-integration-pine.workspace = true
 jftrade-kernel.workspace = true
 jftrade-marketdata.workspace = true
+jftrade-owner-lock.workspace = true
 jftrade-research.workspace = true
 jftrade-settings.workspace = true
 jftrade-store-settings-file.workspace = true

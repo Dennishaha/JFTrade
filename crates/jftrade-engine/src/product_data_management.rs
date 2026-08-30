@@ -9,11 +9,12 @@ use jftrade_datamanagement::{
     DATABASE_RESEARCH, DATABASE_STRATEGY, DATABASE_WATCHLIST, MaintenanceService,
     ManagedDatabasePaths, OverviewService, managed_database_descriptors,
 };
+use jftrade_owner_lock::{OwnerDiagnostic, WriterLease};
 use jftrade_store_sqlite::{
     ManagedDatabaseCleanupCandidateStore, ManagedDatabaseMaintenanceStore,
     ManagedDatabaseOverviewStore, initialize_current,
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior};
 
 const REBUILD_MARKER_FILENAME: &str = "database-rebuild.json";
 
@@ -94,10 +95,19 @@ pub fn initialize_production_databases(settings_path: &Path) -> Result<(), Strin
                     if jftrade_store_sqlite::current_version(&connection, &descriptor.id)
                         .is_some_and(|version| version < descriptor.expected_version) =>
                 {
-                    migrate_legacy_schema_metadata(
+                    let from_version =
+                        jftrade_store_sqlite::current_version(&connection, &descriptor.id)
+                            .ok_or_else(|| {
+                                format!(
+                                    "{}; schema metadata version disappeared before migration",
+                                    error
+                                )
+                            })?;
+                    migrate_legacy_schema(
                         &connection,
                         &descriptor.path,
                         &descriptor.id,
+                        from_version,
                         descriptor.expected_version,
                     )
                     .map_err(|migration_error| {
@@ -113,24 +123,31 @@ pub fn initialize_production_databases(settings_path: &Path) -> Result<(), Strin
     Ok(())
 }
 
-fn migrate_legacy_schema_metadata(
+fn migrate_legacy_schema(
     connection: &Connection,
     path: &str,
     component: &str,
+    from_version: i64,
     expected_version: i64,
 ) -> Result<(), String> {
+    let _migration_lease = WriterLease::acquire(
+        Path::new(path),
+        &OwnerDiagnostic::current("rust", "production-migration.v1"),
+    )
+    .map_err(|error| format!("acquire migration writer lease for {path}: {error}"))?;
+    checkpoint_wal(connection, path)?;
+    let transaction = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)
+        .map_err(|error| format!("begin immediate schema migration: {error}"))?;
     let backup_path = format!("{path}.pre-migration.bak");
-    fs::copy(path, &backup_path)
-        .map_err(|error| format!("create migration backup {backup_path}: {error}"))?;
-    let transaction = connection
-        .unchecked_transaction()
-        .map_err(|error| format!("begin metadata migration: {error}"))?;
-    transaction
-        .execute(
-            "UPDATE jftrade_schema_meta SET version = ?1 WHERE component_id = ?2",
-            rusqlite::params![expected_version, component],
-        )
-        .map_err(|error| format!("update schema metadata: {error}"))?;
+    create_verified_migration_backup(&transaction, path, &backup_path, component, from_version)?;
+    jftrade_store_sqlite::migrate_legacy_schema(
+        &transaction,
+        path,
+        component,
+        from_version,
+        expected_version,
+    )
+    .map_err(|error| format!("apply schema migration: {error}"))?;
     if let Err(error) =
         jftrade_store_sqlite::validate_current(&transaction, path, component, expected_version)
     {
@@ -140,6 +157,99 @@ fn migrate_legacy_schema_metadata(
     transaction
         .commit()
         .map_err(|error| format!("commit metadata migration: {error}"))?;
+    Ok(())
+}
+
+fn checkpoint_wal(connection: &Connection, path: &str) -> Result<(), String> {
+    let (busy, _log_frames, _checkpointed_frames) = connection
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })
+        .map_err(|error| format!("checkpoint migration source {path}: {error}"))?;
+    if busy != 0 {
+        return Err(format!(
+            "checkpoint migration source {path}: another SQLite connection is active"
+        ));
+    }
+    Ok(())
+}
+
+fn create_verified_migration_backup(
+    source: &Connection,
+    path: &str,
+    backup_path: &str,
+    component: &str,
+    from_version: i64,
+) -> Result<(), String> {
+    verify_sqlite_integrity(source, path)?;
+    let parent = Path::new(backup_path)
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let temporary = tempfile::NamedTempFile::new_in(parent).map_err(|error| {
+        format!(
+            "create temporary migration backup in {}: {error}",
+            parent.display()
+        )
+    })?;
+    fs::copy(path, temporary.path()).map_err(|error| {
+        format!(
+            "copy migration source {path} to {}: {error}",
+            temporary.path().display()
+        )
+    })?;
+    temporary
+        .as_file()
+        .sync_all()
+        .map_err(|error| format!("sync temporary migration backup: {error}"))?;
+    let backup = Connection::open_with_flags(temporary.path(), OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|error| format!("open temporary migration backup: {error}"))?;
+    verify_sqlite_integrity(&backup, &temporary.path().display().to_string())?;
+    if jftrade_store_sqlite::current_version(&backup, component) != Some(from_version) {
+        return Err(format!(
+            "temporary migration backup metadata does not match {component} version {from_version}"
+        ));
+    }
+    drop(backup);
+    temporary
+        .persist(backup_path)
+        .map_err(|error| format!("atomically persist migration backup {backup_path}: {error}"))?;
+    Ok(())
+}
+
+fn verify_sqlite_integrity(connection: &Connection, path: &str) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA quick_check")
+        .map_err(|error| format!("prepare quick_check for {path}: {error}"))?;
+    let results = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|error| format!("run quick_check for {path}: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("read quick_check for {path}: {error}"))?;
+    if results.is_empty()
+        || !results
+            .iter()
+            .all(|result| result.trim().eq_ignore_ascii_case("ok"))
+    {
+        return Err(format!(
+            "quick_check failed for {path}: {}",
+            results.join(", ")
+        ));
+    }
+    let foreign_key_violation = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| format!("run foreign_key_check for {path}: {error}"))?;
+    if foreign_key_violation != 0 {
+        return Err(format!("foreign_key_check failed for {path}"));
+    }
     Ok(())
 }
 

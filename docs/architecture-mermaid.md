@@ -17,18 +17,18 @@ flowchart TB
     end
 
     subgraph Entrypoint["进程入口与装配"]
-        CLI["cmd/jftrade-api<br/>独立 API 入口"]
-        Desktop["cmd/jftrade-desktop<br/>Wails v3 / profile / 单实例"]
-        App["internal/app/apiserver<br/>启动 / 生命周期 / 运行时目录"]
-        Core["servercore<br/>依赖装配 / 路由挂载 / runtime bridge"]
-        MarketRuntime["marketdataapp<br/>稳定 Provider router / helper lifecycle"]
+        CLI["crates/jftrade-engine/src/bin/jftrade-api-rust<br/>Rust 独立 API 入口"]
+        Desktop["apps/desktop/src-tauri<br/>Tauri 2 / profile / 单实例"]
+        App["crates/jftrade-engine<br/>Rust product composition / runtime"]
+        Core["crates/jftrade-api<br/>Axum 路由 / auth / runtime bridge"]
+        MarketRuntime["jftrade-engine product runtime<br/>Provider router / helper lifecycle"]
     end
 
     subgraph Transport["HTTP / SSE / WebSocket 层"]
-        Middleware["internal/api/middleware<br/>认证 / CORS / 安全"]
-        HTTP["internal/api/*<br/>/api/v1 JSON routes"]
-        LiveAPI["internal/api/live<br/>SSE / WS live stream"]
-        Swagger["docs/swagger<br/>OpenAPI / Swagger UI"]
+        Middleware["crates/jftrade-api<br/>认证 / CORS / 安全"]
+        HTTP["crates/jftrade-api<br/>/api/v1 JSON routes"]
+        LiveAPI["crates/jftrade-api<br/>SSE / WS live stream"]
+        Swagger["OpenAPI reference<br/>generated from Go harness"]
     end
 
     subgraph Services["业务服务层"]
@@ -52,7 +52,7 @@ flowchart TB
         FutuPkg["pkg/futu<br/>Futu exchange adapter"]
         BrokerPkg["pkg/broker + pkg/market<br/>券商抽象 / 市场规则"]
         StrategyPkg["pkg/strategy<br/>Pine parser / IR / spec / lowering"]
-        PineWorkerGo["pkg/strategy/pineworker<br/>Go gRPC client / worker manager"]
+        PineWorkerGo["pkg/strategy/pineworker<br/>Go reference / differential harness"]
         PineWorkerNode["workers/pineworker<br/>Node ESM + PineTS executor"]
         BacktestPkg["pkg/backtest<br/>回测引擎与历史存储能力"]
         ADKPkg["internal/assistant/engine<br/>ADK runtime"]
@@ -222,11 +222,11 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph Dev["开发态"]
-        DevAPI["go run ./cmd/jftrade-api<br/>127.0.0.1:3000"]
+        DevAPI["cargo run -p jftrade-engine --bin jftrade-api-rust<br/>127.0.0.1:3000"]
         DevWeb["pnpm run dev:web<br/>Vite 127.0.0.1:3003"]
         DevDocs["pnpm run dev:docs<br/>VitePress 127.0.0.1:3001"]
         Proxy["Vite proxy<br/>/api /swagger -> 3000<br/>/docs -> 3001"]
-        DesktopDev["go tool wails3 dev<br/>Wails dev_mode.executes / sidecar 3008<br/>仓库 var/jftrade-api"]
+        DesktopDev["pnpm run dev:desktop<br/>Tauri dev / Rust API sidecar 3008<br/>仓库 var/jftrade-api"]
         DevMarketData["JFTRADE_MARKETDATA_SIDECAR<br/>开发/测试绝对路径 helper 覆盖"]
     end
 
@@ -235,15 +235,15 @@ flowchart TB
         BuildDocs["pnpm run build:docs<br/>generate OpenAPI + reference"]
         BuildWorker["pnpm run build:pineworker"]
         BuildMarketData["pnpm run build:marketdata-sidecar<br/>PyInstaller per-platform helper"]
-        BuildAPI["go build ./cmd/jftrade-api"]
-        BuildDesktop["release_assets<br/>cmd/jftrade-desktop"]
+        BuildAPI["cargo build -p jftrade-engine --bin jftrade-api-rust"]
+        BuildDesktop["pnpm run build:desktop<br/>apps/desktop/src-tauri"]
     end
 
     subgraph Release["发布态"]
         Dist["dist/"]
         GUI["前端 + API 单一同源入口<br/>127.0.0.1:6688"]
         EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets<br/>internal/marketdataassets"]
-        DesktopProduct["JFTrade<br/>Wails API sidecar 6699<br/>自动管理 marketdata helper"]
+        DesktopProduct["JFTrade<br/>Tauri Rust API sidecar 6699<br/>自动管理 marketdata helper"]
         OptionalWeb["用户主动开启的 Web 入口<br/>默认 127.0.0.1:6688 / 端口可设置"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
         WinNSIS["Windows x64 + ARM64<br/>unsigned per-user NSIS"]

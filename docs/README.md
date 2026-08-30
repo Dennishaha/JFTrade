@@ -49,7 +49,7 @@ pnpm run check:pinets-release
 pnpm run check:tauri-release-runtime
 ```
 
-独立 API 发行脚本仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本。Wails 正式产品只接受 `vX.Y.Z`，并把版本、提交号和构建时间注入 Go buildinfo 与平台资源；迁移中的 Tauri release launcher 复用同一 tag 规则，把单一版本同时锁入 Rust `/api/v1/system/status` build identity 和 Tauri bundle config。`dev` 与 `v0.0.0` 禁止进入两种桌面 release。
+独立 Rust API 与 Tauri release launcher 仍按 `JFTRADE_VERSION`、`git describe --tags --always --dirty`、`dev` 解析版本，并把版本、提交号和构建时间锁入 Rust `/api/v1/system/status` build identity 与 Tauri bundle config。Go buildinfo 仅服务 reference/differential harness；`dev` 与 `v0.0.0` 禁止进入桌面 release。
 
 ## 推荐阅读顺序
 
@@ -82,7 +82,7 @@ pnpm run check:tauri-release-runtime
 - [backtest-execution-model.md](backtest-execution-model.md)：`conservative-bar-v1` 的成交规则、职责边界和实盘差异。
 - [pinets-contract-audit.md](pinets-contract-audit.md)：PineTS 切换后的 Go/API/worker/前端契约矩阵和 visual output 边界。
 - [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)：PineTS worker 发布、运行配置、embedded asset 和非 mock smoke 放行清单。
-- [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Wails v3 开发/产品通道隔离、系统数据目录、版本注入、ARM64-only macOS 无签名 DMG、Windows 无签名安装器与发布产物。
+- [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)：Tauri 2 开发/产品通道隔离、系统数据目录、版本注入、平台安装包与发布产物。
 - [troubleshooting/desktop-startup-performance.md](troubleshooting/desktop-startup-performance.md)：开发/正式桌面冷启动、缓存命中、窗口和 API 墙钟基准。
 - [troubleshooting/marketdata-sidecar.md](troubleshooting/marketdata-sidecar.md)：内置 helper、开发态路径、上游错误和延迟行情排障。
 - [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)：从设置页“开发者工具”的错误、慢请求和 OpenD 摘要进入结构化日志及 ADK/回测运行记录。
@@ -98,7 +98,7 @@ pnpm run check:tauri-release-runtime
 ## 快速路由
 
 - 改启动方式、端口、运行时目录：先看 [architecture.md](architecture.md) 和 [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)
-- 改 Wails profile、bindings、菜单、窗口状态或桌面发布：先看 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md) 和 `cmd/jftrade-desktop`
+- 改 Tauri profile、IPC、菜单、窗口状态或桌面发布：先看 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md) 和 `apps/desktop/src-tauri`
 - 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
 - 改 HTTP wire contract、前端 API 类型或请求封装：先看 [frontend/api-contracts.md](frontend/api-contracts.md)
 - 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)

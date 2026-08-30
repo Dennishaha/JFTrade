@@ -1,110 +1,59 @@
-# Wails v3 桌面构建与发布
+# Tauri 2 桌面构建与发布
 
-桌面壳固定使用 Wails `v3.0.0-beta.8` 和 `@wailsio/runtime@3.0.0-beta.8`。CLI 由 Go toolchain 固定，调用方式是 `go tool wails3`，不依赖全局安装的 `wails3`。
+JFTrade 的生产桌面壳是 Tauri 2，Rust engine 是唯一 API runtime。Go/Wails 文件和 bindings 仅保留给迁移期 reference/differential harness，不参与生产启动。
 
-## 构建事实源
-
-构建入口完全采用 Wails v3 的 Taskfile 模型：
-
-- 根 `Taskfile.yml` 负责 `build`、`package`、`run` 和 `dev` 分发；
-- `build/Taskfile.yml` 负责 Vite、bindings、icons、Wails build assets 和发布输入校验；
-- `build/config.yml` 的 `dev_mode.executes` 负责 blocking Go build、background Vite 和 primary `run`；
-- `build/darwin/Taskfile.yml`、`build/windows/Taskfile.yml`、`build/linux/Taskfile.yml` 负责平台编译和官方打包工具。
-
-常用命令：
+## 开发
 
 ```bash
-go tool wails3 doctor
-go tool wails3 dev -config ./build/config.yml -port 3003
-go tool wails3 build
-go tool wails3 package
-go tool wails3 task --list-all
+pnpm install --frozen-lockfile
+pnpm run dev:desktop
 ```
 
-开发启动由 Wails watcher 管理，不再使用 Node supervisor、Vite 等待脚本、原生 app 缓存指纹或开发签名缓存。桌面开发前先运行 `pnpm run prepare:desktop-dev` 显式生成外部 Pine worker；Wails 启动本身不会自动构建、发现或选择 Pine worker、Python helper 或 frozen sidecar。
+开发壳使用 `apps/desktop/src-tauri/tauri.dev.conf.json`，默认 API 为
+`127.0.0.1:3008`，Vite 为 `127.0.0.1:3003`，数据目录为仓库内
+`var/jftrade-api/`。`run-tauri.mjs` 会先准备 PineTS worker，再由 Tauri 管理
+Vue dev server、Rust API 和受管 helper。修改 Vue/TypeScript 文件时由 Vite HMR
+处理；修改 Rust 文件时由 Tauri 重新编译并重启。
 
-## 开发版与正式版
+## 发布
 
-`go tool wails3 dev` 运行 `JFTrade Dev`，默认 API 为 `127.0.0.1:3008`，数据目录为仓库内 `var/jftrade-api/`。Wails 通过 `WAILS_VITE_PORT` 把 Vite 端口传给 `apps/web/vite.config.ts`，默认端口为 `3003`。
-
-正式构建使用 `production,release_assets`，默认 API 为 `127.0.0.1:6699`，数据写入系统用户数据目录。发布版的 Pine、前端压缩包、Swagger 和 platform market-data helper 必须在构建前显式准备：
+发布构建必须提供准确的 `vX.Y.Z` tag，并在目标平台执行：
 
 ```bash
-pnpm run prepare:desktop-release
-export JFTRADE_DESKTOP_PREPARED=1
-export VERSION=1.2.3
-export COMMIT="$(git rev-parse HEAD)"
-export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-go tool wails3 build
-go tool wails3 package
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run build:desktop
 ```
 
-CI 使用同一个 `JFTRADE_DESKTOP_PREPARED=1` 校验开关，并从共享 artifact 下载前端、Swagger 和 Pine 输入；各平台 runner 独立构建和 smoke-test 自己的 Python helper。Wails build/package 任务不会隐式执行资产准备。
+`run-tauri.mjs build` 会先运行 `prepare:tauri-release`，准备前端、PineTS、
+market-data 和受管 Node runtime 资产，再构建当前平台的 Tauri bundle。生产 API
+默认监听 `127.0.0.1:6699`，正式产品数据写入系统用户数据目录；可选 Web 入口默认
+`127.0.0.1:6688`，由桌面设置显式开启。
 
-迁移阶段的 Tauri release rehearsal 使用独立入口，并且必须提供同一格式的正式 tag：
+跨平台包由 `.github/workflows/desktop-release.yml` 的 Tauri CI matrix 生成。每个
+平台 runner 必须独立准备对应的 market-data helper，执行 runtime manifest、安装、
+启动、升级、卸载和回退 smoke；不要在本机脚本中交叉编译或启动另一个平台的 API。
+
+## 资产与完整性
+
+Tauri bundle 的受管 runtime 位于 `runtime/`，包括 Node、Node license、PineTS
+worker、protobuf 和当前平台的 market-data helper。`prepare-tauri-release-runtime.mjs`
+生成 `manifest.json` 及 SHA-256 列表，`pnpm run check:tauri-release-runtime` 在构建
+和 smoke 前验证其完整性。缺少、损坏或摘要不匹配时，桌面启动 fail closed。
+
+## 验证
 
 ```bash
-export JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3
-export JFTRADE_DESKTOP_COMMIT="$(git rev-parse HEAD)"
-export JFTRADE_DESKTOP_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-pnpm run build:desktop:tauri
+pnpm run check:tauri-release-runtime
+pnpm run test:tauri-release-runtime
+pnpm run smoke:tauri-release
+pnpm run check:rust
 ```
 
-launcher 会先拒绝 `dev`、`v0.0.0` 或非 `vX.Y.Z` tag，再准备 release runtime；通过后把同一版本注入 Rust build identity 和最终 Tauri bundle config。调用方附加的 `--config` 不能覆盖版本。该入口仍是迁移 rehearsal，签名、安装、升级、卸载、回退和跨平台 runtime smoke 全部通过 closeout gate 前，Wails 仍是唯一生产桌面 owner。
+真实签名 updater、四平台安装/升级/回退、SBOM 和 post-release smoke 仍须在发布
+workflow 中取得证据后才能关闭 release gate。不要把本地 `cargo` 构建或单平台 smoke
+写成跨平台发布资格。
 
-## 产物布局
+## 迁移期 Go 工具
 
-所有 Wails 二进制和平台包写入 `bin/`：
-
-- macOS：`bin/JFTrade`、`bin/JFTrade.app`、`bin/JFTrade-<version>-macos-arm64-<qualifier>.dmg`；
-- Windows：`bin/JFTrade.exe`、`bin/JFTrade-<version>-windows-x64-<qualifier>-setup.exe`；
-- Windows ARM64：`bin/JFTrade-<version>-windows-arm64-<qualifier>-setup.exe`；
-- Linux：`bin/JFTrade`、`bin/JFTrade-<version>-linux-x64.AppImage`、`.deb` 和 `.rpm`。
-
-`qualifier` 在没有签名凭据时为 `unsigned`，凭据完整配置时为 `signed`。构建目录 `var/wails-build/` 只保存本次任务生成的 Wails metadata、icons、manifest 和临时打包 staging。
-
-## 单独打包
-
-默认平台包：
-
-```bash
-go tool wails3 package
-```
-
-可选格式使用平台 Taskfile：
-
-```bash
-go tool wails3 task windows:package:msix
-go tool wails3 task linux:package:appimage
-go tool wails3 task linux:package:linux FORMAT=deb
-go tool wails3 task linux:package:linux FORMAT=rpm
-```
-
-注意：Wails `v3.0.0-beta.8` 的官方 Taskfile 已包含 MSIX 任务，但该版本的
-`wails3` CLI 仍尚未注册 `tool msix` 子命令。因此 beta.8 上的
-`windows:package:msix` 暂不可执行；默认 Windows 发布路径仍使用 NSIS。待 Wails
-修复或升级后，直接复用该 Task 即可，不要恢复旧的 Node 安装器包装层。
-
-Windows NSIS 使用 Wails 生成的 `wails_tools.nsh` 和官方 `makensis` 调用；Linux AppImage、deb、rpm 使用 Wails generator/packager，AppImage 使用 Wails/linuxdeploy 的兼容默认压缩；macOS DMG 使用 `go tool wails3 tool package --format dmg`。仓库不再维护自定义 hdiutil DMG wrapper、Node NSIS 编译 wrapper 或 release orchestrator。
-
-## 签名与验证
-
-签名凭据必须全部配置或全部留空：
-
-- macOS：`JFTRADE_MACOS_SIGN_IDENTITY`、`JFTRADE_MACOS_NOTARY_PROFILE`；
-- Windows：`JFTRADE_WINDOWS_CERTIFICATE`、`JFTRADE_WINDOWS_CERTIFICATE_PASSWORD`。
-
-没有凭据时仍执行 ad-hoc macOS bundle sealing，并生成带 `unsigned` 标记的包。配置完整时由 Wails `tool sign` 负责 macOS notarization 或 Windows Authenticode。
-
-本地验证：
-
-```bash
-go tool wails3 task --list
-pnpm run generate:wails-bindings
-pnpm run check:wails-bindings
-pnpm run test:scripts -- desktop
-pnpm run check:quick
-git diff --check
-```
-
-公开业务 API、SQLite schema、Wails bindings 签名和 `pkg/*` API 不随构建系统迁移改变。
+`cmd/jftrade-api`、`cmd/jftrade-desktop`、`go generate ./cmd/jftrade-api` 和 Go
+reference tests 继续保留给 OpenAPI 生成、fixture 录制及 Go/Rust differential；它们
+不会由 `start.sh`、`build-release.*`、Tauri 开发或生产入口调用。

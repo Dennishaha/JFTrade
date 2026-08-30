@@ -4,8 +4,8 @@
 
 先记住两个前提：
 
-- 前端默认依赖的是 JFTrade sidecar 的 `/api/v1/*`，不是 bbgo 原生 `/api/*`
-- 浏览器前端与 Wails 前端都继续直接访问 sidecar HTTP/SSE/WebSocket，不连接 bbgo 原生 `/api/*`
+- 前端默认依赖的是 Rust JFTrade sidecar 的 `/api/v1/*`，不是 bbgo 原生 `/api/*`
+- 浏览器前端与 Tauri 前端都直接访问 Rust sidecar HTTP/SSE/WebSocket，不连接 bbgo 原生 `/api/*`
 
 ## 先看症状，再进专题
 
@@ -18,7 +18,7 @@
 | Python 行情 helper 不可用、自动进程退出或数据明显不实时     | [troubleshooting/marketdata-sidecar.md](troubleshooting/marketdata-sidecar.md)              | Provider 独立健康、启动日志与开发态 `JFTRADE_MARKETDATA_SIDECAR` 路径                                       |
 | 美股盘前盘后或夜盘显示异常                           | [troubleshooting/us-extended-hours.md](troubleshooting/us-extended-hours.md)           | 检查 snapshot 是否带 `lastClosePrice` 和扩展行情块                                                                   |
 | 回测明显变慢，或不确定慢在 sync 还是 replay          | [troubleshooting/backtest-performance.md](troubleshooting/backtest-performance.md)     | `JFTRADE_REAL_CHAIN_PROFILE=1 go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateProfile$' -v`         |
-| Pine 策略执行失败、worker 没启动、发布包缺 worker    | [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)   | 检查 `JFTRADE_PINEWORKER_BUNDLE`、Node runtime、`release_assets` 构建和非 mock smoke                                 |
+| Pine 策略执行失败、worker 没启动、发布包缺 worker    | [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)   | 检查 `JFTRADE_PINEWORKER_BUNDLE`、Node runtime、Tauri runtime 资源和非 mock smoke                                 |
 | 不确定到底该先查哪一层                               | [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md)   | 先按职责边界和决策树定位                                                                                             |
 
 ## 常用诊断命令
@@ -43,12 +43,12 @@ go test ./...
 
 ## 术语统一
 
-- API sidecar：`go run ./cmd/jftrade-api`，启动 JFTrade 控制台后端
-- JFTrade Dev：Wails 开发通道，默认 sidecar `127.0.0.1:3008`，使用仓库 `var/jftrade-api`
-- JFTrade：Wails 正式通道，默认 sidecar `127.0.0.1:6699`，使用系统用户数据目录
-- 可选 Web 服务：默认 `127.0.0.1:6688`，端口可在桌面设置中修改；Wails 桌面 Web 关闭时不创建该监听器
+- 独立 Rust API：`cargo run -p jftrade-engine --bin jftrade-api-rust`，启动 JFTrade 控制台后端
+- JFTrade Dev：Tauri 开发通道，默认 sidecar `127.0.0.1:3008`，使用仓库 `var/jftrade-api`
+- JFTrade：Tauri 正式通道，默认 sidecar `127.0.0.1:6699`，使用系统用户数据目录
+- 可选 Web 服务：默认 `127.0.0.1:6688`，端口可在桌面设置中修改；Tauri 桌面 Web 关闭时不创建该监听器
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用
 - OpenD WebSocket port：默认 `127.0.0.1:11111`，FTWebSocket / JavaScript API 使用
-- market-data helper：发布版随 Go 二进制嵌入，自动使用动态 loopback 端口；只供 JFTrade 的 Go 行情 Provider 访问
+- market-data helper：发布版随 Tauri 资源打包，自动使用动态 loopback 端口；只供 JFTrade 的 Rust 行情 Provider 访问
 
 更完整的术语、职责边界和排查顺序见 [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md)。

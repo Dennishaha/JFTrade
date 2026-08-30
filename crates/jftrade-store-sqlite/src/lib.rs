@@ -15,11 +15,13 @@ mod execution_order_reservation;
 mod maintenance;
 mod research_preset;
 mod schema_manifest;
+mod schema_migrations;
 mod strategy_definition;
 mod strategy_runtime;
 mod watchlist;
 
 pub use schema_manifest::{current_version, initialize_current, validate_current};
+pub use schema_migrations::migrate_legacy_schema;
 
 pub use adk::{
     ADK_PRODUCTION_PROFILE, ADK_TEST_CUTOVER_PROFILE, AdkApprovalResolution, AdkApprovalStage,

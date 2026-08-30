@@ -27,7 +27,7 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 
 | 层 | 内容 | 触发方式 |
 | --- | --- | --- |
-| L0 静态与契约 | lint、vet、typecheck、架构依赖、OpenAPI/API types/Wails 生成一致性、许可证和测试命名 | 每个 PR、main |
+| L0 静态与契约 | lint、vet、typecheck、架构依赖、OpenAPI/API types/Tauri runtime 生成一致性、许可证和测试命名 | 每个 PR、main |
 | L1 单元与组件 | Go、Web、Pine worker 和 Python sidecar 的确定性测试；前三者执行覆盖率/增量覆盖率 | 每个 PR、main |
 | L2 隔离集成 | 临时 SQLite、`httptest`、mock OpenD/broker/Pine worker、mock yfinance + socket 阻断；禁止调用真实外部服务 | 每个 PR、main |
 | L3 系统回归 | release assets、嵌入 market-data helper 的启动/双 Provider 健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |

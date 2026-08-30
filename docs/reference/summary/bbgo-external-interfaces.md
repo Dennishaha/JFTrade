@@ -6,7 +6,7 @@
 
 当前项目与 bbgo 的关系是：
 
-- `cmd/jftrade` 已移除；当前入口是 [../../../cmd/jftrade-api/main.go](../../../cmd/jftrade-api/main.go)，只启动 JFTrade API sidecar
+- `cmd/jftrade` 已移除；当前生产入口是 [`jftrade-api-rust`](../../../crates/jftrade-engine/src/bin/jftrade-api-rust.rs)。Go [../../../cmd/jftrade-api/main.go](../../../cmd/jftrade-api/main.go) 只作为 reference/differential harness，不是生产 API sidecar
 - [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) 通过注册机制接入 bbgo exchange factory
 - [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) 复用 bbgo 的 Stream / StandardStream 抽象
 - [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) 复用 bbgo 通知系统

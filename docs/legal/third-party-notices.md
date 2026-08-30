@@ -51,8 +51,8 @@ The complete Apache License 2.0 text is included later in this notice.
 
 JFTrade includes the AGPL-3.0-only adapter source under
 `workers/marketdata-sidecar`. Release builds freeze the runtime into a
-platform-specific PyInstaller `onedir` bundle and embed its files in the Go
-binary. Its `pyproject.toml` pins the following direct build, runtime, and test
+platform-specific PyInstaller `onedir` bundle and package its files as Tauri
+release resources. Its `pyproject.toml` pins the following direct build, runtime, and test
 dependencies. Python installers may also resolve transitive dependencies;
 every installed distribution retains its own copyright and license files.
 
@@ -147,7 +147,7 @@ The full Apache License 2.0 text used by `yfinance` and `pytest-asyncio` is
 included later in this notice. The precise license and attribution files for
 all packages remain available in their installed Python distributions.
 
-PyInstaller is used only to produce the platform-native helper embedded in
+PyInstaller is used only to produce the platform-native helper packaged in
 release builds. Its GPL-2.0-or-later bootloader exception permits distributing
 applications produced by PyInstaller under the application's own license;
 the corresponding PyInstaller source and license remain available from the

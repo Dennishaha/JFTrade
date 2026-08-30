@@ -322,27 +322,29 @@ impl ProductionRouteRegistry {
                     .execution_operation_binding(&path)
                     .or_else(|| ports.adapter_binding(adapter))
             } else {
-                ports.adapter_binding(adapter)
+                Some(ports.adapter_binding_or_missing(adapter))
             }
-            .ok_or_else(|| {
-                ProductError::MissingProductionAdapter {
+            .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter);
+            if adapter_binding == ProductionAdapterBinding::MissingInternalAdapter {
+                return Err(ProductError::MissingProductionAdapter {
                     method: method.clone(),
                     path: path.clone(),
                     adapter: adapter.name().to_owned(),
-                }
-            })?;
+                });
+            }
             let operation_bindings = if adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead
             {
                 OPTION_EVENT_OPERATION_ADAPTERS
                     .iter()
                     .map(|(operation, operation_adapter)| {
-                        let binding = ports.adapter_binding(*operation_adapter).ok_or_else(|| {
-                            ProductError::MissingProductionAdapter {
+                        let binding = ports.adapter_binding_or_missing(*operation_adapter);
+                        if binding == ProductionAdapterBinding::MissingInternalAdapter {
+                            return Err(ProductError::MissingProductionAdapter {
                                 method: method.clone(),
                                 path: path.clone(),
                                 adapter: operation_adapter.name().to_owned(),
-                            }
-                        })?;
+                            });
+                        }
                         Ok(((*operation).to_owned(), binding))
                     })
                     .collect::<Result<BTreeMap<_, _>, ProductError>>()?
@@ -352,22 +354,28 @@ impl ProductionRouteRegistry {
                     .map(|operation| {
                         let binding = ports
                             .option_analysis_operation_binding(operation)
-                            .ok_or_else(|| ProductError::MissingProductionAdapter {
+                            .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter);
+                        if binding == ProductionAdapterBinding::MissingInternalAdapter {
+                            return Err(ProductError::MissingProductionAdapter {
                                 method: method.clone(),
                                 path: path.clone(),
                                 adapter: adapter.name().to_owned(),
-                            })?;
+                            });
+                        }
                         Ok(((*operation).to_owned(), binding))
                     })
                     .collect::<Result<BTreeMap<_, _>, ProductError>>()?
             } else if adapter == ProductionRouteAdapter::ResearchRead {
-                let binding = ports.research_operation_binding(&path).ok_or_else(|| {
-                    ProductError::MissingProductionAdapter {
+                let binding = ports
+                    .research_operation_binding(&path)
+                    .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter);
+                if binding == ProductionAdapterBinding::MissingInternalAdapter {
+                    return Err(ProductError::MissingProductionAdapter {
                         method: method.clone(),
                         path: path.clone(),
                         adapter: adapter.name().to_owned(),
-                    }
-                })?;
+                    });
+                }
                 research_operation_bindings(&path, binding)
             } else {
                 BTreeMap::new()
@@ -453,6 +461,24 @@ impl ProductionRouteRegistry {
         binding: &ProductionRouteBinding,
         ports: &ProductionPortBundle,
     ) -> ProductionAdapterBinding {
+        if !ports.installed_adapters.contains(&binding.adapter)
+            || !ports.bound_adapters.contains_key(&binding.adapter)
+        {
+            return ProductionAdapterBinding::MissingInternalAdapter;
+        }
+        if ports.bound_adapters.get(&binding.adapter)
+            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
+        {
+            return ProductionAdapterBinding::MissingInternalAdapter;
+        }
+        if binding.adapter == ProductionRouteAdapter::MarketDataOptionsEventsRead
+            && OPTION_EVENT_OPERATION_ADAPTERS.iter().any(|(_, adapter)| {
+                ports.adapter_binding_or_missing(*adapter)
+                    == ProductionAdapterBinding::MissingInternalAdapter
+            })
+        {
+            return ProductionAdapterBinding::MissingInternalAdapter;
+        }
         let snapshot = ports.active_provider_state.snapshot();
         if snapshot.closing {
             return ProductionAdapterBinding::ExternalUnavailable;
@@ -470,7 +496,7 @@ impl ProductionRouteRegistry {
             if runtime_scoped_adapter(binding.adapter) {
                 ProductionAdapterBinding::ExternalUnavailable
             } else {
-                binding.adapter_binding
+                ProductionAdapterBinding::MissingInternalAdapter
             }
         })
     }

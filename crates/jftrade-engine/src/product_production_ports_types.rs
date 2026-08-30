@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use jftrade_api::WebSessionValidator;
@@ -375,6 +375,11 @@ pub(crate) struct ProductionPortBundle {
     pub research_screen_write: Arc<dyn ResearchScreenWritePort>,
     pub strategy_pine_analyze: Arc<dyn StrategyPineAnalyzeSnapshotPort>,
     pub ws_live: Arc<dyn WsLiveSnapshotPort>,
+    /// Concrete production adapters installed by the composition root.
+    /// Readiness in `bound_adapters` may legitimately be
+    /// `ExternalUnavailable`; this set is the independent proof that the
+    /// handler/port itself was actually wired.
+    pub(crate) installed_adapters: BTreeSet<ProductionRouteAdapter>,
     pub(crate) bound_adapters: BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,
     pub(crate) backtest_sync_workers: Arc<BacktestSyncWorkerRegistry>,
     pub(crate) backtest_execution_workers: Arc<BacktestExecutionTaskRegistry>,

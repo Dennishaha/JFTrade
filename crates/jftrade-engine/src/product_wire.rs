@@ -90,7 +90,16 @@ impl ApiPort for ProductApi {
                     .production_ports
                     .as_deref()
                     .map(|ports| registry.current_binding(binding, ports))
-                    .unwrap_or(binding.adapter_binding);
+                    // A production route registry is only valid together
+                    // with its concrete composition bundle.  Treating a
+                    // missing bundle as the startup snapshot would let a
+                    // route invoke a static/fallback handler and report a
+                    // false success; surface the internal wiring failure to
+                    // the production dispatcher instead.
+                    .unwrap_or(
+                        crate::product::product_production_ports::ProductionAdapterBinding::
+                            MissingInternalAdapter,
+                    );
                 return self
                     .dispatch_production_binding(binding, readiness, &request)
                     .await;

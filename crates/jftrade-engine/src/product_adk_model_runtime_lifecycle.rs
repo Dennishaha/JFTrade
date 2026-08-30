@@ -85,7 +85,7 @@ impl ProductionAdkChatRuntime {
         error: &AdkChatPortError,
         run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
-        let mut run = self
+        let run = self
             .store
             .get_run(&chat.run_id)
             .map_err(storage_unavailable)?
@@ -104,34 +104,65 @@ impl ProductionAdkChatRuntime {
             .and_then(|event| event.get("type"))
             .and_then(Value::as_str)
             .is_some_and(|kind| matches!(kind, "final" | "error"));
+        let mut stream_event_id = None;
+        let mut stream_event_content = None;
         if !has_terminal && chat.route == AdkChatRoute::Stream {
-            let _ = self.emit_stream_event(
-                chat,
-                json!({"type":"error","message":format_adk_error(error)}),
-                None,
-                run_lease,
-            )?;
-            run = self
-                .store
-                .get_run(&chat.run_id)
-                .map_err(storage_unavailable)?
-                .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
-            payload = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+            let sequence = payload
+                .get("streamEvents")
+                .and_then(Value::as_array)
+                .map_or(1, |events| events.len() as u64 + 1);
+            let mut event = json!({
+                "type": "error",
+                "message": format_adk_error(error),
+            });
+            if let Some(object) = event.as_object_mut() {
+                object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
+                object.insert("sequence".to_owned(), Value::from(sequence));
+                object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
+            }
+            payload
+                .get_mut("streamEvents")
+                .and_then(Value::as_array_mut)
+                .ok_or_else(|| unavailable("persisted ADK run has no stream event list"))?
+                .push(event);
+            stream_event_id = Some(format!("{}:stream:{}", chat.run_id, sequence));
+            stream_event_content = Some(format_adk_error(error));
         }
         payload["status"] = Value::String("CANCELLED".to_owned());
         payload["message"] = Value::String(format_adk_error(error));
-        let updated = self
-            .store
-            .update_run_state_if_status_and_revision_with_lease(
-                &chat.run_id,
-                "RUNNING",
-                &run.updated_at,
-                "CANCELLED",
-                &payload.to_string(),
-                run_lease.owner_id(),
-                run_lease.token(),
-            )
-            .map_err(storage_unavailable)?;
+        let updated = match (stream_event_id.as_ref(), stream_event_content.as_ref()) {
+            (Some(event_id), Some(content)) => self
+                .store
+                .update_run_state_if_status_and_revision_with_events_with_lease(
+                    &chat.run_id,
+                    "RUNNING",
+                    &run.updated_at,
+                    "CANCELLED",
+                    &payload.to_string(),
+                    self.session_store.path(),
+                    &[AdkRunEvent {
+                        id: event_id,
+                        session_id: &chat.session_id,
+                        invocation_id: &chat.run_id,
+                        author: "assistant.stream",
+                        content,
+                    }],
+                    run_lease.owner_id(),
+                    run_lease.token(),
+                ),
+            _ => self
+                .store
+                .update_run_state_if_status_and_revision_with_lease(
+                    &chat.run_id,
+                    "RUNNING",
+                    &run.updated_at,
+                    "CANCELLED",
+                    &payload.to_string(),
+                    run_lease.owner_id(),
+                    run_lease.token(),
+                ),
+        }
+        .map_err(storage_unavailable)?;
         if !updated {
             let current = self
                 .store

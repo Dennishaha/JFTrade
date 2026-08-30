@@ -14,7 +14,7 @@ JFTrade 的行情查询与交易执行是两个独立边界。运行时提供 Fu
 | 历史 K 线 | 支持 | 八个全局周期 | 品种级 `supportedPeriods` 为权威；美港指数仅 `1d/1w/1mo` |
 | 复权历史 K 线 | 支持 `none/forward/backward` | 支持 `none/forward`（`forward` 走 Yahoo auto_adjust）；`backward` 返回 400，非法值返回 400 `unsupported_adjustment` | 支持 `none/forward/backward`（qfq/hfq），仅沪深股票与沪深 ETF 的 `1d/1w/1mo`；指数与分钟周期仅 `none` |
 | 回测历史同步 | 支持 `none/forward/backward` | 支持 `none/forward`；`1m` 7 天、`5m/15m/30m` 60 天、`1h` 730 天 | 支持 `none/forward/backward`；`1m` 5 天，美股全部分钟周期 5 天 |
-| 基本面字段 | 不支持 | 支持 market_cap、trailing_pe、shares_outstanding | 支持 market_cap、trailing_pe（东财 f9 动态市盈率，非 TTM）、shares_outstanding；沪深 A 股总股本经 `stock_individual_info_em` 补全，24 小时缓存，失败静默降级为仅现货字段。sidecar 还返回 price_to_book（f23），但 Go 侧当前不投影进 SecurityDetails |
+| 基本面字段 | 不支持 | 支持 market_cap、trailing_pe、shares_outstanding | 支持 market_cap、trailing_pe（东财 f9 动态市盈率，非 TTM）、shares_outstanding；沪深 A 股总股本经 `stock_individual_info_em` 补全，24 小时缓存，失败静默降级为仅现货字段。sidecar 还返回 price_to_book（f23），但当前公开 SecurityDetails 不投影该字段 |
 | 快照买一/卖一 | 支持 | 取决于 Yahoo 上游字段，缺失保持 `null` | 支持（东财买一/卖一）；未服务市场保持 `null` |
 | 新闻与公司行动 | 支持（经 broker 查询管线） | 支持，覆盖全部四个市场；公开 API `GET /api/v1/market-data/news/{market}/{symbol}` 与 `/api/v1/market-data/corporate-actions/{market}/{symbol}` | 支持，新闻与分红/送转仅覆盖沪深；同一公开 API，美港返回 409 capability 错误 |
 | 指数成分股 | 不支持 | 不支持 | 支持中证指数（如 `SH.000300`）与沪深交易所指数（如 `SH.000001`）；仅经 assistant 工具 `market.index_constituents` 提供，无公开 HTTP API |
@@ -76,7 +76,7 @@ Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额
 
 ## 内置 helper
 
-桌面版和带 `release_assets` 的 `cmd/jftrade-api` 会嵌入目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 首次启用时把它原子发布到设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/`，逐文件校验摘要、类型和权限；后续启动完整校验后复用，不再重复写文件。损坏只重建当前摘要目录，缓存不可写时降级到权限受限的临时目录。全局行情、回测任务等消费者通过 Provider 租约共享 helper；切回 Futu 后只有最后一个 Python Provider 租约释放才停止进程，应用退出则统一取消任务并回收。helper 不会无限自动重启，也不会监听公网。
+Tauri 桌面版和独立 Rust API 会加载目标平台的 PyInstaller `onedir` helper（可执行文件及其依赖目录）。JFTrade 首次启用时把它原子发布到设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/`，逐文件校验摘要、类型和权限；后续启动完整校验后复用，不再重复写文件。损坏只重建当前摘要目录，缓存不可写时降级到权限受限的临时目录。全局行情、回测任务等消费者通过 Provider 租约共享 helper；切回 Futu 后只有最后一个 Python Provider 租约释放才停止进程，应用退出则统一取消任务并回收。helper 不会无限自动重启，也不会监听公网。Go sidecar 仅用于 reference/differential harness。
 
 设置页不提供行情 Provider 分类，也不提供 host、port、enabled、timeout 或 Python 路径配置。发布版及 frozen helper 自带 Python 3.14；源码开发模式由 sidecar 启动流程通过环境变量、workspace `.venv` 或 PATH 自动选择解释器，用户界面不展示 Python 依赖诊断。
 
@@ -94,13 +94,13 @@ collector 每 250 毫秒推进一次非活跃 Futu 清理；每条订阅从 Open
 
 同步请求和回测启动请求都不接受逐次 Provider 覆盖。请求被接受时固定模块当前 Provider；同步去重、覆盖检查、进度、运行状态和结果都携带 `marketDataProvider`。切换设置不会打断已接受任务，新任务立即使用新选择。历史缓存 schema v3 以 `provider + symbol + interval + adjustment + session` 隔离数据；v2 缓存由数据库管理页的备份、确认重建、重启流程统一重建，独立的 `backtest-runs.db` 不受影响。
 
-前端会按 descriptor 在同步或回测前拦截超出历史窗口的组合；后端仍执行同一校验，避免旧客户端绕过。前端的复权（rehabType）选项由当前 Provider descriptor 声明的 `priceAdjustments` 决定（yfinance 为 `none/forward`，AKShare 为 `none/forward/backward`），未声明时回退为 `none`，切换 Provider 后失效的选择重置为 `none`；K 线缓存本身已按 rehabType 分区，无 schema 变更。Go 侧还会在执行前预检拒绝 AKShare 分钟周期加复权这类不支持组合。缓存缺失但请求范围有效时，“开始回测”会先同步当前范围并在同步完成后重试一次。Provider 返回零根 K 线时同步任务标记失败，不再以“完成”掩盖无数据结果；已失败运行的真实错误会直接显示在默认报告页。
+前端会按 descriptor 在同步或回测前拦截超出历史窗口的组合；后端仍执行同一校验，避免旧客户端绕过。前端的复权（rehabType）选项由当前 Provider descriptor 声明的 `priceAdjustments` 决定（yfinance 为 `none/forward`，AKShare 为 `none/forward/backward`），未声明时回退为 `none`，切换 Provider 后失效的选择重置为 `none`；K 线缓存本身已按 rehabType 分区，无 schema 变更。服务端还会在执行前预检拒绝 AKShare 分钟周期加复权这类不支持组合。缓存缺失但请求范围有效时，“开始回测”会先同步当前范围并在同步完成后重试一次。Provider 返回零根 K 线时同步任务标记失败，不再以“完成”掩盖无数据结果；已失败运行的真实错误会直接显示在默认报告页。
 
-Wails 原生桌面开发不会自动选择、构建或启动 Python helper。需要在开发/测试环境显式提供 `JFTRADE_MARKETDATA_SIDECAR`，或先执行发布资产准备命令；没有可用运行时会沿用现有明确错误。独立运行 `cmd/jftrade-api` 时，可通过绝对路径指定本地 helper：
+Tauri 原生桌面开发不会自动选择、构建或启动 Python helper。需要在开发/测试环境显式提供 `JFTRADE_MARKETDATA_SIDECAR`，或先执行发布资产准备命令；没有可用运行时会沿用现有明确错误。独立运行 Rust API 时，可通过绝对路径指定本地 helper：
 
 ```bash
 JFTRADE_MARKETDATA_SIDECAR=/absolute/path/to/marketdata-sidecar-darwin-arm64/marketdata-sidecar-darwin-arm64 \
-  go run ./cmd/jftrade-api
+  cargo run -p jftrade-engine --bin jftrade-api-rust
 ```
 
 开发和测试使用 `JFTRADE_MARKETDATA_SIDECAR` 指定 frozen helper，或以 `JFTRADE_MARKETDATA_DEV_PYTHON` 与 `JFTRADE_MARKETDATA_DEV_PYTHONPATH` 指定源码命令。旧 `JFTRADE_YFINANCE_*` 名称仍作为低优先级兼容别名；新旧同时存在时始终使用通用名称。未提供覆盖时依次检查 workspace `.venv`、PATH 和平台常见路径；正式 profile 忽略全部开发覆盖。构建命令为 `pnpm run build:marketdata-sidecar`，兼容脚本 `build:yfinance-sidecar` 本次仍保留；构建解释器必须是 CPython 3.14.x。
@@ -153,7 +153,7 @@ uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra te
 uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test pytest workers/marketdata-sidecar/tests
 ```
 
-Go 侧 Provider、运行时切换与统一行情 service 的测试分别位于：
+Provider 实现、运行时切换与统一行情 service 的测试分别位于：
 
 - `internal/integration/yfinance`
 - `internal/integration/akshare`
