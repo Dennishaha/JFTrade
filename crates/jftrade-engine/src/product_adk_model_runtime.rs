@@ -37,7 +37,7 @@ pub(crate) struct ProductionAdkChatRuntime {
     session_store: Arc<AdkSessionStore>,
     secrets_path: PathBuf,
     cancellation_registry: Arc<RunCancellationRegistry>,
-    tool_schemas: Arc<Vec<Value>>,
+    tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
 }
 
 /// Process-local cancellation fan-out for active provider calls.
@@ -106,7 +106,7 @@ impl ProductionAdkChatRuntime {
         session_store: Arc<AdkSessionStore>,
         settings_path: &Path,
         cancellation_registry: Arc<RunCancellationRegistry>,
-        tool_schemas: Arc<Vec<Value>>,
+        tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
     ) -> Self {
         let secrets_path = std::env::var_os("JFTRADE_ADK_SECRETS")
             .filter(|value| !value.is_empty())
@@ -125,7 +125,7 @@ impl ProductionAdkChatRuntime {
             session_store,
             secrets_path,
             cancellation_registry,
-            tool_schemas,
+            tool_catalog,
         }
     }
 
@@ -249,7 +249,7 @@ impl ProductionAdkChatRuntime {
                 instruction: provider.instruction,
                 message: message.clone(),
                 timeout: provider.timeout,
-                tools: self.tool_schemas.as_ref().clone(),
+                tools: self.tool_catalog.openai_tools(),
             },
         }))
     }
@@ -315,8 +315,9 @@ impl ProductionAdkChatRuntime {
                 message: "stored ADK run payload must be a JSON object".to_owned(),
             });
         }
+        let available_tools = self.tool_catalog.openai_tools();
         let known = response.tool_calls.iter().all(|call| {
-            self.tool_schemas.iter().any(|schema| {
+            available_tools.iter().any(|schema| {
                 schema.get("name").and_then(Value::as_str) == Some(call.name.as_str())
             })
         });
@@ -622,7 +623,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let session_store = Arc::clone(&self.session_store);
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
-        let tool_schemas = Arc::clone(&self.tool_schemas);
+        let tool_catalog = Arc::clone(&self.tool_catalog);
         let input = input.clone();
         if route == AdkChatRoute::Stream {
             let (stream, sender) = ApiStream::channel(32);
@@ -639,7 +640,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
                         cancellation_registry: Arc::clone(&cancellation_registry),
-                        tool_schemas: Arc::clone(&tool_schemas),
+                        tool_catalog: Arc::clone(&tool_catalog),
                     };
                     runtime.start_live_stream(stream_input, stream, sender, started);
                 })
@@ -656,7 +657,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                     session_store,
                     secrets_path,
                     cancellation_registry,
-                    tool_schemas,
+                    tool_catalog,
                 };
                 runtime.dispatch_inner(route, &input)
             })

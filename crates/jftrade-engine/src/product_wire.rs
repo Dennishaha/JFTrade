@@ -86,7 +86,14 @@ impl ApiPort for ProductApi {
                         format!("unknown endpoint {}", request.path),
                     ));
                 };
-                return self.dispatch_production_binding(binding, &request).await;
+                let readiness = self
+                    .production_ports
+                    .as_deref()
+                    .map(|ports| registry.current_binding(binding, ports))
+                    .unwrap_or(binding.adapter_binding);
+                return self
+                    .dispatch_production_binding(binding, readiness, &request)
+                    .await;
             }
             match (request.method.as_str(), request.path.as_str()) {
                 ("GET", "/api/v1/auth/session") => self.auth_session(&request),

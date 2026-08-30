@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use super::product_production_ports::{
-    ProductionAdapterBinding, ProductionPortBundle, OPTION_ANALYSIS_OPERATIONS,
+    runtime_scoped_adapter, ProductionAdapterBinding, ProductionPortBundle,
+    OPTION_ANALYSIS_OPERATIONS,
 };
 use super::*;
 
@@ -436,6 +437,41 @@ impl ProductionRouteRegistry {
         let method = method.trim().to_ascii_uppercase();
         self.bindings.iter().find(|binding| {
             binding.method == method && template_matches(&binding.path, concrete_path)
+        })
+    }
+
+    /// Return the live readiness for a previously validated route binding.
+    ///
+    /// Route registration is intentionally immutable: the canonical 278
+    /// operations and their digest must not change while the process runs.
+    /// Adapter capability, however, follows the shared production runtime and
+    /// may change when a provider reconnects, is switched, or begins teardown.
+    /// Re-evaluate that capability at dispatch time instead of retaining the
+    /// startup snapshot in `ProductionRouteBinding`.
+    pub(crate) fn current_binding(
+        &self,
+        binding: &ProductionRouteBinding,
+        ports: &ProductionPortBundle,
+    ) -> ProductionAdapterBinding {
+        let snapshot = ports.active_provider_state.snapshot();
+        if snapshot.closing {
+            return ProductionAdapterBinding::ExternalUnavailable;
+        }
+        let dynamic = if binding.adapter == ProductionRouteAdapter::ResearchRead {
+            ports.research_operation_binding(&binding.path)
+        } else if binding.adapter == ProductionRouteAdapter::ExecutionWrite {
+            ports
+                .execution_operation_binding(&binding.path)
+                .or_else(|| ports.adapter_binding(binding.adapter))
+        } else {
+            ports.adapter_binding(binding.adapter)
+        };
+        dynamic.unwrap_or_else(|| {
+            if runtime_scoped_adapter(binding.adapter) {
+                ProductionAdapterBinding::ExternalUnavailable
+            } else {
+                binding.adapter_binding
+            }
         })
     }
 }

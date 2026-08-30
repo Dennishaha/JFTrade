@@ -71,7 +71,8 @@ pub(crate) use crate::product::product_backtest_execution::BacktestExecutionTask
 pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
 pub(crate) use product_production_adapter_bindings::production_adapter_bindings;
 pub(crate) use product_production_adapter_bindings::{
-    MarketDataCapabilityMatrix, OPTION_ANALYSIS_OPERATIONS, ProductionAdapterBinding,
+    runtime_scoped_adapter, MarketDataCapabilityMatrix, OPTION_ANALYSIS_OPERATIONS,
+    ProductionAdapterBinding,
 };
 pub(crate) use product_production_database_leases::{
     PRODUCTION_DATABASE_IDS, ProductionDatabaseLeaseSnapshot,
@@ -520,14 +521,13 @@ pub(crate) fn production_ports(
         .with_active_provider_state(Arc::clone(&active_provider_state))
         .with_trade_runtime(config.trade_runtime.clone()),
     );
-    let tool_schemas = Arc::new(tool_catalog.openai_tools());
     let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
         Arc::clone(&adk_store),
         Arc::clone(&adk_session_store),
         config.settings_path(),
         Arc::clone(&cancellation_registry),
-        Arc::clone(&tool_schemas),
+        Arc::clone(&tool_catalog),
     ));
     let adk_port = Arc::new(ProductionAdkPort {
         store: adk_store,

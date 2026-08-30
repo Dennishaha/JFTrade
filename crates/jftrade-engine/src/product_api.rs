@@ -3,6 +3,8 @@ struct ProductApi {
     api_port: u16,
     production_routes:
         Option<Arc<crate::product::product_production_route_registry::ProductionRouteRegistry>>,
+    production_ports:
+        Option<Arc<crate::product::product_production_ports::ProductionPortBundle>>,
     settings: ProductSettingsServices,
     metrics: Arc<TransportMetrics>,
     live_connections: Arc<LiveConnectionMetrics>,
@@ -79,6 +81,7 @@ impl ProductApi {
         Self {
             api_port,
             production_routes: optional_ports.production_routes,
+            production_ports: optional_ports.production_ports,
             settings,
             metrics,
             live_connections,

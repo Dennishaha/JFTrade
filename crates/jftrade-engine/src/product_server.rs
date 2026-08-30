@@ -315,6 +315,10 @@ pub(crate) async fn prepare_product_with_runtime_state(
         .as_ref()
         .map(product_production_route_registry::ProductionRouteRegistry::bind)
         .transpose()?;
+    // Keep a shared view of the concrete production composition in the API.
+    // The ProductHandle retains its own value for teardown, while dispatch
+    // consults this clone's shared runtime state on every request.
+    let production_ports_for_api = production_ports.as_ref().map(|ports| Arc::new(ports.clone()));
     let routes = if let Some(registry) = production_registry.as_ref() {
         registry.catalog().clone()
     } else {
@@ -422,6 +426,7 @@ pub(crate) async fn prepare_product_with_runtime_state(
         real_trade_control,
         ProductOptionalPorts {
             production_routes: production_registry.clone().map(Arc::new),
+            production_ports: production_ports_for_api,
             notification: config.notification_port.clone(),
             calendar_manager: calendar_manager.clone(),
             watchlist_membership_snapshot: config

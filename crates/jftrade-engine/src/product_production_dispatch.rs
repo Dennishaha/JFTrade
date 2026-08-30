@@ -21,6 +21,7 @@ impl ProductApi {
     async fn dispatch_production_binding(
         &self,
         binding: &ProductionRouteBinding,
+        adapter_binding: ProductionAdapterBinding,
         request: &ApiRequest,
     ) -> Result<ApiOutput, ApiFailure> {
         if binding.adapter != binding.dispatch_target() {
@@ -34,7 +35,7 @@ impl ProductApi {
                 ),
             ));
         }
-        match binding.adapter_binding {
+        match adapter_binding {
             ProductionAdapterBinding::Ready => {
                 self.dispatch_production_target(binding.dispatch_target(), request)
                     .await

@@ -13,6 +13,12 @@ struct ProductOptionalPorts {
     /// supplies the registry built from the concrete port bundle.
     production_routes:
         Option<Arc<crate::product::product_production_route_registry::ProductionRouteRegistry>>,
+    /// Shared production composition used to evaluate route readiness at
+    /// dispatch time.  The registry owns the canonical route set, while this
+    /// bundle is the live capability source that tracks provider transitions
+    /// and teardown.
+    production_ports:
+        Option<Arc<crate::product::product_production_ports::ProductionPortBundle>>,
     notification: Option<Arc<dyn ProductNotificationPort>>,
     calendar_manager: Option<Arc<CalendarManager>>,
     watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
