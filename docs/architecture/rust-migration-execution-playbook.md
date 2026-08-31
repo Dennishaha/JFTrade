@@ -2,7 +2,7 @@
 
 本文是 JFTrade Go/Wails -> Rust/Tauri 迁移的执行细则，供 harness、并行 agent 和集成 agent 使用。它不替代仓库根 AGENTS.md、局部 AGENTS.md 或 go-to-rust-migration.md；冲突时以更深层指令和当前仓库事实为准。
 
-> 适用范围：本文保留给历史 route ledger、Go/Rust compatibility corpus、owner/delete 证据和迁移回归维护。278 条生产路由与 Rust/Tauri owner 接管已经完成，普通 Rust production 修复不得把本文中的阶段工作包或状态为 `passed` 的 closeout gate 重新列为待办；当前实现任务只从 [`docs/roadmap.md`](../roadmap.md) 的未闭合项领取。
+> 适用范围：本文保留给历史 route ledger、Go/Rust compatibility corpus、owner/delete 证据和迁移回归维护。278 条生产路由与 Rust/Tauri owner 接管已经完成，MCP baseline、execution reconciliation、storage lease、Tauri readiness 和 `system/status` 投影等运行时门禁不再作为活动迁移任务派发。普通 Rust production 修复不得把本文中的阶段工作包或状态为 `passed` 的 closeout gate 重新列为待办；当前实现任务只从 [`docs/roadmap.md`](../roadmap.md) 的未闭合项领取。
 
 ## Harness 启动协议
 
@@ -22,11 +22,11 @@
 
 不得只根据用户提示词中的旧统计、旧 group 名或旧提交历史派工。route-ownership.json 和门禁输出是当前状态的唯一计数来源。
 
-## 最终目标
+## 当前目标
 
-持续推进迁移，直到 Go 后端、Wails 桌面壳和所有 Go production owner 满足最终删除准入，由 Rust/Tauri 完整接管产品运行时。Vue 3 控制台、Node PineTS worker 和 Python market-data helper 按现有架构保留。PineTS 只产生信号、图形和 order intents；撮合、成交、资金曲线、风控和下单仍属于后端 owner。
+运行时迁移目标已经收敛为 release closeout：Go 后端、Wails 桌面壳和 route production owner 的实现/切换门禁不再作为活动工作包派发；Vue 3 控制台、Node PineTS worker 和 Python market-data helper 按现有 Rust/Tauri 架构保留。PineTS 只产生信号、图形和 order intents；撮合、成交、资金曲线、风控和下单属于 Rust 后端 owner。
 
-当前允许 Go/Rust 共存，但同一业务状态任何时刻只能有一个权威 owner。开始工作前必须动态读取 route ledger、closeout manifest 和实际 composition root；不能把 ledger 的 `productionOwner` 字段单独当作已经切流。当前 ledger 可登记 278 个 `cutover-qualified` 和 Rust owner，但只要 `goRemovalStatus` 仍为 `retained`、默认 profile 仍为 shadow/test-cutover，或 closeout/发布门禁未关闭，正式产品 owner 仍未完成切换。
+后续只处理 closeout manifest 中仍为 `open` 或 `blocked` 的 release、安全、SBOM、rollback、backup/restore 和 post-release smoke 证据。开始工作前必须动态读取 route ledger、closeout manifest 和实际 composition root；不能把旧阶段段落中的 shadow、test-cutover、Go retained 或 route-group DoD 当作当前待办。若某个已通过运行时 gate 发生回归，必须先用当前 checker 或复现证据重新打开该 gate，再派发修复任务。
 
 ## 不可退让的硬约束
 
