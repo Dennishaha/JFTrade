@@ -14,6 +14,7 @@ use super::product_mcp_protocol::{
     model_search_text, optional_bool, optional_integer, optional_string, provider_model,
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
+use crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPortError;
 use crate::product::{
     BacktestReadSnapshotError, BacktestSyncReadSnapshotError, BrokerReadSnapshotError,
     ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
@@ -25,6 +26,8 @@ use jftrade_store_sqlite::AdkStore;
 
 #[path = "product_mcp_production_executor_helpers.rs"]
 mod helpers;
+#[path = "product_mcp_production_executor_market_data.rs"]
+mod market_data;
 use helpers::*;
 
 /// Error envelope carried in `tools/call` structured content.  It mirrors the
@@ -129,6 +132,9 @@ impl ProductionMcpToolExecutor {
             "market.capabilities" => self.market_capabilities(arguments),
             "market.search" => self.market_search(arguments),
             "market.snapshot" => self.market_snapshot(arguments),
+            "market.candles" => self.market_candles(arguments),
+            "market.snapshots" => self.market_snapshots(arguments),
+            "market.subscriptions" => self.market_subscriptions(arguments),
             "plugins.catalog" => self.plugins_catalog(),
             "watchlist.list" => self.watchlist_list(arguments),
             "watchlist.remote.list" => self.remote_watchlist_list(arguments),
@@ -644,6 +650,25 @@ fn quote_error(error: MarketDataQuoteReadSnapshotError) -> McpToolFailure {
             McpToolFailure::unavailable("MARKET_DATA_QUOTE_READ_UNAVAILABLE", message)
         }
         MarketDataQuoteReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => McpToolFailure {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
+pub(super) fn provider_actions_error(error: MarketDataProviderActionsPortError) -> McpToolFailure {
+    match error {
+        MarketDataProviderActionsPortError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE", message)
+        }
+        MarketDataProviderActionsPortError::Failed {
             status,
             code,
             message,

@@ -4,6 +4,10 @@ use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde_json::Value;
 
 use super::McpToolFailure;
+use crate::product::product_market_data_provider_actions_port::{
+    MarketDataProviderActionsPort, MarketDataProviderActionsPortError,
+    MarketDataProviderActionsRequest,
+};
 use crate::product::{MarketDataCatalogReadSnapshotError, MarketDataQuoteReadSnapshotError};
 
 /// Return a required object field without manufacturing a default.  MCP
@@ -144,6 +148,31 @@ pub(super) fn optional_bool_strict(
         },
         _ => Err(McpToolFailure::invalid(format!("{key} must be a boolean"))),
     }
+}
+
+/// Decode a MCP string-array argument without silently accepting malformed
+/// values. Empty items are rejected so a provider action can never receive a
+/// synthetic/empty instrument and report a misleading success.
+pub(super) fn optional_string_array(
+    arguments: &Value,
+    key: &str,
+) -> Result<Option<Vec<String>>, McpToolFailure> {
+    let Some(value) = arguments.get(key) else {
+        return Ok(None);
+    };
+    let values = value
+        .as_array()
+        .ok_or_else(|| McpToolFailure::invalid(format!("{key} must be an array")))?;
+    let mut result = Vec::with_capacity(values.len());
+    for item in values {
+        let text = item
+            .as_str()
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .ok_or_else(|| McpToolFailure::invalid(format!("{key} must contain strings")))?;
+        result.push(text.to_owned());
+    }
+    Ok(Some(result))
 }
 
 pub(super) fn instrument(arguments: &Value) -> Result<(String, String), McpToolFailure> {
@@ -303,5 +332,28 @@ pub(super) fn run_quote_read(
     .join()
     .map_err(|_| {
         MarketDataQuoteReadSnapshotError::Unavailable("quote worker panicked".to_owned())
+    })?
+}
+
+/// Bridge the synchronous MCP executor to the provider-action port's async
+/// contract. A dedicated current-thread runtime avoids blocking whichever
+/// Tokio runtime is serving the HTTP/MCP request while preserving the same
+/// production port and error semantics.
+pub(super) fn run_provider_action(
+    port: Arc<dyn MarketDataProviderActionsPort>,
+    request: MarketDataProviderActionsRequest,
+) -> Result<Value, MarketDataProviderActionsPortError> {
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| MarketDataProviderActionsPortError::Unavailable(error.to_string()))?
+            .block_on(async move { port.dispatch(&request).await })
+    })
+    .join()
+    .map_err(|_| {
+        MarketDataProviderActionsPortError::Unavailable(
+            "provider action worker panicked".to_owned(),
+        )
     })?
 }
