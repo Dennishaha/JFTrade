@@ -247,6 +247,88 @@ pub(super) fn query_string<const N: usize>(fields: [(&str, Option<String>); N]) 
         .join("&")
 }
 
+/// Encode scalar MCP arguments as a deterministic query string.  The HTTP
+/// production ports own the actual validation and projection; this helper
+/// only rejects values that cannot be represented by the public query wire
+/// format (objects, nulls, and empty array items). Arrays are comma-joined,
+/// matching the QueryMap parsers used by the market-data routes.
+pub(super) fn arguments_query(
+    arguments: &Value,
+    excluded: &[&str],
+    aliases: &[(&str, &str)],
+) -> Result<String, McpToolFailure> {
+    let object = arguments
+        .as_object()
+        .ok_or_else(|| McpToolFailure::invalid("tool arguments must be an object"))?;
+    let mut values = std::collections::BTreeMap::<String, Vec<String>>::new();
+    for (key, value) in object {
+        if excluded.iter().any(|excluded| excluded == key) {
+            continue;
+        }
+        let output_key = aliases
+            .iter()
+            .find_map(|(source, target)| (*source == key).then_some(*target))
+            .unwrap_or(key.as_str());
+        let items = argument_query_values(key, value)?;
+        if !items.is_empty() {
+            values
+                .entry(output_key.to_owned())
+                .or_default()
+                .extend(items);
+        }
+    }
+    Ok(values
+        .into_iter()
+        .map(|(key, items)| {
+            format!(
+                "{key}={}",
+                utf8_percent_encode(&items.join(","), NON_ALPHANUMERIC)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("&"))
+}
+
+fn argument_query_values(key: &str, value: &Value) -> Result<Vec<String>, McpToolFailure> {
+    match value {
+        Value::String(value) => {
+            let value = value.trim();
+            Ok((!value.is_empty())
+                .then(|| value.to_owned())
+                .into_iter()
+                .collect())
+        }
+        Value::Number(value) => Ok(vec![value.to_string()]),
+        Value::Bool(value) => Ok(vec![value.to_string()]),
+        Value::Array(values) => {
+            let mut result = Vec::with_capacity(values.len());
+            for value in values {
+                let item = match value {
+                    Value::String(value) => value.trim().to_owned(),
+                    Value::Number(value) => value.to_string(),
+                    Value::Bool(value) => value.to_string(),
+                    _ => {
+                        return Err(McpToolFailure::invalid(format!(
+                            "{key} must contain scalar values"
+                        )));
+                    }
+                };
+                if item.is_empty() {
+                    return Err(McpToolFailure::invalid(format!(
+                        "{key} must not contain empty values"
+                    )));
+                }
+                result.push(item);
+            }
+            Ok(result)
+        }
+        Value::Null => Err(McpToolFailure::invalid(format!("{key} must not be null"))),
+        Value::Object(_) => Err(McpToolFailure::invalid(format!(
+            "{key} must be a scalar or array"
+        ))),
+    }
+}
+
 pub(super) fn broker_query(arguments: &Value, scope: String) -> String {
     query_string([
         ("scope", Some(scope)),

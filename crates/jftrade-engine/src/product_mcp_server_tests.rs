@@ -333,9 +333,9 @@ fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(reviewed.len(), 69);
-    assert_eq!(native.len(), 37);
+    assert_eq!(native.len(), 49);
     assert!(native.is_subset(&reviewed));
-    assert_eq!(reviewed.len() - native.len(), 32);
+    assert_eq!(reviewed.len() - native.len(), 20);
 }
 
 #[test]

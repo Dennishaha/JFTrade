@@ -209,3 +209,61 @@ fn route_backed_microstructure_tools_have_exact_production_adapters() {
         assert_eq!(mcp_tool_adapter(name), Some(adapter));
     }
 }
+
+#[test]
+fn derivatives_and_prediction_tools_have_exact_production_adapters() {
+    let expected = [
+        (
+            "derivatives.warrants",
+            ProductionRouteAdapter::MarketDataDerivativeRead,
+        ),
+        (
+            "derivatives.futures",
+            ProductionRouteAdapter::MarketDataFuturesRead,
+        ),
+        (
+            "derivatives.option_chain",
+            ProductionRouteAdapter::MarketDataOptionsChainRead,
+        ),
+        (
+            "derivatives.option_screen",
+            ProductionRouteAdapter::MarketDataOptionsScreenRead,
+        ),
+        (
+            "derivatives.option_analysis",
+            ProductionRouteAdapter::MarketDataOptionsAnalysisRead,
+        ),
+        (
+            "derivatives.option_events",
+            ProductionRouteAdapter::MarketDataOptionsEventsRead,
+        ),
+        (
+            "prediction.discover",
+            ProductionRouteAdapter::MarketDataPredictionRead,
+        ),
+        (
+            "prediction.snapshot",
+            ProductionRouteAdapter::MarketDataPredictionRead,
+        ),
+        (
+            "prediction.depth",
+            ProductionRouteAdapter::MarketDataPredictionRead,
+        ),
+        (
+            "prediction.history",
+            ProductionRouteAdapter::MarketDataPredictionRead,
+        ),
+        (
+            "prediction.combo_eligible",
+            ProductionRouteAdapter::MarketDataPredictionRead,
+        ),
+        (
+            "prediction.combo_quote",
+            ProductionRouteAdapter::MarketDataPredictionCombosWrite,
+        ),
+    ];
+    for (name, adapter) in expected {
+        assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
+        assert_eq!(mcp_tool_adapter(name), Some(adapter));
+    }
+}

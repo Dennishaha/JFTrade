@@ -3,9 +3,11 @@ use crate::product::product_market_data_provider_actions_port::MarketDataProvide
 use crate::product::{
     BacktestReadSnapshotError, BacktestSyncReadSnapshotError, BrokerReadSnapshotError,
     ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
-    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError, PluginSnapshotError,
-    PortfolioSnapshotError, RemoteWatchlistSnapshotError, StrategyDefinitionSnapshotError,
-    StrategyReadSnapshotError, SystemReadSnapshotError, WatchlistReadSnapshotError,
+    MarketDataDerivativeReadSnapshotError, MarketDataOptionsReadSnapshotError,
+    MarketDataPredictionReadSnapshotError, MarketDataProviderReadSnapshotError,
+    MarketDataQuoteReadSnapshotError, PluginSnapshotError, PortfolioSnapshotError,
+    RemoteWatchlistSnapshotError, StrategyDefinitionSnapshotError, StrategyReadSnapshotError,
+    SystemReadSnapshotError, WatchlistReadSnapshotError,
 };
 
 use super::McpToolFailure;
@@ -66,6 +68,52 @@ pub(crate) fn provider_actions_error(error: MarketDataProviderActionsPortError) 
             McpToolFailure::unavailable("MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE", message)
         }
         MarketDataProviderActionsPortError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => McpToolFailure {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
+pub(super) fn derivative_error(error: MarketDataDerivativeReadSnapshotError) -> McpToolFailure {
+    match error {
+        MarketDataDerivativeReadSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_DATA_DERIVATIVE_UNAVAILABLE", message)
+        }
+        MarketDataDerivativeReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+        } => McpToolFailure::failed(status, code, message),
+    }
+}
+
+pub(super) fn options_error(error: MarketDataOptionsReadSnapshotError) -> McpToolFailure {
+    match error {
+        MarketDataOptionsReadSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_DATA_OPTIONS_UNAVAILABLE", message)
+        }
+        MarketDataOptionsReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+        } => McpToolFailure::failed(status, code, message),
+    }
+}
+
+pub(super) fn prediction_error(error: MarketDataPredictionReadSnapshotError) -> McpToolFailure {
+    match error {
+        MarketDataPredictionReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
+        MarketDataPredictionReadSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_DATA_PREDICTION_READ_UNAVAILABLE", message)
+        }
+        MarketDataPredictionReadSnapshotError::Failed {
             status,
             code,
             message,

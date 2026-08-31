@@ -110,6 +110,12 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "market.capital_flow",
     "market.snapshots",
     "market.subscriptions",
+    "derivatives.option_chain",
+    "derivatives.option_analysis",
+    "derivatives.option_events",
+    "derivatives.option_screen",
+    "derivatives.warrants",
+    "derivatives.futures",
     "broker.cash_flows",
     "broker.fees",
     "broker.margin_ratios",
@@ -130,6 +136,12 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "backtest.result_view",
     "risk.state",
     "risk.events",
+    "prediction.discover",
+    "prediction.snapshot",
+    "prediction.depth",
+    "prediction.history",
+    "prediction.combo_eligible",
+    "prediction.combo_quote",
 ];
 pub(crate) const SUPPORTED_PROTOCOL_VERSIONS: &[&str] = &[
     "2026-07-28",
@@ -459,6 +471,18 @@ pub(crate) fn mcp_tool_adapter(name: &str) -> Option<ProductionRouteAdapter> {
         "market.capital_flow" => ProductionRouteAdapter::MarketDataCapitalFlowRead,
         "market.snapshots" => ProductionRouteAdapter::MarketDataBatchSnapshotsWrite,
         "market.subscriptions" => ProductionRouteAdapter::MarketDataSubscriptionRead,
+        "derivatives.warrants" => ProductionRouteAdapter::MarketDataDerivativeRead,
+        "derivatives.futures" => ProductionRouteAdapter::MarketDataFuturesRead,
+        "derivatives.option_chain" => ProductionRouteAdapter::MarketDataOptionsChainRead,
+        "derivatives.option_screen" => ProductionRouteAdapter::MarketDataOptionsScreenRead,
+        "derivatives.option_analysis" => ProductionRouteAdapter::MarketDataOptionsAnalysisRead,
+        "derivatives.option_events" => ProductionRouteAdapter::MarketDataOptionsEventsRead,
+        "prediction.discover"
+        | "prediction.snapshot"
+        | "prediction.depth"
+        | "prediction.history"
+        | "prediction.combo_eligible" => ProductionRouteAdapter::MarketDataPredictionRead,
+        "prediction.combo_quote" => ProductionRouteAdapter::MarketDataPredictionCombosWrite,
         "broker.cash_flows" | "broker.fees" | "broker.margin_ratios" => {
             ProductionRouteAdapter::BrokerRead
         }

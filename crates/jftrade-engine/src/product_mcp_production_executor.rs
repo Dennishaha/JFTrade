@@ -16,12 +16,16 @@ use super::product_mcp_protocol::{
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
 use jftrade_store_sqlite::AdkStore;
 
+#[path = "product_mcp_production_executor_derivatives.rs"]
+mod derivatives;
 #[path = "product_mcp_production_executor_errors.rs"]
 mod errors;
 #[path = "product_mcp_production_executor_helpers.rs"]
 mod helpers;
 #[path = "product_mcp_production_executor_market_data.rs"]
 mod market_data;
+#[path = "product_mcp_production_executor_prediction.rs"]
+mod prediction;
 #[path = "product_mcp_production_executor_trade.rs"]
 mod trade;
 use errors::*;
@@ -142,6 +146,18 @@ impl ProductionMcpToolExecutor {
             "market.candles" => self.market_candles(arguments),
             "market.snapshots" => self.market_snapshots(arguments),
             "market.subscriptions" => self.market_subscriptions(arguments),
+            "derivatives.futures"
+            | "derivatives.warrants"
+            | "derivatives.option_chain"
+            | "derivatives.option_analysis"
+            | "derivatives.option_events"
+            | "derivatives.option_screen" => self.derivative_read(name, arguments),
+            "prediction.discover"
+            | "prediction.snapshot"
+            | "prediction.depth"
+            | "prediction.history"
+            | "prediction.combo_eligible"
+            | "prediction.combo_quote" => self.prediction(name, arguments),
             "broker.cash_flows" => self.broker_cash_flows(arguments),
             "broker.fees" => self.broker_fees(arguments),
             "broker.margin_ratios" => self.broker_margin_ratios(arguments),

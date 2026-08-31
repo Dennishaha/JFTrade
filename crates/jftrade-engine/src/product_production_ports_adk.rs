@@ -251,6 +251,20 @@ impl ProductionToolCatalog {
             "market.depth" => ProductionRouteAdapter::MarketDataDepthRead,
             "market.broker_queue" => ProductionRouteAdapter::MarketDataBrokerQueueRead,
             "market.capital_flow" => ProductionRouteAdapter::MarketDataCapitalFlowRead,
+            "derivatives.warrants" => ProductionRouteAdapter::MarketDataDerivativeRead,
+            "derivatives.futures" => ProductionRouteAdapter::MarketDataFuturesRead,
+            "derivatives.option_chain" => ProductionRouteAdapter::MarketDataOptionsChainRead,
+            "derivatives.option_screen" => ProductionRouteAdapter::MarketDataOptionsScreenRead,
+            "derivatives.option_analysis" => {
+                ProductionRouteAdapter::MarketDataOptionsAnalysisRead
+            },
+            "derivatives.option_events" => ProductionRouteAdapter::MarketDataOptionsEventsRead,
+            "prediction.discover"
+            | "prediction.snapshot"
+            | "prediction.depth"
+            | "prediction.history"
+            | "prediction.combo_eligible" => ProductionRouteAdapter::MarketDataPredictionRead,
+            "prediction.combo_quote" => ProductionRouteAdapter::MarketDataPredictionCombosWrite,
             "system.runtime_dependencies" => ProductionRouteAdapter::SystemRead,
             "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
             "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,
