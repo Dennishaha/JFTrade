@@ -1,5 +1,9 @@
 # Portfolio Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `portfolio-read`
 - Tier: B: broker-backed portfolio projections depend on the Go broker runtime and provider lifecycle, so Rust is test-cutover-only.
 - Owner: Go remains production owner. Rust accepts a consumer-owned `PortfolioSnapshotPort` only in `ProductConfig::test_cutover`; it never discovers accounts, connects OpenD, queries a broker, or writes portfolio state.

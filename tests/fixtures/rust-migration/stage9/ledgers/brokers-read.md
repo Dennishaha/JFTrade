@@ -1,5 +1,9 @@
 # Brokers Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `brokers-read`
 - Tier: B: broker-backed balances, orders, fills, quotes and runtime projections depend on the Go broker lifecycle, so Rust is test-cutover-only.
 - Owner: Go remains production owner. Rust accepts a consumer-owned `BrokerReadSnapshotPort` only in `ProductConfig::test_cutover`; it never discovers accounts, connects OpenD, activates a broker, or writes trading state.

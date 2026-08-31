@@ -1,5 +1,9 @@
 # Strategies Runtime Write Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `strategies-write`
 - Tier: A: seven strategy-instance mutation/control operations change catalog or live runtime state.
 - Operations: 7: `PUT /api/v1/strategies/{instanceId}`, `PUT /api/v1/strategies/{instanceId}/runtime-risk`, `POST /api/v1/strategies/{instanceId}/pause`, `POST /api/v1/strategies/{instanceId}/stop`, `POST /api/v1/strategies/{instanceId}/start`, `POST /api/v1/strategies/{instanceId}/refresh-definition`, and `DELETE /api/v1/strategies/{instanceId}`.

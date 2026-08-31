@@ -1,5 +1,9 @@
 # Market-Data Provider Actions Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `market-data-provider-actions`
 - Tier: B; provider-backed action and snapshot rehearsal only.
 - Operations: 5 unique POST operations. The duplicated baseline entry for option analysis is represented once; prediction subscription lease mutations are excluded.

@@ -1,5 +1,9 @@
 # System Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `system-read`
 - Tier: B: OpenD health and broker order-update worker projections depend on broker/provider lifecycle and runtime worker state, so Rust is test-cutover-only.
 - Owner: Go remains the production owner. Rust accepts a consumer-owned `SystemReadSnapshotPort` only in `ProductConfig::test_cutover`; it never connects OpenD, activates a broker, starts an order-update worker, or writes trading state.

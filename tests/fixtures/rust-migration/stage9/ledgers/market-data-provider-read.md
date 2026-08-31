@@ -1,5 +1,9 @@
 # Market-Data Provider Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `market-data-provider-read`
 - Tier: B; the projection depends on the live market-data Provider descriptor, health, runtime, and subscription lifecycle, so it is not a simple static GET.
 - Owner: Go remains the production owner of Provider/OpenD lifecycle, health probes, runtime state, subscription demand/cache, and all market-data writes. Rust accepts a complete `MarketDataProviderReadSnapshotPort` only in explicit `ProductConfig::test_cutover` wiring and never activates a Provider or OpenD.

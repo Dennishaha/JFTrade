@@ -1,5 +1,9 @@
 # Backtests Run Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `backtests-run-read`
 - Tier: C: qualification uses an authenticated Go-sidecar rehearsal for persisted backtest-run projections, while the Go run store still owns SQLite, recovery, and the in-memory active view; Rust remains test-cutover-only.
 - Owner: Go remains the production owner. Rust accepts a consumer-owned `BacktestReadSnapshotPort` only in `ProductConfig::test_cutover`; it never opens the backtest database, starts PineTS, syncs market data, or mutates a run.

@@ -1,5 +1,9 @@
 # Strategy Instance Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `strategy-instance-read`
 - Tier: B: the list combines catalog, definition-sync, runtime observation, and persisted activity projections; logs/audit expose mutable runtime activity and pagination boundaries.
 - Owner: Go remains the production owner of the strategy catalog, definition store, runtime manager, activity SQLite store, and all strategy lifecycle writes. Rust accepts a complete `StrategyReadSnapshotPort` only in explicit `ProductConfig::test_cutover` wiring and never opens the strategy database, starts PineTS, changes runtime state, or emits activity.

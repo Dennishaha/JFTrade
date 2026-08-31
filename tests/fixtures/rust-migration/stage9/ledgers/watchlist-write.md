@@ -1,5 +1,9 @@
 # Watchlist Write Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `watchlist-write`
 - Tier: A mutation; eight local watchlist routes are covered as one group.
 - Production owner: Go remains the sole owner. Rust is a consumer-owned, test-only mutation leaf and is not registered in the default profile.

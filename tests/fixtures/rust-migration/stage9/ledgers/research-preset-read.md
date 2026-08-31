@@ -1,5 +1,9 @@
 # Research Preset Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `research-preset-read`
 - Tier: C read-only projections backed by the Go research preset service and SQLite store; Rust is test-cutover-only.
 - Owner: Go remains the production owner of preset SQLite, `NormalizeDefinitionV2`, revision checks, and all preset writes. Rust accepts a complete `ResearchPresetReadSnapshotPort` only in explicit `ProductConfig::test_cutover` wiring and never opens the research database or registers mutation routes.

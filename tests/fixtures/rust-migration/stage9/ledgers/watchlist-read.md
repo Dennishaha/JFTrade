@@ -1,5 +1,9 @@
 # Watchlist Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `watchlist-read`
 - Tier: C for local projections, with explicit test-cutover only because the Go watchlist service owns SQLite, source refresh, pagination, and cache/lifecycle behavior.
 - Owner: Go remains the production owner. Rust accepts a consumer-owned `WatchlistReadSnapshotPort` only in `ProductConfig::test_cutover`; it never opens the watchlist SQLite database or activates a broker source reader.

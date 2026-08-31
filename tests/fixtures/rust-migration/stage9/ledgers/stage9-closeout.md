@@ -1,5 +1,18 @@
 # Stage 9 closeout shared harness
 
+## Current truth (2026-08-31)
+
+Run `node scripts/rust-migration/check-stage9-route-coverage.mjs` and read
+`tests/fixtures/rust-migration/stage9/route-ownership.json` for the current
+route ledger. It currently derives 278 `cutover-qualified` operations, 0
+`shadow`, 0 `cutover-test-only`, 0 `remaining`, and 278 Rust production owners
+with Go removal recorded for every operation. Run
+`node scripts/rust-migration/check-stage9-closeout.mjs --check` for formal
+release status; it remains `in_progress` while platform release, signing,
+security, SBOM, rollback, backup/restore and post-release smoke gates are open.
+The historical owner labels and counts below are retained as rehearsal evidence
+and must not be read as the current production boundary.
+
 状态：集成分支维护的共享收口证据；不代表任何 route group 已切换 production owner。
 
 ## Three-way review and quirks
@@ -38,6 +51,8 @@ quirk: The Rust default shadow-catalog assertion selected every `cutover-qualifi
 owner: 集成分支
 后续: when a future group becomes default-shadow registered, update this explicit boundary list together with its composition-root change and evidence.
 
-## Current boundary
+## Historical boundary (pre-2026-08-31)
+
+> Historical/rehearsal snapshot (retained verbatim; superseded by the current truth above):
 
 The current dynamically derived snapshot is `1 shadow / 118 cutover-test-only / 159 cutover-qualified / 0 remaining / 0 Rust production owner`. The `auth-session` route, `auth-session-write` login/logout mutations, and `watchlists-remote-write` mutation are cutover-qualified only under their explicit authenticated test-cutover ports; Go remains the only production owner, all route rehearsal profiles stay explicit test-cutover only or authenticated shadow, and Go/Wails deletion remains blocked by the formal gates.

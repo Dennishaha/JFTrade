@@ -1,5 +1,9 @@
 # Plugins Read Group Ledger
 
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
 - Group: `plugins-read`
 - Tier: C in the route inventory. Qualification uses an authenticated Go-sidecar rehearsal; the Rust snapshot port remains explicit test-cutover-only because the catalog and persisted operation status are owned by the Go plugin lifecycle and catalog store.
 - Owner: Go remains the production owner. Rust accepts consumer-owned `PluginSnapshotPort` and `PluginUninstallGuidanceSnapshotPort` instances only in `ProductConfig::test_cutover`; it never opens the plugin catalog store, scans plugin files, executes uninstall commands, loads plugin code, or starts a runtime/provider. The default shadow profile does not register these routes.
