@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-31。当前阶段：**当前 composition root 已由 Rust/Tauri 承接独立 API 和桌面运行时；`route-ownership.json` 登记 278 个 `cutover-qualified` operation，`productionOwner=rust` 且 `goRemovalStatus=removed`。Go/Wails 生产入口已下线。Stage 9 closeout manifest 仍为 `in_progress`：四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke、签名 updater artifact、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 仍然开放。发布前使用 release-candidate admission 只校验路由与基础 owner 门禁；正式 release/closeout 必须在发布后使用完整 checker，且等这些证据全部闭合；本文保留的 Go 参照实现和差分工具只用于验证，不得作为生产 fallback**。
+状态：执行中。更新时间：2026-08-31。当前阶段：**当前 composition root 已由 Rust/Tauri 承接独立 API 和桌面运行时；`route-ownership.json` 登记 278 个 `cutover-qualified` operation，`productionOwner=rust` 且 `goRemovalStatus=removed`。Go/Wails 生产入口已下线。Stage 9 closeout manifest 仍为 `in_progress`：四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke、签名 updater artifact、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 仍然开放。发布前先由静态 admission 校验路由与唯一 owner，再由四平台产物汇总后的独立 candidate evidence checker 绑定 release ref、commit、workflow run、产物路径与摘要；正式 release/closeout 必须在发布完成后由独立 workflow 使用更新后的 evidence ref 运行完整 checker。本文保留的 Go 参照实现和差分工具只用于验证，不得作为生产 fallback**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -424,7 +424,7 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 - [x] 建立 `jftrade-research`、`jftrade-watchlist`、`jftrade-settings`、`jftrade-calendar` 和 `jftrade-datamanagement` 的首批纯规则及拒绝测试；领域 crate 不依赖 Axum、SQLite、Provider SDK 或其他领域 service。
 - [x] 由 `jftrade-engine::stage7` 唯一装配 route catalog、领域投影和 `ApiPort`；未登记 operation fail closed，shadow 只返回确定性投影，不写数据库、不启动监听器。
 - [x] 固定 Go/Rust differential、损坏/未知/缺字段输入拒绝、SHA-256 manifest 和 Darwin ARM64 release 资源基线；未修改 OpenAPI、Wails bindings、SQLite schema 或 Vue API 调用。
-- [ ] 278 个 operation 的真实 handler/DTO/store port、完整 status/header/null/omitted 逐响应 replay、长时间 SSE/WebSocket 断线恢复、生产 static bundle、真实 sidecar lifecycle、route-group 灰度/回退和 Web/桌面 E2E 尚未执行；这些继续阻断产品切流和 Go 删除。
+> 历史快照（截至 2026-08-25；不代表当前状态）：当时 278 个 operation 的真实 handler/DTO/store port、完整 status/header/null/omitted 逐响应 replay、长时间 SSE/WebSocket 断线恢复、生产 static bundle、真实 sidecar lifecycle、route-group 灰度/回退和 Web/桌面 E2E 尚未执行。当前 route owner 与实现状态以 Stage 9 当前状态覆盖、route ledger 和实际 composition 为准；剩余阻断项仅是 closeout manifest 中仍为 open/blocked 的发布证据。
 
 #### 阶段 7 执行账本
 
@@ -439,7 +439,7 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go 生产 Gin 路由/OpenAPI 注册 harness 的 p95 为 128.371 ms、峰值 RSS 75,481,088 bytes；Rust composition replay 的 p95 为 5.740 ms、峰值 RSS 2,605,056 bytes，Rust/Go 比值为 0.045/0.035，5% p95 与 10% RSS 回退门禁通过。Go 每次装配生产 router，Rust 只做无 listener 的本地投影；绝对启动、binary size 和真实 HTTP 吞吐不作产品结论。
 
-本阶段“本地完成”只证明 transport 边界、全量 operation inventory、首批控制面纯规则、确定性 replay 和资源门禁闭环。它没有实现或切换 278 个生产 handler，没有写 SQLite、启动公开 listener、承接长连接或接管 Node/Python/OpenD lifecycle；全量 route-group replay、Web/生产 bundle、真实 sidecar、原生平台和观察窗口完成前，阶段 7 不构成产品放行，Go/Gin 生产 owner 不变。
+> 历史快照（截至 2026-08-25；不代表当前状态）：阶段 7 当时只证明 transport 边界、全量 operation inventory、首批控制面纯规则、确定性 replay 和资源门禁闭环，尚未实现或切换生产 handler，也未启动公开 listener。当前生产 handler、listener、sidecar 和 owner 状态以 Stage 9 当前状态覆盖及 closeout manifest 为准。
 
 放行：全量契约/differential/Web 测试通过；生产 bundle 和真实 sidecar smoke 通过；启动、关闭、端口和安全边界一致。
 
@@ -450,10 +450,7 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 - [x] 复制 Wails 的 dev/release identity、单实例 ID、`127.0.0.1:3008`/`127.0.0.1:6699`、系统用户数据目录、settings/backtest/window-state 路径和 update policy；三平台 profile corpus 固定成功与拒绝行为。
 - [x] 建立 engine → Pine worker → market-data sidecar 的资产校验和启动顺序，以及反向关闭、5 秒关闭预算、readiness 失败回收；本地实现只通过注入的 supervisor 形成可执行计划，不启动第二套产品子进程。
 - [x] 固定 Go/Wails 对 Rust/Tauri 的 desktop differential、Vue 双 adapter 行为测试、SHA-256 manifest 与 Darwin ARM64 release replay 资源基线。
-- [x] 阶段 9 macOS RC 已启用实际 Wry/native runner，接入受鉴权的只读 Rust API shadow 与受管 PineTS/Python 发布资产，并实现 tray/menu、notification adapter 和兼容 window state；正式 launcher 与全部业务写 owner 均未切换。
-- [x] 已接入官方签名 updater 的检查、显式下载/安装、失败重试与安装前进程树回收边界；开发/缺配置时不联网，Stage 8 冻结的 10-command fixture 不变，安装作为 Stage 9 独立 command 扩展。
-- [ ] 仍需在 release signing workflow 生成真实签名 updater artifact，并在同一生产 Vue bundle 上完成 Wails/Tauri 黑屏、退出孤儿、数据升级与回退对照。
-- [ ] macOS ARM64、Linux x64、Windows x64/ARM64 的签名、安装、升级和卸载 smoke 尚未执行；完成前不得切换桌面入口或删除 Wails bindings/生成链。
+> 历史快照（截至 2026-08-25；不代表当前状态）：阶段 9 macOS RC、官方 updater 代码边界以及当时尚未完成的真实签名 artifact、Wails/Tauri 黑屏对照和四平台安装/升级/卸载 smoke 均记录在此。当前四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke 与 updater/backup/security/SBOM 证据状态只以 Stage 9 closeout manifest 和发布 workflow 的独立 evidence ref 为准。
 
 #### 阶段 8 执行账本
 
@@ -468,13 +465,13 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go 生产 Wails 桌面行为 harness 的 p95 为 18.247 ms、峰值 RSS 42,631,168 bytes；Rust/Tauri facade replay 的 p95 为 6.658 ms、峰值 RSS 8,765,440 bytes，Rust/Go 比值为 0.365/0.206，5% p95 与 10% RSS 回退门禁通过。Rust 样本没有创建 native WebView 或真实子进程，绝对启动、RSS 与二进制大小不能用作 Tauri 产品资源结论。
 
-阶段 8 提交当时的“本地完成”只证明 facade owner、配置/路径语义、生命周期计划、Vue 双 adapter、确定性 replay 和资源门禁闭环。阶段 9 工作树随后补充了 macOS native RC、真实受管 child、`.app` smoke 和官方签名 updater 代码边界，但仍未取得任何生产业务写 owner，也未完成视觉黑屏、真实签名 updater artifact、四平台签名安装和升级数据验证；四平台 release candidate 与观察窗口完成前，阶段 8/9 均不构成产品放行，Wails 生产 owner 不变。
+> 历史快照（截至 2026-08-25；不代表当前状态）：阶段 8 提交时的“本地完成”只证明 facade owner、配置/路径语义、生命周期计划、Vue 双 adapter、确定性 replay 和资源门禁闭环；随后补充的 macOS native RC、真实受管 child、`.app` smoke 和 updater 代码边界也不等同于四平台 release 资格。当前发布放行与桌面 owner 状态以 Stage 9 当前状态覆盖、独立 candidate evidence 和 post-release closeout workflow 为准。
 
 放行：macOS ARM64、Linux x64、Windows x64/ARM64 打包与安装 smoke；无黑屏；退出无孤儿进程；升级不丢数据。
 
 ### 阶段 9：Go 删除与 Rust 大版本发布
 
-> **当前状态覆盖（2026-08-31）**：以 `node scripts/rust-migration/check-stage9-route-coverage.mjs`、`route-ownership.json`、`closeout-evidence.json` 和实际 `ProductConfig` composition 为准。当前 route ledger 为 278 个 `cutover-qualified`、0 个 `remaining`，且全部记录为 `productionOwner=rust`、`goRemovalStatus=removed`；Rust production composition 注册这 278 条 `/api/v1/*` 路由，SQLite 写入使用唯一 `WriterLease`，外部 Provider/OpenD/PineTS 在不可用时返回 fail-closed baseline。closeout manifest 仍为 `in_progress`：平台发布、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部通过，因此不能宣称最终 release closeout 完成。发布 workflow 在 release-inputs 和 publish 阶段只运行 candidate checker；完整 `--check` 仅用于发布后的 closeout 复核。
+> **当前状态覆盖（2026-08-31）**：以 `node scripts/rust-migration/check-stage9-route-coverage.mjs`、`route-ownership.json`、`closeout-evidence.json` 和实际 `ProductConfig` composition 为准。当前 route ledger 为 278 个 `cutover-qualified`、0 个 `remaining`，且全部记录为 `productionOwner=rust`、`goRemovalStatus=removed`；Rust production composition 注册这 278 条 `/api/v1/*` 路由，SQLite 写入使用唯一 `WriterLease`，外部 Provider/OpenD/PineTS 在不可用时返回 fail-closed baseline。closeout manifest 仍为 `in_progress`：平台发布、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部通过，因此不能宣称最终 release closeout 完成。发布 workflow 先运行 `--candidate-static` 的路由/唯一 owner admission，再在四平台 artifact 汇总后运行独立 `check-release-candidate.mjs`；完整 `--check` 仅由发布后的独立 closeout workflow、在更新后的 evidence ref 上执行。
 
 下文紧接的长段落和 Stage 9 表格保留了 2026-08-25 之前的阶段快照；其中的 144/133、1 shadow/133 cutover-test-only/144 cutover-qualified 等数字是历史证据，不是当前统计。新的切片必须使用动态门禁输出，并同时核对 active composition 与 closeout，不得复制历史计数。
 

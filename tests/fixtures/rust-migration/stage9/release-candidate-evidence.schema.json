@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/release-candidate-evidence.v1.json",
+  "title": "JFTrade pre-release candidate evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "phase",
+    "status",
+    "releaseRef",
+    "releaseTag",
+    "commitSha",
+    "workflowRun",
+    "platforms",
+    "sha256sums",
+    "prerequisites"
+  ],
+  "properties": {
+    "$schema": { "const": "./release-candidate-evidence.schema.json" },
+    "schemaVersion": { "const": "jftrade.release-candidate-evidence.v1" },
+    "phase": { "const": "pre-release" },
+    "status": { "const": "candidate_ready" },
+    "releaseRef": { "type": "string", "minLength": 1 },
+    "releaseTag": {
+      "type": "string",
+      "pattern": "^v\\d+\\.\\d+\\.\\d+$"
+    },
+    "commitSha": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+    },
+    "workflowRun": { "$ref": "#/$defs/workflowRun" },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["macos-arm64", "linux-x64", "windows-x64", "windows-arm64"],
+      "properties": {
+        "macos-arm64": { "$ref": "#/$defs/platform" },
+        "linux-x64": { "$ref": "#/$defs/platform" },
+        "windows-x64": { "$ref": "#/$defs/platform" },
+        "windows-arm64": { "$ref": "#/$defs/platform" }
+      }
+    },
+    "sha256sums": { "$ref": "#/$defs/file" },
+    "prerequisites": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/prerequisite" },
+      "minItems": 6
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "size": { "type": "integer", "minimum": 1 },
+        "kind": { "type": "string", "minLength": 1 }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "artifacts"],
+      "properties": {
+        "manifest": { "$ref": "#/$defs/file" },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        }
+      }
+    },
+    "workflowRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attempt", "workflow", "ref", "commitSha"],
+      "properties": {
+        "id": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^\\d+$" }] },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "workflow": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
+        "url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "releaseRef", "commitSha", "workflowRun", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "status": { "const": "passed" },
+        "releaseRef": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
+        "workflowRun": { "$ref": "#/$defs/workflowRun" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "summary": { "type": "string" }
+      }
+    }
+  }
+}

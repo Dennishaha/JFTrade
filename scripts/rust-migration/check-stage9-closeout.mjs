@@ -444,6 +444,47 @@ export function evaluateCandidate(manifest, options = {}) {
   };
 }
 
+/**
+ * Validate only the repository-local admission boundary used before release
+ * artifacts exist.  This deliberately does not inspect any external release
+ * gate or claim that a candidate is qualified; artifact-bound evidence is
+ * checked by check-release-candidate.mjs after all platform jobs complete.
+ */
+export function evaluateCandidateStatic(manifest, options = {}) {
+  const errors = validateManifest(manifest);
+  if (errors.length > 0) {
+    return {
+      phase: "candidate-static",
+      valid: false,
+      complete: false,
+      errors,
+      blockers: [],
+      expectedRouteOwnership: null,
+    };
+  }
+
+  const expectedRouteOwnership = options.expectedRouteOwnership ?? routeOwnershipSnapshot(
+    options.repositoryRoot ?? repositoryRoot,
+  );
+  const blockers = routeOwnershipBlockers(expectedRouteOwnership);
+  if (manifest.status !== "in_progress") {
+    blockers.push("static release admission requires manifest status in_progress");
+  }
+  for (const gate of ["allRouteGroups", "uniqueWriteOwner"]) {
+    if (!gateIsPassed(manifest, gate)) {
+      blockers.push(`static admission gate ${gate} is ${manifest.gates[gate].status}`);
+    }
+  }
+  return {
+    phase: "candidate-static",
+    valid: true,
+    complete: blockers.length === 0,
+    errors: [],
+    blockers,
+    expectedRouteOwnership,
+  };
+}
+
 function parseArguments(args) {
   let check = false;
   let mode = "full";
@@ -458,6 +499,11 @@ function parseArguments(args) {
     if (argument === "--candidate" || argument === "--check-candidate") {
       check = true;
       mode = "candidate";
+      continue;
+    }
+    if (argument === "--candidate-static" || argument === "--check-candidate-static") {
+      check = true;
+      mode = "candidate-static";
       continue;
     }
     if (argument === "--manifest") {
@@ -480,20 +526,30 @@ export function main(args = process.argv.slice(2)) {
     const manifest = readJson(parsed.manifestPath, "Stage 9 closeout evidence manifest");
     const result = parsed.mode === "candidate"
       ? evaluateCandidate(manifest)
-      : evaluateCloseout(manifest);
+      : parsed.mode === "candidate-static"
+        ? evaluateCandidateStatic(manifest)
+        : evaluateCloseout(manifest);
     if (!result.valid) {
       console.error("Stage 9 closeout evidence manifest is invalid:");
       for (const error of result.errors) console.error(`- ${error}`);
       return 1;
     }
     const state = result.complete
-      ? (parsed.mode === "candidate" ? "candidate admission passed" : "ready for formal close")
+      ? (parsed.mode === "candidate"
+        ? "candidate admission passed"
+        : parsed.mode === "candidate-static"
+          ? "static candidate admission passed"
+          : "ready for formal close")
       : (parsed.mode === "candidate"
         ? "candidate admission blocked"
-        : "in progress; formal close blocked");
+        : parsed.mode === "candidate-static"
+          ? "static candidate admission blocked"
+          : "in progress; formal close blocked");
     const label = parsed.mode === "candidate"
       ? "Stage 9 release-candidate evidence"
-      : "Stage 9 closeout evidence";
+      : parsed.mode === "candidate-static"
+        ? "Stage 9 static release-candidate evidence"
+        : "Stage 9 closeout evidence";
     console.log(`${label}: ${state}.`);
     const ownership = result.expectedRouteOwnership;
     console.log(

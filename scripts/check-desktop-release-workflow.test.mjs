@@ -3,13 +3,16 @@ import fs from "node:fs";
 import test from "node:test";
 
 const workflow = fs.readFileSync(".github/workflows/desktop-release.yml", "utf8");
+const postReleaseWorkflow = fs.readFileSync(
+  ".github/workflows/desktop-post-release-closeout.yml",
+  "utf8",
+);
 
 test("desktop publish lane is gated by closeout and signing prerequisites", () => {
-  assert.match(workflow, /Verify Stage 9 release-candidate admission/);
-  assert.match(workflow, /check-stage9-closeout\.mjs --candidate/);
-  assert.match(workflow, /check-stage9-closeout\.mjs --check/);
-  assert.match(workflow, /post_release_closeout/);
-  assert.match(workflow, /Verify full Stage 9 closeout after publication/);
+  assert.match(workflow, /Verify Stage 9 static release-candidate admission/);
+  assert.match(workflow, /check-stage9-closeout\.mjs --candidate-static/);
+  assert.match(workflow, /check-release-candidate\.mjs/);
+  assert.match(workflow, /candidate_evidence_config/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
@@ -25,13 +28,29 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
 
 test("desktop workflow separates candidate admission from post-release full closeout", () => {
   const publishIndex = workflow.indexOf("\n  publish:");
-  const postReleaseIndex = workflow.indexOf("\n  post-release-closeout:");
   assert.ok(publishIndex > 0);
-  assert.ok(postReleaseIndex > publishIndex);
   const prePublish = workflow.slice(0, publishIndex);
   assert.doesNotMatch(prePublish, /check-stage9-closeout\.mjs --check/);
-  assert.match(prePublish, /check-stage9-closeout\.mjs --candidate/);
-  assert.match(workflow.slice(postReleaseIndex), /check-stage9-closeout\.mjs --check/);
+  assert.match(prePublish, /check-stage9-closeout\.mjs --candidate-static/);
+  const sumsIndex = workflow.indexOf("Generate SHA256SUMS");
+  const candidateIndex = workflow.indexOf("Verify artifact-bound Stage 9 release candidate evidence");
+  assert.ok(sumsIndex > publishIndex);
+  assert.ok(candidateIndex > sumsIndex);
+  assert.ok(candidateIndex < workflow.indexOf("Upload assets and publish GitHub release"));
+  assert.doesNotMatch(workflow, /post-release-closeout:/);
+});
+
+test("post-release closeout is an independent evidence-ref workflow", () => {
+  assert.match(postReleaseWorkflow, /workflow_dispatch:/);
+  assert.match(postReleaseWorkflow, /evidence_ref:/);
+  assert.match(postReleaseWorkflow, /release_tag:/);
+  assert.match(postReleaseWorkflow, /post_release_reports:/);
+  assert.match(postReleaseWorkflow, /actions\/checkout@v7/);
+  assert.match(postReleaseWorkflow, /ref: \$\{\{ inputs\.evidence_ref \}\}/);
+  assert.match(postReleaseWorkflow, /check-post-release-smoke\.mjs/);
+  assert.match(postReleaseWorkflow, /check-stage9-closeout\.mjs --check/);
+  assert.doesNotMatch(postReleaseWorkflow, /needs:\s*publish/);
+  assert.doesNotMatch(postReleaseWorkflow, /needs\.publish/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {

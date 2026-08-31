@@ -13,11 +13,11 @@ on:
         required: false
         default: true
         type: boolean
-      post_release_closeout:
-        description: Run the full Stage 9 closeout check after a published release (evidence must already be recorded)
+      candidate_evidence_config:
+        description: Artifact-bound pre-release evidence config produced by the qualification run (required for publish)
         required: false
-        default: false
-        type: boolean
+        default: ''
+        type: string
   push:
     tags:
       - "v*"
@@ -126,9 +126,9 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify Stage 9 release-candidate admission
+      - name: Verify Stage 9 static release-candidate admission
         if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static
 
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
@@ -890,9 +890,6 @@ jobs:
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
-      - name: Recheck Stage 9 release-candidate admission before publishing
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate
-
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -922,6 +919,54 @@ jobs:
         run: |
           find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 
+      - name: Verify artifact-bound Stage 9 release candidate evidence
+        env:
+          CANDIDATE_EVIDENCE_CONFIG: ${{ inputs.candidate_evidence_config || '' }}
+          RELEASE_REF: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+          RELEASE_TAG: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          COMMIT_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          if [[ -z "$CANDIDATE_EVIDENCE_CONFIG" ]]; then
+            echo "Publishing requires an artifact-bound candidate evidence config from the qualification run." >&2
+            exit 1
+          fi
+          test -f "$CANDIDATE_EVIDENCE_CONFIG"
+          cp "$CANDIDATE_EVIDENCE_CONFIG" candidate-evidence-config.json
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --build \
+            --config candidate-evidence-config.json \
+            --base-dir release \
+            --output artifacts/release-candidate-evidence.json \
+            --expected-ref "$RELEASE_REF" \
+            --expected-tag "$RELEASE_TAG" \
+            --expected-commit "$COMMIT_SHA" \
+            --expected-run-id "$WORKFLOW_RUN_ID" \
+            --expected-attempt "$WORKFLOW_RUN_ATTEMPT" \
+            --expected-workflow "$WORKFLOW_NAME"
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --check \
+            --input artifacts/release-candidate-evidence.json \
+            --base-dir release \
+            --expected-ref "$RELEASE_REF" \
+            --expected-tag "$RELEASE_TAG" \
+            --expected-commit "$COMMIT_SHA" \
+            --expected-run-id "$WORKFLOW_RUN_ID" \
+            --expected-attempt "$WORKFLOW_RUN_ATTEMPT" \
+            --expected-workflow "$WORKFLOW_NAME"
+
+      - name: Retain artifact-bound candidate evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-candidate-evidence-${{ github.run_id }}
+          path: artifacts/release-candidate-evidence.json
+          if-no-files-found: error
+
       - name: Attest checksum manifest
         if: github.event.repository.private == false
         uses: actions/attest@v4
@@ -950,23 +995,3 @@ jobs:
           if [ "$is_draft" = "true" ]; then
             gh release edit "$JFTRADE_DESKTOP_RELEASE_TAG" --draft=false --repo "$GITHUB_REPOSITORY"
           fi
-
-  post-release-closeout:
-    name: Verify Stage 9 Closeout After Release
-    if: >-
-      github.event_name == 'workflow_dispatch' &&
-      inputs.post_release_closeout == true &&
-      needs.publish.result == 'success'
-    needs: publish
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout published release source
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
-
-      - name: Verify full Stage 9 closeout after publication
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --check

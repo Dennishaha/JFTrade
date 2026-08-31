@@ -1,0 +1,74 @@
+name: Desktop Post-Release Closeout
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published Tauri release tag whose native smoke was observed
+        required: true
+        type: string
+      evidence_ref:
+        description: Branch or commit containing the post-release reports and updated closeout manifest
+        required: true
+        type: string
+      closeout_manifest:
+        description: Path to the updated Stage 9 closeout manifest on evidence_ref
+        required: false
+        default: tests/fixtures/rust-migration/stage9/closeout-evidence.json
+        type: string
+      post_release_reports:
+        description: Comma-separated paths to the four platform post-release smoke reports on evidence_ref
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  closeout:
+    name: Verify Post-Release Evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout independent evidence ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.evidence_ref }}
+          fetch-depth: 0
+
+      - name: Ensure evidence ref is not the published tag checkout
+        env:
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_commit="$(git rev-parse HEAD)"
+          tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}" 2>/dev/null || true)"
+          if [[ -n "$tag_commit" && "$evidence_commit" == "$tag_commit" ]]; then
+            echo "Post-release closeout requires a distinct evidence ref with updated reports and manifest." >&2
+            exit 1
+          fi
+
+      - name: Verify four-platform post-release smoke reports
+        env:
+          REPORTS: ${{ inputs.post_release_reports }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$REPORTS" ]] || { echo "post_release_reports is required" >&2; exit 1; }
+          args=()
+          IFS=',' read -ra report_paths <<< "$REPORTS"
+          for report in "${report_paths[@]}"; do
+            report="${report#"${report%%[![:space:]]*}"}"
+            report="${report%"${report##*[![:space:]]}"}"
+            [[ -n "$report" ]] || { echo "post_release_reports contains an empty path" >&2; exit 1; }
+            args+=(--report "$report")
+          done
+          node scripts/rust-migration/check-post-release-smoke.mjs "${args[@]}"
+
+      - name: Verify updated Stage 9 closeout on evidence ref
+        env:
+          CLOSEOUT_MANIFEST: ${{ inputs.closeout_manifest }}
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --check --manifest "$CLOSEOUT_MANIFEST"

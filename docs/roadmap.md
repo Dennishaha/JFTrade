@@ -8,7 +8,7 @@
 
 Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 中状态为 `open` 或 `blocked` 的 gate；状态为 `passed` 的 gate 不再派工，也不得用历史本地检查结果替代发布证据。
 
-发布治理分为两个明确阶段：发布前由 `node scripts/rust-migration/check-stage9-closeout.mjs --candidate` 校验动态路由账本与基础 owner 门禁，允许 `postReleaseSmoke`、`hardCutReadiness` 等只能在发布后取得的证据保持 `open`；发布后才运行默认的 `--check` 完整 closeout。candidate 通过不代表 release/closeout 已完成。
+发布治理分为两个明确阶段：构建前由 `node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static` 只校验动态路由账本与唯一 owner；四平台产物汇总后再由独立 `check-release-candidate.mjs` 将真实 manifest、artifact、SHA256SUMS 与同一 workflow run/ref 的前置证据绑定。发布完成后，独立 post-release workflow 从更新后的 evidence ref 运行默认 `--check` 完整 closeout。任一 candidate 通过都不代表 release/closeout 已完成，也不证明 post-release smoke、hard-cut 或独立安全签字。
 
 ## 运行时未闭合项
 
@@ -29,10 +29,10 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 ## 后续交接顺序
 
-1. 先按 `platformRelease` 补齐四平台 Tauri release 矩阵，记录每个平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke 证据。
-2. 并行准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom` 和 `securityReview` 的输入材料；需要真实签名环境或原生平台时明确标记外部前置条件。
-3. release 矩阵和 updater/rollback 证据齐全后，再执行 `backupRestoreDrill`。
-4. 正式发布后执行 `postReleaseSmoke`，最后复核 `hardCutReadiness` 并关闭 closeout。
+1. 先运行静态 admission，再按 `platformRelease` 补齐四平台 Tauri release 矩阵，记录每个平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke 证据。
+2. 在四平台 artifact 汇总后生成并校验独立 candidate evidence；并行准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom` 和 `securityReview` 的同 run/ref 输入材料，真实签名环境或原生平台缺失时必须 fail-closed。
+3. release candidate evidence 与 updater/rollback 证据齐全后，再执行 `backupRestoreDrill` 并保留其外部证据引用。
+4. 正式发布后由独立 workflow 从 post-release evidence ref 执行 `postReleaseSmoke` 和默认 `--check`，最后复核 `hardCutReadiness` 并关闭 closeout。
 
 ## 约束
 

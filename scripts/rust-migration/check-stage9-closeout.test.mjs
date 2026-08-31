@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   evaluateCandidate,
+  evaluateCandidateStatic,
   evaluateCloseout,
   main,
   REQUIRED_PLATFORMS,
@@ -129,6 +130,40 @@ test("Stage 9 candidate admission rejects a pre-publication post-release claim",
   assert.equal(result.valid, true);
   assert.equal(result.complete, false);
   assert.ok(result.blockers.some((blocker) => blocker.includes("postReleaseSmoke")));
+});
+
+test("Stage 9 static admission checks only route and unique-owner prerequisites", () => {
+  const manifest = readManifest();
+  const expectedRouteOwnership = routeOwnershipSnapshot(repositoryRoot);
+  const result = evaluateCandidateStatic(manifest, { expectedRouteOwnership });
+  assert.equal(result.valid, true);
+  assert.equal(result.complete, true);
+  assert.deepEqual(result.blockers, []);
+  assert.deepEqual(result.expectedRouteOwnership, expectedRouteOwnership);
+});
+
+test("Stage 9 static admission rejects route or owner regressions without reading release gates", () => {
+  const manifest = readManifest();
+  const expectedRouteOwnership = routeOwnershipSnapshot(repositoryRoot);
+  manifest.gates.platformRelease.status = "blocked";
+  const result = evaluateCandidateStatic(manifest, { expectedRouteOwnership });
+  assert.equal(result.valid, true);
+  assert.equal(result.complete, true);
+
+  manifest.gates.uniqueWriteOwner.status = "open";
+  const blocked = evaluateCandidateStatic(manifest, { expectedRouteOwnership });
+  assert.equal(blocked.complete, false);
+  assert.ok(blocked.blockers.some((item) => item.includes("uniqueWriteOwner")));
+});
+
+test("Stage 9 static candidate CLI is distinct from artifact-bound candidate mode", () => {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(repositoryRoot, "scripts/rust-migration/check-stage9-closeout.mjs"), "--candidate-static"],
+    { cwd: repositoryRoot, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /static release-candidate evidence: static candidate admission passed/);
 });
 
 test("Stage 9 closeout checker accepts a complete evidence manifest only with all gates passed", () => {
