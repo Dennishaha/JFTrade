@@ -185,6 +185,62 @@ pub mod qot_option_screen {
     include!(concat!(env!("OUT_DIR"), "/qot_option_screen.rs"));
     pub const PROTOCOL_ID: u32 = 3253;
 }
+pub mod qot_get_event_contract_category {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_category.rs"));
+    pub const PROTOCOL_ID: u32 = 3434;
+}
+pub mod qot_filter_competition {
+    include!(concat!(env!("OUT_DIR"), "/qot_filter_competition.rs"));
+    pub const PROTOCOL_ID: u32 = 3435;
+}
+pub mod qot_get_event_contract_series_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_series_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3436;
+}
+pub mod qot_get_event_contract_event_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_event_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3437;
+}
+pub mod qot_get_event_contract {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract.rs"));
+    pub const PROTOCOL_ID: u32 = 3438;
+}
+pub mod qot_get_event_contract_milestone_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_milestone_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3439;
+}
+pub mod qot_get_event_contract_snapshot {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_snapshot.rs"));
+    pub const PROTOCOL_ID: u32 = 3445;
+}
+pub mod qot_get_event_contract_order_book {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_order_book.rs"));
+    pub const PROTOCOL_ID: u32 = 3446;
+}
+pub mod qot_get_event_contract_kline {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_kline.rs"));
+    pub const PROTOCOL_ID: u32 = 3447;
+}
+pub mod qot_get_event_contract_ticker {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_ticker.rs"));
+    pub const PROTOCOL_ID: u32 = 3448;
+}
+pub mod qot_get_event_contract_combo_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_combo_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3453;
+}
+pub mod qot_get_event_contract_combo_rfq {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_combo_rfq.rs"));
+    pub const PROTOCOL_ID: u32 = 3454;
+}
+pub mod qot_sub_event_contract {
+    include!(concat!(env!("OUT_DIR"), "/qot_sub_event_contract.rs"));
+    pub const PROTOCOL_ID: u32 = 3455;
+}
+pub mod qot_request_history_event_contract_kl {
+    include!(concat!(env!("OUT_DIR"), "/qot_request_history_event_contract_kl.rs"));
+    pub const PROTOCOL_ID: u32 = 3456;
+}
 pub mod trd_common {
     include!(concat!(env!("OUT_DIR"), "/trd_common.rs"));
 }

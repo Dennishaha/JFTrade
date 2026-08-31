@@ -33,6 +33,7 @@ mod option_volatility_query;
 mod option_zero_dte_contract_query;
 mod option_zero_dte_screener_query;
 mod probe;
+mod prediction;
 mod provider;
 mod provider_runtime;
 mod quote_push;
@@ -191,6 +192,10 @@ pub use option_zero_dte_screener_query::{
     OptionZeroDteScreenerReadPort,
 };
 pub use probe::{MarketState, OpenDProbe, WireGlobalState};
+pub use prediction::{
+    OpenDPredictionMarketReader, PredictionComboQuotePort, PredictionMarketReadError,
+    PredictionMarketReadPort, PredictionMarketSubscriptionPort,
+};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use provider_runtime::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDProviderRuntimeError,

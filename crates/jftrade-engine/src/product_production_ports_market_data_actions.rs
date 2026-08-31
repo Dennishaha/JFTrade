@@ -235,9 +235,7 @@ impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
                 ));
             }
             if path == PREDICTION_COMBO_QUOTES_PATH {
-                return Err(MarketDataProviderActionsPortError::Unavailable(
-                    "prediction combo quotes provider is not configured".to_owned(),
-                ));
+                return self.prediction_combo_quote(request);
             }
 
             if !is_market_data_provider_action_path(path) {
@@ -254,6 +252,42 @@ impl MarketDataProviderActionsPort for ProductionMarketDataProviderActionsPort {
 }
 
 impl ProductionMarketDataProviderActionsPort {
+    fn prediction_combo_quote(
+        &self,
+        request: &MarketDataProviderActionsRequest,
+    ) -> Result<Value, MarketDataProviderActionsPortError> {
+        let snapshot = self
+            .active_provider_state
+            .as_ref()
+            .map(|state| state.snapshot());
+        if snapshot
+            .as_ref()
+            .is_none_or(|value| {
+                value.provider != Some(jftrade_settings::MarketDataProvider::Futu)
+                    || !value.opend_ready
+            })
+        {
+            return Err(MarketDataProviderActionsPortError::Unavailable(
+                "Futu prediction combo quote provider is not ready".to_owned(),
+            ));
+        }
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataProviderActionsPortError::Unavailable(
+                "Futu prediction combo quote runtime is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.prediction_combo_quote_available() {
+            return Err(MarketDataProviderActionsPortError::Unavailable(
+                "Futu prediction combo quote adapter is not ready".to_owned(),
+            ));
+        }
+        let payload: Value = serde_json::from_slice(&request.body)
+            .map_err(|_| action_bad_request("BAD_REQUEST", "invalid prediction combo quote payload"))?;
+        runtime
+            .prediction_combo_quote(&payload)
+            .map_err(map_prediction_combo_quote_error)
+    }
+
     fn zero_dte_contracts(
         &self,
         request: &MarketDataProviderActionsRequest,
@@ -618,6 +652,30 @@ impl ProductionMarketDataProviderActionsPort {
             },
             "snapshots": snapshots_map,
         }))
+    }
+}
+
+fn map_prediction_combo_quote_error(message: String) -> MarketDataProviderActionsPortError {
+    let lowercase = message.to_ascii_lowercase();
+    if lowercase.contains("invalid")
+        || lowercase.contains("required")
+        || lowercase.contains("unsupported")
+        || lowercase.contains("must be")
+    {
+        return action_bad_request("BAD_REQUEST", &message);
+    }
+    if lowercase.contains("session unavailable")
+        || lowercase.contains("adapter is unavailable")
+        || lowercase.contains("runtime is unavailable")
+        || lowercase.contains("not ready")
+    {
+        return MarketDataProviderActionsPortError::Unavailable(message);
+    }
+    MarketDataProviderActionsPortError::Failed {
+        status: 502,
+        code: "BROKER_FEATURE_FAILED".to_owned(),
+        message,
+        retry_after_seconds: None,
     }
 }
 

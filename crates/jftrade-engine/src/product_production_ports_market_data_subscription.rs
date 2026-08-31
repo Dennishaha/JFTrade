@@ -3,6 +3,7 @@ use jftrade_settings::MarketDataProvider;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
+use percent_encoding::percent_decode_str;
 
 use super::product_production_ports_market_data_projection::{
     broker_polling_subscription_response, current_unix_millis, render_subscriptions_data,
@@ -21,6 +22,7 @@ pub(crate) struct ProductionMarketDataSubscriptionMutationPort {
     active_provider_state: Arc<ActiveProviderState>,
     router: Option<Arc<Mutex<ProviderRouter>>>,
     physical: Option<Arc<dyn PhysicalSubscriptionSnapshotPort>>,
+    trade_runtime: Option<Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataSubscriptionMutationPort {
@@ -28,6 +30,7 @@ impl std::fmt::Debug for ProductionMarketDataSubscriptionMutationPort {
         f.debug_struct("ProductionMarketDataSubscriptionMutationPort")
             .field("has_router", &self.router.is_some())
             .field("has_physical", &self.physical.is_some())
+            .field("has_trade_runtime", &self.trade_runtime.is_some())
             .finish()
     }
 }
@@ -42,7 +45,16 @@ impl ProductionMarketDataSubscriptionMutationPort {
             active_provider_state,
             router,
             physical,
+            trade_runtime: None,
         }
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
+        self
     }
 
     #[allow(dead_code)]
@@ -96,6 +108,12 @@ struct RawInstrumentRef {
     interval: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PredictionSubscriptionRequestBody {
+    data_types: Option<Vec<String>>,
+}
+
 impl MarketDataSubscriptionMutationPort for ProductionMarketDataSubscriptionMutationPort {
     fn dispatch(
         &self,
@@ -104,10 +122,14 @@ impl MarketDataSubscriptionMutationPort for ProductionMarketDataSubscriptionMuta
         let method = request.method.as_str();
         let path = request.path.as_str();
 
-        if path.starts_with("/api/v1/market-data/prediction/contracts/") {
-            return Err(MarketDataSubscriptionMutationPortError::Unavailable(
-                "prediction market-data subscriptions are not configured".to_owned(),
-            ));
+        if let Some((code, lease_id)) = prediction_subscription_path(path)? {
+            return match (method, lease_id) {
+                ("POST", None) => self.prediction_acquire(&code, request),
+                ("DELETE", Some(lease_id)) => self.prediction_release(&lease_id),
+                _ => Err(MarketDataSubscriptionMutationPortError::Unavailable(
+                    format!("unsupported prediction subscription route: {method} {path}"),
+                )),
+            };
         }
 
         match (method, path) {
@@ -119,6 +141,154 @@ impl MarketDataSubscriptionMutationPort for ProductionMarketDataSubscriptionMuta
                 format!("unsupported subscription mutation route: {method} {path}"),
             )),
         }
+    }
+}
+
+#[cfg(test)]
+#[path = "product_production_ports_market_data_subscription_tests.rs"]
+mod tests;
+
+impl ProductionMarketDataSubscriptionMutationPort {
+    fn prediction_runtime(
+        &self,
+    ) -> Result<&Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>, MarketDataSubscriptionMutationPortError> {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider != Some(MarketDataProvider::Futu) || !snapshot.opend_ready {
+            return Err(MarketDataSubscriptionMutationPortError::Unavailable(
+                "Futu prediction subscription provider is not ready".to_owned(),
+            ));
+        }
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataSubscriptionMutationPortError::Unavailable(
+                "Futu prediction subscription runtime is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.prediction_subscription_available() {
+            return Err(MarketDataSubscriptionMutationPortError::Unavailable(
+                "Futu prediction subscription adapter is not ready".to_owned(),
+            ));
+        }
+        Ok(runtime)
+    }
+
+    fn prediction_acquire(
+        &self,
+        code: &str,
+        request: &MarketDataSubscriptionMutationRequest,
+    ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
+        let runtime = self.prediction_runtime()?;
+        let body: PredictionSubscriptionRequestBody =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                MarketDataSubscriptionMutationPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid prediction subscription payload".to_owned(),
+                    retry_after_seconds: None,
+                }
+            })?;
+        let data_types = body.data_types.ok_or_else(|| {
+            MarketDataSubscriptionMutationPortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "dataTypes must contain at least one supported type".to_owned(),
+                retry_after_seconds: None,
+            }
+        })?;
+        runtime
+            .prediction_acquire(code, &data_types)
+            .map_err(map_prediction_subscription_error)
+    }
+
+    fn prediction_release(
+        &self,
+        lease_id: &str,
+    ) -> Result<Value, MarketDataSubscriptionMutationPortError> {
+        let runtime = self.prediction_runtime()?;
+        runtime
+            .prediction_release(lease_id)
+            .map_err(map_prediction_subscription_error)
+    }
+}
+
+fn map_prediction_subscription_error(
+    message: String,
+) -> MarketDataSubscriptionMutationPortError {
+    let lowercase = message.to_ascii_lowercase();
+    if lowercase.contains("invalid")
+        || lowercase.contains("required")
+        || lowercase.contains("unsupported")
+        || lowercase.contains("must be")
+    {
+        return MarketDataSubscriptionMutationPortError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message,
+            retry_after_seconds: None,
+        };
+    }
+    if lowercase.contains("session unavailable")
+        || lowercase.contains("adapter is unavailable")
+        || lowercase.contains("runtime is unavailable")
+        || lowercase.contains("not ready")
+    {
+        return MarketDataSubscriptionMutationPortError::Unavailable(message);
+    }
+    MarketDataSubscriptionMutationPortError::Failed {
+        status: 502,
+        code: "BROKER_FEATURE_FAILED".to_owned(),
+        message,
+        retry_after_seconds: None,
+    }
+}
+
+fn prediction_subscription_path(
+    path: &str,
+) -> Result<Option<(String, Option<String>)>, MarketDataSubscriptionMutationPortError> {
+    const PREFIX: &str = "/api/v1/market-data/prediction/contracts/";
+    let Some(suffix) = path.strip_prefix(PREFIX) else {
+        return Ok(None);
+    };
+    let mut segments = suffix.split('/');
+    let raw_code = segments.next().unwrap_or_default();
+    if raw_code.is_empty() {
+        return Err(prediction_bad_request("prediction contract code is invalid"));
+    }
+    let code = percent_decode_str(raw_code)
+        .decode_utf8()
+        .map_err(|_| prediction_bad_request("prediction contract code is invalid"))?;
+    if code.is_empty()
+        || code.len() > 512
+        || code.chars().any(|value| {
+            value.is_control() || value.is_whitespace() || matches!(value, '/' | '\\' | '?' | '#')
+        })
+    {
+        return Err(prediction_bad_request("prediction contract code is invalid"));
+    }
+    if segments.next() != Some("subscriptions") {
+        return Err(prediction_bad_request("unsupported prediction subscription route"));
+    }
+    let lease_id = match segments.next() {
+        None => None,
+        Some(value) if !value.is_empty() && segments.next().is_none() => {
+            let decoded = percent_decode_str(value)
+                .decode_utf8()
+                .map_err(|_| prediction_bad_request("prediction subscription leaseId is invalid"))?;
+            if decoded.chars().any(|ch| ch.is_control() || ch.is_whitespace()) {
+                return Err(prediction_bad_request("prediction subscription leaseId is invalid"));
+            }
+            Some(decoded.into_owned())
+        }
+        _ => return Err(prediction_bad_request("unsupported prediction subscription route")),
+    };
+    Ok(Some((code.into_owned(), lease_id)))
+}
+
+fn prediction_bad_request(message: &str) -> MarketDataSubscriptionMutationPortError {
+    MarketDataSubscriptionMutationPortError::Failed {
+        status: 400,
+        code: "BAD_REQUEST".to_owned(),
+        message: message.to_owned(),
+        retry_after_seconds: None,
     }
 }
 

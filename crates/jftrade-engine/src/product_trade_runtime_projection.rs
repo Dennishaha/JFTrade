@@ -15,6 +15,7 @@ use jftrade_integration_futu::{
     ValuationDetailReadPort,
     FutuCorporateActionsReadPort, FutuCorporateActionsQuery, FutuCorporateActionsResult,
     FutuNewsQuery, FutuNewsReadPort, FutuNewsResult,
+    PredictionComboQuotePort, PredictionMarketReadPort, PredictionMarketSubscriptionPort,
     TradeReadPort, TradeSecurity, TradeWritePort,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -100,6 +101,12 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) option_zero_dte_contract:
         Arc<RwLock<Option<Arc<dyn OptionZeroDteContractReadPort>>>>,
     pub(crate) option_seller_screener: Arc<RwLock<Option<Arc<dyn OptionSellerScreenerReadPort>>>>,
+    pub(crate) prediction_reader: Arc<RwLock<Option<Arc<dyn PredictionMarketReadPort>>>>,
+    pub(crate) prediction_subscription:
+        Arc<RwLock<Option<Arc<dyn PredictionMarketSubscriptionPort>>>>,
+    pub(crate) prediction_combo_quote:
+        Arc<RwLock<Option<Arc<dyn PredictionComboQuotePort>>>>,
+    prediction_subscription_state: Arc<Mutex<PredictionSubscriptionState>>,
     pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
     pub(crate) news_reader: Arc<RwLock<Option<Arc<dyn FutuNewsReadPort>>>>,
     pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
@@ -129,6 +136,27 @@ type OptionUnderlyingHisStatisticPort = Arc<dyn OptionUnderlyingHisStatisticRead
 type OptionStrategySpreadPort = Arc<dyn OptionStrategySpreadReadPort>;
 type OptionStrategyPort = Arc<dyn OptionStrategyReadPort>;
 type OptionStrategyAnalysisPort = Arc<dyn OptionStrategyAnalysisReadPort>;
+
+#[derive(Default)]
+struct PredictionSubscriptionState {
+    counts: std::collections::BTreeMap<String, usize>,
+    leases: std::collections::BTreeMap<String, PredictionSubscriptionLease>,
+    sequence: u64,
+}
+
+struct PredictionSubscriptionLease {
+    key: String,
+    code: String,
+    _data_types: Vec<String>,
+}
+
+impl PredictionSubscriptionState {
+    fn clear(&mut self) {
+        self.counts.clear();
+        self.leases.clear();
+        self.sequence = 0;
+    }
+}
 impl std::fmt::Debug for SharedTradeReadRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SharedTradeReadRuntime")
@@ -222,6 +250,159 @@ impl SharedTradeReadRuntime {
             .news_reader
             .write()
             .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn set_prediction_adapters(
+        &self,
+        reader: Option<Arc<dyn PredictionMarketReadPort>>,
+        subscription: Option<Arc<dyn PredictionMarketSubscriptionPort>>,
+        combo_quote: Option<Arc<dyn PredictionComboQuotePort>>,
+    ) {
+        *self.prediction_reader.write().unwrap_or_else(|e| e.into_inner()) = reader;
+        *self
+            .prediction_subscription
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = subscription;
+        *self
+            .prediction_combo_quote
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = combo_quote;
+    }
+
+    pub(crate) fn prediction_reader_available(&self) -> bool {
+        self.prediction_reader
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn prediction_read(
+        &self,
+        path: &str,
+        query: &str,
+    ) -> Result<Value, String> {
+        self.prediction_reader
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu prediction market-data reader is unavailable".to_owned())?
+            .read(path, query)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn prediction_subscribe(
+        &self,
+        code: &str,
+        data_types: &[String],
+    ) -> Result<Value, String> {
+        self.prediction_subscription
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu prediction subscription adapter is unavailable".to_owned())?
+            .subscribe(code, data_types)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn prediction_subscription_available(&self) -> bool {
+        self.prediction_subscription
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
+
+    /// Acquire a prediction subscription with Go-compatible reference-counted
+    /// lease semantics. The OpenD subscribe call is issued only for the first
+    /// lease for a normalized `(code, dataTypes)` key.
+    pub(crate) fn prediction_acquire(
+        &self,
+        code: &str,
+        data_types: &[String],
+    ) -> Result<Value, String> {
+        let code = normalize_prediction_code(code)?;
+        let data_types = normalize_prediction_data_types(data_types)?;
+        let key = format!("{}|{}", code, data_types.join(","));
+        let mut state = self
+            .prediction_subscription_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if !state.counts.contains_key(&key) {
+            self.prediction_subscribe(&code, &data_types)?;
+            state.counts.insert(key.clone(), 0);
+        }
+        let count = state.counts.entry(key.clone()).or_insert(0);
+        *count = count.saturating_add(1);
+        state.sequence = state.sequence.saturating_add(1);
+        let lease_id = format!(
+            "prediction-lease-{}-{}",
+            current_unix_millis(),
+            state.sequence
+        );
+        state.leases.insert(
+            lease_id.clone(),
+            PredictionSubscriptionLease {
+                key,
+                code: code.clone(),
+                _data_types: data_types.clone(),
+            },
+        );
+        Ok(json!({
+            "leaseId": lease_id,
+            "instrumentId": format!("US.{code}"),
+            "dataTypes": data_types,
+            "provider": prediction_provider_value(&data_types),
+        }))
+    }
+
+    /// Release a prediction lease. Unknown lease ids are intentionally
+    /// idempotent; only the final lease invokes OpenD unsubscribe.
+    pub(crate) fn prediction_release(&self, lease_id: &str) -> Result<Value, String> {
+        let lease_id = lease_id.trim();
+        if lease_id.is_empty() {
+            return Err("invalid prediction subscription leaseId".to_owned());
+        }
+        let mut state = self
+            .prediction_subscription_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let Some(lease) = state.leases.remove(lease_id) else {
+            return Ok(json!({"released": true}));
+        };
+        let count = state.counts.get(&lease.key).copied().unwrap_or_default();
+        if count > 1 {
+            state.counts.insert(lease.key, count - 1);
+            return Ok(json!({"released": true}));
+        }
+        state.counts.remove(&lease.key);
+        self.prediction_unsubscribe(&lease.code)?;
+        Ok(json!({"released": true}))
+    }
+
+    pub(crate) fn prediction_unsubscribe(&self, code: &str) -> Result<Value, String> {
+        self.prediction_subscription
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu prediction subscription adapter is unavailable".to_owned())?
+            .unsubscribe(code)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn prediction_combo_quote(&self, payload: &Value) -> Result<Value, String> {
+        self.prediction_combo_quote
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu prediction combo quote adapter is unavailable".to_owned())?
+            .quote(payload)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn prediction_combo_quote_available(&self) -> bool {
+        self.prediction_combo_quote
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     pub(crate) fn news_reader_available(&self) -> bool {
@@ -536,6 +717,11 @@ impl SharedTradeReadRuntime {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.set_writer(None);
         self.set_news_reader(None);
+        self.set_prediction_adapters(None, None, None);
+        self.prediction_subscription_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clear();
         self.set_corporate_actions_reader(None);
         self.set_customization_readers(None, None);
         self.set_customization_writers(None, None);
@@ -557,6 +743,56 @@ impl SharedTradeReadRuntime {
                 },
             )
     }
+}
+
+fn normalize_prediction_code(value: &str) -> Result<String, String> {
+    let value = value.trim();
+    let value = value.strip_prefix("US.").unwrap_or(value);
+    if value.is_empty()
+        || value.len() > 512
+        || value
+            .chars()
+            .any(|ch| ch.is_whitespace() || ch.is_control() || matches!(ch, '/' | '\\' | '?' | '#'))
+    {
+        return Err("invalid prediction subscription code".to_owned());
+    }
+    Ok(value.to_ascii_uppercase())
+}
+
+fn normalize_prediction_data_types(values: &[String]) -> Result<Vec<String>, String> {
+    let mut result = Vec::new();
+    for value in values {
+        let value = value.trim().to_ascii_uppercase();
+        if !matches!(value.as_str(), "ORDER_BOOK" | "KLINE" | "TICKER") {
+            return Err(format!("unsupported prediction data type {value:?}"));
+        }
+        if !result.contains(&value) {
+            result.push(value);
+        }
+    }
+    if result.is_empty() {
+        return Err("at least one prediction data type is required".to_owned());
+    }
+    result.sort();
+    Ok(result)
+}
+
+fn prediction_provider_value(data_types: &[String]) -> Value {
+    let feature_id = if data_types.len() == 1 && data_types[0] == "ORDER_BOOK" {
+        "prediction.depth"
+    } else {
+        "prediction.history"
+    };
+    let resolved_at = format_unix_millis_rfc3339(current_unix_millis());
+    json!({
+        "brokerId": "futu",
+        "securityFirm": "Futu/Moomoo via OpenD",
+        "featureId": feature_id,
+        "capability": "available",
+        "selectionReason": "adapter_request",
+        "resolvedAt": resolved_at,
+        "asOf": resolved_at,
+    })
 }
 
 impl super::ProductionBrokerPort {

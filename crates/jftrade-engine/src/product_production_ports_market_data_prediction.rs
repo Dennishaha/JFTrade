@@ -7,11 +7,13 @@ use percent_encoding::percent_decode_str;
 use serde_json::Value;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_production_ports::SharedTradeReadRuntime;
 use crate::product::{MarketDataPredictionReadSnapshotError, MarketDataPredictionReadSnapshotPort};
 
 #[derive(Debug)]
 pub(crate) struct ProductionMarketDataPredictionPort {
     pub(crate) active_provider_state: Arc<ActiveProviderState>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort {
@@ -32,9 +34,36 @@ impl MarketDataPredictionReadSnapshotPort for ProductionMarketDataPredictionPort
                 "Futu prediction market-data provider is not ready".to_owned(),
             ));
         }
-        Err(MarketDataPredictionReadSnapshotError::Unavailable(
-            "Futu prediction market-data adapter is not configured".to_owned(),
-        ))
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            MarketDataPredictionReadSnapshotError::Unavailable(
+                "Futu prediction market-data runtime is not configured".to_owned(),
+            )
+        })?;
+        if !runtime.prediction_reader_available() {
+            return Err(MarketDataPredictionReadSnapshotError::Unavailable(
+                "Futu prediction market-data reader is not ready".to_owned(),
+            ));
+        }
+        runtime
+            .prediction_read(path, query)
+            .map_err(|message| {
+                if message.contains("invalid prediction request")
+                    || message.contains("required")
+                    || message.contains("invalid")
+                    || message.contains("must be")
+                {
+                    MarketDataPredictionReadSnapshotError::Invalid(message)
+                } else if message.contains("rejected") || message.contains("decode") {
+                    MarketDataPredictionReadSnapshotError::Failed {
+                        status: 502,
+                        code: "BROKER_FEATURE_FAILED".to_owned(),
+                        message,
+                        retry_after_seconds: None,
+                    }
+                } else {
+                    MarketDataPredictionReadSnapshotError::Unavailable(message)
+                }
+            })
     }
 }
 
@@ -201,6 +230,7 @@ mod tests {
         state.set_readiness(false, opend_ready, false);
         ProductionMarketDataPredictionPort {
             active_provider_state: state,
+            trade_runtime: None,
         }
     }
 

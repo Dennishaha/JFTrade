@@ -10,7 +10,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use jftrade_integration_futu::{OpenDProviderRuntime, OpenDProviderRuntimeError};
+use jftrade_integration_futu::{OpenDProviderRuntime, OpenDProviderRuntimeError, OpenDPredictionMarketReader};
 use jftrade_integration_marketdata_helper::HelperProcess;
 use jftrade_marketdata::ProviderRouter;
 use jftrade_settings::MarketDataProvider;
@@ -173,6 +173,15 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set_news_reader(Some(Arc::new(
                         jftrade_integration_futu::OpenDNewsReader::new(provider.coordinator()),
                     )));
+                    let prediction_reader = Arc::new(OpenDPredictionMarketReader::new(
+                        provider.coordinator(),
+                    ));
+                    trade_runtime_for_activation.set_prediction_adapters(
+                        Some(Arc::clone(&prediction_reader)
+                            as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+                        Some(Arc::clone(&prediction_reader) as Arc<dyn jftrade_integration_futu::PredictionMarketSubscriptionPort>),
+                        Some(prediction_reader as Arc<dyn jftrade_integration_futu::PredictionComboQuotePort>),
+                    );
                     trade_runtime_for_activation.set_corporate_actions_reader(Some(Arc::new(
                         jftrade_integration_futu::OpenDCorporateActionsReader::new(
                             provider.coordinator(),

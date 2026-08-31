@@ -642,6 +642,7 @@ pub(crate) fn production_ports(
     });
     let market_data_prediction_port = Arc::new(ProductionMarketDataPredictionPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let system_write_port = Arc::new(
         ProductionSystemWritePort::open(config.real_trade_control_path()).map_err(|error| {
@@ -695,7 +696,8 @@ pub(crate) fn production_ports(
         Arc::clone(&active_provider_state),
         config.market_data_router.clone(),
         config.physical_subscription_port.clone(),
-    ));
+    )
+    .with_trade_runtime(config.trade_runtime.clone()));
     let market_data_actions_port = Arc::new(
         ProductionMarketDataProviderActionsPort::new(Some(market_data_quote_port.clone()))
             .with_trade_runtime(config.trade_runtime.clone())
