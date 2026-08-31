@@ -16,7 +16,7 @@ JFTrade 当前以一个本地 Rust 后端服务为核心。它可以由 `cargo r
 
 - 前端控制台只消费 `/api/v1/*`；浏览器模式经过 Rust session auth，桌面模式通过 Tauri IPC 注入 loopback URL 和临时 Bearer token。
 - Tauri 桌面壳不替换业务 transport：Vue 仍直接访问 REST、SSE 和 WebSocket；Tauri IPC 仅注入 desktop runtime config，API 语义由 Rust engine 提供。
-- 策略执行、回测、行情和通知仍复用 bbgo 的公共类型、stream、backtest engine 和通知总线，但不再提供独立 bbgo CLI/full runtime 入口。
+- Rust production runtime 自主管理策略执行、回测、行情和通知；保留的 Go reference 仍复用 bbgo 公共类型与实现，但不在 Rust/Tauri 生产进程内运行。
 
 历史上的 `pkg/jftradeapi` 兼容门面已经删除。旧文档或旧测试命令如果仍指向 `pkg/jftradeapi`，应迁移到 `crates/jftrade-engine`、`crates/jftrade-api` 或对应业务 crate；Go `internal/app/apiserver` 仅是 reference/differential harness。
 
@@ -24,30 +24,23 @@ JFTrade 当前以一个本地 Rust 后端服务为核心。它可以由 `cargo r
 
 ```mermaid
 flowchart LR
-    Web[apps/web\nVue 3 + Vite] -->|HTTP /api/v1/*| API[crates/jftrade-api\nAxum transport]
-    Web -->|SSE /api/v1/stream/live| LiveAPI[crates/jftrade-api\nSSE / WS]
-    API --> Services[internal business services]
-    LiveAPI --> MarketData[internal/marketdata\ncollector + cache]
-    MarketData --> MarketDataRuntime[internal/app/apiserver/marketdataapp\nstable provider router]
-    MarketDataRuntime --> FutuIntegration
-    MarketDataRuntime --> YFinanceIntegration[internal/integration/yfinance\nHTTP provider]
-    MarketDataRuntime --> YFinanceAssets[internal/marketdataassets\nrelease_assets embedded + SHA-256]
-    YFinanceAssets --> YFinanceSidecar[workers/marketdata-sidecar\nPyInstaller onedir helper\ndynamic loopback endpoint]
-    YFinanceSidecar --> Yahoo[Yahoo Finance]
-    App --> Services
-    App --> Stores[internal/store/*\ndomain persistence]
-    App --> AssistantAssembly[internal/assistant/assembly\nADK + MCP lifecycle]
-    App --> PineRuntime[internal/strategy/pineruntime\nworker lifecycle]
-    Services --> FutuIntegration[internal/integration/futu\nOpenD adapters]
-    Services --> AKShareIntegration[internal/integration/akshare\nHTTP Provider adapter]
-    AKShareIntegration --> MarketDataSidecar[marketdata-sidecar\nyfinance + AKShare runtimes]
-    FutuIntegration --> Futu[pkg/futu\nFutu Exchange]
-    Futu --> OpenD[Futu OpenD\nAPI TCP 11110]
-
-    CLI[crates/jftrade-engine/src/bin/jftrade-api-rust] --> App[crates/jftrade-engine\nRust composition root]
+    CLI[jftrade-api-rust] --> App[crates/jftrade-engine\nProductRuntimeBuilder]
     Desktop[apps/desktop/src-tauri\nTauri 2] --> App
     Desktop --> Web
-    Services -->|bbgo types / sessions / notify| BBGOPrimitives[bbgo public packages]
+    Web[apps/web\nVue 3 + Vite] -->|HTTP / SSE / WS| API[crates/jftrade-api\nAxum + LiveHub]
+    App --> Registry[ProductionRouteRegistry\n278 route bindings]
+    Registry --> API
+    App --> Domains[Rust domain crates\nsettings / watchlist / strategy / backtest\ntrading / research / assistant]
+    Domains --> Stores[jftrade-store-sqlite\n9 WriterLease stores]
+    App --> MarketData[jftrade-marketdata\nProviderRouter + demand/cache]
+    MarketData --> FutuIntegration[jftrade-integration-futu]
+    FutuIntegration --> OpenD[Futu OpenD\nTCP 11110]
+    MarketData --> HelperIntegration[jftrade-integration-marketdata-helper]
+    HelperIntegration --> Sidecar[workers/marketdata-sidecar\nyfinance + AKShare]
+    App --> Pine[jftrade-integration-pine\nNode PineTS worker]
+    App --> Assistant[jftrade-assistant\nADK + MCP ports]
+
+    GoRef[Go internal/* + pkg/*\nreference / fixture / differential] -. no production calls .-> App
 ```
 
 ## 运行模式
@@ -81,61 +74,33 @@ flowchart LR
 
 入口不是业务层，不实现行情、设置、策略或协议逻辑。
 
-### 2. `internal/app/apiserver`
+### 2. Rust product composition
 
-职责：Rust API product runtime 的启动、依赖装配、运行时目录、配置落地和关闭顺序。
+`crates/jftrade-engine` 是生产 composition root。`ProductRuntimeBuilder` 按配置与 schema 校验、数据库迁移/租约、Provider 和 worker、production ports、route registry、HTTP listener 的顺序装配；后续阶段失败时逆序回滚。`ProductionPortBundle` 持有具体 adapter 或明确的 external-unavailable adapter，内部 adapter 缺失会阻止生产启动。`ProductRuntimeHandle` 统一管理 HTTP/LiveHub、Provider demand、OpenD、helper/Pine worker 和 SQLite lease 的逆序关闭。
 
-- `crates/jftrade-engine`：API 生命周期、生产 composition 和唯一状态 owner。
-- `runtime`：运行时路径、环境变量和 OpenD 配置注入。
-- `application`：按成功启动顺序登记资源，启动中途失败时逆序回滚；关闭可重复、并发安全，并聚合带资源名的错误。
-- `stores`：持久化 store 的单一应用句柄；保持降级启动语义，并在句柄内部按打开顺序逆序关闭。
-- `runtimes`：应用 runtime 的单一句柄；按生命周期分组引用，线性化 Pine runner 切换，并在句柄内部按成功登记顺序逆序关闭。
-- `futuapp`：Futu broker 选择、reset 顺序和控制台投影；OpenD 协议与连接实现仍归 `internal/integration/futu`。
-- `marketdataapp`：在稳定的 `internal/marketdata.Service` 下原子切换 Futu/yfinance/AKShare Provider，撤销旧 Provider demand 并按 broker 保留规则回收物理订阅，同时管理内置 PyInstaller helper 的持久缓存/临时降级、动态 loopback 端口、预热 readiness、停止和过期清理。
-- `servercore`：HTTP/security/frontend shell 与兼容入口；业务路由直接注册 `internal/api/*` handler，领域状态和生命周期由应用依赖入口持有。
+`ProductionRouteRegistry` 从真实 port binding 生成 278 条生产 route，并校验 count 和 digest。Provider、OpenD、helper 或模型等外部依赖不可用时保留 route 并返回基线 502/503；这不等于缺失内部实现。
 
-`servercore` 的启动依赖由五段显式 installer 链表达：platform/store/calendar/observability → market data → trading → strategy/backtest → assistant/HTTP。每段只接受前一段的强类型 bundle；可关闭资源必须先登记到 application lifecycle，再把 service 或 controller 发布到应用依赖图。阶段失败会按成功初始化的反向顺序回滚；数据库不可用仍是显式 degraded 状态，不阻断无关服务和路由。
+### 3. Rust API transport
 
-`serverApplication` 只保存三组依赖：不可变的 `Services`、运行时 `RuntimeControllers` 和路由/状态使用的 `RouteDependencies`。静态 service 在构造时一次性接收依赖；只有 OpenD/Futu、provider runtime、Pine runner 等可重连或切换控制器保留可变 handle。
+`crates/jftrade-api` 提供 `/api/v1/*` 的 Axum HTTP、SSE、WebSocket transport、认证边界和 Rust-owned `LiveHub`。Transport 负责请求/响应 wire、cookie/Bearer/Origin/CSRF 校验和连接生命周期；业务状态通过 `jftrade-engine` 注入的窄 port 读取或变更，不直接拥有 SQLite、OpenD 或 worker。
 
-运行时按生命周期明确分成三类：
+### 4. Rust 领域与生产 adapter
 
-| 类别 | 运行时 | 设置变更与关闭规则 |
-| --- | --- | --- |
-| 启动根 | 通知 publisher、broker registry、exchange calendar manager、实盘控制面 | 应用启动时建立；为后续可缺省 runtime 提供稳定依赖 |
-| 可缺省/延后装配 | Live WebSocket、策略 runtime manager、Assistant assembly | 允许降级启动或窄测试装配；存在时由 `runtimes.Handle` 统一登记和关闭 |
-| 可重置 | market-data Provider router/Futu coordinator/Python helper、Pine worker manager 与 runner | 只响应本领域设置；Provider 切换清缓存并撤销旧 demand，受 broker 保留规则约束的物理订阅由 collector 后台回收；helper 在任一 Python Provider 活跃期间复用，新 runner 发布后释放旧 runner |
+- `jftrade-settings`、`jftrade-calendar`、`jftrade-datamanagement`：设置、交易日历与数据维护规则。
+- `jftrade-marketdata`、`jftrade-broker`、`jftrade-trading`：ProviderRouter、订阅 demand/cache、broker 与 execution 规则。
+- `jftrade-strategy`、`jftrade-backtest`、`jftrade-integration-pine`：策略状态、撮合和 PineTS worker 边界。
+- `jftrade-assistant`、`jftrade-research`、`jftrade-watchlist`：Assistant 领域、研究与自选规则。
+- `jftrade-store-sqlite`、`jftrade-store-settings-file`：9 个 SQLite 数据库和 settings 文件的生产持久化与唯一 writer lease。
 
-应用关闭按实际安装反序执行：先停 HTTP/Assistant、runtime consumers、strategy/backtest 和 trading，再关闭 market-data service/runtime、runtime providers 与 platform stores；runtime handle 内部继续按成功登记的反序关闭 Assistant、实时入口、策略 runtime、Pine/Futu 与启动根。所有关闭错误保留资源名并聚合返回。
+Go `internal/api/*`、`internal/app/apiserver/*`、`internal/{system,settings,marketdata,...}` 和对应 store/integration 仍用于 OpenAPI 生成、fixture 与 Go/Rust differential；它们不在 Rust/Tauri 生产调用链中。
 
-### 3. `internal/api/*`
-
-职责：提供 `/api/v1/*` 的 HTTP/SSE/WebSocket transport。
-
-Handler 只做参数绑定、校验、调用 service、错误映射和响应转换。它们不直接访问 SQLite、Futu protobuf、OpenD client 或具体集成实现。
-
-### 4. 业务 service
-
-职责：承载控制台业务能力。
-
-- `internal/system`：系统状态、OpenD 诊断、存储概览、风控状态。
-- `internal/settings`：设置读写、归一化和 side-effect 触发点。
-- `internal/marketdata`：订阅、tick cache、collector、快照/K 线/depth 门面。
-- `internal/trading`：broker 读写、execution 命令和订单更新编排。
-- `internal/strategy`：策略定义、实例目录、插件目录和 runtime 控制面。
-- `internal/backtest`：回测运行、同步任务和历史数据同步门面。
-- `internal/assistant`：ADK session、run、approval、provider、agent、skill、metrics。
-- `internal/watchlist`：本地多分组自选、membership revision、券商导入一致性和批量快照编排。
-
-业务 service 通过小接口依赖外部能力，不反向 import `internal/api/*`。
-
-### 5. `internal/integration/*` 与 `pkg/*`
+### 5. Rust integration 与保留的 Go reference
 
 `crates/jftrade-integration-futu` 是 Rust API 使用的 Futu/OpenD 适配层，负责 client 生命周期、exchange 创建、stream/query 调用、探测和协议到 broker-neutral DTO/事件的转换。`crates/jftrade-integration-marketdata-helper` 是轮询型 HTTP Provider，只接收由 Rust product 注入的内部 loopback endpoint，并转换同一套 broker-neutral DTO；它不拥有数据源选择、缓存、订阅或进程生命周期。Go `internal/integration/*` 仅用于 reference/differential harness。
 
 `workers/marketdata-sidecar` 用 FastAPI 封装 Python yfinance 与 AKShare，通过 PyInstaller 打成 `onedir` helper，并由 Rust product runtime 按平台加载、校验 SHA-256 和管理内容寻址缓存。`/healthz` 不导入数据栈；两个 Provider 各自懒加载并独立报告健康，数据路由在 `warming` 时返回带 `Retry-After` 的 503。AKShare 阻塞调用由四槽线程池约束并设 12 秒请求截止。JFTrade 只在需要时启动 helper，Yahoo↔AKShare 切换复用进程，应用关闭或切回 Futu 时停止。它承诺四市场搜索、详情、延迟快照和品种级历史周期（含按 Provider 能力受限的复权日线），并提供新闻、公司行动和 AKShare 沪深指数成分股（成分股仅供 assistant 工具 `market.index_constituents`，无公开 HTTP API）；不提供推流、深度、扩展时段或交易能力。详细契约见 [market-data-providers.md](market-data-providers.md)。
 
-持久化按领域位于 `internal/store/{strategy,backtest,trading,watchlist,research,...}`。数据维护只通过 `internal/datamanagement` 的 busy、purge、compact 窄端口访问这些资源，不读取 store 的锁、map 或数据库连接。
+生产持久化位于 `jftrade-store-sqlite` 与 `jftrade-store-settings-file`，由 `jftrade-engine` composition 持有唯一 writer lease。Go `internal/store/*` 和 `internal/datamanagement` 只保留为 schema oracle、fixture 与 differential reference。
 
 `pkg/futu` 仍是 Go reference adapter，保留 bbgo `types.Exchange` 兼容面以供 reference/differential harness 使用；Rust 生产 API 使用 `crates/jftrade-integration-futu`。`pkg/strategy`、`pkg/backtest`、`pkg/broker`、`pkg/market` 等被保留的包承担稳定共享类型或被其他公开包暴露；仓库专属 ADK 引擎已内移至 `internal/assistant/engine`。具体判定和破坏性变更规则见 [public-package-policy.md](architecture/public-package-policy.md)。
 
@@ -150,9 +115,9 @@ Handler 只做参数绑定、校验、调用 service、错误映射和响应转�
 ```text
 apps/web
   -> /api/v1/settings/* 或 /api/v1/system/*
-  -> internal/api/settings 或 internal/api/system
-  -> internal/settings.Service 或 internal/system.Service
-  -> internal/app/apiserver 装配的 service ports
+  -> crates/jftrade-api（认证、wire、错误映射）
+  -> crates/jftrade-engine production settings/system ports
+  -> jftrade-settings / jftrade-store-settings-file / runtime status ports
 ```
 
 `/api/v1/system/status` 现在同时返回基础状态和轻量观测摘要，包括 API uptime、实时连接统计、行情 collector 状态、broker descriptor 与 strategy runtime summary。
@@ -164,11 +129,10 @@ apps/web
 ```text
 apps/web
   -> /api/v1/strategy-definitions/* 或 /api/v1/strategies/*
-  -> internal/api/strategy
-  -> internal/strategy.Service
-  -> internal/store/strategy + strategy catalog/runtime ports
-  -> internal/strategy/pineruntime
-  -> pkg/strategy Pine parser / spec / PineTS worker runtime
+  -> crates/jftrade-api
+  -> crates/jftrade-engine production strategy ports
+  -> jftrade-strategy + jftrade-store-sqlite
+  -> jftrade-integration-pine -> PineTS worker
 ```
 
 策略定义同时保存 Pine 源码和可选 `visualModel`。前端生成 Pine，Rust engine 统一解析、规划并交给 PineTS worker 执行；Rust 负责调度、回测撮合、风控和订单边界。Go 实现仅用于 reference/differential 验证。
@@ -178,23 +142,23 @@ apps/web
 ```text
 apps/web
   -> SSE /api/v1/stream/live 或 WS /api/v1/ws/live
-  -> internal/api/live
-  -> internal/marketdata.Service collector + cache + active-demand merge
-  -> internal/app/apiserver/marketdataapp.Runtime
-     -> Futu: NewStream() / QueryTickers() -> Futu OpenD
-     -> yfinance: QueryTickers() polling -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
+  -> crates/jftrade-api LiveHub
+  -> jftrade-marketdata ProviderRouter + DemandBook + cache
+  -> jftrade-engine market-data runtime
+     -> jftrade-integration-futu -> Futu OpenD
+     -> jftrade-integration-marketdata-helper -> embedded PyInstaller helper -> yfinance / AKShare
 ```
 
-`internal/marketdata` 拥有 demand、cache、freshness、fallback polling、backoff、health/reset/close。`marketdataapp.Runtime` 同时是应用级 Provider 实例池：全局行情和回测分别持有租约，逻辑切换只替换 active 引用，不会使已接受任务失效；共享 Python helper 在最后一个 Python Provider 租约释放后才停止。显式切到 yfinance 会先启动内置 helper 并等待 `ready` 健康门禁，失败则保持当前 Provider 并由设置 API 返回冲突。逻辑切换成功后不会再被旧 Futu 清理失败回滚：OpenD 要求物理订阅至少保留一分钟，collector 会在非活跃 Futu demand 归零后延迟退订并重试。Futu 支持 push 时优先流式更新，yfinance/AKShare 只走轮询。策略 runtime 分别消费实时市场源、账户查询和交易命令端口：live 与 notify-only 均要求 `streamingCandles=true`，首期只有 Futu 可启动；notify-only 不解析账户，live 才按实例绑定的 `brokerId` 精确解析可交易 broker，订单命令统一经过 `internal/trading`。
+`jftrade-marketdata` 拥有逻辑 demand、cache、freshness、fallback polling 与 Provider 状态；`jftrade-engine` 组合唯一 `ProviderRouter`、OpenD session/coordinator、helper 和 LiveHub bridge。Provider 切换先验证并原子更新 active state；配置或持久化失败保持旧值并 fail closed。Futu 支持 push 时优先流式更新，yfinance/AKShare 只走轮询；WebSocket 断开会释放对应 demand。策略 runtime 通过 Rust market-data、broker 和 trading ports 消费行情、账户与订单能力，不直接拥有 Provider 或连接。
 
 ### 回测历史数据链路
 
 ```text
 apps/web -> /api/v1/backtests/*
-  -> internal/backtest HistoricalCandleSource
-  -> internal/app/apiserver/backtestapp
-  -> marketdataapp Provider lease -> Futu / yfinance / AKShare
-  -> pkg/backtest KLineStore schema v3
+  -> crates/jftrade-api
+  -> crates/jftrade-engine backtest ports + sync task registry
+  -> jftrade-backtest + jftrade-store-sqlite
+  -> ProviderRouter/helper/OpenD ports -> Futu / yfinance / AKShare
 ```
 
 回测 Provider 设置独立于全局行情设置，首次升级复制全局值，之后独立变化。同步器统一负责倒序分页、范围裁剪、去重、重试和取消；缓存表键含 provider、symbol、interval、adjustment、session。运行接受时固定 Provider，并以中立 `InstrumentSpec` 和 `backtest` session 完成本地撮合，不构造 Futu Exchange。`backtest.db` v2 被识别为 incompatible 并走统一备份重建流程；`backtest-runs.db` 保持独立且不重建。
@@ -204,11 +168,11 @@ apps/web -> /api/v1/backtests/*
 ```text
 apps/web
   -> /api/v1/market-data/*
-  -> internal/api/marketdata
-  -> internal/marketdata.Service
-  -> internal/app/apiserver/marketdataapp.Runtime
-     -> internal/integration/futu / pkg/futu -> Futu OpenD
-     -> internal/integration/yfinance -> embedded PyInstaller helper (dynamic loopback) -> Yahoo Finance
+  -> crates/jftrade-api
+  -> crates/jftrade-engine production market-data ports
+  -> jftrade-marketdata ProviderRouter/cache
+     -> jftrade-integration-futu -> Futu OpenD
+     -> jftrade-integration-marketdata-helper -> embedded PyInstaller helper -> yfinance / AKShare
 ```
 
 K 线的 bucket 归一、未收盘桶补齐、tick 驱动实时叠加详见 [frontend-kline.md](frontend-kline.md)。yfinance 当前承诺 `US`、`HK`、`SH`、`SZ`；上游数据延迟取决于市场和地区，美股通常约 15 分钟，而应用轮询刷新间隔为 15 秒。它不支持实时推流和 Level 2；这些差异通过 Provider descriptor 暴露，而不是由前端猜测。
@@ -218,11 +182,10 @@ K 线的 bucket 归一、未收盘桶补齐、tick 驱动实时叠加详见 [fro
 ```text
 apps/web
   -> /api/v1/watchlist/*
-  -> internal/api/watchlist
-  -> internal/watchlist.Service
-  -> internal/store/watchlist -> watchlists.db
-  -> WatchlistSourceReader / BatchSnapshotSource
-  -> pkg/futu -> Futu OpenD
+  -> crates/jftrade-api
+  -> crates/jftrade-engine production watchlist ports
+  -> jftrade-watchlist + jftrade-store-sqlite -> watchlists.db
+  -> remote-source / batch-snapshot ports -> ProviderRouter / OpenD
 ```
 
 `watchlists.db` 是唯一主数据。Futu 3213/3222 只承担远端分组发现与预览导入，3203 `SecuritySnapshot` 只承担可见行报价；自选行情不进入实时 collector demand 或 BasicQot 订阅。完整边界见 [watchlist.md](watchlist.md)。
@@ -232,28 +195,28 @@ apps/web
 ```text
 apps/web
   -> /api/v1/adk/* JSON/SSE
-  -> internal/api/assistant
-  -> internal/assistant.Service
-  -> internal/assistant/assembly
-  -> internal/assistant/engine runtime（assembly 私有）
+  -> crates/jftrade-api
+  -> crates/jftrade-engine ADK read/mutation/chat-stream ports
+  -> jftrade-assistant + ADK/session/artifact SQLite stores
+  -> configured model provider / MCP listener
 ```
 
-HTTP transport 不依赖 Futu、protobuf、ADK runtime 或旧 sidecar 门面。`internal/assistant/assembly.Handle` 负责 ADK store/session、工具装配、workflow bridge、MCP listener 和幂等关闭；`ApplicationAdapter` 从各业务 service 形成 Assistant 所需投影，且不得反向依赖 `internal/app`、具体 store 或 integration。应用层只持有 `assistant/assembly.Runtime` 接口。
+HTTP transport 不依赖 Futu、protobuf 或具体模型实现。`jftrade-engine` 组合 ADK store/session/artifact、工具 executor、workflow/task/approval runtime、chat stream 和 MCP listener；`jftrade-assistant` 保持领域规则与 transport、SQLite 和 integration 解耦。模型 Provider 未配置或不可用时，chat 与 stream 路由返回明确 503，不生成伪成功结果。Go Assistant 实现只用于 reference/differential。
 
 ### 通知链路
 
 ```text
-Futu OpenD protocol 1003 / bbgo.Notify(...)
-  -> internal/integration/futu broker-neutral event
-  -> live/assistant business publisher
-  -> internal/live ReplayPublisher
-  -> /api/v1/stream/live
+Futu OpenD push / Rust business event
+  -> jftrade-integration-futu broker-neutral event
+  -> jftrade-engine live/assistant/notification ports
+  -> crates/jftrade-api LiveHub
+  -> /api/v1/stream/live 或 /api/v1/ws/live
   -> apps/web Notification Center
 ```
 
 ## 当前约束与设计取舍
 
-### bbgo 公共能力复用仍然成立
+### Go reference 的 bbgo 公共能力仍然保留
 
 - `pkg/futu` 实现 bbgo `types.Exchange` 等公开接口。
 - PineTS worker 通过 Rust 的 `jftrade-integration-pine` 接入策略执行边界；Go `pkg/strategy/pineworker` 仅保留 reference/differential harness。
@@ -271,7 +234,7 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 
 ### Futu 适配层只服务需要 OpenD 的边界
 
-`pkg/futu` 服务 Futu 行情、交易和实时策略适配。回测历史同步经通用 Provider 端口，回测撮合不依赖 Futu Exchange。改这里时必须先判断是：
+生产 Futu 行情、交易和实时策略适配位于 `jftrade-integration-futu`；Go `pkg/futu` 只保留公开兼容面和 reference/differential。回测历史同步经通用 Provider 端口，回测撮合不依赖 Futu Exchange。改这里时必须先判断是：
 
 - 改 sidecar 行情/连接行为
 - 改实时策略执行依赖的 exchange 行为
@@ -281,13 +244,13 @@ Futu OpenD protocol 1003 / bbgo.Notify(...)
 
 1. 改独立 API 启动方式、运行模式、环境变量：先看 [`jftrade-api-rust`](../crates/jftrade-engine/src/bin/jftrade-api-rust.rs)、[../crates/jftrade-engine](../crates/jftrade-engine) 和 [../crates/jftrade-api](../crates/jftrade-api)。Go `cmd/jftrade-api` 仅用于 reference/differential harness。
 2. 改桌面 profile、菜单、Tauri IPC、窗口状态或更新：先看 [../apps/desktop/src-tauri](../apps/desktop/src-tauri) 和 [troubleshooting/desktop-release.md](troubleshooting/desktop-release.md)。
-3. 改前端 API、系统状态、设置：先看 [../internal/api](../internal/api)、[../internal/system](../internal/system)、[../internal/settings](../internal/settings)。
-4. 改策略定义、Pine/结构指令同步：先看 [../internal/api/strategy](../internal/api/strategy)、[../internal/strategy](../internal/strategy)、[../apps/web/src/pages/StrategyDesignPage.vue](../apps/web/src/pages/StrategyDesignPage.vue) 和 [../apps/web/src/features/pine-structure/index.ts](../apps/web/src/features/pine-structure/index.ts)。
-5. 改行情 Provider、订阅、实时推送或通知：先看 [../internal/marketdata](../internal/marketdata)、[../internal/app/apiserver/marketdataapp](../internal/app/apiserver/marketdataapp)、[../internal/api/live](../internal/api/live) 和对应的 `internal/integration/{futu,yfinance}`。
-6. 改 Futu 协议、映射、连接：先看 [../pkg/futu/exchange.go](../pkg/futu/exchange.go) 与 reference 层文档。
+3. 改前端 API、系统状态、设置：先看 [../crates/jftrade-api](../crates/jftrade-api)、[../crates/jftrade-engine](../crates/jftrade-engine)、[../crates/jftrade-settings](../crates/jftrade-settings) 和 [../crates/jftrade-store-settings-file](../crates/jftrade-store-settings-file)。
+4. 改策略定义、Pine/结构指令同步：先看 [../crates/jftrade-strategy](../crates/jftrade-strategy)、[../crates/jftrade-integration-pine](../crates/jftrade-integration-pine)、`crates/jftrade-engine` 的 strategy production ports、[../apps/web/src/pages/StrategyDesignPage.vue](../apps/web/src/pages/StrategyDesignPage.vue) 和 [../apps/web/src/features/pine-structure/index.ts](../apps/web/src/features/pine-structure/index.ts)。
+5. 改行情 Provider、订阅、实时推送或通知：先看 [../crates/jftrade-marketdata](../crates/jftrade-marketdata)、[../crates/jftrade-integration-futu](../crates/jftrade-integration-futu)、[../crates/jftrade-integration-marketdata-helper](../crates/jftrade-integration-marketdata-helper)、[../crates/jftrade-api](../crates/jftrade-api) 的 `LiveHub` 和 `crates/jftrade-engine` 的 production ports/composition。
+6. 改 Futu 协议、映射、连接：先看 [../crates/jftrade-integration-futu](../crates/jftrade-integration-futu)；[../pkg/futu/exchange.go](../pkg/futu/exchange.go) 只作为公开兼容/reference 对照。
 7. 改实时 K 线：先看 [frontend-kline.md](frontend-kline.md)。
-8. 改 Assistant/ADK HTTP 契约：先看 [../internal/api/assistant](../internal/api/assistant) 和 [../internal/assistant](../internal/assistant)。
-9. 改自选领域、券商导入、星标或自选快照：先看 [watchlist.md](watchlist.md)、[../internal/watchlist](../internal/watchlist) 和 [../internal/api/watchlist](../internal/api/watchlist)。
+8. 改 Assistant/ADK/MCP：先看 [../crates/jftrade-assistant](../crates/jftrade-assistant)、[../crates/jftrade-engine](../crates/jftrade-engine) 的 ADK/MCP ports 与 [../crates/jftrade-store-sqlite](../crates/jftrade-store-sqlite) 的 ADK stores。
+9. 改自选领域、券商导入、星标或自选快照：先看 [watchlist.md](watchlist.md)、[../crates/jftrade-watchlist](../crates/jftrade-watchlist)、[../crates/jftrade-store-sqlite](../crates/jftrade-store-sqlite) 与 `crates/jftrade-engine` 的 watchlist production ports。
 
 ## 相关文档
 

@@ -5,6 +5,8 @@ import path from "node:path";
 import process from "node:process";
 
 import { spawnChecked } from "./lib/spawn.mjs";
+import { buildStage7Corpus } from "./rust-migration/generate-stage7-corpus.mjs";
+import { validateRouteOwnership } from "./rust-migration/stage9-route-ownership.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 export const trackedOutputs = Object.freeze([
@@ -32,6 +34,7 @@ export async function generateContracts({ check = false } = {}) {
 
   try {
     run("go", ["generate", "./cmd/jftrade-api"], environment);
+    await assertGeneratedRouteSourcesMatch(outputRoot);
     run("node", ["scripts/generate-api-types.mjs"], environment);
     const runtimeSwaggerPath = await writeRuntimeSwagger(outputRoot, runtimeRoot);
     environment.JFTRADE_OPENAPI_SOURCE = runtimeSwaggerPath;
@@ -50,6 +53,61 @@ export async function generateContracts({ check = false } = {}) {
       check ? fs.rm(outputRoot, { recursive: true, force: true }) : Promise.resolve(),
       fs.rm(runtimeRoot, { recursive: true, force: true }),
     ]);
+  }
+}
+
+export async function assertGeneratedRouteSourcesMatch(
+  outputRoot,
+  { expectedRoot = repoRoot } = {},
+) {
+  const generatedOpenAPI = await readJson(
+    path.join(outputRoot, "docs/swagger/swagger.json"),
+    "generated OpenAPI",
+  );
+  const generatedCorpus = buildStage7Corpus(generatedOpenAPI);
+  const trackedCorpus = await readJson(
+    path.join(expectedRoot, "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json"),
+    "tracked Stage 7 corpus",
+  );
+  if (JSON.stringify(generatedCorpus) !== JSON.stringify(trackedCorpus)) {
+    throw new Error(
+      "Generated Stage 7 corpus differs from tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",
+    );
+  }
+
+  const ownership = await readJson(
+    path.join(expectedRoot, "tests/fixtures/rust-migration/stage9/route-ownership.json"),
+    "Stage 9 route ownership ledger",
+  );
+  const ownershipErrors = validateRouteOwnership(generatedCorpus, ownership);
+  if (ownershipErrors.length > 0) {
+    throw new Error(`Generated OpenAPI and route ownership differ:\n${ownershipErrors.join("\n")}`);
+  }
+
+  const manifest = await readJson(
+    path.join(expectedRoot, "crates/jftrade-engine/src/product_production_route_manifest.json"),
+    "Rust production route manifest",
+  );
+  assertRouteSetsMatch(generatedCorpus.routes, manifest.operations, "Rust production route manifest");
+}
+
+async function readJson(file, label) {
+  try {
+    return JSON.parse(await fs.readFile(file, "utf8"));
+  } catch (error) {
+    throw new Error(`Cannot read ${label} ${file}: ${error.message}`);
+  }
+}
+
+function assertRouteSetsMatch(expectedRoutes, actualRoutes, label) {
+  if (!Array.isArray(actualRoutes)) {
+    throw new Error(`${label} must contain operations`);
+  }
+  const keys = (routes) => routes.map((route) => `${route.method} ${route.path}`).sort();
+  const expected = keys(expectedRoutes);
+  const actual = keys(actualRoutes);
+  if (new Set(actual).size !== actual.length || JSON.stringify(expected) !== JSON.stringify(actual)) {
+    throw new Error(`Generated OpenAPI and ${label} differ`);
   }
 }
 
