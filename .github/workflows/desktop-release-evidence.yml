@@ -19,10 +19,6 @@ on:
         description: Attempt number of payload_run_id
         required: true
         type: string
-      payload_workflow:
-        description: Workflow filename that produced the external payload artifact
-        required: true
-        type: string
       payload_ref:
         description: Exact ref recorded by the payload run; must resolve to evidence_ref
         required: true
@@ -52,7 +48,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
-      actions: read
+      actions: write
       contents: read
     steps:
       - name: Checkout release tag
@@ -74,11 +70,14 @@ jobs:
           EVIDENCE_REF: ${{ inputs.evidence_ref }}
           PAYLOAD_REF: ${{ inputs.payload_ref }}
           PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
         shell: bash
         run: |
           set -euo pipefail
           RELEASE_COMMIT="$(git rev-parse HEAD)"
           [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "refs/tags/$RELEASE_REF" ]] || { echo "producer must run from the published release tag" >&2; exit 1; }
+          [[ "$GITHUB_SHA" == "$RELEASE_COMMIT" ]] || { echo "producer GITHUB_SHA does not match the release tag commit" >&2; exit 1; }
           [[ "$PAYLOAD_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload_commit_sha must be a lowercase commit SHA" >&2; exit 1; }
           [[ "$EVIDENCE_REF" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_REF" != /* && "$EVIDENCE_REF" != *".."* ]] || {
             echo "evidence_ref is not a safe Git ref" >&2
@@ -117,7 +116,7 @@ jobs:
           EVIDENCE_REF: ${{ inputs.evidence_ref }}
           PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
           PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
-          PAYLOAD_WORKFLOW: ${{ inputs.payload_workflow }}
+          PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
           PAYLOAD_REF: ${{ inputs.payload_ref }}
           PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
           PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
@@ -186,14 +185,74 @@ jobs:
             '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$payload_commit},artifact:{name:$artifact_name,id:$artifact_id,digest:$artifact_digest}}' \
             > payload-artifact-metadata.json
 
-      - name: Download the verified payload artifact
-        uses: actions/download-artifact@v8
+      - name: Download the verified payload artifact by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf payload
+          mkdir -p payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe artifact archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d payload
+          [[ -f payload/reports/signed-updater-inputs.json ]] || { echo "payload archive has no reports directory" >&2; exit 1; }
+
+      - name: Stage byte-identical producer payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf payload-output
+          mkdir -p payload-output/reports
+          for report in signed-updater-inputs sbom-provenance-inputs rollback-artifact-pair backup-restore-drill security-review-inputs; do
+            source="payload/reports/$report.json"
+            [[ -f "$source" && ! -L "$source" && -s "$source" ]] || { echo "missing payload report: $source" >&2; exit 1; }
+            cp -- "$source" "payload-output/reports/$report.json"
+          done
+          cp -- payload-artifact-metadata.json payload-output/payload-artifact-metadata.json
+
+      - name: Upload producer payload staging artifact
+        id: upload_payload
+        uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.payload_artifact }}
-          run-id: ${{ inputs.payload_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: payload
+          name: desktop-release-evidence-payload
+          path: payload-output
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify producer payload artifact outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
+          PRODUCER_ARTIFACT_DIGEST: ${{ steps.upload_payload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "producer payload artifact id is invalid" >&2; exit 1; }
+          [[ "$PRODUCER_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer payload artifact digest is invalid" >&2; exit 1; }
+          producer_payload_api="$(gh api "repos/$REPOSITORY/actions/artifacts/$PRODUCER_ARTIFACT_ID")"
+          jq -e \
+            --arg name "desktop-release-evidence-payload" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            --argjson id "$PRODUCER_ARTIFACT_ID" \
+            --argjson run_id "$PRODUCER_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$producer_payload_api" >/dev/null || { echo "producer payload artifact API metadata does not match upload outputs" >&2; exit 1; }
+          printf '%s\n' "$producer_payload_api" > producer-payload-artifact-api.json
+          jq -n \
+            --arg name "desktop-release-evidence-payload" \
+            --argjson id "$PRODUCER_ARTIFACT_ID" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            '{name:$name,id:$id,digest:$digest}' > producer-artifact-metadata.json
 
       - name: Bind payload reports without synthesizing evidence
         env:
@@ -201,6 +260,8 @@ jobs:
           RELEASE_REF: refs/tags/${{ inputs.release_ref }}
           PRODUCER_RUN_ID: ${{ github.run_id }}
           PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
+          PRODUCER_ARTIFACT_DIGEST: ${{ steps.upload_payload.outputs.artifact-digest }}
         shell: bash
         run: |
           set -euo pipefail
@@ -214,6 +275,9 @@ jobs:
             --release-commit "$(git rev-parse HEAD)" \
             --producer-run-id "$PRODUCER_RUN_ID" \
             --producer-attempt "$PRODUCER_ATTEMPT" \
+            --producer-artifact-name desktop-release-evidence-payload \
+            --producer-artifact-id "$PRODUCER_ARTIFACT_ID" \
+            --producer-artifact-digest "$PRODUCER_ARTIFACT_DIGEST" \
             > bound-evidence-summary.json
 
       - name: Upload bound release evidence artifact

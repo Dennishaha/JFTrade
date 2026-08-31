@@ -11,7 +11,7 @@
     "schemaVersion": { "const": "jftrade.release-evidence-payload-binding.v1" },
     "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
     "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
-    "evidenceRef": { "type": "string", "minLength": 1 },
+    "evidenceRef": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
     "payloadRun": {
       "type": "object",
       "additionalProperties": false,
@@ -19,8 +19,8 @@
       "properties": {
         "id": { "type": "integer", "minimum": 1 },
         "attempt": { "type": "integer", "minimum": 1 },
-        "workflow": { "type": "string", "pattern": "^[A-Za-z0-9._/-]+\\.yml$" },
-        "ref": { "type": "string", "minLength": 1 },
+        "workflow": { "const": "desktop-release-evidence-payload.yml" },
+        "ref": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
         "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }
       }
     },

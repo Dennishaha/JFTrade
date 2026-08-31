@@ -1,0 +1,238 @@
+name: Desktop Release Evidence Payload
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Exact vX.Y.Z tag covered by the external evidence payload
+        required: true
+        type: string
+      evidence_ref:
+        description: Branch or commit containing this payload workflow run
+        required: true
+        type: string
+      source_run_id:
+        description: Successful external run that produced the raw evidence files
+        required: true
+        type: string
+      source_run_attempt:
+        description: Attempt number for source_run_id
+        required: true
+        type: string
+      source_artifact:
+        description: Raw external evidence artifact name
+        required: true
+        type: string
+      source_artifact_id:
+        description: Immutable GitHub artifact id for the raw evidence artifact
+        required: true
+        type: string
+      source_artifact_digest:
+        description: GitHub SHA-256 digest for the raw evidence artifact
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  verify:
+    name: Verify and publish external evidence payload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout trusted evidence ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.evidence_ref }}
+          fetch-depth: 0
+
+      - name: Verify release and source run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$EVIDENCE_REF" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_REF" != /* && "$EVIDENCE_REF" != *".."* ]] || { echo "evidence_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "refs/heads/$EVIDENCE_REF" || "$GITHUB_REF" == "$EVIDENCE_REF" || "$GITHUB_REF" == "$EVIDENCE_REF" ]] || {
+            echo "payload workflow must run from evidence_ref" >&2
+            exit 1
+          }
+          release_commit="$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" == "$release_commit" ]] || { echo "payload GITHUB_SHA does not match checked-out evidence ref" >&2; exit 1; }
+          git fetch --no-tags origin "refs/tags/$RELEASE_REF:refs/tags/$RELEASE_REF"
+          [[ "$(git rev-parse "refs/tags/$RELEASE_REF^{commit}")" == "$release_commit" ]] || {
+            echo "evidence ref commit does not match release tag commit" >&2
+            exit 1
+          }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source run ids must be positive integers" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source artifact id must be a positive integer" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "source artifact name is unsafe" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "source artifact digest is invalid" >&2; exit 1; }
+          source_run="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e \
+            --arg sha "$release_commit" \
+            --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            --arg workflow "external-release-evidence.yml" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run" >/dev/null || { echo "source run is not a successful trusted evidence workflow" >&2; exit 1; }
+          source_artifact="$(gh api "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
+          jq -e \
+            --arg name "$SOURCE_ARTIFACT" \
+            --arg digest "$SOURCE_ARTIFACT_DIGEST" \
+            --argjson id "$SOURCE_ARTIFACT_ID" \
+            --argjson run_id "$SOURCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact" >/dev/null || { echo "source artifact API metadata does not match inputs" >&2; exit 1; }
+
+      - name: Download raw evidence by immutable artifact id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf incoming
+          mkdir -p incoming
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming
+          [[ -f incoming/reports/signed-updater-inputs.json ]] || { echo "raw evidence artifact has no reports" >&2; exit 1; }
+
+      - name: Run dedicated evidence checkers
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_version="${RELEASE_REF#v}"
+          updater_endpoint="$(jq -r '.endpoint // empty' incoming/updater-config.json)"
+          updater_public_key="$(jq -r '.publicKey // empty' incoming/updater-config.json)"
+          node scripts/rust-migration/check-signed-updater-artifact.mjs \
+            --artifacts incoming/updater-artifacts \
+            --feed incoming/updater-feed.json \
+            --endpoint "$updater_endpoint" \
+            --public-key "$updater_public_key" \
+            --expected-version "$release_version"
+          node scripts/rust-migration/check-sbom-provenance.mjs \
+            --manifest incoming/sbom-provenance.json \
+            --base-dir incoming \
+            --require-targets
+          previous_version="$(jq -r '.previous.version // empty' incoming/reports/rollback-artifact-pair.json)"
+          node scripts/rust-migration/check-rollback-artifact.mjs \
+            --current-dir incoming/rollback/current \
+            --previous-dir incoming/rollback/previous \
+            --current "$release_version" \
+            --previous "$previous_version" \
+            --allow-downgrade \
+            --instructions incoming/rollback/rollback.md
+          node scripts/rust-migration/check-backup-restore-drill.mjs
+          node scripts/rust-migration/check-security-review-inputs.mjs --root .
+
+      - name: Verify report semantics without synthesizing evidence
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/rust-migration/verify-release-evidence-payload.mjs \
+            --root incoming \
+            --repository "$GITHUB_REPOSITORY" \
+            --release-ref "refs/tags/$RELEASE_REF" \
+            --payload-ref "$EVIDENCE_REF" \
+            --payload-commit "$GITHUB_SHA" \
+            --payload-workflow desktop-release-evidence-payload.yml \
+            --payload-run-id "$GITHUB_RUN_ID" \
+            --payload-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --payload-artifact "$SOURCE_ARTIFACT" \
+            --payload-artifact-id "$SOURCE_ARTIFACT_ID" \
+            --payload-artifact-digest "$SOURCE_ARTIFACT_DIGEST"
+
+      - name: Publish verified payload reports byte-identically
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf payload-output
+          mkdir -p payload-output/reports
+          for report in signed-updater-inputs sbom-provenance-inputs rollback-artifact-pair backup-restore-drill security-review-inputs; do
+            source="incoming/reports/$report.json"
+            [[ -f "$source" && ! -L "$source" && -s "$source" ]] || { echo "missing verified report: $source" >&2; exit 1; }
+            cp -- "$source" "payload-output/reports/$report.json"
+          done
+
+      - name: Upload desktop-release-evidence-payload
+        id: upload_payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-payload
+          path: payload-output
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify published payload artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
+          PRODUCER_ARTIFACT_DIGEST: ${{ steps.upload_payload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PRODUCER_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "published payload artifact outputs are invalid" >&2; exit 1; }
+          published="$(gh api "repos/$REPOSITORY/actions/artifacts/$PRODUCER_ARTIFACT_ID")"
+          jq -e \
+            --arg name "desktop-release-evidence-payload" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            --argjson id "$PRODUCER_ARTIFACT_ID" \
+            --argjson run_id "$PRODUCER_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$published" >/dev/null || { echo "published payload artifact API metadata mismatch" >&2; exit 1; }
+          jq -n \
+            --arg schema "./release-evidence-payload-binding.schema.json" \
+            --arg schema_version "jftrade.release-evidence-payload-binding.v1" \
+            --arg repository "$REPOSITORY" \
+            --arg release_ref "refs/tags/${{ inputs.release_ref }}" \
+            --arg evidence_ref "${{ inputs.evidence_ref }}" \
+            --argjson run_id "$PRODUCER_RUN_ID" \
+            --argjson attempt "${{ github.run_attempt }}" \
+            --arg workflow "desktop-release-evidence-payload.yml" \
+            --arg ref "${{ inputs.evidence_ref }}" \
+            --arg commit "${{ github.sha }}" \
+            --arg name "desktop-release-evidence-payload" \
+            --argjson id "$PRODUCER_ARTIFACT_ID" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$commit},artifact:{name:$name,id:$id,digest:$digest}}' \
+            > payload-artifact-metadata.json
+          cp -- payload-artifact-metadata.json payload-output/payload-artifact-metadata.json
+
+      - name: Upload payload provenance metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-payload-provenance
+          path: payload-artifact-metadata.json
+          if-no-files-found: error
+          retention-days: 90

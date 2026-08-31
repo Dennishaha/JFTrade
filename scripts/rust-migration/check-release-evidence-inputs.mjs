@@ -9,6 +9,9 @@ export const RELEASE_EVIDENCE_INPUTS_SCHEMA = "jftrade.release-evidence-inputs.v
 export const TRUSTED_EVIDENCE_WORKFLOWS = Object.freeze([
   "desktop-release-evidence.yml",
 ]);
+export const TRUSTED_PAYLOAD_WORKFLOWS = Object.freeze([
+  "desktop-release-evidence-payload.yml",
+]);
 export const TRUSTED_PRODUCER_WORKFLOWS = TRUSTED_EVIDENCE_WORKFLOWS;
 export const REQUIRED_EVIDENCE = Object.freeze({
   "signed-updater-inputs": "signed-updater",
@@ -43,7 +46,7 @@ const REPORT_CONTRACTS = Object.freeze({
 
 const ROOT_KEYS = Object.freeze([
   "$schema", "schemaVersion", "repository", "releaseRef", "ref", "commitSha",
-  "workflow", "runId", "attempt", "artifact", "evidence",
+  "workflow", "runId", "attempt", "artifact", "sourceBinding", "evidence",
 ]);
 const ARTIFACT_KEYS = Object.freeze(["name", "id", "digest"]);
 const EVIDENCE_KEYS = Object.freeze(["kind", "status", "files"]);
@@ -85,12 +88,22 @@ function digest(value, label, errors, prefixed = false) {
   return requiredString(value, label, errors, pattern);
 }
 
-function normalizeWorkflow(value, label, errors) {
+function normalizeWorkflow(value, label, errors, trustedWorkflows = TRUSTED_EVIDENCE_WORKFLOWS) {
   const workflow = requiredString(value, label, errors, /^[A-Za-z0-9._-]+\.yml$/);
-  if (workflow && !TRUSTED_EVIDENCE_WORKFLOWS.includes(workflow)) {
+  if (workflow && !trustedWorkflows.includes(workflow)) {
     errors.push(`${label} is not a trusted evidence producer workflow`);
   }
   return workflow;
+}
+
+function safeGitRef(value, label, errors) {
+  const ref = requiredString(value, label, errors);
+  const parts = ref?.split("/") ?? [];
+  if (ref && (!/^[A-Za-z0-9._/-]+$/.test(ref) || ref.startsWith("/") || ref.endsWith("/")
+    || ref.includes("..") || parts.some((part) => part === "." || part === ".."))) {
+    errors.push(`${label} must be a safe Git ref`);
+  }
+  return ref;
 }
 
 function safeRelativePath(value, label, errors) {
@@ -173,6 +186,32 @@ function bindingError(binding, expected, label, errors) {
       errors.push(`${label}.binding.artifact does not match manifest`);
     }
   }
+}
+
+function validateBindingObject(binding, label, errors, trustedWorkflows = TRUSTED_PAYLOAD_WORKFLOWS) {
+  if (!isRecord(binding)) {
+    errors.push(`${label} must be an object`);
+    return null;
+  }
+  addUnknownKeys(binding, BINDING_KEYS, label, errors);
+  const normalized = {
+    repository: requiredString(binding.repository, `${label}.repository`, errors, /^[^/\s]+\/[^/\s]+$/),
+    releaseRef: requiredString(binding.releaseRef, `${label}.releaseRef`, errors, /^refs\/tags\/v\d+\.\d+\.\d+$/),
+    ref: safeGitRef(binding.ref, `${label}.ref`, errors),
+    commitSha: requiredString(binding.commitSha, `${label}.commitSha`, errors, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
+    workflow: normalizeWorkflow(binding.workflow, `${label}.workflow`, errors, trustedWorkflows),
+    runId: positiveInteger(binding.runId, `${label}.runId`, errors),
+    attempt: positiveInteger(binding.attempt, `${label}.attempt`, errors),
+    artifact: binding.artifact,
+  };
+  if (!isRecord(binding.artifact)) errors.push(`${label}.artifact must be an object`);
+  else {
+    addUnknownKeys(binding.artifact, ARTIFACT_KEYS, `${label}.artifact`, errors);
+    requiredString(binding.artifact.name, `${label}.artifact.name`, errors, /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
+    positiveInteger(binding.artifact.id, `${label}.artifact.id`, errors);
+    digest(binding.artifact.digest, `${label}.artifact.digest`, errors, true);
+  }
+  return normalized;
 }
 
 function compareSemver(left, right) {
@@ -286,6 +325,42 @@ function validateReport(document, kind, file, expected, options, label, errors, 
   }
 }
 
+/**
+ * Validate the five externally supplied payload reports without manufacturing
+ * a release manifest or changing any report bytes.  The payload workflow uses
+ * this helper as a semantic gate before publishing its pass-through artifact.
+ */
+export function validateReleaseEvidencePayload({ baseDirectory, expectedBinding, releaseArtifactDigests } = {}) {
+  const errors = [];
+  const root = path.resolve(baseDirectory ?? process.cwd());
+  const binding = validateBindingObject(expectedBinding, "payload.binding", errors);
+  const reports = {};
+  for (const [id, kind] of Object.entries(REQUIRED_EVIDENCE)) {
+    const relative = `reports/${id}.json`;
+    const label = `payload.${id}`;
+    const resolved = resolveEvidenceFile(relative, root, label, errors);
+    if (!resolved) continue;
+    let text;
+    let parsed;
+    try {
+      text = fs.readFileSync(resolved, "utf8");
+      parsed = JSON.parse(text);
+    } catch (error) {
+      errors.push(`${label} must be a JSON report: ${error.message}`);
+      continue;
+    }
+    const file = { schemaVersion: parsed?.schemaVersion };
+    validateReport(parsed, kind, file, binding ?? expectedBinding, { releaseArtifactDigests }, label, errors, text);
+    reports[id] = { path: relative, schemaVersion: file.schemaVersion };
+  }
+  return {
+    valid: errors.length === 0,
+    status: errors.length === 0 ? "payload_reports_validated" : "payload_reports_invalid",
+    reports,
+    errors,
+  };
+}
+
 function validateExpected(document, options, expected, errors) {
   const configured = options.expected ?? options;
   for (const key of ["repository", "releaseRef", "ref", "commitSha", "workflow"]) {
@@ -338,6 +413,17 @@ export function validateExternalEvidenceManifest(document, options = {}) {
   }
   const expected = {};
   validateExpected(document, options, expected, errors);
+  const sourceBinding = validateBindingObject(document.sourceBinding, "manifest.sourceBinding", errors);
+  if (sourceBinding && releaseRef && sourceBinding.releaseRef !== releaseRef) {
+    errors.push("manifest.sourceBinding.releaseRef must match manifest.releaseRef");
+  }
+  const expectedSourceBinding = options.sourceBinding;
+  if (expectedSourceBinding) {
+    const normalizedExpected = validateBindingObject(expectedSourceBinding, "expected.sourceBinding", errors);
+    if (sourceBinding && normalizedExpected && JSON.stringify(sourceBinding) !== JSON.stringify(normalizedExpected)) {
+      errors.push("manifest.sourceBinding does not match expected source binding");
+    }
+  }
   if (options.expectedArtifactMetadata) {
     for (const key of ARTIFACT_KEYS) {
       if (artifact?.[key] !== options.expectedArtifactMetadata[key]) {
@@ -402,7 +488,7 @@ export function validateExternalEvidenceManifest(document, options = {}) {
           errors.push(`${fileLabel} must be a JSON report, not arbitrary text (${error.message})`);
           continue;
         }
-        validateReport(parsed, kind, file, expected, options, fileLabel, errors, text);
+        validateReport(parsed, kind, file, sourceBinding ?? expected, options, fileLabel, errors, text);
       }
     }
   }

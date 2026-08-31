@@ -30,7 +30,7 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 ## 后续交接顺序
 
 1. 先运行静态 admission，再按 `platformRelease` 补齐四平台 Tauri release 矩阵，记录每个平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke 证据。
-2. 在四平台 artifact 汇总后生成并校验独立 candidate evidence；并行准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom` 和 `securityReview` 的同 ref/commit 外部输入材料。`desktop-release-evidence.yml` 只接受受信 `evidence_ref` 上游真实 payload artifact，校验其 run/ref/commit、GitHub artifact id/digest、逐文件 schema/status/hash/size 后生成 `desktop-release-evidence-bound` binding artifact；manifest 的 `artifact` 字段绑定 payload 元数据而非自身输出包，qualification workflow 再分别校验 producer 输出与 payload API 元数据。绝不把本地 checker 输出、命令文本或 external-required 占位值当作通过；真实签名环境或原生平台缺失时必须 fail-closed。
+2. 在四平台 artifact 汇总后生成并校验独立 candidate evidence；并行准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom` 和 `securityReview` 的同 ref/commit 外部输入材料。`desktop-release-evidence.yml` 只接受受信 `evidence_ref` 上游真实 payload artifact，校验其 run/ref/commit、GitHub artifact id/digest、逐文件 schema/status/hash/size 后先逐字节复制到固定的 `desktop-release-evidence-payload` producer staging artifact，再生成 `desktop-release-evidence-bound` binding artifact；manifest 的 `artifact` 字段绑定 producer staging artifact，`sourceBinding` 与 payload metadata 独立绑定原始 payload。qualification workflow 必须分别校验 producer 输出、payload 文件字节和两套 GitHub API 元数据。绝不把本地 checker 输出、命令文本或 external-required 占位值当作通过；真实签名环境或原生平台缺失时必须 fail-closed。
 3. release candidate evidence 与 updater/rollback 证据齐全后，再执行 `backupRestoreDrill` 并保留其外部证据引用。
 4. 正式发布后由独立 workflow 从 post-release evidence ref 执行 `postReleaseSmoke` 和默认 `--check`，最后复核 `hardCutReadiness` 并关闭 closeout。
 

@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   RELEASE_EVIDENCE_INPUTS_SCHEMA,
   TRUSTED_EVIDENCE_WORKFLOWS,
+  TRUSTED_PAYLOAD_WORKFLOWS,
   validateExternalEvidenceManifest,
 } from "./check-release-evidence-inputs.mjs";
 
@@ -65,9 +66,17 @@ function createFixture() {
     attempt: 2,
     artifact,
   };
+  const sourceBinding = {
+    ...binding,
+    ref: "refs/heads/release-evidence/v1.2.3",
+    workflow: TRUSTED_PAYLOAD_WORKFLOWS[0],
+    runId: 81235,
+    attempt: 1,
+    artifact: { name: "payload-evidence", id: 9002, digest: `sha256:${"2".repeat(64)}` },
+  };
   const evidence = {};
   for (const [id, [kind, schemaVersion, extra]] of Object.entries(contracts)) {
-    const report = { schemaVersion, status: id === "security-review-inputs" ? "independent_review_signed_off" : "verified", binding, ...extra };
+    const report = { schemaVersion, status: id === "security-review-inputs" ? "independent_review_signed_off" : "verified", binding: sourceBinding, ...extra };
     const relative = `reports/${id}.json`;
     const text = `${JSON.stringify(report)}\n`;
     fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
@@ -99,9 +108,10 @@ function createFixture() {
       runId: binding.runId,
       attempt: binding.attempt,
       artifact,
+      sourceBinding,
       evidence,
     },
-    expected: { ...binding },
+    expected: { ...binding, sourceBinding },
     releaseArtifactDigests: {
       "macos-arm64": "a".repeat(64),
       "linux-x64": ["b".repeat(64), "c".repeat(64), "d".repeat(64)],
@@ -144,7 +154,7 @@ test("requires semantic updater and rollback evidence fields", (context) => {
   delete updater.manifest.evidence["signed-updater-inputs"].files[0].schemaVersion;
   fs.writeFileSync(
     path.join(value.root, "reports/signed-updater-inputs.json"),
-    JSON.stringify({ schemaVersion: "jftrade.release.signed-updater.v2", status: "verified", binding: value.binding }),
+    JSON.stringify({ schemaVersion: "jftrade.release.signed-updater.v2", status: "verified", binding: value.manifest.sourceBinding }),
   );
   updater.manifest.evidence["signed-updater-inputs"].files[0].sha256 = digest(
     fs.readFileSync(path.join(value.root, "reports/signed-updater-inputs.json")),
@@ -159,7 +169,7 @@ test("requires semantic updater and rollback evidence fields", (context) => {
   fs.writeFileSync(path.join(value.root, rollbackReport.path), JSON.stringify({
     schemaVersion: "jftrade.release.rollback-artifact.v2",
     status: "verified",
-    binding: value.binding,
+    binding: value.manifest.sourceBinding,
     current: { version: "1.2.3" },
     previous: { version: "1.2.2" },
   }));
@@ -182,10 +192,10 @@ test("rejects foreign run, ref, commit, artifact id and digest bindings", (conte
     assert.equal(inspect(candidate).valid, false, field);
   }
   const foreignArtifact = structuredClone(value);
-  foreignArtifact.manifest.artifact.id += 1;
+  foreignArtifact.manifest.artifact = { ...foreignArtifact.manifest.artifact, id: foreignArtifact.manifest.artifact.id + 1 };
   assert.equal(inspect(foreignArtifact).valid, false);
   const foreignDigest = structuredClone(value);
-  foreignDigest.manifest.artifact.digest = `sha256:${"2".repeat(64)}`;
+  foreignDigest.manifest.artifact = { ...foreignDigest.manifest.artifact, digest: `sha256:${"2".repeat(64)}` };
   assert.equal(inspect(foreignDigest).valid, false);
 });
 

@@ -73,6 +73,7 @@ jobs:
             exit 1
           }
           commit_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" == "$commit_sha" ]] || { echo "qualification GITHUB_SHA does not match the release tag commit" >&2; exit 1; }
           run_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
           jq -e \
             --arg sha "$commit_sha" \
@@ -139,88 +140,79 @@ jobs:
             echo "external evidence artifact metadata is missing, ambiguous, expired, or lacks a digest" >&2
             exit 1
           }
+          evidence_artifact_id="$(jq -r '.[0].id' <<<"$artifact_matches")"
+          evidence_artifact_digest="$(jq -r '.[0].digest' <<<"$artifact_matches")"
+          evidence_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$evidence_artifact_id")"
+          jq -e \
+            --arg name "$EVIDENCE_ARTIFACT" \
+            --arg digest "$evidence_artifact_digest" \
+            --argjson id "$evidence_artifact_id" \
+            --argjson run_id "$EVIDENCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$evidence_artifact_json" >/dev/null || {
+            echo "external evidence artifact detail does not match run metadata" >&2
+            exit 1
+          }
           jq --argjson attempt "$EVIDENCE_RUN_ATTEMPT" '.[0] + {runAttempt: $attempt}' <<<"$artifact_matches" > evidence-artifact-metadata.json
+          printf '%s\n' "$evidence_artifact_json" > evidence-bound-artifact-api.json
 
-      - name: Download macOS source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-macos
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-macos
+      - name: Download producer binding artifact by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVIDENCE_ARTIFACT_ID_FILE: evidence-artifact-metadata.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id="$(jq -r '.id // empty' "$EVIDENCE_ARTIFACT_ID_FILE")"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]] || { echo "producer binding artifact id is invalid" >&2; exit 1; }
+          rm -rf incoming/release-evidence
+          mkdir -p incoming/release-evidence
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$artifact_id/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe evidence archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming/release-evidence
+          [[ -f incoming/release-evidence/release-evidence-inputs.json ]] || { echo "producer binding archive has no release-evidence-inputs.json" >&2; exit 1; }
 
-      - name: Download Linux source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-linux
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-linux
-
-      - name: Download Windows x64 source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-windows
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-windows
-
-      - name: Download Windows ARM64 source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-windows-arm64
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-windows-arm64
-
-      - name: Download macOS updater source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-updater-macos
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-updater-macos
-
-      - name: Download Linux updater source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-updater-linux
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-updater-linux
-
-      - name: Download Windows x64 updater source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-updater-windows
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-updater-windows
-
-      - name: Download Windows ARM64 updater source artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: desktop-release-updater-windows-arm64
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/desktop-release-updater-windows-arm64
-
-      - name: Download external release evidence artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ inputs.evidence_artifact }}
-          run-id: ${{ inputs.evidence_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: incoming/release-evidence
+      - name: Download source artifacts by immutable ids
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming
+          while IFS= read -r item; do
+            name="$(jq -r '.name' <<<"$item")"
+            artifact_id="$(jq -r '.id' <<<"$item")"
+            [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]] || { echo "source artifact id is invalid: $name" >&2; exit 1; }
+            case "$name" in
+              desktop-release-macos) destination="incoming/desktop-release-macos" ;;
+              desktop-release-linux) destination="incoming/desktop-release-linux" ;;
+              desktop-release-windows) destination="incoming/desktop-release-windows" ;;
+              desktop-release-windows-arm64) destination="incoming/desktop-release-windows-arm64" ;;
+              desktop-release-updater-macos) destination="incoming/desktop-release-updater-macos" ;;
+              desktop-release-updater-linux) destination="incoming/desktop-release-updater-linux" ;;
+              desktop-release-updater-windows) destination="incoming/desktop-release-updater-windows" ;;
+              desktop-release-updater-windows-arm64) destination="incoming/desktop-release-updater-windows-arm64" ;;
+              *) echo "unexpected source artifact: $name" >&2; exit 1 ;;
+            esac
+            rm -rf "$destination"
+            mkdir -p "$destination"
+            archive="$(mktemp)"
+            trap 'rm -f "$archive"' EXIT
+            gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+              "repos/$REPOSITORY/actions/artifacts/$artifact_id/zip" > "$archive"
+            while IFS= read -r entry; do
+              [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
+            done < <(unzip -Z1 "$archive")
+            unzip -q "$archive" -d "$destination"
+            rm -f "$archive"
+          done < <(jq -c '.releaseArtifacts[], .updaterArtifacts[]' source-artifact-metadata.json)
 
       - name: Verify producer binding and payload artifact provenance
         env:
@@ -259,8 +251,12 @@ jobs:
           payload_ref="$(jq -r '.payloadRun.ref // empty' "$payload_metadata")"
           payload_commit="$(jq -r '.payloadRun.commitSha // empty' "$payload_metadata")"
           evidence_ref="$(jq -r '.evidenceRef // empty' "$payload_metadata")"
+          payload_release_ref="$(jq -r '.releaseRef // empty' "$payload_metadata")"
           [[ "$payload_id" =~ ^[1-9][0-9]*$ && "$payload_run_id" =~ ^[1-9][0-9]*$ && "$payload_run_attempt" =~ ^[1-9][0-9]*$ ]] || { echo "payload binding metadata has invalid ids" >&2; exit 1; }
           [[ "$payload_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$payload_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload binding metadata has invalid artifact fields" >&2; exit 1; }
+          [[ "$payload_workflow" == "desktop-release-evidence-payload.yml" ]] || { echo "payload binding metadata uses an untrusted workflow" >&2; exit 1; }
+          [[ "$payload_release_ref" == "refs/tags/$RELEASE_REF" ]] || { echo "payload binding metadata releaseRef does not match release tag" >&2; exit 1; }
+          [[ "$evidence_ref" =~ ^[A-Za-z0-9._/-]+$ && "$evidence_ref" != /* && "$evidence_ref" != *".."* ]] || { echo "payload evidence ref is unsafe" >&2; exit 1; }
           [[ "$payload_commit" == "$release_commit" && "$payload_ref" == "$evidence_ref" && "$evidence_ref" != "$RELEASE_REF" && "$evidence_ref" != "refs/tags/$RELEASE_REF" ]] || { echo "payload evidence ref/commit is not independently bound" >&2; exit 1; }
           payload_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$payload_id")"
           jq -e \
@@ -270,6 +266,20 @@ jobs:
             --argjson run_id "$payload_run_id" \
             '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
             <<<"$payload_artifact_json" >/dev/null || { echo "payload artifact API metadata does not match producer binding" >&2; exit 1; }
+          producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
+          producer_name="$(jq -r '.artifact.name // empty' "$manifest_path")"
+          producer_digest="$(jq -r '.artifact.digest // empty' "$manifest_path")"
+          [[ "$producer_name" == "desktop-release-evidence-payload" ]] || { echo "producer manifest must reference the fixed staging artifact" >&2; exit 1; }
+          [[ "$producer_id" =~ ^[1-9][0-9]*$ && "$producer_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer manifest artifact metadata is invalid" >&2; exit 1; }
+          producer_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$producer_id")"
+          jq -e \
+            --arg name "$producer_name" \
+            --arg digest "$producer_digest" \
+            --argjson id "$producer_id" \
+            --argjson run_id "$EVIDENCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$producer_artifact_json" >/dev/null || { echo "producer staging artifact API metadata does not match manifest" >&2; exit 1; }
+          printf '%s\n' "$producer_artifact_json" > producer-payload-artifact-api.json
           payload_run_json="$(gh api "repos/$REPOSITORY/actions/runs/$payload_run_id")"
           payload_branch="${payload_ref#refs/heads/}"
           payload_branch="${payload_branch#refs/tags/}"
@@ -420,6 +430,41 @@ jobs:
             || String(payloadApi.workflow_run?.id) !== String(payloadMetadata.payloadRun?.id)) {
             throw new Error("producer payload artifact metadata is not bound to the GitHub artifact API");
           }
+          const producerArtifact = manifest.artifact;
+          const producerApi = JSON.parse(fs.readFileSync("producer-payload-artifact-api.json", "utf8"));
+          if (!producerArtifact || typeof producerArtifact !== "object"
+            || producerArtifact.name !== "desktop-release-evidence-payload"
+            || producerApi.id !== Number(producerArtifact.id)
+            || producerApi.name !== producerArtifact.name
+            || producerApi.digest !== producerArtifact.digest
+            || producerApi.expired !== false
+            || String(producerApi.workflow_run?.id) !== String(process.env.EVIDENCE_RUN_ID)) {
+            throw new Error("producer staging artifact metadata is not bound to the GitHub artifact API");
+          }
+          const payloadBinding = {
+            repository: payloadMetadata.repository,
+            releaseRef: payloadMetadata.releaseRef,
+            ref: payloadMetadata.payloadRun.ref,
+            commitSha: payloadMetadata.payloadRun.commitSha,
+            workflow: payloadMetadata.payloadRun.workflow,
+            runId: Number(payloadMetadata.payloadRun.id),
+            attempt: Number(payloadMetadata.payloadRun.attempt),
+            artifact: payloadArtifact,
+          };
+          const expectedKinds = {
+            "signed-updater-inputs": "signed-updater",
+            "sbom-provenance-inputs": "sbom-provenance",
+            "rollback-artifact-pair": "rollback-artifact",
+            "backup-restore-drill": "backup-restore",
+            "security-review-inputs": "security-review",
+          };
+          const producerPayloadRoot = path.resolve("incoming/producer-payload");
+          for (const id of Object.keys(expectedKinds)) {
+            const staged = path.join(producerPayloadRoot, "reports", `${id}.json`);
+            if (!fs.existsSync(staged) || fs.lstatSync(staged).isSymbolicLink()) {
+              throw new Error(`producer staging payload is missing ${id}`);
+            }
+          }
           const sourceArtifactMetadata = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
           const sourceArtifacts = sourceArtifactMetadata.releaseArtifacts;
           fs.copyFileSync("source-artifact-metadata.json", path.join(root, "source-artifact-metadata.json"));
@@ -447,27 +492,28 @@ jobs:
               workflow: process.env.EVIDENCE_WORKFLOW,
               runId: Number(process.env.EVIDENCE_RUN_ID),
               attempt: Number(process.env.EVIDENCE_RUN_ATTEMPT),
-              artifact: payloadArtifact,
+              artifact: producerArtifact,
+              sourceBinding: payloadBinding,
             },
-            expectedArtifactMetadata: payloadArtifact,
+            expectedArtifactMetadata: producerArtifact,
             releaseArtifactDigests,
           });
           if (!externalValidation.valid) {
             throw new Error(`external evidence manifest is invalid: ${externalValidation.errors.join("; ")}`);
           }
-          const expectedKinds = {
-            "signed-updater-inputs": "signed-updater",
-            "sbom-provenance-inputs": "sbom-provenance",
-            "rollback-artifact-pair": "rollback-artifact",
-            "backup-restore-drill": "backup-restore",
-            "security-review-inputs": "security-review",
-          };
           const externalRun = {
             id: manifest.runId,
             attempt: manifest.attempt,
             workflow: manifest.workflow,
             ref: manifest.ref,
             commitSha: manifest.commitSha,
+          };
+          const payloadRun = {
+            id: payloadBinding.runId,
+            attempt: payloadBinding.attempt,
+            workflow: payloadBinding.workflow,
+            ref: payloadBinding.ref,
+            commitSha: payloadBinding.commitSha,
           };
           const copyReleaseAsset = (sourcePath) => {
             const name = path.basename(sourcePath);
@@ -505,12 +551,16 @@ jobs:
             },
             ...Object.entries(expectedKinds).map(([id, kind]) => {
               const entry = manifest.evidence?.[id];
-              if (!entry || entry.kind !== kind || !Array.isArray(entry.files) || entry.files.length === 0) {
+              if (!entry || entry.kind !== kind || !Array.isArray(entry.files) || entry.files.length !== 1) {
                 throw new Error(`external evidence manifest missing valid ${id}`);
               }
               const evidence = entry.files.map((file) => {
                 const relative = file.path;
                 const source = path.resolve("incoming/release-evidence", relative);
+                const staged = path.join(producerPayloadRoot, "reports", `${id}.json`);
+                if (!fs.readFileSync(source).equals(fs.readFileSync(staged))) {
+                  throw new Error(`${id} report is not byte-identical to producer staging payload`);
+                }
                 if (id === "signed-updater-inputs") copyReleaseAsset(source);
                 const target = path.resolve("candidate-inputs/evidence", id, relative);
                 if (!target.startsWith(`${path.resolve("candidate-inputs/evidence", id)}${path.sep}`)) {
@@ -534,7 +584,7 @@ jobs:
                 releaseRef: sourceRun.ref,
                 commitSha,
                 workflowRun: qualificationRun,
-                sourceWorkflowRun: externalRun,
+                sourceWorkflowRun: payloadRun,
                 evidence,
               };
             }),
