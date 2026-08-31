@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/release-evidence-payload-binding.v1.json",
+  "title": "JFTrade external release evidence payload binding",
+  "description": "API metadata captured for an external evidence payload before the trusted producer binds it. This file is provenance, not a passed report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "repository", "releaseRef", "evidenceRef", "payloadRun", "artifact"],
+  "properties": {
+    "$schema": { "const": "./release-evidence-payload-binding.schema.json" },
+    "schemaVersion": { "const": "jftrade.release-evidence-payload-binding.v1" },
+    "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+    "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+    "evidenceRef": { "type": "string", "minLength": 1 },
+    "payloadRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attempt", "workflow", "ref", "commitSha"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "workflow": { "type": "string", "pattern": "^[A-Za-z0-9._/-]+\\.yml$" },
+        "ref": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "id", "digest"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+        "id": { "type": "integer", "minimum": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

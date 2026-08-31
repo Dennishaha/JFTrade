@@ -1,0 +1,225 @@
+name: Desktop Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Exact vX.Y.Z tag whose release evidence is being bound
+        required: true
+        type: string
+      evidence_ref:
+        description: Trusted branch or commit containing the external evidence payload run
+        required: true
+        type: string
+      payload_run_id:
+        description: Successful workflow run that produced the external payload artifact
+        required: true
+        type: string
+      payload_run_attempt:
+        description: Attempt number of payload_run_id
+        required: true
+        type: string
+      payload_workflow:
+        description: Workflow filename that produced the external payload artifact
+        required: true
+        type: string
+      payload_ref:
+        description: Exact ref recorded by the payload run; must resolve to evidence_ref
+        required: true
+        type: string
+      payload_commit_sha:
+        description: Commit SHA recorded by the payload run and evidence_ref checkout
+        required: true
+        type: string
+      payload_artifact:
+        description: Exact external payload artifact name
+        required: true
+        type: string
+      payload_artifact_id:
+        description: GitHub artifact id for payload_artifact
+        required: true
+        type: string
+      payload_artifact_digest:
+        description: GitHub SHA-256 digest for payload_artifact
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  produce:
+    name: Bind externally produced release evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.release_ref }}
+          fetch-depth: 0
+
+      - name: Checkout trusted evidence ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.evidence_ref }}
+          path: evidence-ref
+          fetch-depth: 0
+
+      - name: Verify release and trusted payload ref
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_COMMIT="$(git rev-parse HEAD)"
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$PAYLOAD_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload_commit_sha must be a lowercase commit SHA" >&2; exit 1; }
+          [[ "$EVIDENCE_REF" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_REF" != /* && "$EVIDENCE_REF" != *".."* ]] || {
+            echo "evidence_ref is not a safe Git ref" >&2
+            exit 1
+          }
+          [[ "$PAYLOAD_REF" =~ ^[A-Za-z0-9._/-]+$ && "$PAYLOAD_REF" != /* && "$PAYLOAD_REF" != *".."* ]] || {
+            echo "payload_ref is not a safe Git ref" >&2
+            exit 1
+          }
+          [[ -n "$EVIDENCE_REF" && "$EVIDENCE_REF" != "$RELEASE_REF" && "$EVIDENCE_REF" != "refs/tags/$RELEASE_REF" ]] || {
+            echo "evidence_ref must be distinct from the published release tag" >&2
+            exit 1
+          }
+          [[ -n "$PAYLOAD_REF" && "$PAYLOAD_REF" == "$EVIDENCE_REF" ]] || {
+            echo "payload_ref must equal evidence_ref exactly" >&2
+            exit 1
+          }
+          [[ "$(git -C evidence-ref rev-parse HEAD)" == "$PAYLOAD_COMMIT" ]] || {
+            echo "evidence_ref checkout does not match payload_commit_sha" >&2
+            exit 1
+          }
+          [[ "$PAYLOAD_COMMIT" == "$RELEASE_COMMIT" ]] || {
+            echo "payload evidence must use the release tag commit" >&2
+            exit 1
+          }
+          git fetch --no-tags origin "refs/tags/$RELEASE_REF:refs/tags/$RELEASE_REF"
+          [[ "$(git rev-parse "refs/tags/$RELEASE_REF^{commit}")" == "$RELEASE_COMMIT" ]] || {
+            echo "release tag does not resolve to release_commit_sha" >&2
+            exit 1
+          }
+
+      - name: Verify payload run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_WORKFLOW: ${{ inputs.payload_workflow }}
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PAYLOAD_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "payload_run_id must be a positive integer" >&2; exit 1; }
+          [[ "$PAYLOAD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "payload_run_attempt must be a positive integer" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "payload_artifact_id must be a positive integer" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "payload_artifact must be a simple artifact name" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload_artifact_digest must be a SHA-256 digest" >&2; exit 1; }
+          [[ "$PAYLOAD_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ && "$PAYLOAD_WORKFLOW" != *".."* ]] || { echo "payload_workflow is unsafe" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID")"
+          payload_branch="${PAYLOAD_REF#refs/heads/}"
+          payload_branch="${payload_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$PAYLOAD_COMMIT" \
+            --arg branch "$payload_branch" \
+            --arg ref "$PAYLOAD_REF" \
+            --arg attempt "$PAYLOAD_RUN_ATTEMPT" \
+            --arg workflow "$PAYLOAD_WORKFLOW" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            <<<"$run_json" >/dev/null || {
+            echo "payload run is not a successful run bound to payload_ref@$PAYLOAD_COMMIT" >&2
+            exit 1
+          }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID/artifacts?per_page=100")"
+          jq -e \
+            --arg name "$PAYLOAD_ARTIFACT" \
+            --argjson id "$PAYLOAD_ARTIFACT_ID" \
+            --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            --argjson run_id "$PAYLOAD_RUN_ID" \
+            '[.artifacts[] | select(.name == $name and .id == $id and .expired == false and .workflow_run.id == $run_id and .digest == $digest)] | length == 1' \
+          <<<"$artifacts_json" >/dev/null || {
+            echo "payload artifact metadata is missing, expired, ambiguous, or not bound to payload run" >&2
+            exit 1
+          }
+          payload_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID")"
+          jq -e \
+            --arg name "$PAYLOAD_ARTIFACT" \
+            --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            --argjson id "$PAYLOAD_ARTIFACT_ID" \
+            --argjson run_id "$PAYLOAD_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$payload_artifact_json" >/dev/null || {
+            echo "payload artifact detail does not match requested metadata" >&2
+            exit 1
+          }
+          jq -n \
+            --arg schema "./release-evidence-payload-binding.schema.json" \
+            --arg schema_version "jftrade.release-evidence-payload-binding.v1" \
+            --arg repository "$REPOSITORY" \
+            --arg release_ref "refs/tags/$RELEASE_REF" \
+            --arg evidence_ref "$EVIDENCE_REF" \
+            --argjson run_id "$PAYLOAD_RUN_ID" \
+            --argjson attempt "$PAYLOAD_RUN_ATTEMPT" \
+            --arg workflow "$PAYLOAD_WORKFLOW" \
+            --arg ref "$PAYLOAD_REF" \
+            --arg payload_commit "$PAYLOAD_COMMIT" \
+            --arg artifact_name "$PAYLOAD_ARTIFACT" \
+            --argjson artifact_id "$PAYLOAD_ARTIFACT_ID" \
+            --arg artifact_digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$payload_commit},artifact:{name:$artifact_name,id:$artifact_id,digest:$artifact_digest}}' \
+            > payload-artifact-metadata.json
+
+      - name: Download the verified payload artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.payload_artifact }}
+          run-id: ${{ inputs.payload_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: payload
+
+      - name: Bind payload reports without synthesizing evidence
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: refs/tags/${{ inputs.release_ref }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf bound-evidence
+          node scripts/rust-migration/bind-release-evidence.mjs \
+            --payload-root payload \
+            --output-root bound-evidence \
+            --payload-metadata payload-artifact-metadata.json \
+            --repository "$REPOSITORY" \
+            --release-ref "$RELEASE_REF" \
+            --release-commit "$(git rev-parse HEAD)" \
+            --producer-run-id "$PRODUCER_RUN_ID" \
+            --producer-attempt "$PRODUCER_ATTEMPT" \
+            > bound-evidence-summary.json
+
+      - name: Upload bound release evidence artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-bound
+          path: bound-evidence
+          if-no-files-found: error
+          retention-days: 90
