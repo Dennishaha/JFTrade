@@ -3,12 +3,19 @@ use crate::product::product_mcp_protocol::{mcp_tool_adapter, mcp_tool_availabili
 use crate::product::product_production_ports::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding, production_adapter_bindings,
 };
+use crate::product::{ProductCapabilities, ProductConfig, product_data_management};
 use axum::http::{HeaderMap, HeaderValue, header};
+use jftrade_api::AccessPolicy;
 use jftrade_settings::McpServerSecretPort;
+use jftrade_settings::SecuritySettingsService;
+use jftrade_store_settings_file::SettingsFileStore;
 use std::collections::BTreeMap;
+use std::fs;
 use std::io::{Read, Write};
+use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
+use tempfile::TempDir;
 
 fn available_port() -> u16 {
     StdTcpListener::bind("127.0.0.1:0")
@@ -55,6 +62,34 @@ fn unavailable_catalog() -> Arc<ProductionToolCatalog> {
         ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
             .expect("complete unavailable MCP catalog"),
     )
+}
+
+fn production_bundle() -> (
+    TempDir,
+    crate::product::product_production_ports::ProductionPortBundle,
+) {
+    let directory = tempfile::tempdir().expect("production MCP temp directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(
+        &settings_path,
+        br#"{"pineWorker":{"backtestWorkerLimit":2,"instanceWorkerLimit":10,"nodeBinaryPath":"/definitely/missing/node"}}"#,
+    )
+    .expect("write production MCP settings");
+    product_data_management::initialize_production_databases(&settings_path)
+        .expect("initialize production MCP databases");
+    let settings_store = Arc::new(SettingsFileStore::open(&settings_path).expect("settings store"));
+    let security = SecuritySettingsService::new(settings_store);
+    let mut config = ProductConfig::new(
+        SocketAddr::from(([127, 0, 0, 1], 0)),
+        &settings_path,
+        AccessPolicy::default(),
+    )
+    .expect("production MCP config");
+    config.capabilities = ProductCapabilities::all();
+    config.production = true;
+    let ports = crate::product::product_production_ports::production_ports(&config, &security)
+        .expect("production MCP ports");
+    (directory, ports)
 }
 
 #[derive(Debug)]
@@ -280,6 +315,94 @@ fn native_mcp_names_have_explicit_mapping_and_fail_closed_matrix() {
             assert_eq!(availability, "fail-closed", "non-native tool {name}");
         }
     }
+}
+
+#[test]
+fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
+    let native = PRODUCTION_MCP_EXECUTABLE_TOOLS
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    let reviewed = REVIEWED_READ_ONLY_TOOLS
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(reviewed.len(), 69);
+    assert_eq!(native.len(), 31);
+    assert!(native.is_subset(&reviewed));
+    assert_eq!(reviewed.len() - native.len(), 38);
+}
+
+#[test]
+fn production_mcp_local_tools_use_the_real_bundle_ports() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let plugins = executor
+        .execute_production("plugins.catalog", &json!({}))
+        .expect("plugins catalog production read");
+    assert!(plugins.is_object(), "plugins={plugins}");
+
+    let definitions = executor
+        .execute_production("strategy.definitions", &json!({}))
+        .expect("strategy definitions production read");
+    assert_eq!(definitions["definitions"], json!([]));
+    assert_eq!(definitions["definitionCount"], 0);
+
+    let backtests = executor
+        .execute_production("backtest.runs", &json!({}))
+        .expect("backtest runs production read");
+    assert!(backtests["runs"].is_null(), "backtests={backtests}");
+
+    let dependencies = executor
+        .execute_production("system.runtime_dependencies", &json!({}))
+        .expect("runtime dependencies production read");
+    assert!(
+        dependencies["dependencies"].is_array(),
+        "dependencies={dependencies}"
+    );
+}
+
+#[test]
+fn production_mcp_runtime_dependency_readiness_is_truthful() {
+    let (_directory, mut ports) = production_bundle();
+    assert_eq!(
+        mcp_tool_availability(
+            &ports.mcp_catalog,
+            Some(&ports),
+            "system.runtime_dependencies"
+        ),
+        "ready"
+    );
+    assert_eq!(
+        mcp_tool_availability(&ports.mcp_catalog, Some(&ports), "research.screen_catalog"),
+        "fail-closed"
+    );
+
+    ports.bound_adapters.remove(
+        &crate::product::product_production_route_registry::ProductionRouteAdapter::SystemRead,
+    );
+    assert_eq!(
+        mcp_tool_availability(
+            &ports.mcp_catalog,
+            Some(&ports),
+            "system.runtime_dependencies"
+        ),
+        "fail-closed"
+    );
+}
+
+#[test]
+fn production_mcp_runtime_dependency_store_failures_return_503() {
+    let (directory, ports) = production_bundle();
+    fs::write(directory.path().join("settings.json"), b"{ malformed")
+        .expect("corrupt production MCP settings");
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+    let failure = executor
+        .execute_production("system.runtime_dependencies", &json!({}))
+        .expect_err("malformed settings must fail closed");
+    assert_eq!(failure.status, 503);
+    assert_eq!(failure.code, "SYSTEM_READ_UNAVAILABLE");
 }
 
 #[test]

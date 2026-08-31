@@ -59,11 +59,12 @@ pub(super) fn write_adk_secrets(
             message: error.to_string(),
         })?;
     }
-    let bytes = serde_json::to_vec_pretty(secrets).map_err(|error| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_SECRET_STORAGE_FAILED".to_owned(),
-        message: error.to_string(),
-    })?;
+    let bytes =
+        serde_json::to_vec_pretty(secrets).map_err(|error| AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_SECRET_STORAGE_FAILED".to_owned(),
+            message: error.to_string(),
+        })?;
     // A same-directory temporary keeps readers from observing a truncated
     // credentials file. Rename is atomic on the local filesystems supported
     // by the desktop runtime.
@@ -121,7 +122,10 @@ pub(super) fn provider_payload(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| invalid_mutation_input("provider displayName is required"))?;
-    object.insert("displayName".to_owned(), Value::String(display_name.to_owned()));
+    object.insert(
+        "displayName".to_owned(),
+        Value::String(display_name.to_owned()),
+    );
     let base_url = object
         .get("baseUrl")
         .and_then(Value::as_str)
@@ -131,7 +135,9 @@ pub(super) fn provider_payload(
     let parsed = reqwest::Url::parse(base_url)
         .map_err(|_| invalid_mutation_input("provider baseUrl must be a valid URL"))?;
     if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-        return Err(invalid_mutation_input("provider baseUrl must use http or https"));
+        return Err(invalid_mutation_input(
+            "provider baseUrl must use http or https",
+        ));
     }
     object.insert("baseUrl".to_owned(), Value::String(base_url.to_owned()));
     let model = object
@@ -164,7 +170,9 @@ pub(super) fn provider_payload(
                 .as_str()
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
-                .ok_or_else(|| invalid_mutation_input("provider apiKey must be a non-empty string"))?;
+                .ok_or_else(|| {
+                    invalid_mutation_input("provider apiKey must be a non-empty string")
+                })?;
             secrets.insert(id.to_owned(), key.to_owned());
             Some(key.to_owned())
         }
@@ -232,9 +240,7 @@ fn restore_provider_snapshot(
         return restore_provider_row(port, id, previous);
     }
     let mut failed = restore_provider_rows(port, previous_rows).is_err();
-    if !previous_rows.iter().any(|row| row.id == id)
-        && port.store.delete_provider(id).is_err()
-    {
+    if !previous_rows.iter().any(|row| row.id == id) && port.store.delete_provider(id).is_err() {
         failed = true;
     }
     if failed {
@@ -250,12 +256,11 @@ fn restore_provider_row(
     previous: Option<&jftrade_store_sqlite::StoredAdkEntity>,
 ) -> Result<(), AdkMutationPortError> {
     let result = match previous {
-        Some(row) => {
-            port.store.upsert_provider(&row.id, &row.payload_json).map(|_| ())
-        }
-        None => {
-            port.store.delete_provider(id).map(|_| ())
-        }
+        Some(row) => port
+            .store
+            .upsert_provider(&row.id, &row.payload_json)
+            .map(|_| ()),
+        None => port.store.delete_provider(id).map(|_| ()),
     };
     result.map_err(|_| provider_rollback_failed())
 }
@@ -321,7 +326,11 @@ pub(super) fn sanitized_provider_payload(
     let secrets = read_adk_secrets(settings_path)?;
     object.insert(
         "hasApiKey".to_owned(),
-        Value::Bool(secrets.get(id).is_some_and(|value| !value.trim().is_empty())),
+        Value::Bool(
+            secrets
+                .get(id)
+                .is_some_and(|value| !value.trim().is_empty()),
+        ),
     );
     Ok(value)
 }

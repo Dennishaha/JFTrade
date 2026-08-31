@@ -6,7 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
 use jftrade_settings::FutuOpenDInstallSettingsStorePort;
-use jftrade_settings::InterfaceSettingsStorePort;
+use jftrade_settings::{InterfaceSettingsStorePort, PineWorkerSettingsStorePort};
+use jftrade_settings::normalize_pine_worker_settings;
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{
     AdkStore, BacktestRunStore, BacktestSyncTaskStore, ExecutionOrderStore,
@@ -100,6 +101,7 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
     fn read(&self, path: &str) -> Result<Value, SystemReadSnapshotError> {
         match path {
             "/api/v1/system/futu-opend" => self.futu_opend_snapshot(),
+            "/api/v1/system/runtime-dependencies" => self.runtime_dependencies_snapshot(),
             "/api/v1/system/storage/overview" => self.storage_overview_snapshot(),
             // Keep the route fail-closed when the runtime was assembled
             // outside the async production owner (for example, a synchronous
@@ -169,6 +171,35 @@ impl SystemReadSnapshotPort for ProductionSystemPort {
 }
 
 impl ProductionSystemPort {
+    fn runtime_dependencies_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
+        let configured_path = self
+            .settings
+            .load_pine_worker()
+            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?
+            .map(|settings| normalize_pine_worker_settings(&settings).node_binary_path)
+            .unwrap_or_default();
+        let dependencies = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))?;
+            Ok::<_, SystemReadSnapshotError>(runtime.block_on(
+                crate::product::runtime_dependencies::inspect(
+                    provider_now_rfc3339(),
+                    &configured_path,
+                ),
+            ))
+        })
+        .join()
+        .map_err(|_| {
+            SystemReadSnapshotError::Unavailable(
+                "runtime dependency worker panicked".to_owned(),
+            )
+        })??;
+        serde_json::to_value(dependencies)
+            .map_err(|error| SystemReadSnapshotError::Unavailable(error.to_string()))
+    }
+
     fn futu_opend_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
         let Some(runtime_status) = self.runtime_status.as_ref() else {
             return Ok(json!({

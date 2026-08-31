@@ -95,6 +95,7 @@ pub(crate) const REVIEWED_READ_ONLY_TOOLS: &[&str] = &[
 pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "system.status",
     "system.futu_opend",
+    "system.runtime_dependencies",
     "plugins.catalog",
     "market.providers",
     "market.capabilities",
@@ -103,6 +104,11 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "market.candles",
     "market.snapshots",
     "market.subscriptions",
+    "broker.cash_flows",
+    "broker.fees",
+    "broker.margin_ratios",
+    "execution.order_events",
+    "execution.buying_power",
     "watchlist.list",
     "watchlist.remote.list",
     "portfolio.summary",
@@ -412,6 +418,9 @@ pub(crate) fn mcp_tool_availability(
         return "fail-closed";
     }
     let binding = match ports {
+        Some(ports) if name == "execution.buying_power" => {
+            ports.execution_operation_binding("/api/v1/execution/buying-power")
+        }
         Some(ports) => mcp_tool_adapter(name).and_then(|adapter| ports.adapter_binding(adapter)),
         None => catalog.binding_for_mcp_tool(name),
     };
@@ -428,6 +437,7 @@ pub(crate) fn mcp_tool_adapter(name: &str) -> Option<ProductionRouteAdapter> {
     Some(match name {
         "system.status" => ProductionRouteAdapter::SystemCore,
         "system.futu_opend" => ProductionRouteAdapter::SystemRead,
+        "system.runtime_dependencies" => ProductionRouteAdapter::SystemRead,
         "plugins.catalog" => ProductionRouteAdapter::PluginsRead,
         "market.providers" | "market.capabilities" => {
             ProductionRouteAdapter::MarketDataProviderRead
@@ -437,6 +447,11 @@ pub(crate) fn mcp_tool_adapter(name: &str) -> Option<ProductionRouteAdapter> {
         "market.candles" => ProductionRouteAdapter::MarketDataCandlesRead,
         "market.snapshots" => ProductionRouteAdapter::MarketDataBatchSnapshotsWrite,
         "market.subscriptions" => ProductionRouteAdapter::MarketDataSubscriptionRead,
+        "broker.cash_flows" | "broker.fees" | "broker.margin_ratios" => {
+            ProductionRouteAdapter::BrokerRead
+        }
+        "execution.order_events" => ProductionRouteAdapter::ExecutionRead,
+        "execution.buying_power" => ProductionRouteAdapter::ExecutionWrite,
         "watchlist.list" => ProductionRouteAdapter::WatchlistRead,
         "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
         "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,

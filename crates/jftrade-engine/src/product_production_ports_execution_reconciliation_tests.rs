@@ -17,6 +17,7 @@ struct FixtureTradeReader {
     active_fills: Vec<TradeFillSnapshot>,
     history_fills: Vec<TradeFillSnapshot>,
     fees: Vec<TradeOrderFeeSnapshot>,
+    funds: Option<TradeFundsSnapshot>,
     fail_accounts: bool,
     fail_active_orders: bool,
     fail_history_orders: bool,
@@ -59,7 +60,9 @@ impl TradeReadPort for FixtureTradeReader {
         _: Option<i32>,
         _: Option<i32>,
     ) -> Result<TradeFundsSnapshot, TradeSessionError> {
-        unavailable("fixture funds unsupported")
+        self.funds
+            .clone()
+            .ok_or_else(|| TradeSessionError::Unsupported("fixture funds unsupported".to_owned()))
     }
 
     fn read_cash_flows(
@@ -739,3 +742,6 @@ fn reconciliation_fails_closed_on_corrupt_event_payload() {
         } if code == "EXECUTION_ORDER_DATA_INVALID"
     ));
 }
+
+#[path = "product_production_ports_execution_reconciliation_provider_tests.rs"]
+mod provider_projection_tests;

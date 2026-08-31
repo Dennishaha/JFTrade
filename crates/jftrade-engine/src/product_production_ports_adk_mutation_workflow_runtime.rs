@@ -7,9 +7,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use super::*;
-use crate::product::product_adk_chat_stream_port::{
-    AdkChatInput, AdkChatPortOutput, AdkChatRoute,
-};
+use crate::product::product_adk_chat_stream_port::{AdkChatInput, AdkChatPortOutput, AdkChatRoute};
 
 pub(super) fn run_workflow(
     port: &ProductionAdkPort,
@@ -22,16 +20,29 @@ pub(super) fn run_workflow(
         }
         AdkMutationOperation::RunWorkflowTrigger | AdkMutationOperation::RunWorkflowWebhook => {
             let trigger_id = required_identifier(input, "triggerId")?;
-            let trigger = port.store.get_workflow_trigger(&trigger_id).map_err(storage_mutation_failed)?.ok_or_else(|| not_found_mutation("ADK_WORKFLOW_TRIGGER_NOT_FOUND", "workflow trigger not found"))?;
+            let trigger = port
+                .store
+                .get_workflow_trigger(&trigger_id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| {
+                    not_found_mutation(
+                        "ADK_WORKFLOW_TRIGGER_NOT_FOUND",
+                        "workflow trigger not found",
+                    )
+                })?;
             if input.operation == AdkMutationOperation::RunWorkflowWebhook {
                 if !trigger.trigger_type.eq_ignore_ascii_case("webhook") {
-                    return Err(not_found_mutation("ADK_WORKFLOW_WEBHOOK_NOT_FOUND", "workflow webhook not found"));
+                    return Err(not_found_mutation(
+                        "ADK_WORKFLOW_WEBHOOK_NOT_FOUND",
+                        "workflow webhook not found",
+                    ));
                 }
                 if !trigger.status.eq_ignore_ascii_case("ENABLED") {
                     return Err(invalid_mutation_input("workflow webhook is disabled"));
                 }
                 let secret = input.webhook_secret.as_deref().unwrap_or_default().trim();
-                let trigger_payload = decode_mutation_payload(&trigger.payload_json, "workflow trigger")?;
+                let trigger_payload =
+                    decode_mutation_payload(&trigger.payload_json, "workflow trigger")?;
                 let expected = trigger_payload
                     .get("secretHash")
                     .and_then(Value::as_str)
@@ -48,16 +59,31 @@ pub(super) fn run_workflow(
         }
         _ => unreachable!(),
     };
-    let workflow = port.store.get_workflow(&workflow_id).map_err(storage_mutation_failed)?.ok_or_else(|| not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found"))?;
-    if !workflow.status.eq_ignore_ascii_case("ENABLED") || is_deleted_payload(&workflow.payload_json)? {
+    let workflow = port
+        .store
+        .get_workflow(&workflow_id)
+        .map_err(storage_mutation_failed)?
+        .ok_or_else(|| not_found_mutation("ADK_WORKFLOW_NOT_FOUND", "workflow not found"))?;
+    if !workflow.status.eq_ignore_ascii_case("ENABLED")
+        || is_deleted_payload(&workflow.payload_json)?
+    {
         return Err(invalid_mutation_input("workflow is disabled"));
     }
     let workflow_value = decode_mutation_payload(&workflow.payload_json, "workflow")?;
-    let mut inputs = workflow_value.get("defaultInputs").cloned().filter(Value::is_object).unwrap_or_else(|| json!({}));
+    let mut inputs = workflow_value
+        .get("defaultInputs")
+        .cloned()
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
     if let Some(object) = inputs.as_object_mut() {
         object.extend(input.body.as_object().cloned().unwrap_or_default());
     }
-    let prompt = workflow_value.get("promptTemplate").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()).ok_or_else(|| invalid_mutation_input("workflow promptTemplate is required"))?;
+    let prompt = workflow_value
+        .get("promptTemplate")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| invalid_mutation_input("workflow promptTemplate is required"))?;
     let message = render_template(prompt, &inputs);
     let sequence = WORKFLOW_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed);
     let request_id = format!("workflow-{workflow_id}-{sequence}");
@@ -264,15 +290,13 @@ pub(super) fn run_workflow(
                     code: "ADK_WORKFLOW_CONFLICT".to_owned(),
                     message: "workflow invocation disappeared before completion".to_owned(),
                 })?;
-            let mut winner_log = decode_mutation_payload(&winner.payload_json, "workflow trigger log")?;
+            let mut winner_log =
+                decode_mutation_payload(&winner.payload_json, "workflow trigger log")?;
             if let Some(object) = winner_log.as_object_mut() {
                 object.insert("createdAt".to_owned(), Value::String(winner.created_at));
                 object.insert("updatedAt".to_owned(), Value::String(winner.updated_at));
             }
-            let winner_response = winner_log
-                .get("result")
-                .cloned()
-                .unwrap_or(Value::Null);
+            let winner_response = winner_log.get("result").cloned().unwrap_or(Value::Null);
             return Ok(json!({
                 "workflow": workflow_payload(&workflow)?,
                 "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?,
@@ -288,7 +312,9 @@ pub(super) fn run_workflow(
         object.insert("createdAt".to_owned(), Value::String(stored.created_at));
         object.insert("updatedAt".to_owned(), Value::String(stored.updated_at));
     }
-    Ok(json!({"workflow": workflow_payload(&workflow)?, "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?, "log": log, "response": response}))
+    Ok(
+        json!({"workflow": workflow_payload(&workflow)?, "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?, "log": log, "response": response}),
+    )
 }
 
 fn generate_workflow_log_id() -> Result<String, AdkMutationPortError> {
@@ -354,9 +380,7 @@ fn finalize_workflow_failure_with_store(
             Err(error) => AdkMutationPortError::Failed {
                 status: 500,
                 code: "ADK_WORKFLOW_PERSIST_FAILED".to_owned(),
-                message: format!(
-                    "{message}; failed to read durable workflow winner: {error}"
-                ),
+                message: format!("{message}; failed to read durable workflow winner: {error}"),
             },
         },
         Err(error) => AdkMutationPortError::Failed {
@@ -415,7 +439,10 @@ fn render_template(template: &str, inputs: &Value) -> String {
     let mut output = template.to_owned();
     if let Some(object) = inputs.as_object() {
         for (key, value) in object {
-            let rendered = value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string());
+            let rendered = value
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| value.to_string());
             output = output.replace(&format!("{{{{{key}}}}}"), &rendered);
         }
     }
@@ -436,8 +463,11 @@ mod tests {
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join("adk.db");
         File::create(&path).expect("create ADK database");
-        initialize_current(&Connection::open(&path).expect("initialize ADK database"), "adk")
-            .expect("initialize ADK schema");
+        initialize_current(
+            &Connection::open(&path).expect("initialize ADK database"),
+            "adk",
+        )
+        .expect("initialize ADK schema");
         let store = AdkStore::open(&path).expect("open ADK store");
         let initial = store
             .create_workflow_trigger_log(
@@ -451,8 +481,7 @@ mod tests {
             )
             .expect("create invocation");
         std::thread::sleep(Duration::from_millis(2));
-        let winner_payload =
-            r#"{"status":"FAILED","errorCode":"ADK_WORKFLOW_RUNTIME_UNAVAILABLE","error":"winner failure"}"#;
+        let winner_payload = r#"{"status":"FAILED","errorCode":"ADK_WORKFLOW_RUNTIME_UNAVAILABLE","error":"winner failure"}"#;
         let winner = store
             .update_workflow_trigger_log_if_revision(
                 &initial.id,
@@ -463,7 +492,10 @@ mod tests {
             )
             .expect("persist winner")
             .expect("winner row");
-        assert_ne!(winner.updated_at, initial.updated_at, "CAS revision must advance");
+        assert_ne!(
+            winner.updated_at, initial.updated_at,
+            "CAS revision must advance"
+        );
 
         let error = finalize_workflow_failure_with_store(
             &store,
@@ -494,8 +526,11 @@ mod tests {
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join("adk.db");
         File::create(&path).expect("create ADK database");
-        initialize_current(&Connection::open(&path).expect("initialize ADK database"), "adk")
-            .expect("initialize ADK schema");
+        initialize_current(
+            &Connection::open(&path).expect("initialize ADK database"),
+            "adk",
+        )
+        .expect("initialize ADK schema");
         let store = AdkStore::open(&path).expect("open ADK store");
         let error = finalize_workflow_failure_with_store(
             &store,

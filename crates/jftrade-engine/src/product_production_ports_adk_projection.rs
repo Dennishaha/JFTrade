@@ -146,7 +146,7 @@ pub(super) fn dynamic_id(path: &str, prefix: &str, suffix: &str) -> Option<Strin
         return None;
     }
     let decoded = percent_decode_str(value).decode_utf8().ok()?.into_owned();
-    ( !decoded.trim().is_empty() && !decoded.contains('/') ).then_some(decoded)
+    (!decoded.trim().is_empty() && !decoded.contains('/')).then_some(decoded)
 }
 
 fn valid_percent_escapes(value: &str) -> bool {

@@ -14,20 +14,18 @@ use super::product_mcp_protocol::{
     model_search_text, optional_bool, optional_integer, optional_string, provider_model,
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
-use crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPortError;
-use crate::product::{
-    BacktestReadSnapshotError, BacktestSyncReadSnapshotError, BrokerReadSnapshotError,
-    ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
-    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError, PluginSnapshotError,
-    PortfolioSnapshotError, RemoteWatchlistSnapshotError, StrategyDefinitionSnapshotError,
-    StrategyReadSnapshotError, SystemReadSnapshotError, WatchlistReadSnapshotError,
-};
 use jftrade_store_sqlite::AdkStore;
 
+#[path = "product_mcp_production_executor_errors.rs"]
+mod errors;
 #[path = "product_mcp_production_executor_helpers.rs"]
 mod helpers;
 #[path = "product_mcp_production_executor_market_data.rs"]
 mod market_data;
+#[path = "product_mcp_production_executor_trade.rs"]
+mod trade;
+use errors::*;
+pub(super) use errors::{provider_actions_error, quote_error};
 use helpers::*;
 
 /// Error envelope carried in `tools/call` structured content.  It mirrors the
@@ -128,6 +126,9 @@ impl ProductionMcpToolExecutor {
         match name {
             "system.status" => self.system_read("/api/v1/system/status"),
             "system.futu_opend" => self.system_read("/api/v1/system/futu-opend"),
+            "system.runtime_dependencies" => {
+                self.system_read("/api/v1/system/runtime-dependencies")
+            }
             "market.providers" => self.provider_read("/api/v1/market-data/provider", ""),
             "market.capabilities" => self.market_capabilities(arguments),
             "market.search" => self.market_search(arguments),
@@ -135,6 +136,11 @@ impl ProductionMcpToolExecutor {
             "market.candles" => self.market_candles(arguments),
             "market.snapshots" => self.market_snapshots(arguments),
             "market.subscriptions" => self.market_subscriptions(arguments),
+            "broker.cash_flows" => self.broker_cash_flows(arguments),
+            "broker.fees" => self.broker_fees(arguments),
+            "broker.margin_ratios" => self.broker_margin_ratios(arguments),
+            "execution.order_events" => self.execution_order_events(arguments),
+            "execution.buying_power" => self.execution_buying_power(arguments),
             "plugins.catalog" => self.plugins_catalog(),
             "watchlist.list" => self.watchlist_list(arguments),
             "watchlist.remote.list" => self.remote_watchlist_list(arguments),
@@ -430,7 +436,7 @@ impl ProductionMcpToolExecutor {
 
     fn backtest_runs(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let payload = self.ports()?.backtest_read.list().map_err(backtest_error)?;
-        let Some(runs) = payload.get("runs").and_then(Value::as_array) else {
+        let Some(runs) = nullable_runs(&payload)? else {
             return Ok(payload);
         };
         let definition_id = optional_string(arguments, "definitionId");
@@ -613,154 +619,10 @@ impl ProductionMcpToolExecutor {
     }
 }
 
-fn system_error(error: SystemReadSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("SYSTEM_READ_UNAVAILABLE", error.to_string())
-}
-
-fn provider_error(error: MarketDataProviderReadSnapshotError) -> McpToolFailure {
-    match error {
-        MarketDataProviderReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("MARKET_DATA_PROVIDER_UNAVAILABLE", message)
-        }
-        MarketDataProviderReadSnapshotError::Failed { code, message } => {
-            McpToolFailure::failed(502, code, message)
-        }
-    }
-}
-
-fn catalog_error(error: MarketDataCatalogReadSnapshotError) -> McpToolFailure {
-    match error {
-        MarketDataCatalogReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("MARKET_DATA_CATALOG_UNAVAILABLE", message)
-        }
-        MarketDataCatalogReadSnapshotError::Invalid { code, message } => {
-            McpToolFailure::failed(400, code, message)
-        }
-        MarketDataCatalogReadSnapshotError::Failed {
-            status,
-            code,
-            message,
-        } => McpToolFailure::failed(status, code, message),
-    }
-}
-
-fn quote_error(error: MarketDataQuoteReadSnapshotError) -> McpToolFailure {
-    match error {
-        MarketDataQuoteReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("MARKET_DATA_QUOTE_READ_UNAVAILABLE", message)
-        }
-        MarketDataQuoteReadSnapshotError::Failed {
-            status,
-            code,
-            message,
-            retry_after_seconds,
-        } => McpToolFailure {
-            status,
-            code,
-            message,
-            retry_after_seconds,
-        },
-    }
-}
-
-pub(super) fn provider_actions_error(error: MarketDataProviderActionsPortError) -> McpToolFailure {
-    match error {
-        MarketDataProviderActionsPortError::Unavailable(message) => {
-            McpToolFailure::unavailable("MARKET_DATA_PROVIDER_ACTIONS_UNAVAILABLE", message)
-        }
-        MarketDataProviderActionsPortError::Failed {
-            status,
-            code,
-            message,
-            retry_after_seconds,
-        } => McpToolFailure {
-            status,
-            code,
-            message,
-            retry_after_seconds,
-        },
-    }
-}
-
-fn watchlist_error(error: WatchlistReadSnapshotError) -> McpToolFailure {
-    match error {
-        WatchlistReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("WATCHLIST_UNAVAILABLE", message)
-        }
-        WatchlistReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
-        WatchlistReadSnapshotError::NotFound => McpToolFailure::failed(
-            404,
-            "WATCHLIST_NOT_FOUND",
-            "watchlist resource was not found",
-        ),
-    }
-}
-
-fn plugin_error(error: PluginSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("PLUGINS_UNAVAILABLE", error.to_string())
-}
-
-fn remote_watchlist_error(error: RemoteWatchlistSnapshotError) -> McpToolFailure {
-    match error {
-        RemoteWatchlistSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
-        RemoteWatchlistSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("REMOTE_WATCHLIST_UNAVAILABLE", message)
-        }
-    }
-}
-
-fn strategy_definition_error(error: StrategyDefinitionSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("STRATEGY_DEFINITIONS_UNAVAILABLE", error.to_string())
-}
-
-fn strategy_read_error(error: StrategyReadSnapshotError) -> McpToolFailure {
-    match error {
-        StrategyReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
-        StrategyReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("STRATEGY_ACTIVITY_UNAVAILABLE", message)
-        }
-    }
-}
-
-fn portfolio_error(error: PortfolioSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("PORTFOLIO_UNAVAILABLE", error.to_string())
-}
-
-fn broker_error(error: BrokerReadSnapshotError) -> McpToolFailure {
-    match error {
-        BrokerReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("BROKER_UNAVAILABLE", message)
-        }
-        BrokerReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
-    }
-}
-
-fn backtest_error(error: BacktestReadSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("BACKTEST_RUNS_UNAVAILABLE", error.to_string())
-}
-
-fn backtest_sync_error(error: BacktestSyncReadSnapshotError) -> McpToolFailure {
-    McpToolFailure::unavailable("BACKTEST_SYNC_UNAVAILABLE", error.to_string())
-}
-
-fn execution_error(error: ExecutionReadSnapshotError) -> McpToolFailure {
-    match error {
-        ExecutionReadSnapshotError::Unavailable(message) => {
-            McpToolFailure::unavailable("EXECUTION_UNAVAILABLE", message)
-        }
-        ExecutionReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
-        ExecutionReadSnapshotError::NotFound => {
-            McpToolFailure::failed(404, "ORDER_NOT_FOUND", "execution order was not found")
-        }
-        ExecutionReadSnapshotError::Failed { code, message } => {
-            McpToolFailure::failed(500, code, message)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::product::MarketDataProviderReadSnapshotError;
 
     #[test]
     fn production_failure_projects_product_error_envelope() {
@@ -790,5 +652,30 @@ mod tests {
             "BAD_REQUEST"
         );
         assert!(instrument(&json!({"instrumentId": "US"})).is_err());
+    }
+
+    #[test]
+    fn production_snapshot_failures_and_malformed_payloads_fail_closed() {
+        assert_eq!(
+            provider_error(MarketDataProviderReadSnapshotError::Unavailable(
+                "provider is offline".to_owned(),
+            ))
+            .status,
+            503
+        );
+        assert_eq!(
+            provider_error(MarketDataProviderReadSnapshotError::Failed {
+                code: "UPSTREAM_REFUSED".to_owned(),
+                message: "provider refused request".to_owned(),
+            })
+            .status,
+            502
+        );
+        assert!(nullable_runs(&json!({"runs": null})).unwrap().is_none());
+        let malformed = nullable_runs(&json!({"runs": {}})).expect_err("malformed runs");
+        assert_eq!(malformed.status, 502);
+        assert_eq!(malformed.code, "MCP_PRODUCTION_PAYLOAD_INVALID");
+        let missing = nullable_runs(&json!({})).expect_err("missing runs");
+        assert_eq!(missing.status, 502);
     }
 }

@@ -40,7 +40,9 @@ pub(super) fn dispatch(
     match input.operation {
         AdkMutationOperation::TestProvider => test_provider(port, input),
         AdkMutationOperation::RespondToInput => respond_to_input(port, input),
-        AdkMutationOperation::CompactSessionContext => super::context::compact_session_context(port, input),
+        AdkMutationOperation::CompactSessionContext => {
+            super::context::compact_session_context(port, input)
+        }
         AdkMutationOperation::InstallSkill => install_skill(port, input),
         AdkMutationOperation::RunWorkflowTrigger
         | AdkMutationOperation::RunWorkflowWebhook
@@ -49,7 +51,11 @@ pub(super) fn dispatch(
     }
 }
 
-pub(super) fn runtime_error(error: AdkChatPortError, status: u16, code: &str) -> AdkMutationPortError {
+pub(super) fn runtime_error(
+    error: AdkChatPortError,
+    status: u16,
+    code: &str,
+) -> AdkMutationPortError {
     match error {
         AdkChatPortError::Unavailable(message) => AdkMutationPortError::Failed {
             status,
@@ -61,9 +67,15 @@ pub(super) fn runtime_error(error: AdkChatPortError, status: u16, code: &str) ->
             code: "ADK_RUN_CONFLICT".to_owned(),
             message,
         },
-        AdkChatPortError::Failed { status, code, message } => {
-            AdkMutationPortError::Failed { status, code, message }
-        }
+        AdkChatPortError::Failed {
+            status,
+            code,
+            message,
+        } => AdkMutationPortError::Failed {
+            status,
+            code,
+            message,
+        },
     }
 }
 
@@ -87,7 +99,9 @@ fn test_provider(
         .unwrap_or("quick")
         .to_ascii_lowercase();
     if !matches!(mode.as_str(), "quick" | "full") {
-        return Err(invalid_mutation_input("provider test mode must be quick or full"));
+        return Err(invalid_mutation_input(
+            "provider test mode must be quick or full",
+        ));
     }
     let Some(runtime) = port.chat_runtime.as_deref() else {
         return Err(AdkMutationPortError::Failed {
@@ -194,7 +208,11 @@ fn respond_to_input(
             return Err(invalid_mutation_input("answers must contain questionId"));
         }
     }
-    let Some(existing) = port.store.get_run(&run_id).map_err(storage_mutation_failed)? else {
+    let Some(existing) = port
+        .store
+        .get_run(&run_id)
+        .map_err(storage_mutation_failed)?
+    else {
         return Err(not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"));
     };
     let mut payload = decode_mutation_payload(&existing.payload_json, "run")?;
@@ -212,7 +230,9 @@ fn respond_to_input(
             .and_then(|requests| {
                 requests
                     .iter()
-                    .find(|candidate| candidate.get("id").and_then(Value::as_str) == Some(request_id))
+                    .find(|candidate| {
+                        candidate.get("id").and_then(Value::as_str) == Some(request_id)
+                    })
                     .cloned()
             });
     }
@@ -240,7 +260,11 @@ fn respond_to_input(
         request_object.insert("answeredAt".to_owned(), Value::String(now.clone()));
         request_object.insert("updatedAt".to_owned(), Value::String(now.clone()));
     }
-    if object.get("inputRequest").and_then(Value::as_object).is_some_and(|candidate| candidate.get("id").and_then(Value::as_str) == Some(request_id)) {
+    if object
+        .get("inputRequest")
+        .and_then(Value::as_object)
+        .is_some_and(|candidate| candidate.get("id").and_then(Value::as_str) == Some(request_id))
+    {
         object.insert("inputRequest".to_owned(), request.clone());
     }
     if let Some(Value::Array(requests)) = object.get_mut("inputRequests") {
@@ -250,9 +274,15 @@ fn respond_to_input(
             }
         }
     }
-    object.insert("inputResponse".to_owned(), json!({"requestId": request_id, "answers": answers}));
+    object.insert(
+        "inputResponse".to_owned(),
+        json!({"requestId": request_id, "answers": answers}),
+    );
     object.insert("status".to_owned(), Value::String("RUNNING".to_owned()));
-    object.insert("resumeState".to_owned(), Value::String("input_resuming".to_owned()));
+    object.insert(
+        "resumeState".to_owned(),
+        Value::String("input_resuming".to_owned()),
+    );
     object.insert("updatedAt".to_owned(), Value::String(now));
     let run_json = payload.to_string();
     if !port
@@ -265,19 +295,32 @@ fn respond_to_input(
         )
         .map_err(storage_mutation_failed)?
     {
-        let current = port.store.get_run(&run_id).map_err(storage_mutation_failed)?.ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+        let current = port
+            .store
+            .get_run(&run_id)
+            .map_err(storage_mutation_failed)?
+            .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
         return Ok(json!({"request": request, "run": run_entity_value(&current)?}));
     }
     if let Err(error) = runtime.resume_approval(&run_id) {
         // Restore the pending state when the continuation worker could not be
         // started.  The CAS prevents this compensation from overwriting a
         // worker that won the race after the state transition.
-        let current = port.store.get_run(&run_id).map_err(storage_mutation_failed)?;
+        let current = port
+            .store
+            .get_run(&run_id)
+            .map_err(storage_mutation_failed)?;
         if let Some(current) = current {
             let mut rollback = decode_mutation_payload(&current.payload_json, "run")?;
             if let Some(object) = rollback.as_object_mut() {
-                object.insert("status".to_owned(), Value::String("PENDING_INPUT".to_owned()));
-                object.insert("resumeState".to_owned(), Value::String("awaiting_input".to_owned()));
+                object.insert(
+                    "status".to_owned(),
+                    Value::String("PENDING_INPUT".to_owned()),
+                );
+                object.insert(
+                    "resumeState".to_owned(),
+                    Value::String("awaiting_input".to_owned()),
+                );
                 if let Some(request) = object.get_mut("inputRequest") {
                     if request.get("id").and_then(Value::as_str) == Some(request_id) {
                         *request = request_pending_value(request, answers);
@@ -300,7 +343,11 @@ fn respond_to_input(
         }
         return Err(runtime_error(error, 503, "ADK_CONTINUATION_UNAVAILABLE"));
     }
-    let updated = port.store.get_run(&run_id).map_err(storage_mutation_failed)?.ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+    let updated = port
+        .store
+        .get_run(&run_id)
+        .map_err(storage_mutation_failed)?
+        .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
     Ok(json!({"request": request, "run": run_entity_value(&updated)?}))
 }
 
@@ -328,28 +375,38 @@ fn install_skill(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| invalid_mutation_input("skill URL is required"))?;
-    let parsed = Url::parse(raw_url).map_err(|_| invalid_mutation_input("valid http/https skill URL is required"))?;
+    let parsed = Url::parse(raw_url)
+        .map_err(|_| invalid_mutation_input("valid http/https skill URL is required"))?;
     validate_skill_url_shape(&parsed).map_err(|message| invalid_mutation_input(&message))?;
     let url = raw_url.to_owned();
     const MAX_SKILL_FILE_BYTES: usize = 512 << 10;
     const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
     let parsed_for_download = parsed.clone();
     let bytes = std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|error| error.to_string())?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| error.to_string())?;
         runtime.block_on(async move {
             // Pin the HTTP client to the address checked below. Without this
             // resolver override a DNS answer can change between validation
             // and reqwest's connection (classic DNS-rebinding TOCTOU).
             let validated_address = tokio::time::timeout(
                 Duration::from_secs(5),
-                tokio::task::spawn_blocking(move || validate_skill_url_network(&parsed_for_download)),
+                tokio::task::spawn_blocking(move || {
+                    validate_skill_url_network(&parsed_for_download)
+                }),
             )
             .await
             .map_err(|_| "skill URL validation timed out".to_owned())?
             .map_err(|error| error.to_string())?;
             let validated_address = validated_address?;
             let client = build_skill_download_client(&url, validated_address)?;
-            let mut response = client.get(url.clone()).send().await.map_err(|error| error.to_string())?;
+            let mut response = client
+                .get(url.clone())
+                .send()
+                .await
+                .map_err(|error| error.to_string())?;
             validate_skill_url_shape(response.url())?;
             if !response.status().is_success() {
                 return Err(format!("skill download returned {}", response.status()));
@@ -366,7 +423,10 @@ fn install_skill(
             } else {
                 MAX_SKILL_ARCHIVE_BYTES
             };
-            if response.content_length().is_some_and(|length| length > max_bytes as u64) {
+            if response
+                .content_length()
+                .is_some_and(|length| length > max_bytes as u64)
+            {
                 return Err("skill file exceeds 4 MiB".to_owned());
             }
             let mut body = Vec::with_capacity(
@@ -384,8 +444,16 @@ fn install_skill(
         })
     })
     .join()
-    .map_err(|_| AdkMutationPortError::Failed { status: 502, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: "skill download worker panicked".to_owned() })?
-    .map_err(|message| AdkMutationPortError::Failed { status: 502, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message })?;
+    .map_err(|_| AdkMutationPortError::Failed {
+        status: 502,
+        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+        message: "skill download worker panicked".to_owned(),
+    })?
+    .map_err(|message| AdkMutationPortError::Failed {
+        status: 502,
+        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+        message,
+    })?;
     let (body, content_type) = bytes;
     let archive = is_skill_archive(raw_url, &content_type, Some(body.len() as u64))
         || body.starts_with(b"PK\x03\x04")
@@ -399,34 +467,87 @@ fn install_skill(
         })?
     } else {
         if body.len() > MAX_SKILL_FILE_BYTES {
-            return Err(AdkMutationPortError::Failed { status: 400, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: "skill file exceeds 512 KiB".to_owned() });
+            return Err(AdkMutationPortError::Failed {
+                status: 400,
+                code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+                message: "skill file exceeds 512 KiB".to_owned(),
+            });
         }
-        let text = String::from_utf8(body.clone()).map_err(|_| AdkMutationPortError::Failed { status: 400, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: "skill document must be UTF-8".to_owned() })?;
+        let text = String::from_utf8(body.clone()).map_err(|_| AdkMutationPortError::Failed {
+            status: 400,
+            code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+            message: "skill document must be UTF-8".to_owned(),
+        })?;
         (text, vec![("SKILL.md".to_owned(), body.clone())])
     };
-    let id = normalize_id(skill_frontmatter(&text, "name").as_deref().unwrap_or_else(|| {
-        parsed.path_segments().and_then(|segments| segments.last()).unwrap_or("skill").trim_end_matches(".md")
-    }));
-    if id.is_empty() { return Err(invalid_mutation_input("skill name is required")); }
-    if port.store.get_skill(&id).map_err(storage_mutation_failed)?.is_some() {
-        return Err(AdkMutationPortError::Failed { status: 409, code: "ADK_SKILL_EXISTS".to_owned(), message: "skill is already installed".to_owned() });
+    let id = normalize_id(
+        skill_frontmatter(&text, "name")
+            .as_deref()
+            .unwrap_or_else(|| {
+                parsed
+                    .path_segments()
+                    .and_then(|segments| segments.last())
+                    .unwrap_or("skill")
+                    .trim_end_matches(".md")
+            }),
+    );
+    if id.is_empty() {
+        return Err(invalid_mutation_input("skill name is required"));
+    }
+    if port
+        .store
+        .get_skill(&id)
+        .map_err(storage_mutation_failed)?
+        .is_some()
+    {
+        return Err(AdkMutationPortError::Failed {
+            status: 409,
+            code: "ADK_SKILL_EXISTS".to_owned(),
+            message: "skill is already installed".to_owned(),
+        });
     }
     let mut digest = Sha256::new();
     digest.update(&body);
     let content_hash = encode_hex(&digest.finalize());
-    let skills_root = std::env::var_os("JFTRADE_ADK_SKILLS").map(PathBuf::from).unwrap_or_else(|| port.settings_path.parent().unwrap_or(std::path::Path::new(".")).join("skills"));
-    fs::create_dir_all(&skills_root).map_err(|error| AdkMutationPortError::Failed { status: 500, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: error.to_string() })?;
+    let skills_root = std::env::var_os("JFTRADE_ADK_SKILLS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            port.settings_path
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join("skills")
+        });
+    fs::create_dir_all(&skills_root).map_err(|error| AdkMutationPortError::Failed {
+        status: 500,
+        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+        message: error.to_string(),
+    })?;
     let skill_dir = skills_root.join(&id);
-    let temporary_dir = skills_root.join(format!(".{id}.tmp-{}", SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)));
-    fs::create_dir(&temporary_dir).map_err(|error| AdkMutationPortError::Failed { status: 500, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: error.to_string() })?;
+    let temporary_dir = skills_root.join(format!(
+        ".{id}.tmp-{}",
+        SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir(&temporary_dir).map_err(|error| AdkMutationPortError::Failed {
+        status: 500,
+        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+        message: error.to_string(),
+    })?;
     let write_result = write_skill_files(&temporary_dir, &files);
     if let Err(error) = write_result {
         let _ = fs::remove_dir_all(&temporary_dir);
-        return Err(AdkMutationPortError::Failed { status: 500, code: "ADK_SKILL_INSTALL_FAILED".to_owned(), message: error });
+        return Err(AdkMutationPortError::Failed {
+            status: 500,
+            code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+            message: error,
+        });
     }
     if skill_dir.exists() || fs::rename(&temporary_dir, &skill_dir).is_err() {
         let _ = fs::remove_dir_all(&temporary_dir);
-        return Err(AdkMutationPortError::Failed { status: 409, code: "ADK_SKILL_EXISTS".to_owned(), message: "skill install path already exists".to_owned() });
+        return Err(AdkMutationPortError::Failed {
+            status: 409,
+            code: "ADK_SKILL_EXISTS".to_owned(),
+            message: "skill install path already exists".to_owned(),
+        });
     }
     let install_path = skill_dir.join("SKILL.md");
     let payload = json!({
@@ -484,7 +605,11 @@ fn validate_skill_url_network(url: &Url) -> Result<SocketAddr, String> {
         .to_socket_addrs()
         .map_err(|_| "skill URL host could not be resolved".to_owned())?
         .collect::<Vec<_>>();
-    if addresses.is_empty() || addresses.iter().any(|address| unsafe_skill_ip(address.ip())) {
+    if addresses.is_empty()
+        || addresses
+            .iter()
+            .any(|address| unsafe_skill_ip(address.ip()))
+    {
         return Err("skill URL resolves to a private or local address".to_owned());
     }
     addresses
@@ -525,10 +650,14 @@ fn build_skill_download_client(
 fn is_skill_archive(url: &str, content_type: &str, _content_length: Option<u64>) -> bool {
     let path_hint = Url::parse(url)
         .ok()
-        .and_then(|parsed| parsed.path_segments().and_then(|segments| segments.last()).map(str::to_ascii_lowercase))
+        .and_then(|parsed| {
+            parsed
+                .path_segments()
+                .and_then(|segments| segments.last())
+                .map(str::to_ascii_lowercase)
+        })
         .is_some_and(|name| name.ends_with(".zip"));
-    path_hint
-        || content_type.to_ascii_lowercase().contains("zip")
+    path_hint || content_type.to_ascii_lowercase().contains("zip")
 }
 
 fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>), String> {
@@ -539,7 +668,8 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
     if body.len() as u64 > MAX_ARCHIVE_BYTES {
         return Err("skill archive exceeds 4 MiB".to_owned());
     }
-    let mut archive = ZipArchive::new(Cursor::new(body)).map_err(|error| format!("parse skill archive: {error}"))?;
+    let mut archive = ZipArchive::new(Cursor::new(body))
+        .map_err(|error| format!("parse skill archive: {error}"))?;
     if archive.len() > MAX_ENTRIES {
         return Err("skill archive contains too many entries".to_owned());
     }
@@ -547,19 +677,28 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
     let mut total_uncompressed = 0_u64;
     let mut skill_doc: Option<(String, Vec<u8>)> = None;
     for index in 0..archive.len() {
-        let file = archive.by_index(index).map_err(|error| format!("read skill archive entry: {error}"))?;
+        let file = archive
+            .by_index(index)
+            .map_err(|error| format!("read skill archive entry: {error}"))?;
         let raw_name = file.name().to_owned();
         if raw_name.contains('\\') || raw_name.contains('\0') {
             return Err(format!("skill archive contains unsafe path {raw_name:?}"));
         }
         let path = std::path::Path::new(&raw_name);
-        if path.is_absolute() || path.components().any(|component| matches!(component, std::path::Component::ParentDir)) {
+        if path.is_absolute()
+            || path
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
             return Err(format!("skill archive contains unsafe path {raw_name:?}"));
         }
         if raw_name.split('/').any(|segment| segment == "__MACOSX") {
             continue;
         }
-        if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+        if file
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
             return Err(format!("skill archive contains symbolic link {raw_name:?}"));
         }
         if file.is_dir() {
@@ -567,15 +706,21 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
         }
         let declared = file.size();
         let compressed = file.compressed_size();
-        if compressed == 0 && declared > 0 || compressed > 0 && declared / compressed > MAX_COMPRESSION_RATIO {
-            return Err(format!("skill archive entry has unsafe compression ratio {raw_name:?}"));
+        if compressed == 0 && declared > 0
+            || compressed > 0 && declared / compressed > MAX_COMPRESSION_RATIO
+        {
+            return Err(format!(
+                "skill archive entry has unsafe compression ratio {raw_name:?}"
+            ));
         }
         total_uncompressed = total_uncompressed.saturating_add(declared);
         if total_uncompressed > MAX_ARCHIVE_BYTES {
             return Err("skill archive exceeds 4 MiB after extraction".to_owned());
         }
         let mut data = Vec::with_capacity(declared.min(MAX_ARCHIVE_BYTES) as usize);
-        file.take(MAX_ARCHIVE_BYTES + 1).read_to_end(&mut data).map_err(|error| format!("read skill archive entry: {error}"))?;
+        file.take(MAX_ARCHIVE_BYTES + 1)
+            .read_to_end(&mut data)
+            .map_err(|error| format!("read skill archive entry: {error}"))?;
         if data.len() as u64 > MAX_ARCHIVE_BYTES || data.len() as u64 != declared {
             return Err(format!("skill archive entry size is invalid {raw_name:?}"));
         }
@@ -584,7 +729,10 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
             if data.len() as u64 > MAX_SKILL_BYTES {
                 return Err("skill file exceeds 512 KiB".to_owned());
             }
-            if skill_doc.replace((relative.to_owned(), data.clone())).is_some() {
+            if skill_doc
+                .replace((relative.to_owned(), data.clone()))
+                .is_some()
+            {
                 return Err("skill archive must contain exactly one SKILL.md".to_owned());
             }
         }
@@ -593,7 +741,10 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
     let Some((skill_path, skill_bytes)) = skill_doc else {
         return Err("skill archive does not contain SKILL.md".to_owned());
     };
-    let prefix = skill_path.rsplit_once('/').map(|(prefix, _)| format!("{prefix}/")).unwrap_or_default();
+    let prefix = skill_path
+        .rsplit_once('/')
+        .map(|(prefix, _)| format!("{prefix}/"))
+        .unwrap_or_default();
     let mut normalized = Vec::with_capacity(files.len());
     for (path, data) in files {
         let path = path.strip_prefix(&prefix).unwrap_or(path.as_str());
@@ -603,21 +754,31 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
             normalized.push((path.to_owned(), data));
         }
     }
-    let text = String::from_utf8(skill_bytes).map_err(|_| "skill document must be UTF-8".to_owned())?;
+    let text =
+        String::from_utf8(skill_bytes).map_err(|_| "skill document must be UTF-8".to_owned())?;
     Ok((text, normalized))
 }
 
 fn write_skill_files(root: &std::path::Path, files: &[(String, Vec<u8>)]) -> Result<(), String> {
     for (relative, data) in files {
         let relative_path = std::path::Path::new(relative);
-        if relative.is_empty() || relative_path.is_absolute() || relative_path.components().any(|component| matches!(component, std::path::Component::ParentDir)) {
+        if relative.is_empty()
+            || relative_path.is_absolute()
+            || relative_path
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
             return Err(format!("unsafe skill file path {relative:?}"));
         }
         let target = root.join(relative_path);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
-        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|error| error.to_string())?;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)
+            .map_err(|error| error.to_string())?;
         file.write_all(data).map_err(|error| error.to_string())?;
         file.sync_all().map_err(|error| error.to_string())?;
     }
@@ -677,8 +838,6 @@ mod tests {
             )
         });
         assert!(result.is_ok(), "reqwest client construction must not panic");
-        assert!(result
-            .expect("client construction did not panic")
-            .is_ok());
+        assert!(result.expect("client construction did not panic").is_ok());
     }
 }

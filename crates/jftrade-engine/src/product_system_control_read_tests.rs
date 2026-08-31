@@ -236,7 +236,10 @@ async fn production_system_status_reports_real_database_lease_and_schema_state()
         "recentAuditLogs",
         "recentExecutionCommands",
     ] {
-        assert!(response["data"][key].is_array(), "{key} projection: {response}");
+        assert!(
+            response["data"][key].is_array(),
+            "{key} projection: {response}"
+        );
     }
     handle
         .shutdown()

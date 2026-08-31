@@ -10,7 +10,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use super::helpers::{
-    bounded_integer, instrument, optional_string_array, path_segment, query_string,
+    bounded_integer, instrument, optional_string_array, path_segment, query_string, required_field,
     run_provider_action, run_quote_read,
 };
 use super::{McpToolFailure, ProductionMcpToolExecutor, provider_actions_error, quote_error};
@@ -36,7 +36,9 @@ impl ProductionMcpToolExecutor {
     pub(super) fn market_subscriptions(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let query = subscription_query(arguments)?;
         let port = Arc::clone(&self.ports()?.market_data_quote);
-        run_quote_read(port, SUBSCRIPTIONS_PATH.to_owned(), query).map_err(quote_error)
+        let payload =
+            run_quote_read(port, SUBSCRIPTIONS_PATH.to_owned(), query).map_err(quote_error)?;
+        subscription_projection(payload)
     }
 }
 
@@ -176,6 +178,34 @@ fn subscription_query(arguments: &Value) -> Result<String, McpToolFailure> {
     ]))
 }
 
+fn subscription_projection(payload: Value) -> Result<Value, McpToolFailure> {
+    let entries = required_field(&payload, "entries", "array")?;
+    let mut active_instruments = entries
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.get("instrumentId").and_then(Value::as_str))
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    active_instruments.sort();
+    active_instruments.dedup();
+    let checked_at = payload
+        .pointer("/brokerState/checkedAt")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+        });
+    Ok(json!({
+        "subscriptions": payload,
+        "activeInstruments": active_instruments,
+        "checkedAt": checked_at,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,5 +254,15 @@ mod tests {
                 .expect("subscription query"),
             "brokerId=futu&accountId=a1&market=US"
         );
+        let projected = subscription_projection(json!({
+            "entries": [{"instrumentId": "US.MSFT"}, {"instrumentId": "US.AAPL"}, {"instrumentId": "US.MSFT"}],
+            "brokerState": {"checkedAt": "2026-01-01T00:00:00Z"}
+        }))
+        .expect("subscription projection");
+        assert_eq!(
+            projected["activeInstruments"],
+            json!(["US.AAPL", "US.MSFT"])
+        );
+        assert_eq!(projected["checkedAt"], "2026-01-01T00:00:00Z");
     }
 }

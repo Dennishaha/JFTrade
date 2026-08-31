@@ -136,7 +136,10 @@ pub(super) fn dispatch(
                     "provider not found",
                 ));
             }
-            let previous_rows = port.store.list_providers().map_err(storage_mutation_failed)?;
+            let previous_rows = port
+                .store
+                .list_providers()
+                .map_err(storage_mutation_failed)?;
             let (mut payload, api_key) =
                 provider_payload(port, &id, &input.body, existing.as_ref())?;
             if let Some(object) = payload.as_object_mut() {
@@ -165,7 +168,10 @@ pub(super) fn dispatch(
         }
         AdkMutationOperation::DeleteProvider => {
             let id = required_identifier(input, "providerId")?;
-            let providers = port.store.list_providers().map_err(storage_mutation_failed)?;
+            let providers = port
+                .store
+                .list_providers()
+                .map_err(storage_mutation_failed)?;
             let old_secrets = read_adk_secrets(&port.settings_path)?;
             let Some(existing) = providers.iter().find(|provider| provider.id == id) else {
                 return Err(not_found_mutation(
@@ -206,14 +212,15 @@ pub(super) fn dispatch(
                         .and_then(Value::as_bool)
                         .unwrap_or(true)
                     {
-                        let object = value.as_object_mut().ok_or_else(|| {
-                            AdkMutationPortError::Failed {
-                                status: 500,
-                                code: "ADK_STORAGE_CORRUPT".to_owned(),
-                                message: "stored ADK provider payload must be a JSON object"
-                                    .to_owned(),
-                            }
-                        })?;
+                        let object =
+                            value
+                                .as_object_mut()
+                                .ok_or_else(|| AdkMutationPortError::Failed {
+                                    status: 500,
+                                    code: "ADK_STORAGE_CORRUPT".to_owned(),
+                                    message: "stored ADK provider payload must be a JSON object"
+                                        .to_owned(),
+                                })?;
                         object.insert("default".to_owned(), Value::Bool(true));
                         replacement = Some((provider.id.clone(), value.to_string()));
                         break;
@@ -224,11 +231,12 @@ pub(super) fn dispatch(
                 None
             };
 
-            let replacement_ref = replacement
-                .as_ref()
-                .map(|(replacement_id, replacement_payload)| {
-                    (replacement_id.as_str(), replacement_payload.as_str())
-                });
+            let replacement_ref =
+                replacement
+                    .as_ref()
+                    .map(|(replacement_id, replacement_payload)| {
+                        (replacement_id.as_str(), replacement_payload.as_str())
+                    });
             let deleted = match port
                 .store
                 .delete_provider_with_replacement_atomic(&id, replacement_ref)
@@ -315,7 +323,11 @@ pub(super) fn dispatch(
                 .store
                 .set_default_provider_atomic(&selected_id, &update_refs)
                 .map_err(storage_mutation_failed)?;
-            sanitized_provider_payload(object_payload(&selected, "provider")?, &selected.id, &port.settings_path)
+            sanitized_provider_payload(
+                object_payload(&selected, "provider")?,
+                &selected.id,
+                &port.settings_path,
+            )
         }
         AdkMutationOperation::CreateMemory => {
             let body = object_body(&input.body, "memory")?;

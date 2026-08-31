@@ -11,20 +11,20 @@ use crate::product::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPort, AdkMutationPortError,
 };
 
+#[path = "product_production_ports_adk_mutation_context.rs"]
+mod context;
 #[path = "product_production_ports_adk_mutation_entities.rs"]
 mod entities;
 #[path = "product_production_ports_adk_mutation_helpers.rs"]
 mod helpers;
-#[path = "product_production_ports_adk_mutation_runs.rs"]
-mod runs;
-#[path = "product_production_ports_adk_mutation_tasks.rs"]
-mod tasks;
 #[path = "product_production_ports_adk_mutation_provider.rs"]
 mod provider;
+#[path = "product_production_ports_adk_mutation_runs.rs"]
+mod runs;
 #[path = "product_production_ports_adk_mutation_runtime.rs"]
 mod runtime;
-#[path = "product_production_ports_adk_mutation_context.rs"]
-mod context;
+#[path = "product_production_ports_adk_mutation_tasks.rs"]
+mod tasks;
 #[path = "product_production_ports_adk_mutation_workflow_runtime.rs"]
 mod workflow;
 #[path = "product_production_ports_adk_mutation_workflows.rs"]
@@ -204,7 +204,10 @@ fn now_rfc3339() -> String {
 /// revision token.  Accept the explicit `expectedUpdatedAt` spelling and the
 /// generic `expectedRevision` alias used by other mutation clients without
 /// changing the public response shape.
-fn expected_updated_at(body: &Map<String, Value>, fallback: &str) -> Result<String, AdkMutationPortError> {
+fn expected_updated_at(
+    body: &Map<String, Value>,
+    fallback: &str,
+) -> Result<String, AdkMutationPortError> {
     let value = body
         .get("expectedUpdatedAt")
         .or_else(|| body.get("expectedRevision"));

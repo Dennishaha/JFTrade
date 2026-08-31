@@ -121,12 +121,7 @@ pub(super) fn dispatch(
                 let expected = expected_updated_at(&body, &existing.updated_at)?;
                 if !port
                     .store
-                    .update_workflow_if_revision(
-                        &id,
-                        &expected,
-                        &status,
-                        &payload_json,
-                    )
+                    .update_workflow_if_revision(&id, &expected, &status, &payload_json)
                     .map_err(storage_mutation_failed)?
                 {
                     let current = port
@@ -183,22 +178,14 @@ pub(super) fn dispatch(
             object.insert("id".to_owned(), Value::String(id.clone()));
             object.insert("status".to_owned(), Value::String("DISABLED".to_owned()));
             let deleted_at = now_rfc3339();
-            object.insert(
-                "deletedAt".to_owned(),
-                Value::String(deleted_at.clone()),
-            );
+            object.insert("deletedAt".to_owned(), Value::String(deleted_at.clone()));
             let expected = expected_updated_at(
                 input.body.as_object().unwrap_or(&Map::new()),
                 &existing.updated_at,
             )?;
             let changed = port
                 .store
-                .soft_delete_workflow_if_revision(
-                    &id,
-                    &expected,
-                    &payload.to_string(),
-                    &deleted_at,
-                )
+                .soft_delete_workflow_if_revision(&id, &expected, &payload.to_string(), &deleted_at)
                 .map_err(storage_mutation_failed)?;
             if !changed {
                 let current = port

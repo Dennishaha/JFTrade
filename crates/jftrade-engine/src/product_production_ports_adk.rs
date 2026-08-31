@@ -221,14 +221,15 @@ impl ProductionToolCatalog {
     /// `portfolio.summary` are compatibility aliases whose names predate the
     /// production ADK catalog.  Keep those aliases on the same binding map so
     /// `tools/list` and `tools/call` cannot disagree about availability.
-    pub(crate) fn binding_for_mcp_tool(
-        &self,
-        name: &str,
-    ) -> Option<ProductionAdapterBinding> {
-        let snapshot = self.active_provider_state.as_ref().map(|state| state.snapshot());
-        if let Some(definition) = PRODUCTION_TOOL_DEFINITIONS.iter().find(|definition| {
-            definition.id == name
-        }) {
+    pub(crate) fn binding_for_mcp_tool(&self, name: &str) -> Option<ProductionAdapterBinding> {
+        let snapshot = self
+            .active_provider_state
+            .as_ref()
+            .map(|state| state.snapshot());
+        if let Some(definition) = PRODUCTION_TOOL_DEFINITIONS
+            .iter()
+            .find(|definition| definition.id == name)
+        {
             return Some(snapshot.as_ref().map_or_else(
                 || {
                     self.bindings
@@ -244,10 +245,16 @@ impl ProductionToolCatalog {
             "market.providers" | "market.capabilities" => {
                 ProductionRouteAdapter::MarketDataProviderRead
             }
+            "system.runtime_dependencies" => ProductionRouteAdapter::SystemRead,
             "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
             "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,
             "account.orders" => ProductionRouteAdapter::ExecutionRead,
             "broker.orders" | "broker.fills" => ProductionRouteAdapter::BrokerRead,
+            "broker.cash_flows" | "broker.fees" | "broker.margin_ratios" => {
+                ProductionRouteAdapter::BrokerRead
+            }
+            "execution.order_events" => ProductionRouteAdapter::ExecutionRead,
+            "execution.buying_power" => ProductionRouteAdapter::ExecutionWrite,
             "strategy.definition_versions.list" | "strategy.definition_versions.get" => {
                 ProductionRouteAdapter::StrategyDefinitionRead
             }
@@ -270,14 +277,16 @@ impl ProductionToolCatalog {
             .trade_runtime
             .as_ref()
             .is_some_and(|runtime| runtime.snapshot().is_ready());
-        Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-            && snapshot.opend_ready
-            && trade_ready
-        {
-            ProductionAdapterBinding::Ready
-        } else {
-            ProductionAdapterBinding::ExternalUnavailable
-        })
+        Some(
+            if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && trade_ready
+            {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            },
+        )
     }
 
     /// Convert the currently callable catalog into the OpenAI Responses

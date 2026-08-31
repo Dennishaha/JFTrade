@@ -48,6 +48,32 @@ pub(super) fn required_field(
     Ok(value.clone())
 }
 
+/// Validate the nullable `runs` field emitted by the production backtest
+/// snapshot. An empty production store intentionally uses `null` (matching
+/// the existing HTTP shape); a missing or non-array field is an adapter
+/// contract violation and must not be treated as an empty result.
+pub(super) fn nullable_runs<'a>(
+    payload: &'a Value,
+) -> Result<Option<&'a Vec<Value>>, McpToolFailure> {
+    let Some(value) = payload.get("runs") else {
+        return Err(McpToolFailure::failed(
+            502,
+            "MCP_PRODUCTION_PAYLOAD_INVALID",
+            "backtest adapter payload is missing runs",
+        ));
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    value.as_array().map(Some).ok_or_else(|| {
+        McpToolFailure::failed(
+            502,
+            "MCP_PRODUCTION_PAYLOAD_INVALID",
+            "backtest adapter payload field runs is not an array or null",
+        )
+    })
+}
+
 pub(super) fn same_observed_string(
     payloads: &[&Value],
     key: &str,
