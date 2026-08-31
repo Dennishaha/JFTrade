@@ -1065,11 +1065,16 @@ pub(crate) async fn prepare_product_with_runtime_state(
             runtime: config.market_data_runtime_status_port.clone(),
         }));
     }
-    let web_router = web_runtime.as_ref().map(|web_runtime| {
-        let mut web_state = state.clone();
+    let web_router = if let Some(web_runtime) = web_runtime.as_ref() {
+        // Production Web security settings are part of the composition
+        // contract.  A corrupt/unreadable settings file must abort startup,
+        // rather than silently changing the allowed-origin set to defaults.
         let web_settings = security_service_for_runtime
             .settings()
-            .unwrap_or_else(|_| jftrade_settings::SecuritySettings::default());
+            .map_err(|error| ProductError::SecurityRuntime {
+                message: format!("could not load Web access settings: {error}"),
+            })?;
+        let mut web_state = state.clone();
         let web_access = AccessPolicy::web()
             .with_allowed_origins([
                 "http://127.0.0.1:3003".to_owned(),
@@ -1095,8 +1100,10 @@ pub(crate) async fn prepare_product_with_runtime_state(
             // fails closed if that invariant is ever violated.
             web_access
         };
-        build_router(web_state)
-    });
+        Some(build_router(web_state))
+    } else {
+        None
+    };
     let router = build_router(state);
     if let (Some(web_runtime), Some(web_router)) = (web_runtime.as_ref(), web_router) {
         web_runtime.install_router(web_router);

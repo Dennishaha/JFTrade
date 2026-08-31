@@ -374,8 +374,17 @@ fn read_futu_corporate_actions(
     .map_err(map_futu_corporate_actions_error)?;
     let events = payload
         .get("events")
+        .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_else(|| Value::Array(Vec::new()));
+        .ok_or_else(|| {
+            ResearchReadSnapshotError::Failed {
+                status: 502,
+                code: "BAD_GATEWAY".to_owned(),
+                message: "market-data helper response is missing events".to_owned(),
+                retry_after_seconds: None,
+            }
+        })?;
+    let total = events.len();
     let as_of = super::super::provider_now_rfc3339();
     Ok(json!({
         "provider": {
@@ -399,7 +408,7 @@ fn read_futu_corporate_actions(
         "asOf": as_of,
         "entries": events,
         "hasMore": false,
-        "total": payload.get("events").and_then(Value::as_array).map_or(0, Vec::len),
+        "total": total,
     }))
 }
 

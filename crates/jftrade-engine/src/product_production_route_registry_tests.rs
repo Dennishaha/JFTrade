@@ -14,3 +14,35 @@ fn fixture_registry() -> ProductionRouteRegistry {
 #[test] fn resolver_returns_registered_target_for_dynamic_paths() { let registry = fixture_registry(); let binding = registry.resolve("get", "/api/v1/market-data/candles/US/AAPL").expect("dynamic route"); assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::MarketDataCandlesRead); let binding = registry.resolve("POST", "/api/v1/strategies/instance-1/start").expect("strategy start"); assert_eq!(binding.dispatch_target(), ProductionRouteAdapter::StrategyRuntimeWrite); }
 #[test] fn resolver_rejects_unknown_method_and_path() { let registry = fixture_registry(); assert!(registry.resolve("PATCH", "/api/v1/market-data/markets").is_none()); assert!(registry.resolve("GET", "/api/v1/market-data/markets/extra").is_none()); assert!(registry.resolve("GET", "/api/v1/unknown").is_none()); }
 #[test] fn every_canonical_template_has_a_dispatch_target() { let registry = fixture_registry(); for binding in registry.bindings() { let concrete = binding.path.split('/').map(|segment| if segment.starts_with('{') && segment.ends_with('}') { "fixture-id" } else { segment }).collect::<Vec<_>>().join("/"); let resolved = registry.resolve(&binding.method, &concrete).expect("canonical operation resolves"); assert_eq!(resolved.dispatch_target(), binding.dispatch_target()); } }
+
+#[test]
+fn research_operation_aliases_are_explicit_for_unimplemented_operations() {
+    let binding = ProductionAdapterBinding::ExternalUnavailable;
+    for (path, operation) in [
+        (
+            "/api/v1/research/technical-indicators/{instrumentId}",
+            "technical",
+        ),
+        (
+            "/api/v1/research/technical-indicators/{instrumentId}",
+            "technical_indicators",
+        ),
+        (
+            "/api/v1/research/short-interest/{instrumentId}",
+            "short_interest",
+        ),
+        (
+            "/api/v1/research/short-interest/{instrumentId}",
+            "daily_volume",
+        ),
+        ("/api/v1/research/institutions", "institutions"),
+        ("/api/v1/research/screens", "screens"),
+    ] {
+        let bindings = research_operation_bindings(path, binding);
+        assert_eq!(
+            bindings.get(operation),
+            Some(&ProductionAdapterBinding::ExternalUnavailable),
+            "research operation {operation} on {path} must remain fail-closed"
+        );
+    }
+}

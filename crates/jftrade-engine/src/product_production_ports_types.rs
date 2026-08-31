@@ -104,6 +104,17 @@ pub(crate) fn research_tool_binding(
                         .as_ref()
                         .is_some_and(|runtime| runtime.news_reader_available()))
         }
+        // Stock screening has a concrete embedded-helper adapter.  Keep it
+        // separate from the ResearchRead umbrella used by the legacy GET
+        // route so provider transitions cannot leave the screen tool Ready
+        // after switching away from a healthy helper.
+        "screen" | "screens" => snapshot.helper_ready && helper_provider,
+        // The compatibility catalog retains these broker operations, but the
+        // production bundle has no technical/short-interest/institution
+        // reader. They must remain explicitly unavailable until a typed
+        // adapter is installed.
+        "technical" | "technical_indicators" | "short-interest" | "short_interest"
+        | "institutions" => false,
         _ => false,
     };
     if ready {

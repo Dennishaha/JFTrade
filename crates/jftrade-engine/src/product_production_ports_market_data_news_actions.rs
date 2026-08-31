@@ -273,19 +273,17 @@ fn project_news_entry(value: &Value) -> Result<Value, MarketDataNewsActionsReadS
 fn project_corporate_events(
     value: Option<&Value>,
 ) -> Result<Value, MarketDataNewsActionsReadSnapshotError> {
-    let Some(value) = value else {
-        return Ok(Value::Array(Vec::new()));
-    };
+    // Corporate-actions responses are only successful when the helper
+    // explicitly supplies the collection.  Treating a missing/null field as
+    // an empty result hides malformed Futu/helper payloads and can make a
+    // request look successful when no projection was performed.
+    let value = value.ok_or_else(|| {
+        news_actions_bad_gateway("market-data helper response is missing events")
+    })?;
     let Some(events) = value.as_array() else {
-        return if value.is_null() {
-            // See project_news_entries: a nil sidecar slice is a valid empty
-            // result at the product boundary, not a JSON null collection.
-            Ok(Value::Array(Vec::new()))
-        } else {
-            Err(news_actions_bad_gateway(
-                "market-data helper response events must be an array",
-            ))
-        };
+        return Err(news_actions_bad_gateway(
+            "market-data helper response events must be an array",
+        ));
     };
     events
         .iter()

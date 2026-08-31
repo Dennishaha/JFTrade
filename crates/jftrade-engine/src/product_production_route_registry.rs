@@ -562,6 +562,10 @@ fn research_operation_bindings(
         &["daily_volume", "short_interest"]
     } else if path.starts_with("/api/v1/research/technical-indicators/") {
         &["technical", "technical_indicators"]
+    } else if path == "/api/v1/research/institutions" {
+        &["institutions"]
+    } else if path == "/api/v1/research/screens" {
+        &["screens"]
     } else {
         &[]
     };

@@ -413,6 +413,17 @@ impl ProductionToolCatalog {
                     ProductionAdapterBinding::ExternalUnavailable
                 }
             }
+            ProductionRouteAdapter::ResearchScreenWrite => {
+                // The POST screen adapter is backed by the embedded helper;
+                // Futu's OpenD stock-filter reader is not wired here. Keep
+                // this dynamic so an activation/reconnect cannot retain a
+                // stale Ready descriptor from the startup provider.
+                if snapshot.helper_ready && helper_provider(snapshot.provider) {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
             ProductionRouteAdapter::MarketDataMarketsRead => {
                 if helper_provider(snapshot.provider) && snapshot.helper_ready
                     || snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
@@ -524,6 +535,7 @@ fn is_provider_dynamic_adapter(adapter: ProductionRouteAdapter) -> bool {
             | ProductionRouteAdapter::MarketDataSubscriptionHeartbeatWrite
             | ProductionRouteAdapter::MarketDataNewsActionsRead
             | ProductionRouteAdapter::MarketDataNewsSearchRead
+            | ProductionRouteAdapter::ResearchScreenWrite
     )
 }
 
@@ -934,6 +946,7 @@ mod tests {
         assert!(!allowed_modes("market.search").is_empty());
         assert!(!allowed_modes("market.snapshot").is_empty());
         assert!(!allowed_modes("research.instrument").is_empty());
+        assert!(!allowed_modes("research.screen").is_empty());
 
         // Provider transitions update the shared state while the catalog
         // remains the same Arc-owned object. A subsequent projection must
@@ -945,6 +958,7 @@ mod tests {
         assert!(allowed_modes("market.search").is_empty());
         assert!(allowed_modes("research.instrument").is_empty());
         assert!(allowed_modes("market.snapshot").is_empty());
+        assert!(allowed_modes("research.screen").is_empty());
         // OpenD readiness alone does not provide a news reader.  Futu news
         // remains externally unavailable until the concrete trade-runtime
         // reader is installed, so the ADK catalog must not advertise it as
@@ -956,5 +970,6 @@ mod tests {
         assert!(!allowed_modes("market.subscriptions").is_empty());
         assert!(!allowed_modes("research.valuation").is_empty());
         assert!(allowed_modes("research.news").is_empty());
+        assert!(allowed_modes("research.screen").is_empty());
     }
 }

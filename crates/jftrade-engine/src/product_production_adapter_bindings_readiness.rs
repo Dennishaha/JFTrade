@@ -104,7 +104,26 @@ impl ProductionPortBundle {
         let valuation_route = path
             .strip_prefix("/api/v1/research/valuation/")
             .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
-        let ready = if corporate_actions_route {
+        // These public research operations are present in the compatibility
+        // route catalog, but no production helper/OpenD reader is wired for
+        // them yet. Keep the distinction explicit so adding a broad helper
+        // route later cannot accidentally advertise a synthetic Ready state.
+        let unsupported_route = matches!(
+            path,
+            "/api/v1/research/institutions" | "/api/v1/research/screens"
+        )
+            || [
+                "/api/v1/research/short-interest/",
+                "/api/v1/research/technical-indicators/",
+            ]
+            .iter()
+            .any(|prefix| {
+                path.strip_prefix(prefix)
+                    .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
+            });
+        let ready = if unsupported_route {
+            false
+        } else if corporate_actions_route {
             match snapshot.provider {
                 Some(jftrade_settings::MarketDataProvider::Futu) => {
                     snapshot.opend_ready

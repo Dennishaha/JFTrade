@@ -131,6 +131,32 @@ async fn production_news_actions_port_maps_helper_failure_and_rejects_bad_limit(
 }
 
 #[test]
+fn corporate_actions_projection_rejects_missing_events() {
+    let payload = serde_json::json!({
+        "market": "US",
+        "symbol": "AAPL",
+        "instrument_id": "US.AAPL",
+        "source": "yfinance-actions"
+    });
+    let error = super::product_production_ports_market_data_news_actions::validate_news_actions_payload(
+        payload,
+        "corporate-actions",
+        "US",
+        "AAPL",
+    )
+    .expect_err("missing events must not project as an empty success");
+    assert!(matches!(
+        error,
+        MarketDataNewsActionsReadSnapshotError::Failed {
+            status: 502,
+            ref code,
+            ref message,
+            ..
+        } if code == "BAD_GATEWAY" && message == "market-data helper response is missing events"
+    ));
+}
+
+#[test]
 fn corporate_actions_query_requires_rfc3339_and_ascending_range() {
     let error = news_actions_helper_request(
         "/api/v1/market-data/corporate-actions/US/AAPL",
