@@ -23,4 +23,3 @@ test("desktop publish lane cannot silently continue with unsigned platform crede
   assert.match(workflow, /Publishing requires complete Windows signing credentials/);
   assert.doesNotMatch(workflow, /producing an unsigned (macOS|Windows) release/);
 });
-
