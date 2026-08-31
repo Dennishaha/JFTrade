@@ -553,7 +553,14 @@ impl ProductConfig {
 
 include!("product_config_ports.rs");
 
+include!("product_server_types.rs");
+include!("product_server_runtime.rs");
 include!("product_server.rs");
+include!("product_handle.rs");
+
+#[cfg(test)]
+#[path = "product_server_tests.rs"]
+mod product_server_tests;
 
 include!("product_resource_integrity.rs");
 include!("product_route_assembly.rs");
