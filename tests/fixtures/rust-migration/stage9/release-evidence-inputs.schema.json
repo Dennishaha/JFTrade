@@ -91,7 +91,7 @@
         "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
         "ref": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
         "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
-        "workflow": { "const": "desktop-release-evidence-payload.yml" },
+        "workflow": { "enum": ["desktop-release-evidence-intake.yml", "desktop-release-evidence-source.yml"] },
         "runId": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
         "attempt": { "type": "integer", "minimum": 1 },
         "artifact": { "$ref": "#/$defs/artifact" }

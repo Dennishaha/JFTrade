@@ -168,23 +168,6 @@ jobs:
             echo "payload artifact detail does not match requested metadata" >&2
             exit 1
           }
-          jq -n \
-            --arg schema "./release-evidence-payload-binding.schema.json" \
-            --arg schema_version "jftrade.release-evidence-payload-binding.v1" \
-            --arg repository "$REPOSITORY" \
-            --arg release_ref "refs/tags/$RELEASE_REF" \
-            --arg evidence_ref "$EVIDENCE_REF" \
-            --argjson run_id "$PAYLOAD_RUN_ID" \
-            --argjson attempt "$PAYLOAD_RUN_ATTEMPT" \
-            --arg workflow "$PAYLOAD_WORKFLOW" \
-            --arg ref "$PAYLOAD_REF" \
-            --arg payload_commit "$PAYLOAD_COMMIT" \
-            --arg artifact_name "$PAYLOAD_ARTIFACT" \
-            --argjson artifact_id "$PAYLOAD_ARTIFACT_ID" \
-            --arg artifact_digest "$PAYLOAD_ARTIFACT_DIGEST" \
-            '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$payload_commit},artifact:{name:$artifact_name,id:$artifact_id,digest:$artifact_digest}}' \
-            > payload-artifact-metadata.json
-
       - name: Download the verified payload artifact by immutable id
         env:
           GH_TOKEN: ${{ github.token }}
@@ -203,7 +186,124 @@ jobs:
             [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe artifact archive path: $entry" >&2; exit 1; }
           done < <(unzip -Z1 "$archive")
           unzip -q "$archive" -d payload
+          [[ -z "$(find payload -type l -print -quit)" ]] || { echo "payload archive must not contain symlinks" >&2; exit 1; }
           [[ -f payload/reports/signed-updater-inputs.json ]] || { echo "payload archive has no reports directory" >&2; exit 1; }
+
+      - name: Derive source binding metadata without rewriting reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: refs/tags/${{ inputs.release_ref }}
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { TRUSTED_BINDING_WORKFLOWS } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
+
+          const root = path.resolve("payload/reports");
+          const ids = [
+            "signed-updater-inputs",
+            "sbom-provenance-inputs",
+            "rollback-artifact-pair",
+            "backup-restore-drill",
+            "security-review-inputs",
+          ];
+          const fields = ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"];
+          const normalize = (binding) => {
+            if (!binding || typeof binding !== "object" || Array.isArray(binding)) throw new Error("source report binding is required");
+            const unknown = Object.keys(binding).filter((key) => !fields.includes(key));
+            if (unknown.length) throw new Error(`source report binding has unsupported field(s): ${unknown.join(", ")}`);
+            const artifact = binding.artifact;
+            if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) throw new Error("source report binding artifact is required");
+            const normalized = {
+              repository: binding.repository,
+              releaseRef: binding.releaseRef,
+              ref: binding.ref,
+              commitSha: binding.commitSha,
+              workflow: binding.workflow,
+              runId: Number(binding.runId),
+              attempt: Number(binding.attempt),
+              artifact: { name: artifact.name, id: Number(artifact.id), digest: artifact.digest },
+            };
+            if (!TRUSTED_BINDING_WORKFLOWS.includes(normalized.workflow)) throw new Error(`source workflow is not trusted: ${normalized.workflow}`);
+            if (normalized.repository !== process.env.REPOSITORY
+              || normalized.releaseRef !== process.env.RELEASE_REF
+              || normalized.commitSha !== process.env.PAYLOAD_COMMIT) {
+              throw new Error("source report binding does not match release or commit");
+            }
+            if (!Number.isInteger(normalized.runId) || normalized.runId <= 0
+              || !Number.isInteger(normalized.attempt) || normalized.attempt <= 0) throw new Error("source report binding run is invalid");
+            if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(normalized.artifact.name)
+              || !Number.isInteger(normalized.artifact.id) || normalized.artifact.id <= 0
+              || !/^sha256:[a-f0-9]{64}$/.test(normalized.artifact.digest)) throw new Error("source report binding artifact is invalid");
+            return normalized;
+          };
+          let sourceBinding;
+          for (const id of ids) {
+            const file = path.join(root, `${id}.json`);
+            const stat = fs.lstatSync(file);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size === 0) throw new Error(`source report is not a regular file: ${id}`);
+            const document = JSON.parse(fs.readFileSync(file, "utf8"));
+            const current = normalize(document.binding);
+            if (!sourceBinding) sourceBinding = current;
+            else if (JSON.stringify(current) !== JSON.stringify(sourceBinding)) throw new Error("source report bindings are inconsistent");
+          }
+          const metadata = {
+            $schema: "./release-evidence-payload-binding.schema.json",
+            schemaVersion: "jftrade.release-evidence-payload-binding.v1",
+            repository: process.env.REPOSITORY,
+            sourceRepository: JSON.parse(fs.readFileSync(path.resolve("payload/payload-artifact-metadata.json"), "utf8")).sourceRepository,
+            releaseRef: process.env.RELEASE_REF,
+            evidenceRef: sourceBinding.ref,
+            payloadRun: {
+              id: Number(process.env.PAYLOAD_RUN_ID),
+              attempt: Number(process.env.PAYLOAD_RUN_ATTEMPT),
+              workflow: "desktop-release-evidence-payload.yml",
+              ref: process.env.EVIDENCE_REF,
+              commitSha: process.env.PAYLOAD_COMMIT,
+            },
+            artifact: {
+              name: process.env.PAYLOAD_ARTIFACT,
+              id: Number(process.env.PAYLOAD_ARTIFACT_ID),
+              digest: process.env.PAYLOAD_ARTIFACT_DIGEST,
+            },
+            sourceBinding,
+          };
+          fs.writeFileSync("payload-artifact-metadata.json", `${JSON.stringify(metadata, null, 2)}\n`, { flag: "wx" });
+          NODE
+          source_workflow="$(jq -r '.sourceBinding.workflow' payload-artifact-metadata.json)"
+          source_ref="$(jq -r '.sourceBinding.ref' payload-artifact-metadata.json)"
+          source_commit="$(jq -r '.sourceBinding.commitSha' payload-artifact-metadata.json)"
+          source_run_id="$(jq -r '.sourceBinding.runId' payload-artifact-metadata.json)"
+          source_attempt="$(jq -r '.sourceBinding.attempt' payload-artifact-metadata.json)"
+          source_artifact_name="$(jq -r '.sourceBinding.artifact.name' payload-artifact-metadata.json)"
+          source_artifact_id="$(jq -r '.sourceBinding.artifact.id' payload-artifact-metadata.json)"
+          source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest' payload-artifact-metadata.json)"
+          source_repository="$(jq -r '.sourceRepository' payload-artifact-metadata.json)"
+          [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "source binding repository is invalid" >&2; exit 1; }
+          source_branch="${source_ref#refs/heads/}"
+          source_branch="${source_branch#refs/tags/}"
+          source_run="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
+          jq -e \
+            --arg sha "$source_commit" --arg branch "$source_branch" --arg ref "$source_ref" \
+            --arg attempt "$source_attempt" --arg workflow "$source_workflow" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run" >/dev/null || { echo "source binding run is not a successful trusted run" >&2; exit 1; }
+          source_artifact="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
+          jq -e \
+            --arg name "$source_artifact_name" --arg digest "$source_artifact_digest" \
+            --argjson id "$source_artifact_id" --argjson run_id "$source_run_id" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact" >/dev/null || { echo "source binding artifact is not bound to the source run" >&2; exit 1; }
 
       - name: Stage byte-identical producer payload
         shell: bash

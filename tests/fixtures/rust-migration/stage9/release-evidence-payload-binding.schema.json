@@ -5,11 +5,12 @@
   "description": "API metadata captured for an external evidence payload before the trusted producer binds it. This file is provenance, not a passed report.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schemaVersion", "repository", "releaseRef", "evidenceRef", "payloadRun", "artifact"],
+  "required": ["$schema", "schemaVersion", "repository", "sourceRepository", "releaseRef", "evidenceRef", "payloadRun", "artifact", "sourceBinding"],
   "properties": {
     "$schema": { "const": "./release-evidence-payload-binding.schema.json" },
     "schemaVersion": { "const": "jftrade.release-evidence-payload-binding.v1" },
     "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+    "sourceRepository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
     "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
     "evidenceRef": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
     "payloadRun": {
@@ -32,6 +33,21 @@
         "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
         "id": { "type": "integer", "minimum": 1 },
         "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "sourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+        "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+        "ref": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
+        "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
+        "workflow": { "enum": ["desktop-release-evidence-intake.yml", "desktop-release-evidence-source.yml"] },
+        "runId": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "artifact": { "$ref": "#/properties/artifact" }
       }
     }
   }

@@ -10,7 +10,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use jftrade_integration_futu::{OpenDProviderRuntime, OpenDProviderRuntimeError, OpenDPredictionMarketReader};
+use jftrade_integration_futu::{
+    OpenDProviderRuntime, OpenDProviderRuntimeError, OpenDPredictionMarketReader,
+    OpenDSessionCoordinator,
+};
 use jftrade_integration_marketdata_helper::HelperProcess;
 use jftrade_marketdata::ProviderRouter;
 use jftrade_settings::MarketDataProvider;
@@ -28,10 +31,12 @@ pub(super) fn dynamic_provider_readiness(
     helper_process: &Option<Arc<Mutex<Option<HelperProcess>>>>,
     helper_health: Option<Arc<HelperHealthMonitor>>,
     dynamic_opend: &SharedOpenDProviderRuntime,
+    explicit_opend: &Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     market_data_router: &Option<Arc<Mutex<ProviderRouter>>>,
 ) -> DynamicReadiness {
     let dyn_helper_for_readiness = helper_process.clone();
     let dyn_opend_for_readiness = Arc::clone(dynamic_opend);
+    let explicit_opend_for_readiness = explicit_opend.clone();
     let dyn_router_for_readiness = market_data_router.clone();
     Arc::new(move || {
         let helper_ready = if let Some(ref proc_arc) = dyn_helper_for_readiness {
@@ -56,36 +61,49 @@ pub(super) fn dynamic_provider_readiness(
             .lock()
             .unwrap_or_else(|error| error.into_inner())
         {
-            let coordinator_lock = provider.coordinator();
-            if let Ok(coordinator) = coordinator_lock.lock() {
-                let recorder_snap = coordinator.recorder().snapshot();
-                let physical_snap = coordinator.physical_snapshot();
-                recorder_snap.connected
-                    && recorder_snap.generation > 0
-                    && recorder_snap
-                        .quote_last_error
-                        .as_deref()
-                        .unwrap_or_default()
-                        .is_empty()
-                    && recorder_snap
-                        .stream_last_error
-                        .as_deref()
-                        .unwrap_or_default()
-                        .is_empty()
-                    && physical_snap
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.last_error.as_deref())
-                        .unwrap_or_default()
-                        .is_empty()
-            } else {
-                false
-            }
+            coordinator_is_ready(&provider.coordinator())
+        } else if let Some(coordinator) = explicit_opend_for_readiness.as_ref() {
+            coordinator_is_ready(coordinator)
         } else {
             false
         };
         let router_ready = dyn_router_for_readiness.is_some();
         (helper_ready, opend_ready, router_ready)
     })
+}
+
+/// A coordinator with an authenticated session is usable even when its
+/// demand book is empty (the recorder then quite correctly reports no active
+/// stream). Once demand exists, require the generation-fenced stream and
+/// physical snapshot to be healthy as well.
+fn coordinator_is_ready(coordinator: &Arc<Mutex<OpenDSessionCoordinator>>) -> bool {
+    let Ok(coordinator) = coordinator.lock() else {
+        return false;
+    };
+    if coordinator.session().is_err() {
+        return false;
+    }
+    let recorder = coordinator.recorder().snapshot();
+    if recorder.closed
+        || recorder
+            .quote_last_error
+            .as_deref()
+            .is_some_and(|error| !error.is_empty())
+        || recorder
+            .stream_last_error
+            .as_deref()
+            .is_some_and(|error| !error.is_empty())
+    {
+        return false;
+    }
+    if recorder.active_count > 0 && (!recorder.connected || recorder.generation == 0) {
+        return false;
+    }
+    coordinator
+        .physical_snapshot()
+        .as_ref()
+        .and_then(|snapshot| snapshot.last_error.as_deref())
+        .is_none_or(str::is_empty)
 }
 
 type Activation =
@@ -355,7 +373,7 @@ mod tests {
     #[test]
     fn readiness_without_composed_runtimes_reports_all_false() {
         let dynamic_opend: SharedOpenDProviderRuntime = Arc::new(Mutex::new(None));
-        let readiness = dynamic_provider_readiness(&None, None, &dynamic_opend, &None);
+        let readiness = dynamic_provider_readiness(&None, None, &dynamic_opend, &None, &None);
         assert_eq!(readiness(), (false, false, false));
     }
 }

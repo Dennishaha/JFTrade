@@ -12,6 +12,23 @@ export const TRUSTED_EVIDENCE_WORKFLOWS = Object.freeze([
 export const TRUSTED_PAYLOAD_WORKFLOWS = Object.freeze([
   "desktop-release-evidence-payload.yml",
 ]);
+// A source binding is rooted in the dedicated intake workflow.  The intake
+// accepts one fixed external producer identity below and republishes the raw
+// reports without rewriting them.  The old producer/payload workflows are
+// deliberately absent: allowing either one here would create a provenance
+// cycle in which a payload could be its own source.
+export const TRUSTED_SOURCE_WORKFLOWS = Object.freeze([
+  "desktop-release-evidence-intake.yml",
+]);
+// The source workflow is an immutable identity for the external runner that
+// produced the raw evidence artifact.  It is not an input-controlled path.
+export const TRUSTED_EXTERNAL_SOURCE_WORKFLOWS = Object.freeze([
+  "desktop-release-evidence-source.yml",
+]);
+export const TRUSTED_BINDING_WORKFLOWS = Object.freeze([
+  ...TRUSTED_SOURCE_WORKFLOWS,
+  ...TRUSTED_EXTERNAL_SOURCE_WORKFLOWS,
+]);
 export const TRUSTED_PRODUCER_WORKFLOWS = TRUSTED_EVIDENCE_WORKFLOWS;
 export const REQUIRED_EVIDENCE = Object.freeze({
   "signed-updater-inputs": "signed-updater",
@@ -333,7 +350,7 @@ function validateReport(document, kind, file, expected, options, label, errors, 
 export function validateReleaseEvidencePayload({ baseDirectory, expectedBinding, releaseArtifactDigests } = {}) {
   const errors = [];
   const root = path.resolve(baseDirectory ?? process.cwd());
-  const binding = validateBindingObject(expectedBinding, "payload.binding", errors);
+  const binding = validateBindingObject(expectedBinding, "payload.binding", errors, TRUSTED_BINDING_WORKFLOWS);
   const reports = {};
   for (const [id, kind] of Object.entries(REQUIRED_EVIDENCE)) {
     const relative = `reports/${id}.json`;
@@ -413,13 +430,17 @@ export function validateExternalEvidenceManifest(document, options = {}) {
   }
   const expected = {};
   validateExpected(document, options, expected, errors);
-  const sourceBinding = validateBindingObject(document.sourceBinding, "manifest.sourceBinding", errors);
+  const sourceBinding = validateBindingObject(document.sourceBinding, "manifest.sourceBinding", errors, TRUSTED_BINDING_WORKFLOWS);
   if (sourceBinding && releaseRef && sourceBinding.releaseRef !== releaseRef) {
     errors.push("manifest.sourceBinding.releaseRef must match manifest.releaseRef");
   }
-  const expectedSourceBinding = options.sourceBinding;
+  // Callers pass all expected bindings through options.expected.  Keep the
+  // legacy top-level alias only for compatibility, but always prefer the
+  // canonical nested value so a qualification caller cannot silently skip
+  // source-binding comparison.
+  const expectedSourceBinding = options.expected?.sourceBinding ?? options.sourceBinding;
   if (expectedSourceBinding) {
-    const normalizedExpected = validateBindingObject(expectedSourceBinding, "expected.sourceBinding", errors);
+    const normalizedExpected = validateBindingObject(expectedSourceBinding, "expected.sourceBinding", errors, TRUSTED_BINDING_WORKFLOWS);
     if (sourceBinding && normalizedExpected && JSON.stringify(sourceBinding) !== JSON.stringify(normalizedExpected)) {
       errors.push("manifest.sourceBinding does not match expected source binding");
     }

@@ -9,6 +9,7 @@ import {
   RELEASE_EVIDENCE_INPUTS_SCHEMA,
   TRUSTED_EVIDENCE_WORKFLOWS,
   TRUSTED_PAYLOAD_WORKFLOWS,
+  TRUSTED_SOURCE_WORKFLOWS,
   validateExternalEvidenceManifest,
 } from "./check-release-evidence-inputs.mjs";
 
@@ -69,7 +70,7 @@ function createFixture() {
   const sourceBinding = {
     ...binding,
     ref: "refs/heads/release-evidence/v1.2.3",
-    workflow: TRUSTED_PAYLOAD_WORKFLOWS[0],
+    workflow: TRUSTED_SOURCE_WORKFLOWS[0],
     runId: 81235,
     attempt: 1,
     artifact: { name: "payload-evidence", id: 9002, digest: `sha256:${"2".repeat(64)}` },
@@ -211,6 +212,37 @@ test("enforces trusted workflow and rejects shell injection in names and paths",
   const traversal = structuredClone(value);
   traversal.manifest.evidence["signed-updater-inputs"].files[0].path = "../outside.json";
   assert.match(inspect(traversal).errors.join("\n"), /relative POSIX|parent path/);
+});
+
+test("accepts only repository source workflows for the source binding", (context) => {
+  const value = createFixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  assert.ok(TRUSTED_SOURCE_WORKFLOWS.includes("desktop-release-evidence-intake.yml"));
+  assert.ok(!TRUSTED_SOURCE_WORKFLOWS.includes("desktop-release-evidence-payload.yml"));
+  const foreign = structuredClone(value);
+  foreign.manifest.sourceBinding.workflow = "external-release-evidence.yml";
+  for (const report of Object.values(foreign.manifest.evidence)) {
+    const file = report.files[0];
+    fs.writeFileSync(path.join(value.root, file.path), JSON.stringify({
+      ...JSON.parse(fs.readFileSync(path.join(value.root, file.path), "utf8")),
+      binding: foreign.manifest.sourceBinding,
+    }));
+    file.sha256 = digest(fs.readFileSync(path.join(value.root, file.path)));
+    file.size = fs.statSync(path.join(value.root, file.path)).size;
+  }
+  assert.match(inspect(foreign).errors.join("\n"), /trusted evidence producer/);
+});
+
+test("compares the canonical nested expected source binding", (context) => {
+  const value = createFixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  value.expected.sourceBinding = {
+    ...value.expected.sourceBinding,
+    runId: value.expected.sourceBinding.runId + 1,
+  };
+  const result = inspect(value);
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /manifest\.sourceBinding does not match expected source binding/);
 });
 
 test("rejects symlink escapes, path or basename collisions, and schema extras", (context) => {

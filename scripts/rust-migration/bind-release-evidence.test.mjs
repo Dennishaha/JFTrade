@@ -10,7 +10,7 @@ import {
   RELEASE_EVIDENCE_WORKFLOW,
   bindReleaseEvidence,
 } from "./bind-release-evidence.mjs";
-import { TRUSTED_PAYLOAD_WORKFLOWS, validateExternalEvidenceManifest } from "./check-release-evidence-inputs.mjs";
+import { TRUSTED_SOURCE_WORKFLOWS, TRUSTED_PAYLOAD_WORKFLOWS, validateExternalEvidenceManifest } from "./check-release-evidence-inputs.mjs";
 
 const releaseRef = "refs/tags/v1.2.3";
 const releaseCommit = "a".repeat(40);
@@ -18,6 +18,11 @@ const payloadArtifact = {
   name: "platform-evidence-payload",
   id: 7711,
   digest: `sha256:${"b".repeat(64)}`,
+};
+const sourceArtifact = {
+  name: "raw-external-evidence",
+  id: 7701,
+  digest: `sha256:${"d".repeat(64)}`,
 };
 const producerArtifact = {
   name: "desktop-release-evidence-payload",
@@ -91,10 +96,10 @@ function fixture() {
     releaseRef,
     ref: payloadRun.ref,
     commitSha: releaseCommit,
-    workflow: payloadRun.workflow,
+    workflow: TRUSTED_SOURCE_WORKFLOWS[0],
     runId: payloadRun.id,
     attempt: payloadRun.attempt,
-    artifact: payloadArtifact,
+    artifact: sourceArtifact,
   };
   for (const [id, report] of Object.entries(reports)) {
     fs.writeFileSync(
@@ -106,10 +111,12 @@ function fixture() {
     $schema: "./release-evidence-payload-binding.schema.json",
     schemaVersion: PAYLOAD_BINDING_SCHEMA,
     repository: "example/jftrade",
+    sourceRepository: "external-org/release-evidence",
     releaseRef,
     evidenceRef: payloadRun.ref,
     payloadRun,
     artifact: payloadArtifact,
+    sourceBinding: binding,
   };
   const metadataPath = path.join(root, "payload-artifact-metadata.json");
   fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
@@ -230,4 +237,13 @@ test("rejects payload metadata with unknown fields", (context) => {
   metadata.untrusted = true;
   fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
   assert.throws(() => bind(value), /unsupported field/);
+});
+
+test("rejects a source binding that is not in the repository trust allowlist", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const metadata = JSON.parse(fs.readFileSync(value.metadataPath, "utf8"));
+  metadata.sourceBinding.workflow = "external-release-evidence.yml";
+  fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
+  assert.throws(() => bind(value), /source workflow is not trusted/);
 });

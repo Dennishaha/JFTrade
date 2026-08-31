@@ -458,7 +458,7 @@ pub async fn start_product_runtime(
         ProductShutdownSupervisor::new()
     };
     supervisor.market_data_dynamic_opend = Some(Arc::clone(&dynamic_opend));
-    supervisor.market_data_opend = market_data_opend;
+    supervisor.market_data_opend = market_data_opend.clone();
 
     if let (Some(coordinator), Some(task_config)) = (
         supervisor.market_data_opend.as_ref(),
@@ -579,7 +579,8 @@ pub async fn start_product_runtime(
     let dynamic_opend_ready = dynamic_opend
         .lock()
         .unwrap_or_else(|error| error.into_inner())
-        .is_some();
+        .is_some()
+        || market_data_opend.is_some();
     // OpenD may be configured as the authenticated Futu trade owner while a
     // helper-backed provider (yfinance/AKShare) owns market-data reads.  Keep
     // both runtimes composed; execution reconciliation resolves trade
@@ -592,6 +593,7 @@ pub async fn start_product_runtime(
         &helper_process,
         supervisor.helper_health.clone(),
         &dynamic_opend,
+        &market_data_opend,
         &market_data_router,
     );
     let activation = product_runtime_provider_activation::provider_activation(
@@ -605,16 +607,13 @@ pub async fn start_product_runtime(
     )?;
     let active_provider_state = Arc::new(
         ActiveProviderState::new(initial_provider)
-            .with_dynamic_readiness(dynamic_readiness)
+            .with_dynamic_readiness(dynamic_readiness.clone())
             .with_activation(activation),
     );
     supervisor.active_provider_state = Some(Arc::clone(&active_provider_state));
     active_provider_state.set_readiness(
         config.product.market_data_helper.is_some() || supervisor.marketdata_helper.is_some(),
-        dynamic_opend
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .is_some(),
+        dynamic_readiness().1,
         market_data_router.is_some(),
     );
     config.product = config

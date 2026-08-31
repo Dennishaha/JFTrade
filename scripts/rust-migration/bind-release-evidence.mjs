@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 
 import {
+  TRUSTED_BINDING_WORKFLOWS,
   TRUSTED_PAYLOAD_WORKFLOWS,
   validateExternalEvidenceManifest,
 } from "./check-release-evidence-inputs.mjs";
@@ -29,7 +30,7 @@ const REPORT_PATHS = Object.freeze({
   "security-review-inputs": "reports/security-review-inputs.json",
 });
 const PAYLOAD_METADATA_KEYS = Object.freeze([
-  "$schema", "schemaVersion", "repository", "releaseRef", "evidenceRef", "payloadRun", "artifact",
+  "$schema", "schemaVersion", "repository", "sourceRepository", "releaseRef", "evidenceRef", "payloadRun", "artifact", "sourceBinding",
 ]);
 const PAYLOAD_RUN_KEYS = Object.freeze(["id", "attempt", "workflow", "ref", "commitSha"]);
 const PAYLOAD_ARTIFACT_KEYS = Object.freeze(["name", "id", "digest"]);
@@ -134,6 +135,8 @@ function readRegularJson(root, relative, label) {
 function validatePayloadBinding(document, expected, label) {
   if (!isRecord(document.binding)) throw new Error(`${label}.binding is required; unbound payload evidence is rejected`);
   const binding = document.binding;
+  rejectUnknownKeys(binding, ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"], `${label}.binding`);
+  if (isRecord(binding.artifact)) rejectUnknownKeys(binding.artifact, PAYLOAD_ARTIFACT_KEYS, `${label}.binding.artifact`);
   for (const key of ["repository", "releaseRef", "ref", "commitSha", "workflow"]) {
     if (binding[key] !== expected[key]) throw new Error(`${label}.binding.${key} does not match the payload run`);
   }
@@ -158,11 +161,16 @@ function loadPayloadMetadata(filePath) {
   rejectUnknownKeys(metadata, PAYLOAD_METADATA_KEYS, "payload metadata");
   const payloadRun = metadata.payloadRun;
   const artifact = metadata.artifact;
+  const sourceBinding = metadata.sourceBinding;
   if (!isRecord(payloadRun) || !isRecord(artifact)) throw new Error("payload artifact metadata is incomplete");
+  if (!isRecord(sourceBinding)) throw new Error("payload artifact metadata.sourceBinding is required");
   rejectUnknownKeys(payloadRun, PAYLOAD_RUN_KEYS, "payload metadata.payloadRun");
   rejectUnknownKeys(artifact, PAYLOAD_ARTIFACT_KEYS, "payload metadata.artifact");
+  rejectUnknownKeys(sourceBinding, ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"], "payload metadata.sourceBinding");
+  if (isRecord(sourceBinding.artifact)) rejectUnknownKeys(sourceBinding.artifact, PAYLOAD_ARTIFACT_KEYS, "payload metadata.sourceBinding.artifact");
   const result = {
     repository: requiredString(metadata.repository, "payload metadata.repository"),
+    sourceRepository: requiredString(metadata.sourceRepository, "payload metadata.sourceRepository"),
     releaseRef: releaseRef(metadata.releaseRef, "payload metadata.releaseRef"),
     evidenceRef: safeGitRef(metadata.evidenceRef, "payload metadata.evidenceRef"),
     payloadRun: {
@@ -177,11 +185,29 @@ function loadPayloadMetadata(filePath) {
       id: positiveInteger(artifact.id, "payload metadata.artifact.id"),
       digest: requiredString(artifact.digest, "payload metadata.artifact.digest"),
     },
+    sourceBinding: {
+      repository: requiredString(sourceBinding.repository, "payload metadata.sourceBinding.repository"),
+      releaseRef: releaseRef(sourceBinding.releaseRef, "payload metadata.sourceBinding.releaseRef"),
+      ref: safeGitRef(sourceBinding.ref, "payload metadata.sourceBinding.ref"),
+      commitSha: commitSha(sourceBinding.commitSha, "payload metadata.sourceBinding.commitSha"),
+      workflow: safeGitRef(sourceBinding.workflow, "payload metadata.sourceBinding.workflow"),
+      runId: positiveInteger(sourceBinding.runId, "payload metadata.sourceBinding.runId"),
+      attempt: positiveInteger(sourceBinding.attempt, "payload metadata.sourceBinding.attempt"),
+      artifact: artifactMetadata(sourceBinding.artifact, "payload metadata.sourceBinding.artifact"),
+    },
   };
   if (!TRUSTED_PAYLOAD_WORKFLOWS.includes(result.payloadRun.workflow)) {
     throw new Error("payload metadata payload workflow is not trusted");
   }
+  if (!TRUSTED_BINDING_WORKFLOWS.includes(result.sourceBinding.workflow)) {
+    throw new Error("payload metadata source workflow is not trusted");
+  }
   if (!/^sha256:[a-f0-9]{64}$/.test(result.artifact.digest)) throw new Error("payload metadata.artifact.digest is invalid");
+  if (result.repository !== result.sourceBinding.repository
+    || result.releaseRef !== result.sourceBinding.releaseRef
+    || result.evidenceRef !== result.sourceBinding.ref) {
+    throw new Error("payload metadata source binding does not match release/evidence ref");
+  }
   return result;
 }
 
@@ -204,20 +230,16 @@ export function bindReleaseEvidence({
   const repo = requiredString(repository, "repository");
   const boundArtifact = artifactMetadata(producerArtifact, "producerArtifact", "desktop-release-evidence-payload");
   if (metadata.repository !== repo || metadata.releaseRef !== release) throw new Error("payload metadata release binding does not match producer inputs");
+  if (metadata.sourceBinding.repository !== repo || metadata.sourceBinding.releaseRef !== release) {
+    throw new Error("payload source binding release does not match producer inputs");
+  }
+  if (metadata.sourceBinding.ref !== metadata.evidenceRef) throw new Error("source binding ref must equal evidence_ref");
   if (metadata.payloadRun.ref !== metadata.evidenceRef) throw new Error("payload run ref must equal evidence_ref");
   if (metadata.evidenceRef === release) throw new Error("evidence_ref must be distinct from release tag");
+  if (metadata.sourceBinding.commitSha !== commit) throw new Error("source binding commit does not match release commit");
   if (metadata.payloadRun.commitSha !== commit) throw new Error("payload run commit does not match release commit");
 
-  const payloadBinding = {
-    repository: repo,
-    releaseRef: release,
-    ref: metadata.payloadRun.ref,
-    commitSha: commit,
-    workflow: metadata.payloadRun.workflow,
-    runId: metadata.payloadRun.id,
-    attempt: metadata.payloadRun.attempt,
-    artifact: metadata.artifact,
-  };
+  const payloadBinding = metadata.sourceBinding;
   const base = path.resolve(payloadRoot);
   const output = path.resolve(outputRoot);
   fs.mkdirSync(output, { recursive: true });
@@ -257,7 +279,11 @@ export function bindReleaseEvidence({
   };
   const manifestPath = path.join(output, "release-evidence-inputs.json");
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
-  fs.copyFileSync(path.resolve(payloadMetadataPath), path.join(output, "payload-artifact-metadata.json"));
+  fs.copyFileSync(
+    path.resolve(payloadMetadataPath),
+    path.join(output, "payload-artifact-metadata.json"),
+    fs.constants.COPYFILE_EXCL,
+  );
   const validation = validateExternalEvidenceManifest(manifest, {
     baseDirectory: output,
     expected: {

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const producer = fs.readFileSync(".github/workflows/desktop-release-evidence.yml", "utf8");
 const payloadWorkflow = fs.readFileSync(".github/workflows/desktop-release-evidence-payload.yml", "utf8");
+const intakeWorkflow = fs.readFileSync(".github/workflows/desktop-release-evidence-intake.yml", "utf8");
 const qualification = fs.readFileSync(".github/workflows/desktop-release-qualification.yml", "utf8");
 const binder = fs.readFileSync("scripts/rust-migration/bind-release-evidence.mjs", "utf8");
 const schema = fs.readFileSync(
@@ -57,10 +59,30 @@ test("payload workflow is present and only validates then republishes external r
   assert.match(payloadWorkflow, /source_artifact_id:/);
   assert.match(payloadWorkflow, /actions\/artifacts\/\$SOURCE_ARTIFACT_ID/);
   assert.match(payloadWorkflow, /verify-release-evidence-payload\.mjs/);
+  assert.match(payloadWorkflow, /--payload-commit-sha/);
+  assert.doesNotMatch(payloadWorkflow, /--payload-commit\s/);
+  assert.match(payloadWorkflow, /source_workflow:/);
+  assert.doesNotMatch(payloadWorkflow, /external-release-evidence\.yml/);
   assert.match(payloadWorkflow, /upload-artifact@v7/);
   assert.match(payloadWorkflow, /name: desktop-release-evidence-payload/);
   assert.doesNotMatch(payloadWorkflow, /status:\s*passed/);
   assert.doesNotMatch(payloadWorkflow, /external_release_runner_evidence_required/);
+  assert.match(payloadWorkflow, /desktop-release-evidence-intake\.yml/);
+  assert.match(payloadWorkflow, /source-binding\.json/);
+  assert.match(payloadWorkflow, /verify-release-evidence-source\.mjs/);
+});
+
+test("the immutable source intake is a real non-cyclic provenance root", () => {
+  assert.match(intakeWorkflow, /name: Desktop Release Evidence Intake/);
+  assert.match(intakeWorkflow, /source_repository:/);
+  assert.match(intakeWorkflow, /TRUSTED_EXTERNAL_SOURCE_WORKFLOW: desktop-release-evidence-source\.yml/);
+  assert.match(intakeWorkflow, /actions\/runs\/\$SOURCE_RUN_ID/);
+  assert.match(intakeWorkflow, /actions\/artifacts\/\$SOURCE_ARTIFACT_ID/);
+  assert.match(intakeWorkflow, /actions\/artifacts\/\$SOURCE_ARTIFACT_ID\/zip/);
+  assert.match(intakeWorkflow, /verify-release-evidence-source\.mjs/);
+  assert.match(intakeWorkflow, /Publish immutable intake artifact without rewriting reports/);
+  assert.doesNotMatch(intakeWorkflow, /desktop-release-evidence-payload\.yml/);
+  assert.doesNotMatch(intakeWorkflow, /status:\s*passed/);
 });
 
 test("producer preserves source binding and rejects synthetic evidence", () => {
@@ -69,9 +91,25 @@ test("producer preserves source binding and rejects synthetic evidence", () => {
   assert.match(binder, /producerArtifact/);
   assert.match(binder, /unbound payload evidence is rejected/);
   assert.match(binder, /validateExternalEvidenceManifest/);
+  assert.match(binder, /metadata\.sourceBinding/);
   assert.match(binder, /PAYLOAD_BINDING_SCHEMA/);
   assert.match(schema, /jftrade\.release-evidence-payload-binding\.v1/);
   assert.match(schema, /additionalProperties": false/);
+});
+
+test("payload schema resolves the nested source artifact definition and rejects an unresolved ref", () => {
+  const document = JSON.parse(schema);
+  const artifact = document.properties?.sourceBinding?.properties?.artifact;
+  assert.deepEqual(artifact, { $ref: "#/properties/artifact" });
+  assert.ok(document.properties?.artifact, "sourceBinding artifact ref must resolve to a declared schema node");
+  assert.doesNotMatch(schema, /#\/$defs\/artifact/);
+  const unresolved = structuredClone(document);
+  unresolved.properties.sourceBinding.properties.artifact = { $ref: "#/$defs/missing-artifact" };
+  const ref = unresolved.properties.sourceBinding.properties.artifact.$ref;
+  assert.throws(() => {
+    const node = ref.slice(2).split("/").reduce((current, key) => current?.[key], unresolved);
+    if (!node) throw new Error(`unresolved local schema ref: ${ref}`);
+  }, /unresolved local schema ref/);
 });
 
 test("qualification verifies the payload artifact separately from producer output", () => {
@@ -87,4 +125,14 @@ test("qualification verifies the payload artifact separately from producer outpu
   assert.match(qualification, /evidence-bound-artifact-api\.json/);
   assert.match(qualification, /actions\/artifacts\/\$producer_id/);
   assert.match(qualification, /incoming\/producer-payload/);
+  assert.match(qualification, /Download producer staging payload by immutable id/);
+});
+
+test("payload verifier rejects the legacy commit argument spelling", () => {
+  const result = spawnSync(process.execPath, [
+    "scripts/rust-migration/verify-release-evidence-payload.mjs",
+    "--payload-commit", "a".repeat(40),
+  ], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unsupported argument: --payload-commit/);
 });

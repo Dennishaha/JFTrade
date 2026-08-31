@@ -176,6 +176,7 @@ jobs:
             [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe evidence archive path: $entry" >&2; exit 1; }
           done < <(unzip -Z1 "$archive")
           unzip -q "$archive" -d incoming/release-evidence
+          [[ -z "$(find incoming/release-evidence -type l -print -quit)" ]] || { echo "producer binding archive must not contain symlinks" >&2; exit 1; }
           [[ -f incoming/release-evidence/release-evidence-inputs.json ]] || { echo "producer binding archive has no release-evidence-inputs.json" >&2; exit 1; }
 
       - name: Download source artifacts by immutable ids
@@ -211,6 +212,7 @@ jobs:
               [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
             done < <(unzip -Z1 "$archive")
             unzip -q "$archive" -d "$destination"
+            [[ -z "$(find "$destination" -type l -print -quit)" ]] || { echo "source artifact archive must not contain symlinks: $name" >&2; exit 1; }
             rm -f "$archive"
           done < <(jq -c '.releaseArtifacts[], .updaterArtifacts[]' source-artifact-metadata.json)
 
@@ -266,6 +268,41 @@ jobs:
             --argjson run_id "$payload_run_id" \
             '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
             <<<"$payload_artifact_json" >/dev/null || { echo "payload artifact API metadata does not match producer binding" >&2; exit 1; }
+          source_workflow="$(jq -r '.sourceBinding.workflow // empty' "$payload_metadata")"
+          source_ref="$(jq -r '.sourceBinding.ref // empty' "$payload_metadata")"
+          source_commit="$(jq -r '.sourceBinding.commitSha // empty' "$payload_metadata")"
+          source_run_id="$(jq -r '.sourceBinding.runId // empty' "$payload_metadata")"
+          source_run_attempt="$(jq -r '.sourceBinding.attempt // empty' "$payload_metadata")"
+          source_artifact_name="$(jq -r '.sourceBinding.artifact.name // empty' "$payload_metadata")"
+          source_artifact_id="$(jq -r '.sourceBinding.artifact.id // empty' "$payload_metadata")"
+          source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest // empty' "$payload_metadata")"
+          source_repository="$(jq -r '.sourceRepository // empty' "$payload_metadata")"
+          [[ "$source_workflow" == "desktop-release-evidence-source.yml" ]] || { echo "payload source workflow is not the fixed external producer" >&2; exit 1; }
+          [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "payload source repository is invalid" >&2; exit 1; }
+          [[ "$source_ref" =~ ^[A-Za-z0-9._/-]+$ && "$source_ref" != /* && "$source_ref" != *".."* ]] || { echo "payload source ref is unsafe" >&2; exit 1; }
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ && "$source_run_id" =~ ^[1-9][0-9]*$ && "$source_run_attempt" =~ ^[1-9][0-9]*$ ]] || { echo "payload source run binding is invalid" >&2; exit 1; }
+          [[ "$source_artifact_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$source_artifact_id" =~ ^[1-9][0-9]*$ && "$source_artifact_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload source artifact binding is invalid" >&2; exit 1; }
+          source_run_json="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
+          source_branch="${source_ref#refs/heads/}"
+          source_branch="${source_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$source_commit" \
+            --arg branch "$source_branch" \
+            --arg ref "$source_ref" \
+            --arg attempt "$source_run_attempt" \
+            --arg workflow "$source_workflow" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run_json" >/dev/null || { echo "payload source run API metadata does not match source binding" >&2; exit 1; }
+          source_artifact_json="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
+          jq -e \
+            --arg name "$source_artifact_name" \
+            --arg digest "$source_artifact_digest" \
+            --argjson id "$source_artifact_id" \
+            --argjson run_id "$source_run_id" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact_json" >/dev/null || { echo "payload source artifact API metadata does not match source binding" >&2; exit 1; }
+          printf '%s\n' "$source_run_json" > source-payload-run-api.json
+          printf '%s\n' "$source_artifact_json" > source-payload-artifact-api.json
           producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
           producer_name="$(jq -r '.artifact.name // empty' "$manifest_path")"
           producer_digest="$(jq -r '.artifact.digest // empty' "$manifest_path")"
@@ -292,6 +329,48 @@ jobs:
             '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
             <<<"$payload_run_json" >/dev/null || { echo "payload run API metadata does not match payload evidence ref" >&2; exit 1; }
           printf '%s\n' "$payload_artifact_json" > payload-artifact-api.json
+
+      - name: Download producer staging payload by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifest_matches < <(find incoming/release-evidence -type f -name release-evidence-inputs.json -print | sort)
+          [[ "${#manifest_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one release-evidence-inputs.json" >&2; exit 1; }
+          manifest_path="${manifest_matches[0]}"
+          producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
+          [[ "$producer_id" =~ ^[1-9][0-9]*$ ]] || { echo "producer staging artifact id is invalid" >&2; exit 1; }
+          rm -rf incoming/producer-payload
+          mkdir -p incoming/producer-payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$producer_id/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || {
+              echo "unsafe producer staging archive path: $entry" >&2
+              exit 1
+            }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming/producer-payload
+          [[ -z "$(find incoming/producer-payload -type l -print -quit)" ]] || {
+            echo "producer staging archive must not contain symlinks" >&2
+            exit 1
+          }
+          for report in signed-updater-inputs sbom-provenance-inputs rollback-artifact-pair backup-restore-drill security-review-inputs; do
+            file="incoming/producer-payload/reports/$report.json"
+            [[ -f "$file" && ! -L "$file" && -s "$file" ]] || {
+              echo "producer staging payload is missing regular report: $report" >&2
+              exit 1
+            }
+          done
+          metadata="incoming/producer-payload/payload-artifact-metadata.json"
+          [[ -f "$metadata" && ! -L "$metadata" && -s "$metadata" ]] || {
+            echo "producer staging payload is missing payload metadata" >&2
+            exit 1
+          }
 
       - name: Assemble candidate inputs and prerequisite evidence
         env:
@@ -430,6 +509,20 @@ jobs:
             || String(payloadApi.workflow_run?.id) !== String(payloadMetadata.payloadRun?.id)) {
             throw new Error("producer payload artifact metadata is not bound to the GitHub artifact API");
           }
+          const sourceBinding = payloadMetadata.sourceBinding;
+          const sourceRunApi = JSON.parse(fs.readFileSync("source-payload-run-api.json", "utf8"));
+          const sourceArtifactApi = JSON.parse(fs.readFileSync("source-payload-artifact-api.json", "utf8"));
+          if (!sourceBinding || typeof sourceBinding !== "object"
+            || sourceRunApi.head_sha !== sourceBinding.commitSha
+            || String(sourceRunApi.run_attempt) !== String(sourceBinding.attempt)
+            || String(sourceRunApi.id) !== String(sourceBinding.runId)
+            || sourceArtifactApi.id !== Number(sourceBinding.artifact?.id)
+            || sourceArtifactApi.name !== sourceBinding.artifact?.name
+            || sourceArtifactApi.digest !== sourceBinding.artifact?.digest
+            || sourceArtifactApi.expired !== false
+            || String(sourceArtifactApi.workflow_run?.id) !== String(sourceBinding.runId)) {
+            throw new Error("payload source binding metadata is not bound to the GitHub source run/artifact APIs");
+          }
           const producerArtifact = manifest.artifact;
           const producerApi = JSON.parse(fs.readFileSync("producer-payload-artifact-api.json", "utf8"));
           if (!producerArtifact || typeof producerArtifact !== "object"
@@ -441,16 +534,7 @@ jobs:
             || String(producerApi.workflow_run?.id) !== String(process.env.EVIDENCE_RUN_ID)) {
             throw new Error("producer staging artifact metadata is not bound to the GitHub artifact API");
           }
-          const payloadBinding = {
-            repository: payloadMetadata.repository,
-            releaseRef: payloadMetadata.releaseRef,
-            ref: payloadMetadata.payloadRun.ref,
-            commitSha: payloadMetadata.payloadRun.commitSha,
-            workflow: payloadMetadata.payloadRun.workflow,
-            runId: Number(payloadMetadata.payloadRun.id),
-            attempt: Number(payloadMetadata.payloadRun.attempt),
-            artifact: payloadArtifact,
-          };
+          const payloadBinding = sourceBinding;
           const expectedKinds = {
             "signed-updater-inputs": "signed-updater",
             "sbom-provenance-inputs": "sbom-provenance",
@@ -464,6 +548,11 @@ jobs:
             if (!fs.existsSync(staged) || fs.lstatSync(staged).isSymbolicLink()) {
               throw new Error(`producer staging payload is missing ${id}`);
             }
+          }
+          const stagedMetadataPath = path.join(producerPayloadRoot, "payload-artifact-metadata.json");
+          if (!fs.existsSync(stagedMetadataPath) || fs.lstatSync(stagedMetadataPath).isSymbolicLink()
+            || !fs.readFileSync(stagedMetadataPath).equals(fs.readFileSync("incoming/release-evidence/payload-artifact-metadata.json"))) {
+            throw new Error("producer staging payload metadata is not byte-identical to bound metadata");
           }
           const sourceArtifactMetadata = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
           const sourceArtifacts = sourceArtifactMetadata.releaseArtifacts;

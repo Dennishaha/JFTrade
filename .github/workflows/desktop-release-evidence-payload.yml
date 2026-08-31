@@ -12,11 +12,15 @@ on:
         required: true
         type: string
       source_run_id:
-        description: Successful external run that produced the raw evidence files
+        description: Successful Desktop Release Evidence Intake run that published raw evidence
         required: true
         type: string
       source_run_attempt:
         description: Attempt number for source_run_id
+        required: true
+        type: string
+      source_workflow:
+        description: Must be the fixed Desktop Release Evidence Intake workflow
         required: true
         type: string
       source_artifact:
@@ -55,6 +59,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RELEASE_REF: ${{ inputs.release_ref }}
           EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          SOURCE_WORKFLOW: ${{ inputs.source_workflow }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
@@ -77,6 +82,14 @@ jobs:
             exit 1
           }
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source run ids must be positive integers" >&2; exit 1; }
+          [[ "$SOURCE_WORKFLOW" == "desktop-release-evidence-intake.yml" ]] || {
+            echo "source workflow must be the fixed intake workflow" >&2
+            exit 1
+          }
+          [[ -f ".github/workflows/$SOURCE_WORKFLOW" ]] || {
+            echo "trusted source workflow is not present on evidence_ref: $SOURCE_WORKFLOW" >&2
+            exit 1
+          }
           [[ "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source artifact id must be a positive integer" >&2; exit 1; }
           [[ "$SOURCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "source artifact name is unsafe" >&2; exit 1; }
           [[ "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "source artifact digest is invalid" >&2; exit 1; }
@@ -84,9 +97,9 @@ jobs:
           jq -e \
             --arg sha "$release_commit" \
             --arg attempt "$SOURCE_RUN_ATTEMPT" \
-            --arg workflow "external-release-evidence.yml" \
+            --arg workflow "$SOURCE_WORKFLOW" \
             '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
-            <<<"$source_run" >/dev/null || { echo "source run is not a successful trusted evidence workflow" >&2; exit 1; }
+            <<<"$source_run" >/dev/null || { echo "source run is not a successful intake run for the release commit" >&2; exit 1; }
           source_artifact="$(gh api "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
           jq -e \
             --arg name "$SOURCE_ARTIFACT" \
@@ -114,10 +127,14 @@ jobs:
             [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
           done < <(unzip -Z1 "$archive")
           unzip -q "$archive" -d incoming
+          [[ -z "$(find incoming -type l -print -quit)" ]] || { echo "raw evidence archive must not contain symlinks" >&2; exit 1; }
           [[ -f incoming/reports/signed-updater-inputs.json ]] || { echo "raw evidence artifact has no reports" >&2; exit 1; }
+          [[ -f incoming/source-binding.json && ! -L incoming/source-binding.json && -s incoming/source-binding.json ]] || { echo "intake artifact has no source-binding.json" >&2; exit 1; }
 
       - name: Run dedicated evidence checkers
         env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
           RELEASE_REF: ${{ inputs.release_ref }}
         shell: bash
         run: |
@@ -143,30 +160,70 @@ jobs:
             --previous "$previous_version" \
             --allow-downgrade \
             --instructions incoming/rollback/rollback.md
-          node scripts/rust-migration/check-backup-restore-drill.mjs
-          node scripts/rust-migration/check-security-review-inputs.mjs --root .
+          source_workflow="$(jq -r '.binding.workflow // empty' incoming/source-binding.json)"
+          source_ref="$(jq -r '.binding.ref // empty' incoming/source-binding.json)"
+          source_commit="$(jq -r '.binding.commitSha // empty' incoming/source-binding.json)"
+          source_run_id="$(jq -r '.binding.runId // empty' incoming/source-binding.json)"
+          source_attempt="$(jq -r '.binding.attempt // empty' incoming/source-binding.json)"
+          source_artifact="$(jq -r '.binding.artifact.name // empty' incoming/source-binding.json)"
+          source_artifact_id="$(jq -r '.binding.artifact.id // empty' incoming/source-binding.json)"
+          source_artifact_digest="$(jq -r '.binding.artifact.digest // empty' incoming/source-binding.json)"
+          source_repository="$(jq -r '.sourceRepository // empty' incoming/source-binding.json)"
+          [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "source binding repository is invalid" >&2; exit 1; }
+          source_run_json="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
+          source_branch="${source_ref#refs/heads/}"
+          source_branch="${source_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$source_commit" --arg branch "$source_branch" --arg ref "$source_ref" \
+            --arg attempt "$source_attempt" --arg workflow "$source_workflow" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run_json" >/dev/null || { echo "source binding run API metadata does not match" >&2; exit 1; }
+          source_artifact_json="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
+          jq -e \
+            --arg name "$source_artifact" --arg digest "$source_artifact_digest" \
+            --argjson id "$source_artifact_id" --argjson run_id "$source_run_id" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact_json" >/dev/null || { echo "source binding artifact API metadata does not match" >&2; exit 1; }
+          node scripts/rust-migration/verify-release-evidence-source.mjs \
+            --root incoming \
+            --output incoming/payload-source-check.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-repository "$source_repository" \
+            --release-ref "refs/tags/$RELEASE_REF" \
+            --source-ref "$source_ref" \
+            --source-commit-sha "$source_commit" \
+            --source-workflow "$source_workflow" \
+            --source-run-id "$source_run_id" \
+            --source-run-attempt "$source_attempt" \
+            --source-artifact "$source_artifact" \
+            --source-artifact-id "$source_artifact_id" \
+            --source-artifact-digest "$source_artifact_digest"
 
       - name: Verify report semantics without synthesizing evidence
         env:
           RELEASE_REF: ${{ inputs.release_ref }}
           EVIDENCE_REF: ${{ inputs.evidence_ref }}
-          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
-          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
-          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
-          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
-          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$(jq -r '.schemaVersion // empty' incoming/source-binding.json)" == "jftrade.release-evidence-source-binding.v1" ]] || { echo "source binding schema is invalid" >&2; exit 1; }
+          SOURCE_REF="$(jq -r '.binding.ref // empty' incoming/source-binding.json)"
+          SOURCE_COMMIT="$(jq -r '.binding.commitSha // empty' incoming/source-binding.json)"
+          SOURCE_WORKFLOW="$(jq -r '.binding.workflow // empty' incoming/source-binding.json)"
+          SOURCE_RUN_ID="$(jq -r '.binding.runId // empty' incoming/source-binding.json)"
+          SOURCE_RUN_ATTEMPT="$(jq -r '.binding.attempt // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT="$(jq -r '.binding.artifact.name // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT_ID="$(jq -r '.binding.artifact.id // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT_DIGEST="$(jq -r '.binding.artifact.digest // empty' incoming/source-binding.json)"
           node scripts/rust-migration/verify-release-evidence-payload.mjs \
             --root incoming \
             --repository "$GITHUB_REPOSITORY" \
             --release-ref "refs/tags/$RELEASE_REF" \
-            --payload-ref "$EVIDENCE_REF" \
-            --payload-commit "$GITHUB_SHA" \
-            --payload-workflow desktop-release-evidence-payload.yml \
-            --payload-run-id "$GITHUB_RUN_ID" \
-            --payload-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --payload-ref "$SOURCE_REF" \
+            --payload-commit-sha "$SOURCE_COMMIT" \
+            --payload-workflow "$SOURCE_WORKFLOW" \
+            --payload-run-id "$SOURCE_RUN_ID" \
+            --payload-run-attempt "$SOURCE_RUN_ATTEMPT" \
             --payload-artifact "$SOURCE_ARTIFACT" \
             --payload-artifact-id "$SOURCE_ARTIFACT_ID" \
             --payload-artifact-digest "$SOURCE_ARTIFACT_DIGEST"
@@ -202,6 +259,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          SOURCE_WORKFLOW="$(jq -r '.binding.workflow // empty' incoming/source-binding.json)"
+          SOURCE_RUN_ID="$(jq -r '.binding.runId // empty' incoming/source-binding.json)"
+          SOURCE_RUN_ATTEMPT="$(jq -r '.binding.attempt // empty' incoming/source-binding.json)"
+          SOURCE_REF="$(jq -r '.binding.ref // empty' incoming/source-binding.json)"
+          SOURCE_COMMIT="$(jq -r '.binding.commitSha // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT="$(jq -r '.binding.artifact.name // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT_ID="$(jq -r '.binding.artifact.id // empty' incoming/source-binding.json)"
+          SOURCE_ARTIFACT_DIGEST="$(jq -r '.binding.artifact.digest // empty' incoming/source-binding.json)"
+          SOURCE_REPOSITORY="$(jq -r '.sourceRepository // empty' incoming/source-binding.json)"
+          [[ "$SOURCE_WORKFLOW" == "desktop-release-evidence-source.yml" ]] || { echo "intake source binding is not the fixed external workflow" >&2; exit 1; }
           [[ "$PRODUCER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PRODUCER_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "published payload artifact outputs are invalid" >&2; exit 1; }
           published="$(gh api "repos/$REPOSITORY/actions/artifacts/$PRODUCER_ARTIFACT_ID")"
           jq -e \
@@ -215,17 +282,24 @@ jobs:
             --arg schema "./release-evidence-payload-binding.schema.json" \
             --arg schema_version "jftrade.release-evidence-payload-binding.v1" \
             --arg repository "$REPOSITORY" \
+            --arg source_repository "$SOURCE_REPOSITORY" \
             --arg release_ref "refs/tags/${{ inputs.release_ref }}" \
-            --arg evidence_ref "${{ inputs.evidence_ref }}" \
+            --arg evidence_ref "$SOURCE_REF" \
             --argjson run_id "$PRODUCER_RUN_ID" \
             --argjson attempt "${{ github.run_attempt }}" \
             --arg workflow "desktop-release-evidence-payload.yml" \
-            --arg ref "${{ inputs.evidence_ref }}" \
-            --arg commit "${{ github.sha }}" \
+            --arg ref "$SOURCE_REF" \
+            --arg commit "$SOURCE_COMMIT" \
             --arg name "desktop-release-evidence-payload" \
             --argjson id "$PRODUCER_ARTIFACT_ID" \
             --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
-            '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$commit},artifact:{name:$name,id:$id,digest:$digest}}' \
+            --arg source_workflow "$SOURCE_WORKFLOW" \
+            --argjson source_run_id "$SOURCE_RUN_ID" \
+            --argjson source_attempt "$SOURCE_RUN_ATTEMPT" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
+            --argjson source_artifact_id "$SOURCE_ARTIFACT_ID" \
+            --arg source_artifact_digest "$SOURCE_ARTIFACT_DIGEST" \
+            '{"$schema":$schema,schemaVersion:$schema_version,repository:$repository,sourceRepository:$source_repository,releaseRef:$release_ref,evidenceRef:$evidence_ref,payloadRun:{id:$run_id,attempt:$attempt,workflow:$workflow,ref:$ref,commitSha:$commit},artifact:{name:$name,id:$id,digest:$digest},sourceBinding:{repository:$repository,releaseRef:$release_ref,ref:$ref,commitSha:$commit,workflow:$source_workflow,runId:$source_run_id,attempt:$source_attempt,artifact:{name:$source_artifact,id:$source_artifact_id,digest:$source_artifact_digest}}}' \
             > payload-artifact-metadata.json
           cp -- payload-artifact-metadata.json payload-output/payload-artifact-metadata.json
 

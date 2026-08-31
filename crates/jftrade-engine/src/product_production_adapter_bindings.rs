@@ -167,6 +167,40 @@ impl ProductionPortBundle {
         {
             return Some(ProductionAdapterBinding::MissingInternalAdapter);
         }
+        // Prediction routes share one OpenD protocol family but have
+        // operation-specific ports. Do not let the generic unavailable
+        // matrix entry hide a reader that was actually installed, and do not
+        // advertise combo/subscription writes when only the read adapter is
+        // present.
+        if matches!(
+            adapter,
+            ProductionRouteAdapter::MarketDataPredictionRead
+                | ProductionRouteAdapter::MarketDataPredictionSubscriptionAcquireWrite
+                | ProductionRouteAdapter::MarketDataPredictionSubscriptionReleaseWrite
+                | ProductionRouteAdapter::MarketDataPredictionCombosWrite
+        ) {
+            let snapshot = self.active_provider_state.snapshot();
+            let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self.trade_runtime.as_ref().is_some_and(|runtime| match adapter {
+                    ProductionRouteAdapter::MarketDataPredictionRead => {
+                        runtime.prediction_reader_available()
+                    }
+                    ProductionRouteAdapter::MarketDataPredictionSubscriptionAcquireWrite
+                    | ProductionRouteAdapter::MarketDataPredictionSubscriptionReleaseWrite => {
+                        runtime.prediction_subscription_available()
+                    }
+                    ProductionRouteAdapter::MarketDataPredictionCombosWrite => {
+                        runtime.prediction_combo_quote_available()
+                    }
+                    _ => false,
+                });
+            return Some(if ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
         if let Some(operation) = option_event_operation(adapter) {
             let snapshot = self.active_provider_state.snapshot();
             let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
@@ -547,143 +581,6 @@ impl ProductionPortBundle {
             .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter)
     }
 
-    /// Resolve readiness for one `operation=` value on the shared options
-    /// analysis route.  The route remains registered when at least one
-    /// operation is available, while callers can distinguish unsupported
-    /// operations and receive the normal external-unavailable response.
-    pub(crate) fn option_analysis_operation_binding(
-        &self,
-        operation: &str,
-    ) -> Option<ProductionAdapterBinding> {
-        if !self
-            .installed_adapters
-            .contains(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
-        {
-            return None;
-        }
-        if !self
-            .bound_adapters
-            .contains_key(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
-        {
-            return None;
-        }
-        if self
-            .bound_adapters
-            .get(&ProductionRouteAdapter::MarketDataOptionsAnalysisRead)
-            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
-        {
-            return Some(ProductionAdapterBinding::MissingInternalAdapter);
-        }
-        let snapshot = self.active_provider_state.snapshot();
-        let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-            && snapshot.opend_ready
-            && self
-                .trade_runtime
-                .as_ref()
-                .is_some_and(|runtime| match operation {
-                    "quote" => runtime.option_quotes_available(),
-                    "volatility" => runtime.option_volatility_available(),
-                    "exercise_probability" => runtime.option_exercise_probability_available(),
-                    "underlying_overview" => runtime.option_underlying_overview_available(),
-                    "market_statistics" => runtime.option_market_statistic_available(),
-                    "historical_statistics" => runtime.option_underlying_his_statistic_available(),
-                    "historical_volatility" => runtime.option_underlying_his_volatility_available(),
-                    "strategy_spread" => runtime.option_strategy_spread_available(),
-                    "strategy" => runtime.option_strategy_available(),
-                    "strategy_analysis" => runtime.option_strategy_analysis_available(),
-                    "underlying_rank" => runtime.option_underlying_rank_available(),
-                    "contract_rank" => runtime.option_contract_rank_available(),
-                    _ => false,
-                });
-        Some(if ready {
-            ProductionAdapterBinding::Ready
-        } else {
-            ProductionAdapterBinding::ExternalUnavailable
-        })
-    }
-
-    /// Resolve readiness for an individual research operation.  The public
-    /// research surface is intentionally one `ResearchRead` adapter, but its
-    /// implementations are not uniform: helper-backed instrument routes and
-    /// the Futu valuation reader have independent prerequisites while the
-    /// remaining baseline routes are deliberately unavailable.  Keeping this
-    /// decision path-specific prevents a ready helper/OpenD runtime from
-    /// advertising unsupported research operations as ready.
-    pub(crate) fn research_operation_binding(
-        &self,
-        path: &str,
-    ) -> Option<ProductionAdapterBinding> {
-        if !self
-            .installed_adapters
-            .contains(&ProductionRouteAdapter::ResearchRead)
-        {
-            return None;
-        }
-        if !self
-            .bound_adapters
-            .contains_key(&ProductionRouteAdapter::ResearchRead)
-        {
-            return None;
-        }
-        if self.bound_adapters.get(&ProductionRouteAdapter::ResearchRead)
-            == Some(&ProductionAdapterBinding::MissingInternalAdapter)
-        {
-            return Some(ProductionAdapterBinding::MissingInternalAdapter);
-        }
-        let snapshot = self.active_provider_state.snapshot();
-        let corporate_actions_route = path
-            .strip_prefix("/api/v1/research/corporate-actions/")
-            .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
-        let helper_route = [
-            "/api/v1/research/instruments/",
-            "/api/v1/research/financials/",
-            "/api/v1/research/analyst/",
-            "/api/v1/research/ownership/",
-        ]
-        .iter()
-        .any(|prefix| {
-            path.strip_prefix(prefix)
-                .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
-        });
-        let valuation_route = path
-            .strip_prefix("/api/v1/research/valuation/")
-            .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
-        let ready = if corporate_actions_route {
-            match snapshot.provider {
-                Some(jftrade_settings::MarketDataProvider::Futu) => {
-                    snapshot.opend_ready
-                        && self
-                            .trade_runtime
-                            .as_ref()
-                            .is_some_and(|runtime| runtime.corporate_actions_reader_available())
-                }
-                Some(jftrade_settings::MarketDataProvider::Yfinance)
-                | Some(jftrade_settings::MarketDataProvider::Akshare) => snapshot.helper_ready,
-                None => false,
-            }
-        } else if helper_route {
-            snapshot.helper_ready
-                && matches!(
-                    snapshot.provider,
-                    Some(jftrade_settings::MarketDataProvider::Yfinance)
-                        | Some(jftrade_settings::MarketDataProvider::Akshare)
-                )
-        } else if valuation_route {
-            snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                && snapshot.opend_ready
-                && self
-                    .trade_runtime
-                    .as_ref()
-                    .is_some_and(|runtime| runtime.valuation_detail_available())
-        } else {
-            false
-        };
-        Some(if ready {
-            ProductionAdapterBinding::Ready
-        } else {
-            ProductionAdapterBinding::ExternalUnavailable
-        })
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -748,9 +645,16 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataSubscriptionHeartbeatWrite
             | MarketDataNewsActionsRead
             | MarketDataNewsSearchRead
+            | MarketDataPredictionRead
+            | MarketDataPredictionSubscriptionAcquireWrite
+            | MarketDataPredictionSubscriptionReleaseWrite
+            | MarketDataPredictionCombosWrite
             | BacktestSyncStart
     )
 }
+
+#[path = "product_production_adapter_bindings_readiness.rs"]
+mod readiness;
 
 /// Runtime-scoped adapters must not fall back to their startup readiness when
 /// the live capability reader no longer returns a binding (for example after

@@ -5,10 +5,20 @@ import { validateReleaseEvidencePayload } from "./check-release-evidence-inputs.
 
 function parseArgs(argv) {
   const result = {};
+  const allowed = new Set([
+    "root", "repository", "release_ref", "payload_ref", "payload_commit_sha",
+    "payload_workflow", "payload_run_id", "payload_run_attempt", "payload_artifact",
+    "payload_artifact_id", "payload_artifact_digest",
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (!token.startsWith("--") || index + 1 >= argv.length) throw new Error(`invalid argument: ${token}`);
-    result[token.slice(2).replaceAll("-", "_")] = argv[index + 1];
+    if (!token.startsWith("--") || index + 1 >= argv.length || argv[index + 1].startsWith("--")) {
+      throw new Error(`invalid argument: ${token}`);
+    }
+    const key = token.slice(2).replaceAll("-", "_");
+    if (!allowed.has(key)) throw new Error(`unsupported argument: ${token}`);
+    if (result[key] !== undefined) throw new Error(`duplicate argument: ${token}`);
+    result[key] = argv[index + 1];
     index += 1;
   }
   return result;
