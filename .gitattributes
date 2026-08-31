@@ -1,7 +1,7 @@
 docs/reference/generated/*.md text eol=lf
-# Wails always generates TypeScript bindings with LF. Keep checkout output
-# identical on Windows so the bindings freshness check is platform-neutral.
-apps/web/src/wails/** text eol=lf
+# Tauri desktop sources and checked-in contract fixtures should keep checkout
+# output identical on Windows.
+apps/desktop/src-tauri/** text eol=lf
 
 # The OSS gate verifies the official AGPL text byte-for-byte.
 LICENSE text eol=lf

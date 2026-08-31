@@ -145,7 +145,6 @@ func TestExclusionRulesAreExplicitAndDoNotHideBackendEntrypoints(t *testing.T) {
 		{name: "generated futu protobuf", fileName: "github.com/jftrade/jftrade-main/pkg/futu/pb/common/common.pb.go", category: exclusionGenerated, excluded: true},
 		{name: "vendored bbgo", fileName: "github.com/jftrade/jftrade-main/pkg/bbgo/types/order.go", category: exclusionVendored, excluded: true},
 		{name: "generator tooling", fileName: "github.com/jftrade/jftrade-main/cmd/generate-futu-proto/main.go", category: exclusionTooling, excluded: true},
-		{name: "desktop adapter", fileName: "github.com/jftrade/jftrade-main/cmd/jftrade-desktop/main.go", category: exclusionDesktop, excluded: true},
 		{name: "declarative OpenAPI routes", fileName: "github.com/jftrade/jftrade-main/internal/api/watchlist/openapi.go", category: exclusionContract, excluded: true},
 		{name: "declarative research OpenAPI routes", fileName: "github.com/jftrade/jftrade-main/internal/api/research/openapi.go", category: exclusionContract, excluded: true},
 		{name: "release asset embed wrapper", fileName: "github.com/jftrade/jftrade-main/internal/marketdataassets/assets_release.go", category: exclusionBuildVariant, excluded: true},

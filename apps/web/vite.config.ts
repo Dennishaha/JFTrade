@@ -85,7 +85,7 @@ function runtimeEnv(): Record<string, string | undefined> {
 }
 
 function resolveDevelopmentVitePort(): number {
-  const value = Number(runtimeEnv().WAILS_VITE_PORT);
+  const value = Number(runtimeEnv().TAURI_VITE_PORT);
   return Number.isInteger(value) && value > 0 && value < 65536
     ? value
     : defaultDevelopmentVitePort;
@@ -133,12 +133,6 @@ const resolvedDevelopmentApiTarget = resolveDevelopmentApiTarget();
 function vendorChunk(id: string): string | undefined {
   if (!id.includes("node_modules")) {
     return undefined;
-  }
-  // The Wails runtime has internal modules that import each other through
-  // generated bindings. Keeping them in separate Rollup chunks creates a
-  // production-only cycle where calls.js evaluates before runtime.js.
-  if (/(?:^|[/\\])node_modules[/\\]@wailsio[/\\]runtime[/\\]/.test(id)) {
-    return "vendor-wails";
   }
   if (/\/node_modules\/(vue|vue-router|@vue)\//.test(id)) {
     return "vendor-vue";
@@ -213,7 +207,7 @@ export default defineConfig({
     vueDevTools(devToolsOptions),
   ],
   optimizeDeps: {
-    // Wails opens as soon as the dev server binds. Keep eager runtime and
+    // Tauri starts as soon as the dev server binds. Keep the runtime and
     // Vuetify auto-import entries in the initial bundle to avoid cold-start
     // requests racing Vite's dependency optimizer.
     include: [
@@ -224,7 +218,6 @@ export default defineConfig({
       "@vue-flow/controls",
       "@vue-flow/core",
       "@vue-flow/minimap",
-      "@wailsio/runtime",
       "vuetify/components/VAlert",
       "vuetify/components/VBtn",
       "vuetify/components/VBtnToggle",
@@ -282,9 +275,9 @@ export default defineConfig({
   },
   server: {
     port: resolveDevelopmentVitePort(),
-    // Wails exports WAILS_VITE_PORT and FRONTEND_DEVSERVER_URL. Strict mode
-    // keeps the desktop from silently loading a stale frontend on another
-    // port when the configured listener is already in use.
+    // The Tauri dev shell uses TAURI_VITE_PORT. Strict mode keeps the desktop
+    // from silently loading a stale frontend on another port when the
+    // configured listener is already in use.
     strictPort: true,
     proxy: {
       ...Object.fromEntries(

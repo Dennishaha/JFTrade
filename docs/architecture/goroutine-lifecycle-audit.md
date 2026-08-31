@@ -2,6 +2,10 @@
 
 更新时间：2026-07-29。
 
+> 归档审计：本文记录的是 2026-07-29 的 Go/Wails 桌面基线。表中
+> `cmd/jftrade-desktop` 行号对应迁移前源码，当前生产桌面入口已切换为
+> `apps/desktop/src-tauri`（Tauri）；这些行保留作历史证据，不是可执行的当前路径。
+
 本文记录 P3-1 的代码级审计账本。基线固定为审计开始时的 57 个非测试直接 `go` 语句、2 个 `WaitGroup.Go` 和 2 个 `time.AfterFunc`，合计 61 个显式异步启动面；其中 `internal/integration/futu/testkit` 的 4 个启动面只服务测试。行号用于定位审计基线，长期判断以函数和 owner 为准。
 
 风险口径：

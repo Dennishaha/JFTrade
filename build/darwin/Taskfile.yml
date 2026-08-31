@@ -1,105 +1,17 @@
 version: "3"
 
-includes:
-  common: ../Taskfile.yml
-
 tasks:
   build:
-    desc: Builds the JFTrade macOS app bundle
-    deps:
-      - task: common:update:build-assets
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-      - task: common:verify:release-inputs
+    desc: Builds the Tauri macOS application
     cmds:
-      - mkdir -p "{{.BIN_DIR}}"
-      - >-
-        if [ "{{.DEV}}" != "true" ]; then
-        helper_dir="internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-{{.ARCH}}";
-        helper="$helper_dir/marketdata-sidecar-darwin-{{.ARCH}}";
-        test -d "$helper_dir" && test -s "$helper" || { echo "Missing native market-data helper: $helper" >&2; exit 1; };
-        if [ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ]; then
-        codesign --force --options runtime --timestamp --deep --sign "$JFTRADE_MACOS_SIGN_IDENTITY" "$helper";
-        else
-        codesign --force --deep --sign - "$helper";
-        fi;
-        codesign --verify --strict --verbose=2 "$helper";
-        fi
-      - >-
-        go build
-        {{if .BUILD_TAGS}}-tags "{{.BUILD_TAGS}}"{{end}}
-        -buildvcs=false
-        {{if ne .DEV "true"}}-trimpath -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"{{end}}
-        -o "{{.BIN_DIR}}/{{.APP_NAME}}"
-        ./cmd/jftrade-desktop
-      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS/{{.APP_NAME}}"
-      - cp "{{.WAILS_BUILD_DIR}}/darwin/Info.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
-      - cp "{{.WAILS_BUILD_DIR}}/darwin/icons.icns" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/icons.icns"
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-    env:
-      GOOS: darwin
-      GOARCH: "{{.ARCH}}"
-      CGO_ENABLED: "1"
-      MACOSX_DEPLOYMENT_TARGET: "12.0"
-      CGO_CFLAGS: -mmacosx-version-min=12.0
-      CGO_LDFLAGS: -mmacosx-version-min=12.0
-    vars:
-      ARCH: '{{.ARCH | default "arm64"}}'
-      BUILD_TAGS: '{{if eq .DEV "true"}}{{.EXTRA_TAGS}}{{else}}production,release_assets{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{end}}'
+      - pnpm run build:desktop
 
   package:
-    desc: Packages the macOS app as an official Wails DMG
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Builds the Tauri macOS bundles
     cmds:
-      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses"
-      - cp LICENSE "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses/LICENSE"
-      - cp docs/legal/third-party-notices.md "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/licenses/THIRD-PARTY-NOTICES.md"
-      - >-
-        if [ -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" ] || [ -n "${JFTRADE_MACOS_NOTARY_PROFILE:-}" ]; then
-        test -n "${JFTRADE_MACOS_SIGN_IDENTITY:-}" && test -n "${JFTRADE_MACOS_NOTARY_PROFILE:-}" || { echo "macOS signing credentials must be all set or all unset" >&2; exit 1; };
-        go tool wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --identity "$JFTRADE_MACOS_SIGN_IDENTITY" --keychain-profile "$JFTRADE_MACOS_NOTARY_PROFILE" --notarize --hardened-runtime;
-        else
-        codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app";
-        fi
-      - >-
-        go tool wails3 tool package
-        --format dmg
-        --name "{{.APP_NAME}}"
-        --out "{{.BIN_DIR}}"
-        --volume-icon "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
-        --window-width 540
-        --window-height 380
-      - mv "{{.BIN_DIR}}/{{.APP_NAME}}.dmg" "{{.BIN_DIR}}/{{.OUTPUT_DMG}}"
-    vars:
-      ARCH: '{{.ARCH | default "arm64"}}'
-      QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
-      OUTPUT_DMG: '{{.OUTPUT_DMG | default (printf "%s-%s-macos-%s-%s.dmg" .APP_NAME .VERSION .ARCH .QUALIFIER)}}'
+      - pnpm run build:desktop
 
   run:
-    desc: Runs the Wails development app under the native watcher
+    desc: Runs the Tauri macOS development application
     cmds:
-      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/JFTrade Dev"
-      - cp build/darwin/Info.dev.plist "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      - cp "{{.WAILS_BUILD_DIR}}/darwin/icons.icns" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources/icons.icns"
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
-      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/JFTrade Dev"'
-    env:
-      JFTRADE_DESKTOP_MODE: "1"
-      JFTRADE_API_BIND: "127.0.0.1:3008"
-      JFTRADE_SETTINGS_PATH: "var/jftrade-api/settings.json"
-      JFTRADE_BACKTEST_DB: "var/jftrade-api/backtest.db"
-      JFTRADE_PINEWORKER_BUNDLE: "{{.PINEWORKER_BUNDLE}}"
-      DISABLE_MARKETS_CACHE: "1"
+      - pnpm run dev:desktop

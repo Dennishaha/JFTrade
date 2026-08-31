@@ -1,175 +1,44 @@
 version: "3"
 
-includes:
-  common: ../Taskfile.yml
-
 tasks:
   build:
-    desc: Builds the JFTrade GTK3 Linux executable
-    deps:
-      - task: common:update:build-assets
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-      - task: common:verify:release-inputs
+    desc: Builds the Tauri Linux application
     cmds:
-      - mkdir -p "{{.BIN_DIR}}"
-      - >-
-        go build
-        {{if .BUILD_TAGS}}-tags "{{.BUILD_TAGS}}"{{end}}
-        -buildvcs=false
-        {{if ne .DEV "true"}}-trimpath -ldflags "-w -s -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"{{end}}
-        -o "{{.BIN_DIR}}/{{.APP_NAME}}"
-        ./cmd/jftrade-desktop
-    env:
-      GOOS: linux
-      GOARCH: "{{.ARCH}}"
-      CGO_ENABLED: "1"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      BUILD_TAGS: '{{if eq .DEV "true"}}gtk3{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{else}}production,release_assets,gtk3{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{end}}'
-
-  generate:desktop:
-    desc: Generates the official Linux desktop entry
-    cmds:
-      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux"
-      - >-
-        go tool wails3 generate .desktop
-        -name "{{.APP_NAME}}"
-        -exec jftrade-desktop
-        -icon JFTrade
-        -outputfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
-        -categories "Finance;Development;"
+      - pnpm run build:desktop
 
   package:
-    desc: Packages the Linux executable as AppImage, deb and rpm assets
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Builds the Tauri Linux bundles
     cmds:
-      - rm -rf "{{.PACKAGE_RELEASE_DIR}}"
-      - mkdir -p "{{.PACKAGE_RELEASE_DIR}}"
-      - task: package:appimage:prepared
-        vars:
-          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
-      - task: package:linux:prepared
-        vars:
-          FORMAT: deb
-          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
-      - task: package:linux:prepared
-        vars:
-          FORMAT: rpm
-          RELEASE_DIR: "{{.PACKAGE_RELEASE_DIR}}"
-      - >-
-        node scripts/manage-linux-release-artifacts.mjs verify
-        {{.VERSION}} {{.ARCH}} "{{.PACKAGE_RELEASE_DIR}}"
-      - mkdir -p "{{.BIN_DIR}}"
-      - cp "{{.PACKAGE_RELEASE_DIR}}"/* "{{.BIN_DIR}}/"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      PACKAGE_RELEASE_DIR: '{{.PACKAGE_RELEASE_DIR | default (printf "%s/linux-release-%s" .WAILS_BUILD_DIR .ARCH)}}'
+      - pnpm run build:desktop
 
+  # Retain names used by older Taskfile callers; packaging is now owned by
+  # the Tauri CLI and emits the configured AppImage/deb/rpm bundles.
   package:appimage:
-    desc: Creates an AppImage with the Wails generator
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Deprecated alias for the Tauri Linux bundle build
     cmds:
-      - task: package:appimage:prepared
-        vars:
-          RELEASE_DIR: "{{.RELEASE_DIR}}"
-
-  package:appimage:prepared:
-    desc: Creates an AppImage after the platform binary is built
-    internal: true
-    cmds:
-      - task: generate:desktop
-      - rm -rf "{{.WAILS_BUILD_DIR}}/linux/appimage"
-      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/appimage/output" "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
-      - cp build/desktop/appicon.png "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
-      - >-
-        go tool wails3 generate appimage
-        -binary "{{.BIN_DIR}}/{{.APP_NAME}}"
-        -icon "{{.WAILS_BUILD_DIR}}/linux/appimage/JFTrade.png"
-        -desktopfile "{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
-        -outputdir "{{.WAILS_BUILD_DIR}}/linux/appimage/output"
-        -builddir "{{.WAILS_BUILD_DIR}}/linux/appimage/build"
-      - >-
-        node scripts/manage-linux-release-artifacts.mjs finalize
-        appimage {{.VERSION}} {{.ARCH}}
-        "{{.WAILS_BUILD_DIR}}/linux/appimage/output"
-        "{{.RELEASE_DIR}}"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      RELEASE_DIR: '{{.RELEASE_DIR | default .BIN_DIR}}'
+      - pnpm run build:desktop
 
   package:linux:
-    desc: Creates a deb or rpm package with the Wails packager
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Deprecated alias for the Tauri Linux bundle build
     cmds:
-      - task: package:linux:prepared
-        vars:
-          FORMAT: "{{.FORMAT}}"
-          RELEASE_DIR: "{{.RELEASE_DIR}}"
+      - pnpm run build:desktop
+
+  package:appimage:prepared:
+    desc: Deprecated alias for a prepared Tauri Linux AppImage build
+    cmds:
+      - pnpm run build:desktop
 
   package:linux:prepared:
-    desc: Creates a deb or rpm package after the platform binary is built
-    internal: true
+    desc: Deprecated alias for a prepared Tauri Linux package build
     cmds:
-      - task: generate:desktop
-      - rm -rf "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}"
-      - mkdir -p "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
-      - >-
-        node scripts/prepare-linux-package-config.mjs
-        build/linux/nfpm.yaml "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/nfpm.yaml"
-        {{.VERSION}} {{.ARCH}}
-        "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}"
-        "{{.ROOT_DIR}}/{{.WAILS_BUILD_DIR}}/linux/JFTrade.desktop"
-        "{{.ROOT_DIR}}/build/desktop/appicon.png"
-        "{{.ROOT_DIR}}/LICENSE"
-        "{{.ROOT_DIR}}/docs/legal/third-party-notices.md"
-      - >-
-        go tool wails3 tool package
-        -name jftrade
-        -format {{.FORMAT}}
-        -config "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/nfpm.yaml"
-        -out "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
-      - >-
-        node scripts/manage-linux-release-artifacts.mjs finalize
-        {{.FORMAT}} {{.VERSION}} {{.ARCH}}
-        "{{.WAILS_BUILD_DIR}}/linux/{{.FORMAT}}/output"
-        "{{.RELEASE_DIR}}"
-    preconditions:
-      - sh: test "{{.FORMAT}}" = "deb" || test "{{.FORMAT}}" = "rpm"
-        msg: FORMAT must be deb or rpm
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      FORMAT: '{{.FORMAT | default "deb"}}'
-      RELEASE_DIR: '{{.RELEASE_DIR | default .BIN_DIR}}'
+      - pnpm run build:desktop
+
+  generate:desktop:
+    desc: Deprecated alias; Tauri generates desktop metadata during bundling
+    cmds:
+      - pnpm exec tauri info
 
   run:
-    desc: Runs the Linux development executable
+    desc: Runs the Tauri Linux development application
     cmds:
-      - '"{{.BIN_DIR}}/{{.APP_NAME}}"'
-    env:
-      JFTRADE_DESKTOP_MODE: "1"
-      JFTRADE_API_BIND: "127.0.0.1:3008"
-      JFTRADE_SETTINGS_PATH: "var/jftrade-api/settings.json"
-      JFTRADE_BACKTEST_DB: "var/jftrade-api/backtest.db"
-      JFTRADE_PINEWORKER_BUNDLE: "{{.PINEWORKER_BUNDLE}}"
-      DISABLE_MARKETS_CACHE: "1"
+      - pnpm run dev:desktop

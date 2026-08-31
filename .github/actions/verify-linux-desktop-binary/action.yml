@@ -1,11 +1,11 @@
 name: Verify Linux desktop binary
-description: Verify the Linux desktop binary is an executable ELF built from the expected module
+description: Verify the Tauri Linux desktop binary is an executable ELF with resolved shared libraries
 
 inputs:
   artifact_path:
     description: Path to the Linux desktop binary
     required: false
-    default: bin/JFTrade
+    default: apps/desktop/src-tauri/target/release/jftrade-desktop
 
 runs:
   using: composite
@@ -17,7 +17,5 @@ runs:
         artifact="${{ inputs.artifact_path }}"
         test -x "$artifact"
         file "$artifact" | grep -q 'ELF 64-bit'
-        go version -m "$artifact" | tee /tmp/jftrade-linux-buildinfo.txt
-        grep -q 'github.com/jftrade/jftrade-main/cmd/jftrade-desktop' /tmp/jftrade-linux-buildinfo.txt
         ldd "$artifact" | tee /tmp/jftrade-linux-ldd.txt
         ! grep -q 'not found' /tmp/jftrade-linux-ldd.txt

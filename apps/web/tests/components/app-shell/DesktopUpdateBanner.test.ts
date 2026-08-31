@@ -7,7 +7,7 @@ const desktopState = vi.hoisted(() => ({ enabled: false }));
 const onAvailable = vi.hoisted(() => vi.fn());
 const installUpdate = vi.hoisted(() => vi.fn());
 const openExternalUrl = vi.hoisted(() => vi.fn());
-const desktopBackend = vi.hoisted(() => ({ value: "wails" }));
+const desktopBackend = vi.hoisted(() => ({ value: "browser" }));
 
 vi.mock("../../../src/runtimeConfig", () => ({
   resolveDesktopMode: () => desktopState.enabled,
@@ -27,7 +27,7 @@ afterEach(() => {
   onAvailable.mockReset();
   installUpdate.mockReset();
   openExternalUrl.mockReset();
-  desktopBackend.value = "wails";
+  desktopBackend.value = "browser";
 });
 
 describe("desktop update banner", () => {

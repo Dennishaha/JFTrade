@@ -89,7 +89,6 @@ const (
 	exclusionGenerated    exclusionCategory = "generated"
 	exclusionVendored     exclusionCategory = "vendored"
 	exclusionTooling      exclusionCategory = "tooling"
-	exclusionDesktop      exclusionCategory = "desktop"
 	exclusionContract     exclusionCategory = "contract"
 	exclusionTestSupport  exclusionCategory = "test-support"
 	exclusionBuildVariant exclusionCategory = "build-variant"
@@ -116,7 +115,6 @@ var exclusionRules = []exclusionRule{
 	{scope: "cmd/generate-pineworker-proto", category: exclusionTooling, reason: "protobuf generator"},
 	{scope: "cmd/internal/protogen", category: exclusionTooling, reason: "protobuf generator support"},
 	{scope: "scripts", category: exclusionTooling, reason: "repository maintenance scripts"},
-	{scope: "cmd/jftrade-desktop", category: exclusionDesktop, reason: "desktop client delivery adapter"},
 	{
 		scope: "internal/api/watchlist/openapi.go", category: exclusionContract,
 		reason: "declarative Swaggo-only route documentation",

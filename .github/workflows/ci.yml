@@ -388,21 +388,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # This job intentionally runs without cgo. The Wails desktop command
-          # requires GTK/cgo on Linux and is covered by the dedicated desktop lanes.
-          package_list="$(mktemp)"
-          trap 'rm -f "$package_list"' EXIT
-          go list ./... >"$package_list"
-          packages=()
-          while IFS= read -r package; do
-            case "$package" in
-              */cmd/jftrade-desktop)
-                continue
-                ;;
-            esac
-            packages+=("$package")
-          done <"$package_list"
-          go test "${packages[@]}" -count=1 -timeout=300s
+          # Desktop release validation runs in the dedicated Tauri lanes.
+          go test ./... -count=1 -timeout=300s
 
   web-quality:
     name: Web Quality
@@ -821,18 +808,6 @@ jobs:
           } finally {
             $reader.Dispose()
             $stream.Dispose()
-          }
-
-          $buildInfo = & go version -m $artifact
-          if ($LASTEXITCODE -ne 0) {
-            throw "Unable to read Windows desktop Go build metadata"
-          }
-          $buildInfo | Out-Host
-          if (-not ($buildInfo -match "github.com/jftrade/jftrade-main/cmd/jftrade-desktop")) {
-            throw "Windows desktop executable has unexpected Go module metadata"
-          }
-          if (-not ($buildInfo -match "GOARCH=amd64")) {
-            throw "Windows desktop executable has unexpected Go architecture metadata"
           }
 
       - name: Upload desktop build artifact

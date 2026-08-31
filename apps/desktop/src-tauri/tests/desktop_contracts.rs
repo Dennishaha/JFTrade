@@ -31,7 +31,7 @@ fn assets() -> Vec<ReleaseAsset> {
 }
 
 #[test]
-fn build_profiles_preserve_wails_identity_and_data_isolation() {
+fn build_profiles_preserve_tauri_identity_and_data_isolation() {
     let macos = PlatformPaths {
         platform: DesktopPlatform::Darwin,
         home_dir: "/Users/alice".to_owned(),

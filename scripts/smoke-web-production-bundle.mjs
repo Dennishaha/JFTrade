@@ -132,7 +132,7 @@ try {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     if (/reading ['"]Call['"]/.test(message)) {
       throw new Error(
-        `production frontend bundle still has the Wails runtime chunk cycle: ${message}`,
+        `production frontend bundle still has a desktop runtime chunk cycle: ${message}`,
         { cause: error },
       );
     }

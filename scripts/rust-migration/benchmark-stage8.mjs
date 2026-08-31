@@ -94,12 +94,12 @@ function collect(sample, warmups, iterations) {
 export function runStage8Benchmark({ warmups = 3, iterations = 20 } = {}) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-rust-stage8-benchmark-"));
   try {
-    const goBinary = path.join(temporaryRoot, "jftrade-desktop.test");
-    run("go", ["test", "-c", "-trimpath", "-o", goBinary, "./cmd/jftrade-desktop"]);
+    const goBinary = path.join(temporaryRoot, "desktop-reference.test");
+    run("go", ["test", "-c", "-trimpath", "-o", goBinary, "./internal/desktop"]);
     run("cargo", ["build", "--release", "-p", "jftrade-desktop", "--bin", "jftrade-stage8-shadow"]);
     const rustBinary = path.join(repositoryRoot, "target/release/jftrade-stage8-shadow");
     const expected = JSON.parse(fs.readFileSync(expectedPath, "utf8"));
-    const goTests = "^(TestDevelopmentDesktopBuildProfile|TestDesktopBuildChannelsCanCoexist|TestNormalizeDesktopDocsURL|TestNormalizeDesktopDocsURLRejectsUnsafePaths|TestSanitizeDesktopExternalURL|TestDesktopShutdownCancelsStartupAndReclaimsLateResources)$";
+    const goTests = "^(TestProductDataDirByPlatform|TestProductDataDirUsesCurrentPlatform)$";
     const sampleGo = () => timedRun(goBinary, ["-test.run", goTests, "-test.count=1"]);
     const sampleRust = () => {
       const sample = timedRun(rustBinary, ["--input", fixturePath]);
@@ -122,7 +122,7 @@ export function runStage8Benchmark({ warmups = 3, iterations = 20 } = {}) {
         totalMemoryBytes: os.totalmem(),
       },
       buildProfile: {
-        go: "go test -c -trimpath (production Wails desktop behavior harness)",
+        go: "go test -c -trimpath (retained Go desktop utility reference)",
         rust: "cargo build --release (Tauri facade projection; no native WebView)",
       },
       workload: {
@@ -138,7 +138,7 @@ export function runStage8Benchmark({ warmups = 3, iterations = 20 } = {}) {
       rust: { ...rustResult, binaryBytes: fs.statSync(rustBinary).size },
       gates: evaluateStage8Performance(goResult, rustResult),
       limitations: [
-        "The Go sample executes production Wails desktop policy tests; the Rust sample projects the Tauri facade and supervised lifecycle plan without opening a native WebView.",
+        "The Go sample executes retained desktop utility reference tests; the Rust sample projects the Tauri facade and supervised lifecycle plan without opening a native WebView.",
         "This benchmark does not qualify UI rendering, signing, installers, actual subprocesses, upgrade compatibility, or orphan detection.",
         "The local Darwin result does not replace native macOS ARM64, Linux x64, Windows x64, and Windows ARM64 package smoke.",
       ],

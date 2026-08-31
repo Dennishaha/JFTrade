@@ -173,8 +173,8 @@ for (const needle of [
 const linuxPackage = read("build/linux/nfpm.yaml");
 const desktopMetadata = [
   linuxPackage,
-  read("build/config.yml"),
   read("build/Taskfile.yml"),
+  read("apps/desktop/src-tauri/tauri.conf.json"),
 ].join("\n");
 if (/LicenseRef-Proprietary|license:\s*Proprietary/i.test(desktopMetadata)) {
   throw new Error("desktop package metadata still declares a proprietary license");
@@ -189,13 +189,36 @@ for (const needle of [
 requireText(desktopMetadata, COPYRIGHT_NOTICE, "desktop metadata");
 
 const releaseWorkflow = read(".github/workflows/desktop-release.yml");
-requireText(releaseWorkflow, "release/LICENSE", "desktop-release.yml");
+const releaseBundleChecker = read(
+  "scripts/rust-migration/check-release-candidate-bundle.mjs",
+);
 requireText(
   releaseWorkflow,
-  "release/THIRD-PARTY-NOTICES.md",
+  "check-release-candidate-bundle.mjs",
   "desktop-release.yml",
 );
-requireText(releaseWorkflow, "sha256sum > SHA256SUMS", "desktop-release.yml");
+requireText(releaseWorkflow, "--release-root release", "desktop-release.yml");
+requireText(releaseBundleChecker, 'name === "LICENSE"', "release bundle checker");
+requireText(
+  releaseBundleChecker,
+  'name === "THIRD-PARTY-NOTICES.md"',
+  "release bundle checker",
+);
+requireText(
+  releaseWorkflow,
+  "subject-path: release/SHA256SUMS",
+  "desktop-release.yml",
+);
+requireText(
+  releaseBundleChecker,
+  'name === "SHA256SUMS"',
+  "release bundle checker",
+);
+requireText(
+  releaseBundleChecker,
+  "SHA256SUMS does not exactly represent sealed release files",
+  "release bundle checker",
+);
 requireText(releaseWorkflow, "release/*", "desktop-release.yml");
 
 console.log(

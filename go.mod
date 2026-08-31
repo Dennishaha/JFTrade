@@ -2,8 +2,6 @@ module github.com/jftrade/jftrade-main
 
 go 1.26.6
 
-tool github.com/wailsapp/wails/v3/cmd/wails3
-
 require (
 	github.com/c9s/requestgen v1.6.0
 	github.com/expr-lang/expr v1.17.8
@@ -26,7 +24,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.6
-	github.com/wailsapp/wails/v3 v3.0.0-beta.8
 	github.com/wcharczuk/go-chart/v2 v2.1.2
 	golang.org/x/crypto v0.55.0
 	golang.org/x/mod v0.40.0
@@ -222,7 +219,6 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	github.com/wailsapp/task/v3 v3.40.1-patched3 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect

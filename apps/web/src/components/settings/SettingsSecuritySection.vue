@@ -325,7 +325,7 @@ async function saveSettings(): Promise<void> {
           @input="clearFeedback"
         />
         <span class="font-normal leading-5 text-slate-500">
-          默认 6688。它与 Wails 桌面内部端口相互独立；保存后立即切换。
+          默认 6688。它与 Tauri 桌面内部端口相互独立；保存后立即切换。
         </span>
       </label>
 

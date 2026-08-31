@@ -54,6 +54,6 @@ workflow 中取得证据后才能关闭 release gate。不要把本地 `cargo` �
 
 ## 迁移期 Go 工具
 
-`cmd/jftrade-api`、`cmd/jftrade-desktop`、`go generate ./cmd/jftrade-api` 和 Go
-reference tests 继续保留给 OpenAPI 生成、fixture 录制及 Go/Rust differential；它们
-不会由 `start.sh`、`build-release.*`、Tauri 开发或生产入口调用。
+`cmd/jftrade-api`、`go generate ./cmd/jftrade-api`、`internal/desktop` reference
+tests 和 Go/Rust differential 继续保留给 OpenAPI 生成及 fixture 录制；它们不会由
+`start.sh`、`build-release.*`、Tauri 开发或生产入口调用。
