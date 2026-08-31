@@ -17,6 +17,17 @@ use super::execution_order_parse::{
 };
 use super::*;
 
+#[derive(Debug)]
+enum EventContractValidationError {
+    /// OpenD answered successfully, but the requested contract is absent or
+    /// not tradable. ProductRuleProvider exposes this as an allowed=false
+    /// decision rather than an infrastructure failure.
+    Denied(String),
+    /// The prediction reader/session could not answer. Keep this distinct so
+    /// callers return the baseline 503 instead of claiming a business denial.
+    Unavailable(String),
+}
+
 impl ProductionExecutionPort {
     /// Validate and persist a single-order preview after obtaining the broker's
     /// max-trade-quantity snapshot.  The snapshot is intentionally not exposed
@@ -36,9 +47,15 @@ impl ProductionExecutionPort {
         }
         if parsed.order_kind == "event_single" {
             self.ensure_futu_runtime()?;
-            return Err(ExecutionWritePortError::Unavailable(
-                "Futu event-contract product-rule adapter is unavailable".to_owned(),
-            ));
+            match self.validate_active_event_contracts(std::slice::from_ref(&parsed.symbol)) {
+                Ok(()) => {}
+                Err(EventContractValidationError::Denied(message)) => {
+                    return Err(failed(400, "BAD_REQUEST", message));
+                }
+                Err(EventContractValidationError::Unavailable(message)) => {
+                    return Err(ExecutionWritePortError::Unavailable(message));
+                }
+            }
         }
 
         // Derivative previews retain the OpenD max-quantity read as external
@@ -106,22 +123,51 @@ impl ProductionExecutionPort {
             // request has crossed the same local validation boundary as Go.
             return Ok(json!({"allowed": false, "reasonCode": code, "reason": message}));
         }
-        // A successful approval requires the broker ProductRuleProvider.  Do
-        // not manufacture {allowed:true} from local parsing when Futu/OpenD
-        // or its product-rule reader is not installed.
         self.ensure_futu_runtime()?;
-        Err(ExecutionWritePortError::Unavailable(
-            "Futu product-rule adapter is unavailable".to_owned(),
-        ))
+        if request.order_kind == "event_single" {
+            let instrument = request.instrument_id.clone().unwrap_or_default();
+            match self.validate_active_event_contracts(std::slice::from_ref(&instrument)) {
+                Ok(()) => {}
+                Err(EventContractValidationError::Denied(message)) => {
+                    return Ok(json!({
+                        "allowed": false,
+                        "reasonCode": "EVENT_NOT_TRADABLE",
+                        "reason": message,
+                    }));
+                }
+                Err(EventContractValidationError::Unavailable(message)) => {
+                    return Err(ExecutionWritePortError::Unavailable(message));
+                }
+            }
+        }
+        Ok(json!({"allowed": true}))
     }
 
     pub(super) fn combo_preview(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
         let parsed = parse_combo(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
         if parsed.order.order_kind == "event_parlay" {
             self.ensure_futu_runtime()?;
-            return Err(ExecutionWritePortError::Unavailable(
-                "Futu event-contract combo product-rule adapter is unavailable".to_owned(),
-            ));
+            let instrument_ids = parsed
+                .leg_payloads
+                .iter()
+                .filter_map(|leg| {
+                    leg.get("instrumentId")
+                        .or_else(|| leg.get("symbol"))
+                        .or_else(|| leg.get("code"))
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                })
+                .collect::<Vec<_>>();
+            match self.validate_active_event_contracts(&instrument_ids) {
+                Ok(()) => {}
+                Err(EventContractValidationError::Denied(message)) => {
+                    return Err(failed(400, "BAD_REQUEST", message));
+                }
+                Err(EventContractValidationError::Unavailable(message)) => {
+                    return Err(ExecutionWritePortError::Unavailable(message));
+                }
+            }
+            return self.persist_event_combo_preview(payload, &parsed);
         }
         // The Go Futu adapter validates the selected option strategy against
         // OpenD before reading combo buying power.  Keep that same fail-closed
@@ -282,6 +328,121 @@ impl ProductionExecutionPort {
             ));
         }
         Ok(())
+    }
+
+    /// Validate event-contract lifecycle state through the same typed
+    /// prediction reader used by the market-data routes. OpenD's snapshot
+    /// response is the source of truth for active/tradable state; an empty or
+    /// terminal snapshot is a business denial, while a missing reader/session
+    /// remains an infrastructure-unavailable response.
+    fn validate_active_event_contracts(
+        &self,
+        instrument_ids: &[String],
+    ) -> Result<(), EventContractValidationError> {
+        let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+            EventContractValidationError::Unavailable(
+                "Futu prediction market-data runtime is unavailable".to_owned(),
+            )
+        })?;
+        if !runtime.prediction_reader_available() {
+            return Err(EventContractValidationError::Unavailable(
+                "Futu prediction market-data reader is unavailable".to_owned(),
+            ));
+        }
+        for instrument_id in instrument_ids {
+            let code = normalize_event_contract_code(instrument_id).ok_or_else(|| {
+                EventContractValidationError::Denied(
+                    "futu: event contract code is required".to_owned(),
+                )
+            })?;
+            let path = format!(
+                "/api/v1/market-data/prediction/contracts/{code}/snapshot"
+            );
+            let snapshot = runtime.prediction_read(&path, "").map_err(|error| {
+                EventContractValidationError::Unavailable(format!(
+                    "Futu event-contract snapshot failed: {error}"
+                ))
+            })?;
+            let entries = snapshot
+                .get("entries")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    EventContractValidationError::Unavailable(
+                        "Futu event-contract snapshot response is missing entries".to_owned(),
+                    )
+                })?;
+            let Some(item) = entries.iter().find(|item| {
+                item.get("code")
+                    .and_then(Value::as_object)
+                    .and_then(|value| value.get("code"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value.trim().eq_ignore_ascii_case(&code))
+            }) else {
+                return Err(EventContractValidationError::Denied(format!(
+                    "futu: event contract snapshot missing {code}"
+                )));
+            };
+            let active = item
+                .get("status")
+                .and_then(Value::as_i64)
+                .is_some_and(|value| value == 2)
+                || item
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value.eq_ignore_ascii_case("EC_STATUS_ACTIVE"));
+            if !active {
+                let status = item
+                    .get("status")
+                    .map(Value::to_string)
+                    .unwrap_or_else(|| "null".to_owned());
+                return Err(EventContractValidationError::Denied(format!(
+                    "futu: event contract {code} is not active ({status})"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn persist_event_combo_preview(
+        &self,
+        payload: &Value,
+        parsed: &ParsedCombo,
+    ) -> Result<Value, ExecutionWritePortError> {
+        let now = crate::product::product_production_ports::provider_now_rfc3339();
+        let legs = canonical_combo_legs(parsed);
+        let request_hash = preview_request_hash(payload, &parsed.order, Some(legs.clone()))?;
+        let preview_id = format!("preview-{}", &request_hash[..20]);
+        let quote_expires_at = combo_quote_expires_at(payload)?;
+        let expires_at = preview_expires_at(&now, quote_expires_at.as_deref())?;
+        self.store
+            .save_preview(&StoredExecutionOrderPreview {
+                preview_id: preview_id.clone(),
+                request_hash: request_hash.clone(),
+                broker_id: parsed.order.broker_id.clone(),
+                capability_version: jftrade_broker_capability_version(),
+                account_id: parsed.order.header.acc_id.to_string(),
+                expires_at: expires_at.clone(),
+                quote_expires_at,
+                rfq_id: parsed.quote_id.clone(),
+                normalized_request: payload.to_string(),
+                created_at: now.clone(),
+                consumed_at: None,
+            })
+            .map_err(store_error)?;
+        Ok(json!({
+            "previewId": preview_id,
+            "requestHash": request_hash,
+            "previewAt": now,
+            "expiresAt": expires_at,
+            "capabilityVersion": jftrade_broker_capability_version(),
+            "brokerId": parsed.order.broker_id,
+            "accountId": parsed.order.header.acc_id.to_string(),
+            "market": parsed.order.market,
+            "orderKind": parsed.order.order_kind,
+            "productClass": parsed.order.product_class,
+            "legs": legs,
+            "allowed": true,
+        }))
     }
 
     fn option_combo_analysis(
@@ -595,6 +756,24 @@ fn option_strategy_name(strategy: i32) -> &'static str {
         15 => "calendar",
         _ => "",
     }
+}
+
+fn normalize_event_contract_code(value: &str) -> Option<String> {
+    let value = value.trim();
+    let value = value
+        .strip_prefix("US.")
+        .or_else(|| value.strip_prefix("us."))
+        .unwrap_or(value)
+        .trim();
+    if value.is_empty()
+        || value.len() > 512
+        || value
+            .chars()
+            .any(|ch| ch.is_whitespace() || ch.is_control() || matches!(ch, '/' | '\\' | '?' | '#'))
+    {
+        return None;
+    }
+    Some(value.to_ascii_uppercase())
 }
 
 pub(super) fn canonical_combo_legs(parsed: &ParsedCombo) -> Value {

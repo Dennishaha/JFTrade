@@ -307,6 +307,7 @@ impl Drop for CancelInFlightGuard {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ProductRuleRequest {
+    pub(crate) instrument_id: Option<String>,
     pub(crate) product_class: String,
     pub(crate) order_kind: String,
     pub(crate) order_type: String,
@@ -327,6 +328,13 @@ pub(crate) fn parse_product_rule_request(
         .as_object()
         .ok_or_else(|| failed(400, "BAD_REQUEST", "invalid buying-power request"))?;
     let instrument = object.get("instrument").and_then(Value::as_object);
+    let instrument_id = instrument
+        .and_then(|value| value.get("instrumentId"))
+        .and_then(Value::as_str)
+        .or_else(|| object.get("instrumentId").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
     let product_class = instrument
         .and_then(|value| value.get("productClass"))
         .and_then(Value::as_str)
@@ -358,6 +366,7 @@ pub(crate) fn parse_product_rule_request(
         .trim()
         .to_ascii_uppercase();
     Ok(ProductRuleRequest {
+        instrument_id,
         product_class,
         order_kind,
         order_type,
@@ -411,13 +420,6 @@ pub(crate) fn product_rule_rejection(
                 "event-contract orders require LIMIT order type",
             ));
         }
-        // No typed active-contract reader is installed in the execution
-        // production port yet.  Refuse the request explicitly instead of
-        // claiming that an arbitrary prediction instrument is tradable.
-        return Some((
-            "EVENT_NOT_TRADABLE",
-            "active event-contract validation is unavailable",
-        ));
     }
     if matches!(request.product_class.as_str(), "option" | "future")
         && request

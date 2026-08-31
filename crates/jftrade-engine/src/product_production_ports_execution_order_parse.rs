@@ -70,6 +70,9 @@ impl ParsedOrder {
 pub(super) struct ParsedCombo {
     pub(super) order: ParsedOrder,
     pub(super) legs: Vec<TradeComboLeg>,
+    /// Server-issued prediction RFQ identity. OpenD requires this value when
+    /// placing event-parlay combos; dropping it would submit an unbound quote.
+    pub(super) quote_id: Option<String>,
     /// Original normalized JSON legs retained for the combo preview/order
     /// projection. OpenD's neutral leg omits optional quantity/amount/price
     /// fields and must not force the public wire shape to drop them.
@@ -113,7 +116,7 @@ impl ParsedCombo {
             time_in_force: self.order.time_in_force,
             expire_time: None,
             remark: self.order.remark.clone(),
-            quote_id: None,
+            quote_id: self.quote_id.clone(),
         }
     }
 }
@@ -528,6 +531,7 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
     Ok(ParsedCombo {
         order,
         legs,
+        quote_id: string_field(object, "rfqId"),
         leg_payloads,
     })
 }
