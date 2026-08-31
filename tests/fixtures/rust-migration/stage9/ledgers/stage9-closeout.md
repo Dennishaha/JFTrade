@@ -13,7 +13,8 @@ security, SBOM, rollback, backup/restore and post-release smoke gates are open.
 The historical owner labels and counts below are retained as rehearsal evidence
 and must not be read as the current production boundary.
 
-状态：集成分支维护的共享收口证据；不代表任何 route group 已切换 production owner。
+状态：当前 278 条 route 的 production owner 已记录并由 production composition
+绑定为 Rust；本账本仍不代表正式 release 或 owner-deletion closeout 已完成。
 
 ## Three-way review and quirks
 

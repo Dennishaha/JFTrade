@@ -4,6 +4,21 @@
 >
 > Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
 
+## Current semantic boundary (2026-08-31)
+
+The route ledger records all fourteen operations as `cutover-qualified`,
+`productionOwner=rust`, and `goRemovalStatus=removed`, and the production route
+registry contains all fourteen routes. Registration and ownership do not imply
+that every provider-dependent operation is currently available: readiness is
+resolved per operation from the active helper/OpenD capabilities and otherwise
+fails closed as `ExternalUnavailable`. In particular, the production
+composition deliberately keeps `GET /api/v1/research/institutions`,
+`GET /api/v1/research/screens`, `GET /api/v1/research/short-interest/{instrumentId}`,
+and `GET /api/v1/research/technical-indicators/{instrumentId}` externally
+unavailable because no production reader is wired for them.
+
+## Historical rehearsal evidence (pre-2026-08-31)
+
 - Group: `research-read`
 - Tier: B: provider-backed company, market, calendar and ranking projections depend on the Go provider runtime, so Rust is test-cutover-only.
 - Owner: Go remains production owner. Rust accepts a consumer-owned `ResearchReadSnapshotPort` only in `ProductConfig::test_cutover`; it never starts a provider, opens OpenD, or writes research state.
