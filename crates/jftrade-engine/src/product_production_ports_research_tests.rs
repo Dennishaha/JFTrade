@@ -2,6 +2,8 @@ use super::*;
 use crate::product::product_research_screen_write_port::{
     ResearchScreenColumn, ResearchScreenWritePort, ResearchScreenWriteQuery,
 };
+use std::io::{Read, Write};
+use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -10,7 +12,10 @@ fn helper(base_url: String) -> HelperClient {
     HelperClient::new(jftrade_integration_marketdata_helper::HelperClientConfig {
         base_url,
         bearer_token: None,
-        request_timeout: Duration::from_secs(1),
+        // Keep the fixture timeout above the scheduler noise of the full
+        // engine suite; production timeout/error mapping is tested by the
+        // helper integration tests with their own configured budgets.
+        request_timeout: Duration::from_secs(5),
         max_attempts: 1,
         retry_delay: Duration::ZERO,
     })
@@ -94,21 +99,39 @@ async fn production_research_port_forwards_financials_to_helper() {
     server.await.expect("server");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn production_research_port_preserves_helper_http_errors() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+#[test]
+fn production_research_port_preserves_helper_http_errors() {
+    // Keep the fixture listener on its own OS thread.  The production port is
+    // synchronous and performs its reqwest call on a spawned Tokio runtime;
+    // hosting the peer on the test runtime lets a busy full-suite scheduler
+    // starve the response long enough to turn a deterministic 404 into a
+    // connection/timeout error.
+    let listener = StdTcpListener::bind("127.0.0.1:0").expect("listen");
     let address = listener.local_addr().expect("address");
-    let server = tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.expect("accept");
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("read timeout");
+        let mut request = Vec::with_capacity(4096);
+        let mut chunk = [0_u8; 1024];
+        while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+            let read = stream.read(&mut chunk).expect("read");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if request.len() > 16 * 1024 {
+                break;
+            }
+        }
         let body = r#"{"error":{"code":"NOT_FOUND","message":"financials not found"}}"#;
         let response = format!(
             "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nRetry-After: 3\r\nConnection: close\r\n\r\n{}",
             body.len(),
             body
         );
-        stream.write_all(response.as_bytes()).await.expect("write");
-        let mut request = [0_u8; 1024];
-        let _ = stream.read(&mut request).await;
+        stream.write_all(response.as_bytes()).expect("write");
     });
     let state = Arc::new(ActiveProviderState::new(Some(
         jftrade_settings::MarketDataProvider::Yfinance,
@@ -119,7 +142,9 @@ async fn production_research_port_preserves_helper_http_errors() {
         helper: Some(helper(format!("http://{address}"))),
         trade_runtime: None,
     };
-    let result = port.read("/api/v1/research/analyst/US.AAPL", "");
+    // The fixture envelope describes the financials operation; exercise that
+    // canonical route so the request and expected remote error stay aligned.
+    let result = port.read("/api/v1/research/financials/US.AAPL", "");
     assert!(matches!(
         result,
         Err(ResearchReadSnapshotError::Failed {
@@ -129,7 +154,7 @@ async fn production_research_port_preserves_helper_http_errors() {
             retry_after_seconds: Some(3),
         }) if code == "NOT_FOUND" && message == "financials not found"
     ));
-    server.await.expect("server");
+    server.join().expect("server");
 }
 
 #[derive(Debug)]

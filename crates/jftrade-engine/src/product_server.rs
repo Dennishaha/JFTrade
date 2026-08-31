@@ -577,6 +577,20 @@ pub(crate) async fn prepare_product_with_runtime_state(
         // ProductConfig injection remains a rehearsal seam and is ignored.
         config.backtest_execution_port = None;
     }
+    // Compose one live hub before building production ports.  The websocket
+    // adapter is part of the route-readiness projection, so it must observe
+    // the same hub retained by the API state and ProductHandle rather than a
+    // missing startup-time option.
+    let live_hub = config
+        .live_hub
+        .clone()
+        .unwrap_or_else(|| Arc::new(LiveHub::default()));
+    config.live_hub = Some(Arc::clone(&live_hub));
+    if let Some(router) = &config.market_data_router {
+        live_hub.set_demand_listener(Arc::new(RouterDemandListener {
+            router: Arc::clone(router),
+        }));
+    }
     let production_ports = config
         .production
         .then(|| product_production_ports::production_ports(&config, &security_service))
@@ -1048,15 +1062,6 @@ pub(crate) async fn prepare_product_with_runtime_state(
             },
         },
     ));
-    let live_hub = config
-        .live_hub
-        .clone()
-        .unwrap_or_else(|| Arc::new(LiveHub::default()));
-    if let Some(router) = &config.market_data_router {
-        live_hub.set_demand_listener(Arc::new(RouterDemandListener {
-            router: Arc::clone(router),
-        }));
-    }
     let mut state = ApiState::new(routes, access_policy, port).with_live_hub(Arc::clone(&live_hub));
     state.metrics = metrics;
     state.live_connections = live_connections;

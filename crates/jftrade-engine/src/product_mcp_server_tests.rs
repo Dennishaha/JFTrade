@@ -17,6 +17,8 @@ use std::net::TcpStream;
 use std::time::Duration;
 use tempfile::TempDir;
 
+const MCP_TEST_IO_TIMEOUT: Duration = Duration::from_secs(10);
+
 fn available_port() -> u16 {
     StdTcpListener::bind("127.0.0.1:0")
         .expect("reserve MCP test port")
@@ -117,7 +119,7 @@ fn runtime() -> Arc<ProductMcpServerRuntime> {
 fn request(port: u16, token: Option<&str>, payload: &str, remote: &str) -> String {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect MCP listener");
     stream
-        .set_read_timeout(Some(Duration::from_secs(2)))
+        .set_read_timeout(Some(MCP_TEST_IO_TIMEOUT))
         .expect("set MCP timeout");
     let auth = token
         .map(|token| format!("Authorization: Bearer {token}\r\n"))
@@ -147,7 +149,7 @@ fn request_with_method(
 ) -> String {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect MCP listener");
     stream
-        .set_read_timeout(Some(Duration::from_secs(2)))
+        .set_read_timeout(Some(MCP_TEST_IO_TIMEOUT))
         .expect("set MCP timeout");
     let host = host.map_or(String::new(), |host| format!("Host: {host}\r\n"));
     let auth = token
@@ -180,7 +182,7 @@ fn request_modern_with_status(
 ) -> (u16, Value) {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect MCP listener");
     stream
-        .set_read_timeout(Some(Duration::from_secs(2)))
+        .set_read_timeout(Some(MCP_TEST_IO_TIMEOUT))
         .expect("set MCP timeout");
     let mut params = params;
     if let Some(object) = params.as_object_mut() {

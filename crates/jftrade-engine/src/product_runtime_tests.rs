@@ -525,7 +525,12 @@ async fn build_test_runtime_config(
         // Wide enough to survive the synchronous production-port construction
         // window of the current-thread test runtime; staleness semantics are
         // covered by the monitor's own tests.
-        health_ttl: Duration::from_secs(5),
+        // A full engine test run can spend several seconds waiting for other
+        // production fixtures to release their leases before this assertion
+        // executes.  Keep the seeded startup evidence valid for that bounded
+        // construction window; the monitor's dedicated stale-TTL test still
+        // verifies expiry semantics with a short TTL.
+        health_ttl: Duration::from_secs(30),
     };
 
     let pine_config = PineWorkerRuntimeConfig {

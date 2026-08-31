@@ -3,6 +3,7 @@
 use std::net::{SocketAddr, TcpListener as StdTcpListener};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
+use std::time::Duration;
 
 use super::product_mcp_production_executor::ProductionMcpToolExecutor;
 use super::product_mcp_protocol::{
@@ -187,14 +188,26 @@ impl McpServerOwner {
             .build()
             .map_err(|error| format!("create MCP runtime: {error}"))?;
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        // Binding the std listener only reserves the port.  Wait until the
+        // server thread has converted it into a Tokio listener before
+        // returning from apply(), otherwise an immediate client request can
+        // race the runtime bootstrap and observe an empty/non-readable socket.
+        let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(1);
         let running = Arc::new(AtomicBool::new(true));
         let running_for_thread = Arc::clone(&running);
         let thread = std::thread::Builder::new()
             .name("jftrade-mcp-server".to_owned())
             .spawn(move || {
                 let result = runtime.block_on(async move {
-                    let listener = tokio::net::TcpListener::from_std(listener)
-                        .map_err(|error| error.to_string())?;
+                    let listener = match tokio::net::TcpListener::from_std(listener) {
+                        Ok(listener) => listener,
+                        Err(error) => {
+                            let message = format!("convert MCP listener: {error}");
+                            let _ = ready_tx.send(Err(message.clone()));
+                            return Err(message);
+                        }
+                    };
+                    let _ = ready_tx.send(Ok(()));
                     axum::serve(
                         listener,
                         router.into_make_service_with_connect_info::<SocketAddr>(),
@@ -208,7 +221,13 @@ impl McpServerOwner {
                 running_for_thread.store(false, Ordering::Release);
                 if let Err(error) = &result
                     && let Some(state) = state.upgrade()
-                    && let Ok(mut guard) = state.lock()
+                    // `apply` holds the runtime state lock while it waits for
+                    // the readiness barrier.  Never wait on that lock from
+                    // the worker's error path: a conversion/startup error is
+                    // returned to `apply`, which records it after the lock is
+                    // released; later runtime failures can publish here when
+                    // the lock is available.
+                    && let Ok(mut guard) = state.try_lock()
                     && guard.generation == generation
                 {
                     guard.last_error = format!("MCP listener stopped unexpectedly: {error}");
@@ -216,11 +235,26 @@ impl McpServerOwner {
                 result
             })
             .map_err(|error| format!("start MCP listener thread: {error}"))?;
-        Ok(Self {
-            shutdown_tx: Some(shutdown_tx),
-            thread: Some(thread),
-            running,
-        })
+        match ready_rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(Ok(())) => Ok(Self {
+                shutdown_tx: Some(shutdown_tx),
+                thread: Some(thread),
+                running,
+            }),
+            Ok(Err(message)) => {
+                drop(shutdown_tx);
+                let _ = thread.join();
+                Err(message)
+            }
+            Err(error) => {
+                // Dropping the sender resolves the graceful-shutdown future
+                // in the worker, allowing a bounded startup failure to clean
+                // up its thread and listener before returning the error.
+                drop(shutdown_tx);
+                let _ = thread.join();
+                Err(format!("wait for MCP listener readiness: {error}"))
+            }
+        }
     }
 
     fn is_running(&self) -> bool {
@@ -259,6 +293,38 @@ impl Drop for McpServerOwner {
         }
     }
 }
+
+fn rollback_failed_shutdown(
+    state: &Arc<Mutex<McpServerState>>,
+    failure: McpShutdownFailure,
+    previous_settings: ActiveMcpSettings,
+    previous_bind: Option<String>,
+    previous_generation: u64,
+) -> Result<(), String> {
+    let error = failure.message.clone();
+    let new_server = {
+        let mut state = state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let new_server = state.server.take();
+        state.server = Some(failure.owner);
+        state.settings = previous_settings;
+        state.bind = previous_bind;
+        state.generation = previous_generation;
+        state.last_error = error.clone();
+        new_server
+    };
+    if let Some(new_server) = new_server
+        && let Err(new_failure) = new_server.shutdown()
+    {
+        return Err(format!(
+            "{error}; rollback listener shutdown failed: {}",
+            new_failure.message
+        ));
+    }
+    Err(error)
+}
+
 struct McpRequestContext {
     state: Weak<Mutex<McpServerState>>,
     catalog: Arc<ProductionToolCatalog>,
@@ -267,6 +333,11 @@ struct McpRequestContext {
 }
 pub(crate) struct ProductMcpServerRuntime {
     state: Arc<Mutex<McpServerState>>,
+    /// Serializes apply/shutdown transitions without extending the state
+    /// mutex across listener startup or worker joins.  Holding the state lock
+    /// while `McpServerOwner::start` waits for readiness can deadlock when the
+    /// worker reports an early startup failure and tries to publish its error.
+    transition: Mutex<()>,
 }
 impl ProductMcpServerRuntime {
     #[allow(dead_code)]
@@ -335,9 +406,16 @@ impl ProductMcpServerRuntime {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .router = router;
-        Arc::new(Self { state })
+        Arc::new(Self {
+            state,
+            transition: Mutex::new(()),
+        })
     }
     pub(crate) fn shutdown_blocking(&self) -> Result<(), String> {
+        let _transition = self
+            .transition
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let owner = {
             let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
             state.closed = true;
@@ -361,89 +439,146 @@ impl ProductMcpServerRuntime {
 }
 impl McpServerRuntimePort for ProductMcpServerRuntime {
     fn apply(&self, record: &McpServerSettingsRecord) -> Result<(), String> {
+        let _transition = self
+            .transition
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let next = ActiveMcpSettings::from_record(record);
-        let (old_server, rollback) = {
-            let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
-            if state.closed {
-                return Err("MCP server runtime is closed".to_owned());
-            }
-            let previous = (state.settings.clone(), state.bind.clone(), state.generation);
-            if !next.enabled {
+        if !next.enabled {
+            let (previous_settings, previous_bind, previous_generation, old_server) = {
+                let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+                if state.closed {
+                    return Err("MCP server runtime is closed".to_owned());
+                }
+                let previous = (state.settings.clone(), state.bind.clone(), state.generation);
+                let old_server = state.server.take();
                 state.settings = next;
                 state.bind = None;
                 state.last_error.clear();
                 state.generation = state.generation.wrapping_add(1);
-                (state.server.take(), Some(previous))
-            } else {
-                if next.auth_mode != "none" && next.token_hash.trim().is_empty() {
-                    let message = "MCP server token is not configured";
-                    state.last_error = message.to_owned();
-                    return Err(message.to_owned());
-                }
-                let desired_bind = format!("127.0.0.1:{}", next.port);
-                let same_port = state.bind.as_deref() == Some(desired_bind.as_str());
-                if same_port
-                    && state
-                        .server
-                        .as_ref()
-                        .is_some_and(McpServerOwner::is_running)
-                {
-                    state.settings = next;
-                    state.last_error.clear();
-                    return Ok(());
-                }
-                let listener = StdTcpListener::bind(&desired_bind).map_err(|error| {
-                    let message = format!("MCP server port conflict on {desired_bind}: {error}");
-                    state.last_error = message.clone();
-                    message
-                })?;
-                let generation = state.generation.wrapping_add(1);
-                let owner = McpServerOwner::start(
-                    listener,
-                    state.router.clone(),
-                    Arc::downgrade(&self.state),
-                    generation,
-                )
-                .inspect_err(|error| {
-                    state.last_error = error.clone();
-                })?;
-                let old_server = state.server.replace(owner);
-                state.settings = next;
-                state.bind = Some(desired_bind);
-                state.last_error.clear();
-                state.generation = generation;
-                (old_server, Some(previous))
+                (previous.0, previous.1, previous.2, old_server)
+            };
+            let Some(old_server) = old_server else {
+                return Ok(());
+            };
+            if let Err(failure) = old_server.shutdown() {
+                return rollback_failed_shutdown(
+                    &self.state,
+                    failure,
+                    previous_settings,
+                    previous_bind,
+                    previous_generation,
+                );
             }
+            return Ok(());
+        }
+
+        let (
+            previous_settings,
+            previous_bind,
+            previous_generation,
+            desired_bind,
+            generation,
+            router,
+        ) = {
+            let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+            if state.closed {
+                return Err("MCP server runtime is closed".to_owned());
+            }
+            if next.auth_mode != "none" && next.token_hash.trim().is_empty() {
+                drop(state);
+                let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+                let message = "MCP server token is not configured";
+                state.last_error = message.to_owned();
+                return Err(message.to_owned());
+            }
+            let desired_bind = format!("127.0.0.1:{}", next.port);
+            let same_port = state.bind.as_deref() == Some(desired_bind.as_str());
+            if same_port
+                && state
+                    .server
+                    .as_ref()
+                    .is_some_and(McpServerOwner::is_running)
+            {
+                drop(state);
+                let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+                state.settings = next;
+                state.last_error.clear();
+                return Ok(());
+            }
+            (
+                state.settings.clone(),
+                state.bind.clone(),
+                state.generation,
+                desired_bind,
+                state.generation.wrapping_add(1),
+                state.router.clone(),
+            )
+        };
+
+        // Reserve and configure the new socket without holding the runtime
+        // state mutex.  This keeps listener setup independent of request
+        // handlers or the worker's error-reporting path.
+        let listener = match StdTcpListener::bind(&desired_bind) {
+            Ok(listener) => listener,
+            Err(error) => {
+                let message = format!("MCP server port conflict on {desired_bind}: {error}");
+                let mut state = self
+                    .state
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                state.last_error = message.clone();
+                return Err(message);
+            }
+        };
+
+        let old_server = {
+            let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+            // `transition` prevents another apply/shutdown from changing the
+            // tuple while the listener is being started.
+            state.generation = generation;
+            state.last_error.clear();
+            state.server.take()
+        };
+        let owner = match McpServerOwner::start(
+            listener,
+            router,
+            Arc::downgrade(&self.state),
+            generation,
+        ) {
+            Ok(owner) => owner,
+            Err(error) => {
+                let mut state = self
+                    .state
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                state.generation = previous_generation;
+                state.server = old_server;
+                state.settings = previous_settings;
+                state.bind = previous_bind;
+                state.last_error = error.clone();
+                return Err(error);
+            }
+        };
+        let old_server = {
+            let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+            let old_server = state.server.replace(owner);
+            state.settings = next;
+            state.bind = Some(desired_bind);
+            state.generation = generation;
+            old_server
         };
         let Some(old_server) = old_server else {
             return Ok(());
         };
         if let Err(failure) = old_server.shutdown() {
-            let error = failure.message.clone();
-            let new_server = {
-                let mut state = self
-                    .state
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner());
-                let new_server = state.server.take();
-                state.server = Some(failure.owner);
-                if let Some((settings, bind, generation)) = rollback {
-                    state.settings = settings;
-                    state.bind = bind;
-                    state.generation = generation;
-                }
-                state.last_error = error.clone();
-                new_server
-            };
-            if let Some(new_server) = new_server
-                && let Err(new_failure) = new_server.shutdown()
-            {
-                return Err(format!(
-                    "{error}; rollback listener shutdown failed: {}",
-                    new_failure.message
-                ));
-            }
-            return Err(error);
+            return rollback_failed_shutdown(
+                &self.state,
+                failure,
+                previous_settings,
+                previous_bind,
+                previous_generation,
+            );
         }
         Ok(())
     }

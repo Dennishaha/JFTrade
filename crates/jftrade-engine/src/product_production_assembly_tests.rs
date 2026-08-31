@@ -2,6 +2,7 @@
 mod product_production_assembly_tests {
     use std::collections::HashSet;
     use std::fs;
+    use std::io::{Read, Write};
     use std::net::SocketAddr;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -576,6 +577,15 @@ mod product_production_assembly_tests {
         // the hub is always composed and reported as serving once the HTTP
         // listener is exposed.
         assert_eq!(record.websocket_status, "serving");
+        assert!(
+            handle
+                .production_ports
+                .as_ref()
+                .expect("production ports")
+                .ws_live
+                .enabled(),
+            "production websocket adapter must share the exposed live hub"
+        );
         assert!(!record.capabilities.is_empty());
 
         handle.shutdown().await.expect("shutdown cleanly");
@@ -950,11 +960,42 @@ mod product_production_assembly_tests {
         let provider_state = Arc::new(crate::product::ActiveProviderState::new(Some(
             MarketDataProvider::Yfinance,
         )));
+        // Keep the first strategy cycle in a valid, empty-data state.  The
+        // production manager starts the worker asynchronously; pointing the
+        // helper at an immediately refused port made the worker race this
+        // assertion and flip the persisted row to FAILED before the status
+        // projection was sampled.  A one-shot loopback response is still a
+        // real HTTP helper round trip, but does not require a market-data
+        // fixture or Pine execution to prove the START boundary.
+        let helper_listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind strategy helper fixture");
+        let helper_address = helper_listener
+            .local_addr()
+            .expect("strategy helper fixture address");
+        let helper_server = std::thread::spawn(move || {
+            let (mut stream, _) = helper_listener.accept().expect("accept strategy helper");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("helper read timeout");
+            let mut request = [0_u8; 4096];
+            let _ = stream
+                .read(&mut request)
+                .expect("read strategy helper request");
+            let body = r#"{"market":"US","symbol":"AAPL","instrumentId":"US.AAPL","period":"1m","extendedHours":false,"candles":[],"totalReturned":0,"hasMore":false,"source":"fixture","adjustment":"none"}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write strategy helper response");
+        });
         let helper = jftrade_integration_marketdata_helper::HelperClient::new(
             jftrade_integration_marketdata_helper::HelperClientConfig {
-                base_url: "http://127.0.0.1:9".to_owned(),
+                base_url: format!("http://{helper_address}"),
                 bearer_token: None,
-                request_timeout: Duration::from_millis(50),
+                request_timeout: Duration::from_secs(2),
                 max_attempts: 1,
                 retry_delay: Duration::ZERO,
             },
@@ -1069,6 +1110,7 @@ mod product_production_assembly_tests {
             runtime_risk: None,
         });
         assert!(update_res.is_err());
+        helper_server.join().expect("strategy helper fixture");
     }
 
     #[tokio::test]

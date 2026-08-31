@@ -29,7 +29,9 @@ pub(super) fn research_helper_request(
     } else if let Some(value) = path.strip_prefix("/api/v1/research/instruments/") {
         ("profile", value)
     } else {
-        return Err(capability("research", path));
+        return Err(unavailable(format!(
+            "research helper route is not supported: {path}"
+        )));
     };
     let instrument = suffix.trim();
     let (raw_market, raw_symbol) = instrument

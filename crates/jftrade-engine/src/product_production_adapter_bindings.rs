@@ -335,9 +335,10 @@ impl ProductionPortBundle {
         }
         if adapter == ProductionRouteAdapter::WebSocketLive {
             // The hub is constructed before the HTTP listener is exposed, so
-            // the route is installed during preparation while remaining
-            // unavailable until the real hub reaches `Serving`.  Do not
-            // classify that lifecycle window as a missing internal adapter.
+            // both `Accepting` (composed, pre-exposure) and `Serving` are
+            // route-ready.  Only shutdown states reject new websocket calls;
+            // treating `Accepting` as unavailable would leave startup counts
+            // stale after the listener is exposed.
             return Some(if self.ws_live.enabled() {
                 ProductionAdapterBinding::Ready
             } else {

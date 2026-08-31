@@ -198,8 +198,31 @@ impl ProductionWsLivePort {
 
 impl WsLiveSnapshotPort for ProductionWsLivePort {
     fn enabled(&self) -> bool {
-        self.live_hub
-            .as_ref()
-            .is_some_and(|hub| hub.lifecycle() == LiveHubLifecycle::Serving)
+        self.live_hub.as_ref().is_some_and(|hub| {
+            matches!(
+                hub.lifecycle(),
+                LiveHubLifecycle::Accepting | LiveHubLifecycle::Serving
+            )
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::product::WsLiveSnapshotPort;
+
+    #[test]
+    fn websocket_live_port_stays_enabled_until_shutdown() {
+        let hub = Arc::new(LiveHub::default());
+        let port = ProductionWsLivePort::new(Some(Arc::clone(&hub)));
+
+        assert!(port.enabled(), "composed accepting hub is route-ready");
+        hub.mark_serving();
+        assert!(port.enabled(), "serving hub remains route-ready");
+        hub.begin_shutdown();
+        assert!(!port.enabled(), "shutting down hub rejects new routes");
+        hub.mark_stopped();
+        assert!(!port.enabled(), "stopped hub rejects new routes");
     }
 }

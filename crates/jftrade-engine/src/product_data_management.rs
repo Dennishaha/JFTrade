@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use jftrade_datamanagement::{
@@ -68,6 +68,12 @@ pub fn maintenance_service_with_profile(
 /// manifest; incompatibilities fail startup and leave the original untouched.
 pub fn initialize_production_databases(settings_path: &Path) -> Result<(), String> {
     let (descriptors, _) = database_descriptors(settings_path, |name| env::var(name).ok());
+    initialize_production_databases_inner(&descriptors)
+}
+
+fn initialize_production_databases_inner(
+    descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
+) -> Result<(), String> {
     for descriptor in descriptors {
         let path = Path::new(&descriptor.path);
         if let Some(parent) = path
@@ -103,48 +109,154 @@ pub fn initialize_production_databases(settings_path: &Path) -> Result<(), Strin
                 path.display()
             )
         })?;
-        let connection = Connection::open_with_flags(
-            path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
-        )
-        .map_err(|error| format!("open {}: {error}", path.display()))?;
-        if existed {
-            match jftrade_store_sqlite::validate_current(
-                &connection,
-                &descriptor.path,
-                &descriptor.id,
-                descriptor.expected_version,
-            ) {
-                Ok(()) => {}
-                Err(error)
-                    if jftrade_store_sqlite::current_version(&connection, &descriptor.id)
-                        .is_some_and(|version| version < descriptor.expected_version) =>
-                {
-                    let from_version =
-                        jftrade_store_sqlite::current_version(&connection, &descriptor.id)
-                            .ok_or_else(|| {
-                                format!(
-                                    "{}; schema metadata version disappeared before migration",
-                                    error
-                                )
-                            })?;
-                    migrate_legacy_schema(
-                        &connection,
-                        &descriptor.path,
-                        &descriptor.id,
-                        from_version,
-                        descriptor.expected_version,
-                    )
-                    .map_err(|migration_error| {
-                        format!("{}; migration failed: {migration_error}", error)
-                    })?;
-                }
-                Err(error) => return Err(error.to_string()),
-            }
-        } else {
-            initialize_current(&connection, &descriptor.id).map_err(|error| error.to_string())?;
+        // SQLite may recover WAL state or create a shared-memory file while
+        // opening a database.  Capture the exact bytes only after taking the
+        // writer lease, then restore them if this descriptor fails so another
+        // process cannot race the snapshot or observe a partial migration.
+        let snapshots = snapshot_database_files(descriptor)?;
+        let result = initialize_database_descriptor(descriptor, path, existed);
+        if let Err(error) = result {
+            let restore_result = restore_database_files(&snapshots);
+            drop(_writer_lease);
+            return match restore_result {
+                Ok(()) => Err(error),
+                Err(restore_error) => Err(format!(
+                    "{error}; failed to restore database files after startup failure: {restore_error}"
+                )),
+            };
         }
     }
+    Ok(())
+}
+
+fn initialize_database_descriptor(
+    descriptor: &jftrade_datamanagement::DatabaseDescriptor,
+    path: &Path,
+    existed: bool,
+) -> Result<(), String> {
+    let connection = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE,
+    )
+    .map_err(|error| format!("open {}: {error}", path.display()))?;
+    if existed {
+        match jftrade_store_sqlite::validate_current(
+            &connection,
+            &descriptor.path,
+            &descriptor.id,
+            descriptor.expected_version,
+        ) {
+            Ok(()) => {}
+            Err(error)
+                if jftrade_store_sqlite::current_version(&connection, &descriptor.id)
+                    .is_some_and(|version| version < descriptor.expected_version) =>
+            {
+                let from_version =
+                    jftrade_store_sqlite::current_version(&connection, &descriptor.id).ok_or_else(
+                        || {
+                            format!(
+                                "{}; schema metadata version disappeared before migration",
+                                error
+                            )
+                        },
+                    )?;
+                migrate_legacy_schema(
+                    &connection,
+                    &descriptor.path,
+                    &descriptor.id,
+                    from_version,
+                    descriptor.expected_version,
+                )
+                .map_err(|migration_error| {
+                    format!("{}; migration failed: {migration_error}", error)
+                })?;
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+    } else {
+        initialize_current(&connection, &descriptor.id).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+#[derive(Debug)]
+struct DatabaseFileSnapshot {
+    path: PathBuf,
+    backup: Option<tempfile::NamedTempFile>,
+}
+
+fn snapshot_database_files(
+    descriptor: &jftrade_datamanagement::DatabaseDescriptor,
+) -> Result<Vec<DatabaseFileSnapshot>, String> {
+    let mut snapshots = Vec::with_capacity(4);
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let path = PathBuf::from(format!("{}{suffix}", descriptor.path));
+        let backup = tempfile::NamedTempFile::new().map_err(|error| {
+            format!("create temporary snapshot for {}: {error}", path.display())
+        })?;
+        let backup = match fs::copy(&path, backup.path()) {
+            Ok(_) => {
+                backup.as_file().sync_all().map_err(|error| {
+                    format!("sync temporary snapshot for {}: {error}", path.display())
+                })?;
+                Some(backup)
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                return Err(format!(
+                    "snapshot managed database {}: {error}",
+                    path.display()
+                ));
+            }
+        };
+        snapshots.push(DatabaseFileSnapshot { path, backup });
+    }
+    Ok(snapshots)
+}
+
+fn restore_database_files(snapshots: &[DatabaseFileSnapshot]) -> Result<(), String> {
+    for snapshot in snapshots {
+        match snapshot.backup.as_ref() {
+            Some(backup) => restore_database_file(&snapshot.path, backup)?,
+            None => match fs::remove_file(&snapshot.path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(format!(
+                        "remove newly-created database sidecar {}: {error}",
+                        snapshot.path.display()
+                    ));
+                }
+            },
+        }
+    }
+    Ok(())
+}
+
+fn restore_database_file(path: &Path, backup: &tempfile::NamedTempFile) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|error| {
+        format!(
+            "create temporary restore file for {}: {error}",
+            path.display()
+        )
+    })?;
+    let mut source = fs::File::open(backup.path())
+        .map_err(|error| format!("open snapshot for {}: {error}", path.display()))?;
+    std::io::copy(&mut source, temporary.as_file_mut())
+        .and_then(|_| temporary.as_file().sync_all())
+        .map_err(|error| {
+            format!(
+                "write temporary restore file for {}: {error}",
+                path.display()
+            )
+        })?;
+    temporary
+        .persist(path)
+        .map_err(|error| format!("atomically restore {}: {error}", path.display()))?;
     Ok(())
 }
 
