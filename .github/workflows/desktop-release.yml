@@ -14,9 +14,24 @@ on:
         default: true
         type: boolean
       candidate_evidence_config:
-        description: Artifact-bound pre-release evidence config produced by the qualification run (required for publish)
+        description: Relative config path inside the candidate qualification artifact (required for publish)
+        required: false
+        default: candidate-evidence-config.json
+        type: string
+      candidate_evidence_run_id:
+        description: Successful qualification workflow run id whose artifact is bound to this tag and commit (required for publish)
         required: false
         default: ''
+        type: string
+      candidate_evidence_artifact:
+        description: Exact artifact name in the qualification run containing the config and evidence inputs (required for publish)
+        required: false
+        default: desktop-release-candidate-evidence
+        type: string
+      candidate_evidence_workflow:
+        description: Qualification workflow file used for push lookup and run provenance validation
+        required: false
+        default: desktop-release-qualification.yml
         type: string
   push:
     tags:
@@ -42,6 +57,12 @@ jobs:
     permissions:
       actions: read
       contents: read
+    outputs:
+      candidate_run_id: ${{ steps.resolve_candidate.outputs.run_id }}
+      candidate_run_attempt: ${{ steps.resolve_candidate.outputs.run_attempt }}
+      candidate_workflow: ${{ steps.resolve_candidate.outputs.workflow }}
+      candidate_artifact: ${{ steps.resolve_candidate.outputs.artifact }}
+      candidate_config: ${{ steps.resolve_candidate.outputs.config }}
     steps:
       - name: Checkout requested ref
         uses: actions/checkout@v7
@@ -93,6 +114,97 @@ jobs:
             exit 1
           fi
           echo "Verified required CI run: $ci_url"
+
+      - name: Resolve artifact-bound candidate qualification run
+        id: resolve_candidate
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_evidence_run_id || '' }}
+          CANDIDATE_ARTIFACT: ${{ inputs.candidate_evidence_artifact || 'desktop-release-candidate-evidence' }}
+          CANDIDATE_CONFIG: ${{ inputs.candidate_evidence_config || 'candidate-evidence-config.json' }}
+          CANDIDATE_WORKFLOW: ${{ inputs.candidate_evidence_workflow || 'desktop-release-qualification.yml' }}
+          RELEASE_TAG: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ ]] || {
+            echo "candidate_evidence_workflow must be a workflow filename ending in .yml" >&2
+            exit 1
+          }
+          [[ "$CANDIDATE_ARTIFACT" =~ ^[A-Za-z0-9._-]+$ ]] || {
+            echo "candidate_evidence_artifact must be an exact simple artifact name" >&2
+            exit 1
+          }
+          [[ "$CANDIDATE_CONFIG" != /* && "$CANDIDATE_CONFIG" != *".."* ]] || {
+            echo "candidate_evidence_config must be a relative path without traversal" >&2
+            exit 1
+          }
+          release_ref="refs/tags/$RELEASE_TAG"
+          RELEASE_COMMIT="$(git rev-parse HEAD)"
+          run_id="$CANDIDATE_RUN_ID"
+          if [[ "$EVENT_NAME" == "push" && -z "$run_id" ]]; then
+            runs_json="$(gh api \
+              --method GET \
+              "repos/$REPOSITORY/actions/workflows/$CANDIDATE_WORKFLOW/runs?status=success&head_sha=$RELEASE_COMMIT&per_page=100")"
+            run_id="$(jq -r \
+              --arg sha "$RELEASE_COMMIT" \
+              --arg tag "$RELEASE_TAG" \
+              '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)))] | sort_by(.created_at) | last.id // empty' \
+              <<<"$runs_json")"
+          fi
+          [[ "$run_id" =~ ^[1-9][0-9]*$ ]] || {
+            echo "Publishing requires a successful candidate qualification run bound to $release_ref at $RELEASE_COMMIT; no run id was provided or found." >&2
+            exit 1
+          }
+          run_json="$(gh api --method GET "repos/$REPOSITORY/actions/runs/$run_id")"
+          run_path="$(jq -r '.path // empty' <<<"$run_json")"
+          run_status="$(jq -r '.status // empty' <<<"$run_json")"
+          run_conclusion="$(jq -r '.conclusion // empty' <<<"$run_json")"
+          run_sha="$(jq -r '.head_sha // empty' <<<"$run_json")"
+          run_branch="$(jq -r '.head_branch // empty' <<<"$run_json")"
+          run_attempt="$(jq -r '.run_attempt // empty' <<<"$run_json")"
+          # Keep the binding stable across API display-name changes; the
+          # checked workflow file is already validated through run_path.
+          run_workflow="$CANDIDATE_WORKFLOW"
+          expected_path=".github/workflows/$CANDIDATE_WORKFLOW"
+          [[ "$run_path" == "$expected_path" || "$run_path" == "$CANDIDATE_WORKFLOW" ]] || {
+            echo "Candidate run $run_id is not produced by $expected_path (actual: $run_path)" >&2
+            exit 1
+          }
+          [[ "$run_status" == "completed" && "$run_conclusion" == "success" ]] || {
+            echo "Candidate qualification run $run_id is not successful: status=$run_status conclusion=$run_conclusion" >&2
+            exit 1
+          }
+          [[ "$run_sha" == "$RELEASE_COMMIT" ]] || {
+            echo "Candidate run $run_id commit $run_sha does not match release commit $RELEASE_COMMIT" >&2
+            exit 1
+          }
+          [[ "$run_branch" == "$RELEASE_TAG" || "$run_branch" == "$release_ref" ]] || {
+            echo "Candidate run $run_id ref $run_branch does not match release tag $RELEASE_TAG" >&2
+            exit 1
+          }
+          [[ "$run_attempt" =~ ^[1-9][0-9]*$ && -n "$run_workflow" ]] || {
+            echo "Candidate run $run_id has incomplete workflow provenance" >&2
+            exit 1
+          }
+          artifacts_json="$(gh api --method GET "repos/$REPOSITORY/actions/runs/$run_id/artifacts?per_page=100")"
+          jq -e --arg name "$CANDIDATE_ARTIFACT" --argjson run_id "$run_id" \
+            '.artifacts[] | select(.name == $name and .expired == false and .workflow_run.id == $run_id)' \
+            <<<"$artifacts_json" >/dev/null || {
+            echo "Candidate artifact $CANDIDATE_ARTIFACT is missing or expired in qualification run $run_id" >&2
+            exit 1
+          }
+          {
+            echo "run_id=$run_id"
+            echo "run_attempt=$run_attempt"
+            echo "workflow=$run_workflow"
+            echo "artifact=$CANDIDATE_ARTIFACT"
+            echo "config=$CANDIDATE_CONFIG"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Verify publish signing and updater prerequisites
         if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
@@ -897,6 +1009,15 @@ jobs:
           merge-multiple: true
           path: incoming
 
+      - name: Download candidate qualification artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.release-inputs.outputs.candidate_artifact }}
+          run-id: ${{ needs.release-inputs.outputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: candidate-evidence
+
       - name: Flatten release files
         run: |
           mkdir release
@@ -921,23 +1042,23 @@ jobs:
 
       - name: Verify artifact-bound Stage 9 release candidate evidence
         env:
-          CANDIDATE_EVIDENCE_CONFIG: ${{ inputs.candidate_evidence_config || '' }}
-          RELEASE_REF: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+          CANDIDATE_EVIDENCE_CONFIG: ${{ needs.release-inputs.outputs.candidate_config }}
+          CANDIDATE_RUN_ID: ${{ needs.release-inputs.outputs.candidate_run_id }}
+          CANDIDATE_RUN_ATTEMPT: ${{ needs.release-inputs.outputs.candidate_run_attempt }}
+          CANDIDATE_WORKFLOW: ${{ needs.release-inputs.outputs.candidate_workflow }}
+          RELEASE_REF: refs/tags/${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
           RELEASE_TAG: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
           COMMIT_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
-          WORKFLOW_NAME: ${{ github.workflow }}
-          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           COMMIT_SHA="$(git rev-parse HEAD)"
-          if [[ -z "$CANDIDATE_EVIDENCE_CONFIG" ]]; then
-            echo "Publishing requires an artifact-bound candidate evidence config from the qualification run." >&2
+          config_path="candidate-evidence/$CANDIDATE_EVIDENCE_CONFIG"
+          [[ "$CANDIDATE_EVIDENCE_CONFIG" != /* && "$CANDIDATE_EVIDENCE_CONFIG" != *".."* ]] || {
+            echo "Candidate evidence config path is not a safe artifact-relative path" >&2
             exit 1
-          fi
-          test -f "$CANDIDATE_EVIDENCE_CONFIG"
-          cp "$CANDIDATE_EVIDENCE_CONFIG" candidate-evidence-config.json
+          }
+          test -f "$config_path"
+          cp "$config_path" candidate-evidence-config.json
           node scripts/rust-migration/check-release-candidate.mjs \
             --build \
             --config candidate-evidence-config.json \
@@ -946,9 +1067,9 @@ jobs:
             --expected-ref "$RELEASE_REF" \
             --expected-tag "$RELEASE_TAG" \
             --expected-commit "$COMMIT_SHA" \
-            --expected-run-id "$WORKFLOW_RUN_ID" \
-            --expected-attempt "$WORKFLOW_RUN_ATTEMPT" \
-            --expected-workflow "$WORKFLOW_NAME"
+            --expected-run-id "$CANDIDATE_RUN_ID" \
+            --expected-attempt "$CANDIDATE_RUN_ATTEMPT" \
+            --expected-workflow "$CANDIDATE_WORKFLOW"
           node scripts/rust-migration/check-release-candidate.mjs \
             --check \
             --input artifacts/release-candidate-evidence.json \
@@ -956,9 +1077,9 @@ jobs:
             --expected-ref "$RELEASE_REF" \
             --expected-tag "$RELEASE_TAG" \
             --expected-commit "$COMMIT_SHA" \
-            --expected-run-id "$WORKFLOW_RUN_ID" \
-            --expected-attempt "$WORKFLOW_RUN_ATTEMPT" \
-            --expected-workflow "$WORKFLOW_NAME"
+            --expected-run-id "$CANDIDATE_RUN_ID" \
+            --expected-attempt "$CANDIDATE_RUN_ATTEMPT" \
+            --expected-workflow "$CANDIDATE_WORKFLOW"
 
       - name: Retain artifact-bound candidate evidence
         uses: actions/upload-artifact@v7

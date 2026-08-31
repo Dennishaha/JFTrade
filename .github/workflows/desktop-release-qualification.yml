@@ -1,0 +1,224 @@
+name: Desktop Release Qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Exact vX.Y.Z tag checked out by the release candidate
+        required: true
+        type: string
+      source_run_id:
+        description: Successful Desktop Release dry-run containing the four platform artifacts
+        required: true
+        type: string
+      source_run_attempt:
+        description: Attempt of the source Desktop Release dry-run
+        required: false
+        default: "1"
+        type: string
+
+permissions: {}
+
+jobs:
+  qualify:
+    name: Build artifact-bound candidate evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 0
+
+      - name: Verify source release run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source_run_id must be a positive integer" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source_run_attempt must be a positive integer" >&2; exit 1; }
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "refs/tags/$RELEASE_REF" ]] || {
+            echo "Qualification must be dispatched from the published tag ref; selected ref is $GITHUB_REF" >&2
+            exit 1
+          }
+          commit_sha="$(git rev-parse HEAD)"
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e \
+            --arg sha "$commit_sha" \
+            --arg tag "$RELEASE_REF" \
+            --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
+            <<<"$run_json" >/dev/null || {
+            echo "source run is not a successful Desktop Release run bound to $RELEASE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
+            exit 1
+          }
+
+      - name: Download macOS source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-macos
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-macos
+
+      - name: Download Linux source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-linux
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-linux
+
+      - name: Download Windows x64 source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-windows
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-windows
+
+      - name: Download Windows ARM64 source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-windows-arm64
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-windows-arm64
+
+      - name: Assemble candidate inputs and prerequisite evidence
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          COMMIT_SHA: ${{ github.sha }}
+          QUALIFICATION_RUN_ID: ${{ github.run_id }}
+          QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="$RELEASE_REF"
+          commit_sha="$(git rev-parse HEAD)"
+          mkdir -p candidate-inputs/evidence
+          find_one() {
+            local search_root="$1" pattern="$2" label="$3"
+            mapfile -t matches < <(find "$search_root" -type f -name "$pattern" -print | sort)
+            [[ "${#matches[@]}" -eq 1 ]] || { echo "$label count is ${#matches[@]}" >&2; exit 1; }
+            printf '%s\n' "${matches[0]}"
+          }
+          copy_one() {
+            local source="$1" name="$2"
+            cp "$source" "candidate-inputs/$name"
+            [[ -s "candidate-inputs/$name" ]]
+          }
+          for platform in macos-arm64 linux-x64 windows-x64 windows-arm64; do
+            source_dir="incoming/desktop-release-${platform%%-*}"
+            [[ "$platform" == "windows-arm64" ]] && source_dir="incoming/desktop-release-windows-arm64"
+            manifest="$(find_one "$source_dir" "tauri-release-$platform.json" "$platform manifest")"
+            copy_one "$manifest" "tauri-release-$platform.json"
+          done
+          copy_one "$(find_one incoming/desktop-release-macos '*.dmg' 'macOS package')" "JFTrade-$release_tag-macos-arm64.dmg"
+          copy_one "$(find_one incoming/desktop-release-linux '*.AppImage' 'Linux AppImage')" "JFTrade-$release_tag-linux-x64.AppImage"
+          copy_one "$(find_one incoming/desktop-release-linux '*.deb' 'Linux deb')" "JFTrade-$release_tag-linux-x64.deb"
+          copy_one "$(find_one incoming/desktop-release-linux '*.rpm' 'Linux rpm')" "JFTrade-$release_tag-linux-x64.rpm"
+          copy_one "$(find_one incoming/desktop-release-windows '*-setup.exe' 'Windows x64 package')" "JFTrade-$release_tag-windows-x64-setup.exe"
+          copy_one "$(find_one incoming/desktop-release-windows-arm64 '*-setup.exe' 'Windows ARM64 package')" "JFTrade-$release_tag-windows-arm64-setup.exe"
+          (cd candidate-inputs && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+          node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
+          node scripts/rust-migration/check-signed-updater-artifact.mjs --config-only > candidate-inputs/evidence/signed-updater-inputs.json
+          node scripts/rust-migration/check-security-review-inputs.mjs > candidate-inputs/evidence/security-review-inputs.json
+          node scripts/rust-migration/check-backup-restore-drill.mjs > candidate-inputs/evidence/backup-restore-drill.txt
+          node scripts/rust-migration/check-signed-updater-lifecycle.mjs > candidate-inputs/evidence/rollback-artifact-pair.txt
+          cat > candidate-inputs/evidence/sbom-provenance-inputs.json <<EOF
+          {"status":"external_release_runner_evidence_required","sourceRunId":"$SOURCE_RUN_ID","sourceRunAttempt":"$SOURCE_RUN_ATTEMPT","note":"SBOM and attestation are retained from the source release runner; independent verification remains a closeout gate."}
+          EOF
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const root = "candidate-inputs";
+          const tag = process.env.RELEASE_REF;
+          const commitSha = process.env.COMMIT_SHA;
+          const run = {
+            id: process.env.QUALIFICATION_RUN_ID,
+            attempt: Number(process.env.QUALIFICATION_RUN_ATTEMPT),
+            workflow: "desktop-release-qualification.yml",
+            ref: `refs/tags/${tag}`,
+            commitSha,
+          };
+          const prerequisites = [
+            ["candidate-admission", "evidence/candidate-admission.json"],
+            ["signed-updater-inputs", "evidence/signed-updater-inputs.json"],
+            ["sbom-provenance-inputs", "evidence/sbom-provenance-inputs.json"],
+            ["rollback-artifact-pair", "evidence/rollback-artifact-pair.txt"],
+            ["backup-restore-drill", "evidence/backup-restore-drill.txt"],
+            ["security-review-inputs", "evidence/security-review-inputs.json"],
+          ].map(([id, evidence]) => ({ id, status: "passed", releaseRef: run.ref, commitSha, workflowRun: run, evidence: [{ path: evidence }] }));
+          const packageFor = (platform, names) => ({
+            manifest: `tauri-release-${platform}.json`,
+            artifacts: names.map((name) => ({ path: name })),
+          });
+          const config = {
+            baseDirectory: root,
+            releaseRef: run.ref,
+            releaseTag: tag,
+            commitSha,
+            workflowRun: run,
+            platforms: {
+              "macos-arm64": packageFor("macos-arm64", [`JFTrade-${tag}-macos-arm64.dmg`]),
+              "linux-x64": packageFor("linux-x64", [`JFTrade-${tag}-linux-x64.AppImage`, `JFTrade-${tag}-linux-x64.deb`, `JFTrade-${tag}-linux-x64.rpm`]),
+              "windows-x64": packageFor("windows-x64", [`JFTrade-${tag}-windows-x64-setup.exe`]),
+              "windows-arm64": packageFor("windows-arm64", [`JFTrade-${tag}-windows-arm64-setup.exe`]),
+            },
+            sha256sums: "SHA256SUMS",
+            prerequisites,
+          };
+          fs.writeFileSync("candidate-evidence-config.json", `${JSON.stringify(config, null, 2)}\n`);
+          NODE
+
+      - name: Build and validate candidate evidence
+        run: |
+          set -euo pipefail
+          mkdir -p candidate-output
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --build \
+            --config candidate-evidence-config.json \
+            --base-dir candidate-inputs \
+            --output candidate-output/release-candidate-evidence.json \
+            --expected-ref "refs/tags/${{ inputs.release_ref }}" \
+            --expected-tag "${{ inputs.release_ref }}" \
+            --expected-commit "$(git rev-parse HEAD)" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-attempt "${{ github.run_attempt }}" \
+            --expected-workflow "desktop-release-qualification.yml"
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --check \
+            --input candidate-output/release-candidate-evidence.json \
+            --base-dir candidate-inputs \
+            --expected-ref "refs/tags/${{ inputs.release_ref }}" \
+            --expected-tag "${{ inputs.release_ref }}" \
+            --expected-commit "$(git rev-parse HEAD)" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-attempt "${{ github.run_attempt }}" \
+            --expected-workflow "desktop-release-qualification.yml"
+
+      - name: Upload artifact-bound qualification config
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-candidate-evidence
+          path: |
+            candidate-evidence-config.json
+            candidate-output/release-candidate-evidence.json
+          if-no-files-found: error

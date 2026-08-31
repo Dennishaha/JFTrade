@@ -7,12 +7,26 @@ const postReleaseWorkflow = fs.readFileSync(
   ".github/workflows/desktop-post-release-closeout.yml",
   "utf8",
 );
+const qualificationWorkflow = fs.readFileSync(
+  ".github/workflows/desktop-release-qualification.yml",
+  "utf8",
+);
 
 test("desktop publish lane is gated by closeout and signing prerequisites", () => {
   assert.match(workflow, /Verify Stage 9 static release-candidate admission/);
   assert.match(workflow, /check-stage9-closeout\.mjs --candidate-static/);
   assert.match(workflow, /check-release-candidate\.mjs/);
   assert.match(workflow, /candidate_evidence_config/);
+  assert.match(workflow, /gh api[\s\S]*actions\/workflows\/\$CANDIDATE_WORKFLOW\/runs/);
+  assert.match(workflow, /run_path/);
+  assert.match(workflow, /run_status/);
+  assert.match(workflow, /run_conclusion/);
+  assert.match(workflow, /run_sha/);
+  assert.match(workflow, /run_branch/);
+  assert.match(workflow, /run_attempt/);
+  assert.match(workflow, /actions\/download-artifact@v8[\s\S]*run-id: \$\{\{ needs\.release-inputs\.outputs\.candidate_run_id \}\}/);
+  assert.match(workflow, /github-token: \$\{\{ github\.token \}\}/);
+  assert.match(workflow, /repository: \$\{\{ github\.repository \}\}/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
@@ -48,9 +62,40 @@ test("post-release closeout is an independent evidence-ref workflow", () => {
   assert.match(postReleaseWorkflow, /actions\/checkout@v7/);
   assert.match(postReleaseWorkflow, /ref: \$\{\{ inputs\.evidence_ref \}\}/);
   assert.match(postReleaseWorkflow, /check-post-release-smoke\.mjs/);
+  for (const input of [
+    "release_ref",
+    "commit_sha",
+    "release_run_id",
+    "release_run_attempt",
+    "release_workflow",
+    "artifact_digests",
+  ]) {
+    assert.match(postReleaseWorkflow, new RegExp(`${input}:`));
+  }
+  assert.match(postReleaseWorkflow, /--expected-artifact-digests/);
+  assert.match(postReleaseWorkflow, /--expected-run-id/);
+  assert.match(postReleaseWorkflow, /--expected-attempt/);
+  assert.match(postReleaseWorkflow, /--expected-workflow/);
+  assert.match(postReleaseWorkflow, /EVIDENCE_REF.*RELEASE_TAG/);
   assert.match(postReleaseWorkflow, /check-stage9-closeout\.mjs --check/);
   assert.doesNotMatch(postReleaseWorkflow, /needs:\s*publish/);
   assert.doesNotMatch(postReleaseWorkflow, /needs\.publish/);
+});
+
+test("qualification workflow produces an artifact-bound candidate config from one verified run", () => {
+  assert.match(qualificationWorkflow, /workflow_dispatch:/);
+  assert.match(qualificationWorkflow, /release_ref:/);
+  assert.match(qualificationWorkflow, /source_run_id:/);
+  assert.match(qualificationWorkflow, /actions\/download-artifact@v8/);
+  assert.match(qualificationWorkflow, /run-id:/);
+  assert.match(qualificationWorkflow, /github-token:/);
+  assert.match(qualificationWorkflow, /repository:/);
+  assert.match(qualificationWorkflow, /check-stage9-closeout\.mjs --candidate-static/);
+  assert.match(qualificationWorkflow, /check-release-candidate\.mjs/);
+  assert.match(qualificationWorkflow, /candidate-evidence-config\.json/);
+  assert.match(qualificationWorkflow, /upload-artifact@v7/);
+  assert.match(qualificationWorkflow, /head_sha/);
+  assert.match(qualificationWorkflow, /conclusion.*success/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {

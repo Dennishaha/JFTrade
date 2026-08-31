@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   inspectPostReleaseSmokeReports,
   writePostReleaseSmokeReport,
+  POST_RELEASE_BINDING_SCHEMA,
 } from "./check-post-release-smoke.mjs";
 
 const targets = [
@@ -31,10 +32,35 @@ function smokeReport(platform, architecture, executable) {
     readiness: { status: 401, errorCode: "WEB_AUTH_REQUIRED", readyMs: 120 },
     shutdown: { code: 0, signal: null, shutdownMs: 40 },
     orphanCheck: windows ? "not-applicable-on-windows" : "passed",
+    releaseBinding: releaseBinding(),
     externalRequired: [
       "native package installation, upgrade, uninstall and rollback on the matching runner",
       "code-signing and notarization verification",
     ],
+  };
+}
+
+function releaseBinding(overrides = {}) {
+  const commitSha = "a".repeat(40);
+  return {
+    schemaVersion: POST_RELEASE_BINDING_SCHEMA,
+    releaseTag: "v1.2.3",
+    releaseRef: "refs/tags/v1.2.3",
+    commitSha,
+    releaseRun: {
+      id: 81234,
+      attempt: 2,
+      workflow: "desktop-release-qualification.yml",
+      ref: "refs/tags/v1.2.3",
+      commitSha,
+    },
+    artifacts: [
+      { path: "release/JFTrade-v1.2.3-macos-arm64.dmg", sha256: "a".repeat(64) },
+      { path: "release/JFTrade-v1.2.3-linux-x64.AppImage", sha256: "b".repeat(64) },
+      { path: "release/JFTrade-v1.2.3-windows-x64-setup.exe", sha256: "c".repeat(64) },
+      { path: "release/JFTrade-v1.2.3-windows-arm64-setup.exe", sha256: "d".repeat(64) },
+    ],
+    ...overrides,
   };
 }
 
@@ -56,6 +82,106 @@ test("validates all four runtime smoke targets without qualifying release eviden
     "windows-arm64",
   ]);
   assert.deepEqual(result.missingPlatforms, []);
+  assert.equal(result.releaseBinding.schemaVersion, POST_RELEASE_BINDING_SCHEMA);
+  assert.equal(result.releaseBinding.releaseTag, "v1.2.3");
+  assert.equal(result.artifactDigests.length, 4);
+});
+
+test("requires a release binding and fails closed for legacy smoke reports", () => {
+  const reports = allReports();
+  delete reports[0].releaseBinding;
+  const result = inspectPostReleaseSmokeReports({ reports });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /report\[0\]\.releaseBinding must be an object/);
+});
+
+test("rejects release binding tag, commit, run and artifact mismatches", () => {
+  const cases = [
+    ["tag", (binding) => { binding.releaseTag = "v9.9.9"; }, /releaseRef must match releaseTag/],
+    ["commit", (binding) => { binding.commitSha = "b".repeat(40); }, /releaseRun\.commitSha does not match commitSha/],
+    ["run id", (binding) => { binding.releaseRun.id = 81235; }, /does not match the other post-release reports/],
+    ["run attempt", (binding) => { binding.releaseRun.attempt = 3; }, /does not match the other post-release reports/],
+    ["workflow", (binding) => { binding.releaseRun.workflow = "other.yml"; }, /does not match the other post-release reports/],
+    ["run ref", (binding) => { binding.releaseRun.ref = "refs/tags/v1.2.4"; }, /releaseRun\.ref does not match releaseRef/],
+    ["run commit", (binding) => { binding.releaseRun.commitSha = "b".repeat(40); }, /releaseRun\.commitSha does not match commitSha/],
+    ["artifact", (binding) => { binding.artifacts[0].sha256 = "f".repeat(64); }, /does not match the other post-release reports/],
+  ];
+  for (const [name, mutate, expectedError] of cases) {
+    const reports = allReports();
+    mutate(reports[1].releaseBinding);
+    const result = inspectPostReleaseSmokeReports({ reports });
+    assert.equal(result.valid, false, `${name} mismatch should fail`);
+    assert.match(result.errors.join("\n"), expectedError, name);
+  }
+});
+
+test("matches every report against an expected binding and rejects cross-tag expectations", () => {
+  const expected = releaseBinding();
+  const accepted = inspectPostReleaseSmokeReports({ reports: allReports(), expectedBinding: expected });
+  assert.equal(accepted.valid, true);
+
+  const wrong = releaseBinding({ releaseTag: "v1.2.4", releaseRef: "refs/tags/v1.2.4" });
+  const rejected = inspectPostReleaseSmokeReports({ reports: allReports(), expectedBinding: wrong });
+  assert.equal(rejected.valid, false);
+  assert.match(rejected.errors.join("\n"), /does not match expected release binding/);
+});
+
+test("CLI verifies an external artifact digest binding before accepting reports", (context) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-post-release-binding-"));
+  context.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const bindingPath = path.join(directory, "artifact-digests.json");
+  fs.writeFileSync(bindingPath, JSON.stringify(releaseBinding()));
+  const reportPaths = [];
+  for (const [index, report] of allReports().entries()) {
+    const reportPath = path.join(directory, `report-${index}.json`);
+    fs.writeFileSync(reportPath, JSON.stringify(report));
+    reportPaths.push(reportPath);
+  }
+  const scriptPath = path.resolve("scripts/rust-migration/check-post-release-smoke.mjs");
+  const args = reportPaths.flatMap((reportPath) => ["--report", reportPath]).concat([
+    "--expected-artifact-digests", bindingPath,
+    "--expected-tag", "v1.2.3",
+    "--expected-ref", "refs/tags/v1.2.3",
+    "--expected-commit", "a".repeat(40),
+    "--expected-run-id", "81234",
+    "--expected-attempt", "2",
+    "--expected-workflow", "desktop-release-qualification.yml",
+  ]);
+  const accepted = spawnSync(process.execPath, [scriptPath, ...args], { encoding: "utf8" });
+  assert.equal(accepted.status, 0, accepted.stderr);
+
+  const wrongBinding = releaseBinding();
+  wrongBinding.artifacts[0].sha256 = "f".repeat(64);
+  fs.writeFileSync(bindingPath, JSON.stringify(wrongBinding));
+  const rejected = spawnSync(process.execPath, [scriptPath, ...args], { encoding: "utf8" });
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stdout, /does not match expected release binding/);
+});
+
+test("CLI can combine a digest-only manifest with explicit release metadata", (context) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-post-release-digests-"));
+  context.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const binding = releaseBinding();
+  const digestPath = path.join(directory, "digests.json");
+  fs.writeFileSync(digestPath, JSON.stringify({ artifactDigests: binding.artifacts }));
+  const reportPaths = allReports().map((report, index) => {
+    const reportPath = path.join(directory, `report-${index}.json`);
+    fs.writeFileSync(reportPath, JSON.stringify(report));
+    return reportPath;
+  });
+  const scriptPath = path.resolve("scripts/rust-migration/check-post-release-smoke.mjs");
+  const result = spawnSync(process.execPath, [
+    scriptPath,
+    ...reportPaths.flatMap((reportPath) => ["--report", reportPath]),
+    "--expected-artifact-digests", digestPath,
+    "--expected-tag", binding.releaseTag,
+    "--expected-ref", binding.releaseRef,
+    "--expected-commit", binding.commitSha,
+    "--expected-run-id", String(binding.releaseRun.id),
+    "--expected-attempt", String(binding.releaseRun.attempt),
+    "--expected-workflow", binding.releaseRun.workflow,
+  ], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("accepts canonical target names emitted by a normalized runner", () => {
