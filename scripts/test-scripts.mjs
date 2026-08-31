@@ -47,6 +47,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/rust-migration/check-backup-restore-drill.test.mjs",
     "scripts/rust-migration/check-security-review-inputs.test.mjs",
     "scripts/rust-migration/check-sbom-provenance.test.mjs",
+    "scripts/rust-migration/check-post-release-smoke.test.mjs",
     "scripts/check-desktop-release-policy.test.mjs",
     "scripts/check-desktop-release-workflow.test.mjs",
     "scripts/rust-migration/check-stage9-product-differential.test.mjs",
