@@ -96,6 +96,17 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /upload-artifact@v7/);
   assert.match(qualificationWorkflow, /head_sha/);
   assert.match(qualificationWorkflow, /conclusion.*success/);
+  assert.match(qualificationWorkflow, /evidence_run_id:/);
+  assert.match(qualificationWorkflow, /evidence_run_attempt:/);
+  assert.match(qualificationWorkflow, /evidence_workflow:/);
+  assert.match(qualificationWorkflow, /evidence_artifact:/);
+  assert.match(qualificationWorkflow, /evidence_manifest:/);
+  assert.match(qualificationWorkflow, /Download external release evidence artifact/);
+  assert.match(qualificationWorkflow, /release-evidence-inputs\.schema\.json/);
+  assert.doesNotMatch(qualificationWorkflow, /cat\s+>.*external_release_runner_evidence_required/);
+  assert.doesNotMatch(qualificationWorkflow, /check-signed-updater-lifecycle\.mjs\s*>.*rollback/);
+  assert.match(qualificationWorkflow, /sourceWorkflowRun/);
+  assert.match(qualificationWorkflow, /external evidence manifest missing valid/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {

@@ -13,6 +13,7 @@
     "releaseTag",
     "commitSha",
     "workflowRun",
+    "sourceWorkflowRun",
     "platforms",
     "sha256sums",
     "prerequisites"
@@ -32,6 +33,7 @@
       "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
     },
     "workflowRun": { "$ref": "#/$defs/workflowRun" },
+    "sourceWorkflowRun": { "$ref": "#/$defs/workflowRun" },
     "platforms": {
       "type": "object",
       "additionalProperties": false,
@@ -95,19 +97,50 @@
     "prerequisite": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "status", "releaseRef", "commitSha", "workflowRun", "evidence"],
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "releaseRef",
+        "commitSha",
+        "workflowRun",
+        "sourceWorkflowRun",
+        "evidence"
+      ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": [
+            "stage9-closeout-admission",
+            "signed-updater",
+            "sbom-provenance",
+            "rollback-artifact",
+            "backup-restore",
+            "security-review"
+          ]
+        },
         "status": { "const": "passed" },
         "releaseRef": { "type": "string", "minLength": 1 },
         "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
         "workflowRun": { "$ref": "#/$defs/workflowRun" },
+        "sourceWorkflowRun": { "$ref": "#/$defs/workflowRun" },
         "evidence": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/file" }
+          "items": { "$ref": "#/$defs/prerequisiteFile" }
         },
         "summary": { "type": "string" }
+      }
+    },
+    "prerequisiteFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "kind"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "size": { "type": "integer", "minimum": 1 },
+        "kind": { "type": "string", "minLength": 1 }
       }
     }
   }

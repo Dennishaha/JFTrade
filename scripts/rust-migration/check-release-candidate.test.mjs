@@ -12,6 +12,7 @@ import {
   inspectReleaseCandidateEvidence,
   main,
   REQUIRED_PLATFORMS,
+  REQUIRED_PREREQUISITE_KINDS,
   REQUIRED_PREREQUISITES,
   RELEASE_CANDIDATE_LIMITATIONS,
 } from "./check-release-candidate.mjs";
@@ -44,6 +45,14 @@ function fixture() {
     commitSha,
     url: "https://github.com/example/jftrade/actions/runs/81234",
   };
+  const sourceWorkflowRun = {
+    id: 81233,
+    attempt: 1,
+    workflow: "Desktop Release",
+    ref: workflowRun.ref,
+    commitSha,
+    url: "https://github.com/example/jftrade/actions/runs/81233",
+  };
   const platforms = {};
   const releaseFiles = [];
   for (const platform of REQUIRED_PLATFORMS) {
@@ -67,9 +76,11 @@ function fixture() {
     write(root, evidencePath, JSON.stringify({ id, run: workflowRun.id }));
     return {
       id,
+      kind: REQUIRED_PREREQUISITE_KINDS[id],
       releaseRef: workflowRun.ref,
       commitSha,
       workflowRun,
+      sourceWorkflowRun,
       evidence: [{ path: evidencePath }],
       summary: `${id} passed for this run`,
       status: "passed",
@@ -79,6 +90,7 @@ function fixture() {
     root,
     commitSha,
     workflowRun,
+    sourceWorkflowRun,
     platforms,
     prerequisites,
     config: {
@@ -86,6 +98,7 @@ function fixture() {
       releaseTag: "v1.2.3",
       commitSha,
       workflowRun,
+      sourceWorkflowRun,
       platforms,
       sha256sums: "release/SHA256SUMS",
       prerequisites,
@@ -112,6 +125,7 @@ test("builds and inspects a four-platform candidate bound to one workflow run", 
   assert.equal(result.releaseRef, "refs/tags/v1.2.3");
   assert.equal(result.commitSha, value.commitSha);
   assert.equal(result.workflowRun.id, value.workflowRun.id);
+  assert.equal(result.sourceWorkflowRun.id, value.sourceWorkflowRun.id);
   assert.deepEqual(Object.keys(result.platforms), REQUIRED_PLATFORMS);
   assert.deepEqual(
     result.prerequisites.map((entry) => entry.id),
@@ -169,6 +183,45 @@ test("rejects prerequisite evidence from another run or ref", (context) => {
   assert.match(refResult.errors.join("\n"), /releaseRef does not match manifest/);
 });
 
+test("rejects prerequisite placeholders, wrong kinds, and foreign source runs", (context) => {
+  const value = builtFixture();
+  context.after(value.cleanup);
+
+  const placeholder = structuredClone(value.evidence);
+  const placeholderPath = path.join(value.root, placeholder.prerequisites[0].evidence[0].path);
+  fs.writeFileSync(placeholderPath, JSON.stringify({ status: "external_release_runner_evidence_required" }));
+  placeholder.prerequisites[0].evidence[0].sha256 = digest(
+    fs.readFileSync(placeholderPath),
+  );
+  const placeholderResult = inspectReleaseCandidateEvidence(placeholder, { baseDirectory: value.root });
+  assert.equal(placeholderResult.valid, false);
+  assert.match(placeholderResult.errors.join("\n"), /placeholder/);
+
+  const wrongKind = structuredClone(value.evidence);
+  wrongKind.prerequisites[1].kind = "rollback-artifact";
+  const wrongKindResult = inspectReleaseCandidateEvidence(wrongKind, { baseDirectory: value.root });
+  assert.equal(wrongKindResult.valid, false);
+  assert.match(wrongKindResult.errors.join("\n"), /kind must be signed-updater/);
+
+  const foreignSource = structuredClone(value.evidence);
+  foreignSource.prerequisites[2].sourceWorkflowRun.commitSha = "c".repeat(40);
+  const foreignResult = inspectReleaseCandidateEvidence(foreignSource, { baseDirectory: value.root });
+  assert.equal(foreignResult.valid, false);
+  assert.match(foreignResult.errors.join("\n"), /sourceWorkflowRun does not match manifest release ref\/commit/);
+});
+
+test("rejects the old lifecycle command masquerading as rollback evidence", (context) => {
+  const value = builtFixture();
+  context.after(value.cleanup);
+  const rollback = value.evidence.prerequisites.find((entry) => entry.id === "rollback-artifact-pair");
+  const filePath = path.join(value.root, rollback.evidence[0].path);
+  fs.writeFileSync(filePath, "check-signed-updater-lifecycle.mjs\n");
+  rollback.evidence[0].sha256 = digest(fs.readFileSync(filePath));
+  const result = inspectReleaseCandidateEvidence(value.evidence, { baseDirectory: value.root });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /lifecycle-check command/);
+});
+
 test("rejects candidate metadata that is not bound to the current workflow context", (context) => {
   const value = builtFixture();
   context.after(value.cleanup);
@@ -179,6 +232,7 @@ test("rejects candidate metadata that is not bound to the current workflow conte
       releaseTag: "v1.2.3",
       commitSha: value.commitSha,
       workflowRun: value.workflowRun,
+      sourceWorkflowRun: value.sourceWorkflowRun,
     },
   });
   assert.equal(result.valid, true);

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/release-evidence-inputs.v1.json",
+  "title": "JFTrade externally supplied release qualification evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "evidence"],
+  "properties": {
+    "$schema": { "const": "./release-evidence-inputs.schema.json" },
+    "schemaVersion": { "const": "jftrade.release-evidence-inputs.v1" },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signed-updater-inputs",
+        "sbom-provenance-inputs",
+        "rollback-artifact-pair",
+        "backup-restore-drill",
+        "security-review-inputs"
+      ],
+      "properties": {
+        "signed-updater-inputs": { "$ref": "#/$defs/evidence" },
+        "sbom-provenance-inputs": { "$ref": "#/$defs/evidence" },
+        "rollback-artifact-pair": { "$ref": "#/$defs/evidence" },
+        "backup-restore-drill": { "$ref": "#/$defs/evidence" },
+        "security-review-inputs": { "$ref": "#/$defs/evidence" }
+      }
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "files"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "signed-updater",
+            "sbom-provenance",
+            "rollback-artifact",
+            "backup-restore",
+            "security-review"
+          ]
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

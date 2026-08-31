@@ -5,6 +5,19 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { main as candidateMain } from "./check-release-candidate-cli.mjs";
+import {
+  buildReleaseCandidateEvidence,
+  createReleaseCandidateEvidence,
+  writeReleaseCandidateEvidence,
+} from "./check-release-candidate-builder.mjs";
+
+export { candidateMain as main };
+export {
+  buildReleaseCandidateEvidence,
+  createReleaseCandidateEvidence,
+  writeReleaseCandidateEvidence,
+};
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -29,6 +42,18 @@ export const REQUIRED_PREREQUISITES = Object.freeze([
   "security-review-inputs",
 ]);
 
+// Every prerequisite must identify the type of release evidence it carries.
+// Keeping this mapping here makes the checker the source of truth instead of
+// allowing a workflow to relabel an arbitrary text file as a passed gate.
+export const REQUIRED_PREREQUISITE_KINDS = Object.freeze({
+  "candidate-admission": "stage9-closeout-admission",
+  "signed-updater-inputs": "signed-updater",
+  "sbom-provenance-inputs": "sbom-provenance",
+  "rollback-artifact-pair": "rollback-artifact",
+  "backup-restore-drill": "backup-restore",
+  "security-review-inputs": "security-review",
+});
+
 export const RELEASE_CANDIDATE_LIMITATIONS = Object.freeze([
   "This pre-release evidence does not prove post-release smoke or native lifecycle observations.",
   "This pre-release evidence does not prove hard-cut readiness or owner-deletion closeout.",
@@ -45,6 +70,7 @@ const requiredRootKeys = Object.freeze([
   "releaseTag",
   "commitSha",
   "workflowRun",
+  "sourceWorkflowRun",
   "platforms",
   "sha256sums",
   "prerequisites",
@@ -275,6 +301,21 @@ function validateExpectedBinding(document, options, errors) {
       errors.push("manifest.workflowRun does not match expected workflow run");
     }
   }
+  if (expected.sourceWorkflowRun !== undefined) {
+    const expectedRun = normalizeWorkflowRun(
+      expected.sourceWorkflowRun,
+      "expected.sourceWorkflowRun",
+      errors,
+    );
+    const actualRun = normalizeWorkflowRun(
+      document.sourceWorkflowRun,
+      "manifest.sourceWorkflowRun",
+      errors,
+    );
+    if (expectedRun && actualRun && !sameRun(actualRun, expectedRun)) {
+      errors.push("manifest.sourceWorkflowRun does not match expected source workflow run");
+    }
+  }
 }
 
 function releaseRefErrors(releaseRef, releaseTag, errors, label = "manifest") {
@@ -373,7 +414,37 @@ function validateChecksums(value, baseDirectory, declaredFiles, errors) {
   return { ...checked, entries };
 }
 
-function validatePrerequisites(values, baseDirectory, release, workflow, errors) {
+function rejectEvidencePlaceholder(filePath, kind, label, errors) {
+  let text;
+  try {
+    text = fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    errors.push(`${label} could not be read for content validation: ${error.message}`);
+    return;
+  }
+  if (text.trim() === "") {
+    errors.push(`${label} is empty or whitespace-only`);
+    return;
+  }
+  // A generated report may mention that independent release evidence is still
+  // required in an explanatory field.  It may not use that marker as its
+  // status, which is the exact placeholder emitted by the old workflow.
+  try {
+    const parsed = JSON.parse(text);
+    if (isRecord(parsed) && parsed.status === "external_release_runner_evidence_required") {
+      errors.push(`${label} is a placeholder, not verified ${kind} evidence`);
+    }
+  } catch {
+    // Binary packages and signed text are intentionally not JSON. Their
+    // existence/hash is checked above; only the known rollback command output
+    // is forbidden below.
+  }
+  if (kind === "rollback-artifact" && /check-signed-updater-lifecycle(?:\.mjs)?/.test(text)) {
+    errors.push(`${label} contains a lifecycle-check command instead of rollback artifact evidence`);
+  }
+}
+
+function validatePrerequisites(values, baseDirectory, release, workflow, sourceWorkflow, errors) {
   if (!Array.isArray(values) || values.length === 0) {
     errors.push("manifest.prerequisites must be a non-empty array");
     return [];
@@ -386,13 +457,30 @@ function validatePrerequisites(values, baseDirectory, release, workflow, errors)
       errors.push(`${label} must be an object`);
       continue;
     }
-    const allowed = ["id", "status", "releaseRef", "commitSha", "workflowRun", "evidence", "summary"];
+    const allowed = [
+      "id",
+      "kind",
+      "status",
+      "releaseRef",
+      "commitSha",
+      "workflowRun",
+      "sourceWorkflowRun",
+      "evidence",
+      "summary",
+    ];
     for (const key of Object.keys(value)) {
       if (!allowed.includes(key)) errors.push(`${label}.${key} is not allowed`);
     }
     const id = nonEmptyString(value.id, `${label}.id`, errors);
     if (id && seen.has(id)) errors.push(`duplicate prerequisite id: ${id}`);
     if (id) seen.add(id);
+    const expectedKind = id ? REQUIRED_PREREQUISITE_KINDS[id] : undefined;
+    const kind = nonEmptyString(value.kind, `${label}.kind`, errors);
+    if (!expectedKind) {
+      if (id) errors.push(`${label}.id is not a recognized prerequisite`);
+    } else if (kind !== expectedKind) {
+      errors.push(`${label}.kind must be ${expectedKind} for ${id}`);
+    }
     if (value.status !== "passed") errors.push(`${label}.status must be passed`);
     const ref = nonEmptyString(value.releaseRef, `${label}.releaseRef`, errors);
     const commitSha = commitOrError(value.commitSha, `${label}.commitSha`, errors);
@@ -400,19 +488,50 @@ function validatePrerequisites(values, baseDirectory, release, workflow, errors)
     if (commitSha && commitSha !== release.commitSha) errors.push(`${label}.commitSha does not match manifest.commitSha`);
     const run = normalizeWorkflowRun(value.workflowRun, `${label}.workflowRun`, errors);
     if (run && !sameRun(run, workflow)) errors.push(`${label}.workflowRun does not match manifest.workflowRun`);
+    const sourceRun = normalizeWorkflowRun(
+      value.sourceWorkflowRun,
+      `${label}.sourceWorkflowRun`,
+      errors,
+    );
+    if (sourceRun && sourceWorkflow && (
+      sourceRun.ref !== sourceWorkflow.ref || sourceRun.commitSha !== sourceWorkflow.commitSha
+    )) {
+      errors.push(`${label}.sourceWorkflowRun does not match manifest release ref/commit`);
+    }
     if (!Array.isArray(value.evidence) || value.evidence.length === 0) {
       errors.push(`${label}.evidence must be a non-empty array`);
     }
     const evidence = [];
     for (const [evidenceIndex, entry] of (Array.isArray(value.evidence) ? value.evidence : []).entries()) {
-      evidence.push(validateReference(
+      const evidenceLabel = `${label}.evidence[${evidenceIndex}]`;
+      const evidenceObject = referenceObject(entry, evidenceLabel, errors);
+      if (evidenceObject && evidenceObject.kind !== kind) {
+        errors.push(`${evidenceLabel}.kind must match ${label}.kind`);
+      }
+      const checked = validateReference(
         entry,
         baseDirectory,
-        `${label}.evidence[${evidenceIndex}]`,
+        evidenceLabel,
         errors,
-      ));
+      );
+      if (checked?.valid && kind) rejectEvidencePlaceholder(
+        path.resolve(baseDirectory, checked.path),
+        kind,
+        evidenceLabel,
+        errors,
+      );
+      evidence.push(checked);
     }
-    validated.push({ ...value, id, releaseRef: ref, commitSha, workflowRun: run, evidence });
+    validated.push({
+      ...value,
+      id,
+      kind,
+      releaseRef: ref,
+      commitSha,
+      workflowRun: run,
+      sourceWorkflowRun: sourceRun,
+      evidence,
+    });
   }
   for (const required of REQUIRED_PREREQUISITES) {
     if (!seen.has(required)) errors.push(`missing prerequisite evidence: ${required}`);
@@ -461,12 +580,23 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
   const releaseValues = releaseRefErrors(document.releaseRef, document.releaseTag, errors);
   const commitSha = commitOrError(document.commitSha, "manifest.commitSha", errors);
   const workflow = normalizeWorkflowRun(document.workflowRun, "manifest.workflowRun", errors);
+  const sourceWorkflow = normalizeWorkflowRun(
+    document.sourceWorkflowRun,
+    "manifest.sourceWorkflowRun",
+    errors,
+  );
   validateExpectedBinding(document, options, errors);
   if (workflow && releaseValues.ref && workflow.ref !== releaseValues.ref) {
     errors.push("manifest.workflowRun.ref does not match manifest.releaseRef");
   }
   if (workflow && commitSha && workflow.commitSha !== commitSha) {
     errors.push("manifest.workflowRun.commitSha does not match manifest.commitSha");
+  }
+  if (sourceWorkflow && releaseValues.ref && sourceWorkflow.ref !== releaseValues.ref) {
+    errors.push("manifest.sourceWorkflowRun.ref does not match manifest.releaseRef");
+  }
+  if (sourceWorkflow && commitSha && sourceWorkflow.commitSha !== commitSha) {
+    errors.push("manifest.sourceWorkflowRun.commitSha does not match manifest.commitSha");
   }
 
   const platforms = isRecord(document.platforms) ? document.platforms : null;
@@ -511,6 +641,7 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
     baseDirectory,
     { ref: releaseValues.ref, commitSha },
     workflow,
+    sourceWorkflow,
     errors,
   );
   if ("limitations" in document) {
@@ -528,6 +659,7 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
     releaseTag: releaseValues.tag,
     commitSha,
     workflowRun: workflow,
+    sourceWorkflowRun: sourceWorkflow,
     platforms: validatedPlatforms,
     sha256sums: shaSums,
     prerequisites,
@@ -554,6 +686,7 @@ function resultReport(document, errors, baseDirectory) {
     releaseTag: null,
     commitSha: null,
     workflowRun: null,
+    sourceWorkflowRun: null,
     platforms: {},
     prerequisites: [],
     sha256sums: null,
@@ -572,211 +705,6 @@ export const validateReleaseCandidateEvidence = inspectReleaseCandidateEvidence;
 export const checkReleaseCandidateEvidence = inspectReleaseCandidateEvidence;
 export const evaluateReleaseCandidate = inspectReleaseCandidateEvidence;
 
-function sourceReference(value, baseDirectory, label) {
-  if (typeof value !== "string" && !isRecord(value)) throw new Error(`${label} must be a path or object`);
-  const output = typeof value === "string"
-    ? { path: portablePath(value, baseDirectory, label) }
-    : { ...value, path: portablePath(value.path, baseDirectory, label) };
-  const absolute = path.resolve(baseDirectory, output.path);
-  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile() || fs.statSync(absolute).size === 0) {
-    throw new Error(`${label} file is missing or empty: ${output.path}`);
-  }
-  const actual = fileSha256(absolute);
-  if (output.sha256 !== undefined
-    && (typeof output.sha256 !== "string" || output.sha256.toLowerCase() !== actual)) {
-    throw new Error(`${label}.sha256 does not match ${output.path}`);
-  }
-  output.sha256 = actual;
-  output.size = fs.statSync(absolute).size;
-  return output;
-}
-
-function normalizeBuildWorkflow(value) {
-  if (!isRecord(value)) throw new Error("workflowRun must be an object");
-  const id = value.id ?? value.runId;
-  const attempt = value.attempt ?? value.runAttempt;
-  const workflow = value.workflow ?? value.name;
-  return {
-    id,
-    attempt,
-    workflow,
-    ref: value.ref,
-    commitSha: value.commitSha,
-    ...(value.url ? { url: value.url } : {}),
-  };
-}
-
-/** Build canonical evidence from local files, calculating all SHA-256 values. */
-export function buildReleaseCandidateEvidence(options = {}) {
-  const baseDirectory = path.resolve(options.baseDirectory ?? repositoryRoot);
-  const releaseRef = options.releaseRef;
-  const releaseTag = options.releaseTag;
-  const commitSha = options.commitSha;
-  const workflowRun = normalizeBuildWorkflow(options.workflowRun);
-  const platformInput = options.platforms;
-  if (!isRecord(platformInput)) throw new Error("platforms must be an object");
-  const platforms = {};
-  for (const platform of REQUIRED_PLATFORMS) {
-    if (!(platform in platformInput)) throw new Error(`missing release platform evidence: ${platform}`);
-    const value = platformInput[platform];
-    if (!isRecord(value)) throw new Error(`platforms.${platform} must be an object`);
-    const manifest = sourceReference(value.manifest ?? value.packageManifest, baseDirectory, `platforms.${platform}.manifest`);
-    const source = value.artifacts ?? value.artifact ?? value.packages;
-    const entries = Array.isArray(source) ? source : source === undefined ? [] : [source];
-    if (entries.length === 0) throw new Error(`platforms.${platform}.artifacts must contain at least one artifact`);
-    platforms[platform] = {
-      manifest,
-      artifacts: entries.map((entry, index) => sourceReference(entry, baseDirectory, `platforms.${platform}.artifacts[${index}]`)),
-    };
-  }
-  const sums = sourceReference(
-    options.sha256sums ?? options.sha256Sums ?? options.checksums,
-    baseDirectory,
-    "sha256sums",
-  );
-  const prerequisites = options.prerequisites;
-  if (!Array.isArray(prerequisites)) throw new Error("prerequisites must be an array");
-  const builtPrerequisites = prerequisites.map((entry, index) => {
-    if (!isRecord(entry)) throw new Error(`prerequisites[${index}] must be an object`);
-    const evidence = Array.isArray(entry.evidence) ? entry.evidence : [];
-    return {
-      id: entry.id,
-      status: entry.status ?? "passed",
-      releaseRef: entry.releaseRef ?? releaseRef,
-      commitSha: entry.commitSha ?? commitSha,
-      workflowRun: entry.workflowRun ?? workflowRun,
-      ...(entry.summary ? { summary: entry.summary } : {}),
-      evidence: evidence.map((item, evidenceIndex) => sourceReference(item, baseDirectory, `prerequisites[${index}].evidence[${evidenceIndex}]`)),
-    };
-  });
-  const evidence = {
-    $schema: "./release-candidate-evidence.schema.json",
-    schemaVersion: RELEASE_CANDIDATE_EVIDENCE_SCHEMA,
-    phase: "pre-release",
-    status: "candidate_ready",
-    releaseRef,
-    releaseTag,
-    commitSha,
-    workflowRun,
-    platforms,
-    sha256sums: sums,
-    prerequisites: builtPrerequisites,
-    limitations: [...RELEASE_CANDIDATE_LIMITATIONS],
-  };
-  const report = inspectReleaseCandidateEvidence(evidence, {
-    baseDirectory,
-    expected: options.expected,
-  });
-  if (!report.valid) {
-    throw new Error(`built release-candidate evidence is invalid: ${report.errors.join("; ")}`);
-  }
-  return evidence;
-}
-
-export const createReleaseCandidateEvidence = buildReleaseCandidateEvidence;
-
-export function writeReleaseCandidateEvidence(outputPath, options = {}) {
-  if (!outputPath) throw new Error("outputPath is required");
-  const evidence = buildReleaseCandidateEvidence(options);
-  const absolute = path.resolve(outputPath);
-  fs.mkdirSync(path.dirname(absolute), { recursive: true });
-  fs.writeFileSync(absolute, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
-  return evidence;
-}
-
-function argumentValue(args, names) {
-  for (const name of names) {
-    const index = args.indexOf(name);
-    if (index !== -1) {
-      const value = args[index + 1];
-      if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
-      return value;
-    }
-    const inline = args.find((argument) => argument.startsWith(`${name}=`));
-    if (inline) return inline.slice(name.length + 1);
-  }
-  return null;
-}
-
-function parseArgs(args) {
-  const build = args.includes("--build");
-  const configPath = argumentValue(args, ["--config"]);
-  const inputPath = argumentValue(args, ["--input", "--manifest"]);
-  const outputPath = argumentValue(args, ["--output"]);
-  const baseDirectory = argumentValue(args, ["--base-dir"]);
-  const expectedRef = argumentValue(args, ["--expected-ref"]);
-  const expectedTag = argumentValue(args, ["--expected-tag"]);
-  const expectedCommit = argumentValue(args, ["--expected-commit"]);
-  const expectedRunId = argumentValue(args, ["--expected-run-id"]);
-  const expectedAttempt = argumentValue(args, ["--expected-attempt"]);
-  const expectedWorkflow = argumentValue(args, ["--expected-workflow"]);
-  const expectedRunValues = [expectedRunId, expectedAttempt, expectedWorkflow, expectedRef, expectedCommit];
-  const expectedRunCount = expectedRunValues.filter((value) => value !== null).length;
-  if (expectedRunCount > 0 && expectedRunCount < expectedRunValues.length) {
-    throw new Error(
-      "expected workflow binding requires --expected-ref, --expected-commit, "
-        + "--expected-run-id, --expected-attempt and --expected-workflow",
-    );
-  }
-  const hasExpectedRun = expectedRunCount === expectedRunValues.length;
-  const expected = expectedRef || expectedTag || expectedCommit || expectedRunId || expectedAttempt || expectedWorkflow
-    ? {
-      releaseRef: expectedRef ?? undefined,
-      releaseTag: expectedTag ?? undefined,
-      commitSha: expectedCommit ?? undefined,
-      ...(hasExpectedRun ? {
-        workflowRun: {
-          id: expectedRunId,
-          attempt: Number(expectedAttempt),
-          workflow: expectedWorkflow,
-          ref: expectedRef,
-          commitSha: expectedCommit,
-        },
-      } : {}),
-    }
-    : undefined;
-  const knownFlags = [
-    "--build", "--config", "--input", "--manifest", "--output", "--base-dir", "--check",
-    "--expected-ref", "--expected-tag", "--expected-commit", "--expected-run-id",
-    "--expected-attempt", "--expected-workflow",
-  ];
-  const unknown = args.find((argument) => argument.startsWith("--")
-    && !knownFlags.some((flag) => argument === flag || argument.startsWith(`${flag}=`)));
-  if (unknown) {
-    throw new Error(`unknown argument: ${unknown}`);
-  }
-  if (build && !configPath) throw new Error("--build requires --config");
-  if (!build && !inputPath) throw new Error("--check requires --input or --manifest");
-  return { build, configPath, inputPath, outputPath, baseDirectory, expected };
-}
-
-export function main(args = process.argv.slice(2)) {
-  try {
-    const parsed = parseArgs(args);
-    if (parsed.build) {
-      const config = readJson(path.resolve(parsed.configPath), "release-candidate build config");
-      const evidence = writeReleaseCandidateEvidence(parsed.outputPath ?? "release-candidate-evidence.json", {
-        ...config,
-        baseDirectory: parsed.baseDirectory ?? config.baseDirectory ?? path.dirname(path.resolve(parsed.configPath)),
-        expected: parsed.expected,
-      });
-      console.log(JSON.stringify(evidence, null, 2));
-      return 0;
-    }
-    const inputAbsolute = path.resolve(parsed.inputPath);
-    const document = readJson(inputAbsolute, "release-candidate evidence");
-    const report = inspectReleaseCandidateEvidence(document, {
-      baseDirectory: parsed.baseDirectory ?? path.dirname(inputAbsolute),
-      expected: parsed.expected,
-    });
-    console.log(JSON.stringify(report, null, 2));
-    return report.valid ? 0 : 1;
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    return 1;
-  }
-}
-
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exitCode = main();
+  process.exitCode = candidateMain();
 }

@@ -8,13 +8,34 @@ on:
         required: true
         type: string
       source_run_id:
-        description: Successful Desktop Release dry-run containing the four platform artifacts
+        description: Successful Desktop Release run containing the four platform package artifacts
         required: true
         type: string
       source_run_attempt:
         description: Attempt of the source Desktop Release dry-run
         required: false
         default: "1"
+        type: string
+      evidence_run_id:
+        description: Successful signing/evidence workflow run containing externally produced updater, SBOM, rollback, backup and security evidence
+        required: true
+        type: string
+      evidence_run_attempt:
+        description: Attempt of the external signing/evidence workflow run
+        required: true
+        type: string
+      evidence_workflow:
+        description: Workflow filename that produced the external evidence artifact
+        required: true
+        type: string
+      evidence_artifact:
+        description: Exact artifact name containing release-evidence-inputs.json and real prerequisite files
+        required: true
+        type: string
+      evidence_manifest:
+        description: Relative manifest path inside evidence_artifact
+        required: false
+        default: release-evidence-inputs.json
         type: string
 
 permissions: {}
@@ -63,6 +84,40 @@ jobs:
             exit 1
           }
 
+      - name: Verify external release evidence run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EVIDENCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_id must be a positive integer" >&2; exit 1; }
+          [[ "$EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_attempt must be a positive integer" >&2; exit 1; }
+          [[ "$EVIDENCE_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ ]] || { echo "evidence_workflow must be a workflow filename ending in .yml" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
+          commit_sha="$(git rev-parse HEAD)"
+          jq -e \
+            --arg sha "$commit_sha" \
+            --arg tag "$RELEASE_REF" \
+            --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
+            --arg workflow ".github/workflows/$EVIDENCE_WORKFLOW" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            <<<"$run_json" >/dev/null || {
+            echo "external evidence run is not a successful workflow bound to $RELEASE_REF@$commit_sha attempt $EVIDENCE_RUN_ATTEMPT" >&2
+            exit 1
+          }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
+          jq -e --arg name "${{ inputs.evidence_artifact }}" --argjson run_id "$EVIDENCE_RUN_ID" \
+            '.artifacts[] | select(.name == $name and .expired == false and .workflow_run.id == $run_id)' \
+            <<<"$artifacts_json" >/dev/null || {
+            echo "external evidence artifact is missing or expired in run $EVIDENCE_RUN_ID" >&2
+            exit 1
+          }
+
       - name: Download macOS source artifact
         uses: actions/download-artifact@v8
         with:
@@ -99,11 +154,24 @@ jobs:
           repository: ${{ github.repository }}
           path: incoming/desktop-release-windows-arm64
 
+      - name: Download external release evidence artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.evidence_artifact }}
+          run-id: ${{ inputs.evidence_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/release-evidence
+
       - name: Assemble candidate inputs and prerequisite evidence
         env:
           RELEASE_REF: ${{ inputs.release_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest }}
           COMMIT_SHA: ${{ github.sha }}
           QUALIFICATION_RUN_ID: ${{ github.run_id }}
           QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -112,6 +180,7 @@ jobs:
           set -euo pipefail
           release_tag="$RELEASE_REF"
           commit_sha="$(git rev-parse HEAD)"
+          export COMMIT_SHA="$commit_sha"
           mkdir -p candidate-inputs/evidence
           find_one() {
             local search_root="$1" pattern="$2" label="$3"
@@ -123,6 +192,10 @@ jobs:
             local source="$1" name="$2"
             cp "$source" "candidate-inputs/$name"
             [[ -s "candidate-inputs/$name" ]]
+          }
+          [[ "$EVIDENCE_MANIFEST" != /* && "$EVIDENCE_MANIFEST" != *".."* && "$EVIDENCE_MANIFEST" != *$'\n'* ]] || {
+            echo "evidence_manifest must be a relative path without traversal" >&2
+            exit 1
           }
           for platform in macos-arm64 linux-x64 windows-x64 windows-arm64; do
             source_dir="incoming/desktop-release-${platform%%-*}"
@@ -139,43 +212,99 @@ jobs:
           (cd candidate-inputs && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
           node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
-          node scripts/rust-migration/check-signed-updater-artifact.mjs --config-only > candidate-inputs/evidence/signed-updater-inputs.json
-          node scripts/rust-migration/check-security-review-inputs.mjs > candidate-inputs/evidence/security-review-inputs.json
-          node scripts/rust-migration/check-backup-restore-drill.mjs > candidate-inputs/evidence/backup-restore-drill.txt
-          node scripts/rust-migration/check-signed-updater-lifecycle.mjs > candidate-inputs/evidence/rollback-artifact-pair.txt
-          cat > candidate-inputs/evidence/sbom-provenance-inputs.json <<EOF
-          {"status":"external_release_runner_evidence_required","sourceRunId":"$SOURCE_RUN_ID","sourceRunAttempt":"$SOURCE_RUN_ATTEMPT","note":"SBOM and attestation are retained from the source release runner; independent verification remains a closeout gate."}
-          EOF
           node --input-type=module <<'NODE'
           import fs from "node:fs";
+          import path from "node:path";
           const root = "candidate-inputs";
           const tag = process.env.RELEASE_REF;
           const commitSha = process.env.COMMIT_SHA;
-          const run = {
+          const sourceRun = {
+            id: process.env.SOURCE_RUN_ID,
+            attempt: Number(process.env.SOURCE_RUN_ATTEMPT),
+            workflow: "desktop-release.yml",
+            ref: `refs/tags/${tag}`,
+            commitSha,
+          };
+          const qualificationRun = {
             id: process.env.QUALIFICATION_RUN_ID,
             attempt: Number(process.env.QUALIFICATION_RUN_ATTEMPT),
             workflow: "desktop-release-qualification.yml",
             ref: `refs/tags/${tag}`,
             commitSha,
           };
+          const evidenceManifestPath = path.join("incoming/release-evidence", process.env.EVIDENCE_MANIFEST);
+          const manifest = JSON.parse(fs.readFileSync(evidenceManifestPath, "utf8"));
+          if (manifest.$schema !== "./release-evidence-inputs.schema.json"
+            || manifest.schemaVersion !== "jftrade.release-evidence-inputs.v1") {
+            throw new Error("external evidence manifest has an unsupported schema");
+          }
+          const expectedKinds = {
+            "signed-updater-inputs": "signed-updater",
+            "sbom-provenance-inputs": "sbom-provenance",
+            "rollback-artifact-pair": "rollback-artifact",
+            "backup-restore-drill": "backup-restore",
+            "security-review-inputs": "security-review",
+          };
+          const externalRun = {
+            id: process.env.EVIDENCE_RUN_ID,
+            attempt: Number(process.env.EVIDENCE_RUN_ATTEMPT),
+            workflow: process.env.EVIDENCE_WORKFLOW,
+            ref: sourceRun.ref,
+            commitSha,
+          };
           const prerequisites = [
-            ["candidate-admission", "evidence/candidate-admission.json"],
-            ["signed-updater-inputs", "evidence/signed-updater-inputs.json"],
-            ["sbom-provenance-inputs", "evidence/sbom-provenance-inputs.json"],
-            ["rollback-artifact-pair", "evidence/rollback-artifact-pair.txt"],
-            ["backup-restore-drill", "evidence/backup-restore-drill.txt"],
-            ["security-review-inputs", "evidence/security-review-inputs.json"],
-          ].map(([id, evidence]) => ({ id, status: "passed", releaseRef: run.ref, commitSha, workflowRun: run, evidence: [{ path: evidence }] }));
+            {
+              id: "candidate-admission",
+              kind: "stage9-closeout-admission",
+              status: "passed",
+              releaseRef: sourceRun.ref,
+              commitSha,
+              workflowRun: qualificationRun,
+              sourceWorkflowRun: sourceRun,
+              evidence: [{ path: "evidence/candidate-admission.json", kind: "stage9-closeout-admission" }],
+            },
+            ...Object.entries(expectedKinds).map(([id, kind]) => {
+              const entry = manifest.evidence?.[id];
+              if (!entry || entry.kind !== kind || !Array.isArray(entry.files) || entry.files.length === 0) {
+                throw new Error(`external evidence manifest missing valid ${id}`);
+              }
+              const evidence = entry.files.map((relative) => {
+                if (typeof relative !== "string" || relative.trim() === "" || path.isAbsolute(relative)
+                  || relative.split("/").includes("..") || relative.includes("\\")) {
+                  throw new Error(`${id} contains an unsafe evidence path`);
+                }
+                const source = path.join("incoming/release-evidence", relative);
+                if (!fs.statSync(source).isFile() || fs.statSync(source).size === 0) {
+                  throw new Error(`${id} evidence file is missing or empty: ${relative}`);
+                }
+                const target = path.join("candidate-inputs/evidence", id, path.basename(relative));
+                fs.mkdirSync(path.dirname(target), { recursive: true });
+                fs.copyFileSync(source, target);
+                return { path: path.relative(root, target).split(path.sep).join("/"), kind };
+              });
+              return {
+                id,
+                kind,
+                status: "passed",
+                releaseRef: sourceRun.ref,
+                commitSha,
+                workflowRun: qualificationRun,
+                sourceWorkflowRun: externalRun,
+                evidence,
+              };
+            }),
+          ];
           const packageFor = (platform, names) => ({
             manifest: `tauri-release-${platform}.json`,
             artifacts: names.map((name) => ({ path: name })),
           });
           const config = {
             baseDirectory: root,
-            releaseRef: run.ref,
+            releaseRef: sourceRun.ref,
             releaseTag: tag,
             commitSha,
-            workflowRun: run,
+            workflowRun: qualificationRun,
+            sourceWorkflowRun: sourceRun,
             platforms: {
               "macos-arm64": packageFor("macos-arm64", [`JFTrade-${tag}-macos-arm64.dmg`]),
               "linux-x64": packageFor("linux-x64", [`JFTrade-${tag}-linux-x64.AppImage`, `JFTrade-${tag}-linux-x64.deb`, `JFTrade-${tag}-linux-x64.rpm`]),
