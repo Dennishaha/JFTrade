@@ -188,6 +188,11 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set(read_client, trade_logged_in);
                     trade_runtime_for_activation.set_writer(write_client);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    trade_runtime_for_activation.set_market_microstructure(Some(Arc::new(
+                        jftrade_integration_futu::OpenDMarketMicrostructureReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_news_reader(Some(Arc::new(
                         jftrade_integration_futu::OpenDNewsReader::new(provider.coordinator()),
                     )));

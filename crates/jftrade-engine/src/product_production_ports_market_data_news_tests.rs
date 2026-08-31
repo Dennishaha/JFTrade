@@ -63,7 +63,7 @@ async fn production_news_actions_port_forwards_corporate_actions_window() {
         let read = stream.read(&mut request).await.expect("read");
         let request = String::from_utf8_lossy(&request[..read]);
         assert!(request.starts_with(
-            "GET /providers/yfinance/corporate-actions/SH/600519?from=2026-01-01T00:00:00Z&to=2026-01-31T00:00:00Z HTTP/1.1\r\n"
+            "GET /providers/yfinance/corporate-actions/SH/600519?from=2026-01-01T00%3A00%3A00Z&to=2026-01-31T00%3A00%3A00Z HTTP/1.1\r\n"
         ));
         let body = r#"{"market":"SH","symbol":"600519","instrument_id":"SH.600519","events":[{"kind":"dividend","ex_date":"2026-01-10","amount":1.2,"ratio":null}],"source":"yfinance-actions"}"#;
         let response = format!(

@@ -18,6 +18,7 @@ pub enum MarketMicrostructureOperation {
     Ticks,
     BrokerQueue,
     CapitalFlow,
+    CapitalDistribution,
     Intraday,
     Profile,
 }
@@ -157,6 +158,9 @@ impl MarketMicrostructureReadPort for OpenDMarketMicrostructureReader {
             MarketMicrostructureOperation::CapitalFlow => {
                 self.capital_flow(security, instrument_id, params)
             }
+            MarketMicrostructureOperation::CapitalDistribution => {
+                self.capital_distribution(security, instrument_id)
+            }
             MarketMicrostructureOperation::Intraday => self.intraday(security, instrument_id),
             MarketMicrostructureOperation::Profile => self.profile(security, instrument_id),
         }
@@ -198,26 +202,76 @@ impl OpenDMarketMicrostructureReader {
         let s2c = response
             .s2c
             .ok_or_else(|| decode_missing("Qot_GetOrderBook", "s2c"))?;
-        let levels = |items: Vec<crate::trade_proto::qot_common::OrderBook>| -> Result<Vec<Value>, MarketMicrostructureError> {
-            items.into_iter().map(|item| {
-                finite(item.price, "depth price")?;
-                if item.volume < 0 { return Err(MarketMicrostructureError::Decode { operation: "Qot_GetOrderBook", message: "negative depth volume".to_owned() }); }
-                Ok(json!({"price": item.price.to_string(), "volume": item.volume.to_string(), "orderCount": item.oreder_count}))
-            }).collect()
+        let levels = |items: Vec<crate::trade_proto::qot_common::OrderBook>| {
+            items
+                .into_iter()
+                .map(|item| {
+                    finite(item.price, "depth price")?;
+                    if item.volume < 0 {
+                        return Err(MarketMicrostructureError::Decode {
+                            operation: "Qot_GetOrderBook",
+                            message: "negative depth volume".to_owned(),
+                        });
+                    }
+                    let mut value = json!({
+                        "price": item.price,
+                        "volume": item.volume as f64,
+                        "orderCount": item.oreder_count,
+                    });
+                    if !item.detail_list.is_empty() {
+                        value["detailList"] = json!(item
+                            .detail_list
+                            .into_iter()
+                            .map(|detail| {
+                                json!({"orderId": detail.order_id, "volume": detail.volume as f64})
+                            })
+                            .collect::<Vec<_>>());
+                    }
+                    Ok(value)
+                })
+                .collect::<Result<Vec<_>, MarketMicrostructureError>>()
         };
         let asks = levels(s2c.order_book_ask_list)?;
         let bids = levels(s2c.order_book_bid_list)?;
-        if asks.is_empty() && bids.is_empty() {
-            return Err(MarketMicrostructureError::Rejected {
-                operation: "Qot_GetOrderBook",
-                ret_type: 0,
-                err_code: 0,
-                message: "OpenD returned no order-book levels".to_owned(),
-            });
+        let (market, symbol) = instrument_id.split_once('.').unwrap_or(("", instrument_id));
+        let resolved_at = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+        let mut depth = json!({
+            "symbol": instrument_id,
+            "bids": bids,
+            "asks": asks,
+        });
+        if let Some(name) = s2c.name.filter(|name| !name.trim().is_empty()) {
+            depth["name"] = json!(name);
         }
-        Ok(
-            json!({"request": {"instrumentId": instrument_id, "num": num}, "depth": {"symbol": instrument_id, "bids": bids, "asks": asks}, "meta": Self::result("market.depth", instrument_id, Vec::new(), json!({}))["provider"].clone()}),
-        )
+        if let Some(value) = s2c
+            .svr_recv_time_bid
+            .filter(|value| !value.trim().is_empty())
+        {
+            depth["svrRecvTimeBid"] = json!(value);
+        }
+        if let Some(value) = s2c
+            .svr_recv_time_ask
+            .filter(|value| !value.trim().is_empty())
+        {
+            depth["svrRecvTimeAsk"] = json!(value);
+        }
+        Ok(json!({
+            "request": {
+                "market": market,
+                "symbol": symbol,
+                "instrumentId": instrument_id,
+                "num": num,
+            },
+            "depth": depth,
+            "meta": {
+                "instrumentId": instrument_id,
+                "source": "bbgo:futu",
+                "resolvedAt": resolved_at,
+                "fromCache": false,
+            },
+        }))
     }
 
     fn ticks(
@@ -312,15 +366,18 @@ impl OpenDMarketMicrostructureReader {
         params: &Value,
     ) -> Result<Value, MarketMicrostructureError> {
         use crate::trade_proto::qot_get_capital_flow::{C2s, Request, Response};
+        let period_type = optional_i32(params, "periodType")?;
+        let begin_time = optional_string(params, "beginTime")?;
+        let end_time = optional_string(params, "endTime")?;
         let response = self.call::<Response>(
             crate::trade_proto::qot_get_capital_flow::PROTOCOL_ID,
             "Qot_GetCapitalFlow",
             (Request {
                 c2s: C2s {
                     security,
-                    period_type: None,
-                    begin_time: None,
-                    end_time: None,
+                    period_type,
+                    begin_time,
+                    end_time,
                     header: None,
                 },
             })
@@ -335,13 +392,112 @@ impl OpenDMarketMicrostructureReader {
         let s2c = response
             .s2c
             .ok_or_else(|| decode_missing("Qot_GetCapitalFlow", "s2c"))?;
-        let entries = s2c.flow_item_list.into_iter().map(|item| { finite(item.in_flow, "capital flow")?; Ok(json!({"inFlow": item.in_flow, "time": item.time, "timestamp": item.timestamp, "mainInFlow": item.main_in_flow, "superInFlow": item.super_in_flow, "bigInFlow": item.big_in_flow, "midInFlow": item.mid_in_flow, "smallInFlow": item.sml_in_flow})) }).collect::<Result<Vec<_>, _>>()?;
-        let _ = params;
+        let entries = s2c
+            .flow_item_list
+            .into_iter()
+            .map(|item| {
+                finite(item.in_flow, "capital flow")?;
+                for (label, value) in [
+                    ("main capital flow", item.main_in_flow),
+                    ("super capital flow", item.super_in_flow),
+                    ("big capital flow", item.big_in_flow),
+                    ("mid capital flow", item.mid_in_flow),
+                    ("small capital flow", item.sml_in_flow),
+                ] {
+                    if let Some(value) = value {
+                        finite(value, label)?;
+                    }
+                }
+                Ok(json!({
+                    "inFlow": item.in_flow,
+                    "time": item.time,
+                    "timestamp": item.timestamp,
+                    "mainInFlow": item.main_in_flow,
+                    "superInFlow": item.super_in_flow,
+                    "bigInFlow": item.big_in_flow,
+                    "midInFlow": item.mid_in_flow,
+                    "smallInFlow": item.sml_in_flow,
+                }))
+            })
+            .collect::<Result<Vec<_>, MarketMicrostructureError>>()?;
         Ok(Self::result(
             "market.capital_flow",
             instrument_id,
             entries,
             json!({"lastValidTime": s2c.last_valid_time, "lastValidTimestamp": s2c.last_valid_timestamp}),
+        ))
+    }
+
+    fn capital_distribution(
+        &self,
+        security: crate::trade_proto::qot_common::Security,
+        instrument_id: &str,
+    ) -> Result<Value, MarketMicrostructureError> {
+        use crate::trade_proto::qot_get_capital_distribution::{C2s, Request, Response};
+        let response = self.call::<Response>(
+            crate::trade_proto::qot_get_capital_distribution::PROTOCOL_ID,
+            "Qot_GetCapitalDistribution",
+            (Request {
+                c2s: C2s {
+                    security,
+                    header: None,
+                },
+            })
+            .encode_to_vec(),
+        )?;
+        ensure_ok(
+            "Qot_GetCapitalDistribution",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg,
+        )?;
+        let s2c = response
+            .s2c
+            .ok_or_else(|| decode_missing("Qot_GetCapitalDistribution", "s2c"))?;
+        for (label, value) in [
+            ("capital in big", s2c.capital_in_big),
+            ("capital in mid", s2c.capital_in_mid),
+            ("capital in small", s2c.capital_in_small),
+            ("capital out big", s2c.capital_out_big),
+            ("capital out mid", s2c.capital_out_mid),
+            ("capital out small", s2c.capital_out_small),
+        ] {
+            finite(value, label)?;
+        }
+        for (label, value) in [
+            ("capital in super", s2c.capital_in_super),
+            ("capital out super", s2c.capital_out_super),
+            ("capital distribution timestamp", s2c.update_timestamp),
+        ] {
+            if let Some(value) = value {
+                finite(value, label)?;
+            }
+        }
+        let mut entry = json!({
+            "capitalInBig": s2c.capital_in_big,
+            "capitalInMid": s2c.capital_in_mid,
+            "capitalInSmall": s2c.capital_in_small,
+            "capitalOutBig": s2c.capital_out_big,
+            "capitalOutMid": s2c.capital_out_mid,
+            "capitalOutSmall": s2c.capital_out_small,
+        });
+        if let Some(value) = s2c.capital_in_super {
+            entry["capitalInSuper"] = json!(value);
+        }
+        if let Some(value) = s2c.capital_out_super {
+            entry["capitalOutSuper"] = json!(value);
+        }
+        if let Some(value) = s2c.update_time {
+            entry["updateTime"] = json!(value);
+        }
+        if let Some(value) = s2c.update_timestamp {
+            entry["updateTimestamp"] = json!(value);
+        }
+        Ok(Self::result(
+            "market.capital_flow",
+            instrument_id,
+            vec![entry],
+            json!({}),
         ))
     }
 
@@ -453,5 +609,32 @@ fn finite(value: f64, label: &str) -> Result<(), MarketMicrostructureError> {
             operation: "market-microstructure",
             message: format!("{label} is not finite"),
         })
+    }
+}
+
+fn optional_i32(params: &Value, key: &str) -> Result<Option<i32>, MarketMicrostructureError> {
+    let Some(value) = params.get(key) else {
+        return Ok(None);
+    };
+    let parsed = match value {
+        Value::Number(number) => number.as_i64().and_then(|value| i32::try_from(value).ok()),
+        Value::String(value) => value.trim().parse::<i32>().ok(),
+        _ => None,
+    };
+    parsed
+        .map(Some)
+        .ok_or_else(|| MarketMicrostructureError::Invalid(format!("{key} must be an integer")))
+}
+
+fn optional_string(params: &Value, key: &str) -> Result<Option<String>, MarketMicrostructureError> {
+    let Some(value) = params.get(key) else {
+        return Ok(None);
+    };
+    match value {
+        Value::String(value) if !value.trim().is_empty() => Ok(Some(value.clone())),
+        Value::String(_) | Value::Null => Ok(None),
+        _ => Err(MarketMicrostructureError::Invalid(format!(
+            "{key} must be a string"
+        ))),
     }
 }

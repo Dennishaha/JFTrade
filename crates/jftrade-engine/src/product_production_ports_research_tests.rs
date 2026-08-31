@@ -1,5 +1,7 @@
 use super::*;
-use crate::product::product_research_screen_write_port::ResearchScreenColumn;
+use crate::product::product_research_screen_write_port::{
+    ResearchScreenColumn, ResearchScreenWritePort, ResearchScreenWriteQuery,
+};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;

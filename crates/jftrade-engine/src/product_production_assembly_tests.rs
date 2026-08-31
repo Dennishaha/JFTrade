@@ -46,7 +46,7 @@ mod product_production_assembly_tests {
     };
     use jftrade_settings::{
         ExchangeCalendarSettings, ExchangeCalendarSettingsStorePort, ExchangeCalendarSourcePolicy,
-        SecuritySettingsService,
+        MarketDataProviderRuntimePort, SecuritySettingsService,
     };
     use jftrade_store_settings_file::SettingsFileStore;
     use jftrade_store_sqlite::{ADK_PRODUCTION_PROFILE, AdkStore, CreateAdkRunParams};
@@ -1013,6 +1013,10 @@ mod product_production_assembly_tests {
             br#"{"activeMarketDataProvider":"akshare"}"#,
         )
         .expect("write active provider");
+        ports
+            .active_provider_state
+            .activate(MarketDataProvider::Akshare)
+            .expect("publish active provider");
 
         let provider = ports.provider;
         let provider_res = provider
@@ -1026,14 +1030,18 @@ mod product_production_assembly_tests {
         assert_eq!(provider_res["runtime"]["Connected"], false);
         assert_eq!(provider_res["runtime"]["Closed"], false);
 
-        // Quote port verification
+        // Quote port verification: a helper provider without a ready helper
+        // must fail closed, even though no physical router is required for
+        // the snapshot-poll fallback.
         let quote = ports.market_data_quote;
-        let sub_res = quote
+        let sub_err = quote
             .read("/api/v1/market-data/subscriptions", "")
             .await
-            .expect("read subscriptions without router returns 200 empty projection");
-        assert_eq!(sub_res["totalActiveSubscriptions"], 0);
-        assert_eq!(sub_res["entries"], serde_json::json!([]));
+            .expect_err("unready helper subscription provider must fail closed");
+        assert!(matches!(
+            sub_err,
+            crate::product::MarketDataQuoteReadSnapshotError::Unavailable(_)
+        ));
 
         let sec_err = quote
             .read("/api/v1/market-data/securities/US/AAPL", "")

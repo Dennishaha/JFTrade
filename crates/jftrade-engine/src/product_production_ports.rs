@@ -679,6 +679,7 @@ pub(crate) fn production_ports(
                 .as_ref()
                 .and_then(|runtime| runtime.market_microstructure_reader()),
         )
+        .with_trade_runtime(config.trade_runtime.clone())
         .with_calendar(Arc::clone(&calendar_manager)),
     );
     let strategy_runtime_manager = Arc::new(StrategyRuntimeManager::new(
