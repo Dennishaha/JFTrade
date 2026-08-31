@@ -13,7 +13,7 @@ these symbols instead of copying their logic or depending on unexported helpers.
 | --- | --- | --- |
 | `desktop-release-metadata.mjs` | Resolve and validate desktop version, commit and reproducible build time metadata. | `desktopReleaseTagPattern`, `resolveDesktopBuildMetadata`, `requireDesktopReleaseMetadata` |
 | `desktop-release-artifacts.mjs` | Define canonical Linux desktop artifact names, paths and package extensions. | `linuxPackageFormats`, `linuxReleaseArtifactName`, `linuxReleaseArtifactPaths`, `linuxPackageExtension` |
-| `desktop-release-inputs.mjs` | Detect and validate prepared frontend, documentation and Pineworker release inputs. | `desktopReleaseInputPaths`, `usesPreparedDesktopReleaseInputs`, `assertPreparedDesktopReleaseInputs` |
+| `desktop-release-inputs.mjs` | Detect, hash and validate prepared frontend, documentation and Pineworker release inputs. | `desktopReleaseInputPaths`, `desktopReleaseInputManifestPath`, `usesPreparedDesktopReleaseInputs`, `assertPreparedDesktopReleaseInputs`, `writeDesktopReleaseInputManifest`, `verifyDesktopReleaseInputManifest` |
 | `spawn.mjs` | Run checked child processes with cross-platform pnpm command resolution. | `spawnChecked` |
 | `pinets-package.mjs` | Verify the installed PineTS package and its license before bundling. | `checkPinetsPackageAndLicense` |
 | `pineworker-rolldown-build.mjs` | Produce the Node ESM Pineworker bundle or its dry-run command. | `buildPineWorkerBundle`, `dryRunPineWorkerBundleCommand` |

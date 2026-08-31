@@ -88,6 +88,24 @@ test("tauri release disables updater artifact generation for non-publish builds"
   ]);
 });
 
+test("tauri release forwards native signing configuration only when provisioned", () => {
+  const release = tauriReleaseBuild({
+    JFTRADE_DESKTOP_RELEASE_TAG: "v1.2.3",
+    JFTRADE_DESKTOP_PUBLISH: "true",
+    JFTRADE_MACOS_SIGN_IDENTITY: "Developer ID Application: JFTrade",
+    JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT: "ABC123",
+  });
+  const config = JSON.parse(release.finalOptions[1]);
+  assert.deepEqual(config.bundle.macOS, {
+    signingIdentity: "Developer ID Application: JFTrade",
+  });
+  assert.deepEqual(config.bundle.windows, {
+    certificateThumbprint: "ABC123",
+    digestAlgorithm: "sha256",
+    timestampUrl: "http://timestamp.digicert.com",
+  });
+});
+
 test("tauri release rejects development and zero versions before preparation", () => {
   assert.throws(
     () => tauriReleaseBuild({ JFTRADE_DESKTOP_RELEASE_TAG: "main" }),

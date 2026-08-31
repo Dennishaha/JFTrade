@@ -16,10 +16,16 @@ export function releaseBundlePaths({
 } = {}) {
   if (executableOverride) {
     const executable = path.resolve(executableOverride);
-    return { executable, resourceRoot: path.resolve(path.dirname(executable), "../Resources") };
+    const resourceRoot = platform === "darwin"
+      ? path.resolve(path.dirname(executable), "../Resources")
+      : path.dirname(executable);
+    return { executable, resourceRoot };
   }
+  const targetRoot = fs.existsSync(path.join(root, "apps/desktop/src-tauri"))
+    ? path.join(root, "apps/desktop/src-tauri/target/release")
+    : path.join(root, "target/release");
   if (platform === "darwin") {
-    const bundle = path.join(root, "target/release/bundle/macos/JFTrade.app");
+    const bundle = path.join(targetRoot, "bundle/macos/JFTrade.app");
     return {
       executable: path.join(bundle, "Contents/MacOS/jftrade-desktop"),
       resourceRoot: path.join(bundle, "Contents/Resources"),
@@ -27,13 +33,13 @@ export function releaseBundlePaths({
   }
   if (platform === "win32") {
     return {
-      executable: path.join(root, "target/release/jftrade-desktop.exe"),
-      resourceRoot: path.join(root, "target/release"),
+      executable: path.join(targetRoot, "jftrade-desktop.exe"),
+      resourceRoot: targetRoot,
     };
   }
   return {
-    executable: path.join(root, "target/release/jftrade-desktop"),
-    resourceRoot: path.join(root, "target/release"),
+    executable: path.join(targetRoot, "jftrade-desktop"),
+    resourceRoot: targetRoot,
   };
 }
 
@@ -84,16 +90,30 @@ function desktopLog(root) {
 }
 
 function assertNoPackagedOrphans(resourceRoot) {
-  if (process.platform === "win32") return;
+  if (process.platform === "win32") return false;
   const processes = execFileSync("ps", ["-axo", "command"], { encoding: "utf8" });
   const orphan = processes
     .split("\n")
     .find((line) => line.includes(resourceRoot) && /runtime\/(node|marketdata)/.test(line));
   if (orphan) throw new Error(`packaged child process survived desktop exit: ${orphan.trim()}`);
+  return true;
+}
+
+function smokeTarget(platform, architecture) {
+  return {
+    architecture: architecture === "x64" ? "amd64" : architecture,
+    platform: platform === "win32" ? "windows" : platform,
+  };
+}
+
+export function writeTauriSmokeReport(reportPath, report) {
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }
 
 export async function smokeTauriRelease(options = {}) {
   const bundle = releaseBundlePaths(options);
+  const target = smokeTarget(options.platform ?? process.platform, options.architecture ?? process.arch);
   requireFile(bundle.executable, "Tauri release executable");
   for (const relative of [
     "runtime/node/manifest.json",
@@ -171,8 +191,26 @@ export async function smokeTauriRelease(options = {}) {
     if (state.version !== 1 || state.width < 1024 || state.height < 700) {
       throw new Error(`desktop window state is invalid: ${JSON.stringify(state)}`);
     }
-    assertNoPackagedOrphans(bundle.resourceRoot);
-    return { readyMs, shutdownMs };
+    const orphanCheck = assertNoPackagedOrphans(bundle.resourceRoot);
+    const result = {
+      schemaVersion: "jftrade.tauri-runtime-smoke.v1",
+      target,
+      executable: path.relative(repositoryRoot, bundle.executable).split(path.sep).join("/"),
+      scope: [
+        "packaged runtime resource presence and startup integrity validation",
+        "unauthenticated API fail-closed response",
+        "startup and graceful shutdown with retained child cleanup",
+      ],
+      readiness: { status: response.status, errorCode: response.body?.error?.code, readyMs },
+      shutdown: { code: outcome.code, signal: outcome.signal, shutdownMs },
+      orphanCheck: orphanCheck ? "passed" : "not-applicable-on-windows",
+      externalRequired: [
+        "native package installation, upgrade, uninstall and rollback on the matching runner",
+        "code-signing and notarization verification",
+      ],
+    };
+    if (options.reportPath) writeTauriSmokeReport(options.reportPath, result);
+    return result;
   } finally {
     if (!exited) child.kill("SIGKILL");
     fs.rmSync(isolatedHome, { recursive: true, force: true });
@@ -180,9 +218,11 @@ export async function smokeTauriRelease(options = {}) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  smokeTauriRelease()
+  smokeTauriRelease({ reportPath: process.env.JFTRADE_TAURI_SMOKE_REPORT })
     .then((result) => {
-      console.log(`Tauri release smoke passed: ready=${result.readyMs}ms shutdown=${result.shutdownMs}ms, no packaged child orphans.`);
+      console.log(
+        `Tauri release smoke passed for ${result.target.platform}/${result.target.architecture}: ready=${result.readiness.readyMs}ms shutdown=${result.shutdown.shutdownMs}ms.`,
+      );
     })
     .catch((error) => {
       console.error(error);

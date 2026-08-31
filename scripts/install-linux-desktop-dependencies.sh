@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Wails task/doctor uses the default GTK4 stack, while the shipped Linux
-# desktop binary is deliberately built with the legacy GTK3 build tag.
+# Tauri release packaging needs both GTK/WebKit development headers.  Xvfb
+# provides a deterministic display for the packaged runtime smoke on CI.
 sudo apt-get update
 sudo apt-get install -y \
   file \
-  pkg-config \
-  libgtk-4-dev \
-  libwebkitgtk-6.0-dev \
+  libappindicator3-dev \
+  xvfb \
   libgtk-3-dev \
-  libwebkit2gtk-4.1-dev
+  libwebkit2gtk-4.1-dev \
+  librsvg2-dev \
+  patchelf \
+  pkg-config

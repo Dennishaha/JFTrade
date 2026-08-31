@@ -145,6 +145,7 @@ jobs:
             docs/reference/generated/pine-v6-support.md
           pnpm run build:frontend-assets:generated
           pnpm run build:pineworker
+          node scripts/write-desktop-release-input-manifest.mjs
           git diff --check
 
       - name: Verify built PineTS worker with a real backtest
@@ -168,6 +169,7 @@ jobs:
             docs/swagger/swagger.yaml
             internal/frontendassets/dist.zip
             internal/pineworkerassets/assets/bin/worker.mjs
+            artifacts/desktop-release-inputs.json
           if-no-files-found: error
           retention-days: 1
 
@@ -210,6 +212,9 @@ jobs:
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
+
+      - name: Verify prepared release inputs and hashes
+        run: node scripts/prepare-desktop-release.mjs
 
       - name: Configure macOS signing and notarization
         env:
@@ -288,24 +293,42 @@ jobs:
       - name: Locate macOS artifact
         id: artifact
         run: |
-          artifact="$(find bin -maxdepth 1 -name 'JFTrade-*.dmg' -print -quit)"
+          artifact="$(find apps/desktop/src-tauri/target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print -quit)"
           test -n "$artifact"
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
 
+      - name: Verify macOS Tauri package manifest
+        run: |
+          mkdir -p artifacts
+          updater_flag=()
+          if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then updater_flag=(--require-updater); fi
+          node scripts/verify-tauri-release-artifacts.mjs \
+            --platform macos-arm64 \
+            --architecture arm64 \
+            --version "${JFTRADE_DESKTOP_RELEASE_TAG#v}" \
+            --output artifacts/tauri-release-macos-arm64.json \
+            "${updater_flag[@]}"
+
+      - name: Smoke packaged macOS Tauri runtime
+        env:
+          JFTRADE_TAURI_BINARY: apps/desktop/src-tauri/target/release/bundle/macos/JFTrade.app/Contents/MacOS/jftrade-desktop
+          JFTRADE_TAURI_SMOKE_REPORT: artifacts/tauri-runtime-smoke-macos-arm64.json
+        run: pnpm run smoke:tauri-release
+
       - name: Verify sealed macOS bundle
         run: |
-          bundle="bin/JFTrade.app"
+          bundle="apps/desktop/src-tauri/target/release/bundle/macos/JFTrade.app"
           codesign --verify --deep --strict --verbose=2 "$bundle"
-          test "$(lipo -archs "$bundle/Contents/MacOS/JFTrade")" = "arm64"
+          test "$(lipo -archs "$bundle/Contents/MacOS/jftrade-desktop")" = "arm64"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$bundle/Contents/Info.plist")" = "com.jftrade.desktop"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")" = "${JFTRADE_DESKTOP_RELEASE_TAG#v}"
 
       - name: Generate macOS SBOM
         uses: anchore/sbom-action@v0
         with:
-          path: bin/JFTrade.app
+          path: apps/desktop/src-tauri/target/release/bundle/macos/JFTrade.app
           format: spdx-json
-          output-file: bin/JFTrade-macos-arm64.spdx.json
+          output-file: artifacts/JFTrade-macos-arm64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -321,7 +344,9 @@ jobs:
           name: desktop-release-macos
           path: |
             ${{ steps.artifact.outputs.path }}
-            bin/JFTrade-macos-arm64.spdx.json
+            artifacts/JFTrade-macos-arm64.spdx.json
+            artifacts/tauri-release-macos-arm64.json
+            artifacts/tauri-runtime-smoke-macos-arm64.json
           if-no-files-found: error
 
       - name: Upload macOS updater artifacts
@@ -393,12 +418,22 @@ jobs:
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          $securePassword = ConvertTo-SecureString $env:CERTIFICATE_PASSWORD -AsPlainText -Force
+          $imported = @(Import-PfxCertificate -FilePath $certificate -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword) |
+            Where-Object HasPrivateKey |
+            Select-Object -First 1
+          if (-not $imported) { throw "Windows signing certificate import failed" }
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT=$($imported.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
+
+      - name: Verify prepared release inputs and hashes
+        shell: pwsh
+        run: node scripts/prepare-desktop-release.mjs
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -426,16 +461,46 @@ jobs:
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem bin/JFTrade-*-setup.exe | Select-Object -First 1
+          $artifact = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
           if (-not $artifact) { throw "Windows installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify Windows Authenticode signatures
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        shell: pwsh
+        run: |
+          & signtool verify /pa apps/desktop/src-tauri/target/release/jftrade-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Tauri executable Authenticode verification failed" }
+          & signtool verify /pa "${{ steps.artifact.outputs.path }}"
+          if ($LASTEXITCODE -ne 0) { throw "Tauri installer Authenticode verification failed" }
+
+      - name: Verify Windows Tauri package manifest
+        shell: pwsh
+        run: |
+          $arguments = @(
+            "scripts/verify-tauri-release-artifacts.mjs",
+            "--platform", "windows-x64",
+            "--architecture", "amd64",
+            "--version", $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v'),
+            "--output", "artifacts/tauri-release-windows-x64.json"
+          )
+          if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { $arguments += "--require-updater" }
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          node @arguments
+
+      - name: Smoke packaged Windows Tauri runtime
+        shell: pwsh
+        env:
+          JFTRADE_TAURI_BINARY: apps/desktop/src-tauri/target/release/jftrade-desktop.exe
+          JFTRADE_TAURI_SMOKE_REPORT: artifacts/tauri-runtime-smoke-windows-x64.json
+        run: pnpm run smoke:tauri-release
 
       - name: Generate Windows SBOM
         uses: anchore/sbom-action@v0
         with:
-          file: bin/JFTrade.exe
+          file: apps/desktop/src-tauri/target/release/jftrade-desktop.exe
           format: spdx-json
-          output-file: bin/JFTrade-windows-x64.spdx.json
+          output-file: artifacts/JFTrade-windows-x64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -451,7 +516,9 @@ jobs:
           name: desktop-release-windows
           path: |
             ${{ steps.artifact.outputs.path }}
-            bin/JFTrade-windows-x64.spdx.json
+            artifacts/JFTrade-windows-x64.spdx.json
+            artifacts/tauri-release-windows-x64.json
+            artifacts/tauri-runtime-smoke-windows-x64.json
           if-no-files-found: error
 
       - name: Upload Windows updater artifacts
@@ -530,12 +597,22 @@ jobs:
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
+          $securePassword = ConvertTo-SecureString $env:CERTIFICATE_PASSWORD -AsPlainText -Force
+          $imported = @(Import-PfxCertificate -FilePath $certificate -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword) |
+            Where-Object HasPrivateKey |
+            Select-Object -First 1
+          if (-not $imported) { throw "Windows signing certificate import failed" }
           "JFTRADE_WINDOWS_CERTIFICATE=$certificate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT=$($imported.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
+
+      - name: Verify prepared release inputs and hashes
+        shell: pwsh
+        run: node scripts/prepare-desktop-release.mjs
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -563,16 +640,46 @@ jobs:
         id: artifact
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem bin/JFTrade-*-arm64-*-setup.exe | Select-Object -First 1
+          $artifact = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
           if (-not $artifact) { throw "Windows ARM64 installer was not produced" }
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify Windows ARM64 Authenticode signatures
+        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        shell: pwsh
+        run: |
+          & signtool verify /pa apps/desktop/src-tauri/target/release/jftrade-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Tauri ARM64 executable Authenticode verification failed" }
+          & signtool verify /pa "${{ steps.artifact.outputs.path }}"
+          if ($LASTEXITCODE -ne 0) { throw "Tauri ARM64 installer Authenticode verification failed" }
+
+      - name: Verify Windows ARM64 Tauri package manifest
+        shell: pwsh
+        run: |
+          $arguments = @(
+            "scripts/verify-tauri-release-artifacts.mjs",
+            "--platform", "windows-arm64",
+            "--architecture", "arm64",
+            "--version", $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v'),
+            "--output", "artifacts/tauri-release-windows-arm64.json"
+          )
+          if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { $arguments += "--require-updater" }
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          node @arguments
+
+      - name: Smoke packaged Windows ARM64 Tauri runtime
+        shell: pwsh
+        env:
+          JFTRADE_TAURI_BINARY: apps/desktop/src-tauri/target/release/jftrade-desktop.exe
+          JFTRADE_TAURI_SMOKE_REPORT: artifacts/tauri-runtime-smoke-windows-arm64.json
+        run: pnpm run smoke:tauri-release
 
       - name: Generate Windows ARM64 SBOM
         uses: anchore/sbom-action@v0
         with:
           file: ${{ steps.artifact.outputs.path }}
           format: spdx-json
-          output-file: bin/JFTrade-windows-arm64.spdx.json
+          output-file: artifacts/JFTrade-windows-arm64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -588,7 +695,9 @@ jobs:
           name: desktop-release-windows-arm64
           path: |
             ${{ steps.artifact.outputs.path }}
-            bin/JFTrade-windows-arm64.spdx.json
+            artifacts/JFTrade-windows-arm64.spdx.json
+            artifacts/tauri-release-windows-arm64.json
+            artifacts/tauri-runtime-smoke-windows-arm64.json
           if-no-files-found: error
 
       - name: Upload Windows ARM64 updater artifacts
@@ -643,6 +752,9 @@ jobs:
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
 
+      - name: Verify prepared release inputs and hashes
+        run: node scripts/prepare-desktop-release.mjs
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
@@ -650,13 +762,9 @@ jobs:
         id: linux_artifacts
         run: |
           version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
-          base="JFTrade-${version}-linux-x64"
-          dir="bin"
+          dir="apps/desktop/src-tauri/target/release/bundle"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "appimage=$dir/$base.AppImage" >> "$GITHUB_OUTPUT"
-          echo "deb=$dir/$base.deb" >> "$GITHUB_OUTPUT"
-          echo "rpm=$dir/$base.rpm" >> "$GITHUB_OUTPUT"
-          echo "sbom=bin/$base.spdx.json" >> "$GITHUB_OUTPUT"
+          echo "bundle=$dir" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux x64 release packages
         env:
@@ -683,12 +791,37 @@ jobs:
           file "$artifact" | grep -q 'ELF 64-bit'
           echo "path=$artifact" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve and verify Linux Tauri package manifest
+        id: linux_package_artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          updater_flag=()
+          if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then updater_flag=(--require-updater); fi
+          node scripts/verify-tauri-release-artifacts.mjs \
+            --platform linux-x64 \
+            --architecture amd64 \
+            --version "${JFTRADE_DESKTOP_RELEASE_TAG#v}" \
+            --output artifacts/tauri-release-linux-x64.json \
+            "${updater_flag[@]}"
+          for format in appimage deb rpm; do
+            artifact="$(find "${{ steps.linux_artifacts.outputs.bundle }}/$format" -maxdepth 1 -type f -print -quit)"
+            test -n "$artifact"
+            echo "$format=$artifact" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Smoke packaged Linux Tauri runtime
+        env:
+          JFTRADE_TAURI_BINARY: apps/desktop/src-tauri/target/release/jftrade-desktop
+          JFTRADE_TAURI_SMOKE_REPORT: artifacts/tauri-runtime-smoke-linux-x64.json
+        run: xvfb-run -a pnpm run smoke:tauri-release
+
       - name: Generate Linux x64 SBOM
         uses: anchore/sbom-action@v0
         with:
           file: ${{ steps.artifact.outputs.path }}
           format: spdx-json
-          output-file: ${{ steps.linux_artifacts.outputs.sbom }}
+          output-file: artifacts/JFTrade-linux-x64.spdx.json
           upload-artifact: false
           upload-release-assets: false
 
@@ -697,19 +830,21 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-path: |
-            ${{ steps.linux_artifacts.outputs.appimage }}
-            ${{ steps.linux_artifacts.outputs.deb }}
-            ${{ steps.linux_artifacts.outputs.rpm }}
+            ${{ steps.linux_package_artifacts.outputs.appimage }}
+            ${{ steps.linux_package_artifacts.outputs.deb }}
+            ${{ steps.linux_package_artifacts.outputs.rpm }}
 
       - name: Upload Linux x64 release files
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-linux
           path: |
-            ${{ steps.linux_artifacts.outputs.appimage }}
-            ${{ steps.linux_artifacts.outputs.deb }}
-            ${{ steps.linux_artifacts.outputs.rpm }}
-            ${{ steps.linux_artifacts.outputs.sbom }}
+            ${{ steps.linux_package_artifacts.outputs.appimage }}
+            ${{ steps.linux_package_artifacts.outputs.deb }}
+            ${{ steps.linux_package_artifacts.outputs.rpm }}
+            artifacts/JFTrade-linux-x64.spdx.json
+            artifacts/tauri-release-linux-x64.json
+            artifacts/tauri-runtime-smoke-linux-x64.json
           if-no-files-found: error
 
       - name: Upload Linux updater artifacts
@@ -761,18 +896,16 @@ jobs:
           find incoming -type f -exec cp {} release/ \;
           cp LICENSE release/LICENSE
           cp docs/legal/third-party-notices.md release/THIRD-PARTY-NOTICES.md
-          version="${JFTRADE_DESKTOP_RELEASE_TAG#v}"
-          base="JFTrade-${version}-linux-x64"
-          test -s "release/$base.AppImage"
-          test -s "release/$base.deb"
-          test -s "release/$base.rpm"
-          test -s "release/$base.spdx.json"
-          test ! -e release/JFTrade
-          test -z "$(find release -maxdepth 1 -type f -name '*.pkg.tar.zst' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name '*.spdx.json' -print -quit)"
           test -n "$(find release -maxdepth 1 -type f -name '*.sig' -print -quit)"
           test -n "$(find release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name 'tauri-release-*.json' -print -quit)"
+          test -n "$(find release -maxdepth 1 -type f -name 'tauri-runtime-smoke-*.json' -print -quit)"
           # Linux contributes AppImage, deb, rpm and SBOM; all platforms share the legal notice assets.
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 10
+          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 14
 
       - name: Generate SHA256SUMS
         working-directory: release
@@ -794,7 +927,7 @@ jobs:
             is_draft="$(gh release view "$JFTRADE_DESKTOP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
             while IFS= read -r asset; do
               case "$asset" in
-                jftrade-desktop-linux-*|jftrade.deb|jftrade.rpm|*.pkg.tar.zst|JFTrade-*linux-*.spdx.json|JFTrade-*windows-*.spdx.json|JFTrade-macos-*.spdx.json|JFTrade-*-linux-*.AppImage|JFTrade-*-linux-*.deb|JFTrade-*-linux-*.rpm|JFTrade-*-windows-*-setup.exe|JFTrade-*-macos-*.dmg)
+                *.AppImage|*.deb|*.rpm|*.dmg|*-setup.exe|*.spdx.json|*.sig|*.tar.gz|*.zip|tauri-release-*.json|tauri-runtime-smoke-*.json|SHA256SUMS)
                   gh release delete-asset "$JFTRADE_DESKTOP_RELEASE_TAG" "$asset" --yes --repo "$GITHUB_REPOSITORY"
                   ;;
               esac

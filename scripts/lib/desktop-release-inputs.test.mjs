@@ -9,6 +9,8 @@ import {
   desktopReleaseInputPaths,
   desktopReleaseInputPathsForCurrentPlatform,
   usesPreparedDesktopReleaseInputs,
+  verifyDesktopReleaseInputManifest,
+  writeDesktopReleaseInputManifest,
 } from "./desktop-release-inputs.mjs";
 
 assert.equal(usesPreparedDesktopReleaseInputs({}), false);
@@ -63,6 +65,17 @@ try {
     }
   }
   assert.doesNotThrow(() => assertPreparedDesktopReleaseInputs(rootDir));
+
+  const manifest = writeDesktopReleaseInputManifest(rootDir);
+  assert.equal(manifest.schemaVersion, "jftrade.desktop-release-inputs.v1");
+  assert.doesNotThrow(() => verifyDesktopReleaseInputManifest(rootDir));
+
+  fs.appendFileSync(path.join(rootDir, desktopReleaseInputPaths[1]), "tampered", "utf8");
+  assert.throws(
+    () => verifyDesktopReleaseInputManifest(rootDir),
+    /stale or mismatched/,
+  );
+  fs.writeFileSync(path.join(rootDir, desktopReleaseInputPaths[1]), "prepared\n", "utf8");
 
   const emptyInput = path.join(rootDir, desktopReleaseInputPaths[0]);
   fs.writeFileSync(emptyInput, "", "utf8");

@@ -27,6 +27,24 @@ export function tauriReleaseBuild(sourceEnvironment, now = new Date()) {
   const metadata = requireDesktopReleaseMetadata(
     resolveDesktopBuildMetadata(sourceEnvironment, now),
   );
+  const bundle = {
+    // Updater artifacts are emitted only by the publish lane.  Keeping
+    // dry-runs free of signing requirements preserves local verification
+    // while the release workflow fails closed before any publish.
+    createUpdaterArtifacts: sourceEnvironment.JFTRADE_DESKTOP_PUBLISH === "true",
+  };
+  const macSigningIdentity = String(sourceEnvironment.JFTRADE_MACOS_SIGN_IDENTITY ?? "").trim();
+  if (macSigningIdentity) bundle.macOS = { signingIdentity: macSigningIdentity };
+  const windowsCertificateThumbprint = String(
+    sourceEnvironment.JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT ?? "",
+  ).trim();
+  if (windowsCertificateThumbprint) {
+    bundle.windows = {
+      certificateThumbprint: windowsCertificateThumbprint,
+      digestAlgorithm: "sha256",
+      timestampUrl: "http://timestamp.digicert.com",
+    };
+  }
   return {
     environment: {
       ...sourceEnvironment,
@@ -38,12 +56,7 @@ export function tauriReleaseBuild(sourceEnvironment, now = new Date()) {
       "--config",
       JSON.stringify({
         version: metadata.version,
-        // Updater artifacts are emitted only by the publish lane.  Keeping
-        // dry-runs free of signing requirements preserves local verification
-        // while the release workflow fails closed before any publish.
-        bundle: {
-          createUpdaterArtifacts: sourceEnvironment.JFTRADE_DESKTOP_PUBLISH === "true",
-        },
+        bundle,
       }),
     ],
     metadata,

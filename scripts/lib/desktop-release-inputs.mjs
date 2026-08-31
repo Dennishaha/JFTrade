@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,6 +9,9 @@ export const desktopReleaseInputPaths = [
   "internal/frontendassets/dist.zip",
   "internal/pineworkerassets/assets/bin/worker.mjs",
 ];
+
+export const desktopReleaseInputManifestPath = "artifacts/desktop-release-inputs.json";
+const desktopReleaseInputManifestSchema = "jftrade.desktop-release-inputs.v1";
 
 const platformNames = {
   darwin: "darwin",
@@ -49,7 +53,11 @@ export function usesPreparedDesktopReleaseInputs(environment = process.env) {
 }
 
 export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
-  for (const relativePath of desktopReleaseInputPathsForCurrentPlatform(options)) {
+  assertDesktopReleaseInputFiles(rootDir);
+  const platformInputs = desktopReleaseInputPathsForCurrentPlatform(options).slice(
+    desktopReleaseInputPaths.length,
+  );
+  for (const relativePath of platformInputs) {
     const inputPath = path.join(rootDir, relativePath);
     let stat;
     try {
@@ -85,4 +93,70 @@ export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
       throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);
     }
   }
+}
+
+function assertDesktopReleaseInputFiles(rootDir) {
+  for (const relativePath of desktopReleaseInputPaths) {
+    const inputPath = path.join(rootDir, relativePath);
+    let stat;
+    try {
+      stat = fs.statSync(inputPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        throw new Error(`Prepared desktop release input is missing: ${relativePath}`);
+      }
+      throw error;
+    }
+    if (!stat.isFile() || stat.size === 0) {
+      throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);
+    }
+  }
+}
+
+function sha256(filePath) {
+  return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function expectedInputManifest(rootDir) {
+  assertDesktopReleaseInputFiles(rootDir);
+  return {
+    schemaVersion: desktopReleaseInputManifestSchema,
+    files: desktopReleaseInputPaths
+      .map((relativePath) => {
+        const stat = fs.statSync(path.join(rootDir, relativePath));
+        return {
+          path: relativePath,
+          sha256: sha256(path.join(rootDir, relativePath)),
+          size: stat.size,
+        };
+      })
+      .sort((left, right) => left.path.localeCompare(right.path)),
+  };
+}
+
+export function writeDesktopReleaseInputManifest(
+  rootDir,
+  outputPath = path.join(rootDir, desktopReleaseInputManifestPath),
+) {
+  const manifest = expectedInputManifest(rootDir);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return manifest;
+}
+
+export function verifyDesktopReleaseInputManifest(
+  rootDir,
+  manifestPath = path.join(rootDir, desktopReleaseInputManifestPath),
+) {
+  let actual;
+  try {
+    actual = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    throw new Error(`Prepared desktop release input manifest is unreadable: ${error.message}`);
+  }
+  const expected = expectedInputManifest(rootDir);
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error("Prepared desktop release input manifest is stale or mismatched");
+  }
+  return actual;
 }

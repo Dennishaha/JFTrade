@@ -364,6 +364,10 @@ impl CleanupPreviewIdPort for SystemCleanupPreviewIds {
 
 #[cfg(test)]
 mod tests {
+    mod backup_restore_drill_tests {
+        include!("product_data_management_backup_restore_drill_tests.rs");
+    }
+
     use std::collections::BTreeMap;
     use std::path::PathBuf;
     use std::str::FromStr;

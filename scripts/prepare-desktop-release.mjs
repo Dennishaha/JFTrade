@@ -3,11 +3,14 @@ import process from "node:process";
 import { spawnChecked } from "./lib/spawn.mjs";
 import {
   assertPreparedDesktopReleaseInputs,
+  verifyDesktopReleaseInputManifest,
+  writeDesktopReleaseInputManifest,
   usesPreparedDesktopReleaseInputs,
 } from "./lib/desktop-release-inputs.mjs";
 
 if (usesPreparedDesktopReleaseInputs()) {
   assertPreparedDesktopReleaseInputs(process.cwd());
+  verifyDesktopReleaseInputManifest(process.cwd());
   console.log("Using prepared desktop release inputs.");
   process.exit(0);
 }
@@ -20,3 +23,5 @@ for (const [command, args] of [
   const status = spawnChecked(command, args, { cwd: process.cwd() });
   if (status !== 0) process.exit(status);
 }
+
+writeDesktopReleaseInputManifest(process.cwd());
