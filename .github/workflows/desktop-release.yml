@@ -1009,60 +1009,80 @@ jobs:
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
-      - name: Download release artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: desktop-release-*
-          merge-multiple: true
-          path: incoming
-
-      - name: Download candidate qualification artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.release-inputs.outputs.candidate_artifact }}
-          run-id: ${{ needs.release-inputs.outputs.candidate_run_id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          path: candidate-evidence
-
-      - name: Flatten release files
+      - name: Download sealed candidate bundle by immutable artifact id and digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_ARTIFACT: ${{ needs.release-inputs.outputs.candidate_artifact }}
+          CANDIDATE_ARTIFACT_ID: ${{ needs.release-inputs.outputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ needs.release-inputs.outputs.candidate_artifact_digest }}
+          CANDIDATE_RUN_ID: ${{ needs.release-inputs.outputs.candidate_run_id }}
         run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "candidate artifact id provenance is invalid" >&2; exit 1; }
+          [[ "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "candidate artifact digest provenance is invalid" >&2; exit 1; }
+          artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$CANDIDATE_ARTIFACT_ID")"
+          jq -e \
+            --arg name "$CANDIDATE_ARTIFACT" \
+            --argjson run_id "$CANDIDATE_RUN_ID" \
+            --argjson artifact_id "$CANDIDATE_ARTIFACT_ID" \
+            --arg digest "$CANDIDATE_ARTIFACT_DIGEST" \
+            '.id > 0 and .id == $artifact_id and .name == $name and .expired == false and .workflow_run.id == $run_id and .digest == $digest' \
+            <<<"$artifact_json" >/dev/null || {
+            echo "candidate artifact metadata no longer matches the qualification binding" >&2
+            exit 1
+          }
+          mkdir -p candidate-evidence
+          gh api "repos/$REPOSITORY/actions/artifacts/$CANDIDATE_ARTIFACT_ID/zip" > candidate-sealed-bundle.zip
+          actual_digest="sha256:$(sha256sum candidate-sealed-bundle.zip | awk '{print $1}')"
+          [[ "$actual_digest" == "$CANDIDATE_ARTIFACT_DIGEST" ]] || {
+            echo "downloaded candidate artifact ZIP digest differs from GitHub API digest" >&2
+            exit 1
+          }
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *"\\"* ]] || {
+              echo "candidate artifact ZIP contains an unsafe path: $entry" >&2
+              exit 1
+            }
+            IFS='/' read -r -a segments <<< "$entry"
+            for segment in "${segments[@]}"; do
+              [[ -n "$segment" && "$segment" != "." && "$segment" != ".." ]] || {
+                echo "candidate artifact ZIP contains an unsafe path: $entry" >&2
+                exit 1
+              }
+            done
+          done < <(unzip -Z1 candidate-sealed-bundle.zip)
+          unzip -q candidate-sealed-bundle.zip -d candidate-evidence
+
+      - name: Materialize sealed release files
+        run: |
+          set -euo pipefail
+          sealed_root="candidate-evidence/candidate-inputs"
+          sealed_manifest="$sealed_root/sealed-release-bundle.json"
+          test -f "$sealed_manifest"
           mkdir release
-          while IFS= read -r -d '' file; do
-            base="${file##*/}"
-            destination="release/$base"
-            if [[ -e "$destination" ]]; then
-              echo "duplicate release basename from downloaded artifacts: $base" >&2
-              exit 1
-            fi
-            cp -- "$file" "$destination"
-          done < <(find incoming -type f -print0 | sort -z)
-          for legal_source in LICENSE docs/legal/third-party-notices.md; do
-            legal_name="${legal_source##*/}"
-            if [[ "$legal_name" == "third-party-notices.md" ]]; then
-              legal_name="THIRD-PARTY-NOTICES.md"
-            fi
-            if [[ -e "release/$legal_name" ]]; then
-              echo "duplicate release basename from legal assets: $legal_name" >&2
-              exit 1
-            fi
-            cp -- "$legal_source" "release/$legal_name"
-          done
-          test -n "$(find release -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name '*.deb' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name '*.rpm' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name '*.spdx.json' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name '*.sig' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name 'tauri-release-*.json' -print -quit)"
-          test -n "$(find release -maxdepth 1 -type f -name 'tauri-runtime-smoke-*.json' -print -quit)"
-          # Linux contributes AppImage, deb, rpm and SBOM; all platforms share the legal notice assets.
-          test "$(find release -maxdepth 1 -type f | wc -l)" -ge 14
-
-      - name: Generate SHA256SUMS
-        working-directory: release
-        run: |
-          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const root = path.resolve("candidate-evidence/candidate-inputs");
+          const release = path.resolve("release");
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, "sealed-release-bundle.json"), "utf8"));
+          if (!Array.isArray(manifest.files) || manifest.files.length === 0) throw new Error("sealed bundle has no release files");
+          const seen = new Set();
+          for (const entry of manifest.files) {
+            if (typeof entry?.path !== "string" || path.posix.basename(entry.path) !== entry.path || entry.path.includes("\\") || entry.path === "." || entry.path === "..") {
+              throw new Error(`unsafe sealed release path: ${entry?.path}`);
+            }
+            if (seen.has(entry.path)) throw new Error(`duplicate sealed release path: ${entry.path}`);
+            seen.add(entry.path);
+            const source = path.join(root, entry.path);
+            const destination = path.join(release, entry.path);
+            const sourceStat = fs.lstatSync(source);
+            if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) throw new Error(`sealed release source is not a regular file: ${entry.path}`);
+            if (fs.existsSync(destination)) throw new Error(`release destination already exists: ${entry.path}`);
+            fs.copyFileSync(source, destination);
+          }
+          NODE
 
       - name: Verify artifact-bound Stage 9 release candidate evidence
         env:
@@ -1087,9 +1107,13 @@ jobs:
             exit 1
           }
           test -f "$config_path"
-          canonical_path="candidate-evidence/candidate-output/release-candidate-evidence.json"
+          canonical_path="candidate-evidence/candidate-inputs/release-candidate-evidence.json"
+          sealed_manifest="candidate-evidence/candidate-inputs/sealed-release-bundle.json"
           candidate_root="candidate-evidence/candidate-inputs"
+          source_run_id="$(node --input-type=module -e 'import fs from "node:fs"; const m=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(String(m.sourceWorkflowRun.id));' "$sealed_manifest")"
+          source_attempt="$(node --input-type=module -e 'import fs from "node:fs"; const m=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(String(m.sourceWorkflowRun.attempt));' "$sealed_manifest")"
           test -f "$canonical_path"
+          test -f "$sealed_manifest"
           test -d "$candidate_root"
           mkdir -p artifacts
           node scripts/rust-migration/check-release-candidate.mjs \
@@ -1103,9 +1127,16 @@ jobs:
             --input "$canonical_path" \
             --base-dir "$candidate_root"
           node scripts/rust-migration/check-release-candidate-bundle.mjs \
+            --sealed-manifest "$sealed_manifest" \
             --evidence "$canonical_path" \
             --candidate-root "$candidate_root" \
-            --release-root release
+            --release-root release \
+            --qualification-run-id "$CANDIDATE_RUN_ID" \
+            --qualification-attempt "$CANDIDATE_RUN_ATTEMPT" \
+            --source-run-id "$source_run_id" \
+            --source-attempt "$source_attempt" \
+            --release-ref "$RELEASE_REF" \
+            --expected-commit "$COMMIT_SHA"
           cp "$canonical_path" artifacts/release-candidate-evidence.json
 
       - name: Retain artifact-bound candidate evidence

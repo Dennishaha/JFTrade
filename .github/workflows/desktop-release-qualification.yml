@@ -85,13 +85,20 @@ jobs:
           }
           source_artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
           jq -e --argjson run_id "$SOURCE_RUN_ID" \
-            '[.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | length == 4' \
+            '[.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"])' \
             <<<"$source_artifacts_json" >/dev/null || {
             echo "source release artifacts are missing, expired, ambiguous, or lack API digests" >&2
             exit 1
           }
+          jq -e --argjson run_id "$SOURCE_RUN_ID" \
+            '[.artifacts[] | select((.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"])' \
+            <<<"$source_artifacts_json" >/dev/null || {
+            echo "source updater artifacts are missing, expired, ambiguous, or lack API digests" >&2
+            exit 1
+          }
           jq -c --argjson run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
-            '[.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt}] | sort_by(.name)' \
+            --arg ref "refs/tags/$RELEASE_REF" --arg commit_sha "$commit_sha" \
+            '{releaseArtifacts: [.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name), updaterArtifacts: [.artifacts[] | select(.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name)}' \
             <<<"$source_artifacts_json" > source-artifact-metadata.json
 
       - name: Verify external release evidence run provenance
@@ -170,6 +177,42 @@ jobs:
           repository: ${{ github.repository }}
           path: incoming/desktop-release-windows-arm64
 
+      - name: Download macOS updater source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-updater-macos
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-updater-macos
+
+      - name: Download Linux updater source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-updater-linux
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-updater-linux
+
+      - name: Download Windows x64 updater source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-updater-windows
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-updater-windows
+
+      - name: Download Windows ARM64 updater source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: desktop-release-updater-windows-arm64
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: incoming/desktop-release-updater-windows-arm64
+
       - name: Download external release evidence artifact
         uses: actions/download-artifact@v8
         with:
@@ -193,6 +236,7 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           QUALIFICATION_RUN_ID: ${{ github.run_id }}
           QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+          REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
@@ -208,8 +252,31 @@ jobs:
           }
           copy_one() {
             local source="$1" name="$2"
-            cp "$source" "candidate-inputs/$name"
+            [[ "$name" != /* && "$name" != *"/"* && "$name" != *"\\"* && "$name" != *".."* ]] || {
+              echo "unsafe sealed bundle basename: $name" >&2
+              exit 1
+            }
+            if [[ -e "candidate-inputs/$name" ]]; then
+              cmp -s "$source" "candidate-inputs/$name" || {
+                echo "sealed bundle basename collision: $name" >&2
+                exit 1
+              }
+              return
+            fi
+            [[ -f "$source" && ! -L "$source" ]] || { echo "sealed bundle source is not a regular file: $source" >&2; exit 1; }
+            cp -- "$source" "candidate-inputs/$name"
             [[ -s "candidate-inputs/$name" ]]
+          }
+          copy_support_files() {
+            local source_root="$1"
+            while IFS= read -r -d '' source; do
+              local name="${source##*/}"
+              case "$name" in
+                tauri-release-*.json|tauri-runtime-smoke-*.json|*.spdx.json|*.sig|*.tar.gz|*.zip)
+                  copy_one "$source" "$name"
+                  ;;
+              esac
+            done < <(find "$source_root" -type f -print0 | sort -z)
           }
           [[ "$EVIDENCE_MANIFEST" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_MANIFEST" != /* ]] || {
             echo "evidence_manifest must be a relative POSIX path without shell metacharacters" >&2
@@ -227,7 +294,16 @@ jobs:
           copy_one "$(find_one incoming/desktop-release-linux '*.rpm' 'Linux rpm')" "JFTrade-$release_tag-linux-x64.rpm"
           copy_one "$(find_one incoming/desktop-release-windows '*-setup.exe' 'Windows x64 package')" "JFTrade-$release_tag-windows-x64-setup.exe"
           copy_one "$(find_one incoming/desktop-release-windows-arm64 '*-setup.exe' 'Windows ARM64 package')" "JFTrade-$release_tag-windows-arm64-setup.exe"
-          (cd candidate-inputs && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+          copy_support_files incoming/desktop-release-macos
+          copy_support_files incoming/desktop-release-linux
+          copy_support_files incoming/desktop-release-windows
+          copy_support_files incoming/desktop-release-windows-arm64
+          copy_support_files incoming/desktop-release-updater-macos
+          copy_support_files incoming/desktop-release-updater-linux
+          copy_support_files incoming/desktop-release-updater-windows
+          copy_support_files incoming/desktop-release-updater-windows-arm64
+          copy_one LICENSE LICENSE
+          copy_one docs/legal/third-party-notices.md THIRD-PARTY-NOTICES.md
 
           node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
           node --input-type=module <<'NODE'
@@ -274,7 +350,8 @@ jobs:
             throw new Error(`unsupported ${schemaPath}`);
           }
           const artifactMetadata = JSON.parse(fs.readFileSync("evidence-artifact-metadata.json", "utf8"));
-          const sourceArtifacts = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
+          const sourceArtifactMetadata = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
+          const sourceArtifacts = sourceArtifactMetadata.releaseArtifacts;
           fs.copyFileSync("source-artifact-metadata.json", path.join(root, "source-artifact-metadata.json"));
           const releaseArtifactPaths = {
             "macos-arm64": [`${root}/JFTrade-${tag}-macos-arm64.dmg`],
@@ -322,6 +399,25 @@ jobs:
             ref: manifest.ref,
             commitSha: manifest.commitSha,
           };
+          const copyReleaseAsset = (sourcePath) => {
+            const name = path.basename(sourcePath);
+            if (!(name.endsWith(".sig") || name.endsWith(".tar.gz") || name.endsWith(".zip")
+              || name === "latest.json" || name === "updater.json" || (name.startsWith("latest-") && name.endsWith(".json")))) return;
+            const sourceRoot = path.resolve("incoming/release-evidence");
+            const outside = path.relative(sourceRoot, path.resolve(sourcePath));
+            if (outside === ".." || outside.startsWith(`..${path.sep}`)) throw new Error(`release asset escapes evidence artifact: ${name}`);
+            let cursor = sourceRoot;
+            for (const part of outside.split(path.sep).filter(Boolean)) {
+              cursor = path.join(cursor, part);
+              if (fs.lstatSync(cursor).isSymbolicLink()) throw new Error(`release asset traverses symlink: ${name}`);
+            }
+            const target = path.resolve(root, name);
+            if (fs.existsSync(target)) {
+              if (!fs.lstatSync(target).isFile() || !fs.readFileSync(target).equals(fs.readFileSync(sourcePath))) throw new Error(`release asset basename collision: ${name}`);
+              return;
+            }
+            fs.copyFileSync(sourcePath, target);
+          };
           const prerequisites = [
             {
               id: "candidate-admission",
@@ -345,6 +441,7 @@ jobs:
               const evidence = entry.files.map((file) => {
                 const relative = file.path;
                 const source = path.resolve("incoming/release-evidence", relative);
+                if (id === "signed-updater-inputs") copyReleaseAsset(source);
                 const target = path.resolve("candidate-inputs/evidence", id, relative);
                 if (!target.startsWith(`${path.resolve("candidate-inputs/evidence", id)}${path.sep}`)) {
                   throw new Error(`${id} target path escapes candidate evidence directory`);
@@ -395,6 +492,7 @@ jobs:
           };
           fs.writeFileSync("candidate-evidence-config.json", `${JSON.stringify(config, null, 2)}\n`);
           NODE
+          (cd candidate-inputs && find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name source-artifact-metadata.json -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
       - name: Build and validate candidate evidence
         run: |
@@ -411,6 +509,96 @@ jobs:
             --expected-run-id "${{ github.run_id }}" \
             --expected-attempt "${{ github.run_attempt }}" \
             --expected-workflow "desktop-release-qualification.yml"
+
+      - name: Seal immutable release candidate bundle
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          COMMIT_SHA: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          QUALIFICATION_RUN_ID: ${{ github.run_id }}
+          QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          cp -- candidate-output/release-candidate-evidence.json candidate-inputs/release-candidate-evidence.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import fs from "node:fs";
+          import path from "node:path";
+          const root = path.resolve("candidate-inputs");
+          const hash = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+          const canonicalPath = path.join(root, "release-candidate-evidence.json");
+          const canonical = JSON.parse(fs.readFileSync(canonicalPath, "utf8"));
+          const sourceMetadata = JSON.parse(fs.readFileSync(path.join(root, "source-artifact-metadata.json"), "utf8"));
+          const sourceArtifacts = sourceMetadata.releaseArtifacts;
+          const sourceUpdaterArtifacts = sourceMetadata.updaterArtifacts;
+          const requiredSource = ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"];
+          const requiredUpdater = ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"];
+          const exact = (values, names, label) => {
+            if (!Array.isArray(values) || values.length !== names.length || new Set(values.map((entry) => entry?.name)).size !== names.length
+              || names.some((name) => !values.some((entry) => entry?.name === name))) throw new Error(`${label} is not exactly the required artifact set`);
+            return values;
+          };
+          exact(sourceArtifacts, requiredSource, "sourceArtifacts");
+          exact(sourceUpdaterArtifacts, requiredUpdater, "sourceUpdaterArtifacts");
+          const files = [];
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (!entry.isFile() || entry.name === "source-artifact-metadata.json" || entry.name === "release-candidate-evidence.json" || entry.name === "sealed-release-bundle.json") continue;
+            const file = path.join(root, entry.name);
+            const stat = fs.lstatSync(file);
+            if (stat.isSymbolicLink() || stat.size <= 0) throw new Error(`sealed release file is not a regular non-empty file: ${entry.name}`);
+            files.push({ path: entry.name, size: stat.size, sha256: hash(file) });
+          }
+          files.sort((left, right) => left.path.localeCompare(right.path));
+          const qualificationRun = {
+            id: process.env.QUALIFICATION_RUN_ID,
+            attempt: Number(process.env.QUALIFICATION_RUN_ATTEMPT),
+            workflow: "desktop-release-qualification.yml",
+            ref: `refs/tags/${process.env.RELEASE_REF}`,
+            commitSha: process.env.COMMIT_SHA,
+          };
+          const sourceWorkflowRun = {
+            id: process.env.SOURCE_RUN_ID,
+            attempt: Number(process.env.SOURCE_RUN_ATTEMPT),
+            workflow: "desktop-release.yml",
+            ref: `refs/tags/${process.env.RELEASE_REF}`,
+            commitSha: process.env.COMMIT_SHA,
+          };
+          const manifest = {
+            $schema: "./sealed-release-bundle.schema.json",
+            schemaVersion: "jftrade.sealed-release-bundle.v1",
+            repository: process.env.REPOSITORY,
+            releaseRef: sourceWorkflowRun.ref,
+            releaseTag: process.env.RELEASE_REF,
+            commitSha: process.env.COMMIT_SHA,
+            qualificationRun,
+            sourceWorkflowRun,
+            sourceArtifacts,
+            sourceUpdaterArtifacts,
+            canonicalEvidence: {
+              path: "release-candidate-evidence.json",
+              size: fs.statSync(canonicalPath).size,
+              sha256: hash(canonicalPath),
+            },
+            files,
+          };
+          fs.writeFileSync(path.join(root, "sealed-release-bundle.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+          rm -rf sealed-release-check
+          mkdir sealed-release-check
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const root = path.resolve("candidate-inputs");
+          const target = path.resolve("sealed-release-check");
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, "sealed-release-bundle.json"), "utf8"));
+          for (const entry of manifest.files) fs.copyFileSync(path.join(root, entry.path), path.join(target, entry.path));
+          NODE
+          node scripts/rust-migration/check-release-candidate-bundle.mjs \
+            --sealed-manifest candidate-inputs/sealed-release-bundle.json \
+            --evidence candidate-inputs/release-candidate-evidence.json \
+            --candidate-root candidate-inputs \
+            --release-root sealed-release-check
           node scripts/rust-migration/check-release-candidate.mjs \
             --check \
             --input candidate-output/release-candidate-evidence.json \

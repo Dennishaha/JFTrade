@@ -30,6 +30,12 @@ export const REQUIRED_PLATFORMS = Object.freeze([
   "windows-x64",
   "windows-arm64",
 ]);
+export const REQUIRED_SOURCE_ARTIFACTS = Object.freeze([
+  "desktop-release-linux",
+  "desktop-release-macos",
+  "desktop-release-windows",
+  "desktop-release-windows-arm64",
+]);
 
 // These are repository-side prerequisites.  They are deliberately different
 // from post-publication observations and from an independent security signoff.
@@ -642,8 +648,8 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
     }
   }
   if ("sourceArtifacts" in document) {
-    if (!Array.isArray(document.sourceArtifacts) || document.sourceArtifacts.length === 0) {
-      errors.push("manifest.sourceArtifacts must be a non-empty array");
+    if (!Array.isArray(document.sourceArtifacts) || document.sourceArtifacts.length !== REQUIRED_SOURCE_ARTIFACTS.length) {
+      errors.push(`manifest.sourceArtifacts must contain exactly ${REQUIRED_SOURCE_ARTIFACTS.length} artifacts`);
     } else {
       const seenSourceArtifacts = new Set();
       for (const [index, sourceArtifact] of document.sourceArtifacts.entries()) {
@@ -653,11 +659,12 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
           continue;
         }
         for (const key of Object.keys(sourceArtifact)) {
-          if (!["name", "id", "digest", "expired", "runId", "runAttempt"].includes(key)) {
+          if (!["name", "id", "digest", "expired", "runId", "runAttempt", "workflow", "ref", "commitSha"].includes(key)) {
             errors.push(`${label}.${key} is not allowed`);
           }
         }
         const name = nonEmptyString(sourceArtifact.name, `${label}.name`, errors);
+        if (name && !REQUIRED_SOURCE_ARTIFACTS.includes(name)) errors.push(`${label}.name is not a required source artifact`);
         if (name && seenSourceArtifacts.has(name)) errors.push(`${label}.name is duplicated`);
         if (name) seenSourceArtifacts.add(name);
         runId(sourceArtifact.id, `${label}.id`, errors);
@@ -667,13 +674,23 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
         if (sourceArtifact.expired !== false) errors.push(`${label}.expired must be false`);
         runId(sourceArtifact.runId, `${label}.runId`, errors);
         positiveAttempt(sourceArtifact.runAttempt, `${label}.runAttempt`, errors);
+        for (const key of ["workflow", "ref", "commitSha"]) {
+          if (typeof sourceArtifact[key] !== "string" || sourceArtifact[key].trim() === "") errors.push(`${label}.${key} must be non-empty`);
+        }
+        if (sourceArtifact.workflow !== "desktop-release.yml") errors.push(`${label}.workflow must be desktop-release.yml`);
+        if (typeof sourceArtifact.ref === "string" && !/^refs\/tags\/v\d+\.\d+\.\d+$/.test(sourceArtifact.ref)) errors.push(`${label}.ref must be a release tag ref`);
+        if (typeof sourceArtifact.commitSha === "string" && !validCommit(sourceArtifact.commitSha)) errors.push(`${label}.commitSha must be a commit SHA`);
         if (sourceWorkflow && String(sourceArtifact.runId) !== String(sourceWorkflow.id)) {
           errors.push(`${label}.runId does not match manifest.sourceWorkflowRun.id`);
         }
         if (sourceWorkflow && Number(sourceArtifact.runAttempt) !== Number(sourceWorkflow.attempt)) {
           errors.push(`${label}.runAttempt does not match manifest.sourceWorkflowRun.attempt`);
         }
+        if (sourceWorkflow && sourceArtifact.workflow !== sourceWorkflow.workflow) errors.push(`${label}.workflow does not match manifest.sourceWorkflowRun.workflow`);
+        if (sourceWorkflow && sourceArtifact.ref !== sourceWorkflow.ref) errors.push(`${label}.ref does not match manifest.sourceWorkflowRun.ref`);
+        if (sourceWorkflow && sourceArtifact.commitSha !== sourceWorkflow.commitSha) errors.push(`${label}.commitSha does not match manifest.sourceWorkflowRun.commitSha`);
       }
+      for (const required of REQUIRED_SOURCE_ARTIFACTS) if (!seenSourceArtifacts.has(required)) errors.push(`manifest.sourceArtifacts is missing required artifact: ${required}`);
     }
   }
   const shaSums = validateChecksums(document.sha256sums, baseDirectory, declaredFiles, errors);

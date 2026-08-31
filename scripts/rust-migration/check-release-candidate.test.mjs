@@ -48,7 +48,7 @@ function fixture() {
   const sourceWorkflowRun = {
     id: 81233,
     attempt: 1,
-    workflow: "Desktop Release",
+    workflow: "desktop-release.yml",
     ref: workflowRun.ref,
     commitSha,
     url: "https://github.com/example/jftrade/actions/runs/81233",
@@ -98,6 +98,9 @@ function fixture() {
     expired: false,
     runId: sourceWorkflowRun.id,
     runAttempt: sourceWorkflowRun.attempt,
+    workflow: sourceWorkflowRun.workflow,
+    ref: sourceWorkflowRun.ref,
+    commitSha: sourceWorkflowRun.commitSha,
   }));
   return {
     root,

@@ -102,14 +102,17 @@
     "sourceArtifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "id", "digest", "expired", "runId", "runAttempt"],
+      "required": ["name", "id", "digest", "expired", "runId", "runAttempt", "workflow", "ref", "commitSha"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "id": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
         "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
         "expired": { "const": false },
         "runId": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
-        "runAttempt": { "type": "integer", "minimum": 1 }
+        "runAttempt": { "type": "integer", "minimum": 1 },
+        "workflow": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" }
       }
     },
     "prerequisite": {

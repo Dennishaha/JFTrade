@@ -24,9 +24,10 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
   assert.match(workflow, /run_sha/);
   assert.match(workflow, /run_branch/);
   assert.match(workflow, /run_attempt/);
-  assert.match(workflow, /actions\/download-artifact@v8[\s\S]*run-id: \$\{\{ needs\.release-inputs\.outputs\.candidate_run_id \}\}/);
-  assert.match(workflow, /github-token: \$\{\{ github\.token \}\}/);
-  assert.match(workflow, /repository: \$\{\{ github\.repository \}\}/);
+  assert.match(workflow, /actions\/download-artifact@v8[\s\S]*name: desktop-release-macos/);
+  assert.match(workflow, /actions\/artifacts\/\$CANDIDATE_ARTIFACT_ID\/zip/);
+  assert.match(qualificationWorkflow, /github-token: \$\{\{ github\.token \}\}/);
+  assert.match(qualificationWorkflow, /repository: \$\{\{ github\.repository \}\}/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
@@ -46,7 +47,7 @@ test("desktop workflow separates candidate admission from post-release full clos
   const prePublish = workflow.slice(0, publishIndex);
   assert.doesNotMatch(prePublish, /check-stage9-closeout\.mjs --check/);
   assert.match(prePublish, /check-stage9-closeout\.mjs --candidate-static/);
-  const sumsIndex = workflow.indexOf("Generate SHA256SUMS");
+  const sumsIndex = workflow.indexOf("Materialize sealed release files");
   const candidateIndex = workflow.indexOf("Verify artifact-bound Stage 9 release candidate evidence");
   assert.ok(sumsIndex > publishIndex);
   assert.ok(candidateIndex > sumsIndex);
@@ -119,12 +120,19 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /external evidence manifest missing valid/);
   assert.match(qualificationWorkflow, /candidate-inputs\/\*\*/);
   assert.match(qualificationWorkflow, /source-artifact-metadata\.json/);
+  assert.match(qualificationWorkflow, /Download macOS updater source artifact/);
+  assert.match(qualificationWorkflow, /Download Linux updater source artifact/);
+  assert.match(qualificationWorkflow, /Download Windows x64 updater source artifact/);
+  assert.match(qualificationWorkflow, /Download Windows ARM64 updater source artifact/);
+  assert.match(qualificationWorkflow, /Seal immutable release candidate bundle/);
+  assert.match(qualificationWorkflow, /sealed-release-bundle\.json/);
+  assert.match(qualificationWorkflow, /sourceUpdaterArtifacts/);
 });
 
 test("publish verifies the downloaded canonical candidate bundle without rebuilding it", () => {
   const publishSection = workflow.slice(workflow.indexOf("\n  publish:"));
   assert.match(publishSection, /candidate-inputs/);
-  assert.match(publishSection, /candidate-output\/release-candidate-evidence\.json/);
+  assert.match(publishSection, /candidate-inputs\/release-candidate-evidence\.json/);
   assert.match(publishSection, /check-release-candidate-bundle\.mjs/);
   assert.match(publishSection, /cp "\$canonical_path" artifacts\/release-candidate-evidence\.json/);
   assert.doesNotMatch(
@@ -132,8 +140,12 @@ test("publish verifies the downloaded canonical candidate bundle without rebuild
     /check-release-candidate\.mjs[\s\S]{0,600}--build/,
   );
   assert.match(publishSection, /canonical candidate evidence/);
-  assert.match(publishSection, /duplicate release basename/);
-  assert.match(publishSection, /find incoming -type f -print0/);
+  assert.match(publishSection, /duplicate sealed release path/);
+  assert.match(publishSection, /candidate-sealed-bundle\.zip/);
+  assert.match(publishSection, /actions\/artifacts\/\$CANDIDATE_ARTIFACT_ID\/zip/);
+  assert.doesNotMatch(publishSection, /merge-multiple:\s*true/);
+  assert.doesNotMatch(publishSection, /find incoming -type f/);
+  assert.match(publishSection, /--sealed-manifest/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {
