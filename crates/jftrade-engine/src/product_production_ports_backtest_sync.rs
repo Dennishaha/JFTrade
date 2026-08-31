@@ -27,6 +27,11 @@ use crate::product::product_backtests_write_port::{
     BacktestsWritePortError, BacktestsWritePortResult,
 };
 
+#[path = "product_production_ports_backtest_sync_helpers.rs"]
+mod sync_helpers;
+
+use sync_helpers::{is_cancelled, mark_task_cancelled, persist_task};
+
 static SYNC_TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 impl ProductionBacktestPort {
@@ -792,38 +797,4 @@ fn validate_helper_page(
         previous = Some(at);
     }
     Ok(())
-}
-
-fn is_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) -> Result<bool, String> {
-    tasks
-        .get(task_id)
-        .map(|task| task.is_some_and(|task| task.status == "cancelled"))
-        .map_err(|error| error.to_string())
-}
-
-fn mark_task_cancelled(tasks: &BacktestSyncTaskStore, task_id: &str) {
-    let timestamp = format_timestamp(time::OffsetDateTime::now_utc());
-    if let Err(error) = tasks.cancel(task_id, &timestamp) {
-        eprintln!("backtest sync {task_id} cancellation persistence failed: {error}");
-    }
-}
-
-fn persist_task(
-    tasks: &BacktestSyncTaskStore,
-    task: &mut StoredBacktestSyncTask,
-    status: &str,
-    error: Option<String>,
-) -> Result<(), String> {
-    task.status = status.to_owned();
-    task.error = error;
-    task.updated_at = format_timestamp(time::OffsetDateTime::now_utc());
-    let expected = task.revision;
-    match tasks.update(task.clone(), expected) {
-        Ok(true) => {
-            task.revision += 1;
-            Ok(())
-        }
-        Ok(false) => Err("sync task revision conflict".to_owned()),
-        Err(error) => Err(error.to_string()),
-    }
 }

@@ -20,6 +20,11 @@ use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute,
 };
 
+#[path = "product_production_ports_adk_mutation_skill_helpers.rs"]
+mod skill_helpers;
+
+use skill_helpers::{parsed_for_download_host, skill_frontmatter, unsafe_skill_ip};
+
 pub(super) fn handles(operation: AdkMutationOperation) -> bool {
     matches!(
         operation,
@@ -613,14 +618,6 @@ fn validate_skill_url_network(url: &Url) -> Result<SocketAddr, String> {
         .ok_or_else(|| "skill URL has no safe address".to_owned())
 }
 
-fn parsed_for_download_host(raw_url: &str) -> Result<String, String> {
-    Url::parse(raw_url)
-        .map_err(|_| "skill URL is invalid".to_owned())?
-        .host_str()
-        .map(str::to_owned)
-        .ok_or_else(|| "skill URL host is required".to_owned())
-}
-
 fn build_skill_download_client(
     raw_url: &str,
     validated_address: SocketAddr,
@@ -776,45 +773,6 @@ fn write_skill_files(root: &std::path::Path, files: &[(String, Vec<u8>)]) -> Res
         file.sync_all().map_err(|error| error.to_string())?;
     }
     Ok(())
-}
-
-fn unsafe_skill_ip(address: IpAddr) -> bool {
-    match address {
-        IpAddr::V4(address) => {
-            address.is_private()
-                || address.is_loopback()
-                || address.is_link_local()
-                || address.is_broadcast()
-                || address.is_unspecified()
-                || address.is_multicast()
-        }
-        IpAddr::V6(address) => {
-            address.is_loopback()
-                || address.is_unspecified()
-                || address.is_multicast()
-                || address.is_unique_local()
-                || address.is_unicast_link_local()
-                || address
-                    .to_ipv4_mapped()
-                    .is_some_and(|mapped| unsafe_skill_ip(IpAddr::V4(mapped)))
-        }
-    }
-}
-
-fn skill_frontmatter(document: &str, key: &str) -> Option<String> {
-    let lines = document.lines();
-    for line in lines {
-        let Some((candidate, value)) = line.split_once(':') else {
-            continue;
-        };
-        if candidate.trim().eq_ignore_ascii_case(key) {
-            let value = value.trim().trim_matches(['"', '\'']);
-            if !value.is_empty() {
-                return Some(value.to_owned());
-            }
-        }
-    }
-    None
 }
 
 #[cfg(test)]

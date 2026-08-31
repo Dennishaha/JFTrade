@@ -7,6 +7,14 @@ use jftrade_integration_futu::{
 };
 use jftrade_store_sqlite::StoredExecutionOrder;
 
+#[path = "product_production_ports_execution_order_markets.rs"]
+mod markets;
+
+pub(super) use markets::{
+    market_label, quote_market, quote_market_label, sec_market, trade_market,
+};
+use markets::quote_market_from_trade_market;
+
 #[derive(Clone, Debug)]
 pub(super) struct ParsedOrder {
     pub(super) header: TradeHeader,
@@ -742,79 +750,6 @@ pub(super) fn parse_session(value: Option<&str>) -> Result<Option<i32>, String> 
             _ => Err(format!("unsupported session {value:?}")),
         })
         .transpose()
-}
-
-pub(super) fn trade_market(value: &str) -> i32 {
-    match value.trim().to_ascii_uppercase().as_str() {
-        "HK" => 1,
-        "US" => 2,
-        "CN" | "SH" | "SZ" | "CNSH" | "CNSZ" => 3,
-        "SG" => 6,
-        _ => 0,
-    }
-}
-
-/// Futu quote-market identifiers used by combo-leg securities.  They are not
-/// the trading-header identifiers above (US is 11 here, not 2).
-pub(super) fn quote_market(value: &str) -> i32 {
-    match value.trim().to_ascii_uppercase().as_str() {
-        "HK" => 1,
-        "US" => 11,
-        "SH" | "CNSH" => 21,
-        "SZ" | "CNSZ" => 22,
-        "SG" => 31,
-        "JP" => 41,
-        "AU" => 51,
-        "MY" => 61,
-        "CA" => 71,
-        "US_EVENT" | "EVENT" => 101,
-        _ => 0,
-    }
-}
-
-fn quote_market_from_trade_market(value: i32) -> i32 {
-    match value {
-        1 => 1,
-        2 => 11,
-        3 => 0,
-        6 => 31,
-        _ => 0,
-    }
-}
-
-pub(super) fn quote_market_label(value: i32) -> &'static str {
-    match value {
-        1 => "HK",
-        11 | 101 => "US",
-        21 => "SH",
-        22 => "SZ",
-        31 => "SG",
-        41 => "JP",
-        51 => "AU",
-        61 => "MY",
-        71 => "CA",
-        _ => "UNKNOWN",
-    }
-}
-
-pub(super) fn sec_market(trd_market: i32) -> i32 {
-    match trd_market {
-        1 => 1,
-        2 => 2,
-        3 => 31,
-        _ => 0,
-    }
-}
-
-pub(super) fn market_label(value: i32) -> String {
-    match value {
-        1 => "HK",
-        2 => "US",
-        3 => "CN",
-        6 => "SG",
-        _ => "UNKNOWN",
-    }
-    .to_owned()
 }
 
 include!("product_production_ports_execution_order_labels.rs");

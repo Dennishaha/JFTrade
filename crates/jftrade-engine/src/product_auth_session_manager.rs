@@ -9,7 +9,6 @@ use jftrade_api::{SESSION_COOKIE, WebSessionValidator};
 use jftrade_settings::SecuritySettingsService;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
 use crate::product::product_auth_session_write_port::{
     AuthSessionRequestContext, AuthSessionWriteInput, AuthSessionWritePort,
@@ -18,6 +17,11 @@ use crate::product::product_auth_session_write_port::{
 use crate::product::{
     AuthSessionSnapshotError, AuthSessionSnapshotPort, AuthSessionSnapshotRequest,
 };
+
+#[path = "product_auth_session_crypto.rs"]
+mod crypto;
+
+use crypto::{constant_time_eq, derive_csrf_token, encode_hex, token_hash};
 
 const SESSION_TTL: Duration = Duration::from_secs(12 * 3600);
 const MAX_FAILED_ATTEMPTS: usize = 8;
@@ -103,7 +107,7 @@ impl ProductionAuthSessionManager {
         let mut bytes = [0u8; 32];
         getrandom::fill(&mut bytes)
             .map_err(|error| format!("generate Web session token: {error}"))?;
-        Ok(hex::encode(bytes))
+        Ok(encode_hex(bytes))
     }
 
     fn persist(&self) -> Result<(), String> {
@@ -528,42 +532,6 @@ fn unix_timestamp() -> i64 {
 
 fn session_expired(session: &StoredSession) -> bool {
     unix_timestamp() >= session.expires_at_unix
-}
-
-fn derive_csrf_token(session_token: &str) -> String {
-    token_hash(&format!("jftrade.csrf.v1:{session_token}"))
-}
-
-fn token_hash(token: &str) -> String {
-    let mut digest = Sha256::new();
-    digest.update(token.as_bytes());
-    hex::encode(digest.finalize())
-}
-
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    let a_bytes = a.as_bytes();
-    let b_bytes = b.as_bytes();
-    if a_bytes.len() != b_bytes.len() {
-        return false;
-    }
-    let mut diff = 0;
-    for (x, y) in a_bytes.iter().zip(b_bytes.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
-}
-
-mod hex {
-    pub fn encode(bytes: impl AsRef<[u8]>) -> String {
-        const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
-        let bytes = bytes.as_ref();
-        let mut hex = String::with_capacity(bytes.len() * 2);
-        for &byte in bytes {
-            hex.push(HEX_CHARS[(byte >> 4) as usize] as char);
-            hex.push(HEX_CHARS[(byte & 0x0f) as usize] as char);
-        }
-        hex
-    }
 }
 
 #[cfg(test)]

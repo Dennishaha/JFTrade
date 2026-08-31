@@ -13,17 +13,14 @@ use crate::product::product_adk_model_runtime::{
     ProductionAdkChatRuntime, RunCancellationRegistry,
 };
 use crate::product::{ProductConfig, product_data_management};
-use jftrade_calendar::{
-    CalendarManager, CalendarManagerSettings, CalendarManualOverride, CalendarSessionOverride,
-    CalendarSnapshotStore, CalendarSourcePolicy, CalendarSourceRegistry,
-};
+use jftrade_calendar::{CalendarManager, CalendarSnapshotStore, CalendarSourceRegistry};
 use jftrade_datamanagement::{
     DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
     DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
     DATABASE_WATCHLIST,
 };
 use jftrade_settings::{
-    BacktestMarketDataProviderSettingsStorePort, BrokerSettingsStorePort, ExchangeCalendarSettings,
+    BacktestMarketDataProviderSettingsStorePort, BrokerSettingsStorePort,
     ExchangeCalendarSettingsStorePort,
     InterfaceSettingsStorePort, MarketDataProviderSettingsStorePort, SecuritySettingsService,
     normalize_live_websocket_connection_limit, parse_market_data_provider,
@@ -69,6 +66,8 @@ mod product_production_ports_types;
 mod product_production_ports_unavailable;
 #[path = "product_production_ports_watchlist.rs"]
 mod product_production_ports_watchlist;
+#[path = "product_production_calendar.rs"]
+mod product_production_calendar;
 
 pub(crate) use crate::product::product_backtest_execution::BacktestExecutionTaskRegistry;
 pub(crate) use product_backtest_sync_registry::BacktestSyncWorkerRegistry;
@@ -109,66 +108,9 @@ pub(crate) use product_production_ports_unavailable::ProductionWsLivePort;
 pub(crate) use product_production_ports_watchlist::{
     ProductionRemoteWatchlistPort, ProductionWatchlistPort,
 };
-
-const EXCHANGE_CALENDAR_DIR_ENV: &str = "JFTRADE_EXCHANGE_CALENDAR_DIR";
-
-fn exchange_calendar_snapshot_root(settings_path: &std::path::Path) -> PathBuf {
-    std::env::var_os(EXCHANGE_CALENDAR_DIR_ENV)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            settings_path
-                .parent()
-                .filter(|parent| !parent.as_os_str().is_empty())
-                .map_or_else(
-                    || PathBuf::from("exchange-calendars"),
-                    |parent| parent.join("exchange-calendars"),
-                )
-        })
-}
-
-pub(crate) fn calendar_manager_settings(
-    input: ExchangeCalendarSettings,
-) -> CalendarManagerSettings {
-    CalendarManagerSettings {
-        auto_refresh_enabled: input.auto_refresh_enabled,
-        error_notifications_enabled: input.error_notifications_enabled,
-        refresh_interval_hours: input.refresh_interval_hours,
-        warmup_markets: input.warmup_markets,
-        source_policies: input
-            .source_policies
-            .into_iter()
-            .map(|policy| CalendarSourcePolicy {
-                market: policy.market,
-                preferred_source_ids: policy.preferred_source_ids,
-                enabled_source_ids: policy.enabled_source_ids,
-                fallback_to_builtin: policy.fallback_to_builtin,
-                require_official: policy.require_official,
-                stale_after_hours: policy.stale_after_hours,
-            })
-            .collect(),
-        manual_overrides: input
-            .manual_overrides
-            .into_iter()
-            .map(|override_| CalendarManualOverride {
-                market: override_.market,
-                date: override_.date,
-                status: override_.status,
-                sessions: override_
-                    .sessions
-                    .into_iter()
-                    .map(|session| CalendarSessionOverride {
-                        kind: session.kind,
-                        start_minute: session.start_minute,
-                        end_minute: session.end_minute,
-                    })
-                    .collect(),
-                reason: override_.reason,
-                observed: override_.observed,
-            })
-            .collect(),
-    }
-}
+pub(crate) use product_production_calendar::{
+    calendar_manager_settings, exchange_calendar_snapshot_root,
+};
 use crate::product::ProductError;
 use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
 use crate::product::product_production_route_registry::ProductionRouteAdapter;
