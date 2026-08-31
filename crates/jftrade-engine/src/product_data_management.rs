@@ -74,50 +74,26 @@ pub fn initialize_production_databases(settings_path: &Path) -> Result<(), Strin
 fn initialize_production_databases_inner(
     descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
 ) -> Result<(), String> {
-    for descriptor in descriptors {
-        let path = Path::new(&descriptor.path);
-        if let Some(parent) = path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            fs::create_dir_all(parent)
-                .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    let existed = inspect_database_paths(descriptors)?;
+    let lease_order = startup_lease_order(descriptors);
+    let mut leases = acquire_startup_writer_leases(descriptors, &lease_order)?;
+
+    // SQLite may recover WAL state or create a shared-memory file while
+    // opening a database.  Keep a snapshot for every descriptor before any
+    // descriptor is opened, so a later failure can restore the whole batch.
+    let snapshots = match snapshot_all_database_files(descriptors, &lease_order) {
+        Ok(snapshots) => snapshots,
+        Err(error) => {
+            release_writer_leases_reverse(&mut leases);
+            return Err(error);
         }
-        let existed = match fs::symlink_metadata(path) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
-                return Err(format!(
-                    "managed database {} is not a regular file",
-                    path.display()
-                ));
-            }
-            Ok(_) => true,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
-            Err(error) => {
-                return Err(format!(
-                    "inspect managed database {}: {error}",
-                    path.display()
-                ));
-            }
-        };
-        let _writer_lease = WriterLease::acquire(
-            path,
-            &OwnerDiagnostic::current("rust", "production-migration.v1"),
-        )
-        .map_err(|error| {
-            format!(
-                "acquire startup writer lease for {}: {error}",
-                path.display()
-            )
-        })?;
-        // SQLite may recover WAL state or create a shared-memory file while
-        // opening a database.  Capture the exact bytes only after taking the
-        // writer lease, then restore them if this descriptor fails so another
-        // process cannot race the snapshot or observe a partial migration.
-        let snapshots = snapshot_database_files(descriptor)?;
-        let result = initialize_database_descriptor(descriptor, path, existed);
-        if let Err(error) = result {
-            let restore_result = restore_database_files(&snapshots);
-            drop(_writer_lease);
+    };
+
+    for (index, descriptor) in descriptors.iter().enumerate() {
+        let path = Path::new(&descriptor.path);
+        if let Err(error) = initialize_database_descriptor(descriptor, path, existed[index]) {
+            let restore_result = restore_all_database_files(&snapshots, &lease_order);
+            release_writer_leases_reverse(&mut leases);
             return match restore_result {
                 Ok(()) => Err(error),
                 Err(restore_error) => Err(format!(
@@ -126,7 +102,80 @@ fn initialize_production_databases_inner(
             };
         }
     }
+
+    release_writer_leases_reverse(&mut leases);
     Ok(())
+}
+
+fn inspect_database_paths(
+    descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
+) -> Result<Vec<bool>, String> {
+    descriptors
+        .iter()
+        .map(|descriptor| {
+            let path = Path::new(&descriptor.path);
+            if let Some(parent) = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+            {
+                fs::create_dir_all(parent)
+                    .map_err(|error| format!("create {}: {error}", parent.display()))?;
+            }
+            match fs::symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
+                    format!("managed database {} is not a regular file", path.display()),
+                ),
+                Ok(_) => Ok(true),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                Err(error) => Err(format!(
+                    "inspect managed database {}: {error}",
+                    path.display()
+                )),
+            }
+        })
+        .collect()
+}
+
+fn startup_lease_order(descriptors: &[jftrade_datamanagement::DatabaseDescriptor]) -> Vec<usize> {
+    let mut order = (0..descriptors.len()).collect::<Vec<_>>();
+    order.sort_by(|left, right| {
+        descriptors[*left]
+            .path
+            .cmp(&descriptors[*right].path)
+            .then_with(|| descriptors[*left].id.cmp(&descriptors[*right].id))
+            .then_with(|| left.cmp(right))
+    });
+    order
+}
+
+fn acquire_startup_writer_leases(
+    descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
+    order: &[usize],
+) -> Result<Vec<WriterLease>, String> {
+    let mut leases = Vec::with_capacity(order.len());
+    for &index in order {
+        let path = Path::new(&descriptors[index].path);
+        match WriterLease::acquire(
+            path,
+            &OwnerDiagnostic::current("rust", "production-migration.v1"),
+        ) {
+            Ok(lease) => leases.push(lease),
+            Err(error) => {
+                release_writer_leases_reverse(&mut leases);
+                return Err(format!(
+                    "acquire startup writer lease for {}: {error}",
+                    path.display()
+                ));
+            }
+        }
+    }
+    Ok(leases)
+}
+
+fn release_writer_leases_reverse(leases: &mut Vec<WriterLease>) {
+    while let Some(lease) = leases.pop() {
+        drop(lease);
+    }
 }
 
 fn initialize_database_descriptor(
@@ -214,23 +263,62 @@ fn snapshot_database_files(
     Ok(snapshots)
 }
 
+fn snapshot_all_database_files(
+    descriptors: &[jftrade_datamanagement::DatabaseDescriptor],
+    order: &[usize],
+) -> Result<Vec<Option<Vec<DatabaseFileSnapshot>>>, String> {
+    let mut snapshots = (0..descriptors.len())
+        .map(|_| None)
+        .collect::<Vec<Option<Vec<DatabaseFileSnapshot>>>>();
+    for &index in order {
+        snapshots[index] = Some(snapshot_database_files(&descriptors[index])?);
+    }
+    Ok(snapshots)
+}
+
 fn restore_database_files(snapshots: &[DatabaseFileSnapshot]) -> Result<(), String> {
+    let mut errors = Vec::new();
     for snapshot in snapshots {
         match snapshot.backup.as_ref() {
-            Some(backup) => restore_database_file(&snapshot.path, backup)?,
+            Some(backup) => {
+                if let Err(error) = restore_database_file(&snapshot.path, backup) {
+                    errors.push(error);
+                }
+            }
             None => match fs::remove_file(&snapshot.path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => {
-                    return Err(format!(
-                        "remove newly-created database sidecar {}: {error}",
-                        snapshot.path.display()
-                    ));
-                }
+                Err(error) => errors.push(format!(
+                    "remove newly-created database sidecar {}: {error}",
+                    snapshot.path.display()
+                )),
             },
         }
     }
-    Ok(())
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+fn restore_all_database_files(
+    snapshots: &[Option<Vec<DatabaseFileSnapshot>>],
+    order: &[usize],
+) -> Result<(), String> {
+    let mut errors = Vec::new();
+    for &index in order.iter().rev() {
+        if let Some(files) = snapshots[index].as_deref()
+            && let Err(error) = restore_database_files(files)
+        {
+            errors.push(error);
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
 }
 
 fn restore_database_file(path: &Path, backup: &tempfile::NamedTempFile) -> Result<(), String> {
@@ -476,6 +564,10 @@ impl CleanupPreviewIdPort for SystemCleanupPreviewIds {
 
 #[cfg(test)]
 mod tests {
+    mod batch_atomic_startup_tests {
+        include!("product_data_management_batch_atomic_startup_tests.rs");
+    }
+
     mod backup_restore_drill_tests {
         include!("product_data_management_backup_restore_drill_tests.rs");
     }
