@@ -23,7 +23,7 @@ mod product_production_ports_research_calendar;
 #[path = "product_production_ports_research_market.rs"]
 mod product_production_ports_research_market;
 pub(crate) use product_production_ports_research::{
-    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort,
+    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenHelperPort,
 };
 pub(crate) use product_production_ports_research_calendar::read_market_calendar;
 pub(crate) use product_production_ports_research_market::read_market_research;

@@ -105,6 +105,14 @@ impl MarketDataCapabilityMatrix {
             Some(ActiveMarketDataProvider::Yfinance) | Some(ActiveMarketDataProvider::Akshare)
         ) && self.helper_ready
     }
+
+    /// Stock screening is provided by the embedded helper only. Futu's
+    /// OpenD stock-filter reader is not wired into the production bundle, so
+    /// a Futu selection must remain explicitly unavailable rather than being
+    /// advertised by the route's compatibility adapter.
+    pub(crate) fn can_read_research_screen(&self) -> bool {
+        self.can_search()
+    }
 }
 
 fn bind_adapters(
@@ -172,7 +180,6 @@ pub(crate) fn production_adapter_bindings(
         Adapter::ResearchIndustriesRead,
         Adapter::ResearchCalendarRead,
         Adapter::ResearchMacroRead,
-        Adapter::ResearchScreenWrite,
         // Backtest execution is installed only after the PineTS worker has
         // passed its real readiness probe.  Keep the startup projection
         // unavailable; the production bundle re-evaluates this adapter from
@@ -221,6 +228,11 @@ pub(crate) fn production_adapter_bindings(
         ready.extend([Adapter::MarketDataSearchRead, Adapter::MarketDataNewsSearchRead]);
     } else {
         unavailable.extend([Adapter::MarketDataSearchRead, Adapter::MarketDataNewsSearchRead]);
+    }
+    if matrix.can_read_research_screen() {
+        ready.push(Adapter::ResearchScreenWrite);
+    } else {
+        unavailable.push(Adapter::ResearchScreenWrite);
     }
     if matrix.can_read_candles() {
         ready.extend([Adapter::MarketDataCandlesRead, Adapter::BacktestSyncStart]);

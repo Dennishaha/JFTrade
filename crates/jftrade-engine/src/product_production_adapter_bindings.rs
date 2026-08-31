@@ -680,6 +680,7 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataSubscriptionHeartbeatWrite
             | MarketDataNewsActionsRead
             | MarketDataNewsSearchRead
+            | ResearchScreenWrite
             | MarketDataPredictionRead
             | MarketDataPredictionSubscriptionAcquireWrite
             | MarketDataPredictionSubscriptionReleaseWrite

@@ -95,7 +95,7 @@ pub(crate) use product_production_ports_plugins::ProductionPluginPort;
 pub(crate) use product_production_ports_provider::ProductionMarketDataProviderPort;
 pub(crate) use product_production_ports_provider::provider_now_rfc3339;
 pub(crate) use product_production_ports_strategy::{
-    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenPort,
+    ProductionResearchPort, ProductionResearchPresetPort, ProductionResearchScreenHelperPort,
     ProductionStrategyDefinitionPort, ProductionStrategyPinePort, ProductionStrategyRuntimePort,
     StrategyRuntimeManager,
 };
@@ -616,8 +616,9 @@ pub(crate) fn production_ports(
         helper: config.market_data_helper.clone(),
         trade_runtime: config.trade_runtime.clone(),
     });
-    let research_screen_port = Arc::new(ProductionResearchScreenPort {
+    let research_screen_port = Arc::new(ProductionResearchScreenHelperPort {
         active_provider_state: Arc::clone(&active_provider_state),
+        helper: config.market_data_helper.clone(),
     });
     let strategy_pine_port = Arc::new(ProductionStrategyPinePort {
         worker: config.strategy_pine_worker_port.clone(),

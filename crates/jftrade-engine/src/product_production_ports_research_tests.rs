@@ -1,4 +1,5 @@
 use super::*;
+use crate::product::product_research_screen_write_port::ResearchScreenColumn;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -202,4 +203,62 @@ fn futu_valuation_route_fails_closed_when_reader_is_missing() {
         Err(ResearchReadSnapshotError::Unavailable(message))
             if message == "Futu valuation detail reader is not ready"
     ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn research_screen_helper_projects_rows_and_cells_without_fixture_defaults() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listen");
+    let address = listener.local_addr().expect("address");
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = vec![0_u8; 8192];
+        let read = stream.read(&mut request).await.expect("read");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(request.starts_with("POST /providers/yfinance/screen HTTP/1.1\r\n"));
+        assert!(request.contains("\"factor_key\":\"simple.price\""));
+        let body = r#"{"entries":[{"instrument_id":"US.AAPL","name":"Apple","symbol":"AAPL","industry":null,"quote_currency":"USD","values":{"simple.price":189.25}}],"total":1,"has_more":false,"next_offset":null,"as_of":"2026-08-31T12:00:00-04:00","source":"yfinance-screen"}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        stream.write_all(response.as_bytes()).await.expect("write");
+    });
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    state.set_readiness(true, false, false);
+    let port = ProductionResearchScreenHelperPort {
+        active_provider_state: state,
+        helper: Some(helper(format!("http://{address}"))),
+    };
+    let request = ResearchScreenWriteQuery {
+        broker_id: "yfinance".to_owned(),
+        account_id: String::new(),
+        trading_environment: String::new(),
+        market: "US".to_owned(),
+        offset: 0,
+        limit: 50,
+        definition: json!({
+            "conditions": [{"factor": {"factorKey": "simple.price"}, "operator": "gte", "value": 10}],
+            "sorts": [{"factor": {"factorKey": "simple.price"}, "direction": "desc"}]
+        }),
+        columns: vec![ResearchScreenColumn {
+            column_id: "price".to_owned(),
+            instance_id: "price".to_owned(),
+            factor_key: "simple.price".to_owned(),
+            label: "Price".to_owned(),
+            unit: "currency".to_owned(),
+        }],
+    };
+    let value = port.query(&request).expect("screen response");
+    assert_eq!(value["provider"]["brokerId"], "yfinance");
+    assert_eq!(value["entries"][0]["instrumentId"], "US.AAPL");
+    assert_eq!(
+        value["entries"][0]["cells"]["price"]["value"]["number"],
+        189.25
+    );
+    assert_eq!(value["total"], 1);
+    assert_eq!(value["hasMore"], false);
+    server.await.expect("server");
 }
