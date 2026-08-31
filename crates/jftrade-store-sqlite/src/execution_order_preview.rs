@@ -130,6 +130,7 @@ impl ExecutionOrderStore {
 /// the read/expiry checks and the conditional consumed_at update together lets
 /// execution-order reservation atomically bind the preview credential to the
 /// durable client-order identity fence.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn consume_preview_in_transaction(
     transaction: &rusqlite::Transaction<'_>,
     preview_id: &str,
@@ -171,12 +172,12 @@ pub(super) fn consume_preview_in_transaction(
             "execution preview does not match the order request".to_owned(),
         ));
     }
-    if let Some(expected) = expected_capability_version {
-        if expected.trim().is_empty() || row.2.trim() != expected.trim() {
-            return Err(ExecutionOrderStoreError::Validation(
-                "execution preview capability version changed".to_owned(),
-            ));
-        }
+    if let Some(expected) = expected_capability_version
+        && (expected.trim().is_empty() || row.2.trim() != expected.trim())
+    {
+        return Err(ExecutionOrderStoreError::Validation(
+            "execution preview capability version changed".to_owned(),
+        ));
     }
     if row.6.is_some() {
         // Identical replays are safe: the durable order identity fence

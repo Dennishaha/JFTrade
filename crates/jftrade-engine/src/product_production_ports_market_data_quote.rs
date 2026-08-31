@@ -52,6 +52,10 @@ impl std::fmt::Debug for ProductionMarketDataQuotePort {
 }
 
 impl ProductionMarketDataQuotePort {
+    const MICROSTRUCTURE_PAGE_SIZE_MAX: i64 = 100;
+    const TICKS_PAGE_SIZE_MAX: i64 = 1000;
+    const DEPTH_NUM_MAX: i64 = 50;
+
     pub(crate) fn new(
         active_provider_state: Arc<ActiveProviderState>,
         router: Option<Arc<Mutex<ProviderRouter>>>,
@@ -641,16 +645,12 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        if let Some(num_str) = query_map.get_first("num")
-            && num_str.parse::<usize>().is_err()
-        {
-            return Err(MarketDataQuoteReadSnapshotError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "num must be an integer".to_owned(),
-                retry_after_seconds: None,
-            });
-        }
+        let num = parse_bounded_query_i64(
+            &query_map,
+            "num",
+            Self::DEPTH_NUM_MAX,
+        )?
+        .unwrap_or(10);
 
         let provider = self.active_provider()?;
         if provider == MarketDataProvider::Futu {
@@ -660,7 +660,7 @@ impl ProductionMarketDataQuotePort {
                 symbol.to_ascii_uppercase()
             );
             self.require_order_book_subscription(&instrument_id)?;
-            let params = json!({"num": query_map.get_first("num").and_then(|value| value.parse::<i64>().ok()).unwrap_or(10)});
+            let params = json!({"num": num});
             let reader = self
                 .microstructure_reader()
                 .ok_or_else(|| {
@@ -691,6 +691,14 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
+        let page_size = parse_bounded_query_i64(
+            &query_map,
+            "pageSize",
+            Self::MICROSTRUCTURE_PAGE_SIZE_MAX,
+        )?;
+        let period_type = parse_optional_query_i32(&query_map, "periodType")?;
+        let begin_time = validate_optional_query_time(&query_map, "beginTime")?;
+        let end_time = validate_optional_query_time(&query_map, "endTime")?;
         let provider = self.active_provider()?;
         if provider != MarketDataProvider::Futu {
             let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
@@ -729,18 +737,17 @@ impl ProductionMarketDataQuotePort {
                 )
             })?;
         let mut params = serde_json::Map::new();
-        if let Some(value) = query_map.get_first("pageSize") {
-            if let Ok(value) = value.parse::<i64>() {
-                params.insert("pageSize".to_owned(), json!(value));
-            }
+        if let Some(value) = page_size {
+            params.insert("pageSize".to_owned(), json!(value));
         }
-        if let Some(value) = query_map.get_first("periodType") {
+        if let Some(value) = period_type {
             params.insert("periodType".to_owned(), json!(value));
         }
-        for key in ["beginTime", "endTime"] {
-            if let Some(value) = query_map.get_first(key) {
-                params.insert(key.to_owned(), json!(value));
-            }
+        if let Some(value) = begin_time {
+            params.insert("beginTime".to_owned(), json!(value));
+        }
+        if let Some(value) = end_time {
+            params.insert("endTime".to_owned(), json!(value));
         }
         reader
             .query(operation, &instrument_id, &Value::Object(params))
@@ -753,6 +760,12 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let query_map = QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed { status: 400, code: "BAD_REQUEST".to_owned(), message: "invalid URL escape".to_owned(), retry_after_seconds: None })?;
+        let page_size = parse_bounded_query_i64(
+            &query_map,
+            "pageSize",
+            Self::TICKS_PAGE_SIZE_MAX,
+        )?
+        .unwrap_or(100);
         let provider = self.active_provider()?;
         if provider != MarketDataProvider::Futu {
             let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
@@ -770,7 +783,7 @@ impl ProductionMarketDataQuotePort {
             .query(
                 MarketMicrostructureOperation::Ticks,
                 &instrument_id,
-                &json!({"pageSize": query_map.get_first("pageSize").and_then(|value| value.parse::<i64>().ok()).unwrap_or(100)}),
+                &json!({"pageSize": page_size}),
             )
             .map_err(|error| map_microstructure_error(error, "OPEND_TICKS_FAILED"))
     }
@@ -805,6 +818,69 @@ impl ProductionMarketDataQuotePort {
             message: format!("ORDER_BOOK subscription required for {instrument_id}"),
             retry_after_seconds: None,
         })
+    }
+}
+
+fn bad_query(message: impl Into<String>) -> MarketDataQuoteReadSnapshotError {
+    MarketDataQuoteReadSnapshotError::Failed {
+        status: 400,
+        code: "BAD_REQUEST".to_owned(),
+        message: message.into(),
+        retry_after_seconds: None,
+    }
+}
+
+fn parse_bounded_query_i64(
+    query: &QueryMap,
+    key: &str,
+    max: i64,
+) -> Result<Option<i64>, MarketDataQuoteReadSnapshotError> {
+    let Some(raw) = query.get_first(key) else {
+        return Ok(None);
+    };
+    let value = raw
+        .trim()
+        .parse::<i64>()
+        .map_err(|_| bad_query(format!("{key} must be an integer")))?;
+    if !(1..=max).contains(&value) {
+        return Err(bad_query(format!("{key} must be between 1 and {max}")));
+    }
+    Ok(Some(value))
+}
+
+fn parse_optional_query_i32(
+    query: &QueryMap,
+    key: &str,
+) -> Result<Option<i32>, MarketDataQuoteReadSnapshotError> {
+    let Some(raw) = query.get_first(key) else {
+        return Ok(None);
+    };
+    if raw.trim().is_empty() {
+        return Err(bad_query(format!("{key} must be an integer")));
+    }
+    raw.trim()
+        .parse::<i32>()
+        .map(Some)
+        .map_err(|_| bad_query(format!("{key} must be an integer")))
+}
+
+fn validate_optional_query_time(
+    query: &QueryMap,
+    key: &str,
+) -> Result<Option<String>, MarketDataQuoteReadSnapshotError> {
+    let Some(raw) = query.get_first(key) else {
+        return Ok(None);
+    };
+    normalize_optional_query_time(raw)
+        .map_err(|_| bad_query(format!("{key} must be a valid timestamp")))?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        Ok(None)
+    } else {
+        // Validate against the shared query-time grammar but preserve the
+        // caller's wire spelling. OpenD's capital-flow protocol expects the
+        // original date/time string rather than an RFC3339 conversion.
+        Ok(Some(trimmed.to_owned()))
     }
 }
 

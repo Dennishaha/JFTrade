@@ -151,6 +151,7 @@ struct PredictionSubscriptionLease {
 }
 
 impl PredictionSubscriptionState {
+    #[allow(dead_code)]
     fn clear(&mut self) {
         self.counts.clear();
         self.leases.clear();
@@ -230,6 +231,7 @@ impl SharedTradeReadRuntime {
         self.market_microstructure.read().unwrap_or_else(|error| error.into_inner()).clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn market_microstructure(
         &self,
         operation: MarketMicrostructureOperation,
@@ -742,6 +744,7 @@ impl SharedTradeReadRuntime {
             .clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn clear(&self) {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.set_writer(None);

@@ -260,10 +260,10 @@ pub(super) fn run_workflow(
         }
     };
     let mut log = json!({"id": log_id, "workflowId": workflow_id, "triggerId": trigger.as_ref().map(|value| value.id.clone()).unwrap_or_default(), "triggerType": trigger.as_ref().map(|value| value.trigger_type.clone()).unwrap_or_else(|| "manual".to_owned()), "status": status, "runId": run_id, "sessionId": response.get("session").and_then(|session| session.get("id")).and_then(Value::as_str).unwrap_or_default(), "inputs": inputs, "result": response.clone(), "startedAt": started_at});
-    if !matches!(status, "RUNNING" | "PENDING_APPROVAL") {
-        if let Some(object) = log.as_object_mut() {
-            object.insert("finishedAt".to_owned(), Value::String(now_rfc3339()));
-        }
+    if !matches!(status, "RUNNING" | "PENDING_APPROVAL")
+        && let Some(object) = log.as_object_mut()
+    {
+        object.insert("finishedAt".to_owned(), Value::String(now_rfc3339()));
     }
     let stored = match port
         .store

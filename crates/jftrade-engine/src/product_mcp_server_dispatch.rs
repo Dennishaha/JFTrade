@@ -203,9 +203,9 @@ async fn dispatch_rpc(
     };
     let status = if is_method_not_found(&result) && is_modern_protocol(protocol_version) {
         StatusCode::NOT_FOUND
-    } else if is_invalid_params(&result) && is_modern_protocol(protocol_version) {
-        StatusCode::BAD_REQUEST
-    } else if is_invalid_request(&result) && is_modern_protocol(protocol_version) {
+    } else if (is_invalid_params(&result) || is_invalid_request(&result))
+        && is_modern_protocol(protocol_version)
+    {
         StatusCode::BAD_REQUEST
     } else {
         StatusCode::OK

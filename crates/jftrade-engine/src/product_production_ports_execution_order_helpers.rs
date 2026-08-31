@@ -307,11 +307,13 @@ impl Drop for CancelInFlightGuard {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ProductRuleRequest {
+    pub(crate) account_id: Option<String>,
     pub(crate) instrument_id: Option<String>,
     pub(crate) product_class: String,
     pub(crate) order_kind: String,
     pub(crate) order_type: String,
     pub(crate) market: String,
+    pub(crate) trading_environment: String,
     pub(crate) quantity: Option<f64>,
     pub(crate) amount: Option<f64>,
     pub(crate) price: Option<f64>,
@@ -328,6 +330,12 @@ pub(crate) fn parse_product_rule_request(
         .as_object()
         .ok_or_else(|| failed(400, "BAD_REQUEST", "invalid buying-power request"))?;
     let instrument = object.get("instrument").and_then(Value::as_object);
+    let account_id = object
+        .get("accountId")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
     let instrument_id = instrument
         .and_then(|value| value.get("instrumentId"))
         .and_then(Value::as_str)
@@ -354,6 +362,14 @@ pub(crate) fn parse_product_rule_request(
         .unwrap_or("LIMIT")
         .trim()
         .to_ascii_uppercase();
+    let trading_environment = object
+        .get("tradingEnvironment")
+        .or_else(|| object.get("env"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("SIMULATE")
+        .to_ascii_uppercase();
     let market = instrument
         .and_then(|value| {
             value
@@ -366,11 +382,13 @@ pub(crate) fn parse_product_rule_request(
         .trim()
         .to_ascii_uppercase();
     Ok(ProductRuleRequest {
+        account_id,
         instrument_id,
         product_class,
         order_kind,
         order_type,
         market,
+        trading_environment,
         quantity: object.get("quantity").and_then(Value::as_f64),
         amount: object.get("amount").and_then(Value::as_f64),
         price: object.get("price").and_then(Value::as_f64),

@@ -421,10 +421,8 @@ fn current_revision_segments(
             .and_then(Value::as_str)
             .map(str::trim)
             .unwrap_or_default();
-        if revision.is_empty() || payload_revision == revision {
-            if segment.active {
-                selected.push(segment.clone());
-            }
+        if (revision.is_empty() || payload_revision == revision) && segment.active {
+            selected.push(segment.clone());
         }
     }
     selected.sort_by_key(|segment| {

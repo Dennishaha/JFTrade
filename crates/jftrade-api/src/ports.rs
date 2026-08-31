@@ -58,9 +58,11 @@ pub enum ApiOutput {
 ///
 /// Keeping the channel behind a small transport-owned type lets domain ports
 /// return a cancellable body without depending on Axum's `Body` type.
+type ApiStreamReceiver = Arc<Mutex<Option<mpsc::Receiver<Result<Vec<u8>, io::Error>>>>>;
+
 #[derive(Clone)]
 pub struct ApiStream {
-    receiver: Arc<Mutex<Option<mpsc::Receiver<Result<Vec<u8>, io::Error>>>>>,
+    receiver: ApiStreamReceiver,
 }
 
 impl std::fmt::Debug for ApiStream {
@@ -107,10 +109,12 @@ impl ApiStreamSender {
     /// Blocking send is intentional: production model adapters run their
     /// provider reader on a dedicated thread and must apply backpressure when
     /// the HTTP client is slower than the upstream stream.
+    #[allow(clippy::result_unit_err)]
     pub fn send(&self, chunk: Vec<u8>) -> Result<(), ()> {
         self.sender.blocking_send(Ok(chunk)).map_err(|_| ())
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn send_error(&self, error: io::Error) -> Result<(), ()> {
         self.sender.blocking_send(Err(error)).map_err(|_| ())
     }

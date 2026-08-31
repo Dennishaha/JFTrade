@@ -527,7 +527,32 @@ impl OpenDMarketMicrostructureReader {
         let s2c = response
             .s2c
             .ok_or_else(|| decode_missing("Qot_GetRT", "s2c"))?;
-        let entries = s2c.rt_list.into_iter().map(|item| { if let Some(price) = item.price { finite(price, "intraday price")?; } if item.volume.unwrap_or_default() < 0 { return Err(MarketMicrostructureError::Decode { operation: "Qot_GetRT", message: "negative intraday volume".to_owned() }); } Ok(json!({"time": item.time, "minute": item.minute, "isBlank": item.is_blank, "price": item.price, "lastClosePrice": item.last_close_price, "avgPrice": item.avg_price, "volume": item.volume, "turnover": item.turnover, "timestamp": item.timestamp})) }).collect::<Result<Vec<_>, _>>()?;
+        let entries = s2c
+            .rt_list
+            .into_iter()
+            .map(|item| {
+                if let Some(price) = item.price {
+                    finite(price, "intraday price")?;
+                }
+                if item.volume.unwrap_or_default() < 0 {
+                    return Err(MarketMicrostructureError::Decode {
+                        operation: "Qot_GetRT",
+                        message: "negative intraday volume".to_owned(),
+                    });
+                }
+                Ok(json!({
+                    "time": item.time,
+                    "minute": item.minute,
+                    "isBlank": item.is_blank,
+                    "price": item.price,
+                    "lastClosePrice": item.last_close_price,
+                    "avgPrice": item.avg_price,
+                    "volume": item.volume,
+                    "turnover": item.turnover,
+                    "timestamp": item.timestamp
+                }))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self::result(
             "market.intraday",
             instrument_id,

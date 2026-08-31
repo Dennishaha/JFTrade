@@ -232,10 +232,10 @@ impl jftrade_settings::SecurityRuntimePort for ProductWebServerRuntime {
         let desired = Self::desired_bind(record);
         let mut state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
         let current = state.bind.clone();
-        if current == desired.as_ref().map(ToString::to_string) {
-            if desired.is_none() || state.server.is_some() {
-                return Ok(());
-            }
+        if current == desired.as_ref().map(ToString::to_string)
+            && (desired.is_none() || state.server.is_some())
+        {
+            return Ok(());
         }
         let Some(desired_bind) = desired else {
             state.bind = None;
@@ -588,22 +588,19 @@ pub(crate) async fn prepare_product_with_runtime_state(
     // Reconcile persisted MCP settings before exposing the product API. A
     // bind conflict keeps the API alive in a truthful degraded state; the
     // settings endpoint then reports the listener error and allows a retry.
-    if let Some(runtime) = mcp_server_runtime.as_ref() {
-        if let Some(record) = settings_store
+    if let Some(runtime) = mcp_server_runtime.as_ref()
+        && let Some(record) = settings_store
             .load_mcp_server_record()
             .map_err(ProductError::Settings)?
-        {
-            if let Err(error) =
-                jftrade_settings::McpServerRuntimePort::apply(runtime.as_ref(), &record)
-            {
-                mcp_runtime_ready = false;
-                tracing::error!(
-                    error = %error,
-                    "persisted MCP listener settings could not be applied; product runtime is degraded"
-                );
-            }
+        && let Err(error) =
+            jftrade_settings::McpServerRuntimePort::apply(runtime.as_ref(), &record)
+    {
+        mcp_runtime_ready = false;
+        tracing::error!(
+            error = %error,
+            "persisted MCP listener settings could not be applied; product runtime is degraded"
+        );
         }
-    }
     // Production composition is fenced to the concrete bundle built above.
     // This prevents an embedding/test port supplied on `ProductConfig` from
     // taking precedence over a production adapter in `ProductOptionalPorts`.
@@ -671,11 +668,11 @@ pub(crate) async fn prepare_product_with_runtime_state(
     // to the shutdown supervisor, no background calendar thread is left
     // running without an owner.  A source/worker start failure is closed
     // immediately for the same fail-closed guarantee.
-    if let Some(manager) = &calendar_manager {
-        if let Err(error) = manager.start() {
-            let _ = manager.close();
-            return Err(ProductError::Calendar(error));
-        }
+    if let Some(manager) = &calendar_manager
+        && let Err(error) = manager.start()
+    {
+        let _ = manager.close();
+        return Err(ProductError::Calendar(error));
     }
     let production_runtime_core_ready = production_ports.as_ref().is_some_and(|ports| {
         ports.provider_status == "ready"

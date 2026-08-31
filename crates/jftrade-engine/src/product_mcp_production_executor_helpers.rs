@@ -52,9 +52,7 @@ pub(super) fn required_field(
 /// snapshot. An empty production store intentionally uses `null` (matching
 /// the existing HTTP shape); a missing or non-array field is an adapter
 /// contract violation and must not be treated as an empty result.
-pub(super) fn nullable_runs<'a>(
-    payload: &'a Value,
-) -> Result<Option<&'a Vec<Value>>, McpToolFailure> {
+pub(super) fn nullable_runs(payload: &Value) -> Result<Option<&Vec<Value>>, McpToolFailure> {
     let Some(value) = payload.get("runs") else {
         return Err(McpToolFailure::failed(
             502,

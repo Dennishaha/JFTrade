@@ -765,6 +765,73 @@ mod read;
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
+    struct UnreadyChatRuntime;
+
+    impl AdkChatStreamPort for UnreadyChatRuntime {
+        fn dispatch(
+            &self,
+            _: AdkChatRoute,
+            _: &AdkChatInput,
+        ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+            Ok(AdkChatPortOutput::Json(json!({"synthetic": true})))
+        }
+
+        fn runtime_ready(&self) -> bool {
+            false
+        }
+    }
+
+    fn unready_adk_port() -> (ProductionAdkPort, tempfile::TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let adk_path = directory.path().join("adk.db");
+        let session_path = directory.path().join("adk-session.db");
+        let artifact_path = directory.path().join("adk-artifact.db");
+        for (path, component) in [
+            (&adk_path, "adk"),
+            (&session_path, "adk-session"),
+            (&artifact_path, "adk-artifact"),
+        ] {
+            let connection = rusqlite::Connection::open(path).expect("create ADK database");
+            jftrade_store_sqlite::initialize_current(&connection, component)
+                .expect("initialize ADK schema");
+        }
+        let adk_store = Arc::new(AdkStore::open(&adk_path).expect("open adk store"));
+        let session_store =
+            Arc::new(AdkSessionStore::open(&session_path).expect("open adk session store"));
+        let artifact_store =
+            Arc::new(AdkArtifactStore::open(&artifact_path).expect("open adk artifact store"));
+        let bindings = PRODUCTION_TOOL_DEFINITIONS
+            .iter()
+            .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+            .collect::<BTreeMap<_, _>>();
+        let tool_catalog = Arc::new(
+            ProductionToolCatalog::from_bindings(&bindings).expect("complete tool bindings"),
+        );
+        let port = ProductionAdkPort {
+            store: adk_store,
+            session_store,
+            artifact_store,
+            tool_catalog,
+            settings_path: directory.path().join("settings.json"),
+            chat_runtime: Some(Arc::new(UnreadyChatRuntime)),
+        };
+        (port, directory)
+    }
+
+    #[test]
+    fn chat_dispatch_rejects_an_installed_but_unready_runtime() {
+        let (port, _directory) = unready_adk_port();
+        let input = AdkChatInput {
+            body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111"}"#.to_vec(),
+            client_request_id: "11111111-1111-4111-8111-111111111111".to_owned(),
+        };
+        let error = port
+            .dispatch(AdkChatRoute::Stream, &input)
+            .expect_err("unready runtime must fail closed");
+        assert!(matches!(error, AdkChatPortError::Unavailable(_)));
+    }
+
     #[test]
     fn tool_catalog_marks_external_unavailable_tools_non_callable() {
         let mut bindings = PRODUCTION_TOOL_DEFINITIONS

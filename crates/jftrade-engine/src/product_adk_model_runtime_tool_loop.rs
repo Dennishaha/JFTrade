@@ -2,6 +2,7 @@ impl ProductionAdkChatRuntime {
     /// Execute calls released by approval, persist every outcome, and feed
     /// durable function_call/function_call_output pairs back to Responses.
     /// A bounded loop prevents a provider from spinning forever.
+    #[allow(clippy::never_loop)]
     fn run_approval_continuation(
         &self,
         mut chat: ChatExecution,
@@ -133,7 +134,7 @@ impl ProductionAdkChatRuntime {
                     Ok(AdkToolInvocationClaim::Execute(invocation)) => (
                         self.tool_executor
                             .execute(&name, &arguments)
-                            .map_err(|message| tool_unavailable(message)),
+                            .map_err(tool_unavailable),
                         invocation.owner_id,
                         invocation.fencing_token,
                     ),
@@ -248,6 +249,7 @@ impl ProductionAdkChatRuntime {
         let _ = self.persist_failure(&chat, &error, &run_lease);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn persist_tool_result(
         &self,
         chat: &ChatExecution,

@@ -840,8 +840,7 @@ fn live_subscription_snapshot(message: &Message) -> Result<Option<LiveSubscripti
         .subscriptions
         .security_details
         .into_iter()
-        .map(normalize_security_details)
-        .flatten()
+        .filter_map(normalize_security_details)
         .collect::<Vec<_>>();
     security_details.sort_by(|left, right| left.instrument_id.cmp(&right.instrument_id));
     security_details.dedup_by(|left, right| left.instrument_id == right.instrument_id);
@@ -849,8 +848,7 @@ fn live_subscription_snapshot(message: &Message) -> Result<Option<LiveSubscripti
         .subscriptions
         .depth
         .into_iter()
-        .map(normalize_depth)
-        .flatten()
+        .filter_map(normalize_depth)
         .collect::<Vec<_>>();
     depth.sort_by(|left, right| {
         left.instrument_id

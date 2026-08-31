@@ -360,6 +360,27 @@ impl ProductionPortBundle {
                 },
             );
         }
+        // Microstructure readers are installed on the shared trade runtime
+        // even while the initial capability matrix is being built.  Keep the
+        // route registered when OpenD is absent, but derive its live binding
+        // from the concrete reader rather than the matrix's conservative
+        // startup `ExternalUnavailable` entry.  This lets a connected Futu
+        // session reach the real depth/ticks/queue/flow/profile handlers and
+        // still maps a dead session to the normal 502/503 boundary there.
+        if is_microstructure_adapter(adapter) {
+            let snapshot = self.active_provider_state.snapshot();
+            let ready = snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && self
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.market_microstructure_available());
+            return Some(if ready {
+                ProductionAdapterBinding::Ready
+            } else {
+                ProductionAdapterBinding::ExternalUnavailable
+            });
+        }
         if adapter == ProductionRouteAdapter::MarketDataFuturesRead {
             let snapshot = self.active_provider_state.snapshot();
             return Some(
@@ -686,6 +707,24 @@ fn is_dynamic_market_data_adapter(adapter: ProductionRouteAdapter) -> bool {
             | MarketDataPredictionSubscriptionReleaseWrite
             | MarketDataPredictionCombosWrite
             | BacktestSyncStart
+            | MarketDataDepthRead
+            | MarketDataTicksRead
+            | MarketDataBrokerQueueRead
+            | MarketDataCapitalFlowRead
+            | MarketDataIntradayRead
+            | MarketDataProfileRead
+    )
+}
+
+fn is_microstructure_adapter(adapter: ProductionRouteAdapter) -> bool {
+    matches!(
+        adapter,
+        ProductionRouteAdapter::MarketDataDepthRead
+            | ProductionRouteAdapter::MarketDataTicksRead
+            | ProductionRouteAdapter::MarketDataBrokerQueueRead
+            | ProductionRouteAdapter::MarketDataCapitalFlowRead
+            | ProductionRouteAdapter::MarketDataIntradayRead
+            | ProductionRouteAdapter::MarketDataProfileRead
     )
 }
 

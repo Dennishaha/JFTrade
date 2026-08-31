@@ -92,16 +92,13 @@ impl OpenDPredictionMarketReader {
         let session = coordinator
             .session()
             .map_err(|error| PredictionMarketReadError::Session(error.to_string()))?;
+        // Keep the operation in one place for all decoders while allowing
+        // protocol-specific response types below.
+        let _ = operation;
         session
             .managed_session()
             .call(protocol, &body)
             .map_err(|error| PredictionMarketReadError::Transport(error.to_string()))
-            .map(|body| {
-                // Keep the operation in one place for all decoders while
-                // allowing protocol-specific response types below.
-                let _ = operation;
-                body
-            })
     }
 
     fn call_response<R: Message + Default>(

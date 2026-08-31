@@ -378,11 +378,7 @@ fn map_split(
         item.temp_share_abbr_name,
     )?;
     let ex_date = normalize_date(item.ex_date_str)?;
-    let ratio = item.rate.as_deref().and_then(parse_ratio).or_else(|| {
-        item.shares_after_effect
-            .zip(item.new_par_value)
-            .and_then(|_| None)
-    });
+    let ratio = item.rate.as_deref().and_then(parse_ratio);
     Ok(FutuCorporateAction {
         kind: "split".to_owned(),
         ex_date,

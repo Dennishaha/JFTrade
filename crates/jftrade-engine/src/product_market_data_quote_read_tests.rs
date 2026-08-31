@@ -1,12 +1,20 @@
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tempfile::tempdir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+
+use jftrade_integration_futu::{
+    MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
+};
+use jftrade_marketdata::{InstrumentRef, ProviderRouter};
+
+use crate::product::product_production_ports::ProductionMarketDataQuotePort;
 
 use super::*;
 
@@ -213,6 +221,300 @@ async fn market_data_quote_read_routes_are_not_registered_without_snapshot_port(
     assert_eq!(status, 404);
     assert_eq!(response["error"]["code"], "NOT_FOUND");
     handle.shutdown().await.expect("shutdown product");
+}
+
+#[derive(Debug)]
+struct MicrostructureReaderFixture {
+    calls: AtomicUsize,
+    requests: Mutex<Vec<(MarketMicrostructureOperation, String, Value)>>,
+    result: MicrostructureReaderResult,
+}
+
+#[derive(Debug)]
+enum MicrostructureReaderResult {
+    Success(Value),
+    Invalid(String),
+    Session(String),
+    Decode {
+        operation: &'static str,
+        message: String,
+    },
+    Rejected {
+        operation: &'static str,
+        ret_type: i32,
+        err_code: i32,
+        message: String,
+    },
+}
+
+impl MicrostructureReaderFixture {
+    fn success() -> Self {
+        Self {
+            calls: AtomicUsize::new(0),
+            requests: Mutex::new(Vec::new()),
+            result: MicrostructureReaderResult::Success(json!({"reader": "microstructure"})),
+        }
+    }
+
+    fn failure(error: MarketMicrostructureError) -> Self {
+        let result = match error {
+            MarketMicrostructureError::Session(message) => {
+                MicrostructureReaderResult::Session(message)
+            }
+            MarketMicrostructureError::Decode { operation, message } => {
+                MicrostructureReaderResult::Decode { operation, message }
+            }
+            MarketMicrostructureError::Rejected {
+                operation,
+                ret_type,
+                err_code,
+                message,
+            } => MicrostructureReaderResult::Rejected {
+                operation,
+                ret_type,
+                err_code,
+                message,
+            },
+            MarketMicrostructureError::Invalid(message) => {
+                MicrostructureReaderResult::Invalid(message)
+            }
+        };
+        Self {
+            calls: AtomicUsize::new(0),
+            requests: Mutex::new(Vec::new()),
+            result,
+        }
+    }
+}
+
+impl MarketMicrostructureReadPort for MicrostructureReaderFixture {
+    fn query(
+        &self,
+        operation: MarketMicrostructureOperation,
+        instrument_id: &str,
+        params: &Value,
+    ) -> Result<Value, MarketMicrostructureError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.requests
+            .lock()
+            .expect("microstructure requests")
+            .push((operation, instrument_id.to_owned(), params.clone()));
+        match &self.result {
+            MicrostructureReaderResult::Success(value) => Ok(value.clone()),
+            MicrostructureReaderResult::Invalid(message) => {
+                Err(MarketMicrostructureError::Invalid(message.clone()))
+            }
+            MicrostructureReaderResult::Session(message) => {
+                Err(MarketMicrostructureError::Session(message.clone()))
+            }
+            MicrostructureReaderResult::Decode { operation, message } => {
+                Err(MarketMicrostructureError::Decode {
+                    operation,
+                    message: message.clone(),
+                })
+            }
+            MicrostructureReaderResult::Rejected {
+                operation,
+                ret_type,
+                err_code,
+                message,
+            } => Err(MarketMicrostructureError::Rejected {
+                operation,
+                ret_type: *ret_type,
+                err_code: *err_code,
+                message: message.clone(),
+            }),
+        }
+    }
+}
+
+fn microstructure_quote_port(
+    reader: Arc<MicrostructureReaderFixture>,
+) -> ProductionMarketDataQuotePort {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    ProductionMarketDataQuotePort::new(state, None, None, None).with_microstructure(Some(reader))
+}
+
+#[tokio::test]
+async fn market_microstructure_quote_routes_call_installed_reader_without_fixtures() {
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let port = microstructure_quote_port(reader.clone());
+    let cases = [
+        (
+            "/api/v1/market-data/ticks/US.AAPL",
+            "pageSize=3",
+            MarketMicrostructureOperation::Ticks,
+        ),
+        (
+            "/api/v1/market-data/broker-queue/US.AAPL",
+            "pageSize=5",
+            MarketMicrostructureOperation::BrokerQueue,
+        ),
+        (
+            "/api/v1/market-data/capital-flow/US.AAPL",
+            "periodType=1&beginTime=2026-08-01&endTime=2026-08-31",
+            MarketMicrostructureOperation::CapitalFlow,
+        ),
+        (
+            "/api/v1/market-data/capital-flow/US.AAPL",
+            "operation=distribution",
+            MarketMicrostructureOperation::CapitalDistribution,
+        ),
+        (
+            "/api/v1/market-data/intraday/US.AAPL",
+            "pageSize=3",
+            MarketMicrostructureOperation::Intraday,
+        ),
+        (
+            "/api/v1/market-data/instruments/US.AAPL/profile",
+            "pageSize=3",
+            MarketMicrostructureOperation::Profile,
+        ),
+    ];
+
+    for (path, query, operation) in cases {
+        let response = port.read(path, query).await.expect("reader response");
+        assert_eq!(response, json!({"reader": "microstructure"}));
+        let request = reader
+            .requests
+            .lock()
+            .expect("microstructure requests")
+            .last()
+            .cloned()
+            .expect("recorded microstructure request");
+        assert_eq!(request.0, operation);
+        assert_eq!(request.1, "US.AAPL");
+    }
+    assert_eq!(reader.calls.load(Ordering::SeqCst), cases.len());
+    let requests = reader.requests.lock().expect("microstructure requests");
+    assert_eq!(requests[0].2["pageSize"], 3);
+    assert_eq!(requests[2].2["periodType"], 1);
+    assert_eq!(requests[2].2["beginTime"], "2026-08-01");
+    assert_eq!(requests[2].2["endTime"], "2026-08-31");
+}
+
+#[tokio::test]
+async fn market_microstructure_depth_forwards_maximum_supported_level() {
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let mut router = ProviderRouter::new(8);
+    router
+        .acquire_demand(
+            "quote-test",
+            [InstrumentRef {
+                channel: "ORDER_BOOK".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                interval: None,
+            }],
+            false,
+            0,
+        )
+        .expect("order-book demand");
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None)
+            .with_microstructure(Some(reader.clone()));
+    port.read("/api/v1/market-data/depth/US/AAPL", "num=50")
+        .await
+        .expect("depth response");
+    let requests = reader.requests.lock().expect("microstructure requests");
+    assert_eq!(requests[0].0, MarketMicrostructureOperation::Depth);
+    assert_eq!(requests[0].1, "US.AAPL");
+    assert_eq!(requests[0].2["num"], 50);
+}
+
+#[tokio::test]
+async fn market_microstructure_quote_routes_reject_invalid_queries_before_reader_call() {
+    let reader = Arc::new(MicrostructureReaderFixture::success());
+    let port = microstructure_quote_port(reader.clone());
+    let cases = [
+        ("/api/v1/market-data/ticks/US.AAPL", "pageSize=bad"),
+        ("/api/v1/market-data/ticks/US.AAPL", "pageSize=0"),
+        ("/api/v1/market-data/ticks/US.AAPL", "pageSize=1001"),
+        ("/api/v1/market-data/broker-queue/US.AAPL", "pageSize=101"),
+        (
+            "/api/v1/market-data/capital-flow/US.AAPL",
+            "periodType=intraday",
+        ),
+        (
+            "/api/v1/market-data/capital-flow/US.AAPL",
+            "beginTime=not-a-time",
+        ),
+        (
+            "/api/v1/market-data/capital-flow/US.AAPL",
+            "endTime=not-a-time",
+        ),
+        ("/api/v1/market-data/depth/US/AAPL", "num=bad"),
+        ("/api/v1/market-data/depth/US/AAPL", "num=0"),
+        ("/api/v1/market-data/depth/US/AAPL", "num=51"),
+    ];
+
+    for (path, query) in cases {
+        let error = port.read(path, query).await.expect_err("invalid query");
+        assert!(matches!(
+            error,
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: 400,
+                code,
+                ..
+            } if code == "BAD_REQUEST"
+        ));
+    }
+    assert_eq!(reader.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn market_microstructure_quote_routes_preserve_provider_error_mapping() {
+    let errors = [
+        (
+            MarketMicrostructureError::Session("OpenD is offline".to_owned()),
+            503,
+            "MARKET_DATA_PROVIDER_UNAVAILABLE",
+            None,
+        ),
+        (
+            MarketMicrostructureError::Decode {
+                operation: "Qot_GetTicker",
+                message: "malformed payload".to_owned(),
+            },
+            502,
+            "OPEND_TICKS_FAILED",
+            None,
+        ),
+        (
+            MarketMicrostructureError::Rejected {
+                operation: "Qot_GetTicker",
+                ret_type: 1,
+                err_code: 429,
+                message: "retry after 7 seconds".to_owned(),
+            },
+            429,
+            "MARKET_DATA_RATE_LIMITED",
+            Some(7),
+        ),
+    ];
+
+    for (error, status, code, retry_after) in errors {
+        let reader = Arc::new(MicrostructureReaderFixture::failure(error));
+        let port = microstructure_quote_port(reader);
+        let error = port
+            .read("/api/v1/market-data/ticks/US.AAPL", "")
+            .await
+            .expect_err("provider failure");
+        assert!(matches!(
+            error,
+            MarketDataQuoteReadSnapshotError::Failed {
+                status: actual_status,
+                code: actual_code,
+                retry_after_seconds: actual_retry,
+                ..
+            } if actual_status == status && actual_code == code && actual_retry == retry_after
+        ));
+    }
 }
 
 async fn request_market_data_quote_read_json_response(

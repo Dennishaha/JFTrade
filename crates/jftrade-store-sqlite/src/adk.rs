@@ -285,6 +285,7 @@ impl std::fmt::Debug for AdkStore {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl AdkStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, AdkStoreError> {
         Self::open_existing(path, ADK_PRODUCTION_PROFILE)
@@ -2782,11 +2783,11 @@ impl AdkStore {
         let mut run_payload = decode_json_object(&run.payload_json, "run")?;
         if let Some(Value::Array(approvals)) = run_payload.get_mut("pendingApprovals") {
             for item in approvals {
-                if item.get("id").and_then(Value::as_str) == Some(approval_id) {
-                    if let Some(object) = item.as_object_mut() {
-                        object.insert("status".to_owned(), Value::String("PENDING".to_owned()));
-                        object.insert("updatedAt".to_owned(), Value::String(now.clone()));
-                    }
+                if item.get("id").and_then(Value::as_str) == Some(approval_id)
+                    && let Some(object) = item.as_object_mut()
+                {
+                    object.insert("status".to_owned(), Value::String("PENDING".to_owned()));
+                    object.insert("updatedAt".to_owned(), Value::String(now.clone()));
                 }
             }
         }
@@ -4232,6 +4233,7 @@ pub struct AdkTestCutoverStore {
     inner: AdkStore,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl AdkTestCutoverStore {
     pub fn open_existing(path: impl AsRef<Path>, profile: &str) -> Result<Self, AdkStoreError> {
         let inner = AdkStore::open_existing(path, profile)?;

@@ -238,10 +238,9 @@ fn durable_context_items(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|summary| !summary.is_empty())
+        && !summaries.iter().any(|existing| existing == summary)
     {
-        if !summaries.iter().any(|existing| existing == summary) {
-            summaries.push(summary.to_owned());
-        }
+        summaries.push(summary.to_owned());
     }
     let mut items = Vec::new();
     if !summaries.is_empty() {

@@ -214,17 +214,17 @@ impl ExecutionReconciliationWorker {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .take();
-        if let Some(handle) = handle {
-            if let Err(error) = handle.await {
-                let mut state = self
-                    .status
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner());
-                state.state = "failed".to_owned();
-                state.last_error = Some(format!(
-                    "execution reconciliation worker join failed: {error}"
-                ));
-            }
+        if let Some(handle) = handle
+            && let Err(error) = handle.await
+        {
+            let mut state = self
+                .status
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.state = "failed".to_owned();
+            state.last_error = Some(format!(
+                "execution reconciliation worker join failed: {error}"
+            ));
         }
     }
 
@@ -468,6 +468,10 @@ impl BrokersWritePort for ProductionExecutionPort {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "product_production_ports_execution_preview_tests.rs"]
+mod execution_preview_tests;
 
 include!("product_production_ports_execution_orders_impl.rs");
 fn replay_or_conflict(

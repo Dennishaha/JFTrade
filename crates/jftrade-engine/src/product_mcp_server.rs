@@ -465,6 +465,7 @@ impl McpServerRuntimePort for ProductMcpServerRuntime {
 }
 #[path = "product_mcp_server_dispatch.rs"]
 mod dispatch;
+#[cfg(test)]
 use dispatch::{is_loopback_host, is_loopback_remote, mcp_origin_allowed};
 #[cfg(test)]
 #[path = "product_mcp_server_tests.rs"]

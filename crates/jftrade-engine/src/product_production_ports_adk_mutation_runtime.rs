@@ -321,10 +321,10 @@ fn respond_to_input(
                     "resumeState".to_owned(),
                     Value::String("awaiting_input".to_owned()),
                 );
-                if let Some(request) = object.get_mut("inputRequest") {
-                    if request.get("id").and_then(Value::as_str) == Some(request_id) {
-                        *request = request_pending_value(request, answers);
-                    }
+                if let Some(request) = object.get_mut("inputRequest")
+                    && request.get("id").and_then(Value::as_str) == Some(request_id)
+                {
+                    *request = request_pending_value(request, answers);
                 }
                 if let Some(Value::Array(requests)) = object.get_mut("inputRequests") {
                     for request in requests {
@@ -417,12 +417,7 @@ fn install_skill(
                 .and_then(|value| value.to_str().ok())
                 .unwrap_or_default()
                 .to_owned();
-            let archive_hint = is_skill_archive(&url, &content_type, response.content_length());
-            let max_bytes = if archive_hint {
-                MAX_SKILL_ARCHIVE_BYTES
-            } else {
-                MAX_SKILL_ARCHIVE_BYTES
-            };
+            let max_bytes = MAX_SKILL_ARCHIVE_BYTES;
             if response
                 .content_length()
                 .is_some_and(|length| length > max_bytes as u64)
@@ -486,7 +481,7 @@ fn install_skill(
             .unwrap_or_else(|| {
                 parsed
                     .path_segments()
-                    .and_then(|segments| segments.last())
+                    .and_then(|mut segments| segments.next_back())
                     .unwrap_or("skill")
                     .trim_end_matches(".md")
             }),
@@ -585,10 +580,10 @@ fn validate_skill_url_shape(url: &Url) -> Result<(), String> {
     if host.eq_ignore_ascii_case("localhost") {
         return Err("skill URL host is not allowed".to_owned());
     }
-    if let Ok(address) = host.parse::<IpAddr>() {
-        if unsafe_skill_ip(address) {
-            return Err("skill URL host is not allowed".to_owned());
-        }
+    if let Ok(address) = host.parse::<IpAddr>()
+        && unsafe_skill_ip(address)
+    {
+        return Err("skill URL host is not allowed".to_owned());
     }
     Ok(())
 }
@@ -653,14 +648,16 @@ fn is_skill_archive(url: &str, content_type: &str, _content_length: Option<u64>)
         .and_then(|parsed| {
             parsed
                 .path_segments()
-                .and_then(|segments| segments.last())
+                .and_then(|mut segments| segments.next_back())
                 .map(str::to_ascii_lowercase)
         })
         .is_some_and(|name| name.ends_with(".zip"));
     path_hint || content_type.to_ascii_lowercase().contains("zip")
 }
 
-fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>), String> {
+type ExtractedSkillArchive = (String, Vec<(String, Vec<u8>)>);
+
+fn extract_skill_archive(body: &[u8]) -> Result<ExtractedSkillArchive, String> {
     const MAX_ENTRIES: usize = 256;
     const MAX_ARCHIVE_BYTES: u64 = 4 << 20;
     const MAX_SKILL_BYTES: u64 = 512 << 10;
@@ -748,11 +745,7 @@ fn extract_skill_archive(body: &[u8]) -> Result<(String, Vec<(String, Vec<u8>)>)
     let mut normalized = Vec::with_capacity(files.len());
     for (path, data) in files {
         let path = path.strip_prefix(&prefix).unwrap_or(path.as_str());
-        if path.is_empty() || path == "SKILL.md" || !prefix.is_empty() && !path.contains('/') {
-            normalized.push((path.to_owned(), data));
-        } else {
-            normalized.push((path.to_owned(), data));
-        }
+        normalized.push((path.to_owned(), data));
     }
     let text =
         String::from_utf8(skill_bytes).map_err(|_| "skill document must be UTF-8".to_owned())?;

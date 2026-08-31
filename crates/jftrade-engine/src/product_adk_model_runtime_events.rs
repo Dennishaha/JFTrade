@@ -441,10 +441,10 @@ impl ProductionAdkChatRuntime {
             let _ = self.persist_cancelled(&chat, &error, &run_lease);
             return Err(error);
         }
-        if let Ok(ref response) = result {
-            if !response.tool_calls.is_empty() {
-                return self.persist_tool_calls(&chat, response, &run_lease);
-            }
+        if let Ok(ref response) = result
+            && !response.tool_calls.is_empty()
+        {
+            return self.persist_tool_calls(&chat, response, &run_lease);
         }
         self.finish_chat(&chat, result, &run_lease)
     }
@@ -604,7 +604,7 @@ impl ProductionAdkChatRuntime {
                 &approval_stages,
                 self.session_store.as_ref(),
                 &events,
-                &run_lease.owner_id(),
+                run_lease.owner_id(),
                 run_lease.token(),
             )
             .map_err(storage_unavailable)?;

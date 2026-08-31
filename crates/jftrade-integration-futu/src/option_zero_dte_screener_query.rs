@@ -136,19 +136,19 @@ fn validate_query(
             "0DTE count must be between 1 and 500".into(),
         ));
     }
-    if let Some(page) = &query.page {
-        if page.len() > 1024 || page.chars().any(char::is_control) {
-            return Err(OptionZeroDteScreenerQueryError::InvalidQuery(
-                "0DTE page token is invalid".into(),
-            ));
-        }
+    if let Some(page) = &query.page
+        && (page.len() > 1024 || page.chars().any(char::is_control))
+    {
+        return Err(OptionZeroDteScreenerQueryError::InvalidQuery(
+            "0DTE page token is invalid".into(),
+        ));
     }
-    if let Some(sort) = query.sort_type {
-        if !(1..=5).contains(&sort) {
-            return Err(OptionZeroDteScreenerQueryError::InvalidQuery(
-                "0DTE sortType is unsupported".into(),
-            ));
-        }
+    if let Some(sort) = query.sort_type
+        && !(1..=5).contains(&sort)
+    {
+        return Err(OptionZeroDteScreenerQueryError::InvalidQuery(
+            "0DTE sortType is unsupported".into(),
+        ));
     }
     for filter in &query.filters {
         if filter.indicator_type == 0 || !(1..=10).contains(&filter.indicator_type) {

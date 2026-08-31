@@ -98,7 +98,7 @@ impl OptionZeroDteContractReadPort for OpenDOptionZeroDteContractReader {
 fn validate_query(
     query: &OptionZeroDteContractQuery,
 ) -> Result<(), OptionZeroDteContractQueryError> {
-    if query.owner.market.to_ascii_uppercase() != "US" || query.owner.code.trim().is_empty() {
+    if !query.owner.market.eq_ignore_ascii_case("US") || query.owner.code.trim().is_empty() {
         return Err(OptionZeroDteContractQueryError::InvalidQuery(
             "0DTE contract owner must be a US security".into(),
         ));
@@ -120,12 +120,12 @@ fn validate_query(
             "0DTE chainInfo.productCode is required".into(),
         ));
     }
-    if let Some(sort) = query.sort_type {
-        if !(1..=4).contains(&sort) {
-            return Err(OptionZeroDteContractQueryError::InvalidQuery(
-                "0DTE contract sortType is unsupported".into(),
-            ));
-        }
+    if let Some(sort) = query.sort_type
+        && !(1..=4).contains(&sort)
+    {
+        return Err(OptionZeroDteContractQueryError::InvalidQuery(
+            "0DTE contract sortType is unsupported".into(),
+        ));
     }
     for filter in &query.filters {
         if !(1..=15).contains(&filter.indicator_type) {

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use jftrade_integration_futu::{
-    TradeComboMaxTradeQuantityRequest, TradeMaxTradeQuantityRequest, TradeReadPort,
+    TradeComboMaxTradeQuantityRequest, TradeHeader, TradeMaxTradeQuantityRequest, TradeReadPort,
     TradeSessionError,
 };
 use jftrade_store_sqlite::StoredExecutionOrderPreview;
@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 use super::execution_order_hash::preview_request_hash;
 use super::execution_order_helpers::{parse_product_rule_request, product_rule_rejection};
 use super::execution_order_parse::{
-    ParsedCombo, ParsedOrder, market_label, order_type_label, parse_order, quote_market_label,
-    sec_market, side_label,
+    ParsedCombo, ParsedOrder, market_label, order_type_label, parse_order, parse_order_type,
+    parse_session, quote_market_label, sec_market, side_label, trade_market,
 };
 use super::*;
 
@@ -124,6 +124,12 @@ impl ProductionExecutionPort {
             return Ok(json!({"allowed": false, "reasonCode": code, "reason": message}));
         }
         self.ensure_futu_runtime()?;
+        // Product-rule success is only meaningful after the live trade
+        // reader has answered.  In particular, do not project the local
+        // validation result as `{allowed:true}` merely because OpenD is
+        // configured: the max-trade-quantity response is the broker-owned
+        // evidence for an ordinary buying-power query.
+        let reader = self.reader()?;
         if request.order_kind == "event_single" {
             let instrument = request.instrument_id.clone().unwrap_or_default();
             match self.validate_active_event_contracts(std::slice::from_ref(&instrument)) {
@@ -139,6 +145,10 @@ impl ProductionExecutionPort {
                     return Err(ExecutionWritePortError::Unavailable(message));
                 }
             }
+        } else if let Some(request) = product_rule_max_trade_request(&request)? {
+            reader
+                .read_max_trade_quantity(request)
+                .map_err(map_trade_error)?;
         }
         Ok(json!({"allowed": true}))
     }
@@ -147,6 +157,21 @@ impl ProductionExecutionPort {
         let parsed = parse_combo(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
         if parsed.order.order_kind == "event_parlay" {
             self.ensure_futu_runtime()?;
+            // The RFQ id and expiry are caller-visible metadata, but they are
+            // not proof that OpenD can price this parlay.  Require the same
+            // real combo-RFQ adapter used by the market-data quote endpoint;
+            // otherwise a syntactically valid/fake RFQ would be persisted as
+            // an allowed preview.
+            let runtime = self.trade_runtime.as_ref().ok_or_else(|| {
+                ExecutionWritePortError::Unavailable(
+                    "Futu prediction combo RFQ runtime is unavailable".to_owned(),
+                )
+            })?;
+            if !runtime.prediction_combo_quote_available() {
+                return Err(ExecutionWritePortError::Unavailable(
+                    "Futu prediction combo RFQ adapter is unavailable".to_owned(),
+                ));
+            }
             let instrument_ids = parsed
                 .leg_payloads
                 .iter()
@@ -355,9 +380,7 @@ impl ProductionExecutionPort {
                     "futu: event contract code is required".to_owned(),
                 )
             })?;
-            let path = format!(
-                "/api/v1/market-data/prediction/contracts/{code}/snapshot"
-            );
+            let path = format!("/api/v1/market-data/prediction/contracts/{code}/snapshot");
             let snapshot = runtime.prediction_read(&path, "").map_err(|error| {
                 EventContractValidationError::Unavailable(format!(
                     "Futu event-contract snapshot failed: {error}"
@@ -656,6 +679,80 @@ fn option_strategy_code(payload: &Value) -> Result<i32, ExecutionWritePortError>
             format!("unsupported optionStrategy {strategy:?}"),
         )),
     }
+}
+
+/// Convert the public ProductRuleQuery into the neutral OpenD max-quantity
+/// request.  The ProductRule wire shape keeps account identifiers opaque;
+/// Futu's typed trade header is numeric, so unresolved account ids are
+/// unavailable locally, so the optional probe is skipped instead of sending
+/// an unbound request. Queries without an instrument id likewise retain Go's
+/// local validation semantics and do not issue a malformed OpenD request.
+fn product_rule_max_trade_request(
+    request: &execution_order_helpers::ProductRuleRequest,
+) -> Result<Option<TradeMaxTradeQuantityRequest>, ExecutionWritePortError> {
+    let Some(instrument_id) = request.instrument_id.as_deref() else {
+        return Ok(None);
+    };
+    // ProductRuleQuery deliberately keeps accountId opaque because the Go
+    // broker resolves aliases through account discovery.  The neutral Futu
+    // TradeReadPort accepts only a numeric OpenD account id, so skip this
+    // optional evidence probe when the embedding uses an alias we cannot
+    // resolve locally; the live reader was still required above.
+    let Some(account_id) = request.account_id.as_deref() else {
+        return Ok(None);
+    };
+    let Ok(account_id) = account_id.parse::<u64>() else {
+        return Ok(None);
+    };
+    let code = instrument_id
+        .trim()
+        .rsplit_once('.')
+        .map_or(instrument_id.trim(), |(_, code)| code)
+        .trim()
+        .to_ascii_uppercase();
+    if code.is_empty() {
+        return Err(failed(400, "BAD_REQUEST", "instrumentId is required"));
+    }
+    let order_type = parse_order_type(&request.order_type)
+        .map_err(|message| failed(400, "BAD_REQUEST", message))?;
+    let trd_market = trade_market(&request.market);
+    if trd_market == 0 {
+        return Err(failed(
+            400,
+            "BAD_REQUEST",
+            format!("unsupported market {:?}", request.market),
+        ));
+    }
+    let trading_environment = match request.trading_environment.as_str() {
+        "REAL" => 1,
+        "SIMULATE" | "SIMULATION" | "PAPER" | "" => 0,
+        value => {
+            return Err(failed(
+                400,
+                "BAD_REQUEST",
+                format!("unsupported tradingEnvironment {value:?}"),
+            ));
+        }
+    };
+    Ok(Some(TradeMaxTradeQuantityRequest {
+        header: TradeHeader {
+            trd_env: trading_environment,
+            acc_id: account_id,
+            trd_market,
+            jp_acc_type: None,
+        },
+        order_type,
+        code,
+        price: request.price.unwrap_or(0.0),
+        order_id: None,
+        adjust_price: None,
+        adjust_side_and_limit: None,
+        sec_market: Some(sec_market(trd_market)),
+        order_id_ex: None,
+        session: parse_session(request.session.as_deref())
+            .map_err(|message| failed(400, "BAD_REQUEST", message))?,
+        position_id: None,
+    }))
 }
 
 fn underlying_security(

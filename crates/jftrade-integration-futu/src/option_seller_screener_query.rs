@@ -107,12 +107,12 @@ fn validate_query(query: &OptionSellerScreenerQuery) -> Result<(), OptionSellerS
             "seller sellerType must be covered call (1) or cash secured put (2)".into(),
         ));
     }
-    if let Some(sort) = query.sort_type {
-        if !(1..=4).contains(&sort) {
-            return Err(OptionSellerScreenerQueryError::InvalidQuery(
-                "seller sortType is unsupported".into(),
-            ));
-        }
+    if let Some(sort) = query.sort_type
+        && !(1..=4).contains(&sort)
+    {
+        return Err(OptionSellerScreenerQueryError::InvalidQuery(
+            "seller sortType is unsupported".into(),
+        ));
     }
     for filter in &query.filters {
         if !(1..=26).contains(&filter.indicator_type) {

@@ -512,7 +512,7 @@ fn price_reminder_operation(
             "operation is invalid".to_owned(),
         ));
     }
-    if matches!(operation, 2 | 3 | 4 | 5 | 6) && key.is_none() && operation != 6 {
+    if matches!(operation, 2..=6) && key.is_none() && operation != 6 {
         return Err(CustomizationError::Invalid(
             "key is required for this operation".to_owned(),
         ));

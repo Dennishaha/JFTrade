@@ -436,9 +436,7 @@ pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
         .get("legs")
         .and_then(Value::as_array)
         .ok_or_else(|| "legs is required".to_owned())?
-        .iter()
-        .cloned()
-        .collect::<Vec<_>>();
+        .to_vec();
     let legs = leg_payloads
         .iter()
         .map(|item| {
@@ -651,7 +649,7 @@ fn normalize_instrument(
         if let Some(requested) = requested_market {
             let (requested_resolved, requested_prefix) = normalize_market_input(requested)?;
             if requested_resolved != resolved_market
-                || (requested_prefix != "" && requested_prefix != preferred_prefix)
+                || (!requested_prefix.is_empty() && requested_prefix != preferred_prefix)
             {
                 return Err(format!(
                     "market {requested:?} does not match symbol {raw_symbol:?}"
@@ -709,7 +707,7 @@ fn parse_side(value: &str) -> Result<i32, String> {
     }
 }
 
-fn parse_order_type(value: &str) -> Result<i32, String> {
+pub(super) fn parse_order_type(value: &str) -> Result<i32, String> {
     match value.trim().to_ascii_uppercase().as_str() {
         "LIMIT" | "NORMAL" => Ok(1),
         "MARKET" => Ok(2),
@@ -734,7 +732,7 @@ fn parse_time_in_force(value: Option<&str>) -> Result<Option<i32>, String> {
         .transpose()
 }
 
-fn parse_session(value: Option<&str>) -> Result<Option<i32>, String> {
+pub(super) fn parse_session(value: Option<&str>) -> Result<Option<i32>, String> {
     value
         .map(|value| match value.trim().to_ascii_lowercase().as_str() {
             "rth" | "regular" | "normal" => Ok(1),

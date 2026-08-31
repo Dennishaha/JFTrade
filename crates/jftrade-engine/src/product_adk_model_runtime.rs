@@ -393,10 +393,10 @@ impl RunLeaseGuard {
 
 pub(super) fn lease_owner_id(run_id: &str) -> String {
     format!(
-        "rust-adk:{}:{}:{}",
+        "rust-adk:{}:{}:{:?}",
         std::process::id(),
         run_id,
-        format!("{:?}", thread::current().id())
+        thread::current().id()
     )
 }
 
@@ -411,6 +411,7 @@ impl Drop for RunLeaseGuard {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum PreparedChat {
     Existing(AdkChatPortOutput),
