@@ -81,7 +81,7 @@ function fixture() {
       commitSha,
       workflowRun,
       sourceWorkflowRun,
-      evidence: [{ path: evidencePath }],
+      evidence: [{ path: evidencePath, schemaVersion: "jftrade.test.evidence.v1" }],
       summary: `${id} passed for this run`,
       status: "passed",
     };

@@ -1,13 +1,33 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jftrade.local/schemas/release-evidence-inputs.v1.json",
+  "$id": "https://jftrade.local/schemas/release-evidence-inputs.v2.json",
   "title": "JFTrade externally supplied release qualification evidence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$schema", "schemaVersion", "evidence"],
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "repository",
+    "releaseRef",
+    "ref",
+    "commitSha",
+    "workflow",
+    "runId",
+    "attempt",
+    "artifact",
+    "evidence"
+  ],
   "properties": {
     "$schema": { "const": "./release-evidence-inputs.schema.json" },
-    "schemaVersion": { "const": "jftrade.release-evidence-inputs.v1" },
+    "schemaVersion": { "const": "jftrade.release-evidence-inputs.v2" },
+    "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+    "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+    "ref": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+    "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
+    "workflow": { "enum": ["desktop-release-evidence.yml"] },
+    "runId": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "artifact": { "$ref": "#/$defs/artifact" },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
@@ -31,7 +51,7 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "files"],
+      "required": ["kind", "status", "files"],
       "properties": {
         "kind": {
           "enum": [
@@ -42,10 +62,54 @@
             "security-review"
           ]
         },
+        "status": { "const": "passed" },
         "files": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "$ref": "#/$defs/evidenceFile" }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "id", "digest"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+        "id": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "string", "pattern": "^[1-9][0-9]*$" }] },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "evidenceFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size", "kind", "schemaVersion"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "size": { "type": "integer", "minimum": 1 },
+        "kind": {
+          "enum": [
+            "signed-updater",
+            "sbom-provenance",
+            "rollback-artifact",
+            "backup-restore",
+            "security-review"
+          ]
+        },
+        "schemaVersion": {
+          "enum": [
+            "jftrade.release.signed-updater.v2",
+            "jftrade.tauri-signed-updater.v1",
+            "jftrade.release.sbom-provenance.v2",
+            "jftrade.sbom-provenance-check.v1",
+            "jftrade.release.rollback-artifact.v2",
+            "jftrade.rollback-artifact.v1",
+            "jftrade.release.backup-restore.v2",
+            "jftrade.backup-restore-drill.v1",
+            "jftrade.release.security-review.v2",
+            "jftrade.security-review-signoff.v1"
+          ]
         }
       }
     }

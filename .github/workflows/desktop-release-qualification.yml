@@ -90,6 +90,7 @@ jobs:
           EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
           EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
           EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
           RELEASE_REF: ${{ inputs.release_ref }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
@@ -97,7 +98,8 @@ jobs:
           set -euo pipefail
           [[ "$EVIDENCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_id must be a positive integer" >&2; exit 1; }
           [[ "$EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_attempt must be a positive integer" >&2; exit 1; }
-          [[ "$EVIDENCE_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ ]] || { echo "evidence_workflow must be a workflow filename ending in .yml" >&2; exit 1; }
+          [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" ]] || { echo "evidence_workflow is not a trusted producer workflow" >&2; exit 1; }
+          [[ "$EVIDENCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "evidence_artifact must be a simple artifact name" >&2; exit 1; }
           run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
           commit_sha="$(git rev-parse HEAD)"
           jq -e \
@@ -111,12 +113,16 @@ jobs:
             exit 1
           }
           artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
-          jq -e --arg name "${{ inputs.evidence_artifact }}" --argjson run_id "$EVIDENCE_RUN_ID" \
-            '.artifacts[] | select(.name == $name and .expired == false and .workflow_run.id == $run_id)' \
-            <<<"$artifacts_json" >/dev/null || {
-            echo "external evidence artifact is missing or expired in run $EVIDENCE_RUN_ID" >&2
+          artifact_matches="$(jq -c \
+            --arg name "$EVIDENCE_ARTIFACT" \
+            --argjson run_id "$EVIDENCE_RUN_ID" \
+            '[.artifacts[] | select(.id | type == "number" and . > 0) | select(.name == $name and .expired == false and .workflow_run.id == $run_id and (.digest | type == "string") and (.digest | test("^sha256:[0-9a-f]{64}$"))) | {id, name, digest, runId: .workflow_run.id}]' \
+            <<<"$artifacts_json")"
+          [[ "$(jq 'length' <<<"$artifact_matches")" == "1" ]] || {
+            echo "external evidence artifact metadata is missing, ambiguous, expired, or lacks a digest" >&2
             exit 1
           }
+          jq --argjson attempt "$EVIDENCE_RUN_ATTEMPT" '.[0] + {runAttempt: $attempt}' <<<"$artifact_matches" > evidence-artifact-metadata.json
 
       - name: Download macOS source artifact
         uses: actions/download-artifact@v8
@@ -172,6 +178,8 @@ jobs:
           EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
           EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
           EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
+          REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
           QUALIFICATION_RUN_ID: ${{ github.run_id }}
           QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -193,8 +201,8 @@ jobs:
             cp "$source" "candidate-inputs/$name"
             [[ -s "candidate-inputs/$name" ]]
           }
-          [[ "$EVIDENCE_MANIFEST" != /* && "$EVIDENCE_MANIFEST" != *".."* && "$EVIDENCE_MANIFEST" != *$'\n'* ]] || {
-            echo "evidence_manifest must be a relative path without traversal" >&2
+          [[ "$EVIDENCE_MANIFEST" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_MANIFEST" != /* ]] || {
+            echo "evidence_manifest must be a relative POSIX path without shell metacharacters" >&2
             exit 1
           }
           for platform in macos-arm64 linux-x64 windows-x64 windows-arm64; do
@@ -213,8 +221,10 @@ jobs:
 
           node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
           node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
           import fs from "node:fs";
           import path from "node:path";
+          import { validateExternalEvidenceManifest } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
           const root = "candidate-inputs";
           const tag = process.env.RELEASE_REF;
           const commitSha = process.env.COMMIT_SHA;
@@ -232,11 +242,59 @@ jobs:
             ref: `refs/tags/${tag}`,
             commitSha,
           };
-          const evidenceManifestPath = path.join("incoming/release-evidence", process.env.EVIDENCE_MANIFEST);
+          const evidenceRoot = path.resolve("incoming/release-evidence");
+          const evidenceManifestPath = path.resolve(evidenceRoot, process.env.EVIDENCE_MANIFEST);
+          const manifestRelative = path.relative(evidenceRoot, evidenceManifestPath);
+          if (!manifestRelative || manifestRelative === ".." || manifestRelative.startsWith(`..${path.sep}`)
+            || process.env.EVIDENCE_MANIFEST.split("/").some((part) => !part || part === "." || part === "..")) {
+            throw new Error("evidence_manifest must stay inside the downloaded evidence artifact");
+          }
+          let manifestCursor = evidenceRoot;
+          for (const part of manifestRelative.split(path.sep)) {
+            manifestCursor = path.join(manifestCursor, part);
+            if (fs.lstatSync(manifestCursor).isSymbolicLink()) throw new Error("evidence_manifest must not traverse a symlink");
+          }
           const manifest = JSON.parse(fs.readFileSync(evidenceManifestPath, "utf8"));
-          if (manifest.$schema !== "./release-evidence-inputs.schema.json"
-            || manifest.schemaVersion !== "jftrade.release-evidence-inputs.v1") {
-            throw new Error("external evidence manifest has an unsupported schema");
+          const schemaPath = "tests/fixtures/rust-migration/stage9/release-evidence-inputs.schema.json";
+          const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+          if (schema.$id !== "https://jftrade.local/schemas/release-evidence-inputs.v2.json"
+            || schema.properties?.schemaVersion?.const !== "jftrade.release-evidence-inputs.v2"
+            || schema.properties?.workflow?.enum?.length !== 1
+            || schema.properties.workflow.enum[0] !== process.env.EVIDENCE_WORKFLOW) {
+            throw new Error(`unsupported ${schemaPath}`);
+          }
+          const artifactMetadata = JSON.parse(fs.readFileSync("evidence-artifact-metadata.json", "utf8"));
+          const releaseArtifactPaths = {
+            "macos-arm64": [`${root}/JFTrade-${tag}-macos-arm64.dmg`],
+            "linux-x64": [
+              `${root}/JFTrade-${tag}-linux-x64.AppImage`,
+              `${root}/JFTrade-${tag}-linux-x64.deb`,
+              `${root}/JFTrade-${tag}-linux-x64.rpm`,
+            ],
+            "windows-x64": [`${root}/JFTrade-${tag}-windows-x64-setup.exe`],
+            "windows-arm64": [`${root}/JFTrade-${tag}-windows-arm64-setup.exe`],
+          };
+          const releaseArtifactDigests = Object.fromEntries(Object.entries(releaseArtifactPaths).map(([platform, files]) => [
+            platform,
+            files.map((file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex")),
+          ]));
+          const externalValidation = validateExternalEvidenceManifest(manifest, {
+            baseDirectory: "incoming/release-evidence",
+            expected: {
+              repository: process.env.REPOSITORY,
+              releaseRef: sourceRun.ref,
+              ref: sourceRun.ref,
+              commitSha,
+              workflow: process.env.EVIDENCE_WORKFLOW,
+              runId: Number(process.env.EVIDENCE_RUN_ID),
+              attempt: Number(process.env.EVIDENCE_RUN_ATTEMPT),
+              artifact: artifactMetadata,
+            },
+            expectedArtifactMetadata: artifactMetadata,
+            releaseArtifactDigests,
+          });
+          if (!externalValidation.valid) {
+            throw new Error(`external evidence manifest is invalid: ${externalValidation.errors.join("; ")}`);
           }
           const expectedKinds = {
             "signed-updater-inputs": "signed-updater",
@@ -246,11 +304,11 @@ jobs:
             "security-review-inputs": "security-review",
           };
           const externalRun = {
-            id: process.env.EVIDENCE_RUN_ID,
-            attempt: Number(process.env.EVIDENCE_RUN_ATTEMPT),
-            workflow: process.env.EVIDENCE_WORKFLOW,
-            ref: sourceRun.ref,
-            commitSha,
+            id: manifest.runId,
+            attempt: manifest.attempt,
+            workflow: manifest.workflow,
+            ref: manifest.ref,
+            commitSha: manifest.commitSha,
           };
           const prerequisites = [
             {
@@ -261,26 +319,34 @@ jobs:
               commitSha,
               workflowRun: qualificationRun,
               sourceWorkflowRun: sourceRun,
-              evidence: [{ path: "evidence/candidate-admission.json", kind: "stage9-closeout-admission" }],
+              evidence: [{
+                path: "evidence/candidate-admission.json",
+                kind: "stage9-closeout-admission",
+                schemaVersion: "jftrade.stage9-closeout-admission.v1",
+              }],
             },
             ...Object.entries(expectedKinds).map(([id, kind]) => {
               const entry = manifest.evidence?.[id];
               if (!entry || entry.kind !== kind || !Array.isArray(entry.files) || entry.files.length === 0) {
                 throw new Error(`external evidence manifest missing valid ${id}`);
               }
-              const evidence = entry.files.map((relative) => {
-                if (typeof relative !== "string" || relative.trim() === "" || path.isAbsolute(relative)
-                  || relative.split("/").includes("..") || relative.includes("\\")) {
-                  throw new Error(`${id} contains an unsafe evidence path`);
+              const evidence = entry.files.map((file) => {
+                const relative = file.path;
+                const source = path.resolve("incoming/release-evidence", relative);
+                const target = path.resolve("candidate-inputs/evidence", id, relative);
+                if (!target.startsWith(`${path.resolve("candidate-inputs/evidence", id)}${path.sep}`)) {
+                  throw new Error(`${id} target path escapes candidate evidence directory`);
                 }
-                const source = path.join("incoming/release-evidence", relative);
-                if (!fs.statSync(source).isFile() || fs.statSync(source).size === 0) {
-                  throw new Error(`${id} evidence file is missing or empty: ${relative}`);
-                }
-                const target = path.join("candidate-inputs/evidence", id, path.basename(relative));
+                if (fs.existsSync(target)) throw new Error(`${id} evidence target collides: ${relative}`);
                 fs.mkdirSync(path.dirname(target), { recursive: true });
                 fs.copyFileSync(source, target);
-                return { path: path.relative(root, target).split(path.sep).join("/"), kind };
+                return {
+                  path: path.relative(root, target).split(path.sep).join("/"),
+                  sha256: file.sha256,
+                  size: file.size,
+                  kind,
+                  schemaVersion: file.schemaVersion,
+                };
               });
               return {
                 id,

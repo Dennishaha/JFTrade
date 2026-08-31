@@ -101,8 +101,18 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /evidence_workflow:/);
   assert.match(qualificationWorkflow, /evidence_artifact:/);
   assert.match(qualificationWorkflow, /evidence_manifest:/);
+  assert.match(qualificationWorkflow, /evidence_workflow is not a trusted producer workflow/);
+  assert.match(qualificationWorkflow, /EVIDENCE_WORKFLOW.*desktop-release-evidence.yml/);
+  assert.match(qualificationWorkflow, /EVIDENCE_ARTIFACT.*simple artifact name/);
+  assert.match(qualificationWorkflow, /artifact_matches/);
+  assert.match(qualificationWorkflow, /EVIDENCE_RUN_ATTEMPT/);
+  assert.match(qualificationWorkflow, /workflow_run.id/);
+  assert.match(qualificationWorkflow, /digest.*sha256/);
   assert.match(qualificationWorkflow, /Download external release evidence artifact/);
   assert.match(qualificationWorkflow, /release-evidence-inputs\.schema\.json/);
+  assert.match(qualificationWorkflow, /validateExternalEvidenceManifest/);
+  assert.match(qualificationWorkflow, /must not traverse a symlink/);
+  assert.match(qualificationWorkflow, /target path escapes candidate evidence directory/);
   assert.doesNotMatch(qualificationWorkflow, /cat\s+>.*external_release_runner_evidence_required/);
   assert.doesNotMatch(qualificationWorkflow, /check-signed-updater-lifecycle\.mjs\s*>.*rollback/);
   assert.match(qualificationWorkflow, /sourceWorkflowRun/);

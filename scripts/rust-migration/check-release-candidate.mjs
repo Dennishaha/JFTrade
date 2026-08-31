@@ -231,7 +231,9 @@ function referenceObject(value, label, errors) {
 function validateReference(value, baseDirectory, label, errors, { allowSize = true } = {}) {
   const entry = referenceObject(value, label, errors);
   if (!entry) return null;
-  const allowed = allowSize ? ["path", "sha256", "size", "kind"] : ["path", "sha256", "kind"];
+  const allowed = allowSize
+    ? ["path", "sha256", "size", "kind", "schemaVersion"]
+    : ["path", "sha256", "kind", "schemaVersion"];
   for (const key of Object.keys(entry)) {
     if (!allowed.includes(key)) errors.push(`${label}.${key} is not allowed`);
   }
@@ -507,6 +509,9 @@ function validatePrerequisites(values, baseDirectory, release, workflow, sourceW
       const evidenceObject = referenceObject(entry, evidenceLabel, errors);
       if (evidenceObject && evidenceObject.kind !== kind) {
         errors.push(`${evidenceLabel}.kind must match ${label}.kind`);
+      }
+      if (evidenceObject && (typeof evidenceObject.schemaVersion !== "string" || evidenceObject.schemaVersion.trim() === "")) {
+        errors.push(`${evidenceLabel}.schemaVersion must be a non-empty string`);
       }
       const checked = validateReference(
         entry,

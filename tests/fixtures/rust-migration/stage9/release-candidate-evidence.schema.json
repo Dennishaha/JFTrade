@@ -135,12 +135,13 @@
     "prerequisiteFile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256", "kind"],
+      "required": ["path", "sha256", "kind", "schemaVersion"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "size": { "type": "integer", "minimum": 1 },
-        "kind": { "type": "string", "minLength": 1 }
+        "kind": { "type": "string", "minLength": 1 },
+        "schemaVersion": { "type": "string", "minLength": 1 }
       }
     }
   }
