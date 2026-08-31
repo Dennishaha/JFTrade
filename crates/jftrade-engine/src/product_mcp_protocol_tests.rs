@@ -181,3 +181,31 @@ fn malformed_provider_payload_fails_closed() {
     };
     assert!(provider_model(row).is_err());
 }
+
+#[test]
+fn route_backed_microstructure_tools_have_exact_production_adapters() {
+    let expected = [
+        (
+            "market.instrument_profile",
+            ProductionRouteAdapter::MarketDataProfileRead,
+        ),
+        (
+            "market.intraday",
+            ProductionRouteAdapter::MarketDataIntradayRead,
+        ),
+        ("market.ticks", ProductionRouteAdapter::MarketDataTicksRead),
+        ("market.depth", ProductionRouteAdapter::MarketDataDepthRead),
+        (
+            "market.broker_queue",
+            ProductionRouteAdapter::MarketDataBrokerQueueRead,
+        ),
+        (
+            "market.capital_flow",
+            ProductionRouteAdapter::MarketDataCapitalFlowRead,
+        ),
+    ];
+    for (name, adapter) in expected {
+        assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
+        assert_eq!(mcp_tool_adapter(name), Some(adapter));
+    }
+}

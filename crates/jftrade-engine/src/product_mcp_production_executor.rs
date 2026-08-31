@@ -132,6 +132,12 @@ impl ProductionMcpToolExecutor {
             "market.providers" => self.provider_read("/api/v1/market-data/provider", ""),
             "market.capabilities" => self.market_capabilities(arguments),
             "market.search" => self.market_search(arguments),
+            "market.instrument_profile"
+            | "market.intraday"
+            | "market.ticks"
+            | "market.depth"
+            | "market.broker_queue"
+            | "market.capital_flow" => self.market_microstructure(name, arguments),
             "market.snapshot" => self.market_snapshot(arguments),
             "market.candles" => self.market_candles(arguments),
             "market.snapshots" => self.market_snapshots(arguments),

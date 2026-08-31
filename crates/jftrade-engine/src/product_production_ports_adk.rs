@@ -245,6 +245,12 @@ impl ProductionToolCatalog {
             "market.providers" | "market.capabilities" => {
                 ProductionRouteAdapter::MarketDataProviderRead
             }
+            "market.instrument_profile" => ProductionRouteAdapter::MarketDataProfileRead,
+            "market.intraday" => ProductionRouteAdapter::MarketDataIntradayRead,
+            "market.ticks" => ProductionRouteAdapter::MarketDataTicksRead,
+            "market.depth" => ProductionRouteAdapter::MarketDataDepthRead,
+            "market.broker_queue" => ProductionRouteAdapter::MarketDataBrokerQueueRead,
+            "market.capital_flow" => ProductionRouteAdapter::MarketDataCapitalFlowRead,
             "system.runtime_dependencies" => ProductionRouteAdapter::SystemRead,
             "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
             "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,

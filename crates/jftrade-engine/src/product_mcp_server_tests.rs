@@ -17,7 +17,10 @@ use std::net::TcpStream;
 use std::time::Duration;
 use tempfile::TempDir;
 
-const MCP_TEST_IO_TIMEOUT: Duration = Duration::from_secs(10);
+// Argon2 token verification intentionally uses production-cost parameters and
+// can be delayed by the full workspace test harness running in parallel. Keep
+// client I/O bounded while allowing that scheduling pressure to settle.
+const MCP_TEST_IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn available_port() -> u16 {
     StdTcpListener::bind("127.0.0.1:0")
@@ -330,9 +333,9 @@ fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(reviewed.len(), 69);
-    assert_eq!(native.len(), 31);
+    assert_eq!(native.len(), 37);
     assert!(native.is_subset(&reviewed));
-    assert_eq!(reviewed.len() - native.len(), 38);
+    assert_eq!(reviewed.len() - native.len(), 32);
 }
 
 #[test]

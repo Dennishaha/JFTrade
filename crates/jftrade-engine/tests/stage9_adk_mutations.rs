@@ -105,6 +105,7 @@ impl AdkMutationPort for RecordingPort {
             "operation": input.operation.name(),
             "identifiers": input.identifiers,
             "body": input.body,
+            "webhookSecret": input.webhook_secret,
         }))
     }
 }
@@ -226,7 +227,7 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     let mut webhook = request_with_body(
         "POST",
         "/api/v1/adk/workflow-webhooks/trigger",
-        br#"{"inputs":{"source":"fixture"}}"#,
+        br#"{"inputs":{"source":"fixture"}} {"ignored":true}"#,
     );
     webhook.headers.insert(
         "Authorization".to_owned(),
@@ -235,6 +236,7 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     let response = dispatch_adk_mutation(&webhook, Some(&RecordingPort), "fixture-time");
     assert_eq!(response.status, 200);
     assert_eq!(response.body["data"]["body"]["source"], "fixture");
+    assert_eq!(response.body["data"]["webhookSecret"], "bearer-secret");
 
     webhook.headers.clear();
     webhook.headers.insert(
@@ -243,6 +245,7 @@ fn adk_mutation_leaf_preserves_trailing_json_and_webhook_secret_precedence() {
     );
     let response = dispatch_adk_mutation(&webhook, Some(&RecordingPort), "fixture-time");
     assert_eq!(response.status, 200);
+    assert_eq!(response.body["data"]["webhookSecret"], "legacy-secret");
 }
 
 fn fixture() -> Fixture {

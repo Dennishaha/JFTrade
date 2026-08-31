@@ -21,6 +21,16 @@ use crate::product::product_market_data_provider_actions_port::{
 const SUBSCRIPTIONS_PATH: &str = "/api/v1/market-data/subscriptions";
 
 impl ProductionMcpToolExecutor {
+    pub(super) fn market_microstructure(
+        &self,
+        name: &str,
+        arguments: &Value,
+    ) -> Result<Value, McpToolFailure> {
+        let (path, query) = microstructure_request(name, arguments)?;
+        let port = Arc::clone(&self.ports()?.market_data_quote);
+        run_quote_read(port, path, query).map_err(quote_error)
+    }
+
     pub(super) fn market_candles(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let (path, query) = candle_request(arguments)?;
         let port = Arc::clone(&self.ports()?.market_data_quote);
@@ -40,6 +50,82 @@ impl ProductionMcpToolExecutor {
             run_quote_read(port, SUBSCRIPTIONS_PATH.to_owned(), query).map_err(quote_error)?;
         subscription_projection(payload)
     }
+}
+
+fn microstructure_request(
+    name: &str,
+    arguments: &Value,
+) -> Result<(String, String), McpToolFailure> {
+    let (market, symbol) = instrument(arguments)?;
+    if name == "market.depth" {
+        let num = bounded_integer(arguments, "num", 10, 1, 50)?;
+        return Ok((
+            format!("/api/v1/market-data/depth/{market}/{symbol}"),
+            query_string([("num", Some(num.to_string()))]),
+        ));
+    }
+
+    let instrument_id = format!("{market}.{symbol}");
+    let path = match name {
+        "market.instrument_profile" => {
+            format!("/api/v1/market-data/instruments/{instrument_id}/profile")
+        }
+        "market.intraday" => format!("/api/v1/market-data/intraday/{instrument_id}"),
+        "market.ticks" => format!("/api/v1/market-data/ticks/{instrument_id}"),
+        "market.broker_queue" => {
+            format!("/api/v1/market-data/broker-queue/{instrument_id}")
+        }
+        "market.capital_flow" => {
+            format!("/api/v1/market-data/capital-flow/{instrument_id}")
+        }
+        _ => {
+            return Err(McpToolFailure::unavailable(
+                "MCP_TOOL_UNAVAILABLE",
+                format!("production market-data executor is not implemented for {name}"),
+            ));
+        }
+    };
+    let page_size = bounded_integer(arguments, "pageSize", 50, 1, 100)?;
+    let operation = if name == "market.capital_flow" {
+        let operation = super::optional_string(arguments, "operation")
+            .unwrap_or_else(|| "flow".to_owned())
+            .to_ascii_lowercase();
+        if !matches!(operation.as_str(), "flow" | "distribution") {
+            return Err(McpToolFailure::invalid(
+                "operation must be flow or distribution",
+            ));
+        }
+        Some(operation)
+    } else {
+        None
+    };
+    let period_type = match optional_query_integer(arguments, "periodType")? {
+        Some(value) => Some(value),
+        None => optional_query_integer(arguments, "period")?,
+    };
+    let begin_time = super::optional_string(arguments, "beginTime")
+        .or_else(|| super::optional_string(arguments, "startTime"));
+    let end_time = super::optional_string(arguments, "endTime");
+    Ok((
+        path,
+        query_string([
+            ("brokerId", super::optional_string(arguments, "brokerId")),
+            ("accountId", super::optional_string(arguments, "accountId")),
+            ("operation", operation),
+            ("pageSize", Some(page_size.to_string())),
+            ("periodType", period_type),
+            ("beginTime", begin_time),
+            ("endTime", end_time),
+        ]),
+    ))
+}
+
+fn optional_query_integer(arguments: &Value, key: &str) -> Result<Option<String>, McpToolFailure> {
+    if arguments.get(key).is_none() {
+        return Ok(None);
+    }
+    bounded_integer(arguments, key, 0, i64::from(i32::MIN), i64::from(i32::MAX))
+        .map(|value| Some(value.to_string()))
 }
 
 fn candle_request(arguments: &Value) -> Result<(String, String), McpToolFailure> {
@@ -227,6 +313,101 @@ mod tests {
         assert_eq!(
             query,
             "period=1h&limit=25&from=2026%2D01%2D01T00%3A00%3A00Z&to=2026%2D01%2D02T00%3A00%3A00Z&sessions=regular%2Cextended&adjustment=forward"
+        );
+    }
+
+    #[test]
+    fn market_microstructure_maps_all_route_backed_tools_without_fixture_fallbacks() {
+        let cases = [
+            (
+                "market.instrument_profile",
+                "/api/v1/market-data/instruments/US.AAPL/profile",
+            ),
+            ("market.intraday", "/api/v1/market-data/intraday/US.AAPL"),
+            ("market.ticks", "/api/v1/market-data/ticks/US.AAPL"),
+            (
+                "market.broker_queue",
+                "/api/v1/market-data/broker-queue/US.AAPL",
+            ),
+        ];
+        for (name, expected_path) in cases {
+            let (path, query) =
+                microstructure_request(name, &json!({"instrumentId": "us.aapl", "pageSize": 25}))
+                    .expect("microstructure request");
+            assert_eq!(path, expected_path);
+            assert_eq!(query, "pageSize=25");
+        }
+
+        let (path, query) = microstructure_request(
+            "market.depth",
+            &json!({"market": "us", "symbol": "aapl", "num": 50}),
+        )
+        .expect("depth request");
+        assert_eq!(path, "/api/v1/market-data/depth/US/AAPL");
+        assert_eq!(query, "num=50");
+
+        let (path, query) = microstructure_request(
+            "market.capital_flow",
+            &json!({
+                "instrumentId": "US.AAPL",
+                "brokerId": "futu",
+                "operation": "distribution",
+                "pageSize": 10,
+                "period": 1,
+                "startTime": "2026-08-01",
+                "endTime": "2026-08-31"
+            }),
+        )
+        .expect("capital-flow request");
+        assert_eq!(path, "/api/v1/market-data/capital-flow/US.AAPL");
+        assert_eq!(
+            query,
+            "brokerId=futu&operation=distribution&pageSize=10&periodType=1&beginTime=2026%2D08%2D01&endTime=2026%2D08%2D31"
+        );
+    }
+
+    #[test]
+    fn market_microstructure_preserves_dotted_symbols_for_direct_quote_port_paths() {
+        let (profile_path, profile_query) = microstructure_request(
+            "market.instrument_profile",
+            &json!({"instrumentId": "US.BRK.B"}),
+        )
+        .expect("profile request");
+        assert_eq!(
+            profile_path,
+            "/api/v1/market-data/instruments/US.BRK.B/profile"
+        );
+        assert_eq!(profile_query, "pageSize=50");
+
+        let (depth_path, depth_query) =
+            microstructure_request("market.depth", &json!({"market": "US", "symbol": "BRK.B"}))
+                .expect("depth request");
+        assert_eq!(depth_path, "/api/v1/market-data/depth/US/BRK.B");
+        assert_eq!(depth_query, "num=10");
+    }
+
+    #[test]
+    fn market_microstructure_rejects_invalid_operation_and_bounds_before_the_port() {
+        assert!(
+            microstructure_request(
+                "market.capital_flow",
+                &json!({"instrumentId": "US.AAPL", "operation": "unknown"}),
+            )
+            .is_err()
+        );
+        assert!(
+            microstructure_request(
+                "market.depth",
+                &json!({"instrumentId": "US.AAPL", "num": 51}),
+            )
+            .is_err()
+        );
+        assert!(
+            microstructure_request(
+                "market.ticks",
+                &json!({"instrumentId": "US.AAPL", "pageSize": 0})
+            )
+            .is_err()
         );
     }
 

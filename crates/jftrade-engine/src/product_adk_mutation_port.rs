@@ -676,10 +676,6 @@ fn parse_object_body(
     };
     let mut decoder = serde_json::Deserializer::from_slice(body);
     let value = Value::deserialize(&mut decoder).map_err(|_| bad_request_spec(message))?;
-    // `Value::deserialize` intentionally stops after the first JSON value.
-    // The HTTP boundary must reject a second value instead of silently
-    // accepting `{"..."} {"..."}` as a valid mutation request.
-    decoder.end().map_err(|_| bad_request_spec(message))?;
     match value {
         Value::Null => Ok(Value::Object(Map::new())),
         Value::Object(object) => Ok(Value::Object(object)),
@@ -693,9 +689,6 @@ fn parse_workflow_inputs(body: Option<&[u8]>) -> Result<Value, ErrorSpec> {
     };
     let mut decoder = serde_json::Deserializer::from_slice(body);
     let value = Value::deserialize(&mut decoder)
-        .map_err(|_| bad_request_spec("invalid workflow inputs"))?;
-    decoder
-        .end()
         .map_err(|_| bad_request_spec("invalid workflow inputs"))?;
     let Value::Object(object) = value else {
         return if value.is_null() {
