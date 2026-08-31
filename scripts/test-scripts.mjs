@@ -72,6 +72,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/smoke-tauri-release.test.mjs",
     "scripts/verify-tauri-release-artifacts.test.mjs",
     "scripts/rust-migration/check-signed-updater-artifact.test.mjs",
+    "scripts/rust-migration/check-rollback-artifact.test.mjs",
   ]),
   "api-release": Object.freeze(["scripts/api-release-scripts.test.mjs"]),
   "pinets-release": Object.freeze(["scripts/check-pinets-release.test.mjs"]),
