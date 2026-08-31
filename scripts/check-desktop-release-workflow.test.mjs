@@ -10,6 +10,8 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
+  assert.match(workflow, /check-signed-updater-artifact\.mjs --config-only/);
+  assert.match(workflow, /check-signed-updater-lifecycle\.mjs/);
   assert.match(workflow, /JFTRADE_DESKTOP_PUBLISH == 'true'/);
   assert.match(workflow, /name: desktop-release-updater-macos/);
   assert.match(workflow, /name: desktop-release-updater-linux/);

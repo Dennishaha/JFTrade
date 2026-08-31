@@ -136,6 +136,11 @@ jobs:
       - name: Verify Tauri host & runtime
         run: pnpm run check:tauri-release-runtime
 
+      - name: Verify signed updater source contracts
+        run: |
+          node scripts/rust-migration/check-signed-updater-artifact.mjs --config-only
+          node scripts/rust-migration/check-signed-updater-lifecycle.mjs
+
       - name: Build release inputs
         run: |
           pnpm run generate:docs
