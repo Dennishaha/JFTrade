@@ -125,8 +125,7 @@ pub(crate) fn read_futu_news(
     let max_count = query_map
         .get_first("pageSize")
         .or_else(|| query_map.get_first("limit"))
-        .map(|value| value.trim().parse::<i32>().ok())
-        .flatten()
+        .and_then(|value| value.trim().parse::<i32>().ok())
         .map_or(10, |value| value.clamp(1, 50));
     let news_sub_type = query_map
         .get_first("newsSubType")
@@ -189,7 +188,7 @@ pub(crate) fn read_futu_news(
                 .format(&time::format_description::well_known::Rfc3339)
                 .ok()
         })
-        .unwrap_or_else(|| super::super::provider_now_rfc3339());
+        .unwrap_or_else(super::super::provider_now_rfc3339);
     let total = entries.len();
     let mut response = json!({
         "provider": {

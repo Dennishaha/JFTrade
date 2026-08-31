@@ -401,11 +401,11 @@ fn required_screen_text<'a>(
 fn map_screen_helper_error(error: HttpAdapterError) -> ResearchScreenWritePortError {
     match error {
         HttpAdapterError::Remote {
-            status,
+            status: 429,
             code: _,
             message,
             retry_after_seconds,
-        } if status == 429 => ResearchScreenWritePortError::RateLimited {
+        } => ResearchScreenWritePortError::RateLimited {
             message,
             retry_after: retry_after_seconds.unwrap_or(1),
         },

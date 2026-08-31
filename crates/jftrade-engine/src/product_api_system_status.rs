@@ -23,7 +23,7 @@ impl ProductApi {
             .and_then(|manager| manager.status_snapshot().ok())
             .map(|status| json!(status));
         let persistence = if runtime.production {
-            match self.production_persistence_projection(&settings_path, &checked_at) {
+            match self.production_persistence_projection(settings_path, &checked_at) {
                 Ok(persistence) => persistence,
                 Err(failure) => return production_failure_output(failure),
             }

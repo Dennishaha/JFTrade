@@ -79,6 +79,7 @@ pub enum AdkChatPortError {
     },
 }
 
+#[allow(dead_code)]
 pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
     fn dispatch(
         &self,

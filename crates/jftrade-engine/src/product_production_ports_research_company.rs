@@ -11,6 +11,7 @@ use crate::product::ResearchReadSnapshotError;
 use crate::product::product_query::QueryMap;
 
 pub(super) type ResearchHelperRequest = (&'static str, String, String, Vec<(&'static str, String)>);
+type ResearchProjection = (Vec<Value>, Map<String, Value>, String);
 
 pub(super) fn research_helper_request(
     path: &str,
@@ -233,7 +234,7 @@ fn canonical_symbol(market: &str, symbol: &str) -> String {
 
 fn project_profile(
     object: &Map<String, Value>,
-) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
+) -> Result<ResearchProjection, ResearchReadSnapshotError> {
     let market = required_text(object, "market")?;
     let symbol = required_text(object, "symbol")?;
     let groups = required_array(object, "groups")?;
@@ -264,7 +265,7 @@ fn project_profile(
 fn project_financials(
     object: &Map<String, Value>,
     expected_statement: Option<&str>,
-) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
+) -> Result<ResearchProjection, ResearchReadSnapshotError> {
     let statement = required_text(object, "statement")?;
     if !matches!(
         statement.to_ascii_lowercase().as_str(),
@@ -322,7 +323,7 @@ fn project_financials(
 
 fn project_analyst(
     object: &Map<String, Value>,
-) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
+) -> Result<ResearchProjection, ResearchReadSnapshotError> {
     let mut entry = Map::new();
     copy_optional_number(object, &mut entry, "rating", "rating")?;
     copy_optional_integer(object, &mut entry, "analyst_count", "analystCount")?;
@@ -354,7 +355,7 @@ fn project_analyst(
 
 fn project_ownership(
     object: &Map<String, Value>,
-) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
+) -> Result<ResearchProjection, ResearchReadSnapshotError> {
     let groups = required_array(object, "groups")?;
     let mut main = Vec::new();
     let mut holder_types = Vec::new();
@@ -397,7 +398,7 @@ fn project_corporate_actions(
     object: &Map<String, Value>,
     requested_market: &str,
     requested_symbol: &str,
-) -> Result<(Vec<Value>, Map<String, Value>, String), ResearchReadSnapshotError> {
+) -> Result<ResearchProjection, ResearchReadSnapshotError> {
     let market = required_text(object, "market")?;
     let symbol = required_text(object, "symbol")?;
     let requested_symbol = canonical_symbol(requested_market, requested_symbol);

@@ -320,7 +320,7 @@ async fn sync_request_pages(
             };
             let response: HelperCandlesResponse = fetch_helper_page_with_retry(
                 tasks,
-                &helper,
+                helper,
                 provider,
                 &["candles", helper_market, symbol_code(&request.symbol)],
                 &query,
@@ -485,6 +485,7 @@ async fn sync_futu_request_pages(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn fetch_futu_page_with_retry(
     tasks: &Arc<BacktestSyncTaskStore>,
     runtime: &SharedTradeReadRuntime,

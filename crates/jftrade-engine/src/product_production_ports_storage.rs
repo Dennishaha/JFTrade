@@ -298,7 +298,7 @@ fn sort_recent(values: &mut [Value]) {
     values.sort_by(|left, right| {
         recency_key(right)
             .cmp(&recency_key(left))
-            .then_with(|| id_key(right).cmp(&id_key(left)))
+            .then_with(|| id_key(right).cmp(id_key(left)))
     });
 }
 

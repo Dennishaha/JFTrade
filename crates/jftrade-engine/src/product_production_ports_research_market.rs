@@ -201,9 +201,7 @@ fn requested_market(
     query: &QueryMap,
     industry: bool,
 ) -> Result<String, ResearchReadSnapshotError> {
-    let fallback = if industry {
-        "CN"
-    } else if provider == MarketDataProvider::Akshare {
+    let fallback = if industry || provider == MarketDataProvider::Akshare {
         "CN"
     } else {
         "US"
@@ -295,10 +293,10 @@ fn member_board(query: &QueryMap) -> Result<(String, String), ResearchReadSnapsh
     } else {
         return Err(invalid("plate_members requires a plate instrumentId"));
     };
-    if let Some(requested) = requested {
-        if requested.to_ascii_uppercase() != market {
-            return Err(invalid("market does not match instrumentId"));
-        }
+    if let Some(requested) = requested
+        && requested.to_ascii_uppercase() != market
+    {
+        return Err(invalid("market does not match instrumentId"));
     }
     if board.is_empty() || board.contains('/') || board.contains('.') {
         return Err(invalid("plate_members board is invalid"));

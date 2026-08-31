@@ -158,6 +158,7 @@ pub fn adk_mutation_routes() -> &'static [(&'static str, &'static str); 37] {
 /// Placeholder segments (for example `{sessionId}`) are intentionally
 /// accepted by `parse_route`: they are non-empty identifiers and are never
 /// exposed to a real mutation request.
+#[allow(dead_code)]
 pub(crate) fn adk_mutation_operation_for_route(
     method: &str,
     path: &str,

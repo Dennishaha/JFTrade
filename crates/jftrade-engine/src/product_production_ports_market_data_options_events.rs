@@ -9,6 +9,22 @@ use crate::product::MarketDataOptionsReadSnapshotError;
 mod errors;
 use errors::*;
 
+type SellerQuery = (
+    i32,
+    i32,
+    Option<i32>,
+    Option<bool>,
+    Vec<jftrade_integration_futu::EventIndicator>,
+);
+type ScreenerCommon = (
+    i32,
+    Option<i32>,
+    Option<bool>,
+    i32,
+    Option<String>,
+    Vec<jftrade_integration_futu::EventIndicator>,
+);
+
 pub(crate) fn read(
     runtime: Option<&Arc<SharedTradeReadRuntime>>,
     query: &str,
@@ -225,16 +241,7 @@ fn read_seller(
 
 fn parse_seller_query(
     query: &str,
-) -> Result<
-    (
-        i32,
-        i32,
-        Option<i32>,
-        Option<bool>,
-        Vec<jftrade_integration_futu::EventIndicator>,
-    ),
-    MarketDataOptionsReadSnapshotError,
-> {
+) -> Result<SellerQuery, MarketDataOptionsReadSnapshotError> {
     let map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
     let market = map
@@ -347,17 +354,7 @@ fn screener_result(
 fn parse_screener_common(
     query: &str,
     zero_dte: bool,
-) -> Result<
-    (
-        i32,
-        Option<i32>,
-        Option<bool>,
-        i32,
-        Option<String>,
-        Vec<jftrade_integration_futu::EventIndicator>,
-    ),
-    MarketDataOptionsReadSnapshotError,
-> {
+) -> Result<ScreenerCommon, MarketDataOptionsReadSnapshotError> {
     let map = crate::product::product_query::QueryMap::parse(query)
         .map_err(|_| bad_request("invalid URL escape"))?;
     let market = map

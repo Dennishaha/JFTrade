@@ -761,6 +761,8 @@ const PRODUCTION_TOOL_DEFINITIONS: &[ProductionToolDefinition] = &[
 #[path = "product_production_ports_adk_read.rs"]
 mod read;
 
+include!("product_production_ports_adk_stream.rs");
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -956,5 +958,3 @@ mod tests {
         assert!(allowed_modes("research.news").is_empty());
     }
 }
-
-include!("product_production_ports_adk_stream.rs");

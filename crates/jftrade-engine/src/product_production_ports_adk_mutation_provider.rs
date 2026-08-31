@@ -185,9 +185,10 @@ pub(super) fn provider_payload(
                 .map(str::to_owned)
         }),
     };
-    if existing.is_none() && key.is_none() {
-        return Err(invalid_mutation_input("provider apiKey is required"));
-    }
+    // Go's provider store treats the API key as optional durable state.  A
+    // provider may be created before credentials are available (for example,
+    // a disabled provider staged during onboarding); runtime readiness and
+    // chat dispatch remain fail-closed until an enabled provider has a key.
     if let Some(key) = key.as_ref() {
         secrets.insert(id.to_owned(), key.clone());
     }
@@ -333,4 +334,111 @@ pub(super) fn sanitized_provider_payload(
         ),
     );
     Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore};
+    use serde_json::json;
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::product::product_production_ports::ProductionToolCatalog;
+    use crate::product::product_adk_chat_stream_port::{
+        AdkChatInput, AdkChatPortError, AdkChatRoute, AdkChatStreamPort,
+    };
+    use crate::product::product_adk_model_runtime::{
+        ProductionAdkChatRuntime, RunCancellationRegistry,
+    };
+    use crate::product::product_adk_mutation_port::{
+        AdkMutationInput, AdkMutationOperation,
+    };
+
+    fn production_port() -> (ProductionAdkPort, TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let adk_path = directory.path().join("adk.db");
+        let session_path = directory.path().join("adk-session.db");
+        let artifact_path = directory.path().join("adk-artifact.db");
+        for (path, component) in [
+            (&adk_path, "adk"),
+            (&session_path, "adk-session"),
+            (&artifact_path, "adk-artifact"),
+        ] {
+            let connection = rusqlite::Connection::open(path).expect("create ADK database");
+            jftrade_store_sqlite::initialize_current(&connection, component)
+                .expect("initialize ADK schema");
+        }
+        let tool_catalog = ProductionToolCatalog {
+            tools: Vec::new(),
+            bindings: BTreeMap::new(),
+            research_bindings: BTreeMap::new(),
+            active_provider_state: None,
+            trade_runtime: None,
+            backtest_execution_ready: false,
+        };
+        let port = ProductionAdkPort {
+            store: Arc::new(AdkStore::open(&adk_path).expect("open adk store")),
+            session_store: Arc::new(
+                AdkSessionStore::open(&session_path).expect("open adk session store"),
+            ),
+            artifact_store: Arc::new(
+                AdkArtifactStore::open(&artifact_path).expect("open adk artifact store"),
+            ),
+            tool_catalog: Arc::new(tool_catalog),
+            settings_path: directory.path().join("settings.json"),
+            chat_runtime: None,
+        };
+        (port, directory)
+    }
+
+    #[test]
+    fn disabled_provider_without_api_key_is_persisted_but_chat_stays_unavailable() {
+        let (mut port, _directory) = production_port();
+        let input = AdkMutationInput {
+            operation: AdkMutationOperation::CreateProvider,
+            identifiers: BTreeMap::new(),
+            body: json!({
+                "id": "provider-disabled-no-key",
+                "displayName": "Disabled provider",
+                "baseUrl": "https://example.test/v1",
+                "model": "test-model",
+                "enabled": false,
+            }),
+            webhook_secret: None,
+        };
+        let response = super::super::dispatch_mutation(&port, &input)
+            .expect("Go-compatible provider persistence");
+        assert_eq!(response["id"], "provider-disabled-no-key");
+        assert_eq!(response["enabled"], false);
+        assert_eq!(response["hasApiKey"], false);
+        assert!(port
+            .store
+            .get_provider("provider-disabled-no-key")
+            .expect("read persisted provider")
+            .is_some());
+
+        let runtime = ProductionAdkChatRuntime::new(
+            Arc::clone(&port.store),
+            Arc::clone(&port.session_store),
+            &port.settings_path,
+            Arc::new(RunCancellationRegistry::default()),
+            Arc::clone(&port.tool_catalog),
+        );
+        assert!(!runtime.runtime_ready());
+        port.chat_runtime = Some(Arc::new(runtime));
+        let error = port
+            .dispatch(
+                AdkChatRoute::Chat,
+                &AdkChatInput {
+                    body: br#"{}"#.to_vec(),
+                    client_request_id: "provider-disabled-no-key-request".to_owned(),
+                },
+            )
+            .expect_err("provider without key must remain unavailable");
+        assert!(matches!(error, AdkChatPortError::Unavailable(_)));
+        port.shutdown();
+    }
 }
