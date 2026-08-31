@@ -117,6 +117,23 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.doesNotMatch(qualificationWorkflow, /check-signed-updater-lifecycle\.mjs\s*>.*rollback/);
   assert.match(qualificationWorkflow, /sourceWorkflowRun/);
   assert.match(qualificationWorkflow, /external evidence manifest missing valid/);
+  assert.match(qualificationWorkflow, /candidate-inputs\/\*\*/);
+  assert.match(qualificationWorkflow, /source-artifact-metadata\.json/);
+});
+
+test("publish verifies the downloaded canonical candidate bundle without rebuilding it", () => {
+  const publishSection = workflow.slice(workflow.indexOf("\n  publish:"));
+  assert.match(publishSection, /candidate-inputs/);
+  assert.match(publishSection, /candidate-output\/release-candidate-evidence\.json/);
+  assert.match(publishSection, /check-release-candidate-bundle\.mjs/);
+  assert.match(publishSection, /cp "\$canonical_path" artifacts\/release-candidate-evidence\.json/);
+  assert.doesNotMatch(
+    publishSection,
+    /check-release-candidate\.mjs[\s\S]{0,600}--build/,
+  );
+  assert.match(publishSection, /canonical candidate evidence/);
+  assert.match(publishSection, /duplicate release basename/);
+  assert.match(publishSection, /find incoming -type f -print0/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {

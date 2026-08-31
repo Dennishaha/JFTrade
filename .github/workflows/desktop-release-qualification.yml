@@ -83,6 +83,16 @@ jobs:
             echo "source run is not a successful Desktop Release run bound to $RELEASE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
             exit 1
           }
+          source_artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          jq -e --argjson run_id "$SOURCE_RUN_ID" \
+            '[.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | length == 4' \
+            <<<"$source_artifacts_json" >/dev/null || {
+            echo "source release artifacts are missing, expired, ambiguous, or lack API digests" >&2
+            exit 1
+          }
+          jq -c --argjson run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
+            '[.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt}] | sort_by(.name)' \
+            <<<"$source_artifacts_json" > source-artifact-metadata.json
 
       - name: Verify external release evidence run provenance
         env:
@@ -264,6 +274,8 @@ jobs:
             throw new Error(`unsupported ${schemaPath}`);
           }
           const artifactMetadata = JSON.parse(fs.readFileSync("evidence-artifact-metadata.json", "utf8"));
+          const sourceArtifacts = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
+          fs.copyFileSync("source-artifact-metadata.json", path.join(root, "source-artifact-metadata.json"));
           const releaseArtifactPaths = {
             "macos-arm64": [`${root}/JFTrade-${tag}-macos-arm64.dmg`],
             "linux-x64": [
@@ -371,6 +383,7 @@ jobs:
             commitSha,
             workflowRun: qualificationRun,
             sourceWorkflowRun: sourceRun,
+            sourceArtifacts,
             platforms: {
               "macos-arm64": packageFor("macos-arm64", [`JFTrade-${tag}-macos-arm64.dmg`]),
               "linux-x64": packageFor("linux-x64", [`JFTrade-${tag}-linux-x64.AppImage`, `JFTrade-${tag}-linux-x64.deb`, `JFTrade-${tag}-linux-x64.rpm`]),
@@ -416,4 +429,6 @@ jobs:
           path: |
             candidate-evidence-config.json
             candidate-output/release-candidate-evidence.json
+            candidate-inputs/**
+            source-artifact-metadata.json
           if-no-files-found: error

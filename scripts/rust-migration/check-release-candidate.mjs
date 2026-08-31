@@ -72,6 +72,7 @@ const requiredRootKeys = Object.freeze([
   "workflowRun",
   "sourceWorkflowRun",
   "platforms",
+  "sourceArtifacts",
   "sha256sums",
   "prerequisites",
 ]);
@@ -638,6 +639,41 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
   if (platforms) {
     for (const platform of Object.keys(platforms)) {
       if (!REQUIRED_PLATFORMS.includes(platform)) errors.push(`unknown release platform: ${platform}`);
+    }
+  }
+  if ("sourceArtifacts" in document) {
+    if (!Array.isArray(document.sourceArtifacts) || document.sourceArtifacts.length === 0) {
+      errors.push("manifest.sourceArtifacts must be a non-empty array");
+    } else {
+      const seenSourceArtifacts = new Set();
+      for (const [index, sourceArtifact] of document.sourceArtifacts.entries()) {
+        const label = `manifest.sourceArtifacts[${index}]`;
+        if (!isRecord(sourceArtifact)) {
+          errors.push(`${label} must be an object`);
+          continue;
+        }
+        for (const key of Object.keys(sourceArtifact)) {
+          if (!["name", "id", "digest", "expired", "runId", "runAttempt"].includes(key)) {
+            errors.push(`${label}.${key} is not allowed`);
+          }
+        }
+        const name = nonEmptyString(sourceArtifact.name, `${label}.name`, errors);
+        if (name && seenSourceArtifacts.has(name)) errors.push(`${label}.name is duplicated`);
+        if (name) seenSourceArtifacts.add(name);
+        runId(sourceArtifact.id, `${label}.id`, errors);
+        if (!validDigest(String(sourceArtifact.digest ?? "").replace(/^sha256:/, ""))) {
+          errors.push(`${label}.digest must be a SHA-256 artifact digest`);
+        }
+        if (sourceArtifact.expired !== false) errors.push(`${label}.expired must be false`);
+        runId(sourceArtifact.runId, `${label}.runId`, errors);
+        positiveAttempt(sourceArtifact.runAttempt, `${label}.runAttempt`, errors);
+        if (sourceWorkflow && String(sourceArtifact.runId) !== String(sourceWorkflow.id)) {
+          errors.push(`${label}.runId does not match manifest.sourceWorkflowRun.id`);
+        }
+        if (sourceWorkflow && Number(sourceArtifact.runAttempt) !== Number(sourceWorkflow.attempt)) {
+          errors.push(`${label}.runAttempt does not match manifest.sourceWorkflowRun.attempt`);
+        }
+      }
     }
   }
   const shaSums = validateChecksums(document.sha256sums, baseDirectory, declaredFiles, errors);

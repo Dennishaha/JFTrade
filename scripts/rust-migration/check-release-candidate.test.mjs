@@ -86,11 +86,25 @@ function fixture() {
       status: "passed",
     };
   });
+  const sourceArtifacts = [
+    "desktop-release-linux",
+    "desktop-release-macos",
+    "desktop-release-windows",
+    "desktop-release-windows-arm64",
+  ].map((name, index) => ({
+    name,
+    id: 91000 + index,
+    digest: `sha256:${String(index + 1).repeat(64)}`,
+    expired: false,
+    runId: sourceWorkflowRun.id,
+    runAttempt: sourceWorkflowRun.attempt,
+  }));
   return {
     root,
     commitSha,
     workflowRun,
     sourceWorkflowRun,
+    sourceArtifacts,
     platforms,
     prerequisites,
     config: {
@@ -99,6 +113,7 @@ function fixture() {
       commitSha,
       workflowRun,
       sourceWorkflowRun,
+      sourceArtifacts,
       platforms,
       sha256sums: "release/SHA256SUMS",
       prerequisites,

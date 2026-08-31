@@ -134,6 +134,7 @@ export function buildReleaseCandidateEvidence(options = {}) {
     workflowRun,
     sourceWorkflowRun,
     platforms,
+    ...(options.sourceArtifacts ? { sourceArtifacts: options.sourceArtifacts } : {}),
     sha256sums: sums,
     prerequisites: builtPrerequisites,
     limitations: [...RELEASE_CANDIDATE_LIMITATIONS],
