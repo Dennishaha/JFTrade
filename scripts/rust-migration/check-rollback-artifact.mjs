@@ -140,6 +140,19 @@ function resolveContained(root, relativePath, label) {
   return resolved;
 }
 
+// The publish job flattens uploaded artifacts before attaching them to the
+// release, while tauri-release manifests retain paths from the build tree.
+// Prefer the declared path, then accept one unambiguous basename match so a
+// flattened release can still be audited without weakening traversal checks.
+function resolveArtifact(root, relativePath, label) {
+  const declared = resolveContained(root, relativePath, label);
+  if (fs.existsSync(declared)) return declared;
+  const basename = path.basename(declared);
+  const matches = walkFiles(root).filter((filePath) => path.basename(filePath) === basename);
+  if (matches.length === 1) return matches[0];
+  return declared;
+}
+
 function requireFile(filePath, label) {
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     throw new Error(`${label} is missing: ${filePath}`);
@@ -211,7 +224,7 @@ function validateManifest(manifest, filePath, platform, root, expectedVersion) {
     if (!expectedKinds.has(kind)) throw new Error(`${entryLabel}.kind is not expected for ${platform}: ${kind}`);
     if (seenKinds.has(kind)) throw new Error(`${label} contains duplicate package kind: ${kind}`);
     seenKinds.add(kind);
-    const filePath = resolveContained(root, entry.path, entryLabel);
+    const filePath = resolveArtifact(root, entry.path, entryLabel);
     requireFile(filePath, entryLabel);
     if (!path.basename(filePath).includes(version)) throw new Error(`${entryLabel}.path must contain release version ${version}`);
     requireDigest(entry, filePath, entryLabel);
@@ -225,7 +238,7 @@ function validateManifest(manifest, filePath, platform, root, expectedVersion) {
   if (Array.isArray(manifest.updaterArchives) && manifest.updaterArchives.length > 0) {
     for (const [index, entry] of manifest.updaterArchives.entries()) {
       const entryLabel = `${label}.updaterArchives[${index}]`;
-      const filePath = resolveContained(root, entry.path, entryLabel);
+      const filePath = resolveArtifact(root, entry.path, entryLabel);
       requireFile(filePath, entryLabel);
       if (!(filePath.endsWith(".tar.gz") || filePath.endsWith(".zip"))) throw new Error(`${entryLabel}.path must be a .tar.gz or .zip archive`);
       if (!path.basename(filePath).includes(version)) throw new Error(`${entryLabel}.path must contain release version ${version}`);
@@ -241,7 +254,7 @@ function validateManifest(manifest, filePath, platform, root, expectedVersion) {
   }
   for (const [index, entry] of manifest.updaterSignatures.entries()) {
     const entryLabel = `${label}.updaterSignatures[${index}]`;
-    const filePath = resolveContained(root, entry.path, entryLabel);
+    const filePath = resolveArtifact(root, entry.path, entryLabel);
     requireFile(filePath, entryLabel);
     if (!filePath.endsWith(".sig")) throw new Error(`${entryLabel}.path must end with .sig`);
     requireDigest(entry, filePath, entryLabel);
@@ -250,7 +263,7 @@ function validateManifest(manifest, filePath, platform, root, expectedVersion) {
       if (Array.isArray(manifest.updaterArchives)) {
         throw new Error(`${entryLabel} has no matching updater archive`);
       }
-      const archivePath = resolveContained(root, entry.path.slice(0, -4), `${entryLabel} archive`);
+      const archivePath = resolveArtifact(root, entry.path.slice(0, -4), `${entryLabel} archive`);
       requireFile(archivePath, `${entryLabel} archive`);
       if (!(archivePath.endsWith(".tar.gz") || archivePath.endsWith(".zip"))) throw new Error(`${entryLabel} archive must be a .tar.gz or .zip file`);
       if (!path.basename(archivePath).includes(version)) throw new Error(`${entryLabel} archive must contain release version ${version}`);

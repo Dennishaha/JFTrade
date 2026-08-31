@@ -88,6 +88,17 @@ function removeUpdaterArchiveLists(root) {
   }
 }
 
+function flattenReleaseFiles(root) {
+  for (const filePath of fs.readdirSync(path.join(root, "packages"), { withFileTypes: true })) {
+    fs.renameSync(path.join(root, "packages", filePath.name), path.join(root, filePath.name));
+  }
+  for (const filePath of fs.readdirSync(path.join(root, "updater"), { withFileTypes: true })) {
+    fs.renameSync(path.join(root, "updater", filePath.name), path.join(root, filePath.name));
+  }
+  fs.rmSync(path.join(root, "packages"), { recursive: true, force: true });
+  fs.rmSync(path.join(root, "updater"), { recursive: true, force: true });
+}
+
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-rollback-artifact-"));
   const currentRoot = path.join(root, "current");
@@ -174,6 +185,23 @@ test("accepts the release manifest shape that derives updater archives from sign
   });
   assert.equal(report.current.updaterMetadata.targets["linux-x64"].archive, "JFTrade_1.2.4_linux-x64.tar.gz");
   assert.equal(report.previous.updaterMetadata.targets["windows-arm64"].archive, "JFTrade_1.2.3_windows-arm64.tar.gz");
+});
+
+test("resolves manifest paths after the desktop publish job flattens release assets", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  flattenReleaseFiles(value.currentRoot);
+  flattenReleaseFiles(value.previousRoot);
+  const report = inspectRollbackArtifactPair({
+    currentRoot: value.currentRoot,
+    previousRoot: value.previousRoot,
+    currentVersion: "1.2.4",
+    previousVersion: "1.2.3",
+    allowDowngrade: true,
+    instructionsPath: value.instructionsPath,
+  });
+  assert.equal(report.current.platforms["macos-arm64"].packageCount, 1);
+  assert.equal(report.previous.platforms["linux-x64"].archiveNames.length, 1);
 });
 
 test("rejects mismatched updater metadata and missing package integrity", (context) => {
