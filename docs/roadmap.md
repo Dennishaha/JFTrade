@@ -8,6 +8,8 @@
 
 Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 中状态为 `open` 或 `blocked` 的 gate；状态为 `passed` 的 gate 不再派工，也不得用历史本地检查结果替代发布证据。
 
+发布治理分为两个明确阶段：发布前由 `node scripts/rust-migration/check-stage9-closeout.mjs --candidate` 校验动态路由账本与基础 owner 门禁，允许 `postReleaseSmoke`、`hardCutReadiness` 等只能在发布后取得的证据保持 `open`；发布后才运行默认的 `--check` 完整 closeout。candidate 通过不代表 release/closeout 已完成。
+
 ## 运行时未闭合项
 
 当前没有仍需派工的 Rust production route、adapter、MCP baseline 或 execution reconciliation 实现门禁。后续智能体不得把已通过的 `allRouteGroups`、`uniqueWriteOwner`、MCP baseline、execution reconciliation、storage lease、Tauri readiness 或 `system/status` 投影重新列入待办；只有当前 gate 重新失败、或出现新的运行时回归证据时，才在本节重新登记。

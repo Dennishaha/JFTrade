@@ -13,6 +13,11 @@ on:
         required: false
         default: true
         type: boolean
+      post_release_closeout:
+        description: Run the full Stage 9 closeout check after a published release (evidence must already be recorded)
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -121,9 +126,9 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify Stage 9 closeout gate before publish
+      - name: Verify Stage 9 release-candidate admission
         if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
-        run: pnpm run check:rust:stage9:closeout
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate
 
       - name: Audit locked pnpm dependencies
         run: pnpm run audit:dependencies
@@ -885,8 +890,8 @@ jobs:
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
-      - name: Recheck Stage 9 closeout gate before publishing
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --check
+      - name: Recheck Stage 9 release-candidate admission before publishing
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate
 
       - name: Download release artifacts
         uses: actions/download-artifact@v8
@@ -945,3 +950,23 @@ jobs:
           if [ "$is_draft" = "true" ]; then
             gh release edit "$JFTRADE_DESKTOP_RELEASE_TAG" --draft=false --repo "$GITHUB_REPOSITORY"
           fi
+
+  post-release-closeout:
+    name: Verify Stage 9 Closeout After Release
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.post_release_closeout == true &&
+      needs.publish.result == 'success'
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout published release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
+
+      - name: Verify full Stage 9 closeout after publication
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --check

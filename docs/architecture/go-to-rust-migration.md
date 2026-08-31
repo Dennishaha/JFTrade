@@ -1,6 +1,6 @@
 # JFTrade Go → Rust 完整迁移方案与守则
 
-状态：执行中。更新时间：2026-08-27。当前阶段：**当前 composition root 已由 Rust/Tauri 承接独立 API 和桌面运行时；`route-ownership.json` 登记 278 个 `cutover-qualified` operation，`productionOwner=rust` 且 `goRemovalStatus=removed`。Wails 生产入口已下线。Stage 9 closeout manifest 仍为 `in_progress`：四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke、签名 updater artifact、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 仍然开放。正式 release/closeout 必须等这些证据全部闭合；本文保留的 Go 参照实现和差分工具只用于验证，不得作为生产 fallback**。
+状态：执行中。更新时间：2026-08-31。当前阶段：**当前 composition root 已由 Rust/Tauri 承接独立 API 和桌面运行时；`route-ownership.json` 登记 278 个 `cutover-qualified` operation，`productionOwner=rust` 且 `goRemovalStatus=removed`。Go/Wails 生产入口已下线。Stage 9 closeout manifest 仍为 `in_progress`：四平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke、签名 updater artifact、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 仍然开放。发布前使用 release-candidate admission 只校验路由与基础 owner 门禁；正式 release/closeout 必须在发布后使用完整 checker，且等这些证据全部闭合；本文保留的 Go 参照实现和差分工具只用于验证，不得作为生产 fallback**。
 
 本文是 JFTrade 将 Go 后端与 Wails 桌面壳完整迁移到 Rust 的计划、边界和放行事实源。活动状态在 [roadmap.md](../roadmap.md) 汇总；当前生产架构仍以 [architecture.md](../architecture.md) 为准。任何阶段都不得用“已经写出 Rust 版本”代替兼容性、可靠性和资源验收。
 
@@ -13,7 +13,7 @@
 - Node PineTS worker 保留，仍只负责 Pine 执行、信号、图形和 order intents。
 - Python market-data helper 保留，仍封装 yfinance 与 AKShare；Rust 只替换它的宿主、鉴权、生命周期和 Provider adapter。
 - Assistant 的 Rust 实现使用 [Rig](https://github.com/0xPlaygrounds/rig)；阶段 6 已在窄 adapter 中引入其 provider-neutral core 类型，但未引入具体 Provider client、未切换生产模型流量。
-- 桌面最终从 Wails v3 迁至 [Tauri 2](https://github.com/tauri-apps/tauri)；阶段 1 不改变 Wails 生产入口、bindings 或发布资产。
+- 桌面最终从 Wails v3 迁至 [Tauri 2](https://github.com/tauri-apps/tauri)；“阶段 1 不改变 Wails 生产入口”的表述仅属于历史阶段快照，当前生产入口已由 Tauri 承接。
 
 迁移追求的是长期统一的 Rust 运行时、可维护性、可靠性和可控资源，不以减少代码行数为目标。迁移期间允许 Go 与 Rust 共存，但任一业务状态在任一时刻只能有一个权威 owner。
 
@@ -474,7 +474,7 @@ Apple A18 Pro/macOS ARM64 上，同一 corpus 3 次预热、20 次采样：Go �
 
 ### 阶段 9：Go 删除与 Rust 大版本发布
 
-> **当前状态覆盖（2026-08-27）**：以 `node scripts/rust-migration/check-stage9-route-coverage.mjs`、`route-ownership.json`、`closeout-evidence.json` 和实际 `ProductConfig` composition 为准。当前 route ledger 为 278 个 `cutover-qualified`、0 个 `remaining`，且全部记录为 `productionOwner=rust`、`goRemovalStatus=removed`；Rust production composition 注册这 278 条 `/api/v1/*` 路由，SQLite 写入使用唯一 `WriterLease`，外部 Provider/OpenD/PineTS 在不可用时返回 fail-closed baseline。closeout manifest 仍为 `in_progress`：平台发布、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部通过，因此不能宣称最终 release closeout 完成。
+> **当前状态覆盖（2026-08-31）**：以 `node scripts/rust-migration/check-stage9-route-coverage.mjs`、`route-ownership.json`、`closeout-evidence.json` 和实际 `ProductConfig` composition 为准。当前 route ledger 为 278 个 `cutover-qualified`、0 个 `remaining`，且全部记录为 `productionOwner=rust`、`goRemovalStatus=removed`；Rust production composition 注册这 278 条 `/api/v1/*` 路由，SQLite 写入使用唯一 `WriterLease`，外部 Provider/OpenD/PineTS 在不可用时返回 fail-closed baseline。closeout manifest 仍为 `in_progress`：平台发布、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部通过，因此不能宣称最终 release closeout 完成。发布 workflow 在 release-inputs 和 publish 阶段只运行 candidate checker；完整 `--check` 仅用于发布后的 closeout 复核。
 
 下文紧接的长段落和 Stage 9 表格保留了 2026-08-25 之前的阶段快照；其中的 144/133、1 shadow/133 cutover-test-only/144 cutover-qualified 等数字是历史证据，不是当前统计。新的切片必须使用动态门禁输出，并同时核对 active composition 与 closeout，不得复制历史计数。
 

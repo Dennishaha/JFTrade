@@ -5,8 +5,11 @@ import test from "node:test";
 const workflow = fs.readFileSync(".github/workflows/desktop-release.yml", "utf8");
 
 test("desktop publish lane is gated by closeout and signing prerequisites", () => {
-  assert.match(workflow, /check:rust:stage9:closeout/);
+  assert.match(workflow, /Verify Stage 9 release-candidate admission/);
+  assert.match(workflow, /check-stage9-closeout\.mjs --candidate/);
   assert.match(workflow, /check-stage9-closeout\.mjs --check/);
+  assert.match(workflow, /post_release_closeout/);
+  assert.match(workflow, /Verify full Stage 9 closeout after publication/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
@@ -18,6 +21,17 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
   assert.match(workflow, /name: desktop-release-updater-windows-arm64/);
   assert.match(workflow, /name: desktop-release-updater-windows/);
   assert.match(workflow, /-name '\*\.sig'/);
+});
+
+test("desktop workflow separates candidate admission from post-release full closeout", () => {
+  const publishIndex = workflow.indexOf("\n  publish:");
+  const postReleaseIndex = workflow.indexOf("\n  post-release-closeout:");
+  assert.ok(publishIndex > 0);
+  assert.ok(postReleaseIndex > publishIndex);
+  const prePublish = workflow.slice(0, publishIndex);
+  assert.doesNotMatch(prePublish, /check-stage9-closeout\.mjs --check/);
+  assert.match(prePublish, /check-stage9-closeout\.mjs --candidate/);
+  assert.match(workflow.slice(postReleaseIndex), /check-stage9-closeout\.mjs --check/);
 });
 
 test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {

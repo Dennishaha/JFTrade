@@ -41,6 +41,19 @@ const platformChecks = Object.freeze([
   "runtimeSmoke",
 ]);
 const statuses = new Set(["passed", "open", "blocked"]);
+const ownerEntryStatuses = new Set(["removed", "retained", "unknown"]);
+
+// Candidate admission runs before a release exists.  It proves the static
+// migration prerequisites and route ownership, while final release evidence
+// (including post-release smoke and hard-cut readiness) is intentionally
+// evaluated only by the full closeout check after publication.
+export const POST_RELEASE_GATES = Object.freeze([
+  "postReleaseSmoke",
+  "hardCutReadiness",
+]);
+export const CANDIDATE_PREREQUISITE_GATES = Object.freeze(
+  requiredGates.filter((gate) => !POST_RELEASE_GATES.includes(gate)),
+);
 
 // A hard-cut or owner-deletion assertion is only meaningful after every
 // release-safety prerequisite has passed.  Keep this relationship executable
@@ -190,13 +203,17 @@ function validateOwnerDeletion(value, label, errors) {
     value,
     label,
     ["status", "evidence", "conditions"],
-    ["status", "evidence", "conditions"],
+    ["status", "evidence", "conditions", "entryStatus"],
     errors,
   );
   if (!owner) return;
   requireStatus(owner.status, `${label}.status`, errors);
   requireStringArray(owner.evidence, `${label}.evidence`, errors);
   requireStringArray(owner.conditions, `${label}.conditions`, errors);
+  if ("entryStatus" in owner
+    && (typeof owner.entryStatus !== "string" || !ownerEntryStatuses.has(owner.entryStatus))) {
+    addError(errors, `${label}.entryStatus must be one of removed, retained or unknown`);
+  }
 }
 
 function gateIsPassed(manifest, gateName) {
@@ -219,7 +236,13 @@ function addPrerequisiteBlockers(manifest, blockers) {
     }
   }
   for (const owner of ["go", "wails"]) {
-    if (manifest.ownerDeletion[owner].status !== "passed") continue;
+    const ownerEvidence = manifest.ownerDeletion[owner];
+    if (ownerEvidence.status !== "passed") continue;
+    if (ownerEvidence.entryStatus && ownerEvidence.entryStatus !== "removed") {
+      blockers.push(
+        `owner deletion ${owner} is passed while entrypoint status is ${ownerEvidence.entryStatus}`,
+      );
+    }
     for (const gate of ownerDeletionPrerequisiteGates) {
       if (!gateIsPassed(manifest, gate)) {
         blockers.push(
@@ -228,6 +251,29 @@ function addPrerequisiteBlockers(manifest, blockers) {
       }
     }
   }
+}
+
+function routeOwnershipBlockers(expectedRouteOwnership) {
+  const blockers = [];
+  if (expectedRouteOwnership.remainingRoutes !== 0) {
+    blockers.push(`route ownership still has ${expectedRouteOwnership.remainingRoutes} remaining operation(s)`);
+  }
+  if (expectedRouteOwnership.cutoverQualifiedRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `route ownership has ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.cutoverQualifiedRoutes} operation(s) not cutover-qualified`,
+    );
+  }
+  if (expectedRouteOwnership.rustProductionOwnerRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `production ownership remains Go for ${expectedRouteOwnership.goProductionOwnerRoutes} operation(s)`,
+    );
+  }
+  if (expectedRouteOwnership.removedGoRoutes !== expectedRouteOwnership.baselineOperations) {
+    blockers.push(
+      `Go implementation removal remains incomplete for ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.removedGoRoutes} operation(s)`,
+    );
+  }
+  return blockers;
 }
 
 export function validateManifest(manifest) {
@@ -319,25 +365,7 @@ export function evaluateCloseout(manifest, options = {}) {
   const expectedRouteOwnership = options.expectedRouteOwnership ?? routeOwnershipSnapshot(
     options.repositoryRoot ?? repositoryRoot,
   );
-  const blockers = [];
-  if (expectedRouteOwnership.remainingRoutes !== 0) {
-    blockers.push(`route ownership still has ${expectedRouteOwnership.remainingRoutes} remaining operation(s)`);
-  }
-  if (expectedRouteOwnership.cutoverQualifiedRoutes !== expectedRouteOwnership.baselineOperations) {
-    blockers.push(
-      `route ownership has ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.cutoverQualifiedRoutes} operation(s) not cutover-qualified`,
-    );
-  }
-  if (expectedRouteOwnership.rustProductionOwnerRoutes !== expectedRouteOwnership.baselineOperations) {
-    blockers.push(
-      `production ownership remains Go for ${expectedRouteOwnership.goProductionOwnerRoutes} operation(s)`,
-    );
-  }
-  if (expectedRouteOwnership.removedGoRoutes !== expectedRouteOwnership.baselineOperations) {
-    blockers.push(
-      `Go implementation removal remains incomplete for ${expectedRouteOwnership.baselineOperations - expectedRouteOwnership.removedGoRoutes} operation(s)`,
-    );
-  }
+  const blockers = routeOwnershipBlockers(expectedRouteOwnership);
 
   for (const gate of requiredGates) {
     if (manifest.gates[gate].status !== "passed") {
@@ -369,13 +397,67 @@ export function evaluateCloseout(manifest, options = {}) {
   };
 }
 
+/**
+ * Validate the release-candidate admission boundary.  Candidate admission is
+ * deliberately weaker than formal closeout: it requires every pre-release
+ * gate, but permits evidence that can only be collected after publication.
+ * It never changes the manifest or claims a release is formally closed.
+ */
+export function evaluateCandidate(manifest, options = {}) {
+  const errors = validateManifest(manifest);
+  if (errors.length > 0) {
+    return {
+      phase: "candidate",
+      valid: false,
+      complete: false,
+      errors,
+      blockers: [],
+      expectedRouteOwnership: null,
+    };
+  }
+
+  const expectedRouteOwnership = options.expectedRouteOwnership ?? routeOwnershipSnapshot(
+    options.repositoryRoot ?? repositoryRoot,
+  );
+  const blockers = routeOwnershipBlockers(expectedRouteOwnership);
+  if (manifest.status !== "in_progress") {
+    blockers.push("release candidate requires manifest status in_progress");
+  }
+  for (const gate of CANDIDATE_PREREQUISITE_GATES) {
+    if (!gateIsPassed(manifest, gate)) {
+      blockers.push(`candidate prerequisite gate ${gate} is ${manifest.gates[gate].status}`);
+    }
+  }
+  for (const gate of POST_RELEASE_GATES) {
+    if (manifest.gates[gate].status === "passed") {
+      blockers.push(`candidate cannot accept post-release gate ${gate} as passed before publication`);
+    }
+  }
+  addPrerequisiteBlockers(manifest, blockers);
+  return {
+    phase: "candidate",
+    valid: true,
+    complete: blockers.length === 0,
+    errors: [],
+    blockers,
+    expectedRouteOwnership,
+  };
+}
+
 function parseArguments(args) {
   let check = false;
+  let mode = "full";
   let manifestPath = path.join(repositoryRoot, manifestRelativePath);
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--check") {
       check = true;
+      mode = "full";
+      continue;
+    }
+    if (argument === "--candidate" || argument === "--check-candidate") {
+      check = true;
+      mode = "candidate";
       continue;
     }
     if (argument === "--manifest") {
@@ -388,7 +470,7 @@ function parseArguments(args) {
     }
     throw new Error(`unknown argument: ${argument}`);
   }
-  return { check, manifestPath };
+  return { check, mode, manifestPath };
 }
 
 export function main(args = process.argv.slice(2)) {
@@ -396,14 +478,23 @@ export function main(args = process.argv.slice(2)) {
   try {
     parsed = parseArguments(args);
     const manifest = readJson(parsed.manifestPath, "Stage 9 closeout evidence manifest");
-    const result = evaluateCloseout(manifest);
+    const result = parsed.mode === "candidate"
+      ? evaluateCandidate(manifest)
+      : evaluateCloseout(manifest);
     if (!result.valid) {
       console.error("Stage 9 closeout evidence manifest is invalid:");
       for (const error of result.errors) console.error(`- ${error}`);
       return 1;
     }
-    const state = result.complete ? "ready for formal close" : "in progress; formal close blocked";
-    console.log(`Stage 9 closeout evidence: ${state}.`);
+    const state = result.complete
+      ? (parsed.mode === "candidate" ? "candidate admission passed" : "ready for formal close")
+      : (parsed.mode === "candidate"
+        ? "candidate admission blocked"
+        : "in progress; formal close blocked");
+    const label = parsed.mode === "candidate"
+      ? "Stage 9 release-candidate evidence"
+      : "Stage 9 closeout evidence";
+    console.log(`${label}: ${state}.`);
     const ownership = result.expectedRouteOwnership;
     console.log(
       `Route ownership: ${ownership.shadowRoutes} shadow / `

@@ -257,6 +257,14 @@
         "status": {
           "$ref": "#/$defs/status"
         },
+        "entryStatus": {
+          "enum": [
+            "removed",
+            "retained",
+            "unknown"
+          ],
+          "description": "Current production entrypoint state; independent from the formal closeout status."
+        },
         "evidence": {
           "type": "array",
           "minItems": 1,
