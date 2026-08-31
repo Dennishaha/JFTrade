@@ -10,144 +10,107 @@
 flowchart TB
     User["用户 / 浏览器 / 桌面窗口"]
 
-    subgraph Frontend["前端与文档"]
+    subgraph Frontend["前端"]
         Web["apps/web<br/>Vue 3 + Vite 控制台"]
         Docs["docs<br/>VitePress 文档站"]
         RuntimeConfig["runtime-config.js<br/>运行时 API 地址"]
     end
 
-    subgraph Entrypoint["进程入口与装配"]
+    subgraph Product["Rust / Tauri production composition"]
         CLI["crates/jftrade-engine/src/bin/jftrade-api-rust<br/>Rust 独立 API 入口"]
         Desktop["apps/desktop/src-tauri<br/>Tauri 2 / profile / 单实例"]
-        App["crates/jftrade-engine<br/>Rust product composition / runtime"]
-        Core["crates/jftrade-api<br/>Axum 路由 / auth / runtime bridge"]
-        MarketRuntime["jftrade-engine product runtime<br/>Provider router / helper lifecycle"]
+        Engine["crates/jftrade-engine<br/>ProductRuntimeBuilder / lifecycle"]
+        Registry["ProductionRouteRegistry<br/>278 个真实 route binding"]
+        API["crates/jftrade-api<br/>Axum / auth / SSE / WebSocket / LiveHub"]
     end
 
-    subgraph Transport["HTTP / SSE / WebSocket 层"]
-        Middleware["crates/jftrade-api<br/>认证 / CORS / 安全"]
-        HTTP["crates/jftrade-api<br/>/api/v1 JSON routes"]
-        LiveAPI["crates/jftrade-api<br/>SSE / WS live stream"]
-        Swagger["OpenAPI reference<br/>generated from Go harness"]
+    subgraph Domains["Rust 领域与 production ports"]
+        Settings["jftrade-settings / jftrade-store-settings-file<br/>设置 / session security"]
+        System["jftrade-engine system ports<br/>状态 / 诊断 / 观测"]
+        Trading["jftrade-broker + jftrade-trading<br/>账户 / 订单 / 风控 / execution"]
+        Strategy["jftrade-strategy + jftrade-backtest<br/>策略 / 回测 / 同步任务"]
+        Research["jftrade-research + jftrade-watchlist<br/>研究 / 自选"]
+        Assistant["jftrade-assistant<br/>ADK / task / approval / MCP"]
+        Calendar["jftrade-calendar + jftrade-datamanagement<br/>日历 / 数据维护"]
     end
 
-    subgraph Services["业务服务层"]
-        SystemSvc["internal/system<br/>状态 / 诊断 / 观测摘要"]
-        SettingsSvc["internal/settings<br/>配置读写 / 归一化"]
-        MarketSvc["internal/marketdata<br/>订阅 / cache / collector / K线"]
-        TradingSvc["internal/trading<br/>账户 / 订单 / 风控 / execution"]
-        StrategySvc["internal/strategy<br/>策略定义 / 实例 / runtime 控制"]
-        BacktestSvc["internal/backtest<br/>回测 / 历史同步 / 结果视图"]
-        AssistantSvc["internal/assistant<br/>ADK session / run / approval / workflow"]
-        CalendarSvc["internal/exchangecalendar<br/>交易日历管理"]
-        DataSvc["internal/datamanagement<br/>数据维护 / 迁移入口"]
-        LiveBus["internal/live<br/>ReplayPublisher / live events"]
+    subgraph MarketRuntime["行情、交易与 worker runtime"]
+        Router["jftrade-marketdata<br/>ProviderRouter / DemandBook / cache"]
+        Futu["jftrade-integration-futu<br/>OpenD session / coordinator / DTO"]
+        Helper["jftrade-integration-marketdata-helper<br/>loopback HTTP client"]
+        Sidecar["workers/marketdata-sidecar<br/>PyInstaller onedir<br/>yfinance + AKShare"]
+        Pine["jftrade-integration-pine<br/>worker lifecycle / wire"]
+        PineWorker["workers/pineworker<br/>Node ESM + PineTS"]
     end
 
-    subgraph Integration["集成与可复用能力"]
-        FutuIntegration["internal/integration/futu<br/>OpenD 访问与 DTO 转换"]
-        YFinanceIntegration["internal/integration/yfinance<br/>轮询 HTTP Provider"]
-        YFinanceAssets["internal/marketdataassets<br/>release_assets 嵌入 / SHA-256"]
-        YFinanceSidecar["workers/marketdata-sidecar<br/>PyInstaller onedir helper<br/>动态 loopback 端口"]
-        FutuPkg["pkg/futu<br/>Futu exchange adapter"]
-        BrokerPkg["pkg/broker + pkg/market<br/>券商抽象 / 市场规则"]
-        StrategyPkg["pkg/strategy<br/>Pine parser / IR / spec / lowering"]
-        PineWorkerGo["pkg/strategy/pineworker<br/>Go reference / differential harness"]
-        PineWorkerNode["workers/pineworker<br/>Node ESM + PineTS executor"]
-        BacktestPkg["pkg/backtest<br/>回测引擎与历史存储能力"]
-        ADKPkg["internal/assistant/engine<br/>ADK runtime"]
-        BBGO["pkg/bbgo/*<br/>公共 types / stream / backtest primitives"]
-    end
-
-    subgraph RuntimeState["本地运行时文件"]
-        DevVar["开发 / JFTrade Dev<br/>仓库 var/jftrade-api"]
-        ProductData["正式桌面产品<br/>系统用户数据目录"]
+    subgraph Persistence["生产持久化"]
+        SQLite["jftrade-store-sqlite<br/>9 个数据库 / 唯一 WriterLease"]
         SettingsFile["settings.json"]
-        BacktestDB["backtest.db"]
-        Secrets["secrets/adk-secrets.json<br/>Web 密码仅存 Argon2id 校验值"]
-        Artifacts["策略 / 回测 / worker artifacts<br/>日志 / desktop-state.json"]
+        RuntimeFiles["策略 / 回测 / ADK artifacts<br/>日志 / desktop-state.json"]
+        DevVar["开发数据目录<br/>var/jftrade-api"]
+        ProductData["正式产品数据目录<br/>系统用户目录"]
+    end
+
+    subgraph Reference["非生产 Go reference"]
+        GoHarness["cmd/jftrade-api + internal/api + internal/app/apiserver<br/>OpenAPI 生成 / fixture / differential"]
+        GoDomains["internal/* + pkg/*<br/>schema oracle / compatibility reference"]
+        Swagger["OpenAPI reference<br/>由 Go harness 生成并与 Rust manifest 比对"]
     end
 
     subgraph External["外部依赖"]
-        OpenD["Futu OpenD<br/>TCP 11110 / WebSocket 11111"]
-        Yahoo["Yahoo Finance<br/>延迟 US / HK / 沪深行情"]
-        PineTS["pinets<br/>PineTS runtime"]
+        OpenD["Futu OpenD<br/>TCP 11110"]
+        Yahoo["Yahoo Finance"]
+        AKShare["AKShare 数据源"]
+        Model["模型 Provider"]
     end
 
     User --> Web
     User --> Desktop --> Web
     User --> Docs
     RuntimeConfig --> Web
-    Desktop --> App
+    CLI --> Engine
+    Desktop --> Engine
+    Engine --> Registry --> API
 
-    Web -->|JSON HTTP /api/v1/*| Middleware
-    Web -->|SSE /api/v1/stream/live| LiveAPI
-    Web -->|WS /api/v1/ws/live| LiveAPI
-    Web -->|/docs| Docs
+    Web -->|HTTP /api/v1/*| API
+    Web -->|SSE /api/v1/stream/live| API
+    Web -->|WS /api/v1/ws/live| API
     Web -->|/swagger| Swagger
 
-    CLI --> App --> Core
-    Core --> Middleware --> HTTP
-    Core --> LiveAPI
-    Core --> Swagger
+    Engine --> Settings
+    Engine --> System
+    Engine --> Trading
+    Engine --> Strategy
+    Engine --> Research
+    Engine --> Assistant
+    Engine --> Calendar
+    Engine --> Router
 
-    HTTP --> SystemSvc
-    HTTP --> SettingsSvc
-    HTTP --> MarketSvc
-    HTTP --> TradingSvc
-    HTTP --> StrategySvc
-    HTTP --> BacktestSvc
-    HTTP --> AssistantSvc
-    HTTP --> CalendarSvc
-    HTTP --> DataSvc
-    LiveAPI --> LiveBus
+    Router --> Futu --> OpenD
+    Router --> Helper --> Sidecar
+    Sidecar --> Yahoo
+    Sidecar --> AKShare
+    Strategy --> Pine --> PineWorker
+    Assistant --> Model
+    Futu --> API
+    Router --> API
+    Trading --> API
 
-    SystemSvc --> Core
-    SettingsSvc --> Core
-    TradingSvc --> Core
-    StrategySvc --> Core
-    BacktestSvc --> Core
-    AssistantSvc --> Core
-    DataSvc --> Core
-
-    MarketSvc --> MarketRuntime
-    MarketRuntime --> FutuIntegration
-    MarketRuntime --> YFinanceIntegration
-    MarketRuntime --> YFinanceAssets --> YFinanceSidecar --> Yahoo
-    TradingSvc --> FutuIntegration
-    Core --> FutuIntegration
-    FutuIntegration --> FutuPkg --> OpenD
-    FutuPkg --> BrokerPkg
-    FutuPkg --> BBGO
-
-    StrategySvc --> StrategyPkg
-    StrategySvc --> PineWorkerGo
-    BacktestSvc --> BacktestPkg
-    BacktestSvc --> PineWorkerGo
-    PineWorkerGo -->|localhost gRPC| PineWorkerNode --> PineTS
-    PineWorkerGo --> StrategyPkg
-    BacktestPkg --> BBGO
-    AssistantSvc --> ADKPkg
-
-    MarketSvc --> LiveBus
-    TradingSvc --> LiveBus
-    Core --> LiveBus
-    LiveBus --> LiveAPI
-
-    Core --> DevVar
+    Engine --> SQLite
+    Settings --> SettingsFile
+    Engine --> RuntimeFiles
+    Engine --> DevVar
     Desktop --> ProductData
-    SettingsSvc --> SettingsFile
-    BacktestSvc --> BacktestDB
-    Core --> Secrets
-    StrategySvc --> Artifacts
     DevVar --> SettingsFile
-    DevVar --> BacktestDB
-    DevVar --> Secrets
-    DevVar --> Artifacts
+    DevVar --> SQLite
+    DevVar --> RuntimeFiles
     ProductData --> SettingsFile
-    ProductData --> BacktestDB
-    ProductData --> Secrets
-    ProductData --> Artifacts
+    ProductData --> SQLite
+    ProductData --> RuntimeFiles
+
+    GoHarness --> Swagger
+    GoDomains --> GoHarness
+    Swagger -. route drift gate .-> Registry
 ```
 
 ## 主要运行链路
@@ -156,65 +119,60 @@ flowchart TB
 flowchart LR
     Web["apps/web 控制台"]
 
-    subgraph JSON["JSON 控制面"]
-        API["internal/api/*"]
-        Services["internal/{system,settings,marketdata,trading,strategy,backtest,assistant}"]
-        Core["servercore adapters / runtime bridge"]
+    subgraph Transport["Rust transport 与组合"]
+        API["crates/jftrade-api<br/>HTTP / auth / SSE / WS"]
+        Registry["ProductionRouteRegistry<br/>278 route bindings"]
+        Engine["crates/jftrade-engine<br/>production ports / lifecycle"]
     end
 
-    subgraph Live["实时推送面"]
-        LiveAPI["internal/api/live"]
-        LiveBus["internal/live ReplayPublisher"]
-        Collector["internal/marketdata collector + cache"]
+    subgraph Domain["Rust 领域与持久化"]
+        Services["settings / system / trading / strategy<br/>backtest / research / watchlist / assistant"]
+        SQLite["jftrade-store-sqlite<br/>WriterLease stores"]
+        SettingsFile["jftrade-store-settings-file<br/>settings.json"]
     end
 
     subgraph MarketTrade["行情与交易"]
-        MarketRuntime["marketdataapp Provider router"]
-        FutuIntegration["internal/integration/futu"]
-        YFinanceIntegration["internal/integration/yfinance"]
-        YFinanceAssets["internal/marketdataassets<br/>embedded release asset"]
-        YFinanceSidecar["PyInstaller onedir helper<br/>dynamic loopback"]
-        Yahoo["Yahoo Finance"]
-        FutuPkg["pkg/futu"]
+        Router["jftrade-marketdata<br/>ProviderRouter / DemandBook / cache"]
+        FutuIntegration["jftrade-integration-futu"]
+        HelperIntegration["jftrade-integration-marketdata-helper"]
+        MarketDataSidecar["marketdata-sidecar<br/>yfinance + AKShare"]
         OpenD["Futu OpenD"]
     end
 
     subgraph StrategyBacktest["策略与回测"]
-        StrategySvc["internal/strategy"]
-        BacktestSvc["internal/backtest"]
-        StrategyPkg["pkg/strategy"]
-        BacktestPkg["pkg/backtest"]
-        WorkerGo["pkg/strategy/pineworker"]
+        StrategySvc["jftrade-strategy"]
+        BacktestSvc["jftrade-backtest"]
+        PineIntegration["jftrade-integration-pine"]
         WorkerNode["workers/pineworker"]
         PineTS["pinets"]
     end
 
-    subgraph LocalStore["本地状态"]
-        Settings["settings.json"]
-        DB["backtest.db"]
-        RuntimeFiles["策略定义 / 实例 / artifacts"]
+    subgraph Reference["非生产 Go reference"]
+        GoAPI["cmd/jftrade-api + internal/api"]
+        GoServices["internal/* + pkg/*"]
+        OpenAPI["OpenAPI / fixtures / differential"]
     end
 
-    Web -->|/api/v1/*| API --> Services --> Core
-    Web -->|SSE / WS| LiveAPI --> LiveBus --> Web
+    Web -->|HTTP /api/v1/*| API
+    Web -->|SSE / WS| API
+    Registry --> API --> Engine --> Services
+    Services --> SQLite
+    Services --> SettingsFile
 
-    Services --> Collector --> MarketRuntime
-    MarketRuntime --> FutuIntegration
-    MarketRuntime --> YFinanceIntegration
-    MarketRuntime --> YFinanceAssets --> YFinanceSidecar --> Yahoo
-    Services --> FutuIntegration --> FutuPkg --> OpenD
-    Collector --> LiveBus
-    FutuPkg --> LiveBus
+    Engine --> Router
+    Router --> FutuIntegration --> OpenD
+    Router --> HelperIntegration --> MarketDataSidecar
+    FutuIntegration --> API
+    Router --> API
 
-    Services --> StrategySvc --> StrategyPkg
-    Services --> BacktestSvc --> BacktestPkg
-    StrategySvc --> WorkerGo
-    BacktestSvc --> WorkerGo
-    WorkerGo -->|gRPC| WorkerNode --> PineTS
+    Services --> StrategySvc
+    Services --> BacktestSvc
+    StrategySvc --> PineIntegration
+    BacktestSvc --> PineIntegration
+    PineIntegration --> WorkerNode --> PineTS
 
-    Core --> Settings
-    Core --> DB
-    Core --> RuntimeFiles
+    GoServices --> GoAPI --> OpenAPI
+    OpenAPI -. drift / differential .-> Registry
 ```
 
 ## 开发与发布链路
@@ -232,7 +190,7 @@ flowchart TB
 
     subgraph Build["构建任务"]
         BuildWeb["pnpm run build:web"]
-        BuildDocs["pnpm run build:docs<br/>generate OpenAPI + reference"]
+        BuildDocs["pnpm run build:docs<br/>Go reference 生成 OpenAPI / docs"]
         BuildWorker["pnpm run build:pineworker"]
         BuildMarketData["pnpm run build:marketdata-sidecar<br/>PyInstaller per-platform helper"]
         BuildAPI["cargo build -p jftrade-engine --bin jftrade-api-rust"]
@@ -242,7 +200,7 @@ flowchart TB
     subgraph Release["发布态"]
         Dist["dist/"]
         GUI["前端 + API 单一同源入口<br/>127.0.0.1:6688"]
-        EmbeddedAssets["internal/frontendassets<br/>internal/pineworkerassets<br/>internal/marketdataassets"]
+        EmbeddedAssets["Tauri runtime staging inputs<br/>internal/*assets + var/tauri-runtime"]
         DesktopProduct["JFTrade<br/>Tauri Rust API sidecar 6699<br/>自动管理 marketdata helper"]
         OptionalWeb["用户主动开启的 Web 入口<br/>默认 127.0.0.1:6688 / 端口可设置"]
         MacDMG["macOS ARM64<br/>unsigned DMG"]
