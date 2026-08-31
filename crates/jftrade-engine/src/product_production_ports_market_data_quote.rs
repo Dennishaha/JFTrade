@@ -6,6 +6,7 @@ use jftrade_integration_marketdata_helper::{
     HelperSnapshotResponse,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
+use jftrade_integration_futu::{MarketMicrostructureOperation, MarketMicrostructureReadPort};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
@@ -30,6 +31,7 @@ pub(crate) struct ProductionMarketDataQuotePort {
     helper: Option<HelperClient>,
     physical: Option<Arc<dyn jftrade_marketdata::PhysicalSubscriptionSnapshotPort>>,
     calendar: Option<Arc<CalendarManager>>,
+    microstructure: Option<Arc<dyn MarketMicrostructureReadPort>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataQuotePort {
@@ -39,6 +41,7 @@ impl std::fmt::Debug for ProductionMarketDataQuotePort {
             .field("router", &self.router.is_some())
             .field("has_helper", &self.helper.is_some())
             .field("has_physical", &self.physical.is_some())
+            .field("has_microstructure", &self.microstructure.is_some())
             .finish()
     }
 }
@@ -56,11 +59,20 @@ impl ProductionMarketDataQuotePort {
             helper,
             physical,
             calendar: None,
+            microstructure: None,
         }
     }
 
     pub(crate) fn with_calendar(mut self, calendar: Arc<CalendarManager>) -> Self {
         self.calendar = Some(calendar);
+        self
+    }
+
+    pub(crate) fn with_microstructure(
+        mut self,
+        reader: Option<Arc<dyn MarketMicrostructureReadPort>>,
+    ) -> Self {
+        self.microstructure = reader;
         self
     }
 
@@ -619,13 +631,13 @@ impl ProductionMarketDataQuotePort {
         }
 
         let provider = self.active_provider()?;
-        if provider == MarketDataProvider::Futu && self.router.is_some() {
-            return Err(MarketDataQuoteReadSnapshotError::Failed {
-                status: 503,
-                code: "MARKET_DATA_PROVIDER_BUSY".to_owned(),
-                message: "行情服务当前繁忙，请稍后重试".to_owned(),
-                retry_after_seconds: Some(2),
-            });
+        if provider == MarketDataProvider::Futu {
+            let instrument_id = format!("{market}.{symbol}");
+            let params = json!({"num": query_map.get_first("num").and_then(|value| value.parse::<i64>().ok()).unwrap_or(10)});
+            let reader = self.microstructure.as_ref().ok_or_else(|| MarketDataQuoteReadSnapshotError::Unavailable("Futu market depth reader is unavailable".to_owned()))?;
+            return reader
+                .query(MarketMicrostructureOperation::Depth, &instrument_id, &params)
+                .map_err(|error| MarketDataQuoteReadSnapshotError::Unavailable(error.to_string()));
         }
 
         Err(MarketDataQuoteReadSnapshotError::Unavailable(format!(
@@ -646,15 +658,29 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
-        Err(MarketDataQuoteReadSnapshotError::Failed {
-            status: 409,
-            code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
-            message: format!(
-                "broker feature capability is unavailable: feature \"{feature_name}\" with broker \"{broker_id}\" is not registered"
-            ),
-            retry_after_seconds: None,
-        })
+        let provider = self.active_provider()?;
+        if provider != MarketDataProvider::Futu {
+            let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
+            return Err(MarketDataQuoteReadSnapshotError::Failed {
+                status: 409,
+                code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
+                message: format!("broker feature capability is unavailable: feature \"{feature_name}\" with broker \"{broker_id}\" is not registered"),
+                retry_after_seconds: None,
+            });
+        }
+        let operation = match feature_name {
+            "market.broker_queue" => MarketMicrostructureOperation::BrokerQueue,
+            "market.capital_flow" => MarketMicrostructureOperation::CapitalFlow,
+            "market.intraday" => MarketMicrostructureOperation::Intraday,
+            "market.instrument_profile" => MarketMicrostructureOperation::Profile,
+            _ => return Err(MarketDataQuoteReadSnapshotError::Unavailable("unsupported market microstructure feature".to_owned())),
+        };
+        let instrument = _instrument_id.trim();
+        let instrument_id = if instrument.contains('.') { instrument.to_ascii_uppercase() } else { format!("US.{}", instrument.to_ascii_uppercase()) };
+        let reader = self.microstructure.as_ref().ok_or_else(|| MarketDataQuoteReadSnapshotError::Unavailable("Futu market microstructure reader is unavailable".to_owned()))?;
+        reader
+            .query(operation, &instrument_id, &json!({"pageSize": query_map.get_first("pageSize").and_then(|value| value.parse::<i64>().ok()).unwrap_or(100)}))
+            .map_err(|error| MarketDataQuoteReadSnapshotError::Unavailable(error.to_string()))
     }
 
     fn read_ticks(
@@ -662,6 +688,14 @@ impl ProductionMarketDataQuotePort {
         suffix: &str,
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
-        self.read_broker_feature("market.ticks", suffix, query)
+        let query_map = QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed { status: 400, code: "BAD_REQUEST".to_owned(), message: "invalid URL escape".to_owned(), retry_after_seconds: None })?;
+        let provider = self.active_provider()?;
+        if provider != MarketDataProvider::Futu {
+            let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
+            return Err(MarketDataQuoteReadSnapshotError::Failed { status: 409, code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(), message: format!("broker feature capability is unavailable: feature \"market.ticks\" with broker \"{broker_id}\" is not registered"), retry_after_seconds: None });
+        }
+        let instrument_id = if suffix.contains('.') { suffix.to_ascii_uppercase() } else { format!("US.{}", suffix.to_ascii_uppercase()) };
+        let reader = self.microstructure.as_ref().ok_or_else(|| MarketDataQuoteReadSnapshotError::Unavailable("Futu market ticks reader is unavailable".to_owned()))?;
+        reader.query(MarketMicrostructureOperation::Ticks, &instrument_id, &json!({"pageSize": query_map.get_first("pageSize").and_then(|value| value.parse::<i64>().ok()).unwrap_or(100)})).map_err(|error| MarketDataQuoteReadSnapshotError::Unavailable(error.to_string()))
     }
 }

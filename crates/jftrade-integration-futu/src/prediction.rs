@@ -19,8 +19,8 @@ const EVENT_MARKET: i32 = 101;
 mod prediction_values;
 use prediction_values::{
     ComboQuoteRequest, bytes_to_hex, combo_event_value, combo_leg_value, contract_value,
-    event_value, feature_result, kline_value, milestone_value, order_book_value,
-    security_value, snapshot_value, ticker_value,
+    event_value, feature_result, kline_value, milestone_value, order_book_value, security_value,
+    snapshot_value, ticker_value,
 };
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
@@ -80,11 +80,15 @@ impl OpenDPredictionMarketReader {
         Self { coordinator }
     }
 
-    fn call(&self, protocol: u32, operation: &'static str, body: Vec<u8>) -> Result<Vec<u8>, PredictionMarketReadError> {
-        let coordinator = self
-            .coordinator
-            .lock()
-            .map_err(|_| PredictionMarketReadError::Session("coordinator lock poisoned".to_owned()))?;
+    fn call(
+        &self,
+        protocol: u32,
+        operation: &'static str,
+        body: Vec<u8>,
+    ) -> Result<Vec<u8>, PredictionMarketReadError> {
+        let coordinator = self.coordinator.lock().map_err(|_| {
+            PredictionMarketReadError::Session("coordinator lock poisoned".to_owned())
+        })?;
         let session = coordinator
             .session()
             .map_err(|error| PredictionMarketReadError::Session(error.to_string()))?;
@@ -155,21 +159,24 @@ impl PredictionMarketSubscriptionPort for OpenDPredictionMarketReader {
 impl PredictionComboQuotePort for OpenDPredictionMarketReader {
     fn quote(&self, payload: &Value) -> Result<Value, PredictionMarketReadError> {
         let request = ComboQuoteRequest::parse(payload)?;
-        let response = self.call_response::<crate::trade_proto::qot_get_event_contract_combo_rfq::Response>(
-            crate::trade_proto::qot_get_event_contract_combo_rfq::PROTOCOL_ID,
-            "Qot_GetEventContractComboRfq",
-            request.encode(),
-        )?;
+        let response = self
+            .call_response::<crate::trade_proto::qot_get_event_contract_combo_rfq::Response>(
+                crate::trade_proto::qot_get_event_contract_combo_rfq::PROTOCOL_ID,
+                "Qot_GetEventContractComboRfq",
+                request.encode(),
+            )?;
         ensure_ok(
             "Qot_GetEventContractComboRfq",
             response.ret_type,
             response.err_code,
             response.ret_msg.as_deref(),
         )?;
-        let s2c = response.s2c.ok_or_else(|| PredictionMarketReadError::Decode {
-            operation: "Qot_GetEventContractComboRfq",
-            message: "response missing s2c".to_owned(),
-        })?;
+        let s2c = response
+            .s2c
+            .ok_or_else(|| PredictionMarketReadError::Decode {
+                operation: "Qot_GetEventContractComboRfq",
+                message: "response missing s2c".to_owned(),
+            })?;
         let legs = s2c
             .combo_leg_list
             .iter()
@@ -212,7 +219,13 @@ impl Query {
         self.values.get(key).map(String::as_str)
     }
 
-    fn number(&self, key: &str, default: i32, min: i32, max: i32) -> Result<i32, PredictionMarketReadError> {
+    fn number(
+        &self,
+        key: &str,
+        default: i32,
+        min: i32,
+        max: i32,
+    ) -> Result<i32, PredictionMarketReadError> {
         let Some(value) = self.get(key).filter(|value| !value.trim().is_empty()) else {
             return Ok(default);
         };
@@ -353,17 +366,35 @@ impl OpenDPredictionMarketReader {
             "Qot_GetEventContractCategory",
             Request {
                 c2s: C2s {
-                    category: query.get("category").filter(|value| !value.is_empty()).map(str::to_owned),
+                    category: query
+                        .get("category")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
                 },
             }
             .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractCategory", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.category_list.into_iter().map(|item| json!({
-            "category": item.category,
-            "categoryName": item.category_name,
-            "tags": item.tags,
-        })).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractCategory",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| {
+                s2c.category_list
+                    .into_iter()
+                    .map(|item| {
+                        json!({
+                            "category": item.category,
+                            "categoryName": item.category_name,
+                            "tags": item.tags,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, None))
     }
 
@@ -372,18 +403,42 @@ impl OpenDPredictionMarketReader {
         let response = self.call_response::<Response>(
             3435,
             "Qot_FilterCompetition",
-            Request { c2s: C2s {
-                category: query.get("category").filter(|value| !value.is_empty()).map(str::to_owned),
-                tag: query.get("tag").filter(|value| !value.is_empty()).map(str::to_owned),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    category: query
+                        .get("category")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    tag: query
+                        .get("tag")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_FilterCompetition", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.tag_filter_list.into_iter().map(|item| json!({
-            "category": item.category,
-            "tag": item.tag,
-            "competitionList": item.competition_list,
-            "scopeList": item.scope_list,
-        })).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_FilterCompetition",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| {
+                s2c.tag_filter_list
+                    .into_iter()
+                    .map(|item| {
+                        json!({
+                            "category": item.category,
+                            "tag": item.tag,
+                            "competitionList": item.competition_list,
+                            "scopeList": item.scope_list,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, None))
     }
 
@@ -392,64 +447,131 @@ impl OpenDPredictionMarketReader {
         let response = self.call_response::<Response>(
             3436,
             "Qot_GetEventContractSeriesList",
-            Request { c2s: C2s {
-                category: query.get("category").filter(|value| !value.is_empty()).map(str::to_owned),
-                tag: query.get("tag").filter(|value| !value.is_empty()).map(str::to_owned),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    category: query
+                        .get("category")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    tag: query
+                        .get("tag")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractSeriesList", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.series_list.into_iter().map(|item| json!({
-            "seriesSecurity": security_value(&item.series_security),
-            "seriesName": item.series_name,
-            "category": item.category,
-            "tags": item.tags,
-            "frequency": item.frequency,
-        })).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractSeriesList",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| {
+                s2c.series_list
+                    .into_iter()
+                    .map(|item| {
+                        json!({
+                            "seriesSecurity": security_value(&item.series_security),
+                            "seriesName": item.series_name,
+                            "category": item.category,
+                            "tags": item.tags,
+                            "frequency": item.frequency,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, None))
     }
 
     fn events(&self, query: &Query) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_event_list::{C2s, Request, Response};
-        let series = code(query.get("seriesId").or_else(|| query.get("series")), "seriesId")?;
+        let series = code(
+            query.get("seriesId").or_else(|| query.get("series")),
+            "seriesId",
+        )?;
         let response = self.call_response::<Response>(
             3437,
             "Qot_GetEventContractEventList",
-            Request { c2s: C2s {
-                series: security(&series),
-                status: query.get("status").and_then(parse_status),
-                next_page: query.get("cursor").filter(|value| !value.is_empty()).map(str::to_owned),
-                count: Some(query.number("pageSize", 100, 1, 300)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    series: security(&series),
+                    status: query.get("status").and_then(parse_status),
+                    next_page: query
+                        .get("cursor")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    count: Some(query.number("pageSize", 100, 1, 300)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractEventList", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let (entries, next) = response.s2c.map(|s2c| (
-            s2c.event_list.into_iter().map(event_value).collect(),
-            s2c.next_page,
-        )).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractEventList",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let (entries, next) = response
+            .s2c
+            .map(|s2c| {
+                (
+                    s2c.event_list.into_iter().map(event_value).collect(),
+                    s2c.next_page,
+                )
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, next))
     }
 
-    fn contracts(&self, event_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn contracts(
+        &self,
+        event_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract::{C2s, Request, Response};
         let event = code(event_id, "eventId")?;
         let response = self.call_response::<Response>(
             3438,
             "Qot_GetEventContract",
-            Request { c2s: C2s {
-                event: security(&event),
-                next_page: query.get("cursor").filter(|value| !value.is_empty()).map(str::to_owned),
-                count: Some(query.number("pageSize", 100, 1, 1000)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    event: security(&event),
+                    next_page: query
+                        .get("cursor")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    count: Some(query.number("pageSize", 100, 1, 1000)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContract", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let (entries, next) = response.s2c.map(|s2c| (
-            s2c.contract_list.into_iter().map(contract_value).collect(),
-            s2c.next_page,
-        )).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContract",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let (entries, next) = response
+            .s2c
+            .map(|s2c| {
+                (
+                    s2c.contract_list.into_iter().map(contract_value).collect(),
+                    s2c.next_page,
+                )
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, next))
     }
 
-    fn milestones(&self, contract_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn milestones(
+        &self,
+        contract_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_milestone_list::{C2s, Request, Response};
         let contract = code(contract_id, "code")?;
         // OpenD's milestone endpoint is keyed by the owning *event*, not by
@@ -460,19 +582,44 @@ impl OpenDPredictionMarketReader {
         let response = self.call_response::<Response>(
             3439,
             "Qot_GetEventContractMilestoneList",
-            Request { c2s: C2s {
-                category: query.get("category").filter(|value| !value.is_empty()).map(str::to_owned),
-                competition: query.get("competition").filter(|value| !value.is_empty()).map(str::to_owned),
-                related_event: Some(security(&event)),
-                next_page: query.get("cursor").filter(|value| !value.is_empty()).map(str::to_owned),
-                count: Some(query.number("pageSize", 100, 1, 300)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    category: query
+                        .get("category")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    competition: query
+                        .get("competition")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    related_event: Some(security(&event)),
+                    next_page: query
+                        .get("cursor")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    count: Some(query.number("pageSize", 100, 1, 300)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractMilestoneList", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let (entries, next) = response.s2c.map(|s2c| (
-            s2c.milestone_list.into_iter().map(milestone_value).collect(),
-            s2c.next_page,
-        )).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractMilestoneList",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let (entries, next) = response
+            .s2c
+            .map(|s2c| {
+                (
+                    s2c.milestone_list
+                        .into_iter()
+                        .map(milestone_value)
+                        .collect(),
+                    s2c.next_page,
+                )
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.discover", entries, next))
     }
 
@@ -507,117 +654,241 @@ impl OpenDPredictionMarketReader {
         let response = self.call_response::<Response>(
             3445,
             "Qot_GetEventContractSnapshot",
-            Request { c2s: C2s { security_list: vec![security(&contract)] }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security_list: vec![security(&contract)],
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractSnapshot", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.snapshot_list.into_iter().map(snapshot_value).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractSnapshot",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| s2c.snapshot_list.into_iter().map(snapshot_value).collect())
+            .unwrap_or_default();
         Ok(feature_result("prediction.snapshot", entries, None))
     }
 
-    fn order_book(&self, contract_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn order_book(
+        &self,
+        contract_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_order_book::{C2s, Request, Response};
         let contract = code(contract_id, "code")?;
         let response = self.call_response::<Response>(
             3446,
             "Qot_GetEventContractOrderBook",
-            Request { c2s: C2s {
-                security: security(&contract),
-                num: query.number("depth", 10, 1, 100)?,
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security: security(&contract),
+                    num: query.number("depth", 10, 1, 100)?,
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractOrderBook", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.order_book_list.into_iter().map(order_book_value).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractOrderBook",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| {
+                s2c.order_book_list
+                    .into_iter()
+                    .map(order_book_value)
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.depth", entries, None))
     }
 
-    fn candles(&self, contract_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn candles(
+        &self,
+        contract_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_kline::{C2s, Request, Response};
         let contract = code(contract_id, "code")?;
         let response = self.call_response::<Response>(
             3447,
             "Qot_GetEventContractKline",
-            Request { c2s: C2s {
-                security: security(&contract),
-                kline_source: Some(1),
-                pre_side: None,
-                ktype: Some(parse_kline_type(query.get("period").or_else(|| query.get("interval")))?),
-                max_count: Some(query.number("pageSize", 100, 1, 1000)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security: security(&contract),
+                    kline_source: Some(1),
+                    pre_side: None,
+                    ktype: Some(parse_kline_type(
+                        query.get("period").or_else(|| query.get("interval")),
+                    )?),
+                    max_count: Some(query.number("pageSize", 100, 1, 1000)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractKline", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.kline_list.into_iter().map(kline_value).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractKline",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| s2c.kline_list.into_iter().map(kline_value).collect())
+            .unwrap_or_default();
         Ok(feature_result("prediction.history", entries, None))
     }
 
-    fn historical(&self, contract_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn historical(
+        &self,
+        contract_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_request_history_event_contract_kl::{C2s, Request, Response};
         let contract = code(contract_id, "code")?;
-        let begin = query.get("from").or_else(|| query.get("beginTime")).ok_or_else(|| invalid("from is required"))?;
-        let end = query.get("to").or_else(|| query.get("endTime")).ok_or_else(|| invalid("to is required"))?;
+        let begin = query
+            .get("from")
+            .or_else(|| query.get("beginTime"))
+            .ok_or_else(|| invalid("from is required"))?;
+        let end = query
+            .get("to")
+            .or_else(|| query.get("endTime"))
+            .ok_or_else(|| invalid("to is required"))?;
         if begin.is_empty() || end.is_empty() || begin.len() > 64 || end.len() > 64 {
             return Err(invalid("historical time range is invalid"));
         }
         let response = self.call_response::<Response>(
             3456,
             "Qot_RequestHistoryEventContractKL",
-            Request { c2s: C2s {
-                security: security(&contract),
-                kline_source: Some(1),
-                pre_side: None,
-                kl_type: parse_kline_type(query.get("period").or_else(|| query.get("interval")))?,
-                begin_time: begin.to_owned(),
-                end_time: end.to_owned(),
-                max_ack_kl_num: Some(query.number("pageSize", 100, 1, 1000)?),
-                next_req_key: None,
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security: security(&contract),
+                    kline_source: Some(1),
+                    pre_side: None,
+                    kl_type: parse_kline_type(
+                        query.get("period").or_else(|| query.get("interval")),
+                    )?,
+                    begin_time: begin.to_owned(),
+                    end_time: end.to_owned(),
+                    max_ack_kl_num: Some(query.number("pageSize", 100, 1, 1000)?),
+                    next_req_key: None,
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_RequestHistoryEventContractKL", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let (entries, next) = response.s2c.map(|s2c| (
-            s2c.kline_list.into_iter().map(kline_value).collect(),
-            s2c.next_req_key.map(|key| bytes_to_hex(&key)),
-        )).unwrap_or_default();
+        ensure_ok(
+            "Qot_RequestHistoryEventContractKL",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let (entries, next) = response
+            .s2c
+            .map(|s2c| {
+                (
+                    s2c.kline_list.into_iter().map(kline_value).collect(),
+                    s2c.next_req_key.map(|key| bytes_to_hex(&key)),
+                )
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.history", entries, next))
     }
 
-    fn ticks(&self, contract_id: Option<&str>, query: &Query) -> Result<Value, PredictionMarketReadError> {
+    fn ticks(
+        &self,
+        contract_id: Option<&str>,
+        query: &Query,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_ticker::{C2s, Request, Response};
         let contract = code(contract_id, "code")?;
         let response = self.call_response::<Response>(
             3448,
             "Qot_GetEventContractTicker",
-            Request { c2s: C2s {
-                security: security(&contract),
-                count: Some(query.number("pageSize", 30, 1, 1000)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security: security(&contract),
+                    count: Some(query.number("pageSize", 30, 1, 1000)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractTicker", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let entries = response.s2c.map(|s2c| s2c.ticker_list.into_iter().map(ticker_value).collect()).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractTicker",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let entries = response
+            .s2c
+            .map(|s2c| s2c.ticker_list.into_iter().map(ticker_value).collect())
+            .unwrap_or_default();
         Ok(feature_result("prediction.history", entries, None))
     }
 
     fn combo_events(&self, query: &Query) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_get_event_contract_combo_list::{C2s, Request, Response};
-        let series = query.get("seriesId").or_else(|| query.get("series")).map(|value| code(Some(value), "seriesId")).transpose()?;
+        let series = query
+            .get("seriesId")
+            .or_else(|| query.get("series"))
+            .map(|value| code(Some(value), "seriesId"))
+            .transpose()?;
         let response = self.call_response::<Response>(
             3453,
             "Qot_GetEventContractComboList",
-            Request { c2s: C2s {
-                category: query.get("category").filter(|value| !value.is_empty()).map(str::to_owned),
-                competition: query.get("competition").filter(|value| !value.is_empty()).map(str::to_owned),
-                series: series.as_deref().map(security),
-                next_page: query.get("cursor").filter(|value| !value.is_empty()).map(str::to_owned),
-                count: Some(query.number("pageSize", 100, 1, 300)?),
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    category: query
+                        .get("category")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    competition: query
+                        .get("competition")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    series: series.as_deref().map(security),
+                    next_page: query
+                        .get("cursor")
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned),
+                    count: Some(query.number("pageSize", 100, 1, 300)?),
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_GetEventContractComboList", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        let (entries, next) = response.s2c.map(|s2c| (
-            s2c.combo_event_list.into_iter().map(combo_event_value).collect(),
-            s2c.next_page,
-        )).unwrap_or_default();
+        ensure_ok(
+            "Qot_GetEventContractComboList",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        let (entries, next) = response
+            .s2c
+            .map(|s2c| {
+                (
+                    s2c.combo_event_list
+                        .into_iter()
+                        .map(combo_event_value)
+                        .collect(),
+                    s2c.next_page,
+                )
+            })
+            .unwrap_or_default();
         Ok(feature_result("prediction.combo_eligible", entries, next))
     }
 
-    fn update_subscription(&self, code_value: &str, data_types: &[String], subscribe: bool) -> Result<Value, PredictionMarketReadError> {
+    fn update_subscription(
+        &self,
+        code_value: &str,
+        data_types: &[String],
+        subscribe: bool,
+    ) -> Result<Value, PredictionMarketReadError> {
         use crate::trade_proto::qot_sub_event_contract::{C2s, Request, Response};
         let contract = code(Some(code_value), "code")?;
         let mut types = Vec::new();
@@ -626,7 +897,11 @@ impl OpenDPredictionMarketReader {
                 "ORDER_BOOK" => types.push(2),
                 "KLINE" => types.push(11),
                 "TICKER" | "TICKS" => types.push(4),
-                value => return Err(invalid(&format!("unsupported event contract subscription type {value:?}"))),
+                value => {
+                    return Err(invalid(&format!(
+                        "unsupported event contract subscription type {value:?}"
+                    )));
+                }
             }
         }
         if subscribe && types.is_empty() {
@@ -635,19 +910,29 @@ impl OpenDPredictionMarketReader {
         let response = self.call_response::<Response>(
             3455,
             "Qot_SubEventContract",
-            Request { c2s: C2s {
-                security_list: vec![security(&contract)],
-                sub_type_list: types,
-                is_sub_or_un_sub: subscribe,
-                is_reg_or_un_reg_push: Some(subscribe),
-                is_first_push: Some(subscribe),
-                is_unsub_all: None,
-                kline_source: Vec::new(),
-                header: None,
-            }}.encode_to_vec(),
+            Request {
+                c2s: C2s {
+                    security_list: vec![security(&contract)],
+                    sub_type_list: types,
+                    is_sub_or_un_sub: subscribe,
+                    is_reg_or_un_reg_push: Some(subscribe),
+                    is_first_push: Some(subscribe),
+                    is_unsub_all: None,
+                    kline_source: Vec::new(),
+                    header: None,
+                },
+            }
+            .encode_to_vec(),
         )?;
-        ensure_ok("Qot_SubEventContract", response.ret_type, response.err_code, response.ret_msg.as_deref())?;
-        Ok(json!({"instrumentId": format!("US.{contract}"), "dataTypes": data_types, "subscribed": subscribe}))
+        ensure_ok(
+            "Qot_SubEventContract",
+            response.ret_type,
+            response.err_code,
+            response.ret_msg.as_deref(),
+        )?;
+        Ok(
+            json!({"instrumentId": format!("US.{contract}"), "dataTypes": data_types, "subscribed": subscribe}),
+        )
     }
 }
 
@@ -676,13 +961,10 @@ fn owning_event_code(
         .find(|item| {
             item.code.market == EVENT_MARKET && item.code.code.eq_ignore_ascii_case(contract)
         })
-        .ok_or_else(|| {
-            prediction_decode_error(format!("contract {contract} has no snapshot"))
-        })?;
-    let event = item
-        .event_code
-        .as_ref()
-        .ok_or_else(|| prediction_decode_error(format!("contract {contract} has no owning event")))?;
+        .ok_or_else(|| prediction_decode_error(format!("contract {contract} has no snapshot")))?;
+    let event = item.event_code.as_ref().ok_or_else(|| {
+        prediction_decode_error(format!("contract {contract} has no owning event"))
+    })?;
     if event.market != EVENT_MARKET || event.code.trim().is_empty() {
         return Err(prediction_decode_error(format!(
             "contract {contract} has an invalid owning event"
@@ -699,10 +981,11 @@ fn parse_kline_type(value: Option<&str>) -> Result<i32, PredictionMarketReadErro
         "5m" | "5min" => Ok(6),
         "1h" | "60m" | "60min" => Ok(9),
         "1d" | "day" => Ok(2),
-        _ => Err(invalid("prediction candles period must be 1m, 5m, 1h, or 1d")),
+        _ => Err(invalid(
+            "prediction candles period must be 1m, 5m, 1h, or 1d",
+        )),
     }
 }
-
 
 impl From<OpenDSessionCoordinatorError> for PredictionMarketReadError {
     fn from(error: OpenDSessionCoordinatorError) -> Self {
@@ -718,31 +1001,47 @@ mod tests {
     fn prediction_query_rejects_invalid_period_and_malformed_combo() {
         assert!(parse_kline_type(Some("2m")).is_err());
         assert!(ComboQuoteRequest::parse(&json!({"mvc":"US.MVC","legs":[]})).is_err());
-        assert!(ComboQuoteRequest::parse(&json!({
-            "mvc":"US.MVC",
-            "legs":[{"instrumentId":"US.EC.ONE","side":"BUY","ratio":1,"predictionSide":"YES"}]
-        })).is_ok());
+        assert!(
+            ComboQuoteRequest::parse(&json!({
+                "mvc":"US.MVC",
+                "legs":[{"instrumentId":"US.EC.ONE","side":"BUY","ratio":1,"predictionSide":"YES"}]
+            }))
+            .is_ok()
+        );
     }
 
     #[test]
     fn prediction_route_parsing_preserves_contract_operation_boundaries() {
-        assert_eq!(route_operation("/api/v1/market-data/prediction/contracts/US.EC-1/snapshot").unwrap(), ("snapshot", Some("US.EC-1")));
-        assert!(route_operation("/api/v1/market-data/prediction/contracts/US.EC-1/snapshot/extra").is_err());
+        assert_eq!(
+            route_operation("/api/v1/market-data/prediction/contracts/US.EC-1/snapshot").unwrap(),
+            ("snapshot", Some("US.EC-1"))
+        );
+        assert!(
+            route_operation("/api/v1/market-data/prediction/contracts/US.EC-1/snapshot/extra")
+                .is_err()
+        );
     }
 
     #[test]
     fn milestones_resolve_the_owning_event_and_fail_closed_when_missing() {
-        let snapshots = vec![crate::trade_proto::qot_get_event_contract_snapshot::SnapshotItem {
-            code: security("EC.ONE"),
-            event_code: Some(security("EVENT.ONE")),
-            ..Default::default()
-        }];
-        assert_eq!(owning_event_code(&snapshots, "EC.ONE").expect("owning event"), "EVENT.ONE");
-        let no_event = vec![crate::trade_proto::qot_get_event_contract_snapshot::SnapshotItem {
-            code: security("EC.NO.EVENT"),
-            event_code: None,
-            ..Default::default()
-        }];
+        let snapshots = vec![
+            crate::trade_proto::qot_get_event_contract_snapshot::SnapshotItem {
+                code: security("EC.ONE"),
+                event_code: Some(security("EVENT.ONE")),
+                ..Default::default()
+            },
+        ];
+        assert_eq!(
+            owning_event_code(&snapshots, "EC.ONE").expect("owning event"),
+            "EVENT.ONE"
+        );
+        let no_event = vec![
+            crate::trade_proto::qot_get_event_contract_snapshot::SnapshotItem {
+                code: security("EC.NO.EVENT"),
+                event_code: None,
+                ..Default::default()
+            },
+        ];
         assert!(matches!(
             owning_event_code(&no_event, "EC.NO.EVENT"),
             Err(PredictionMarketReadError::Decode { .. })

@@ -11,6 +11,7 @@ mod future_info_query;
 mod health;
 mod history;
 mod managed_session;
+mod market_microstructure_query;
 mod news_query;
 mod option_chain_query;
 mod option_contract_rank_query;
@@ -32,8 +33,8 @@ mod option_underlying_rank_query;
 mod option_volatility_query;
 mod option_zero_dte_contract_query;
 mod option_zero_dte_screener_query;
-mod probe;
 mod prediction;
+mod probe;
 mod provider;
 mod provider_runtime;
 mod quote_push;
@@ -86,6 +87,10 @@ pub use history::{
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
+};
+pub use market_microstructure_query::{
+    MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
+    OpenDMarketMicrostructureReader,
 };
 pub use news_query::{
     FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
@@ -191,11 +196,11 @@ pub use option_zero_dte_screener_query::{
     OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
     OptionZeroDteScreenerReadPort,
 };
-pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use prediction::{
     OpenDPredictionMarketReader, PredictionComboQuotePort, PredictionMarketReadError,
     PredictionMarketReadPort, PredictionMarketSubscriptionPort,
 };
+pub use probe::{MarketState, OpenDProbe, WireGlobalState};
 pub use provider::{broker_descriptor, provider_descriptor};
 pub use provider_runtime::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDProviderRuntimeError,

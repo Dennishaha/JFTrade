@@ -12,6 +12,34 @@ pub mod qot_option_common {
 pub mod qot_get_security_snapshot {
     include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
 }
+pub mod qot_get_order_book {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_order_book.rs"));
+    pub const PROTOCOL_ID: u32 = 3012;
+}
+pub mod qot_get_ticker {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_ticker.rs"));
+    pub const PROTOCOL_ID: u32 = 3010;
+}
+pub mod qot_get_broker {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_broker.rs"));
+    pub const PROTOCOL_ID: u32 = 3014;
+}
+pub mod qot_get_rt {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_rt.rs"));
+    pub const PROTOCOL_ID: u32 = 3008;
+}
+pub mod qot_get_capital_flow {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_capital_flow.rs"));
+    pub const PROTOCOL_ID: u32 = 3211;
+}
+pub mod qot_get_capital_distribution {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_capital_distribution.rs"));
+    pub const PROTOCOL_ID: u32 = 3212;
+}
+pub mod qot_get_company_profile {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_company_profile.rs"));
+    pub const PROTOCOL_ID: u32 = 3243;
+}
 pub mod qot_get_user_security_group {
     include!(concat!(env!("OUT_DIR"), "/qot_get_user_security_group.rs"));
 }
@@ -186,7 +214,10 @@ pub mod qot_option_screen {
     pub const PROTOCOL_ID: u32 = 3253;
 }
 pub mod qot_get_event_contract_category {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_category.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_category.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3434;
 }
 pub mod qot_filter_competition {
@@ -194,11 +225,17 @@ pub mod qot_filter_competition {
     pub const PROTOCOL_ID: u32 = 3435;
 }
 pub mod qot_get_event_contract_series_list {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_series_list.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_series_list.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3436;
 }
 pub mod qot_get_event_contract_event_list {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_event_list.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_event_list.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3437;
 }
 pub mod qot_get_event_contract {
@@ -206,15 +243,24 @@ pub mod qot_get_event_contract {
     pub const PROTOCOL_ID: u32 = 3438;
 }
 pub mod qot_get_event_contract_milestone_list {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_milestone_list.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_milestone_list.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3439;
 }
 pub mod qot_get_event_contract_snapshot {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_snapshot.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_snapshot.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3445;
 }
 pub mod qot_get_event_contract_order_book {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_order_book.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_order_book.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3446;
 }
 pub mod qot_get_event_contract_kline {
@@ -222,15 +268,24 @@ pub mod qot_get_event_contract_kline {
     pub const PROTOCOL_ID: u32 = 3447;
 }
 pub mod qot_get_event_contract_ticker {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_ticker.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_ticker.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3448;
 }
 pub mod qot_get_event_contract_combo_list {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_combo_list.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_combo_list.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3453;
 }
 pub mod qot_get_event_contract_combo_rfq {
-    include!(concat!(env!("OUT_DIR"), "/qot_get_event_contract_combo_rfq.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_event_contract_combo_rfq.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3454;
 }
 pub mod qot_sub_event_contract {
@@ -238,7 +293,10 @@ pub mod qot_sub_event_contract {
     pub const PROTOCOL_ID: u32 = 3455;
 }
 pub mod qot_request_history_event_contract_kl {
-    include!(concat!(env!("OUT_DIR"), "/qot_request_history_event_contract_kl.rs"));
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_request_history_event_contract_kl.rs"
+    ));
     pub const PROTOCOL_ID: u32 = 3456;
 }
 pub mod trd_common {

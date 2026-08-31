@@ -98,35 +98,51 @@ impl ProductionPortBundle {
             return Some(ProductionAdapterBinding::MissingInternalAdapter);
         }
         match path {
-            // The Rust product-rule port is intentionally fail-closed until a
-            // real broker implementation is installed; local parsing alone
-            // must never project `allowed: true` as a capability.
             "/api/v1/execution/buying-power" => {
-                Some(ProductionAdapterBinding::ExternalUnavailable)
+                // ProductRuleProvider is implemented by the production
+                // execution adapter, but it is only useful when the active
+                // Futu trade session exposes the typed max-trade-quantity
+                // reader.  Do not advertise this route from the generic
+                // ExecutionWrite binding alone: that would make the local
+                // parser look like a broker capability and could project a
+                // synthetic `allowed: true` response while OpenD is absent.
+                Some(if self.futu_trade_read_capability_ready() {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                })
             }
             "/api/v1/execution/combos/previews" => {
                 let snapshot = self.active_provider_state.snapshot();
-                let option_reader = self.trade_runtime.as_ref().is_some_and(|runtime| {
-                    // The handler accepts both generic and spread strategy
-                    // payloads, and combo_preview always projects
-                    // optionAnalysis. All three readers are therefore needed
-                    // for the route-wide Ready claim.
-                    runtime.option_strategy_available()
-                        && runtime.option_strategy_spread_available()
-                        && runtime.option_strategy_analysis_available()
-                });
-                let trade_reader = if let Some(runtime) = self.trade_runtime.as_ref() {
-                    runtime.snapshot().is_ready()
-                } else {
-                    self.trade_read_port
+                // `combo_preview` has two independent production paths:
+                // option_combo validates option strategy legality and reads
+                // combo buying power, while event_parlay validates active
+                // prediction contracts and persists the quote without any
+                // option readers.  A route-level binding cannot inspect the
+                // request body, so Ready means at least one complete path is
+                // installed; the handler keeps the other path's precise
+                // 503/error mapping when its external dependency is absent.
+                let futu_opend_ready =
+                    snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                        && snapshot.opend_ready;
+                let event_parlay_ready = futu_opend_ready
+                    && self
+                        .trade_runtime
                         .as_ref()
-                        .is_some_and(|_| self.trade_logged_in == Some(true))
-                };
-                Some(if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
-                    && snapshot.opend_ready
-                    && option_reader
-                    && trade_reader
-                {
+                        .is_some_and(|runtime| runtime.prediction_reader_available());
+                let option_combo_ready = futu_opend_ready
+                    && self.futu_trade_read_capability_ready()
+                    && self.trade_runtime.as_ref().is_some_and(|runtime| {
+                        // Strategy legality selects either the generic
+                        // strategy reader or the spread reader depending on
+                        // optionStrategy.  Analysis is invoked after the
+                        // legality/max-quantity reads by the handler, so it
+                        // remains part of a complete option path.
+                        (runtime.option_strategy_available()
+                            || runtime.option_strategy_spread_available())
+                            && runtime.option_strategy_analysis_available()
+                    });
+                Some(if event_parlay_ready || option_combo_ready {
                     ProductionAdapterBinding::Ready
                 } else {
                     ProductionAdapterBinding::ExternalUnavailable
@@ -579,6 +595,25 @@ impl ProductionPortBundle {
     ) -> ProductionAdapterBinding {
         self.adapter_binding(adapter)
             .unwrap_or(ProductionAdapterBinding::MissingInternalAdapter)
+    }
+
+    /// Return whether the concrete Futu/OpenD trade reader used by the
+    /// production execution adapter is currently available.  The trait's
+    /// `read_max_trade_quantity` method is the ProductRule capability; the
+    /// route registry can only evaluate readiness without a request payload,
+    /// so it checks the live typed reader/session handle rather than a static
+    /// `ExecutionWrite` installation bit.
+    fn futu_trade_read_capability_ready(&self) -> bool {
+        let snapshot = self.active_provider_state.snapshot();
+        if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu)
+            || !snapshot.opend_ready
+        {
+            return false;
+        }
+        if let Some(runtime) = self.trade_runtime.as_ref() {
+            return runtime.snapshot().is_ready();
+        }
+        self.trade_logged_in == Some(true) && self.trade_read_port.is_some()
     }
 
 }

@@ -14,6 +14,7 @@ use jftrade_integration_futu::{
     FutuCorporateActionsReadPort, FutuCorporateActionsQuery, FutuCorporateActionsResult,
     FutuNewsQuery, FutuNewsReadPort, FutuNewsResult,
     PredictionComboQuotePort, PredictionMarketReadPort, PredictionMarketSubscriptionPort,
+    MarketMicrostructureOperation, MarketMicrostructureReadPort,
     TradeReadPort, TradeSecurity, TradeWritePort,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
@@ -115,6 +116,8 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationReadPort>>>>,
     pub(crate) alert_writer:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::AlertCustomizationWritePort>>>>,
+    pub(crate) market_microstructure:
+        Arc<RwLock<Option<Arc<dyn MarketMicrostructureReadPort>>>>,
     /// OpenD lifecycle listeners use this channel to wake the execution
     /// reconciliation worker after a ready/reconnect transition.
     reconciliation_wake: Arc<Notify>,
@@ -208,6 +211,35 @@ impl SharedTradeReadRuntime {
             .read()
             .unwrap_or_else(|error| error.into_inner())
             .is_some()
+    }
+
+    pub(crate) fn set_market_microstructure(
+        &self,
+        reader: Option<Arc<dyn MarketMicrostructureReadPort>>,
+    ) {
+        *self.market_microstructure.write().unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn market_microstructure_available(&self) -> bool {
+        self.market_microstructure.read().unwrap_or_else(|error| error.into_inner()).is_some()
+    }
+
+    pub(crate) fn market_microstructure_reader(
+        &self,
+    ) -> Option<Arc<dyn MarketMicrostructureReadPort>> {
+        self.market_microstructure.read().unwrap_or_else(|error| error.into_inner()).clone()
+    }
+
+    pub(crate) fn market_microstructure(
+        &self,
+        operation: MarketMicrostructureOperation,
+        instrument_id: &str,
+        params: &Value,
+    ) -> Result<Value, String> {
+        self.market_microstructure_reader()
+            .ok_or_else(|| "Futu market microstructure reader is unavailable".to_owned())?
+            .query(operation, instrument_id, params)
+            .map_err(|error| error.to_string())
     }
 
     pub(crate) fn set_historical_klines(&self, reader: Option<Arc<dyn HistoricalKlineReadPort>>) {

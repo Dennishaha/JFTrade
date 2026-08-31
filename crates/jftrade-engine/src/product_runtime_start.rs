@@ -136,16 +136,27 @@ pub async fn start_product_runtime(
                 trade_runtime.set_news_reader(Some(Arc::new(
                     jftrade_integration_futu::OpenDNewsReader::new(runtime.coordinator()),
                 )));
-                let prediction_reader = Arc::new(OpenDPredictionMarketReader::new(
-                    runtime.coordinator(),
-                ));
+                let prediction_reader =
+                    Arc::new(OpenDPredictionMarketReader::new(runtime.coordinator()));
                 trade_runtime.set_prediction_adapters(
                     Some(Arc::clone(&prediction_reader)
-                        as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+                        as Arc<
+                            dyn jftrade_integration_futu::PredictionMarketReadPort,
+                        >),
                     Some(Arc::clone(&prediction_reader)
-                        as Arc<dyn jftrade_integration_futu::PredictionMarketSubscriptionPort>),
-                    Some(prediction_reader as Arc<dyn jftrade_integration_futu::PredictionComboQuotePort>),
+                        as Arc<
+                            dyn jftrade_integration_futu::PredictionMarketSubscriptionPort,
+                        >),
+                    Some(
+                        prediction_reader
+                            as Arc<dyn jftrade_integration_futu::PredictionComboQuotePort>,
+                    ),
                 );
+                trade_runtime.set_market_microstructure(Some(Arc::new(
+                    jftrade_integration_futu::OpenDMarketMicrostructureReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_corporate_actions_reader(Some(Arc::new(
                     jftrade_integration_futu::OpenDCorporateActionsReader::new(
                         runtime.coordinator(),
@@ -326,11 +337,18 @@ pub async fn start_product_runtime(
         let prediction_reader = Arc::new(OpenDPredictionMarketReader::new(Arc::clone(coordinator)));
         trade_runtime.set_prediction_adapters(
             Some(Arc::clone(&prediction_reader)
-                as Arc<dyn jftrade_integration_futu::PredictionMarketReadPort>),
+                as Arc<
+                    dyn jftrade_integration_futu::PredictionMarketReadPort,
+                >),
             Some(Arc::clone(&prediction_reader)
-                as Arc<dyn jftrade_integration_futu::PredictionMarketSubscriptionPort>),
+                as Arc<
+                    dyn jftrade_integration_futu::PredictionMarketSubscriptionPort,
+                >),
             Some(prediction_reader as Arc<dyn jftrade_integration_futu::PredictionComboQuotePort>),
         );
+        trade_runtime.set_market_microstructure(Some(Arc::new(
+            jftrade_integration_futu::OpenDMarketMicrostructureReader::new(Arc::clone(coordinator)),
+        )));
         trade_runtime.set_corporate_actions_reader(Some(Arc::new(
             jftrade_integration_futu::OpenDCorporateActionsReader::new(Arc::clone(coordinator)),
         )));

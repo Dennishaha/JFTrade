@@ -69,27 +69,25 @@ impl ProductApi {
     fn hard_fail_external_unavailable(
         &self,
         binding: &ProductionRouteBinding,
-        request: &ApiRequest,
+        _request: &ApiRequest,
     ) -> bool {
         // An ADK chat route with no runtime at all is a missing internal
         // adapter.  When the runtime exists, it performs provider readiness
         // checks and projects the established ADK error envelope itself.
-        // Buying-power and combo previews have product-rule readers that
-        // cannot be represented by the generic execution writer; keep their
-        // unavailable status at the registry boundary even though ordinary
-        // order routes use handler mappings.  BacktestStart deliberately
-        // reaches the backtests writer so its unavailable path preserves the
-        // public BACKTESTS_WRITE_UNAVAILABLE envelope.
+        // Buying-power and combo previews have product-rule readers that are
+        // selected by the execution handler from the request payload.  Let
+        // those requests reach the concrete handler even when an external
+        // reader is unavailable, so it can preserve the baseline
+        // EXECUTION_WRITE_UNAVAILABLE/error envelope (and so event_parlay
+        // does not inherit option-combo readiness).  BacktestStart
+        // deliberately reaches the backtests writer so its unavailable path
+        // preserves the public BACKTESTS_WRITE_UNAVAILABLE envelope.
         // ADK mutation readiness is resolved per operation by the route
         // registry.  Local entity/session/task/workflow mutations must reach
         // the production store even while model-backed continuation
         // operations are unavailable; those operations return the canonical
         // ADK 503 envelope from `ProductionAdkPort` itself.
-        (binding.adapter == Target::AdkChat && self.adk_chat_stream_port.is_none())
-            || matches!(
-                request.path.as_str(),
-                "/api/v1/execution/buying-power" | "/api/v1/execution/combos/previews"
-            )
+        binding.adapter == Target::AdkChat && self.adk_chat_stream_port.is_none()
     }
 
     async fn dispatch_production_target(
