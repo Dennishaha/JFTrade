@@ -6,11 +6,7 @@ pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
     if config.product.is_production() && config.pine_workers.len() > 1 {
-        // Production execution currently binds the first healthy Pine worker
-        // to both backtests and strategy analysis.  Until routing and
-        // failover are implemented, reject extra workers before any process,
-        // provider, or database resource is started instead of leaving them
-        // silently unmanaged.
+        // Fail closed before any process, provider, or database starts.
         return Err(ProductRuntimeError::PineWorkerFailoverUnsupported {
             configured: config.pine_workers.len(),
         });
@@ -573,9 +569,6 @@ pub async fn start_product_runtime(
         match GrpcPineExecutionPort::new(execution) {
             Ok(port) => {
                 let port = Arc::new(port.with_readiness(readiness));
-                // The same verified gRPC client backs both backtest execution
-                // and the strategy-pine AnalyzeScript route.  Keeping one
-                // client per worker avoids a second unprobed endpoint.
                 config.product = config
                     .product
                     .with_strategy_pine_worker_port(Arc::clone(&port));
