@@ -82,6 +82,9 @@ impl ProductionMcpToolExecutor {
             | "research.ownership"
             | "research.corporate_actions"
             | "research.valuation" => self.research_instrument_read(name, arguments),
+            "research.institutions" => self.research_institutions(arguments),
+            "research.short_interest" => self.research_short_interest(arguments),
+            "research.technical_indicators" => self.research_technical_indicators(arguments),
             "research.rankings" | "research.industry" | "research.calendar" | "research.macro" => {
                 self.research_market_read(name, arguments)
             }
@@ -105,6 +108,50 @@ impl ProductionMcpToolExecutor {
             symbol,
         );
         let query = arguments_query(arguments, &["instrumentId", "market", "symbol"], &[])?;
+        self.ports()?
+            .research_read
+            .read(&path, &query)
+            .map_err(research_error)
+    }
+
+    fn research_institutions(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
+        // `underlying` is retained in the reviewed collection-tool schema for
+        // Go compatibility, but the institution endpoint has no such filter.
+        let query = arguments_query(arguments, &["underlying"], &[])?;
+        self.ports()?
+            .research_read
+            .read("/api/v1/research/institutions", &query)
+            .map_err(research_error)
+    }
+
+    fn research_short_interest(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
+        let (market, symbol) = instrument(arguments)?;
+        let path = format!("/api/v1/research/short-interest/{market}.{symbol}");
+        // The reviewed instrument schema carries generic series filters. The
+        // short-interest endpoint never consumed them, so accept and ignore
+        // them instead of forwarding an unsupported HTTP query parameter.
+        let query = arguments_query(
+            arguments,
+            &[
+                "instrumentId",
+                "market",
+                "symbol",
+                "startTime",
+                "endTime",
+                "period",
+            ],
+            &[],
+        )?;
+        self.ports()?
+            .research_read
+            .read(&path, &query)
+            .map_err(research_error)
+    }
+
+    fn research_technical_indicators(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
+        let (market, symbol) = instrument(arguments)?;
+        let path = format!("/api/v1/research/technical-indicators/{market}.{symbol}");
+        let query = technical_indicator_query(arguments)?;
         self.ports()?
             .research_read
             .read(&path, &query)
@@ -236,6 +283,37 @@ fn research_instrument_route(name: &str) -> Result<&'static str, McpToolFailure>
             "research tool {name} is not instrument-scoped"
         ))),
     }
+}
+
+fn technical_indicator_query(arguments: &Value) -> Result<String, McpToolFailure> {
+    let object = arguments
+        .as_object()
+        .ok_or_else(|| McpToolFailure::invalid("tool arguments must be an object"))?;
+    let mut normalized = object.clone();
+    for key in ["kLine", "inputs"] {
+        let Some(value) = normalized.get(key) else {
+            continue;
+        };
+        if !value.is_array() {
+            return Err(McpToolFailure::invalid(format!("{key} must be an array")));
+        }
+        let encoded = serde_json::to_string(value).map_err(|error| {
+            McpToolFailure::invalid(format!("{key} must be valid JSON: {error}"))
+        })?;
+        normalized.insert(key.to_owned(), Value::String(encoded));
+    }
+    arguments_query(
+        &Value::Object(normalized),
+        &[
+            "instrumentId",
+            "market",
+            "symbol",
+            "startTime",
+            "endTime",
+            "period",
+        ],
+        &[],
+    )
 }
 
 fn require_market_research_operation(name: &str, arguments: &Value) -> Result<(), McpToolFailure> {

@@ -44,6 +44,66 @@ fn prediction_quote_schema() -> Value {
     )
 }
 
+fn technical_indicator_schema() -> Value {
+    let kline = strict_object(
+        object([
+            ("time", string_schema(1, 80)),
+            ("isBlank", json!({"type": "boolean"})),
+            ("highPrice", json!({"type": "number"})),
+            ("openPrice", json!({"type": "number"})),
+            ("lowPrice", json!({"type": "number"})),
+            ("closePrice", json!({"type": "number"})),
+            ("lastClosePrice", json!({"type": "number"})),
+            ("volume", json!({"type": "integer", "minimum": 0})),
+            ("turnover", json!({"type": "number"})),
+            ("turnoverRate", json!({"type": "number"})),
+            ("pe", json!({"type": "number"})),
+            ("changeRate", json!({"type": "number"})),
+            ("timestamp", json!({"type": "number"})),
+            ("hpVolume", json!({"type": "number"})),
+        ]),
+        &["time"],
+    );
+    let input = strict_object(
+        object([
+            ("index", json!({"type": "integer", "minimum": 0})),
+            ("value", string_schema(0, 256)),
+        ]),
+        &["index"],
+    );
+    let mut properties = read_properties(instrument_operation_properties(
+        "research.technical_indicators",
+    ));
+    properties.extend(object([
+        ("searchKey", string_schema(0, 128)),
+        ("langType", json!({"type": "integer", "minimum": 0, "maximum": 2})),
+        ("searchMode", json!({"type": "integer", "enum": [0, 1]})),
+        ("shortName", string_schema(1, 128)),
+        ("klType", json!({"type": "integer", "minimum": 1, "maximum": 15})),
+        (
+            "kLine",
+            json!({"type": "array", "items": kline, "maxItems": 2000}),
+        ),
+        ("num", json!({"type": "integer", "minimum": 1, "maximum": 2000})),
+        (
+            "inputs",
+            json!({"type": "array", "items": input, "maxItems": 100}),
+        ),
+    ]));
+    // The list operation accepts langType 0, while calculation is restricted
+    // to the MyLang/Python engines and needs the complete calculation payload.
+    let mut schema = strict_object(properties, &["instrumentId"]);
+    schema["if"] = json!({
+        "properties": {"operation": {"const": "calculate"}},
+        "required": ["operation"],
+    });
+    schema["then"] = json!({
+        "required": ["shortName", "langType", "klType", "kLine"],
+        "properties": {"langType": {"enum": [1, 2]}},
+    });
+    schema
+}
+
 fn market_series_schema(candles: bool) -> Value {
     let mut properties = read_properties(object([
         ("instrumentId", string_schema(3, 80)),

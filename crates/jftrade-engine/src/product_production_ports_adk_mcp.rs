@@ -28,6 +28,23 @@ impl ProductionToolCatalog {
                 |snapshot| self.binding_for(definition, snapshot),
             ));
         }
+        let research_operation = match name {
+            "research.institutions" => Some("institutions"),
+            "research.short_interest" => Some("short_interest"),
+            "research.technical_indicators" => Some("technical_indicators"),
+            _ => None,
+        };
+        if let Some(operation) = research_operation {
+            return Some(snapshot.as_ref().map_or_else(
+                || {
+                    self.research_bindings
+                        .get(operation)
+                        .copied()
+                        .unwrap_or(ProductionAdapterBinding::ExternalUnavailable)
+                },
+                |snapshot| self.research_binding_for(operation, snapshot),
+            ));
+        }
         let adapter = match name {
             "plugins.catalog" => ProductionRouteAdapter::PluginsRead,
             "market.providers" | "market.capabilities" => {
@@ -43,9 +60,7 @@ impl ProductionToolCatalog {
             "derivatives.futures" => ProductionRouteAdapter::MarketDataFuturesRead,
             "derivatives.option_chain" => ProductionRouteAdapter::MarketDataOptionsChainRead,
             "derivatives.option_screen" => ProductionRouteAdapter::MarketDataOptionsScreenRead,
-            "derivatives.option_analysis" => {
-                ProductionRouteAdapter::MarketDataOptionsAnalysisRead
-            }
+            "derivatives.option_analysis" => ProductionRouteAdapter::MarketDataOptionsAnalysisRead,
             "derivatives.option_events" => ProductionRouteAdapter::MarketDataOptionsEventsRead,
             "prediction.discover"
             | "prediction.snapshot"
@@ -63,9 +78,7 @@ impl ProductionToolCatalog {
             }
             "execution.order_events" => ProductionRouteAdapter::ExecutionRead,
             "execution.buying_power" => ProductionRouteAdapter::ExecutionWrite,
-            "alerts.price.list" | "alerts.option_event.list" => {
-                ProductionRouteAdapter::AlertsRead
-            }
+            "alerts.price.list" | "alerts.option_event.list" => ProductionRouteAdapter::AlertsRead,
             "research.instrument"
             | "research.financials"
             | "research.analyst"

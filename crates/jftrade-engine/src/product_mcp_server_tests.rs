@@ -1,19 +1,24 @@
 use super::*;
 use crate::product::product_mcp_protocol::{mcp_tool_adapter, mcp_tool_availability};
 use crate::product::product_production_ports::{
-    MarketDataCapabilityMatrix, ProductionAdapterBinding, production_adapter_bindings,
+    MarketDataCapabilityMatrix, ProductionAdapterBinding, SharedTradeReadRuntime,
+    production_adapter_bindings,
 };
-use crate::product::{ProductCapabilities, ProductConfig, product_data_management};
+use crate::product::{
+    ActiveProviderState, MarketDataRuntimeState, MarketDataRuntimeStatusPort, ProductCapabilities,
+    ProductConfig, ResearchReadSnapshotError, ResearchReadSnapshotPort, product_data_management,
+};
 use axum::http::{HeaderMap, HeaderValue, header};
 use jftrade_api::AccessPolicy;
-use jftrade_settings::McpServerSecretPort;
 use jftrade_settings::SecuritySettingsService;
+use jftrade_settings::{MarketDataProvider, McpServerSecretPort};
 use jftrade_store_settings_file::SettingsFileStore;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::SocketAddr;
 use std::net::TcpStream;
+use std::sync::Mutex;
 use std::time::Duration;
 use tempfile::TempDir;
 
@@ -40,6 +45,18 @@ fn catalog() -> Arc<ProductionToolCatalog> {
         ("instrument", ProductionAdapterBinding::Ready),
         ("financials", ProductionAdapterBinding::Ready),
         ("valuation", ProductionAdapterBinding::Ready),
+        (
+            "institutions",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "short_interest",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "technical_indicators",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
         ("news", ProductionAdapterBinding::Ready),
     ]);
     Arc::new(
@@ -61,11 +78,47 @@ fn unavailable_catalog() -> Arc<ProductionToolCatalog> {
         ("instrument", ProductionAdapterBinding::ExternalUnavailable),
         ("financials", ProductionAdapterBinding::ExternalUnavailable),
         ("valuation", ProductionAdapterBinding::ExternalUnavailable),
+        (
+            "institutions",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "short_interest",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "technical_indicators",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
         ("news", ProductionAdapterBinding::ExternalUnavailable),
     ]);
     Arc::new(
         ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
             .expect("complete unavailable MCP catalog"),
+    )
+}
+
+fn technical_indicator_ready_catalog() -> Arc<ProductionToolCatalog> {
+    let bindings =
+        production_adapter_bindings(&MarketDataCapabilityMatrix::new(Some("futu"), true, true));
+    let research = BTreeMap::from([
+        ("instrument", ProductionAdapterBinding::ExternalUnavailable),
+        ("financials", ProductionAdapterBinding::ExternalUnavailable),
+        ("valuation", ProductionAdapterBinding::ExternalUnavailable),
+        (
+            "institutions",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "short_interest",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        ("technical_indicators", ProductionAdapterBinding::Ready),
+        ("news", ProductionAdapterBinding::ExternalUnavailable),
+    ]);
+    Arc::new(
+        ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
+            .expect("technical indicator MCP catalog"),
     )
 }
 
@@ -113,6 +166,145 @@ impl McpToolExecutor for SuccessExecutor {
     fn execute(&self, name: &str, _arguments: &Value) -> Result<Value, String> {
         Ok(json!({"ok": true, "tool": name}))
     }
+}
+
+#[derive(Debug, Default)]
+struct RecordingResearchRead {
+    calls: Mutex<Vec<(String, String)>>,
+}
+
+impl ResearchReadSnapshotPort for RecordingResearchRead {
+    fn read(&self, path: &str, query: &str) -> Result<Value, ResearchReadSnapshotError> {
+        self.calls
+            .lock()
+            .expect("record research MCP call")
+            .push((path.to_owned(), query.to_owned()));
+        Ok(json!({"path": path, "query": query}))
+    }
+}
+
+#[derive(Debug)]
+struct ReadyRuntimeStatus;
+
+impl MarketDataRuntimeStatusPort for ReadyRuntimeStatus {
+    fn snapshot(&self) -> MarketDataRuntimeState {
+        MarketDataRuntimeState {
+            connected: true,
+            generation: 1,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug)]
+struct FixtureInstitutionReader;
+
+impl jftrade_integration_futu::FutuInstitutionReadPort for FixtureInstitutionReader {
+    fn query(
+        &self,
+        _query: &jftrade_integration_futu::FutuInstitutionQuery,
+    ) -> Result<
+        jftrade_integration_futu::FutuInstitutionResult,
+        jftrade_integration_futu::FutuInstitutionQueryError,
+    > {
+        panic!("fixture institution reader should not execute during readiness checks")
+    }
+}
+
+#[derive(Debug)]
+struct FixtureShortInterestReader;
+
+impl jftrade_integration_futu::FutuShortInterestReadPort for FixtureShortInterestReader {
+    fn query(
+        &self,
+        _query: &jftrade_integration_futu::FutuShortInterestQuery,
+    ) -> Result<
+        jftrade_integration_futu::FutuShortInterestResult,
+        jftrade_integration_futu::FutuShortInterestQueryError,
+    > {
+        panic!("fixture short-interest reader should not execute during readiness checks")
+    }
+}
+
+#[derive(Debug)]
+struct FixtureTechnicalIndicatorReader;
+
+impl jftrade_integration_futu::FutuIndicatorReadPort for FixtureTechnicalIndicatorReader {
+    fn query(
+        &self,
+        _query: &jftrade_integration_futu::TechnicalIndicatorQuery,
+    ) -> Result<
+        jftrade_integration_futu::TechnicalIndicatorResult,
+        jftrade_integration_futu::FutuIndicatorQueryError,
+    > {
+        panic!("fixture technical-indicator reader should not execute during readiness checks")
+    }
+
+    fn list(
+        &self,
+        _query: &jftrade_integration_futu::FutuIndicatorListQuery,
+    ) -> Result<
+        jftrade_integration_futu::FutuIndicatorList,
+        jftrade_integration_futu::FutuIndicatorQueryError,
+    > {
+        panic!("fixture technical-indicator reader should not execute during readiness checks")
+    }
+
+    fn calculate(
+        &self,
+        _query: &jftrade_integration_futu::IndicatorCalcQuery,
+    ) -> Result<
+        jftrade_integration_futu::FutuIndicatorCalculation,
+        jftrade_integration_futu::FutuIndicatorQueryError,
+    > {
+        panic!("fixture technical-indicator reader should not execute during readiness checks")
+    }
+}
+
+fn production_bundle_with_research_readers(
+    provider: MarketDataProvider,
+    opend_ready: bool,
+    institution_reader: bool,
+    short_interest_reader: bool,
+    technical_indicator_reader: bool,
+) -> (
+    TempDir,
+    crate::product::product_production_ports::ProductionPortBundle,
+) {
+    let directory = tempfile::tempdir().expect("production MCP temp directory");
+    let settings_path = directory.path().join("settings.json");
+    fs::write(&settings_path, b"{}").expect("write production MCP settings");
+    product_data_management::initialize_production_databases(&settings_path)
+        .expect("initialize production MCP databases");
+    let settings_store = Arc::new(SettingsFileStore::open(&settings_path).expect("settings store"));
+    let security = SecuritySettingsService::new(settings_store);
+    let active = Arc::new(ActiveProviderState::new(Some(provider)));
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    if institution_reader {
+        runtime.set_institution_reader(Some(Arc::new(FixtureInstitutionReader)));
+    }
+    if short_interest_reader {
+        runtime.set_short_interest_reader(Some(Arc::new(FixtureShortInterestReader)));
+    }
+    if technical_indicator_reader {
+        runtime.set_technical_indicator_reader(Some(Arc::new(FixtureTechnicalIndicatorReader)));
+    }
+    let mut config = ProductConfig::new(
+        SocketAddr::from(([127, 0, 0, 1], 0)),
+        &settings_path,
+        AccessPolicy::default(),
+    )
+    .expect("production MCP config")
+    .with_active_provider_state(active)
+    .with_trade_runtime(runtime);
+    if opend_ready {
+        config = config.with_market_data_runtime_status_port(Arc::new(ReadyRuntimeStatus));
+    }
+    config.capabilities = ProductCapabilities::all();
+    config.production = true;
+    let ports = crate::product::product_production_ports::production_ports(&config, &security)
+        .expect("production MCP ports");
+    (directory, ports)
 }
 
 fn runtime() -> Arc<ProductMcpServerRuntime> {
@@ -408,6 +600,27 @@ fn reviewed_mcp_descriptors_expose_strict_per_tool_schemas() {
         indicators["inputSchema"]["required"],
         json!(["instrumentId"])
     );
+    for property in [
+        "searchKey",
+        "langType",
+        "searchMode",
+        "shortName",
+        "klType",
+        "kLine",
+        "num",
+        "inputs",
+    ] {
+        assert!(
+            indicators["inputSchema"]["properties"]
+                .get(property)
+                .is_some(),
+            "research.technical_indicators missing {property}"
+        );
+    }
+    assert_eq!(
+        indicators["inputSchema"]["then"]["required"],
+        json!(["shortName", "langType", "klType", "kLine"])
+    );
 
     let screen_catalog = descriptors
         .iter()
@@ -550,9 +763,9 @@ fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(reviewed.len(), 69);
-    assert_eq!(native.len(), 64);
+    assert_eq!(native.len(), 67);
     assert!(native.is_subset(&reviewed));
-    assert_eq!(reviewed.len() - native.len(), 5);
+    assert_eq!(reviewed.len() - native.len(), 2);
 }
 
 #[test]
@@ -612,6 +825,146 @@ fn production_mcp_runtime_dependency_readiness_is_truthful() {
         ),
         "fail-closed"
     );
+}
+
+#[test]
+fn production_mcp_research_reader_tools_require_futu_opend_and_own_reader() {
+    let tools = [
+        "research.institutions",
+        "research.short_interest",
+        "research.technical_indicators",
+    ];
+
+    let (_directory, ports) =
+        production_bundle_with_research_readers(MarketDataProvider::Futu, true, true, true, true);
+    for name in tools {
+        assert_eq!(
+            mcp_tool_availability(&ports.mcp_catalog, Some(&ports), name),
+            "ready",
+            "{name} should be ready only with Futu, OpenD, and its typed reader"
+        );
+    }
+
+    let (_directory, ports) =
+        production_bundle_with_research_readers(MarketDataProvider::Futu, true, true, false, false);
+    assert_eq!(
+        mcp_tool_availability(&ports.mcp_catalog, Some(&ports), "research.institutions"),
+        "ready"
+    );
+    for name in ["research.short_interest", "research.technical_indicators"] {
+        assert_eq!(
+            mcp_tool_availability(&ports.mcp_catalog, Some(&ports), name),
+            "unavailable",
+            "{name} must not inherit readiness from another research reader"
+        );
+    }
+
+    for (provider, opend_ready, case) in [
+        (MarketDataProvider::Yfinance, true, "non-Futu provider"),
+        (MarketDataProvider::Futu, false, "OpenD not ready"),
+    ] {
+        let (_directory, ports) =
+            production_bundle_with_research_readers(provider, opend_ready, true, true, true);
+        for name in tools {
+            assert_eq!(
+                mcp_tool_availability(&ports.mcp_catalog, Some(&ports), name),
+                "unavailable",
+                "{name} must stay unavailable when {case}"
+            );
+        }
+    }
+
+    let (_directory, ports) = production_bundle_with_research_readers(
+        MarketDataProvider::Futu,
+        true,
+        false,
+        false,
+        false,
+    );
+    for name in tools {
+        assert_eq!(
+            mcp_tool_availability(&ports.mcp_catalog, Some(&ports), name),
+            "unavailable",
+            "{name} must stay unavailable when its typed reader is missing"
+        );
+    }
+}
+
+#[test]
+fn production_mcp_research_executors_forward_only_supported_route_queries() {
+    let (_directory, mut ports) = production_bundle();
+    let recorder = Arc::new(RecordingResearchRead::default());
+    ports.research_read = recorder.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    executor
+        .execute_production(
+            "research.institutions",
+            &json!({"operation": "list", "market": "US", "underlying": "US.AAPL"}),
+        )
+        .expect("institution MCP request");
+    executor
+        .execute_production(
+            "research.short_interest",
+            &json!({
+                "instrumentId": "US.AAPL",
+                "operation": "short_interest",
+                "startTime": "2026-01-01",
+                "endTime": "2026-02-01",
+                "period": "1d"
+            }),
+        )
+        .expect("short-interest MCP request");
+    executor
+        .execute_production(
+            "research.technical_indicators",
+            &json!({
+                "instrumentId": "US.AAPL",
+                "operation": "calculate",
+                "shortName": "MA",
+                "langType": 1,
+                "klType": 2,
+                "kLine": [{"time": "2026-01-02 09:30:00", "closePrice": 100.5}],
+                "num": 20,
+                "inputs": [{"index": 0, "value": "20"}],
+                "period": "1d"
+            }),
+        )
+        .expect("technical-indicator MCP request");
+
+    let calls = recorder.calls.lock().expect("read research MCP calls");
+    assert_eq!(calls.len(), 3);
+    assert_eq!(calls[0].0, "/api/v1/research/institutions");
+    assert_eq!(calls[0].1, "market=US&operation=list");
+    assert_eq!(calls[1].0, "/api/v1/research/short-interest/US.AAPL");
+    let short_interest_query = crate::product::product_query::QueryMap::parse(&calls[1].1)
+        .expect("parse short-interest MCP query");
+    assert_eq!(
+        short_interest_query.get_first("operation"),
+        Some("short_interest")
+    );
+    for key in ["startTime", "endTime", "period"] {
+        assert!(short_interest_query.get_first(key).is_none(), "{key}");
+    }
+    assert_eq!(calls[2].0, "/api/v1/research/technical-indicators/US.AAPL");
+    let query = crate::product::product_query::QueryMap::parse(&calls[2].1)
+        .expect("parse technical indicator MCP query");
+    assert_eq!(query.get_first("operation"), Some("calculate"));
+    assert_eq!(query.get_first("shortName"), Some("MA"));
+    assert_eq!(query.get_first("langType"), Some("1"));
+    assert_eq!(query.get_first("klType"), Some("2"));
+    assert_eq!(query.get_first("num"), Some("20"));
+    assert_eq!(
+        serde_json::from_str::<Value>(query.get_first("kLine").expect("kLine query"))
+            .expect("decode kLine query"),
+        json!([{"time": "2026-01-02 09:30:00", "closePrice": 100.5}])
+    );
+    assert_eq!(
+        serde_json::from_str::<Value>(query.get_first("inputs").expect("inputs query"))
+            .expect("decode inputs query"),
+        json!([{"index": 0, "value": "20"}])
+    );
+    assert!(query.get_first("period").is_none());
 }
 
 #[test]
@@ -882,6 +1235,84 @@ fn modern_tool_call_rejects_arguments_outside_the_advertised_schema() {
 }
 
 #[test]
+fn modern_technical_indicator_call_validates_calculation_payload() {
+    let runtime = ProductMcpServerRuntime::with_executor(
+        technical_indicator_ready_catalog(),
+        Arc::new(SuccessExecutor),
+    );
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+
+    let (status, response) = request_modern_with_status(
+        port,
+        "tools/call",
+        1,
+        Some("research.technical_indicators"),
+        json!({
+            "name": "research.technical_indicators",
+            "arguments": {
+                "instrumentId": "US.AAPL",
+                "operation": "list",
+                "searchKey": "MA",
+                "langType": 0,
+                "searchMode": 1
+            }
+        }),
+    );
+    assert_eq!(status, 200, "response={response}");
+
+    let arguments = json!({
+        "instrumentId": "US.AAPL",
+        "operation": "calculate",
+        "shortName": "MA",
+        "langType": 1,
+        "klType": 2,
+        "kLine": [{"time": "2026-01-02 09:30:00", "closePrice": 100.5}],
+        "num": 20,
+        "inputs": [{"index": 0, "value": "20"}]
+    });
+    let (status, response) = request_modern_with_status(
+        port,
+        "tools/call",
+        2,
+        Some("research.technical_indicators"),
+        json!({"name": "research.technical_indicators", "arguments": arguments}),
+    );
+    assert_eq!(status, 200, "response={response}");
+    assert_eq!(
+        response["result"]["structuredContent"]["tool"],
+        "research.technical_indicators"
+    );
+
+    let (status, response) = request_modern_with_status(
+        port,
+        "tools/call",
+        3,
+        Some("research.technical_indicators"),
+        json!({
+            "name": "research.technical_indicators",
+            "arguments": {
+                "instrumentId": "US.AAPL",
+                "operation": "calculate",
+                "langType": 1,
+                "klType": 2,
+                "kLine": []
+            }
+        }),
+    );
+    assert_eq!(status, 400, "response={response}");
+    assert_eq!(response["error"]["code"], -32602);
+    assert_eq!(
+        response["error"]["message"],
+        "invalid arguments for research.technical_indicators: arguments.shortName is required"
+    );
+
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+#[test]
 fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success() {
     let bindings = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
         Some("yfinance"),
@@ -892,6 +1323,18 @@ fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success()
         ("instrument", ProductionAdapterBinding::ExternalUnavailable),
         ("financials", ProductionAdapterBinding::Ready),
         ("valuation", ProductionAdapterBinding::Ready),
+        (
+            "institutions",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "short_interest",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
+        (
+            "technical_indicators",
+            ProductionAdapterBinding::ExternalUnavailable,
+        ),
         ("news", ProductionAdapterBinding::Ready),
     ]);
     let catalog = Arc::new(
@@ -908,14 +1351,14 @@ fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success()
         port,
         "tools/call",
         1,
-        Some("research.institutions"),
-        json!({"name": "research.institutions", "arguments": {}}),
+        Some("strategy.pine_spec"),
+        json!({"name": "strategy.pine_spec", "arguments": {}}),
     );
     assert_eq!(status, 400, "response={response}");
     assert_eq!(response["error"]["code"], -32602);
     assert_eq!(
         response["error"]["message"],
-        "tool \"research.institutions\" is unavailable in the Rust MCP runtime"
+        "tool \"strategy.pine_spec\" is unavailable in the Rust MCP runtime"
     );
     assert!(response.get("result").is_none(), "response={response}");
 

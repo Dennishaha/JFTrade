@@ -80,6 +80,9 @@ impl ProductionToolCatalog {
             ("instrument", unavailable),
             ("financials", unavailable),
             ("valuation", unavailable),
+            ("institutions", unavailable),
+            ("short_interest", unavailable),
+            ("technical_indicators", unavailable),
             ("news", unavailable),
         ]);
         Self::from_bindings_with_research(bindings, &research)
@@ -423,6 +426,45 @@ impl ProductionToolCatalog {
                         .get(operation)
                         .copied()
                         .unwrap_or(ProductionAdapterBinding::ExternalUnavailable)
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            "institutions" => {
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.institution_reader_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            "short_interest" => {
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.short_interest_reader_available())
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            "technical_indicators" => {
+                if snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.technical_indicator_reader_available())
+                {
+                    ProductionAdapterBinding::Ready
                 } else {
                     ProductionAdapterBinding::ExternalUnavailable
                 }

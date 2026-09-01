@@ -37,7 +37,7 @@ pub(crate) fn mcp_tool_availability(
 /// MCP research names share a small number of production route adapters, but
 /// their readiness is not interchangeable. Keep operation-level research
 /// checks here so a healthy helper cannot make an unsupported market feed (or
-/// Pine/technical tool) appear callable.
+/// Pine tool) appear callable.
 fn mcp_port_binding(ports: &ProductionPortBundle, name: &str) -> Option<ProductionAdapterBinding> {
     match name {
         "alerts.price.list" | "alerts.option_event.list" => {
@@ -48,6 +48,9 @@ fn mcp_port_binding(ports: &ProductionPortBundle, name: &str) -> Option<Producti
         "research.news" => ports.adapter_binding(ProductionRouteAdapter::MarketDataNewsSearchRead),
         "research.instrument" => {
             ports.research_operation_binding("/api/v1/research/instruments/US.MCP_READINESS")
+        }
+        "research.institutions" => {
+            ports.research_operation_binding("/api/v1/research/institutions")
         }
         "research.financials" => {
             ports.research_operation_binding("/api/v1/research/financials/US.MCP_READINESS")
@@ -64,6 +67,11 @@ fn mcp_port_binding(ports: &ProductionPortBundle, name: &str) -> Option<Producti
         "research.valuation" => {
             ports.research_operation_binding("/api/v1/research/valuation/US.MCP_READINESS")
         }
+        "research.short_interest" => {
+            ports.research_operation_binding("/api/v1/research/short-interest/US.MCP_READINESS")
+        }
+        "research.technical_indicators" => ports
+            .research_operation_binding("/api/v1/research/technical-indicators/US.MCP_READINESS"),
         "research.rankings" => ports.adapter_binding(ProductionRouteAdapter::ResearchRankingsRead),
         "research.industry" => {
             ports.adapter_binding(ProductionRouteAdapter::ResearchIndustriesRead)
@@ -124,11 +132,14 @@ pub(crate) fn mcp_tool_adapter(name: &str) -> Option<ProductionRouteAdapter> {
         "risk.state" | "risk.events" => ProductionRouteAdapter::SystemRead,
         "alerts.price.list" | "alerts.option_event.list" => ProductionRouteAdapter::AlertsRead,
         "research.instrument"
+        | "research.institutions"
         | "research.financials"
         | "research.analyst"
         | "research.ownership"
         | "research.corporate_actions"
         | "research.valuation"
+        | "research.short_interest"
+        | "research.technical_indicators"
         | "research.rankings"
         | "research.industry"
         | "research.calendar"

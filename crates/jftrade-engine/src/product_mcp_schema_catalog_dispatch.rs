@@ -39,11 +39,11 @@ fn product_schema_for(name: &str) -> Option<Value> {
         | "market.capital_flow"
         | "derivatives.option_chain"
         | "derivatives.option_analysis"
-        | "research.news"
-        | "research.technical_indicators" => Some(strict_object(
+        | "research.news" => Some(strict_object(
             read_properties(instrument_operation_properties(name)),
             &["instrumentId"],
         )),
+        "research.technical_indicators" => Some(technical_indicator_schema()),
         "derivatives.option_screen"
         | "derivatives.option_events"
         | "derivatives.warrants"

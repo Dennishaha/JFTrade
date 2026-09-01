@@ -504,6 +504,18 @@ pub(crate) fn production_ports(
                 .copied()
                 .unwrap_or(ProductionAdapterBinding::ExternalUnavailable),
         ),
+        (
+            "institutions",
+            research_tool_binding(&provider_snapshot, config, "institutions"),
+        ),
+        (
+            "short_interest",
+            research_tool_binding(&provider_snapshot, config, "short_interest"),
+        ),
+        (
+            "technical_indicators",
+            research_tool_binding(&provider_snapshot, config, "technical_indicators"),
+        ),
     ]);
     let tool_catalog = Arc::new(
         ProductionToolCatalog::from_bindings_with_research(

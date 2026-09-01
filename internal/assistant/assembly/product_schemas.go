@@ -36,9 +36,11 @@ func productToolInputSchema(name string) map[string]any {
 		return marketSeriesToolSchema(true)
 	case "market.depth":
 		return marketSeriesToolSchema(false)
+	case "research.technical_indicators":
+		return technicalIndicatorToolSchema()
 	case "market.instrument_profile", "market.intraday", "market.ticks",
 		"market.broker_queue", "market.capital_flow", "derivatives.option_chain",
-		"derivatives.option_analysis", "research.news", "research.technical_indicators":
+		"derivatives.option_analysis", "research.news":
 		return objectSchema(readProperties(instrumentOperationProperties(name)), []string{"instrumentId"})
 	case "derivatives.option_screen", "derivatives.option_events", "derivatives.warrants",
 		"derivatives.futures", "research.institutions", "research.industry",
@@ -193,6 +195,42 @@ func instrumentOperationProperties(name string) map[string]any {
 	properties["endTime"] = stringSchema(1, 40)
 	properties["period"] = stringSchema(1, 20)
 	return properties
+}
+
+func technicalIndicatorToolSchema() map[string]any {
+	kline := objectSchema(map[string]any{
+		"time": stringSchema(1, 80), "isBlank": map[string]any{"type": "boolean"},
+		"highPrice": map[string]any{"type": "number"}, "openPrice": map[string]any{"type": "number"},
+		"lowPrice": map[string]any{"type": "number"}, "closePrice": map[string]any{"type": "number"},
+		"lastClosePrice": map[string]any{"type": "number"},
+		"volume":         map[string]any{"type": "integer", "minimum": 0},
+		"turnover":       map[string]any{"type": "number"}, "turnoverRate": map[string]any{"type": "number"},
+		"pe": map[string]any{"type": "number"}, "changeRate": map[string]any{"type": "number"},
+		"timestamp": map[string]any{"type": "number"}, "hpVolume": map[string]any{"type": "number"},
+	}, []string{"time"})
+	input := objectSchema(map[string]any{
+		"index": map[string]any{"type": "integer", "minimum": 0},
+		"value": stringSchema(0, 256),
+	}, []string{"index"})
+	properties := readProperties(instrumentOperationProperties("research.technical_indicators"))
+	properties["searchKey"] = stringSchema(0, 128)
+	properties["langType"] = map[string]any{"type": "integer", "minimum": 0, "maximum": 2}
+	properties["searchMode"] = map[string]any{"type": "integer", "enum": []int{0, 1}}
+	properties["shortName"] = stringSchema(1, 128)
+	properties["klType"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 15}
+	properties["kLine"] = map[string]any{"type": "array", "items": kline, "maxItems": 2000}
+	properties["num"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 2000}
+	properties["inputs"] = map[string]any{"type": "array", "items": input, "maxItems": 100}
+	schema := objectSchema(properties, []string{"instrumentId"})
+	schema["if"] = map[string]any{
+		"properties": map[string]any{"operation": map[string]any{"const": "calculate"}},
+		"required":   []string{"operation"},
+	}
+	schema["then"] = map[string]any{
+		"required":   []string{"shortName", "langType", "klType", "kLine"},
+		"properties": map[string]any{"langType": map[string]any{"enum": []int{1, 2}}},
+	}
+	return schema
 }
 
 func operationProperties(name string) map[string]any {

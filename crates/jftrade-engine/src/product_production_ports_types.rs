@@ -109,12 +109,33 @@ pub(crate) fn research_tool_binding(
         // route so provider transitions cannot leave the screen tool Ready
         // after switching away from a healthy helper.
         "screen" | "screens" => snapshot.helper_ready && helper_provider,
-        // The compatibility catalog retains these broker operations, but the
-        // production bundle has no technical/short-interest/institution
-        // reader. They must remain explicitly unavailable until a typed
-        // adapter is installed.
-        "technical" | "technical_indicators" | "short-interest" | "short_interest"
-        | "institutions" => false,
+        // These broker operations are Futu/OpenD-backed.  Keep each reader's
+        // readiness independent so one installed reader cannot make the
+        // other research tools appear callable.
+        "technical" | "technical_indicators" => {
+            snapshot.provider == Some(MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && config
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.technical_indicator_reader_available())
+        }
+        "short-interest" | "short_interest" => {
+            snapshot.provider == Some(MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && config
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.short_interest_reader_available())
+        }
+        "institutions" => {
+            snapshot.provider == Some(MarketDataProvider::Futu)
+                && snapshot.opend_ready
+                && config
+                    .trade_runtime
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.institution_reader_available())
+        }
         _ => false,
     };
     if ready {

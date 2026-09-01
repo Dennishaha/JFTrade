@@ -248,6 +248,7 @@ pub use technical_indicator_query::{
     FutuIndicatorReadPort, FutuTechnicalIndicatorReader, IndicatorCalcQuery, IndicatorKline,
     IndicatorListQuery, TechnicalIndicatorCalculation, TechnicalIndicatorInfo,
     TechnicalIndicatorList, TechnicalIndicatorQuery, TechnicalIndicatorReadPort,
+    TechnicalIndicatorResult,
 };
 pub use trade_proto::ResponseError;
 pub use trade_session::{

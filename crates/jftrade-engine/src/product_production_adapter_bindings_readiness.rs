@@ -61,7 +61,7 @@ impl ProductionPortBundle {
     /// Resolve readiness for an individual research operation. The public
     /// research surface is intentionally one `ResearchRead` adapter, but its
     /// implementations are not uniform: helper-backed instrument routes and
-    /// the Futu valuation reader have independent prerequisites while the
+    /// the Futu research readers have independent prerequisites while the
     /// remaining baseline routes are deliberately unavailable.
     pub(crate) fn research_operation_binding(
         &self,
@@ -104,25 +104,37 @@ impl ProductionPortBundle {
         let valuation_route = path
             .strip_prefix("/api/v1/research/valuation/")
             .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
+        let institutions_route = path == "/api/v1/research/institutions";
+        let short_interest_route = path
+            .strip_prefix("/api/v1/research/short-interest/")
+            .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
+        let technical_indicators_route = path
+            .strip_prefix("/api/v1/research/technical-indicators/")
+            .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
         // These public research operations are present in the compatibility
-        // route catalog, but no production helper/OpenD reader is wired for
-        // them yet. Keep the distinction explicit so adding a broad helper
-        // route later cannot accidentally advertise a synthetic Ready state.
-        let unsupported_route = matches!(
-            path,
-            "/api/v1/research/institutions" | "/api/v1/research/screens"
-        )
-            || [
-                "/api/v1/research/short-interest/",
-                "/api/v1/research/technical-indicators/",
-            ]
-            .iter()
-            .any(|prefix| {
-                path.strip_prefix(prefix)
-                    .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'))
-            });
+        // route catalog, but no production adapter is wired for screens yet.
+        // Keep the distinction explicit so adding a broad helper route later
+        // cannot accidentally advertise a synthetic Ready state.
+        let unsupported_route = path == "/api/v1/research/screens";
+        let futu_reader_ready =
+            |reader_available: fn(&super::super::SharedTradeReadRuntime) -> bool| {
+                snapshot.provider == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| reader_available(runtime))
+            };
         let ready = if unsupported_route {
             false
+        } else if institutions_route {
+            futu_reader_ready(super::super::SharedTradeReadRuntime::institution_reader_available)
+        } else if short_interest_route {
+            futu_reader_ready(super::super::SharedTradeReadRuntime::short_interest_reader_available)
+        } else if technical_indicators_route {
+            futu_reader_ready(
+                super::super::SharedTradeReadRuntime::technical_indicator_reader_available,
+            )
         } else if corporate_actions_route {
             match snapshot.provider {
                 Some(jftrade_settings::MarketDataProvider::Futu) => {

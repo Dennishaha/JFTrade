@@ -96,9 +96,9 @@ pub(crate) const REVIEWED_READ_ONLY_TOOLS: &[&str] = &[
 /// MCP tools with a native Rust production executor. The reviewed Go catalog
 /// remains wire-compatible at 69 names, but only this explicit set may ever
 /// be projected as `ready` or dispatched by the Rust listener. Research
-/// capabilities without a concrete Rust port (institutions, short interest,
-/// technical indicators, and Pine specification/validation) remain
-/// fail-closed until their production adapters are installed.
+/// capabilities without a concrete Rust port remain fail-closed until their
+/// production adapters are installed. At present only Pine specification and
+/// validation remain outside the native MCP executor.
 pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "system.status",
     "system.futu_opend",
@@ -152,12 +152,15 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "alerts.price.list",
     "alerts.option_event.list",
     "research.instrument",
+    "research.institutions",
     "research.financials",
     "research.analyst",
     "research.ownership",
     "research.corporate_actions",
     "research.valuation",
     "research.news",
+    "research.short_interest",
+    "research.technical_indicators",
     "research.screen",
     "research.screen_catalog",
     "research.calendar",

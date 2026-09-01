@@ -45,6 +45,7 @@ func TestTypedProductCapabilitiesDriveFeatureAndAssistantSchemas(t *testing.T) {
 func TestAssistantSchemasCoverProviderAndResearchExtensions(t *testing.T) {
 	for _, name := range []string{
 		"research.screen_catalog", "market.candles", "market.depth", "research.calendar",
+		"research.technical_indicators",
 	} {
 		schema := productToolInputSchema(name)
 		if schema["additionalProperties"] != false {
@@ -84,6 +85,16 @@ func TestAssistantSchemasCoverProviderAndResearchExtensions(t *testing.T) {
 	operation := screen["operation"].(map[string]any)
 	if !reflect.DeepEqual(operation["enum"], []string{"stock_v2"}) {
 		t.Fatalf("research.screen operation schema = %#v, want V2 only", operation)
+	}
+	indicators := productToolInputSchema("research.technical_indicators")
+	indicatorProperties := indicators["properties"].(map[string]any)
+	for _, field := range []string{"searchKey", "langType", "searchMode", "shortName", "klType", "kLine", "num", "inputs"} {
+		if _, ok := indicatorProperties[field]; !ok {
+			t.Fatalf("research.technical_indicators missing %q: %#v", field, indicatorProperties)
+		}
+	}
+	if got := indicators["then"].(map[string]any)["required"]; !reflect.DeepEqual(got, []string{"shortName", "langType", "klType", "kLine"}) {
+		t.Fatalf("technical indicator calculation requirements = %#v", got)
 	}
 }
 

@@ -286,6 +286,18 @@ fn alerts_and_research_tools_have_exact_production_adapters() {
             ProductionRouteAdapter::ResearchRead,
         ),
         ("research.valuation", ProductionRouteAdapter::ResearchRead),
+        (
+            "research.institutions",
+            ProductionRouteAdapter::ResearchRead,
+        ),
+        (
+            "research.short_interest",
+            ProductionRouteAdapter::ResearchRead,
+        ),
+        (
+            "research.technical_indicators",
+            ProductionRouteAdapter::ResearchRead,
+        ),
         ("research.rankings", ProductionRouteAdapter::ResearchRead),
         ("research.industry", ProductionRouteAdapter::ResearchRead),
         ("research.calendar", ProductionRouteAdapter::ResearchRead),
@@ -307,13 +319,7 @@ fn alerts_and_research_tools_have_exact_production_adapters() {
         assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
         assert_eq!(mcp_tool_adapter(name), Some(adapter));
     }
-    for name in [
-        "research.institutions",
-        "research.short_interest",
-        "research.technical_indicators",
-        "strategy.pine_spec",
-        "strategy.validate_pine",
-    ] {
+    for name in ["strategy.pine_spec", "strategy.validate_pine"] {
         assert!(!PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
         assert_eq!(mcp_tool_adapter(name), None);
     }
