@@ -89,7 +89,7 @@ fn core_schema_for(name: &str) -> Option<Value> {
         | "system.status" => Some(default_query_schema()),
         "system.runtime_dependencies" => Some(strict_object(Map::new(), &[])),
         "research.screen_catalog" => Some(strict_object(
-            read_properties(object([("market", enum_schema(&["HK", "US", "SH", "SZ"]))])),
+            object([("market", enum_schema(&["HK", "US", "SH", "SZ"]))]),
             &[],
         )),
         "watchlist.list" => Some(watchlist_schema()),

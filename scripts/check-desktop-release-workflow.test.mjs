@@ -26,8 +26,11 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
   assert.match(workflow, /run_attempt/);
   assert.match(workflow, /actions\/download-artifact@v8[\s\S]*name: desktop-release-macos/);
   assert.match(workflow, /actions\/artifacts\/\$CANDIDATE_ARTIFACT_ID\/zip/);
-  assert.match(qualificationWorkflow, /github-token: \$\{\{ github\.token \}\}/);
-  assert.match(qualificationWorkflow, /repository: \$\{\{ github\.repository \}\}/);
+  assert.match(qualificationWorkflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(
+    qualificationWorkflow,
+    /gh api[\s\S]*repos\/\$REPOSITORY\/actions\/artifacts\/\$artifact_id\/zip/,
+  );
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_PUBKEY:/);
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
@@ -87,10 +90,20 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /workflow_dispatch:/);
   assert.match(qualificationWorkflow, /release_ref:/);
   assert.match(qualificationWorkflow, /source_run_id:/);
-  assert.match(qualificationWorkflow, /actions\/download-artifact@v8/);
-  assert.match(qualificationWorkflow, /run-id:/);
-  assert.match(qualificationWorkflow, /github-token:/);
-  assert.match(qualificationWorkflow, /repository:/);
+  assert.match(qualificationWorkflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(qualificationWorkflow, /Download producer binding artifact by immutable id/);
+  assert.match(qualificationWorkflow, /Download source artifacts by immutable ids/);
+  assert.match(
+    qualificationWorkflow,
+    /artifact_id="\$\(jq -r '\.id' <<<"\$item"\)"[\s\S]*actions\/artifacts\/\$artifact_id\/zip/,
+  );
+  assert.doesNotMatch(qualificationWorkflow, /actions\/download-artifact@/);
+  assert.doesNotMatch(qualificationWorkflow, /^\s*run-id:/m);
+  assert.doesNotMatch(qualificationWorkflow, /^\s*github-token:/m);
+  assert.doesNotMatch(
+    qualificationWorkflow,
+    /^\s*repository:\s*\$\{\{\s*github\.repository\s*\}\}\s*$/m,
+  );
   assert.match(qualificationWorkflow, /check-stage9-closeout\.mjs --candidate-static/);
   assert.match(qualificationWorkflow, /check-release-candidate\.mjs/);
   assert.match(qualificationWorkflow, /candidate-evidence-config\.json/);
@@ -109,7 +122,6 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /EVIDENCE_RUN_ATTEMPT/);
   assert.match(qualificationWorkflow, /workflow_run.id/);
   assert.match(qualificationWorkflow, /digest.*sha256/);
-  assert.match(qualificationWorkflow, /Download external release evidence artifact/);
   assert.match(qualificationWorkflow, /release-evidence-inputs\.schema\.json/);
   assert.match(qualificationWorkflow, /validateExternalEvidenceManifest/);
   assert.match(qualificationWorkflow, /must not traverse a symlink/);
@@ -120,10 +132,7 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /external evidence manifest missing valid/);
   assert.match(qualificationWorkflow, /candidate-inputs\/\*\*/);
   assert.match(qualificationWorkflow, /source-artifact-metadata\.json/);
-  assert.match(qualificationWorkflow, /Download macOS updater source artifact/);
-  assert.match(qualificationWorkflow, /Download Linux updater source artifact/);
-  assert.match(qualificationWorkflow, /Download Windows x64 updater source artifact/);
-  assert.match(qualificationWorkflow, /Download Windows ARM64 updater source artifact/);
+  assert.match(qualificationWorkflow, /Download producer staging payload by immutable id/);
   assert.match(qualificationWorkflow, /Seal immutable release candidate bundle/);
   assert.match(qualificationWorkflow, /sealed-release-bundle\.json/);
   assert.match(qualificationWorkflow, /sourceUpdaterArtifacts/);

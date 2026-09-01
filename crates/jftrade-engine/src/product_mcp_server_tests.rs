@@ -671,21 +671,11 @@ fn reviewed_mcp_descriptors_expose_strict_per_tool_schemas() {
         .iter()
         .find(|descriptor| descriptor["name"] == "research.screen_catalog")
         .expect("research.screen_catalog descriptor");
-    for property in [
-        "brokerId",
-        "accountId",
-        "market",
-        "cursor",
-        "pageSize",
-        "refresh",
-    ] {
-        assert!(
-            screen_catalog["inputSchema"]["properties"]
-                .get(property)
-                .is_some(),
-            "research.screen_catalog missing {property}"
-        );
-    }
+    assert_eq!(
+        screen_catalog["inputSchema"]["properties"],
+        json!({"market": {"type": "string", "enum": ["HK", "US", "SH", "SZ"]}}),
+        "research.screen_catalog must retain the Go catalog's market-only input"
+    );
 
     let macro_research = descriptors
         .iter()
@@ -721,6 +711,50 @@ fn pine_mcp_schemas_match_canonical_go_fixture() {
             "Rust schema drifted from Go fixture: {name}"
         );
     }
+}
+
+#[test]
+fn reviewed_mcp_schemas_match_canonical_go_fixture_deeply() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/mcp-tool-schemas.json"
+    ))
+    .expect("MCP tool schema fixture");
+    assert_eq!(fixture["version"], "stage9.mcp-tool-schemas.v1");
+    let schemas = fixture["schemas"]
+        .as_object()
+        .expect("MCP schema fixture schemas");
+    assert_eq!(
+        fixture["toolCount"],
+        json!(REVIEWED_READ_ONLY_TOOLS.len()),
+        "MCP schema fixture toolCount must match the reviewed catalog"
+    );
+    assert_eq!(schemas.len(), REVIEWED_READ_ONLY_TOOLS.len());
+    let descriptors = tool_descriptors(&catalog());
+    assert_eq!(descriptors.len(), REVIEWED_READ_ONLY_TOOLS.len());
+    let mut mismatches = Vec::new();
+    for name in REVIEWED_READ_ONLY_TOOLS {
+        let expected = schemas
+            .get(*name)
+            .unwrap_or_else(|| panic!("fixture schema missing {name}"));
+        let actual = descriptors
+            .iter()
+            .find(|descriptor| descriptor["name"] == *name)
+            .and_then(|descriptor| descriptor.get("inputSchema"))
+            .unwrap_or_else(|| panic!("Rust descriptor schema missing {name}"));
+        if actual != expected {
+            mismatches.push((*name).to_owned());
+        }
+    }
+    for name in schemas.keys() {
+        assert!(
+            REVIEWED_READ_ONLY_TOOLS.contains(&name.as_str()),
+            "fixture contains unreviewed MCP schema {name}"
+        );
+    }
+    assert!(
+        mismatches.is_empty(),
+        "Rust schemas drifted from Go fixture: {mismatches:?}"
+    );
 }
 
 #[test]
@@ -921,20 +955,19 @@ fn reviewed_mcp_argument_validation_enforces_schema_constraints() {
         )
         .is_err()
     );
-    assert!(
-        validate_tool_arguments(
-            "research.screen_catalog",
-            &json!({
-                "brokerId": "futu",
-                "accountId": "account",
-                "market": "US",
-                "cursor": "next",
-                "pageSize": 20,
-                "refresh": true
-            })
-        )
-        .is_ok()
-    );
+    assert!(validate_tool_arguments("research.screen_catalog", &json!({"market": "US"})).is_ok());
+    for (field, arguments) in [
+        ("brokerId", json!({"market": "US", "brokerId": "futu"})),
+        ("accountId", json!({"market": "US", "accountId": "account"})),
+        ("cursor", json!({"market": "US", "cursor": "next"})),
+        ("pageSize", json!({"market": "US", "pageSize": 20})),
+        ("refresh", json!({"market": "US", "refresh": true})),
+    ] {
+        assert!(
+            validate_tool_arguments("research.screen_catalog", &arguments).is_err(),
+            "research.screen_catalog must reject extra field {field}"
+        );
+    }
     assert!(
         validate_tool_arguments(
             "research.macro",

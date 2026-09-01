@@ -119,16 +119,34 @@ fn portfolio_schema(orders: bool) -> Value {
 fn backtest_runs_schema() -> Value {
     strict_object(
         object([
-            ("definitionId", json!({"type": "string"})),
-            ("definitionVersion", json!({"type": "string"})),
-            ("status", json!({"type": "string"})),
+            (
+                "definitionId",
+                json!({"type": "string", "description": "可选策略定义 ID 过滤。"}),
+            ),
+            (
+                "definitionVersion",
+                json!({"type": "string", "description": "可选不可变策略版本号过滤。"}),
+            ),
+            (
+                "status",
+                json!({"type": "string", "description": "可选回测状态过滤，不区分大小写。"}),
+            ),
             (
                 "marketDataProvider",
-                enum_schema(&["futu", "yfinance", "akshare"]),
+                json!({
+                    "type": "string",
+                    "enum": ["futu", "yfinance", "akshare"],
+                    "description": "可选行情提供者过滤。"
+                }),
             ),
             (
                 "limit",
-                json!({"type": "integer", "minimum": 1, "maximum": 200}),
+                json!({
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "description": "最多返回的匹配运行数。"
+                }),
             ),
         ]),
         &[],
@@ -143,7 +161,13 @@ fn backtest_result_view_schema() -> Value {
                 "view",
                 enum_schema(&["summary", "chart", "orders", "logs", "warnings", "errors"]),
             ),
-            ("resolution", json!({"type": "string"})),
+            (
+                "resolution",
+                json!({
+                    "type": "string",
+                    "description": "chart 视图精度，auto 或 1m/5m/1h/1d 等；不得细于原生周期。"
+                }),
+            ),
             ("startTime", json!({"type": "string"})),
             ("endTime", json!({"type": "string"})),
             (
@@ -169,7 +193,12 @@ fn backtest_kline_sync_status_schema() -> Value {
             ("taskId", json!({"type": "string"})),
             (
                 "waitForCompletionMs",
-                json!({"type": "integer", "minimum": 0, "maximum": 25000}),
+                json!({
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 25000,
+                    "description": "可选短等待，最多 25000ms。"
+                }),
             ),
         ]),
         &["taskId"],
@@ -180,7 +209,7 @@ fn strategy_definition_versions_list_schema() -> Value {
     strict_object(
         object([(
             "definitionId",
-            json!({"type": "string"}), /* description is wire metadata */
+            json!({"type": "string", "description": "策略定义 ID。"}),
         )]),
         &["definitionId"],
     )
@@ -189,8 +218,14 @@ fn strategy_definition_versions_list_schema() -> Value {
 fn strategy_definition_versions_get_schema() -> Value {
     strict_object(
         object([
-            ("definitionId", json!({"type": "string"})),
-            ("version", json!({"type": "string"})),
+            (
+                "definitionId",
+                json!({"type": "string", "description": "策略定义 ID。"}),
+            ),
+            (
+                "version",
+                json!({"type": "string", "description": "不可变策略版本号，例如 0.1.0。"}),
+            ),
         ]),
         &["definitionId", "version"],
     )

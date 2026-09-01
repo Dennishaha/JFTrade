@@ -69,7 +69,7 @@ fn operation_properties_with(name: &str, operations: &[&str]) -> Properties {
                 "ivPercentileMin",
                 "ivPercentileMax",
             ] {
-                properties.insert(key.to_owned(), calendar_numeric_filter_schema(Some(100.0)));
+                properties.insert(key.to_owned(), calendar_numeric_filter_schema(Some(100)));
             }
         }
         "research.macro" => {
@@ -207,7 +207,7 @@ fn common_capability_properties() -> Properties {
     ])
 }
 
-fn calendar_numeric_filter_schema(maximum: Option<f64>) -> Value {
+fn calendar_numeric_filter_schema(maximum: Option<i64>) -> Value {
     let mut number = json!({"type": "number", "minimum": 0});
     if let Some(maximum) = maximum {
         number["maximum"] = json!(maximum);
