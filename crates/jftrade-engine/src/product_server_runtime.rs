@@ -104,6 +104,10 @@ impl ProductWebServerRuntime {
         let Some(mut server) = state.server.take() else {
             return Ok(());
         };
+        // Do not hold `inner` while joining the HTTP thread. An in-flight
+        // request may call `allows_origin`, which needs the same mutex before
+        // it can finish and let graceful shutdown complete.
+        drop(state);
         server
             .shutdown_blocking()
             .map_err(|error| error.to_string())
@@ -185,7 +189,9 @@ impl jftrade_settings::SecurityRuntimePort for ProductWebServerRuntime {
         }
         let Some(desired_bind) = desired else {
             state.bind = None;
-            if let Some(mut server) = state.server.take() {
+            let server = state.server.take();
+            drop(state);
+            if let Some(mut server) = server {
                 server
                     .shutdown_blocking()
                     .map_err(|error| error.to_string())?;
@@ -204,11 +210,13 @@ impl jftrade_settings::SecurityRuntimePort for ProductWebServerRuntime {
             let old_bind = current.clone().unwrap_or_default();
             let old_server = state.server.take();
             state.bind = None;
+            drop(state);
             if let Some(mut server) = old_server {
                 server
                     .shutdown_blocking()
                     .map_err(|error| error.to_string())?;
             }
+            let mut state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
             match Self::start_locked(&mut state, &desired_bind) {
                 Ok(server) => {
                     state.bind = Some(desired_bind);
@@ -235,6 +243,7 @@ impl jftrade_settings::SecurityRuntimePort for ProductWebServerRuntime {
             let server = Self::start_locked(&mut state, &desired_bind)?;
             let old_server = state.server.replace(server);
             state.bind = Some(desired_bind);
+            drop(state);
             if let Some(mut old_server) = old_server {
                 old_server
                     .shutdown_blocking()

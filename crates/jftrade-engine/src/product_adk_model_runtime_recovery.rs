@@ -154,7 +154,23 @@ impl ProductionAdkChatRuntime {
             }
             match self.resume_approval(&run.id) {
                 Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
-                Err(error @ AdkChatPortError::Unavailable(_)) => {
+                Err(error) if is_provider_configuration_error(&error) => {
+                    // Invalid provider endpoint/auth configuration is not a
+                    // transient upstream failure, but it must not spin the
+                    // recovery scanner or turn a durable RUNNING request
+                    // into a fabricated terminal success. Probe again only
+                    // after the bounded maximum interval, so a settings
+                    // correction can still resume the request.
+                    if let Err(persist_error) =
+                        self.persist_provider_retry_for_run(&run.id, &run.session_id, &error, false)
+                    {
+                        eprintln!(
+                            "ADK durable recovery could not persist blocked provider run {}: {persist_error:?}",
+                            run.id
+                        );
+                    }
+                }
+                Err(error) if is_provider_configuration_unavailable(&error) => {
                     // Provider resolution/configuration failures are not
                     // transient retry errors, but leaving the run in a
                     // recoverable state without a marker would make the
@@ -181,21 +197,12 @@ impl ProductionAdkChatRuntime {
                         );
                     }
                 }
-                Err(error) if is_provider_configuration_error(&error) => {
-                    // Invalid provider endpoint/auth configuration is not a
-                    // transient upstream failure, but it must not spin the
-                    // recovery scanner or turn a durable RUNNING request
-                    // into a fabricated terminal success. Probe again only
-                    // after the bounded maximum interval, so a settings
-                    // correction can still resume the request.
-                    if let Err(persist_error) =
-                        self.persist_provider_retry_for_run(&run.id, &run.session_id, &error, false)
-                    {
-                        eprintln!(
-                            "ADK durable recovery could not persist blocked provider run {}: {persist_error:?}",
-                            run.id
-                        );
-                    }
+                Err(error @ AdkChatPortError::Unavailable(_)) => {
+                    // Storage, lease and cancellation failures are not
+                    // provider outages. Leave the durable run untouched and
+                    // let the next scan retry after the underlying condition
+                    // has recovered.
+                    eprintln!("ADK durable recovery skipped run {}: {error:?}", run.id);
                 }
                 Err(error) => eprintln!(
                     "ADK durable recovery could not resume run {}: {error:?}",
@@ -258,6 +265,23 @@ fn is_provider_configuration_error(error: &AdkChatPortError) -> bool {
                     | "MODEL_PROVIDER_FORBIDDEN"
             )
     )
+}
+
+fn is_provider_configuration_unavailable(error: &AdkChatPortError) -> bool {
+    let AdkChatPortError::Unavailable(message) = error else {
+        return false;
+    };
+    let message = message.to_ascii_lowercase();
+    (message.contains("provider") || message.contains("model"))
+        && [
+            "not configured",
+            "disabled",
+            "unavailable",
+            "baseurl",
+            "api key",
+        ]
+        .iter()
+        .any(|marker| message.contains(marker))
 }
 
 fn recoverable_state(payload: &Value) -> bool {
@@ -351,7 +375,12 @@ pub(super) fn retry_details(error: &AdkChatPortError) -> (u16, String, String) {
 mod tests {
     use super::super::is_provider_retryable_error;
     use super::*;
+    use crate::product::product_adk_chat_stream_port::{AdkChatPortOutput, AdkChatStreamFrame};
+    use jftrade_store_sqlite::{AdkStore, CreateAdkRunParams, initialize_current};
+    use rusqlite::Connection;
     use serde_json::json;
+    use std::fs::File;
+    use tempfile::tempdir;
 
     #[test]
     fn provider_retry_delay_is_bounded_and_monotonic() {
@@ -371,6 +400,118 @@ mod tests {
             &json!({"resumeState": "provider_executing"})
         ));
         assert!(!recoverable_state(&json!({"resumeState": "completed"})));
+    }
+
+    #[test]
+    fn running_provider_marker_survives_store_restart_for_recovery_scan() {
+        let directory = tempdir().expect("temporary directory");
+        let adk_path = directory.path().join("adk.db");
+        File::create(&adk_path).expect("create ADK database");
+        initialize_current(
+            &Connection::open(&adk_path).expect("initialize ADK database"),
+            "adk",
+        )
+        .expect("initialize ADK schema");
+        {
+            let store = AdkStore::open(&adk_path).expect("open ADK store");
+            store
+                .create_run(CreateAdkRunParams {
+                    id: "run-restart-recovery",
+                    session_id: "session-restart-recovery",
+                    agent_id: "agent-restart-recovery",
+                    status: "RUNNING",
+                    client_request_id: "request-restart-recovery",
+                    request_fingerprint: "fingerprint-restart-recovery",
+                    payload_json: &json!({
+                        "status": "RUNNING",
+                        "resumeState": "provider_waiting",
+                        "providerRetry": {
+                            "attempt": 2,
+                            "retryable": true,
+                            "nextRetryAtUnixMs": unix_now_ms() - 1,
+                        },
+                    })
+                    .to_string(),
+                })
+                .expect("persist running provider marker");
+        }
+        let reopened = AdkStore::open(&adk_path).expect("reopen ADK store");
+        let run = reopened
+            .get_run("run-restart-recovery")
+            .expect("load recovered run")
+            .expect("recovered run exists");
+        let payload: Value = serde_json::from_str(&run.payload_json).expect("decode payload");
+        assert_eq!(run.status, "RUNNING");
+        assert!(recoverable_state(&payload));
+        assert!(retry_is_due(&payload));
+        assert_eq!(payload["providerRetry"]["attempt"], 2);
+    }
+
+    #[test]
+    fn non_provider_unavailable_errors_are_not_treated_as_configuration_recovery() {
+        assert!(is_provider_configuration_unavailable(
+            &AdkChatPortError::Unavailable("assistant model provider is disabled".to_owned())
+        ));
+        assert!(!is_provider_configuration_unavailable(
+            &AdkChatPortError::Unavailable("ADK storage unavailable".to_owned())
+        ));
+        assert!(!is_provider_configuration_unavailable(
+            &AdkChatPortError::Unavailable("assistant run lease was lost".to_owned())
+        ));
+    }
+
+    #[test]
+    fn non_stream_provider_auth_rejections_are_external_and_not_retryable() {
+        for (status, code, mapped_status) in [
+            (
+                reqwest::StatusCode::UNAUTHORIZED,
+                "MODEL_PROVIDER_UNAUTHORIZED",
+                502,
+            ),
+            (
+                reqwest::StatusCode::FORBIDDEN,
+                "MODEL_PROVIDER_FORBIDDEN",
+                503,
+            ),
+        ] {
+            let error = super::super::provider_rejection(
+                status,
+                None,
+                &json!({"error": {"message": "provider rejected credentials"}}),
+            );
+            assert!(matches!(
+                &error,
+                AdkChatPortError::Failed { status, code: actual, .. }
+                    if *status == mapped_status && actual == code
+            ));
+            assert!(!is_provider_retryable_error(&error));
+        }
+    }
+
+    #[test]
+    fn running_stream_payload_replays_all_nonterminal_events() {
+        let output = super::super::stream_from_payload(
+            &json!({
+                "status": "RUNNING",
+                "streamId": "run-stream-recovery",
+                "streamEvents": [
+                    {"type": "run", "sequence": 1},
+                    {"type": "error", "sequence": 2, "retryable": true, "terminal": false}
+                ]
+            })
+            .to_string(),
+        )
+        .expect("stream snapshot");
+        let AdkChatPortOutput::Stream(snapshot) = output else {
+            panic!("running stream payload did not produce a snapshot");
+        };
+        assert!(!snapshot.terminal);
+        assert_eq!(snapshot.frames.len(), 2);
+        assert!(matches!(
+            &snapshot.frames[1],
+            AdkChatStreamFrame::Event { data, .. }
+                if data["terminal"] == false && data["retryable"] == true
+        ));
     }
 
     #[test]

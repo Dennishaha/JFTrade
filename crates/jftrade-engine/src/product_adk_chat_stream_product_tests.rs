@@ -170,6 +170,35 @@ impl AdkReadSnapshotPort for RetainedAdkReplayPort {
     }
 }
 
+#[derive(Debug)]
+struct NonTerminalAdkReplayPort;
+
+impl AdkChatStreamPort for NonTerminalAdkReplayPort {
+    fn dispatch(
+        &self,
+        route: AdkChatRoute,
+        _input: &AdkChatInput,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        match route {
+            AdkChatRoute::Chat => Ok(AdkChatPortOutput::Json(json!({
+                "run": {"id": "run-nonterminal"},
+                "message": "fixture response"
+            }))),
+            AdkChatRoute::Stream => Ok(AdkChatPortOutput::Stream(AdkChatStreamSnapshot {
+                headers: BTreeMap::from([(
+                    "X-ADK-Stream-ID".to_owned(),
+                    "stream-nonterminal".to_owned(),
+                )]),
+                frames: vec![AdkChatStreamFrame::Event {
+                    id: Some("stream-nonterminal:1".to_owned()),
+                    data: json!({"type": "timeline", "status": "streaming", "text": "partial"}),
+                }],
+                terminal: false,
+            })),
+        }
+    }
+}
+
 #[tokio::test]
 async fn adk_chat_stream_routes_register_only_with_explicit_test_port() {
     let directory = tempdir().expect("temporary directory");
@@ -344,6 +373,33 @@ async fn adk_chat_stream_replays_retained_terminal_events_through_adk_read_after
         std::fs::read(&settings_path).expect("read settings after restart"),
         settings_before
     );
+}
+
+#[tokio::test]
+async fn adk_chat_stream_replays_nonterminal_snapshot_without_fabricating_terminal_event() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_chat_stream_port(Arc::new(NonTerminalAdkReplayPort));
+    let handle = start_product(config).await.expect("start product");
+    let response = request_raw(
+        handle.startup_record().address,
+        "POST",
+        ADK_CHAT_STREAM_PATH,
+        br#"{"clientRequestId":"11111111-1111-4111-8111-111111111111","message":"replay"}"#,
+    )
+    .await;
+    assert_eq!(response.status, 200);
+    assert_eq!(response.headers["content-type"], "text/event-stream");
+    assert_eq!(response.headers["x-adk-stream-id"], "stream-nonterminal");
+    let body = String::from_utf8(response.body).expect("SSE body");
+    assert!(body.starts_with("retry: 3000\n\n"));
+    assert!(body.contains("streaming"));
+    assert!(body.contains("partial"));
+    assert!(!body.contains("\"type\":\"final\""));
+    handle.shutdown().await.expect("shutdown product");
 }
 
 #[tokio::test]

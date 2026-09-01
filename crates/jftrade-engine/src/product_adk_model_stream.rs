@@ -295,3 +295,28 @@ where
         .map_err(|error| upstream_error(format!("decode model stream event: {error}")))?;
     on_event(&value)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_auth_rejections_are_external_and_not_retryable() {
+        for (status, code, mapped_status) in [
+            (StatusCode::UNAUTHORIZED, "MODEL_PROVIDER_UNAUTHORIZED", 502),
+            (StatusCode::FORBIDDEN, "MODEL_PROVIDER_FORBIDDEN", 503),
+        ] {
+            let error = provider_rejection(
+                status,
+                None,
+                br#"{"error":{"message":"provider rejected credentials"}}"#,
+            );
+            assert!(matches!(
+                &error,
+                AdkChatPortError::Failed { status, code: actual, .. }
+                    if *status == mapped_status && actual == code
+            ));
+            assert!(!super::super::is_provider_retryable_error(&error));
+        }
+    }
+}

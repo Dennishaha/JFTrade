@@ -1,6 +1,7 @@
 use super::*;
 use std::io::Read;
 use std::net::TcpStream;
+use std::sync::mpsc;
 
 fn available_port() -> u16 {
     let listener = StdTcpListener::bind("127.0.0.1:0").expect("reserve test port");
@@ -99,4 +100,42 @@ fn dynamic_origin_allowlist_tracks_the_current_web_port() {
     assert!(!runtime.allows_origin(&format!("http://127.0.0.1:{first_port}")));
     assert!(runtime.allows_origin(&format!("http://127.0.0.1:{second_port}")));
     runtime.shutdown_blocking().expect("shutdown Web runtime");
+}
+
+#[test]
+fn web_shutdown_does_not_hold_runtime_lock_while_joining_server() {
+    let runtime = ProductWebServerRuntime::new();
+    let (lock_result_tx, lock_result_rx) = mpsc::channel();
+    let inner = Arc::clone(&runtime.inner);
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let thread = std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("server probe runtime");
+        runtime.block_on(async {
+            let _ = shutdown_rx.await;
+        });
+        let acquired = inner.try_lock().is_ok();
+        let _ = lock_result_tx.send(acquired);
+        Ok(())
+    });
+    {
+        let mut state = runtime.inner.lock().expect("runtime state lock");
+        state.bind = Some("127.0.0.1:1".to_owned());
+        state.server = Some(ProductServerOwner {
+            shutdown_tx: Some(shutdown_tx),
+            thread: Some(thread),
+        });
+    }
+
+    runtime
+        .shutdown_blocking()
+        .expect("shutdown Web runtime without lock held");
+    assert!(
+        lock_result_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("server thread lock probe"),
+        "server join must happen after releasing the runtime mutex"
+    );
 }
