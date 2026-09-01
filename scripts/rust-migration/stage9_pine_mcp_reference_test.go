@@ -10,13 +10,15 @@ import (
 	"testing"
 
 	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
+	"github.com/jftrade/jftrade-main/internal/assistant/engine/skillsruntime"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 type stage9PineMCPFixture struct {
-	Version string              `json:"version"`
-	Cases   []stage9PineMCPCase `json:"cases"`
+	Version string                     `json:"version"`
+	Schemas map[string]json.RawMessage `json:"schemas"`
+	Cases   []stage9PineMCPCase        `json:"cases"`
 }
 type stage9PineMCPCase struct {
 	Name      string                `json:"name"`
@@ -25,15 +27,16 @@ type stage9PineMCPCase struct {
 	Expected  stage9PineMCPExpected `json:"expected"`
 }
 type stage9PineMCPExpected struct {
-	SourceFormat        string `json:"sourceFormat"`
-	Runtime             string `json:"runtime"`
-	SelectedSection     string `json:"selectedSection"`
-	SectionCount        int    `json:"sectionCount"`
-	ExamplesIncluded    bool   `json:"examplesIncluded"`
-	Ok                  bool   `json:"ok"`
-	RequirementsPresent bool   `json:"requirementsPresent"`
-	EmaKey              string `json:"emaKey"`
-	ErrorCode           string `json:"errorCode"`
+	SourceFormat        string         `json:"sourceFormat"`
+	Runtime             string         `json:"runtime"`
+	SelectedSection     string         `json:"selectedSection"`
+	SectionCount        int            `json:"sectionCount"`
+	ExamplesIncluded    bool           `json:"examplesIncluded"`
+	Ok                  bool           `json:"ok"`
+	RequirementsPresent bool           `json:"requirementsPresent"`
+	EmaKey              string         `json:"emaKey"`
+	ErrorCode           string         `json:"errorCode"`
+	Payload             map[string]any `json:"payload"`
 }
 
 func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
@@ -53,6 +56,15 @@ func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
 	}
 	if fixture.Version != "stage9.pine-mcp.v1" {
 		t.Fatalf("fixture version = %q", fixture.Version)
+	}
+	for name, expected := range fixture.Schemas {
+		t.Run("schema/"+name, func(t *testing.T) {
+			var expectedValue any
+			if err := json.Unmarshal(expected, &expectedValue); err != nil {
+				t.Fatal(err)
+			}
+			assertStage9PineJSONEqual(t, skillsruntime.DefaultToolInputSchema(name), expectedValue)
+		})
 	}
 	for _, item := range fixture.Cases {
 		t.Run(item.Name, func(t *testing.T) {
@@ -131,6 +143,9 @@ func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
 				if goldenScripts[0]["id"] != "golden-ma-cross" || goldenScripts[len(goldenScripts)-1]["id"] != "golden-v17-semantic-transition" {
 					t.Fatalf("goldenScripts order = %#v ... %#v", goldenScripts[0], goldenScripts[len(goldenScripts)-1])
 				}
+				if item.Expected.Payload != nil {
+					assertStage9PineJSONEqual(t, projectStage9PineMCPPayload(item.Tool, payload), item.Expected.Payload)
+				}
 			case "strategy.validate_pine":
 				script, _ := item.Arguments["script"].(string)
 				analysis := strategypine.AnalyzeScript(script, strategypine.AnalysisOptions{})
@@ -174,10 +189,137 @@ func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
 				} else if validation["saveHint"] == nil {
 					t.Fatalf("invalid validation payload lacks saveHint = %#v", validation)
 				}
+				if item.Expected.Payload != nil {
+					assertStage9PineJSONEqual(t, projectStage9PineMCPPayload(item.Tool, validation), item.Expected.Payload)
+				}
 			default:
 				t.Fatalf("unknown tool %q", item.Tool)
 			}
 		})
+	}
+}
+
+func assertStage9PineJSONEqual(t *testing.T, actual, expected any) {
+	t.Helper()
+	actualJSON, err := json.Marshal(actual)
+	if err != nil {
+		t.Fatalf("marshal actual JSON: %v", err)
+	}
+	expectedJSON, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatalf("marshal expected JSON: %v", err)
+	}
+	var actualValue any
+	var expectedValue any
+	if err := json.Unmarshal(actualJSON, &actualValue); err != nil {
+		t.Fatalf("decode actual JSON: %v", err)
+	}
+	if err := json.Unmarshal(expectedJSON, &expectedValue); err != nil {
+		t.Fatalf("decode expected JSON: %v", err)
+	}
+	if !equalStage9PineJSONValue(actualValue, expectedValue) {
+		t.Fatalf("JSON differs:\nactual: %s\nexpected: %s", actualJSON, expectedJSON)
+	}
+}
+
+func equalStage9PineJSONValue(left, right any) bool {
+	leftJSON, leftErr := json.Marshal(left)
+	rightJSON, rightErr := json.Marshal(right)
+	return leftErr == nil && rightErr == nil && string(leftJSON) == string(rightJSON)
+}
+
+// projectStage9PineMCPPayload keeps the cross-language fixture focused on the
+// stable contract shared by the Go owner and the native Rust leaf.  The full
+// Pine payloads intentionally contain implementation-specific prose and
+// external-engine diagnostics; those fields are validated by each owner's
+// focused tests rather than copied into a migration fixture.
+func projectStage9PineMCPPayload(tool string, payload map[string]any) map[string]any {
+	switch tool {
+	case strategypinespec.ToolName:
+		projected := map[string]any{
+			"version":         payload["version"],
+			"productVersion":  payload["productVersion"],
+			"sourceFormat":    payload["sourceFormat"],
+			"runtime":         payload["runtime"],
+			"selectedSection": payload["selectedSection"],
+			"sectionIds":      stage9PineSectionIDs(payload["sections"]),
+			"examplesCount":   stage9PineArrayLength(payload["examples"]),
+			"externalEngine": projectStage9PineExternalEngine(payload["externalEngine"], []string{
+				"engine", "mode", "enabled", "status", "license", "package", "repository", "worker",
+			}),
+		}
+		if content, ok := payload["sectionContent"].(map[string]any); ok {
+			if id, ok := content["id"]; ok {
+				projected["sectionContentId"] = id
+			}
+		}
+		return projected
+	case "strategy.validate_pine":
+		return map[string]any{
+			"ok":                  payload["ok"],
+			"sourceFormat":        payload["sourceFormat"],
+			"runtime":             payload["runtime"],
+			"normalizedScript":    payload["normalizedScript"],
+			"requirementsPresent": payload["requirements"] != nil,
+			"errorCount":          stage9PineArrayLength(payload["errors"]),
+			"warningCount":        stage9PineArrayLength(payload["warnings"]),
+			"hooks":               payload["hooks"],
+			"metadata":            payload["metadata"],
+			"saveHintPresent":     payload["saveHint"] != nil,
+			"externalEngine": projectStage9PineExternalEngine(payload["externalEngine"], []string{
+				"engine", "mode", "enabled", "status", "license", "repository",
+			}),
+		}
+	default:
+		return map[string]any{}
+	}
+}
+
+func projectStage9PineExternalEngine(value any, keys []string) map[string]any {
+	engine, ok := value.(map[string]any)
+	if !ok {
+		return map[string]any{}
+	}
+	projected := make(map[string]any, len(keys))
+	for _, key := range keys {
+		if item, ok := engine[key]; ok {
+			projected[key] = item
+		}
+	}
+	return projected
+}
+
+func stage9PineSectionIDs(value any) []string {
+	ids := []string{}
+	switch sections := value.(type) {
+	case []map[string]any:
+		for _, section := range sections {
+			if id, ok := section["id"].(string); ok {
+				ids = append(ids, id)
+			}
+		}
+	case []any:
+		for _, item := range sections {
+			if section, ok := item.(map[string]any); ok {
+				if id, ok := section["id"].(string); ok {
+					ids = append(ids, id)
+				}
+			}
+		}
+	}
+	return ids
+}
+
+func stage9PineArrayLength(value any) int {
+	switch items := value.(type) {
+	case []map[string]any:
+		return len(items)
+	case []any:
+		return len(items)
+	case []string:
+		return len(items)
+	default:
+		return 0
 	}
 }
 

@@ -533,13 +533,18 @@ async fn build_test_runtime_config(
         health_ttl: Duration::from_secs(30),
     };
 
+    // PineProcess appends worker arguments after the bundle path.  Use a
+    // real temporary shell script here so `/bin/sh` receives a valid script
+    // operand; passing `"-c exec sleep 300"` as one path makes macOS sh treat
+    // it as an invalid option and can make the worker disappear before Drop.
+    let pine_wrapper = temp_dir.path().join("pine-worker-wrapper.sh");
+    std::fs::write(&pine_wrapper, "#!/bin/sh\nexec sleep 300\n").unwrap();
+
     let pine_config = PineWorkerRuntimeConfig {
         spec: pine_mock.spec("pineworker-1"),
         process: jftrade_integration_pine::PineProcessConfig {
             runtime: std::path::PathBuf::from("/bin/sh"),
-            // Single-argument trick: `sh -c "exec sleep 300"` keeps a real
-            // child alive; the remaining argv lands in $0/$1 of the script.
-            bundle_path: std::path::PathBuf::from("-c exec sleep 300"),
+            bundle_path: pine_wrapper,
             proto_path: None,
             max_message_bytes: None,
             pine_ts_version: None,

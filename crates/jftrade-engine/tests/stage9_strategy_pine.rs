@@ -270,9 +270,10 @@ fn strategy_pine_accepts_go_zero_values_and_opaque_empty_or_abnormal_projections
 
 #[test]
 fn strategy_pine_preserves_snapshot_failures_and_wire_headers() {
-    let unavailable = RecordingPort::new(Err(StrategyPineAnalyzeSnapshotError::Unavailable(
-        "Go owner unavailable".to_owned(),
-    )));
+    let unavailable_error =
+        StrategyPineAnalyzeSnapshotError::Unavailable("Go owner unavailable".to_owned());
+    assert_eq!(unavailable_error.message(), "Go owner unavailable");
+    let unavailable = RecordingPort::new(Err(unavailable_error));
     let response = dispatch_strategy_pine_analyze(
         Some(&unavailable),
         "POST",
@@ -322,4 +323,16 @@ fn strategy_pine_rejects_non_route_requests_before_body_parsing() {
         );
     }
     assert!(port.calls.lock().expect("route call lock").is_empty());
+
+    let shadow_error = port
+        .evaluate_shadow(&StrategyPineAnalyzeInput {
+            script: "strategy(\"shadow\")".to_owned(),
+            source_format: PINE_V6_SOURCE_FORMAT.to_owned(),
+            include_ast: false,
+        })
+        .expect_err("the fixture port does not provide a shadow evaluator");
+    assert_eq!(
+        shadow_error.message(),
+        "pine shadow evaluator is not configured"
+    );
 }

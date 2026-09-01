@@ -550,15 +550,7 @@ impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
         let worker = Arc::clone(worker);
         let script = input.script.clone();
         let include_ast = input.include_ast;
-        let job_id = {
-            use std::sync::atomic::{AtomicU64, Ordering};
-            static NEXT_ANALYSIS_ID: AtomicU64 = AtomicU64::new(1);
-            format!(
-                "strategy-pine-{}-{}",
-                time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
-                NEXT_ANALYSIS_ID.fetch_add(1, Ordering::Relaxed)
-            )
-        };
+        let job_id = next_pine_job_id("strategy-pine");
         let result = std::thread::Builder::new()
             .name("jftrade-pine-analyze".to_owned())
             .spawn(move || {
@@ -583,6 +575,117 @@ impl StrategyPineAnalyzeSnapshotPort for ProductionStrategyPinePort {
             })?;
         result.map_err(map_pine_analysis_error)
     }
+
+    fn evaluate_shadow(
+        &self,
+        input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        let Some(worker) = self.worker.as_ref() else {
+            return Err(StrategyPineAnalyzeSnapshotError::Unavailable(
+                "pine analyzer is not configured".to_owned(),
+            ));
+        };
+        let worker = Arc::clone(worker);
+        let request = pine_shadow_request(next_pine_job_id("strategy-pine-shadow"), &input.script);
+        let result = std::thread::Builder::new()
+            .name("jftrade-pine-shadow".to_owned())
+            .spawn(move || {
+                let runtime = tokio::runtime::Runtime::new().map_err(|error| {
+                    jftrade_integration_pine::PineExecutionError::Transport(error.to_string())
+                })?;
+                runtime.block_on(worker.run_script(request))
+            })
+            .map_err(|error| StrategyPineAnalyzeSnapshotError::Unavailable(error.to_string()))?;
+        let result = result
+            .join()
+            .map_err(|_| StrategyPineAnalyzeSnapshotError::Failed {
+                status: 502,
+                code: "STRATEGY_PINE_ANALYZE_FAILED".to_owned(),
+                message: "pine shadow worker thread panicked".to_owned(),
+                retry_after_seconds: None,
+            })?;
+        result
+            .map(pine_shadow_result)
+            .map_err(map_pine_analysis_error)
+    }
+}
+
+fn next_pine_job_id(prefix: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT_PINE_JOB_ID: AtomicU64 = AtomicU64::new(1);
+    format!(
+        "{prefix}-{}-{}",
+        time::OffsetDateTime::now_utc().unix_timestamp_nanos(),
+        NEXT_PINE_JOB_ID.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
+fn pine_shadow_request(job_id: String, script: &str) -> jftrade_integration_pine::PineRunRequest {
+    const START_MILLIS: i64 = 1_704_067_200_000;
+    const STEP_MILLIS: i64 = 60_000;
+    let candles = (0..80)
+        .map(|index| {
+            let close = 100.0 + f64::from(index) + (f64::from(index) / 3.0).sin();
+            jftrade_integration_pine::PineCandle {
+                open_time: START_MILLIS + i64::from(index) * STEP_MILLIS,
+                close_time: START_MILLIS + i64::from(index + 1) * STEP_MILLIS,
+                open: close - 0.4,
+                high: close + 1.0,
+                low: close - 1.0,
+                close,
+                volume: 1_000.0 + f64::from(index),
+            }
+        })
+        .collect();
+    jftrade_integration_pine::PineRunRequest {
+        job_id,
+        script_id: "strategy-pine".to_owned(),
+        source: script.to_owned(),
+        symbol: "JFTRADE.SAMPLE".to_owned(),
+        timeframe: "1m".to_owned(),
+        chart_type: "standard".to_owned(),
+        // Analyze mode on RunScript preserves plot output while executing the
+        // same 80 deterministic candles as the Go shadow worker.
+        mode: "analyze".to_owned(),
+        candles,
+        ..Default::default()
+    }
+}
+
+fn pine_shadow_result(result: jftrade_integration_pine::PineRunResult) -> Value {
+    let mut plots = serde_json::Map::new();
+    let mut signals = serde_json::Map::new();
+    for plot in result.plots {
+        let name = plot.name;
+        signals.insert(
+            name.clone(),
+            plot.values.last().copied().map_or(Value::Null, Value::from),
+        );
+        plots.insert(name.clone(), json!({"title": name, "data": plot.values}));
+    }
+    let diagnostics = result
+        .diagnostics
+        .into_iter()
+        .map(|item| {
+            json!({
+                "severity": item.severity,
+                "code": item.code,
+                "message": item.message,
+                "line": item.line,
+                "column": item.column,
+                "endLine": item.line,
+                "endColumn": item.column,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "ok": true,
+        "engineVersion": result.metadata.pine_ts_version,
+        "license": "AGPL-3.0-only",
+        "diagnostics": diagnostics,
+        "plots": plots,
+        "signals": signals,
+    })
 }
 
 fn map_pine_analysis_error(
@@ -623,5 +726,46 @@ fn map_pine_analysis_error(
         PineError::WeakToken => {
             StrategyPineAnalyzeSnapshotError::Unavailable("pine worker token is invalid".to_owned())
         }
+    }
+}
+
+#[cfg(test)]
+mod pine_shadow_tests {
+    use super::*;
+
+    #[test]
+    fn shadow_request_matches_go_sample_candles_and_uses_run_script_analysis_mode() {
+        let request = pine_shadow_request("shadow-job".to_owned(), "plot(close)");
+        assert_eq!(request.job_id, "shadow-job");
+        assert_eq!(request.symbol, "JFTRADE.SAMPLE");
+        assert_eq!(request.timeframe, "1m");
+        assert_eq!(request.mode, "analyze");
+        assert_eq!(request.candles.len(), 80);
+        assert_eq!(request.candles[0].open_time, 1_704_067_200_000);
+        assert_eq!(request.candles[0].close_time, 1_704_067_260_000);
+        assert_eq!(request.candles[0].close, 100.0);
+        let last = &request.candles[79];
+        assert_eq!(last.open_time, 1_704_071_940_000);
+        assert_eq!(last.volume, 1_079.0);
+        assert_eq!(last.close, 179.0 + (79.0_f64 / 3.0).sin());
+    }
+
+    #[test]
+    fn shadow_result_derives_go_compatible_signal_count_from_plot_tails() {
+        let result = jftrade_integration_pine::PineRunResult {
+            plots: vec![jftrade_integration_pine::PinePlot {
+                name: "close".to_owned(),
+                values: vec![100.0, 101.0],
+            }],
+            metadata: jftrade_integration_pine::PineWorkerMetadata {
+                pine_ts_version: "0.9.31".to_owned(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let payload = pine_shadow_result(result);
+        assert_eq!(payload["engineVersion"], "0.9.31");
+        assert_eq!(payload["plots"]["close"]["data"], json!([100.0, 101.0]));
+        assert_eq!(payload["signals"]["close"], 101.0);
     }
 }

@@ -222,7 +222,6 @@ fn strategy_pine_spec_schema() -> Value {
                     "expressions",
                     "indicators",
                     "orders",
-                    "support-matrix",
                     "unsupported",
                     "examples",
                 ]),
@@ -236,7 +235,13 @@ fn strategy_pine_spec_schema() -> Value {
 fn strategy_validate_pine_schema() -> Value {
     strict_object(
         object([
-            ("script", json!({"type": "string"})),
+            (
+                "script",
+                json!({
+                    "type": "string",
+                    "description": "待校验的 Pine Script v6 策略脚本。"
+                }),
+            ),
             ("includeRequirements", json!({"type": "boolean"})),
         ]),
         &["script"],

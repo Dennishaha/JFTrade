@@ -17,10 +17,10 @@ pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = "2025-03-26";
 pub(crate) const MODERN_PROTOCOL_VERSION: &str = "2026-07-28";
 pub(crate) const META_PROTOCOL_VERSION_KEY: &str = "io.modelcontextprotocol/protocolVersion";
 pub(crate) const CODE_HEADER_MISMATCH: i64 = -32020;
-/// The reviewed Go MCP catalog. Rust exposes the same names in `tools/list`
-/// while keeping calls fail-closed for entries that do not yet have a native
-/// executor. This prevents a two-tool shadow from being mistaken for the
-/// public 69-tool contract.
+/// The reviewed MCP catalog. Rust exposes the same 69 names in `tools/list`
+/// and dispatches every name through a production executor. Runtime readiness
+/// still reports provider/store outages as `unavailable` instead of turning an
+/// external dependency failure into a fabricated success response.
 pub(crate) const REVIEWED_READ_ONLY_TOOLS: &[&str] = &[
     "account.orders",
     "alerts.option_event.list",

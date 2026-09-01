@@ -4,6 +4,9 @@ use crate::product::product_production_ports::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding, SharedTradeReadRuntime,
     production_adapter_bindings,
 };
+use crate::product::strategy_pine::{
+    StrategyPineAnalyzeInput, StrategyPineAnalyzeSnapshotError, StrategyPineAnalyzeSnapshotPort,
+};
 use crate::product::{
     ActiveProviderState, MarketDataRuntimeState, MarketDataRuntimeStatusPort, ProductCapabilities,
     ProductConfig, ResearchReadSnapshotError, ResearchReadSnapshotPort, product_data_management,
@@ -13,6 +16,7 @@ use jftrade_api::AccessPolicy;
 use jftrade_settings::SecuritySettingsService;
 use jftrade_settings::{MarketDataProvider, McpServerSecretPort};
 use jftrade_store_settings_file::SettingsFileStore;
+use serde_json::Map;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{Read, Write};
@@ -258,6 +262,47 @@ impl jftrade_integration_futu::FutuIndicatorReadPort for FixtureTechnicalIndicat
         jftrade_integration_futu::FutuIndicatorQueryError,
     > {
         panic!("fixture technical-indicator reader should not execute during readiness checks")
+    }
+}
+
+#[derive(Debug)]
+struct RecordingStrategyPineAnalyze {
+    response: Result<Value, StrategyPineAnalyzeSnapshotError>,
+    analyze_calls: Mutex<Vec<StrategyPineAnalyzeInput>>,
+    shadow_calls: Mutex<Vec<StrategyPineAnalyzeInput>>,
+}
+
+impl RecordingStrategyPineAnalyze {
+    fn new(response: Result<Value, StrategyPineAnalyzeSnapshotError>) -> Self {
+        Self {
+            response,
+            analyze_calls: Mutex::new(Vec::new()),
+            shadow_calls: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl StrategyPineAnalyzeSnapshotPort for RecordingStrategyPineAnalyze {
+    fn analyze(
+        &self,
+        input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        self.analyze_calls
+            .lock()
+            .expect("record Pine analyzer call")
+            .push(input.clone());
+        self.response.clone()
+    }
+
+    fn evaluate_shadow(
+        &self,
+        input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        self.shadow_calls
+            .lock()
+            .expect("record Pine shadow call")
+            .push(input.clone());
+        self.response.clone()
     }
 }
 
@@ -657,6 +702,187 @@ fn reviewed_mcp_descriptors_expose_strict_per_tool_schemas() {
 }
 
 #[test]
+fn pine_mcp_schemas_match_canonical_go_fixture() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/pine-mcp/cases.json"
+    ))
+    .expect("Pine MCP schema fixture");
+    let descriptors = tool_descriptors(&catalog());
+    for name in ["strategy.pine_spec", "strategy.validate_pine"] {
+        let expected = fixture["schemas"][name].clone();
+        assert!(expected.is_object(), "fixture schema missing {name}");
+        let actual = descriptors
+            .iter()
+            .find(|descriptor| descriptor["name"] == name)
+            .and_then(|descriptor| descriptor.get("inputSchema"))
+            .expect("Pine MCP descriptor schema");
+        assert_eq!(
+            actual, &expected,
+            "Rust schema drifted from Go fixture: {name}"
+        );
+    }
+}
+
+#[test]
+fn pine_mcp_payloads_match_canonical_go_fixture_in_off_mode() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/rust-migration/stage9/pine-mcp/cases.json"
+    ))
+    .expect("Pine MCP payload fixture");
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+    for case in fixture["cases"].as_array().expect("Pine MCP fixture cases") {
+        let name = case["name"].as_str().expect("Pine MCP fixture case name");
+        let tool = case["tool"].as_str().expect("Pine MCP fixture tool");
+        let arguments = &case["arguments"];
+        let expected = &case["expected"]["payload"];
+        let actual = executor
+            .strategy_pine_mcp_with_mode(tool, arguments, "off")
+            .unwrap_or_else(|error| panic!("{name}: execute {tool}: {error:?}"));
+        assert_eq!(
+            project_stage9_pine_mcp_payload(tool, &actual),
+            *expected,
+            "Rust payload drifted from Go fixture: {name}"
+        );
+    }
+}
+
+fn project_stage9_pine_mcp_payload(tool: &str, payload: &Value) -> Value {
+    let object = payload
+        .as_object()
+        .expect("Pine MCP payload must be an object");
+    match tool {
+        "strategy.pine_spec" => {
+            let mut projected = Map::new();
+            for key in [
+                "version",
+                "productVersion",
+                "sourceFormat",
+                "runtime",
+                "selectedSection",
+            ] {
+                projected.insert(
+                    key.to_owned(),
+                    object.get(key).cloned().unwrap_or(Value::Null),
+                );
+            }
+            let section_ids = object
+                .get("sections")
+                .and_then(Value::as_array)
+                .map(|sections| {
+                    Value::Array(
+                        sections
+                            .iter()
+                            .filter_map(|section| section.get("id").cloned())
+                            .collect(),
+                    )
+                })
+                .unwrap_or_else(|| Value::Array(Vec::new()));
+            projected.insert("sectionIds".to_owned(), section_ids);
+            projected.insert(
+                "examplesCount".to_owned(),
+                json!(value_len(object.get("examples"))),
+            );
+            if let Some(section_id) = object
+                .get("sectionContent")
+                .and_then(|content| content.get("id"))
+            {
+                projected.insert("sectionContentId".to_owned(), section_id.clone());
+            }
+            projected.insert(
+                "externalEngine".to_owned(),
+                project_stage9_pine_external_engine(
+                    object.get("externalEngine"),
+                    &[
+                        "engine",
+                        "mode",
+                        "enabled",
+                        "status",
+                        "license",
+                        "package",
+                        "repository",
+                        "worker",
+                    ],
+                ),
+            );
+            Value::Object(projected)
+        }
+        "strategy.validate_pine" => {
+            let mut projected = Map::new();
+            for key in ["ok", "sourceFormat", "runtime", "normalizedScript"] {
+                projected.insert(
+                    key.to_owned(),
+                    object.get(key).cloned().unwrap_or(Value::Null),
+                );
+            }
+            projected.insert(
+                "requirementsPresent".to_owned(),
+                json!(
+                    object
+                        .get("requirements")
+                        .is_some_and(|requirements| !requirements.is_null())
+                ),
+            );
+            projected.insert(
+                "errorCount".to_owned(),
+                json!(value_len(object.get("errors"))),
+            );
+            projected.insert(
+                "warningCount".to_owned(),
+                json!(value_len(object.get("warnings"))),
+            );
+            for key in ["hooks", "metadata"] {
+                projected.insert(
+                    key.to_owned(),
+                    object.get(key).cloned().unwrap_or(Value::Null),
+                );
+            }
+            projected.insert(
+                "saveHintPresent".to_owned(),
+                json!(
+                    object
+                        .get("saveHint")
+                        .is_some_and(|save_hint| !save_hint.is_null())
+                ),
+            );
+            projected.insert(
+                "externalEngine".to_owned(),
+                project_stage9_pine_external_engine(
+                    object.get("externalEngine"),
+                    &[
+                        "engine",
+                        "mode",
+                        "enabled",
+                        "status",
+                        "license",
+                        "repository",
+                    ],
+                ),
+            );
+            Value::Object(projected)
+        }
+        other => panic!("unsupported Pine MCP fixture tool {other}"),
+    }
+}
+
+fn project_stage9_pine_external_engine(value: Option<&Value>, keys: &[&str]) -> Value {
+    let Some(object) = value.and_then(Value::as_object) else {
+        return Value::Object(Map::new());
+    };
+    let mut projected = Map::new();
+    for key in keys {
+        if let Some(value) = object.get(*key) {
+            projected.insert((*key).to_owned(), value.clone());
+        }
+    }
+    Value::Object(projected)
+}
+
+fn value_len(value: Option<&Value>) -> usize {
+    value.and_then(Value::as_array).map_or(0, Vec::len)
+}
+
+#[test]
 fn reviewed_mcp_argument_validation_enforces_schema_constraints() {
     assert!(validate_tool_arguments("system.status", &json!({"query": "health"})).is_ok());
     assert!(validate_tool_arguments("system.status", &json!({"unexpected": true})).is_err());
@@ -852,6 +1078,171 @@ fn production_mcp_pine_validation_maps_bad_arguments_and_rejects_unsupported_scr
             .is_some_and(|errors| !errors.is_empty())
     );
     assert!(unsupported["requirements"].is_null());
+}
+
+#[test]
+fn production_mcp_pine_off_mode_keeps_disabled_external_engine_without_analyzer_call() {
+    let analyzer = Arc::new(RecordingStrategyPineAnalyze::new(Ok(json!({
+        "ok": true,
+        "metadata": {"pineTsVersion": "0.9.31"},
+    }))));
+    let (_directory, mut ports) = production_bundle();
+    ports.strategy_pine_analyze = analyzer.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .strategy_pine_mcp_with_mode(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"off\")"}),
+            "off",
+        )
+        .expect("off-mode validation");
+    assert_eq!(payload["externalEngine"]["enabled"], false);
+    assert_eq!(payload["externalEngine"]["mode"], "off");
+    assert_eq!(payload["externalEngine"]["status"], "disabled");
+    assert!(
+        analyzer
+            .shadow_calls
+            .lock()
+            .expect("record Pine shadow call")
+            .is_empty()
+    );
+}
+
+#[test]
+fn production_mcp_pine_shadow_mode_reports_unavailable_analyzer_truthfully() {
+    let analyzer = Arc::new(RecordingStrategyPineAnalyze::new(Err(
+        StrategyPineAnalyzeSnapshotError::Unavailable("worker is unavailable".to_owned()),
+    )));
+    let (_directory, mut ports) = production_bundle();
+    ports.strategy_pine_analyze = analyzer.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .strategy_pine_mcp_with_mode(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"shadow\")"}),
+            "shadow",
+        )
+        .expect("shadow validation");
+    assert_eq!(payload["externalEngine"]["enabled"], true);
+    assert_eq!(payload["externalEngine"]["mode"], "shadow");
+    assert_eq!(payload["externalEngine"]["status"], "shadow_error");
+    assert_eq!(payload["externalEngine"]["ok"], false);
+    assert_eq!(
+        payload["externalEngine"]["diagnostics"][0]["code"],
+        "PINETS_SHADOW_ERROR"
+    );
+    assert_eq!(
+        payload["externalEngine"]["differenceSummary"]["evaluated"],
+        false
+    );
+    assert_eq!(
+        payload["externalEngine"]["diagnostics"][0]["message"],
+        "worker is unavailable"
+    );
+    assert_eq!(
+        analyzer
+            .shadow_calls
+            .lock()
+            .expect("record Pine shadow call")
+            .len(),
+        1
+    );
+    assert!(
+        analyzer
+            .analyze_calls
+            .lock()
+            .expect("record Pine analyzer call")
+            .is_empty()
+    );
+}
+
+#[test]
+fn production_mcp_pine_community_mode_requires_agpl_notice_before_analyzer() {
+    let analyzer = Arc::new(RecordingStrategyPineAnalyze::new(Ok(json!({
+        "ok": true,
+    }))));
+    let (_directory, mut ports) = production_bundle();
+    ports.strategy_pine_analyze = analyzer.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .strategy_pine_mcp_with_mode_and_notice(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"community\")"}),
+            "community-agpl",
+            false,
+        )
+        .expect("community-agpl validation");
+    assert_eq!(payload["externalEngine"]["enabled"], true);
+    assert_eq!(payload["externalEngine"]["mode"], "community-agpl");
+    assert_eq!(payload["externalEngine"]["status"], "compliance_error");
+    assert_eq!(
+        payload["externalEngine"]["diagnostics"][0]["code"],
+        "PINETS_AGPL_NOTICE_MISSING"
+    );
+    assert_eq!(payload["externalEngine"]["license"], "");
+    assert_eq!(payload["externalEngine"]["repository"], "");
+    assert!(
+        analyzer
+            .shadow_calls
+            .lock()
+            .expect("record Pine shadow call")
+            .is_empty()
+    );
+}
+
+#[test]
+fn production_mcp_pine_shadow_success_maps_worker_metadata_and_difference_summary() {
+    let analyzer = Arc::new(RecordingStrategyPineAnalyze::new(Ok(json!({
+        "ok": true,
+        "diagnostics": [{
+            "severity": "warning",
+            "code": "PINE_WARN",
+            "message": "mapped warning",
+            "line": 3,
+            "column": 2,
+        }],
+        "plots": {"close": {"title": "close", "data": [100.0, 101.0]}},
+        "signals": {"close": 101.0},
+        "engineVersion": "0.9.31",
+    }))));
+    let (_directory, mut ports) = production_bundle();
+    ports.strategy_pine_analyze = analyzer.clone();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let payload = executor
+        .strategy_pine_mcp_with_mode(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"success\")"}),
+            "shadow",
+        )
+        .expect("successful shadow validation");
+    let external = &payload["externalEngine"];
+    assert_eq!(external["status"], "shadow_ok");
+    assert_eq!(external["ok"], true);
+    assert_eq!(external["engineVersion"], "0.9.31");
+    assert_eq!(external["license"], "AGPL-3.0-only");
+    assert_eq!(external["repository"], "https://github.com/LuxAlgo/PineTS");
+    assert_eq!(external["differenceSummary"]["evaluated"], true);
+    assert_eq!(external["differenceSummary"]["plots"], 1);
+    assert_eq!(external["differenceSummary"]["signals"], 1);
+    assert_eq!(external["diagnostics"][0]["code"], "PINE_WARN");
+    let calls = analyzer
+        .shadow_calls
+        .lock()
+        .expect("record Pine shadow call");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].source_format, "pine-v6");
+    assert!(!calls[0].include_ast);
+    assert!(
+        analyzer
+            .analyze_calls
+            .lock()
+            .expect("record Pine analyzer call")
+            .is_empty()
+    );
 }
 
 #[test]

@@ -1,5 +1,38 @@
 {
   "version": "stage9.pine-mcp.v1",
+  "schemas": {
+    "strategy.pine_spec": {
+      "type": "object",
+      "properties": {
+        "section": {
+          "type": "string",
+          "enum": [
+            "overview",
+            "syntax",
+            "expressions",
+            "indicators",
+            "orders",
+            "unsupported",
+            "examples"
+          ]
+        },
+        "includeExamples": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "strategy.validate_pine": {
+      "type": "object",
+      "properties": {
+        "script": {
+          "type": "string",
+          "description": "待校验的 Pine Script v6 策略脚本。"
+        },
+        "includeRequirements": {"type": "boolean"}
+      },
+      "required": ["script"],
+      "additionalProperties": false
+    }
+  },
   "cases": [
     {
       "name": "spec-default",
@@ -10,7 +43,26 @@
         "runtime": "pine-pinets",
         "selectedSection": "",
         "sectionCount": 8,
-        "examplesIncluded": false
+        "examplesIncluded": false,
+        "payload": {
+          "version": "v6",
+          "productVersion": "v4.0",
+          "sourceFormat": "pine-v6",
+          "runtime": "pine-pinets",
+          "selectedSection": "",
+          "sectionIds": ["overview", "syntax", "expressions", "indicators", "orders", "support-matrix", "unsupported", "examples"],
+          "examplesCount": 0,
+          "externalEngine": {
+            "engine": "pinets-shadow",
+            "mode": "off",
+            "enabled": false,
+            "status": "disabled",
+            "license": "AGPL-3.0-only",
+            "package": "pinets@0.9.31",
+            "repository": "https://github.com/LuxAlgo/PineTS",
+            "worker": "scripts/pinets-worker.mjs"
+          }
+        }
       }
     },
     {
@@ -22,7 +74,27 @@
         "runtime": "pine-pinets",
         "selectedSection": "examples",
         "sectionCount": 8,
-        "examplesIncluded": true
+        "examplesIncluded": true,
+        "payload": {
+          "version": "v6",
+          "productVersion": "v4.0",
+          "sourceFormat": "pine-v6",
+          "runtime": "pine-pinets",
+          "selectedSection": "examples",
+          "sectionIds": ["overview", "syntax", "expressions", "indicators", "orders", "support-matrix", "unsupported", "examples"],
+          "examplesCount": 4,
+          "sectionContentId": "examples",
+          "externalEngine": {
+            "engine": "pinets-shadow",
+            "mode": "off",
+            "enabled": false,
+            "status": "disabled",
+            "license": "AGPL-3.0-only",
+            "package": "pinets@0.9.31",
+            "repository": "https://github.com/LuxAlgo/PineTS",
+            "worker": "scripts/pinets-worker.mjs"
+          }
+        }
       }
     },
     {
@@ -36,7 +108,36 @@
         "sourceFormat": "pine-v6",
         "runtime": "pine-pinets",
         "requirementsPresent": true,
-        "emaKey": "ma:EMA:8"
+        "emaKey": "ma:EMA:8",
+        "payload": {
+          "ok": true,
+          "sourceFormat": "pine-v6",
+          "runtime": "pine-pinets",
+          "normalizedScript": "//@version=6\nstrategy(\"MCP\")\nfast = ta.ema(close, 8)",
+          "requirementsPresent": true,
+          "errorCount": 0,
+          "warningCount": 0,
+          "hooks": ["on_kline_close"],
+          "metadata": {
+            "name": "MCP",
+            "version": "",
+            "symbol": "",
+            "interval": "",
+            "defaultQtyMode": "fixed",
+            "defaultQtyValue": "1",
+            "pyramiding": 1,
+            "risk": {}
+          },
+          "saveHintPresent": false,
+          "externalEngine": {
+            "engine": "pinets-shadow",
+            "mode": "off",
+            "enabled": false,
+            "status": "disabled",
+            "license": "",
+            "repository": ""
+          }
+        }
       }
     },
     {
@@ -47,7 +148,36 @@
       },
       "expected": {
         "ok": false,
-        "errorCode": "PINE_DECLARATION_UNSUPPORTED"
+        "errorCode": "PINE_DECLARATION_UNSUPPORTED",
+        "payload": {
+          "ok": false,
+          "sourceFormat": "pine-v6",
+          "runtime": "pine-pinets",
+          "normalizedScript": "//@version=6\nstrategy(\"MCP\")\nimport TradingView/ta/7",
+          "requirementsPresent": false,
+          "errorCount": 1,
+          "warningCount": 0,
+          "hooks": [],
+          "metadata": {
+            "name": "",
+            "version": "",
+            "symbol": "",
+            "interval": "",
+            "defaultQtyMode": "fixed",
+            "defaultQtyValue": "1",
+            "pyramiding": 1,
+            "risk": {}
+          },
+          "saveHintPresent": true,
+          "externalEngine": {
+            "engine": "pinets-shadow",
+            "mode": "off",
+            "enabled": false,
+            "status": "disabled",
+            "license": "",
+            "repository": ""
+          }
+        }
       }
     }
   ]

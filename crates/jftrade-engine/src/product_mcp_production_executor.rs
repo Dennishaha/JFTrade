@@ -25,6 +25,8 @@ mod errors;
 mod helpers;
 #[path = "product_mcp_production_executor_market_data.rs"]
 mod market_data;
+#[path = "product_mcp_production_executor_pine.rs"]
+mod pine;
 #[path = "product_mcp_production_executor_prediction.rs"]
 mod prediction;
 #[path = "product_mcp_production_executor_research.rs"]
@@ -34,6 +36,7 @@ mod trade;
 use errors::*;
 pub(super) use errors::{provider_actions_error, quote_error};
 use helpers::*;
+use pine::*;
 
 /// Error envelope carried in `tools/call` structured content.  It mirrors the
 /// product HTTP envelope while retaining the status for MCP clients that do
@@ -228,8 +231,55 @@ impl ProductionMcpToolExecutor {
     }
 
     fn strategy_pine_mcp(&self, name: &str, arguments: &Value) -> Result<Value, McpToolFailure> {
-        dispatch_strategy_pine_mcp(name, arguments)
-            .map_err(|error| McpToolFailure::failed(error.status, error.code, error.message))
+        self.strategy_pine_mcp_with_mode(name, arguments, pine_external_mode())
+    }
+
+    pub(crate) fn strategy_pine_mcp_with_mode(
+        &self,
+        name: &str,
+        arguments: &Value,
+        mode: &str,
+    ) -> Result<Value, McpToolFailure> {
+        self.strategy_pine_mcp_with_mode_and_notice(
+            name,
+            arguments,
+            mode,
+            third_party_notice_available(),
+        )
+    }
+
+    pub(crate) fn strategy_pine_mcp_with_mode_and_notice(
+        &self,
+        name: &str,
+        arguments: &Value,
+        mode: &str,
+        notice_available: bool,
+    ) -> Result<Value, McpToolFailure> {
+        let mut payload = dispatch_strategy_pine_mcp(name, arguments)
+            .map_err(|error| McpToolFailure::failed(error.status, error.code, error.message))?;
+        // Keep specification discovery deterministic and local.  Validation
+        // may optionally enrich its external-engine projection when the
+        // caller explicitly enables a PineTS shadow mode.
+        if name == VALIDATE_PINE_TOOL {
+            let Some(script) = arguments
+                .get("script")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|script| !script.is_empty())
+            else {
+                return Ok(payload);
+            };
+            if mode != PINE_MODE_OFF {
+                payload["externalEngine"] = pine_external_engine_payload(
+                    self.ports.as_ref(),
+                    mode,
+                    script,
+                    notice_available,
+                )
+                .unwrap_or_else(|error| pine_shadow_error_payload(mode, error));
+            }
+        }
+        Ok(payload)
     }
 
     fn market_capabilities(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
@@ -725,5 +775,17 @@ mod tests {
         assert_eq!(malformed.code, "MCP_PRODUCTION_PAYLOAD_INVALID");
         let missing = nullable_runs(&json!({})).expect_err("missing runs");
         assert_eq!(missing.status, 502);
+    }
+
+    #[test]
+    fn pine_external_mode_parser_accepts_only_supported_values() {
+        assert_eq!(pine_external_mode_value(None), PINE_MODE_OFF);
+        assert_eq!(pine_external_mode_value(Some(" off ")), PINE_MODE_OFF);
+        assert_eq!(pine_external_mode_value(Some(" SHADOW ")), PINE_MODE_SHADOW);
+        assert_eq!(
+            pine_external_mode_value(Some("community-agpl")),
+            PINE_MODE_COMMUNITY_AGPL
+        );
+        assert_eq!(pine_external_mode_value(Some("unknown")), PINE_MODE_OFF);
     }
 }
