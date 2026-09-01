@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"testing"
 
+	assistantassembly "github.com/jftrade/jftrade-main/internal/assistant/assembly"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
@@ -34,6 +35,7 @@ type stage9PineMCPExpected struct {
 }
 
 func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
+	t.Setenv("JFTRADE_PINETS_MODE", "off")
 	_, source, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("resolve pine MCP fixture")
@@ -82,6 +84,13 @@ func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
 				if frozenSections != item.Expected.SectionCount {
 					t.Fatalf("frozen section count = %d, want %d", frozenSections, item.Expected.SectionCount)
 				}
+				externalEngine, ok := payload["externalEngine"].(map[string]any)
+				if !ok || externalEngine["engine"] != "pinets-shadow" || externalEngine["enabled"] != false || externalEngine["license"] != "AGPL-3.0-only" {
+					t.Fatalf("externalEngine = %#v", payload["externalEngine"])
+				}
+				if _, ok := payload["goldenScripts"].([]map[string]any); !ok {
+					t.Fatalf("goldenScripts = %T, want []map[string]any", payload["goldenScripts"])
+				}
 			case "strategy.validate_pine":
 				script, _ := item.Arguments["script"].(string)
 				analysis := strategypine.AnalyzeScript(script, strategypine.AnalysisOptions{})
@@ -101,6 +110,21 @@ func TestStage9PineMCPFixtureMatchesCurrentGoOwner(t *testing.T) {
 				}
 				if item.Expected.ErrorCode != "" && len(analysis.Diagnostics) == 0 {
 					t.Fatalf("expected diagnostic %q", item.Expected.ErrorCode)
+				}
+				validation := assistantassembly.StrategyValidatePineToolPayload(item.Arguments)
+				if got := validation["ok"]; got != item.Expected.Ok {
+					t.Fatalf("validation ok = %#v, want %v", got, item.Expected.Ok)
+				}
+				externalEngine, ok := validation["externalEngine"].(map[string]any)
+				if !ok || externalEngine["engine"] != "pinets-shadow" || externalEngine["enabled"] != false {
+					t.Fatalf("validation externalEngine = %#v", validation["externalEngine"])
+				}
+				if item.Expected.Ok {
+					if validation["saveHint"] != nil || validation["requirements"] == nil {
+						t.Fatalf("valid validation payload = %#v", validation)
+					}
+				} else if validation["saveHint"] == nil {
+					t.Fatalf("invalid validation payload lacks saveHint = %#v", validation)
 				}
 			default:
 				t.Fatalf("unknown tool %q", item.Tool)
