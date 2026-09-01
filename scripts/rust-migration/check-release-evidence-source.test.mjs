@@ -6,6 +6,15 @@ import path from "node:path";
 import test from "node:test";
 
 import { verifySourceEvidence } from "./verify-release-evidence-source.mjs";
+import { inspectRollbackArtifactPair } from "./check-rollback-artifact.mjs";
+
+const platforms = [
+  ["macos-arm64", "arm64", [["dmg", "dmg"]], "darwin-aarch64"],
+  ["linux-x64", "amd64", [["appimage", "AppImage"], ["deb", "deb"], ["rpm", "rpm"]], "linux-x86_64"],
+  ["windows-x64", "amd64", [["nsis", "exe"]], "windows-x86_64"],
+  ["windows-arm64", "arm64", [["nsis", "exe"]], "windows-aarch64"],
+];
+const signature = "untrusted comment: external fixture\nRURqRkFLRV9TSUdOQVRVUkU=";
 
 const binding = {
   repository: "example/jftrade",
@@ -18,7 +27,62 @@ const binding = {
   artifact: { name: "raw-release-evidence", id: 7002, digest: `sha256:${"b".repeat(64)}` },
 };
 
-function reportSet() {
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function write(root, relative, value) {
+  const file = path.join(root, relative);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, value);
+  return { path: relative, sha256: sha256(value), size: Buffer.byteLength(value) };
+}
+
+function createRelease(root, version) {
+  const feed = { version, platforms: {} };
+  for (const [platform, architecture, kinds, target] of platforms) {
+    const packages = kinds.map(([kind, extension]) => {
+      const suffix = extension === "exe" ? "-setup.exe" : `.${extension}`;
+      return { kind, ...write(root, `packages/JFTrade-${version}-${platform}-${kind}${suffix}`, `${platform}:${kind}`) };
+    });
+    const archive = write(root, `updater/JFTrade_${version}_${platform}.tar.gz`, `${platform}:updater`);
+    const sidecar = write(root, `${archive.path}.sig`, `${signature}\n`);
+    write(root, `tauri-release-${platform}.json`, `${JSON.stringify({
+      schemaVersion: "jftrade.tauri-release-artifacts.v1",
+      target: { architecture, platform },
+      version,
+      scope: "package-and-integrity",
+      packages,
+      appBundle: null,
+      updaterSignatures: [sidecar],
+      updaterArchives: [archive],
+    })}\n`);
+    feed.platforms[target] = {
+      url: `https://updates.example.test/${path.basename(archive.path)}`,
+      signature,
+    };
+  }
+  write(root, "latest.json", `${JSON.stringify(feed)}\n`);
+}
+
+function createRollbackEvidence(root) {
+  const currentRoot = path.join(root, "rollback", "current");
+  const previousRoot = path.join(root, "rollback", "previous");
+  createRelease(currentRoot, "1.2.3");
+  createRelease(previousRoot, "1.2.2");
+  const instructions = path.join(root, "rollback", "rollback.md");
+  fs.writeFileSync(instructions, "Rollback 1.2.3 to 1.2.2 using the retained signed package and updater metadata.\n");
+  return inspectRollbackArtifactPair({
+    currentRoot,
+    previousRoot,
+    currentVersion: "1.2.3",
+    previousVersion: "1.2.2",
+    allowDowngrade: true,
+    instructionsPath: instructions,
+  });
+}
+
+function reportSet(rollbackCheck) {
   return {
     "signed-updater-inputs": {
       schemaVersion: "jftrade.release.signed-updater.v2",
@@ -40,9 +104,10 @@ function reportSet() {
       schemaVersion: "jftrade.release.rollback-artifact.v2",
       status: "verified",
       binding,
-      current: { version: "1.2.3", platforms: { "macos-arm64": {} }, updaterMetadata: {} },
-      previous: { version: "1.2.2", platforms: { "macos-arm64": {} }, updaterMetadata: {} },
-      rollbackInstructions: "restore previous release",
+      checkerResult: rollbackCheck,
+      current: rollbackCheck.current,
+      previous: rollbackCheck.previous,
+      rollbackInstructions: rollbackCheck.rollbackInstructions,
     },
     "backup-restore-drill": {
       schemaVersion: "jftrade.release.backup-restore.v2",
@@ -74,7 +139,8 @@ function reportSet() {
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-source-evidence-"));
   fs.mkdirSync(path.join(root, "reports"), { recursive: true });
-  for (const [id, report] of Object.entries(reportSet())) {
+  const rollbackCheck = createRollbackEvidence(root);
+  for (const [id, report] of Object.entries(reportSet(rollbackCheck))) {
     fs.writeFileSync(path.join(root, "reports", `${id}.json`), `${JSON.stringify(report)}\n`);
   }
   return root;
@@ -109,6 +175,90 @@ test("intake verifies real reports and only adds detached provenance", (context)
   const sidecar = JSON.parse(fs.readFileSync(path.join(root, "source-binding.json"), "utf8"));
   assert.equal(sidecar.sourceRepository, "external-org/release-evidence");
   assert.deepEqual(sidecar.binding, binding);
+});
+
+test("intake contract requires the raw rollback pair and instructions", (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.rmSync(path.join(root, "rollback", "previous"), { recursive: true });
+  assert.throws(
+    () => verifySourceEvidence({ args: args(root) }),
+    /previous|release artifact directory|directory is required|unavailable/,
+  );
+  assert.equal(fs.existsSync(path.join(root, "source-binding.json")), false);
+});
+
+test("intake rejects symlinked rollback ancestors before writing binding", (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const rollback = path.join(root, "rollback");
+  const rollbackTarget = path.join(root, "rollback-target");
+  fs.renameSync(rollback, rollbackTarget);
+  try {
+    fs.symlinkSync(rollbackTarget, rollback, "dir");
+  } catch (error) {
+    if (["EACCES", "EPERM", "ENOTSUP"].includes(error.code)) {
+      context.skip(`directory symlinks are unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
+  assert.throws(
+    () => verifySourceEvidence({ args: args(root) }),
+    /symbolic link/,
+  );
+  assert.equal(fs.existsSync(path.join(root, "source-binding.json")), false);
+});
+
+test("intake rejects a symlinked evidence root before reading reports", (context) => {
+  const root = fixture();
+  const alias = `${root}-alias`;
+  context.after(() => {
+    fs.rmSync(alias, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  try {
+    fs.symlinkSync(root, alias, "dir");
+  } catch (error) {
+    if (["EACCES", "EPERM", "ENOTSUP"].includes(error.code)) {
+      context.skip(`directory symlinks are unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
+  assert.throws(
+    () => verifySourceEvidence({ args: args(alias) }),
+    /symbolic link/,
+  );
+  assert.equal(fs.existsSync(path.join(root, "source-binding.json")), false);
+});
+
+test("intake rejects rollback reports not bound to the checker result", (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const reportPath = path.join(root, "reports", "rollback-artifact-pair.json");
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  report.checkerResult.current.platforms["macos-arm64"].packageCount += 1;
+  fs.writeFileSync(reportPath, `${JSON.stringify(report)}\n`);
+  assert.throws(
+    () => verifySourceEvidence({ args: args(root) }),
+    /checkerResult does not match the rollback checker result/,
+  );
+  assert.equal(fs.existsSync(path.join(root, "source-binding.json")), false);
+});
+
+test("intake rejects rollback artifact bytes that no longer match their declared hashes", (context) => {
+  const root = fixture();
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.appendFileSync(
+    path.join(root, "rollback", "current", "packages", "JFTrade-1.2.3-macos-arm64-dmg.dmg"),
+    "tampered",
+  );
+  assert.throws(
+    () => verifySourceEvidence({ args: args(root) }),
+    /sha256 does not match|size does not match/,
+  );
+  assert.equal(fs.existsSync(path.join(root, "source-binding.json")), false);
 });
 
 test("intake rejects unsafe workflow and artifact identifiers", (context) => {

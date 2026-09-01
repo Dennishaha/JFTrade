@@ -152,14 +152,6 @@ jobs:
             --manifest incoming/sbom-provenance.json \
             --base-dir incoming \
             --require-targets
-          previous_version="$(jq -r '.previous.version // empty' incoming/reports/rollback-artifact-pair.json)"
-          node scripts/rust-migration/check-rollback-artifact.mjs \
-            --current-dir incoming/rollback/current \
-            --previous-dir incoming/rollback/previous \
-            --current "$release_version" \
-            --previous "$previous_version" \
-            --allow-downgrade \
-            --instructions incoming/rollback/rollback.md
           source_workflow="$(jq -r '.binding.workflow // empty' incoming/source-binding.json)"
           source_ref="$(jq -r '.binding.ref // empty' incoming/source-binding.json)"
           source_commit="$(jq -r '.binding.commitSha // empty' incoming/source-binding.json)"
@@ -184,20 +176,6 @@ jobs:
             --argjson id "$source_artifact_id" --argjson run_id "$source_run_id" \
             '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
             <<<"$source_artifact_json" >/dev/null || { echo "source binding artifact API metadata does not match" >&2; exit 1; }
-          node scripts/rust-migration/verify-release-evidence-source.mjs \
-            --root incoming \
-            --output incoming/payload-source-check.json \
-            --repository "$GITHUB_REPOSITORY" \
-            --source-repository "$source_repository" \
-            --release-ref "refs/tags/$RELEASE_REF" \
-            --source-ref "$source_ref" \
-            --source-commit-sha "$source_commit" \
-            --source-workflow "$source_workflow" \
-            --source-run-id "$source_run_id" \
-            --source-run-attempt "$source_attempt" \
-            --source-artifact "$source_artifact" \
-            --source-artifact-id "$source_artifact_id" \
-            --source-artifact-digest "$source_artifact_digest"
 
       - name: Verify report semantics without synthesizing evidence
         env:

@@ -377,7 +377,14 @@ fn production_backtest_read_rejects_corrupted_request_json() {
 fn production_backtest_start_without_worker_fails_before_persisting_run() {
     let (port, _directory) = production_port();
     let result = port.mutate(&BacktestsWriteInput::Start {
-        payload: json!({"symbol": "US.AAPL", "period": "1d"}),
+        payload: json!({
+            "definitionId": "fixture-definition",
+            "strategyScript": "strategy('fixture')",
+            "symbol": "US.AAPL",
+            "interval": "1d",
+            "startTime": "2025-06-23T13:00:00Z",
+            "endTime": "2025-06-23T13:01:00Z"
+        }),
     });
     assert!(matches!(
         result,

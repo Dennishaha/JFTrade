@@ -16,6 +16,7 @@ mod model;
 mod report;
 mod validation;
 
+pub use indicators::{PineCompatibleMacd, pine_compatible_ema, pine_compatible_macd};
 pub use model::{CorpusInput, CorpusOutput};
 
 use jftrade_kernel::CodecError;

@@ -69,7 +69,9 @@ test("payload workflow is present and only validates then republishes external r
   assert.doesNotMatch(payloadWorkflow, /external_release_runner_evidence_required/);
   assert.match(payloadWorkflow, /desktop-release-evidence-intake\.yml/);
   assert.match(payloadWorkflow, /source-binding\.json/);
-  assert.match(payloadWorkflow, /verify-release-evidence-source\.mjs/);
+  assert.doesNotMatch(payloadWorkflow, /verify-release-evidence-source\.mjs/);
+  assert.doesNotMatch(payloadWorkflow, /incoming\/rollback\/(?:current|previous|rollback\.md)/);
+  assert.doesNotMatch(payloadWorkflow, /check-rollback-artifact\.mjs/);
 });
 
 test("the immutable source intake is a real non-cyclic provenance root", () => {

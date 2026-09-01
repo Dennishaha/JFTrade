@@ -18,6 +18,7 @@ import {
   TRUSTED_EXTERNAL_SOURCE_WORKFLOWS,
   validateReleaseEvidencePayload,
 } from "./check-release-evidence-inputs.mjs";
+import { inspectRollbackArtifactPair } from "./check-rollback-artifact.mjs";
 
 const REQUIRED_REPORTS = Object.freeze([
   "signed-updater-inputs",
@@ -161,6 +162,141 @@ function assertIndependentReview(root) {
   }
 }
 
+function portablePlatform(platform) {
+  if (!isRecord(platform)) throw new Error("rollback checker platform result must be an object");
+  return {
+    platform: platform.platform,
+    architecture: platform.architecture,
+    manifestPath: platform.manifestPath,
+    packageCount: platform.packageCount,
+    archiveNames: platform.archiveNames,
+  };
+}
+
+function portableRelease(release, label) {
+  if (!isRecord(release) || !isRecord(release.platforms) || !isRecord(release.updaterMetadata)) {
+    throw new Error(`${label} must contain the checker release result`);
+  }
+  return {
+    version: release.version,
+    platforms: Object.fromEntries(Object.entries(release.platforms).map(
+      ([platform, value]) => [platform, portablePlatform(value)],
+    )),
+    updaterMetadata: release.updaterMetadata,
+    packageSigning: release.packageSigning,
+  };
+}
+
+function portableInstructions(instructions) {
+  if (!isRecord(instructions)) throw new Error("rollback checker instructions result must be an object");
+  return { bytes: instructions.bytes, namesVersions: instructions.namesVersions };
+}
+
+function portableRollbackResult(result) {
+  if (!isRecord(result)) throw new Error("rollback report checkerResult must be an object");
+  return {
+    schemaVersion: result.schemaVersion,
+    scope: result.scope,
+    versionPolicy: result.versionPolicy,
+    current: portableRelease(result.current, "rollback checkerResult.current"),
+    previous: portableRelease(result.previous, "rollback checkerResult.previous"),
+    rollbackInstructions: portableInstructions(result.rollbackInstructions),
+    limitations: result.limitations,
+  };
+}
+
+function sameDocument(actual, expected, label) {
+  const canonical = (value) => {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (!isRecord(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  };
+  if (JSON.stringify(canonical(actual)) !== JSON.stringify(canonical(expected))) {
+    throw new Error(`${label} does not match the rollback checker result`);
+  }
+}
+
+// These paths are part of the immutable intake artifact contract.  They are
+// verified here, before source-binding.json is written, so downstream payload
+// workflows only need the successful intake run and its immutable digest.
+function lstatPathChain(root, relative, label) {
+  const resolvedRoot = path.resolve(root);
+  let current = resolvedRoot;
+  let finalStat;
+  try {
+    finalStat = fs.lstatSync(current);
+  } catch (error) {
+    throw new Error(`raw evidence ${label} is unavailable at ${current}: ${error.message}`);
+  }
+  if (finalStat.isSymbolicLink()) {
+    throw new Error(`raw evidence ${label} must not traverse a symbolic link: ${current}`);
+  }
+  if (!finalStat.isDirectory()) {
+    throw new Error(`raw evidence ${label} ancestor must be a directory: ${current}`);
+  }
+  const segments = relative.split(path.sep).filter(Boolean);
+  for (const segment of segments) {
+    current = path.join(current, segment);
+    let stat;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (error) {
+      throw new Error(`raw evidence ${label} is unavailable at ${current}: ${error.message}`);
+    }
+    if (stat.isSymbolicLink()) {
+      throw new Error(`raw evidence ${label} must not traverse a symbolic link: ${current}`);
+    }
+    finalStat = stat;
+  }
+  return finalStat;
+}
+
+function assertRollbackIntakePaths(root) {
+  const resolvedRoot = path.resolve(root);
+  for (const relative of ["rollback/current", "rollback/previous"]) {
+    const value = lstatPathChain(resolvedRoot, relative, relative);
+    if (!value.isDirectory()) {
+      throw new Error(`raw evidence ${relative} must be a real directory`);
+    }
+  }
+  const instructions = lstatPathChain(
+    resolvedRoot,
+    "rollback/rollback.md",
+    "rollback/rollback.md",
+  );
+  if (!instructions.isFile() || instructions.size === 0) {
+    throw new Error("raw evidence rollback/rollback.md must be a non-empty regular file");
+  }
+}
+
+function assertRollbackCheckerBinding(root) {
+  assertRollbackIntakePaths(root);
+  const reportPath = path.join(root, "reports", "rollback-artifact-pair.json");
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  if (report.schemaVersion !== "jftrade.release.rollback-artifact.v2") {
+    throw new Error("rollback source report must use jftrade.release.rollback-artifact.v2");
+  }
+  const currentVersion = required(report.current?.version, "rollback report current.version");
+  const previousVersion = required(report.previous?.version, "rollback report previous.version");
+  const checked = inspectRollbackArtifactPair({
+    currentRoot: path.join(root, "rollback", "current"),
+    previousRoot: path.join(root, "rollback", "previous"),
+    currentVersion,
+    previousVersion,
+    allowDowngrade: true,
+    instructionsPath: path.join(root, "rollback", "rollback.md"),
+  });
+  const portableChecked = portableRollbackResult(checked);
+  sameDocument(portableRollbackResult(report.checkerResult), portableChecked, "rollback report checkerResult");
+  sameDocument(portableRelease(report.current, "rollback report current"), portableChecked.current, "rollback report current");
+  sameDocument(portableRelease(report.previous, "rollback report previous"), portableChecked.previous, "rollback report previous");
+  sameDocument(
+    portableInstructions(report.rollbackInstructions),
+    portableChecked.rollbackInstructions,
+    "rollback report instructions",
+  );
+}
+
 function writeBinding(root, binding, sourceRepository, output) {
   const target = path.resolve(output ?? path.join(root, "source-binding.json"));
   if (fs.existsSync(target)) throw new Error(`source binding output already exists: ${target}`);
@@ -183,6 +319,7 @@ export function verifySourceEvidence({ args = process.argv.slice(2) } = {}) {
   assertRegularReports(root);
   assertBackupFourPlatform(root);
   assertIndependentReview(root);
+  assertRollbackCheckerBinding(root);
   const result = validateReleaseEvidencePayload({ baseDirectory: root, expectedBinding: binding });
   if (!result.valid) throw new Error(result.errors.join("; "));
   const sourceRepository = required(parsed.source_repository, "source_repository");

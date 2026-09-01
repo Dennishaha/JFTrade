@@ -79,6 +79,37 @@ function createRelease(root, version) {
   return feed;
 }
 
+function nativePackageName(version, platform, kind) {
+  if (platform === "macos-arm64") return `JFTrade_${version}_aarch64.dmg`;
+  if (platform === "linux-x64" && kind === "appimage") return `JFTrade_${version}_amd64.AppImage`;
+  if (platform === "linux-x64" && kind === "deb") return `JFTrade_${version}_x86_64.deb`;
+  if (platform === "linux-x64" && kind === "rpm") return `JFTrade-${version}-1.x86_64.rpm`;
+  if (platform === "windows-x64") return `JFTrade_${version}_x64-setup.exe`;
+  if (platform === "windows-arm64") return `JFTrade_${version}_arm64-setup.exe`;
+  throw new Error(`unsupported fixture package: ${platform}/${kind}`);
+}
+
+function renamePackagesToNativeNames(root, version) {
+  for (const [platform] of PLATFORMS) {
+    const manifestPath = path.join(root, `tauri-release-${platform}.json`);
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    manifest.packages = manifest.packages.map((packageEntry) => {
+      const sourcePath = path.join(root, packageEntry.path);
+      const contents = fs.readFileSync(sourcePath);
+      const name = nativePackageName(version, platform, packageEntry.kind);
+      const targetPath = path.join(path.dirname(sourcePath), name);
+      fs.renameSync(sourcePath, targetPath);
+      return {
+        ...packageEntry,
+        path: path.relative(root, targetPath).split(path.sep).join("/"),
+        sha256: sha256(contents),
+        size: contents.length,
+      };
+    });
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+}
+
 function removeUpdaterArchiveLists(root) {
   for (const [platform] of PLATFORMS) {
     const manifestPath = path.join(root, `tauri-release-${platform}.json`);
@@ -142,6 +173,59 @@ test("validates all platform package manifests, updater metadata and versions as
   assert.match(report.limitations.join(" "), /native install, downgrade, rollback/);
 });
 
+test("accepts native Tauri package names for every platform and package kind", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  renamePackagesToNativeNames(value.currentRoot, "1.2.4");
+  renamePackagesToNativeNames(value.previousRoot, "1.2.3");
+
+  const report = inspectRollbackArtifactPair({
+    currentRoot: value.currentRoot,
+    previousRoot: value.previousRoot,
+    currentVersion: "1.2.4",
+    previousVersion: "1.2.3",
+    allowDowngrade: true,
+    instructionsPath: value.instructionsPath,
+  });
+
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(report.current.platforms).map(([platform, value]) => [
+      platform,
+      value.packageCount,
+    ])),
+    {
+      "macos-arm64": 1,
+      "linux-x64": 3,
+      "windows-x64": 1,
+      "windows-arm64": 1,
+    },
+  );
+});
+
+test("rejects native package names whose architecture belongs to another platform", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const manifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.packages[0] = {
+    kind: "dmg",
+    ...entry(value.currentRoot, "packages/JFTrade_1.2.4_amd64.dmg", "wrong native architecture"),
+  };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /must contain platform macos-arm64/,
+  );
+});
+
 test("refuses a downgrade unless the caller explicitly allows rollback mode", (context) => {
   const value = fixture();
   context.after(value.cleanup);
@@ -202,6 +286,303 @@ test("resolves manifest paths after the desktop publish job flattens release ass
   });
   assert.equal(report.current.platforms["macos-arm64"].packageCount, 1);
   assert.equal(report.previous.platforms["linux-x64"].archiveNames.length, 1);
+});
+
+test("rejects symlinked and non-regular release tree entries", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const outside = write(value.root, "outside/package.bin", "outside");
+  fs.symlinkSync(outside, path.join(value.currentRoot, "package-link"));
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /symbolic link/,
+  );
+
+  fs.unlinkSync(path.join(value.currentRoot, "package-link"));
+  fs.mkdirSync(path.join(value.currentRoot, "directory-entry"));
+  write(value.currentRoot, "other/directory-entry", "same basename outside declaration");
+  const manifest = JSON.parse(fs.readFileSync(path.join(value.currentRoot, "tauri-release-macos-arm64.json"), "utf8"));
+  manifest.packages[0].path = "directory-entry";
+  write(value.currentRoot, "tauri-release-macos-arm64.json", `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /regular file|missing/,
+  );
+});
+
+test("rejects unsafe encoded and platform-specific manifest paths", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const manifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  for (const unsafePath of [
+    "../outside/JFTrade-1.2.4-macos-arm64-dmg.dmg",
+    "packages/%2e%2e/outside.dmg",
+    "packages\\JFTrade-1.2.4-macos-arm64-dmg.dmg",
+  ]) {
+    const candidate = structuredClone(manifest);
+    candidate.packages[0].path = unsafePath;
+    fs.writeFileSync(manifestPath, `${JSON.stringify(candidate)}\n`);
+    assert.throws(
+      () => inspectRollbackArtifactPair({
+        currentRoot: value.currentRoot,
+        previousRoot: value.previousRoot,
+        currentVersion: "1.2.4",
+        previousVersion: "1.2.3",
+        allowDowngrade: true,
+        instructionsPath: value.instructionsPath,
+      }),
+      /safe relative POSIX path|parent path|encoded path traversal/,
+    );
+  }
+
+  const feedPath = path.join(value.currentRoot, "latest.json");
+  const feed = JSON.parse(fs.readFileSync(feedPath, "utf8"));
+  feed.platforms["darwin-aarch64"].url = "https://updates.example.test/releases/%2e%2e/JFTrade_1.2.4_macos-arm64.tar.gz";
+  fs.writeFileSync(feedPath, `${JSON.stringify(feed)}\n`);
+  const restored = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  restored.packages[0] = manifest.packages[0];
+  fs.writeFileSync(manifestPath, `${JSON.stringify(restored)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /path traversal segments/,
+  );
+});
+
+test("rejects duplicate feed target identities and artifact basenames", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const feedPath = path.join(value.currentRoot, "latest.json");
+  const feed = JSON.parse(fs.readFileSync(feedPath, "utf8"));
+  feed.platforms["darwin-arm64"] = structuredClone(feed.platforms["darwin-aarch64"]);
+  fs.writeFileSync(feedPath, `${JSON.stringify(feed)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /duplicate target identity/,
+  );
+
+  fs.unlinkSync(feedPath);
+  createRelease(value.currentRoot, "1.2.4");
+  const duplicateArchiveFeed = JSON.parse(fs.readFileSync(feedPath, "utf8"));
+  duplicateArchiveFeed.platforms["linux-x86_64"].url = duplicateArchiveFeed.platforms["darwin-aarch64"].url;
+  fs.writeFileSync(feedPath, `${JSON.stringify(duplicateArchiveFeed)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /duplicate updater archive reference/,
+  );
+
+  createRelease(value.currentRoot, "1.2.4");
+  const feedJson = fs.readFileSync(feedPath, "utf8");
+  fs.writeFileSync(feedPath, feedJson.replace('"version": "1.2.4"', '"version": "1.2.4",\n  "version": "1.2.4"'));
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /duplicate JSON object key/,
+  );
+
+  createRelease(value.currentRoot, "1.2.4");
+  const archivePath = path.join(value.currentRoot, "updater/JFTrade_1.2.4_macos-arm64.tar.gz");
+  const archiveManifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const archiveManifest = JSON.parse(fs.readFileSync(archiveManifestPath, "utf8"));
+  fs.rmSync(archivePath);
+  fs.rmSync(`${archivePath}.sig`);
+  write(value.currentRoot, "duplicate/JFTrade_1.2.4_macos-arm64.tar.gz", "duplicate archive");
+  write(value.currentRoot, "duplicate/JFTrade_1.2.4_macos-arm64.tar.gz.sig", `${SIGNATURE}\n`);
+  write(value.currentRoot, "second/JFTrade_1.2.4_macos-arm64.tar.gz", "second duplicate archive");
+  write(value.currentRoot, "second/JFTrade_1.2.4_macos-arm64.tar.gz.sig", `${SIGNATURE}\n`);
+  fs.writeFileSync(archiveManifestPath, `${JSON.stringify(archiveManifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /duplicate basename/,
+  );
+});
+
+test("binds artifact names and feeds to the exact manifest version", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const manifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const originalPackage = structuredClone(manifest.packages[0]);
+  const wrongName = "packages/JFTrade-11.2.40-macos-arm64-dmg.dmg";
+  const wrongEntry = entry(value.currentRoot, wrongName, "wrong version package");
+  manifest.packages[0] = { kind: "dmg", ...wrongEntry };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /must contain release version 1\.2\.4/,
+  );
+
+  const restored = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  restored.packages[0] = originalPackage;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(restored)}\n`);
+  const feedPath = path.join(value.currentRoot, "latest.json");
+  const feed = JSON.parse(fs.readFileSync(feedPath, "utf8"));
+  feed.version = "1.2.3";
+  fs.writeFileSync(feedPath, `${JSON.stringify(feed)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /updater metadata\.version .*does not match 1\.2\.4/,
+  );
+  assert.ok(restored);
+});
+
+test("binds package paths to their manifest platform and package kind", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const manifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const wrongPlatform = entry(
+    value.currentRoot,
+    "packages/JFTrade-1.2.4-linux-x64.dmg",
+    "linux package with a misleading dmg extension",
+  );
+  manifest.packages[0] = { kind: "dmg", ...wrongPlatform };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /must contain platform macos-arm64/,
+  );
+
+  manifest.packages[0] = {
+    kind: "dmg",
+    ...entry(value.currentRoot, "packages/JFTrade-1.2.4-macos-arm64.deb", "wrong package extension"),
+  };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /must use \.dmg package extension/,
+  );
+});
+
+test("rejects sidecar drift, duplicate signature entries and sidecar path substitution", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const manifestPath = path.join(value.currentRoot, "tauri-release-macos-arm64.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const signaturePath = path.join(value.currentRoot, manifest.updaterSignatures[0].path);
+  fs.writeFileSync(signaturePath, "different sidecar\n");
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /sha256 does not match/,
+  );
+
+  const restoredSignature = entry(value.currentRoot, manifest.updaterSignatures[0].path, `${SIGNATURE}\n`);
+  manifest.updaterSignatures[0] = { path: restoredSignature.path, sha256: restoredSignature.sha256, size: restoredSignature.size };
+  manifest.updaterSignatures.push(structuredClone(manifest.updaterSignatures[0]));
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /duplicate updater signature/,
+  );
+
+  manifest.updaterSignatures.pop();
+  const mismatchedSignature = "updater/substitute.sig";
+  const substitute = entry(value.currentRoot, mismatchedSignature, `${SIGNATURE}\n`);
+  manifest.updaterSignatures[0].path = mismatchedSignature;
+  manifest.updaterSignatures[0].sha256 = substitute.sha256;
+  manifest.updaterSignatures[0].size = substitute.size;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+  assert.throws(
+    () => inspectRollbackArtifactPair({
+      currentRoot: value.currentRoot,
+      previousRoot: value.previousRoot,
+      currentVersion: "1.2.4",
+      previousVersion: "1.2.3",
+      allowDowngrade: true,
+      instructionsPath: value.instructionsPath,
+    }),
+    /no matching updater archive|does not match its updater archive sidecar/,
+  );
 });
 
 test("rejects mismatched updater metadata and missing package integrity", (context) => {
@@ -275,6 +656,128 @@ test("retains a rollback directory with copy-then-rename and refuses overwrite",
       version: "1.2.3",
     }),
     /refusing overwrite/,
+  );
+});
+
+test("validates rollback source and containment before creating a retained root", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const missingSource = path.join(value.root, "missing-previous");
+  const retainedRoot = path.join(value.root, "retained-before-source-check");
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: missingSource,
+      retainedRoot,
+      version: "1.2.3",
+    }),
+    /rollback source is missing/,
+  );
+  assert.equal(fs.existsSync(retainedRoot), false);
+
+  const insideSourceRoot = path.join(value.previousRoot, "retained-inside-source");
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: value.previousRoot,
+      retainedRoot: insideSourceRoot,
+      version: "1.2.3",
+    }),
+    /inside rollback source/,
+  );
+  assert.equal(fs.existsSync(insideSourceRoot), false);
+});
+
+test("rejects a symlink ancestor before creating a rollback destination", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const outside = path.join(value.root, "outside-retention");
+  fs.mkdirSync(outside);
+  const linkedAncestor = path.join(value.root, "retained-link");
+  try {
+    fs.symlinkSync(outside, linkedAncestor, "dir");
+  } catch (error) {
+    if (["EACCES", "EPERM", "ENOTSUP"].includes(error.code)) {
+      context.skip(`directory symlinks are unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
+  const retainedRoot = path.join(linkedAncestor, "nested", "retained");
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: value.previousRoot,
+      retainedRoot,
+      version: "1.2.3",
+    }),
+    /symbolic link/,
+  );
+  assert.equal(fs.existsSync(path.join(outside, "nested")), false);
+});
+
+test("rejects a source symlink ancestor before retaining its files", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const outside = path.join(value.root, "outside-source");
+  const sourceDirectory = path.join(outside, "previous");
+  fs.mkdirSync(sourceDirectory, { recursive: true });
+  fs.writeFileSync(path.join(sourceDirectory, "secret.txt"), "secret");
+  const linkedAncestor = path.join(value.root, "source-link");
+  try {
+    fs.symlinkSync(outside, linkedAncestor, "dir");
+  } catch (error) {
+    if (["EACCES", "EPERM", "ENOTSUP"].includes(error.code)) {
+      context.skip(`directory symlinks are unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
+  }
+  const retainedRoot = path.join(value.root, "retained-source-link");
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: path.join(linkedAncestor, "previous"),
+      retainedRoot,
+      version: "1.2.3",
+    }),
+    /symbolic link/,
+  );
+  assert.equal(fs.existsSync(retainedRoot), false);
+});
+
+test("refuses unsafe rollback retention sources and destinations", (context) => {
+  const value = fixture();
+  context.after(value.cleanup);
+  const outside = write(value.root, "outside/secret.txt", "do not copy through a link");
+  const linkedSource = path.join(value.root, "linked-previous");
+  fs.symlinkSync(value.previousRoot, linkedSource, "dir");
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: linkedSource,
+      retainedRoot: path.join(value.root, "retained"),
+      version: "1.2.3",
+    }),
+    /symbolic link/,
+  );
+
+  const retainedRoot = path.join(value.root, "retained");
+  fs.rmSync(retainedRoot, { recursive: true, force: true });
+  fs.mkdirSync(retainedRoot);
+  const linkedDestination = path.join(retainedRoot, "1.2.3");
+  fs.symlinkSync(outside, linkedDestination);
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: value.previousRoot,
+      retainedRoot,
+      version: "1.2.3",
+    }),
+    /refusing overwrite/,
+  );
+
+  assert.throws(
+    () => atomicallyRetainRollbackArtifact({
+      sourceRoot: value.previousRoot,
+      retainedRoot: path.join(value.previousRoot, "retained"),
+      version: "1.2.3",
+    }),
+    /inside rollback source/,
   );
 });
 
