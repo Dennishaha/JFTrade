@@ -234,7 +234,7 @@ function lstatPathChain(root, relative, label) {
   if (!finalStat.isDirectory()) {
     throw new Error(`raw evidence ${label} ancestor must be a directory: ${current}`);
   }
-  const segments = relative.split(path.sep).filter(Boolean);
+  const segments = relative.split(/[\\/]/).filter(Boolean);
   for (const segment of segments) {
     current = path.join(current, segment);
     let stat;
