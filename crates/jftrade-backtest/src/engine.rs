@@ -87,6 +87,7 @@ struct Engine<'a> {
     orders: Vec<OrderRecord>,
     matching_order: Vec<usize>,
     order_index_by_client_id: HashMap<String, usize>,
+    processed_atomic_groups: BTreeSet<String>,
     fills: Vec<FillOutput>,
     equity_curve: Vec<EquityPoint>,
     warnings: Vec<String>,
@@ -113,6 +114,7 @@ impl<'a> Engine<'a> {
             orders: Vec::new(),
             matching_order: Vec::new(),
             order_index_by_client_id: HashMap::new(),
+            processed_atomic_groups: BTreeSet::new(),
             fills: Vec::new(),
             equity_curve: Vec::new(),
             warnings: Vec::new(),
@@ -157,23 +159,22 @@ impl<'a> Engine<'a> {
             .iter()
             .filter(|intent| intent.bar_index == bar_index)
             .collect();
-        let mut atomic_groups = BTreeSet::new();
         for intent in &intents {
             if intent.action == "cancel" {
-                self.cancel_by_client_id(&intent.target_id)?;
+                self.cancel_by_target_id(&intent.target_id)?;
             } else if intent.atomic_group_id.is_empty() {
                 self.submit_one(intent, 0, false)?;
-            } else {
-                atomic_groups.insert(intent.atomic_group_id.clone());
+            } else if self
+                .processed_atomic_groups
+                .insert(intent.atomic_group_id.clone())
+            {
+                let group: Vec<&OrderIntent> = intents
+                    .iter()
+                    .copied()
+                    .filter(|other| other.atomic_group_id == intent.atomic_group_id)
+                    .collect();
+                self.submit_atomic(&intent.atomic_group_id, &group)?;
             }
-        }
-        for group_id in atomic_groups {
-            let group: Vec<&OrderIntent> = intents
-                .iter()
-                .copied()
-                .filter(|intent| intent.atomic_group_id == group_id)
-                .collect();
-            self.submit_atomic(&group_id, &group)?;
         }
         Ok(())
     }
@@ -546,8 +547,19 @@ impl<'a> Engine<'a> {
         Ok((closed_quantity, realized))
     }
 
-    fn cancel_by_client_id(&mut self, client_order_id: &str) -> Result<(), BacktestError> {
-        let Some(&order_index) = self.order_index_by_client_id.get(client_order_id) else {
+    fn cancel_by_target_id(&mut self, target_id: &str) -> Result<(), BacktestError> {
+        let order_index = if let Some(&index) = self.order_index_by_client_id.get(target_id) {
+            Some(index)
+        } else if !target_id.is_empty() && target_id.chars().all(|c| c.is_ascii_digit()) {
+            target_id.parse::<u64>().ok().and_then(|order_id| {
+                self.orders
+                    .iter()
+                    .position(|order| order.order_id == order_id)
+            })
+        } else {
+            None
+        };
+        let Some(order_index) = order_index else {
             return Ok(());
         };
         let at = self
