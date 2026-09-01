@@ -1,10 +1,9 @@
-//! Private Stage 9 leaf for the strategy-pine analyze route.
+//! Private Stage 9 boundary for strategy-pine analysis and MCP shadow execution.
 //!
-//! Go remains the only production owner of Pine parsing and PineTS worker
-//! lifecycle. This leaf only validates the HTTP-shaped input and forwards a
-//! complete, opaque analysis projection through a consumer-owned snapshot
-//! port. Product composition intentionally wires it only in an explicit
-//! test-cutover profile.
+//! This leaf owns HTTP-shaped input validation and the complete opaque wire
+//! projection only. Production composition supplies a verified PineTS gRPC
+//! adapter after worker readiness; the optional MCP shadow evaluator remains
+//! fail-closed when that capability is not configured.
 
 use std::collections::BTreeMap;
 
@@ -15,7 +14,7 @@ pub const STRATEGY_PINE_ANALYZE_PATH: &str = "/api/v1/strategy-pine/analyze";
 pub const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 pub const PINE_V6_SOURCE_FORMAT: &str = "pine-v6";
 
-/// The normalized request handed to the Go-owned analyzer adapter.
+/// The normalized request handed to the configured Pine analyzer adapter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StrategyPineAnalyzeInput {
     pub script: String,
@@ -23,8 +22,8 @@ pub struct StrategyPineAnalyzeInput {
     pub include_ast: bool,
 }
 
-/// A complete Go-compatible response projection. `data` is intentionally an
-/// opaque JSON value so Rust does not duplicate Pine's analysis schema.
+/// A complete wire-compatible response projection. `data` is intentionally an
+/// opaque JSON value so this boundary does not duplicate Pine's analysis schema.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StrategyPineAnalyzeResponse {
     pub status: u16,
@@ -40,12 +39,24 @@ pub struct StrategyPineAnalyzeError {
     pub retry_after_seconds: Option<u64>,
 }
 
-/// Go-owned analysis and PineTS shadow projection boundary.
+/// Configured analysis and PineTS shadow projection boundary.
 pub trait StrategyPineAnalyzeSnapshotPort: Send + Sync + std::fmt::Debug {
     fn analyze(
         &self,
         input: &StrategyPineAnalyzeInput,
     ) -> Result<Value, StrategyPineAnalyzeSnapshotError>;
+
+    /// Execute the PineTS shadow projection used by `strategy.validate_pine`.
+    /// Implementations that only support the HTTP analysis leaf remain
+    /// fail-closed instead of silently substituting AnalyzeScript semantics.
+    fn evaluate_shadow(
+        &self,
+        _input: &StrategyPineAnalyzeInput,
+    ) -> Result<Value, StrategyPineAnalyzeSnapshotError> {
+        Err(StrategyPineAnalyzeSnapshotError::Unavailable(
+            "pine shadow evaluator is not configured".to_owned(),
+        ))
+    }
 }
 
 #[allow(dead_code)]
@@ -60,6 +71,14 @@ pub enum StrategyPineAnalyzeSnapshotError {
         message: String,
         retry_after_seconds: Option<u64>,
     },
+}
+
+impl StrategyPineAnalyzeSnapshotError {
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Unavailable(message) | Self::Failed { message, .. } => message,
+        }
+    }
 }
 
 /// Replays the one-operation group without owning product composition.

@@ -1,6 +1,6 @@
-use jftrade_strategy::pine::{compile, parse, DiagnosticSeverity, ExprKind};
+use jftrade_strategy::pine::{DiagnosticSeverity, ExprKind, compile, parse};
 use jftrade_strategy::pinespec::{
-    build_tool_payload, validate_script, COMPATIBILITY_SCORE, SCORE_MODEL_VERSION, SECTIONS,
+    COMPATIBILITY_SCORE, SCORE_MODEL_VERSION, SECTIONS, build_tool_payload, validate_script,
 };
 use serde_json::to_value;
 
@@ -55,18 +55,24 @@ fn semantic_checker_rejects_non_boolean_conditions_and_unsupported_declarations(
         "//@version=6\nstrategy(\"Bad\")\nif close\n    strategy.entry(\"Long\", strategy.long)\nimport TradingView/ta/7",
     );
     assert!(!compilation.ok);
-    assert!(compilation
-        .diagnostics
-        .iter()
-        .any(|item| item.code == "PINE_CONDITION_NOT_BOOL"));
-    assert!(compilation
-        .diagnostics
-        .iter()
-        .any(|item| item.code == "PINE_DECLARATION_UNSUPPORTED"));
-    assert!(compilation
-        .diagnostics
-        .iter()
-        .all(|item| item.severity == DiagnosticSeverity::Error));
+    assert!(
+        compilation
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "PINE_CONDITION_NOT_BOOL")
+    );
+    assert!(
+        compilation
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "PINE_DECLARATION_UNSUPPORTED")
+    );
+    assert!(
+        compilation
+            .diagnostics
+            .iter()
+            .all(|item| item.severity == DiagnosticSeverity::Error)
+    );
 }
 
 #[test]
@@ -144,23 +150,27 @@ fn pine_spec_freezes_go_owner_sections_and_key_payload_fields() {
         ["language", "indicators", "mtf", "orders", "tooling"]
     );
     assert_eq!(dimensions[0]["score"], 98.86);
-    assert!(payload["capabilities"]
-        .as_array()
-        .is_some_and(|items| items.iter().any(|item| {
-            item["id"] == "strategy.v40_broker_boundary_decision"
-                && item["testIds"].as_array().is_some_and(|tests| {
-                    tests
-                        .iter()
-                        .any(|test| test == "TestBuildToolPayloadIncludesBrokerBoundary")
-                })
-        })));
-    assert!(payload["supportMatrix"]
-        .as_array()
-        .is_some_and(|items| items.iter().any(|item| item["capability"]
-            == "JFTrade Pine v6 main path"
-            && item["notes"]
-                .as_str()
-                .is_some_and(|notes| notes.contains("sourceFormat=pine-v6")))));
+    assert!(
+        payload["capabilities"]
+            .as_array()
+            .is_some_and(|items| items.iter().any(|item| {
+                item["id"] == "strategy.v40_broker_boundary_decision"
+                    && item["testIds"].as_array().is_some_and(|tests| {
+                        tests
+                            .iter()
+                            .any(|test| test == "TestBuildToolPayloadIncludesBrokerBoundary")
+                    })
+            }))
+    );
+    assert!(
+        payload["supportMatrix"]
+            .as_array()
+            .is_some_and(|items| items.iter().any(|item| item["capability"]
+                == "JFTrade Pine v6 main path"
+                && item["notes"]
+                    .as_str()
+                    .is_some_and(|notes| notes.contains("sourceFormat=pine-v6"))))
+    );
     let golden_scripts = payload["goldenScripts"].as_array().expect("golden scripts");
     assert_eq!(golden_scripts.len(), 17);
     assert_eq!(golden_scripts[0]["id"], "golden-ma-cross");
@@ -174,11 +184,11 @@ fn pine_spec_freezes_go_owner_sections_and_key_payload_fields() {
         .as_object()
         .expect("section content");
     assert_eq!(section_content["id"], "support-matrix");
-    assert!(section_content["details"]
-        .as_array()
-        .is_some_and(|items| items
+    assert!(section_content["details"].as_array().is_some_and(|items| {
+        items
             .iter()
-            .any(|detail| detail.as_str().is_some_and(|text| text.contains("v4.0")))));
+            .any(|detail| detail.as_str().is_some_and(|text| text.contains("v4.0")))
+    }));
     assert!(payload["brokerBoundary"].as_array().is_some_and(|items| {
         items.iter().any(|item| {
             item["status"] == "out_of_scope"
@@ -212,9 +222,11 @@ fn pine_spec_examples_section_includes_examples_when_selected_or_requested() {
         ]
     );
     let requested = build_tool_payload("", true).expect("requested examples payload");
-    assert!(requested["examples"]
-        .as_array()
-        .is_some_and(|items| !items.is_empty()));
+    assert!(
+        requested["examples"]
+            .as_array()
+            .is_some_and(|items| !items.is_empty())
+    );
     assert!(build_tool_payload("not-a-section", false).is_err());
 }
 
@@ -278,9 +290,11 @@ fn validation_payload_matches_go_owner_field_set_and_defaults_requirements() {
     assert_eq!(serialized["externalEngine"]["license"], "");
     assert!(serialized["externalEngine"].get("package").is_none());
     assert!(serialized["externalEngine"].get("worker").is_none());
-    assert!(serialized
-        .get("saveHint")
-        .is_some_and(|hint| hint.is_null()));
+    assert!(
+        serialized
+            .get("saveHint")
+            .is_some_and(|hint| hint.is_null())
+    );
 }
 
 #[test]
@@ -298,9 +312,11 @@ fn validation_payload_matches_save_hint_and_rejection_contract() {
         ]
     );
     assert!(empty_hint.message.contains(&empty_hint.skeleton));
-    assert!(empty_hint
-        .skeleton
-        .starts_with("//@version=6\nstrategy(\"Minimal Draft\""));
+    assert!(
+        empty_hint
+            .skeleton
+            .starts_with("//@version=6\nstrategy(\"Minimal Draft\"")
+    );
 
     let invalid = validate_script(
         "//@version=6\nstrategy(\"Bad\")\nimport TradingView/ta/7",

@@ -5,10 +5,10 @@
 //! executable subset as the native compiler.
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::pine::{compile, LoweredProgram, Requirements};
+use crate::pine::{LoweredProgram, Requirements, compile};
 
 pub const PINE_VERSION: &str = "v6";
 pub const PRODUCT_VERSION: &str = "v4.0";

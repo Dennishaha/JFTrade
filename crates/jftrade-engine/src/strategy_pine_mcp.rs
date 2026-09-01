@@ -1,8 +1,8 @@
 //! Native MCP leaves for Pine specification and validation.
 //!
-//! These leaves cover the reviewed native Pine subset only. They do not start
-//! or call the PineTS worker; full Pine runtime execution remains a separate
-//! production capability.
+//! These leaves cover the reviewed native Pine subset. Local specification and
+//! validation are always available in-process; the production MCP executor may
+//! enrich validation with an explicitly enabled PineTS shadow projection.
 
 use jftrade_strategy::pinespec::{build_tool_payload, validate_script};
 use serde_json::{Value, json};
@@ -38,9 +38,9 @@ impl StrategyPineMcpFailure {
     }
 }
 
-/// Execute one of the two native Pine MCP leaves without touching stores or
-/// external workers. The production MCP executor registers this dispatch
-/// alongside the reviewed read-only tool catalog.
+/// Execute one of the two native Pine MCP leaves without touching stores. The
+/// production MCP executor registers this dispatch alongside the reviewed
+/// read-only tool catalog and may add external shadow metadata afterwards.
 pub fn dispatch_strategy_pine_mcp(
     name: &str,
     arguments: &Value,
