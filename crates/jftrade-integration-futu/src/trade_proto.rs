@@ -40,6 +40,66 @@ pub mod qot_get_company_profile {
     include!(concat!(env!("OUT_DIR"), "/qot_get_company_profile.rs"));
     pub const PROTOCOL_ID: u32 = 3243;
 }
+pub mod qot_get_daily_short_volume {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_daily_short_volume.rs"));
+    pub const PROTOCOL_ID: u32 = 3248;
+}
+pub mod qot_get_short_interest {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_short_interest.rs"));
+    pub const PROTOCOL_ID: u32 = 3249;
+}
+pub mod qot_get_indicator_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_indicator_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3259;
+}
+pub mod qot_request_indicator_calc {
+    include!(concat!(env!("OUT_DIR"), "/qot_request_indicator_calc.rs"));
+    pub const PROTOCOL_ID: u32 = 3260;
+}
+pub mod qot_get_institution_list {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_institution_list.rs"));
+    pub const PROTOCOL_ID: u32 = 3418;
+}
+pub mod qot_get_institution_profile {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_institution_profile.rs"));
+    pub const PROTOCOL_ID: u32 = 3419;
+}
+pub mod qot_get_institution_distribution {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_institution_distribution.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3420;
+}
+pub mod qot_get_institution_holding_change {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_institution_holding_change.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3421;
+}
+pub mod qot_get_institution_holding_list {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_institution_holding_list.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3422;
+}
+pub mod qot_get_ark_fund_holding {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_ark_fund_holding.rs"));
+    pub const PROTOCOL_ID: u32 = 3423;
+}
+pub mod qot_get_ark_stock_dynamic {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_ark_stock_dynamic.rs"));
+    pub const PROTOCOL_ID: u32 = 3424;
+}
+pub mod qot_get_ark_active_transaction {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/qot_get_ark_active_transaction.rs"
+    ));
+    pub const PROTOCOL_ID: u32 = 3425;
+}
 pub mod qot_get_user_security_group {
     include!(concat!(env!("OUT_DIR"), "/qot_get_user_security_group.rs"));
 }

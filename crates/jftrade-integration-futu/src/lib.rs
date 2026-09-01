@@ -38,12 +38,15 @@ mod probe;
 mod provider;
 mod provider_runtime;
 mod quote_push;
+mod research_institutions_query;
+mod research_short_interest_query;
 mod runtime_task;
 mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
 mod subscription_executor;
 mod subscriptions;
+mod technical_indicator_query;
 mod valuation_detail_query;
 // The generated module is crate-internal; generated messages must not leak to
 // engine consumers.  Generated code is intentionally exempt from local lint
@@ -209,6 +212,17 @@ pub use quote_push::{
     BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
     PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
 };
+pub use research_institutions_query::{
+    FutuInstitutionEntry, FutuInstitutionOperation, FutuInstitutionQuery,
+    FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
+    FutuInstitutionSecurity, FutuInstitutionSummary, OpenDInstitutionReader,
+};
+pub use research_short_interest_query::{
+    FutuShortInterestItem, FutuShortInterestQuery, FutuShortInterestQueryError,
+    FutuShortInterestReadPort, FutuShortInterestResult, FutuShortInterestSecurity,
+    OpenDShortInterestReader, ShortInterestItem, ShortInterestOperation, ShortInterestQuery,
+    ShortInterestQueryError, ShortInterestReadPort, ShortInterestResult, ShortInterestSecurity,
+};
 pub use runtime_task::{
     OpenDSessionEventListener, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
     OpenDSessionRuntimeError, OpenDSessionRuntimeStatus,
@@ -226,6 +240,13 @@ pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorE
 pub use subscriptions::{
     OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
     SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
+};
+pub use technical_indicator_query::{
+    FutuIndicatorCalculation, FutuIndicatorInput, FutuIndicatorInputParameter, FutuIndicatorList,
+    FutuIndicatorListQuery, FutuIndicatorOutputParameter, FutuIndicatorQueryError,
+    FutuIndicatorReadPort, FutuTechnicalIndicatorReader, IndicatorCalcQuery, IndicatorKline,
+    IndicatorListQuery, TechnicalIndicatorCalculation, TechnicalIndicatorInfo,
+    TechnicalIndicatorList, TechnicalIndicatorQuery, TechnicalIndicatorReadPort,
 };
 pub use trade_proto::ResponseError;
 pub use trade_session::{
