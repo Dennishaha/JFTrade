@@ -13,21 +13,11 @@ use thiserror::Error;
 
 use crate::{OpenDSessionCoordinator, OpenDSessionCoordinatorError};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct IndicatorListQuery {
     pub search_key: Option<String>,
     pub lang_type: Option<i32>,
     pub search_mode: Option<i32>,
-}
-
-impl Default for IndicatorListQuery {
-    fn default() -> Self {
-        Self {
-            search_key: None,
-            lang_type: None,
-            search_mode: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
