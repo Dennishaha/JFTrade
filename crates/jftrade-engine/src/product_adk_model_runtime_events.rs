@@ -5,7 +5,7 @@ impl ProductionAdkChatRuntime {
         settings_path: &Path,
         cancellation_registry: Arc<RunCancellationRegistry>,
         tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
-    ) -> Self {
+    ) -> Arc<Self> {
         let secrets_path = std::env::var_os("JFTRADE_ADK_SECRETS")
             .filter(|value| !value.is_empty())
             .map(PathBuf::from)
@@ -18,20 +18,25 @@ impl ProductionAdkChatRuntime {
                         |parent| parent.join("secrets/adk-secrets.json"),
                     )
             });
-        let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
-            Arc::clone(&tool_catalog),
-            Arc::clone(&store),
-        ));
-        let continuation_supervisor = Arc::new(ContinuationSupervisor::default());
-        let runtime = Self {
-            store,
-            session_store,
-            secrets_path,
-            cancellation_registry,
-            tool_executor,
-            tool_catalog,
-            continuation_supervisor,
-        };
+        let runtime = Arc::new_cyclic(|runtime_weak| {
+            let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
+                Arc::clone(&tool_catalog),
+                Arc::clone(&store),
+            ));
+            let continuation_supervisor = Arc::new(ContinuationSupervisor::default());
+            let recovery_supervisor =
+                runtime_recovery::DurableRunRecoverySupervisor::start(runtime_weak.clone());
+            Self {
+                store: Arc::clone(&store),
+                session_store: Arc::clone(&session_store),
+                secrets_path: secrets_path.clone(),
+                cancellation_registry: Arc::clone(&cancellation_registry),
+                tool_executor,
+                tool_catalog: Arc::clone(&tool_catalog),
+                continuation_supervisor,
+                recovery_supervisor: Some(recovery_supervisor),
+            }
+        });
         // Any queued/running workflow invocation persisted by a previous
         // process has no live executor after restart. Fence it before serving
         // new requests; pending-approval runs are intentionally left for the
@@ -248,7 +253,9 @@ impl ProductionAdkChatRuntime {
         {
             return Err(replayed_run_error(&payload, &existing.status));
         }
-        if existing.status.eq_ignore_ascii_case("RUNNING") {
+        if existing.status.eq_ignore_ascii_case("RUNNING")
+            && runtime_recovery::retry_is_due(&payload)
+        {
             match self.resume_approval(&existing.id) {
                 Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
                 Err(AdkChatPortError::Unavailable(_)) => {}
@@ -275,6 +282,13 @@ impl ProductionAdkChatRuntime {
         }
         let payload: Value =
             serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        if !runtime_recovery::retry_is_due(&payload) {
+            // A caller reconnecting or resolving an approval must not bypass
+            // a persisted provider backoff (including a non-retryable
+            // configuration probe marker).  The scanner will revisit it at
+            // the durable deadline.
+            return Ok(());
+        }
         let object = payload
             .as_object()
             .ok_or_else(|| unavailable("persisted ADK run payload must be an object"))?;
@@ -423,6 +437,7 @@ impl ProductionAdkChatRuntime {
                     tool_catalog,
                     tool_executor,
                     continuation_supervisor,
+                    recovery_supervisor: None,
                 };
                 let cancellation = runtime
                     .cancellation_registry
@@ -602,6 +617,7 @@ impl ProductionAdkChatRuntime {
             object.insert("toolCalls".to_owned(), Value::Array(tool_calls));
             object.insert("pendingApprovals".to_owned(), Value::Array(pending.clone()));
             object.insert("status".to_owned(), Value::String(status.to_owned()));
+            object.remove("providerRetry");
             object.insert(
                 "message".to_owned(),
                 Value::String(if known {

@@ -149,10 +149,11 @@ mod tests {
     }
 
     #[test]
-    fn runtime_readiness_failure_is_fail_closed_for_every_non_ready_state() {
+    fn runtime_readiness_allows_external_degradation_but_rejects_incomplete_startup() {
         assert!(runtime_readiness_failure("ready").is_none());
-        for state in ["starting", "degraded", "unavailable", "failed", "unknown"] {
-            let error = runtime_readiness_failure(state).expect("non-ready state must fail");
+        assert!(runtime_readiness_failure("degraded").is_none());
+        for state in ["starting", "rehearsal", "unavailable", "failed", "unknown"] {
+            let error = runtime_readiness_failure(state).expect("unsafe startup state must fail");
             assert!(matches!(error, NativeError::RuntimeUnavailable { readiness, .. } if readiness == state));
         }
     }

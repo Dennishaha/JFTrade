@@ -32,6 +32,10 @@ use stream_adapter::execute_model_stream;
 #[path = "product_adk_model_runtime_stream.rs"]
 mod runtime_stream;
 
+#[path = "product_adk_model_runtime_recovery.rs"]
+mod runtime_recovery;
+use runtime_recovery::DurableRunRecoverySupervisor;
+
 include!("product_adk_model_runtime_lifecycle.rs");
 
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
@@ -48,6 +52,11 @@ pub(crate) struct ProductionAdkChatRuntime {
     tool_catalog: Arc<crate::product::product_production_ports::ProductionToolCatalog>,
     tool_executor: Arc<dyn AdkToolExecutor>,
     pub(crate) continuation_supervisor: Arc<ContinuationSupervisor>,
+    /// Process-wide supervisor for durable RUNNING runs whose model provider
+    /// temporarily failed.  This is optional only on short-lived runtime
+    /// facades created by continuation workers; the production root always
+    /// installs the self-referential supervisor from [`new`].
+    recovery_supervisor: Option<Arc<DurableRunRecoverySupervisor>>,
 }
 
 /// Process-local cancellation fan-out for active provider calls.
@@ -609,6 +618,8 @@ fn text_field(object: &serde_json::Map<String, Value>, field: &str) -> Option<St
 include!("product_adk_model_runtime_events.rs");
 include!("product_adk_model_runtime_tool_loop.rs");
 include!("product_adk_model_runtime_adapters.rs");
+include!("product_adk_model_runtime_readiness.rs");
+include!("product_adk_model_runtime_retry.rs");
 
 #[path = "product_adk_tool_executor.rs"]
 mod tool_executor;

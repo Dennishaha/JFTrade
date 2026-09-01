@@ -12,6 +12,12 @@ impl ProductionAdkChatRuntime {
                 Err(AdkChatPortError::Conflict(_)) => return,
                 Err(_) => return,
             };
+        if self
+            .mark_provider_attempt_started(&chat, &run_lease)
+            .is_err()
+        {
+            return;
+        }
         for _round in 0..MAX_TOOL_ROUNDS {
             if run_lease.is_lost()
                 || cancellation.load(Ordering::Acquire)
@@ -249,7 +255,11 @@ impl ProductionAdkChatRuntime {
                 }
                 Err(error) => {
                     if !run_lease.is_lost() {
-                        let _ = self.persist_failure(&chat, &error, &run_lease);
+                        if is_provider_retryable_error(&error) {
+                            let _ = self.persist_provider_retry(&chat, &error, &run_lease);
+                        } else {
+                            let _ = self.persist_failure(&chat, &error, &run_lease);
+                        }
                     }
                     return;
                 }

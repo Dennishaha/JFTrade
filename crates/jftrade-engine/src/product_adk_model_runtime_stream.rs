@@ -320,15 +320,16 @@ impl ProductionAdkChatRuntime {
                     let _ = self.persist_cancelled(&chat, &error, &run_lease);
                     return;
                 }
-                let persisted = match self.persist_failure(&chat, &error, &run_lease) {
-                    Ok(()) => true,
-                    Err(persist_error)
-                        if super::is_run_cancelled(&persist_error)
-                            || self.run_is_cancelled(&chat.run_id) =>
-                    {
-                        return;
+                let persisted = if super::is_provider_retryable_error(&error) {
+                    match self.persist_provider_retry(&chat, &error, &run_lease) {
+                        Ok(()) => true,
+                        Err(_) => false,
                     }
-                    Err(_) => false,
+                } else {
+                    match self.persist_failure(&chat, &error, &run_lease) {
+                        Ok(()) => true,
+                        Err(_) => false,
+                    }
                 };
                 let event = if persisted {
                     self.latest_stream_event(&chat.run_id)
@@ -444,7 +445,11 @@ impl ProductionAdkChatRuntime {
                 }
             }
             Err(error) => {
-                let _ = self.persist_failure(chat, &error, run_lease);
+                if super::is_provider_retryable_error(&error) {
+                    let _ = self.persist_provider_retry(chat, &error, run_lease);
+                } else {
+                    let _ = self.persist_failure(chat, &error, run_lease);
+                }
                 Err(error)
             }
         }
@@ -511,6 +516,9 @@ impl ProductionAdkChatRuntime {
         payload["agentId"] = Value::String(chat.agent_id.clone());
         payload["status"] = Value::String("COMPLETED".to_owned());
         payload["reply"] = Value::String(text.clone());
+        if let Some(object) = payload.as_object_mut() {
+            object.remove("providerRetry");
+        }
         payload["response"] = response.clone();
         let mut final_sequence = None;
         if chat.route == AdkChatRoute::Stream {
@@ -653,6 +661,9 @@ impl ProductionAdkChatRuntime {
         payload["errorStatus"] = Value::from(error_status);
         payload["errorCode"] = Value::String(error_code);
         payload["errorMessage"] = Value::String(error_message);
+        if let Some(object) = payload.as_object_mut() {
+            object.remove("providerRetry");
+        }
         let mut stream_event_id = None;
         let mut stream_event_content = None;
         if chat.route == AdkChatRoute::Stream {

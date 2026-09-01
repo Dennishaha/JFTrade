@@ -25,7 +25,7 @@ pub(crate) struct PreparedProduct {
     router: axum::Router,
     live_hub: Arc<LiveHub>,
     production: bool,
-    production_runtime_core_ready: bool,
+    production_runtime_dependencies_ready: bool,
 }
 
 pub(crate) async fn start_product_with_runtime_state(
@@ -49,7 +49,7 @@ pub(crate) fn expose_prepared_product(
     prepared.handle.startup_record.websocket_status = lifecycle.as_str();
     prepared.handle.startup_record.runtime_readiness = if !prepared.production {
         "rehearsal"
-    } else if prepared.production_runtime_core_ready && websocket_ready {
+    } else if prepared.production_runtime_dependencies_ready && websocket_ready {
         "ready"
     } else {
         "degraded"
@@ -273,7 +273,13 @@ pub(crate) async fn prepare_product_with_runtime_state(
         let _ = manager.close();
         return Err(ProductError::Calendar(error));
     }
-    let production_runtime_core_ready = production_ports.as_ref().is_some_and(|ports| {
+    // Reaching this point already proves the internal startup gates: every
+    // production store and WriterLease was opened, the canonical registry
+    // rejected no missing internal adapter, and the API listener was bound.
+    // Provider/OpenD/helper/Pine and the optional MCP listener are external
+    // dependencies. Keep their failure observable as `degraded` without
+    // turning it into a second internal startup gate.
+    let production_runtime_dependencies_ready = production_ports.as_ref().is_some_and(|ports| {
         ports.provider_status == "ready"
             && ports.opend_status == "ready"
             && ports.worker_status == "ready"
@@ -717,7 +723,7 @@ pub(crate) async fn prepare_product_with_runtime_state(
         resource_sha256,
         runtime_readiness: if !config.production {
             "rehearsal"
-        } else if production_runtime_core_ready {
+        } else if production_runtime_dependencies_ready {
             "ready"
         } else {
             "degraded"
@@ -751,6 +757,6 @@ pub(crate) async fn prepare_product_with_runtime_state(
         router,
         live_hub,
         production: config.production,
-        production_runtime_core_ready,
+        production_runtime_dependencies_ready,
     })
 }

@@ -429,7 +429,7 @@ mod tests {
             Arc::clone(&port.tool_catalog),
         );
         assert!(!runtime.runtime_ready());
-        port.chat_runtime = Some(Arc::new(runtime));
+        port.chat_runtime = Some(runtime);
         let error = port
             .dispatch(
                 AdkChatRoute::Chat,

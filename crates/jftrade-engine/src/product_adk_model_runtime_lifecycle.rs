@@ -72,7 +72,7 @@ impl ProductionAdkChatRuntime {
                                 .is_some_and(|status| status.eq_ignore_ascii_case("RUNNING"))
                         })
                     });
-            if recovering {
+            if recovering && runtime_recovery::retry_is_due(&payload) {
                 let _ = self.resume_approval(&run.id);
             }
         }
@@ -80,6 +80,12 @@ impl ProductionAdkChatRuntime {
 
     #[allow(dead_code)]
     pub(crate) fn shutdown(&self) {
+        // Stop the scanner before cancelling continuations.  Otherwise a
+        // final poll can enqueue a fresh worker while the runtime is already
+        // tearing down its leases.
+        if let Some(supervisor) = self.recovery_supervisor.as_ref() {
+            supervisor.shutdown();
+        }
         self.cancellation_registry.cancel_all();
         self.continuation_supervisor.shutdown();
     }

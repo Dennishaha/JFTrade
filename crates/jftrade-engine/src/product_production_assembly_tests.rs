@@ -515,7 +515,7 @@ mod product_production_assembly_tests {
     }
 
     #[tokio::test]
-    async fn production_startup_initializes_and_reports_ready_and_acquired() {
+    async fn production_startup_exposes_degraded_api_when_external_runtimes_are_unavailable() {
         let (_temp_dir, _settings_path, config, _security) = setup_test_env();
 
         let handle = start_product(config).await.expect("start product");

@@ -278,10 +278,17 @@ fn stop_product(product: &Mutex<Option<ProductRuntimeHandle>>) {
 }
 
 fn runtime_readiness_failure(readiness: &str) -> Option<NativeError> {
-    (readiness != "ready").then(|| NativeError::RuntimeUnavailable {
-        readiness: readiness.to_owned(),
-        message: String::new(),
-    })
+    match readiness {
+        // `degraded` means the engine completed its internal startup gates
+        // but at least one external Provider/OpenD/helper/Pine/MCP runtime is
+        // unavailable. Keep the desktop API online so each affected route can
+        // return its existing fail-closed 502/503 baseline.
+        "ready" | "degraded" => None,
+        _ => Some(NativeError::RuntimeUnavailable {
+            readiness: readiness.to_owned(),
+            message: String::new(),
+        }),
+    }
 }
 
 impl NativeError {
