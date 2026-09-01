@@ -1,8 +1,8 @@
 use std::time::Duration as StdDuration;
 
 use crate::manager::{
-    fetch_window, normalize_market, normalized_markets, policy_for_market, supported_market,
-    wire_text,
+    fetch_window_for_market, normalize_market, normalized_markets, policy_for_market,
+    supported_market, wire_text,
 };
 use crate::{
     CalendarManager, CalendarManagerError, CalendarProbeItem, CalendarProbeResult,
@@ -74,7 +74,7 @@ impl CalendarManager {
                 continue;
             }
             let policy = policy_for_market(&settings, &market);
-            let (from, to) = fetch_window(checked_at)?;
+            let (from, to) = fetch_window_for_market(checked_at, &market)?;
             for source in self.inner.registry.ordered_sources(&market, &policy) {
                 let source_id = source.descriptor().id.trim().to_owned();
                 let fetched = source.fetch(&market, from, to, &operation);

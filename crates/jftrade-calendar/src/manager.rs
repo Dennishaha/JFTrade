@@ -5,8 +5,9 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration as StdDuration;
 
 use jftrade_kernel::WireTimestamp;
+use jiff::{Timestamp, civil::Date as CivilDate, tz::TimeZone};
 use thiserror::Error;
-use time::{Date, Duration, Month, OffsetDateTime, Time};
+use time::{Date, Duration, Month, OffsetDateTime, Time, UtcOffset};
 
 use crate::manager_policy::{
     builtin_schedule, manual_schedule_with_raw_fallback, market_day_start,
@@ -378,7 +379,7 @@ impl ManagerInner {
         }
         let settings = self.settings()?;
         let policy = policy_for_market(&settings, &market);
-        let (from, to) = fetch_window(now)?;
+        let (from, to) = fetch_window_for_market(now, &market)?;
         for source in self.registry.ordered_sources(&market, &policy) {
             let source_id = source.descriptor().id.trim().to_owned();
             if self.in_backoff(&source_id, now)? {
@@ -695,7 +696,52 @@ pub(crate) fn policy_source_ids(policy: &CalendarSourcePolicy) -> Vec<String> {
 pub(crate) fn fetch_window(
     now: OffsetDateTime,
 ) -> Result<(WireTimestamp, WireTimestamp), CalendarManagerError> {
-    let offset = now.offset();
+    fetch_window_with_offset(now, now.offset())
+}
+
+/// Build the inclusive two-year fetch range in the market's local timezone.
+///
+/// The current year is resolved from the instant in the exchange timezone,
+/// then each boundary is converted independently so an offset transition
+/// between the current instant and either boundary cannot leak into the
+/// request range.
+pub(crate) fn fetch_window_for_market(
+    now: OffsetDateTime,
+    market: &str,
+) -> Result<(WireTimestamp, WireTimestamp), CalendarManagerError> {
+    let Some(timezone) = market_timezone(market) else {
+        return fetch_window(now);
+    };
+    let timestamp = WireTimestamp::from_offset_datetime(now)
+        .to_string()
+        .parse::<Timestamp>()
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let zone = TimeZone::get(timezone)
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let current = timestamp.to_zoned(zone.clone());
+    let year = current.date().year();
+    let next_year = year.checked_add(1).ok_or_else(|| {
+        CalendarManagerError::InvalidSettings("calendar year overflow".to_owned())
+    })?;
+    let from_date = CivilDate::new(year, 1, 1)
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let to_date = CivilDate::new(next_year, 12, 31)
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let from = from_date
+        .at(0, 0, 0, 0)
+        .to_zoned(zone.clone())
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let to = to_date
+        .at(23, 59, 59, 0)
+        .to_zoned(zone)
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    Ok((zoned_to_wire(from)?, zoned_to_wire(to)?))
+}
+
+fn fetch_window_with_offset(
+    now: OffsetDateTime,
+    offset: UtcOffset,
+) -> Result<(WireTimestamp, WireTimestamp), CalendarManagerError> {
     let from_date = Date::from_calendar_date(now.year(), Month::January, 1)
         .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
     let to_date = Date::from_calendar_date(now.year() + 1, Month::December, 31)
@@ -710,6 +756,25 @@ pub(crate) fn fetch_window(
                 .assume_offset(offset),
         ),
     ))
+}
+
+fn zoned_to_wire(zoned: jiff::Zoned) -> Result<WireTimestamp, CalendarManagerError> {
+    let instant = OffsetDateTime::from_unix_timestamp_nanos(zoned.timestamp().as_nanosecond())
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    let offset = UtcOffset::from_whole_seconds(zoned.offset().seconds())
+        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
+    Ok(WireTimestamp::from_offset_datetime(
+        instant.to_offset(offset),
+    ))
+}
+
+fn market_timezone(market: &str) -> Option<&'static str> {
+    match market.trim().to_ascii_uppercase().as_str() {
+        "US" => Some("America/New_York"),
+        "HK" => Some("Asia/Hong_Kong"),
+        "CN" | "SH" | "SZ" => Some("Asia/Shanghai"),
+        _ => None,
+    }
 }
 
 pub(crate) fn validate_snapshot(snapshot: &CalendarSnapshot) -> Result<(), String> {
