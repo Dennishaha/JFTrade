@@ -1,14 +1,16 @@
 use crate::product::product_execution_write_port::ExecutionWritePortError;
 use crate::product::product_market_data_provider_actions_port::MarketDataProviderActionsPortError;
 use crate::product::{
-    BacktestReadSnapshotError, BacktestSyncReadSnapshotError, BrokerReadSnapshotError,
-    ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
-    MarketDataDerivativeReadSnapshotError, MarketDataOptionsReadSnapshotError,
-    MarketDataPredictionReadSnapshotError, MarketDataProviderReadSnapshotError,
-    MarketDataQuoteReadSnapshotError, PluginSnapshotError, PortfolioSnapshotError,
-    RemoteWatchlistSnapshotError, StrategyDefinitionSnapshotError, StrategyReadSnapshotError,
-    SystemReadSnapshotError, WatchlistReadSnapshotError,
+    AlertSnapshotError, BacktestReadSnapshotError, BacktestSyncReadSnapshotError,
+    BrokerReadSnapshotError, ExecutionReadSnapshotError, MarketDataCatalogReadSnapshotError,
+    MarketDataDerivativeReadSnapshotError, MarketDataNewsSearchReadSnapshotError,
+    MarketDataOptionsReadSnapshotError, MarketDataPredictionReadSnapshotError,
+    MarketDataProviderReadSnapshotError, MarketDataQuoteReadSnapshotError, PluginSnapshotError,
+    PortfolioSnapshotError, RemoteWatchlistSnapshotError, ResearchReadSnapshotError,
+    StrategyDefinitionSnapshotError, StrategyReadSnapshotError, SystemReadSnapshotError,
+    WatchlistReadSnapshotError,
 };
+use jftrade_research::ScreenCatalogError;
 
 use super::McpToolFailure;
 
@@ -23,6 +25,80 @@ pub(super) fn provider_error(error: MarketDataProviderReadSnapshotError) -> McpT
         }
         MarketDataProviderReadSnapshotError::Failed { code, message } => {
             McpToolFailure::failed(502, code, message)
+        }
+    }
+}
+
+pub(super) fn alert_error(error: AlertSnapshotError) -> McpToolFailure {
+    match error {
+        AlertSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("ALERTS_UNAVAILABLE", message)
+        }
+        AlertSnapshotError::CapabilityUnavailable(message) => {
+            McpToolFailure::failed(409, "BROKER_CAPABILITY_UNAVAILABLE", message)
+        }
+        AlertSnapshotError::Provider {
+            status: Some(status),
+            message,
+        } if (400..500).contains(&status) => {
+            McpToolFailure::failed(status, "PROVIDER_REQUEST_FAILED", message)
+        }
+        AlertSnapshotError::Provider { message, .. } => {
+            McpToolFailure::failed(502, "BROKER_FEATURE_FAILED", message)
+        }
+    }
+}
+
+pub(super) fn research_error(error: ResearchReadSnapshotError) -> McpToolFailure {
+    match error {
+        ResearchReadSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("RESEARCH_UNAVAILABLE", message)
+        }
+        ResearchReadSnapshotError::Invalid(message) => McpToolFailure::invalid(message),
+        ResearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => McpToolFailure {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
+pub(super) fn news_search_error(error: MarketDataNewsSearchReadSnapshotError) -> McpToolFailure {
+    match error {
+        MarketDataNewsSearchReadSnapshotError::Unavailable(message) => {
+            McpToolFailure::unavailable("MARKET_DATA_NEWS_SEARCH_UNAVAILABLE", message)
+        }
+        MarketDataNewsSearchReadSnapshotError::Failed {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        } => McpToolFailure {
+            status,
+            code,
+            message,
+            retry_after_seconds,
+        },
+    }
+}
+
+pub(super) fn screen_catalog_error(error: ScreenCatalogError) -> McpToolFailure {
+    match error {
+        ScreenCatalogError::UnsupportedFutuMarket
+        | ScreenCatalogError::UnsupportedEmbeddedMarket(_) => {
+            McpToolFailure::invalid(error.to_string())
+        }
+        ScreenCatalogError::BrokerUnavailable(_) => {
+            McpToolFailure::failed(409, "BROKER_CAPABILITY_UNAVAILABLE", error.to_string())
+        }
+        ScreenCatalogError::FixtureInvalid(_) => {
+            McpToolFailure::failed(500, "RESEARCH_SCREEN_CATALOG_FAILED", error.to_string())
         }
     }
 }

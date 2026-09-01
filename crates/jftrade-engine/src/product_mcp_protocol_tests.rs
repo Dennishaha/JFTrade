@@ -1,4 +1,5 @@
 use super::*;
+use crate::product::product_production_route_registry::ProductionRouteAdapter;
 use axum::http::{HeaderValue, header};
 
 fn headers(content_type: &str, accept: &str, protocol: Option<&str>) -> HeaderMap {
@@ -265,5 +266,55 @@ fn derivatives_and_prediction_tools_have_exact_production_adapters() {
     for (name, adapter) in expected {
         assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
         assert_eq!(mcp_tool_adapter(name), Some(adapter));
+    }
+}
+
+#[test]
+fn alerts_and_research_tools_have_exact_production_adapters() {
+    let expected = [
+        ("alerts.price.list", ProductionRouteAdapter::AlertsRead),
+        (
+            "alerts.option_event.list",
+            ProductionRouteAdapter::AlertsRead,
+        ),
+        ("research.instrument", ProductionRouteAdapter::ResearchRead),
+        ("research.financials", ProductionRouteAdapter::ResearchRead),
+        ("research.analyst", ProductionRouteAdapter::ResearchRead),
+        ("research.ownership", ProductionRouteAdapter::ResearchRead),
+        (
+            "research.corporate_actions",
+            ProductionRouteAdapter::ResearchRead,
+        ),
+        ("research.valuation", ProductionRouteAdapter::ResearchRead),
+        ("research.rankings", ProductionRouteAdapter::ResearchRead),
+        ("research.industry", ProductionRouteAdapter::ResearchRead),
+        ("research.calendar", ProductionRouteAdapter::ResearchRead),
+        ("research.macro", ProductionRouteAdapter::ResearchRead),
+        (
+            "research.news",
+            ProductionRouteAdapter::MarketDataNewsSearchRead,
+        ),
+        (
+            "research.screen",
+            ProductionRouteAdapter::ResearchScreenWrite,
+        ),
+        (
+            "research.screen_catalog",
+            ProductionRouteAdapter::ResearchCatalog,
+        ),
+    ];
+    for (name, adapter) in expected {
+        assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
+        assert_eq!(mcp_tool_adapter(name), Some(adapter));
+    }
+    for name in [
+        "research.institutions",
+        "research.short_interest",
+        "research.technical_indicators",
+        "strategy.pine_spec",
+        "strategy.validate_pine",
+    ] {
+        assert!(!PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
+        assert_eq!(mcp_tool_adapter(name), None);
     }
 }

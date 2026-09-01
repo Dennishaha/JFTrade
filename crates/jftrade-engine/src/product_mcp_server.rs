@@ -12,7 +12,7 @@ use super::product_mcp_protocol::{
     mcp_tool_availability, model_search_text, negotiate_initialize_version, optional_bool,
     optional_integer, optional_string, provider_model, requires_object_params, reviewed_tool_name,
     rpc_request_id, tool_descriptors_with_ports, validate_call_shape, validate_headers,
-    validate_message, validate_standard_headers,
+    validate_message, validate_standard_headers, validate_tool_arguments,
 };
 use super::product_production_ports::ProductionToolCatalog;
 use axum::body::{Body, to_bytes};

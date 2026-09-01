@@ -410,6 +410,7 @@ fn call_tool(context: &McpRequestContext, params: &Value) -> Result<Value, (i64,
     if !arguments.is_object() {
         return Err((-32602, "Invalid params".to_owned()));
     }
+    validate_tool_arguments(name, &arguments).map_err(|message| (-32602, message))?;
     match context.executor.execute_enveloped(name, &arguments) {
         Ok(value) => Ok(json!({
             "content": [{"type": "text", "text": serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned())}],

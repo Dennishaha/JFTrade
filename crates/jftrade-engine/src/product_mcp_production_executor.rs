@@ -26,6 +26,8 @@ mod helpers;
 mod market_data;
 #[path = "product_mcp_production_executor_prediction.rs"]
 mod prediction;
+#[path = "product_mcp_production_executor_research.rs"]
+mod research;
 #[path = "product_mcp_production_executor_trade.rs"]
 mod trade;
 use errors::*;
@@ -158,6 +160,20 @@ impl ProductionMcpToolExecutor {
             | "prediction.history"
             | "prediction.combo_eligible"
             | "prediction.combo_quote" => self.prediction(name, arguments),
+            "alerts.price.list" | "alerts.option_event.list" => self.alerts_read(name, arguments),
+            "research.instrument"
+            | "research.financials"
+            | "research.analyst"
+            | "research.ownership"
+            | "research.corporate_actions"
+            | "research.valuation"
+            | "research.news"
+            | "research.screen"
+            | "research.screen_catalog"
+            | "research.calendar"
+            | "research.macro"
+            | "research.rankings"
+            | "research.industry" => self.research_read(name, arguments),
             "broker.cash_flows" => self.broker_cash_flows(arguments),
             "broker.fees" => self.broker_fees(arguments),
             "broker.margin_ratios" => self.broker_margin_ratios(arguments),

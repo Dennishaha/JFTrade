@@ -2,11 +2,15 @@
 //! listener.  Keeping these checks independent from the listener makes the
 //! wire contract reviewable without starting a Tokio runtime.
 
-use super::product_production_ports::{
-    ProductionAdapterBinding, ProductionPortBundle, ProductionToolCatalog,
-};
-use super::product_production_route_registry::ProductionRouteAdapter;
+use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
+#[path = "product_mcp_protocol_readiness.rs"]
+mod readiness;
+#[path = "product_mcp_schema_catalog.rs"]
+mod schema_catalog;
 use axum::http::{HeaderMap, header};
+#[cfg(test)]
+pub(crate) use readiness::mcp_tool_adapter;
+pub(crate) use readiness::mcp_tool_availability;
 use serde_json::{Value, json};
 
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = "2025-03-26";
@@ -89,9 +93,12 @@ pub(crate) const REVIEWED_READ_ONLY_TOOLS: &[&str] = &[
     "watchlist.remote.list",
 ];
 
-/// MCP tools with a native Rust production executor.  The reviewed Go
-/// catalog remains wire-compatible at 69 names, but only this explicit set
-/// may ever be projected as `ready` or dispatched by the Rust listener.
+/// MCP tools with a native Rust production executor. The reviewed Go catalog
+/// remains wire-compatible at 69 names, but only this explicit set may ever
+/// be projected as `ready` or dispatched by the Rust listener. Research
+/// capabilities without a concrete Rust port (institutions, short interest,
+/// technical indicators, and Pine specification/validation) remain
+/// fail-closed until their production adapters are installed.
 pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "system.status",
     "system.futu_opend",
@@ -142,6 +149,21 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "prediction.history",
     "prediction.combo_eligible",
     "prediction.combo_quote",
+    "alerts.price.list",
+    "alerts.option_event.list",
+    "research.instrument",
+    "research.financials",
+    "research.analyst",
+    "research.ownership",
+    "research.corporate_actions",
+    "research.valuation",
+    "research.news",
+    "research.screen",
+    "research.screen_catalog",
+    "research.calendar",
+    "research.macro",
+    "research.rankings",
+    "research.industry",
 ];
 pub(crate) const SUPPORTED_PROTOCOL_VERSIONS: &[&str] = &[
     "2026-07-28",
@@ -313,6 +335,11 @@ pub(crate) fn reviewed_tool_name(tool: &Value) -> Option<&str> {
     REVIEWED_READ_ONLY_TOOLS.contains(&name).then_some(name)
 }
 
+pub(crate) fn validate_tool_arguments(name: &str, arguments: &Value) -> Result<(), String> {
+    schema_catalog::validate_arguments(name, arguments)
+        .map_err(|message| format!("invalid arguments for {name}: {message}"))
+}
+
 pub(crate) fn is_modern_protocol(version: &str) -> bool {
     version >= MODERN_PROTOCOL_VERSION
 }
@@ -417,91 +444,11 @@ pub(crate) fn tool_descriptors_with_ports(
                 "name": name,
                 "title": title,
                 "description": title,
-                "inputSchema": {"type": "object", "additionalProperties": true},
+                "inputSchema": schema_catalog::schema_for(name),
                 "x-jftrade-availability": availability
             })
         })
         .collect()
-}
-
-/// Return the truthful readiness projection for one reviewed MCP tool.
-/// Unimplemented Go names remain explicitly fail-closed even when their
-/// broader production adapter happens to be installed.
-pub(crate) fn mcp_tool_availability(
-    catalog: &ProductionToolCatalog,
-    ports: Option<&ProductionPortBundle>,
-    name: &str,
-) -> &'static str {
-    if !PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name) {
-        return "fail-closed";
-    }
-    let binding = match ports {
-        Some(ports) if name == "execution.buying_power" => {
-            ports.execution_operation_binding("/api/v1/execution/buying-power")
-        }
-        Some(ports) => mcp_tool_adapter(name).and_then(|adapter| ports.adapter_binding(adapter)),
-        None => catalog.binding_for_mcp_tool(name),
-    };
-    match binding {
-        Some(ProductionAdapterBinding::Ready) => "ready",
-        Some(ProductionAdapterBinding::ExternalUnavailable) => "unavailable",
-        // A missing internal adapter is a composition bug, not an external
-        // outage; keep the descriptor fail-closed until startup is repaired.
-        Some(ProductionAdapterBinding::MissingInternalAdapter) | None => "fail-closed",
-    }
-}
-
-pub(crate) fn mcp_tool_adapter(name: &str) -> Option<ProductionRouteAdapter> {
-    Some(match name {
-        "system.status" => ProductionRouteAdapter::SystemCore,
-        "system.futu_opend" => ProductionRouteAdapter::SystemRead,
-        "system.runtime_dependencies" => ProductionRouteAdapter::SystemRead,
-        "plugins.catalog" => ProductionRouteAdapter::PluginsRead,
-        "market.providers" | "market.capabilities" => {
-            ProductionRouteAdapter::MarketDataProviderRead
-        }
-        "market.search" => ProductionRouteAdapter::MarketDataSearchRead,
-        "market.instrument_profile" => ProductionRouteAdapter::MarketDataProfileRead,
-        "market.snapshot" => ProductionRouteAdapter::MarketDataSnapshotsRead,
-        "market.candles" => ProductionRouteAdapter::MarketDataCandlesRead,
-        "market.intraday" => ProductionRouteAdapter::MarketDataIntradayRead,
-        "market.ticks" => ProductionRouteAdapter::MarketDataTicksRead,
-        "market.depth" => ProductionRouteAdapter::MarketDataDepthRead,
-        "market.broker_queue" => ProductionRouteAdapter::MarketDataBrokerQueueRead,
-        "market.capital_flow" => ProductionRouteAdapter::MarketDataCapitalFlowRead,
-        "market.snapshots" => ProductionRouteAdapter::MarketDataBatchSnapshotsWrite,
-        "market.subscriptions" => ProductionRouteAdapter::MarketDataSubscriptionRead,
-        "derivatives.warrants" => ProductionRouteAdapter::MarketDataDerivativeRead,
-        "derivatives.futures" => ProductionRouteAdapter::MarketDataFuturesRead,
-        "derivatives.option_chain" => ProductionRouteAdapter::MarketDataOptionsChainRead,
-        "derivatives.option_screen" => ProductionRouteAdapter::MarketDataOptionsScreenRead,
-        "derivatives.option_analysis" => ProductionRouteAdapter::MarketDataOptionsAnalysisRead,
-        "derivatives.option_events" => ProductionRouteAdapter::MarketDataOptionsEventsRead,
-        "prediction.discover"
-        | "prediction.snapshot"
-        | "prediction.depth"
-        | "prediction.history"
-        | "prediction.combo_eligible" => ProductionRouteAdapter::MarketDataPredictionRead,
-        "prediction.combo_quote" => ProductionRouteAdapter::MarketDataPredictionCombosWrite,
-        "broker.cash_flows" | "broker.fees" | "broker.margin_ratios" => {
-            ProductionRouteAdapter::BrokerRead
-        }
-        "execution.order_events" => ProductionRouteAdapter::ExecutionRead,
-        "execution.buying_power" => ProductionRouteAdapter::ExecutionWrite,
-        "watchlist.list" => ProductionRouteAdapter::WatchlistRead,
-        "watchlist.remote.list" => ProductionRouteAdapter::RemoteWatchlistRead,
-        "portfolio.summary" => ProductionRouteAdapter::PortfolioRead,
-        "account.orders" => ProductionRouteAdapter::ExecutionRead,
-        "broker.orders" | "broker.fills" => ProductionRouteAdapter::BrokerRead,
-        "strategy.definitions"
-        | "strategy.definition_versions.list"
-        | "strategy.definition_versions.get" => ProductionRouteAdapter::StrategyDefinitionRead,
-        "strategy.instance_activity" => ProductionRouteAdapter::StrategyRuntimeRead,
-        "backtest.runs" | "backtest.result_view" => ProductionRouteAdapter::BacktestRead,
-        "backtest.kline_sync_status" => ProductionRouteAdapter::BacktestSyncRead,
-        "risk.state" | "risk.events" => ProductionRouteAdapter::SystemRead,
-        _ => return None,
-    })
 }
 
 /// Validate the headers required by the Go SDK's stateless streamable

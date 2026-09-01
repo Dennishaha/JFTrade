@@ -294,6 +294,223 @@ fn reviewed_catalog_preserves_all_go_names_and_marks_unimplemented_rust_calls() 
 }
 
 #[test]
+fn reviewed_mcp_descriptors_expose_strict_per_tool_schemas() {
+    let descriptors = tool_descriptors(&catalog());
+    assert_eq!(descriptors.len(), REVIEWED_READ_ONLY_TOOLS.len());
+    for descriptor in &descriptors {
+        let name = descriptor["name"].as_str().expect("descriptor name");
+        let schema = descriptor
+            .get("inputSchema")
+            .and_then(Value::as_object)
+            .unwrap_or_else(|| panic!("{name} input schema is not an object"));
+        assert_eq!(schema.get("type"), Some(&json!("object")), "{name}");
+        assert_eq!(
+            schema.get("additionalProperties"),
+            Some(&json!(false)),
+            "{name} must reject unknown fields"
+        );
+    }
+
+    let search = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "market.search")
+        .expect("market.search descriptor");
+    let search_schema = &search["inputSchema"];
+    assert_eq!(search_schema["required"], json!(["query"]));
+    assert_eq!(search_schema["properties"]["query"]["minLength"], 1);
+    assert_eq!(search_schema["properties"]["query"]["maxLength"], 120);
+
+    let candles = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "market.candles")
+        .expect("market.candles descriptor");
+    assert_eq!(
+        candles["inputSchema"]["properties"]["limit"]["maximum"],
+        500
+    );
+    assert_eq!(
+        candles["inputSchema"]["properties"]["adjustment"]["enum"],
+        json!(["none", "forward", "backward"])
+    );
+
+    let screen = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "research.screen")
+        .expect("research.screen descriptor");
+    assert_eq!(
+        screen["inputSchema"]["required"],
+        json!(["market", "pool", "catalogVersion", "querySchemaVersion"])
+    );
+    assert_eq!(
+        screen["inputSchema"]["properties"]["querySchemaVersion"]["minimum"],
+        2
+    );
+
+    for name in [
+        "system.status",
+        "system.futu_opend",
+        "plugins.catalog",
+        "market.subscriptions",
+        "risk.state",
+        "risk.events",
+        "strategy.definitions",
+    ] {
+        let descriptor = descriptors
+            .iter()
+            .find(|descriptor| descriptor["name"] == name)
+            .unwrap_or_else(|| panic!("{name} descriptor"));
+        assert_eq!(
+            descriptor["inputSchema"]["properties"]["query"]["type"], "string",
+            "{name} must preserve the Go default query schema"
+        );
+    }
+
+    for name in ["market.providers", "system.runtime_dependencies"] {
+        let descriptor = descriptors
+            .iter()
+            .find(|descriptor| descriptor["name"] == name)
+            .unwrap_or_else(|| panic!("{name} descriptor"));
+        assert_eq!(descriptor["inputSchema"]["properties"], json!({}), "{name}");
+    }
+
+    let quote = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "prediction.combo_quote")
+        .expect("prediction.combo_quote descriptor");
+    assert_eq!(
+        quote["inputSchema"]["required"],
+        json!(["accountId", "mvc", "legs"])
+    );
+    for property in [
+        "brokerId",
+        "accountId",
+        "tradingEnvironment",
+        "market",
+        "cursor",
+        "pageSize",
+        "refresh",
+    ] {
+        assert!(
+            quote["inputSchema"]["properties"].get(property).is_some(),
+            "prediction.combo_quote missing {property}"
+        );
+    }
+
+    let indicators = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "research.technical_indicators")
+        .expect("research.technical_indicators descriptor");
+    assert_eq!(
+        indicators["inputSchema"]["properties"]["operation"]["enum"],
+        json!(["list", "calculate"])
+    );
+    assert_eq!(
+        indicators["inputSchema"]["required"],
+        json!(["instrumentId"])
+    );
+
+    let screen_catalog = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "research.screen_catalog")
+        .expect("research.screen_catalog descriptor");
+    for property in [
+        "brokerId",
+        "accountId",
+        "market",
+        "cursor",
+        "pageSize",
+        "refresh",
+    ] {
+        assert!(
+            screen_catalog["inputSchema"]["properties"]
+                .get(property)
+                .is_some(),
+            "research.screen_catalog missing {property}"
+        );
+    }
+
+    let macro_research = descriptors
+        .iter()
+        .find(|descriptor| descriptor["name"] == "research.macro")
+        .expect("research.macro descriptor");
+    assert_eq!(
+        macro_research["inputSchema"]["properties"]["indicatorId"]["type"],
+        "string"
+    );
+    assert_eq!(
+        macro_research["inputSchema"]["then"]["required"],
+        json!(["indicatorId"])
+    );
+}
+
+#[test]
+fn reviewed_mcp_argument_validation_enforces_schema_constraints() {
+    assert!(validate_tool_arguments("system.status", &json!({"query": "health"})).is_ok());
+    assert!(validate_tool_arguments("system.status", &json!({"unexpected": true})).is_err());
+    assert!(validate_tool_arguments("market.search", &json!({})).is_err());
+    assert!(validate_tool_arguments("market.search", &json!({"query": ""})).is_err());
+    assert!(
+        validate_tool_arguments(
+            "market.candles",
+            &json!({"market": "US", "symbol": "AAPL", "limit": 501})
+        )
+        .is_err()
+    );
+    assert!(
+        validate_tool_arguments(
+            "market.candles",
+            &json!({"market": "US", "symbol": "AAPL", "adjustment": "sideways"})
+        )
+        .is_err()
+    );
+    assert!(
+        validate_tool_arguments(
+            "prediction.combo_quote",
+            &json!({"accountId": "account", "mvc": "market", "legs": []})
+        )
+        .is_err()
+    );
+    assert!(
+        validate_tool_arguments(
+            "research.screen",
+            &json!({
+                "market": "US",
+                "pool": {"unknown": true},
+                "catalogVersion": "v1",
+                "querySchemaVersion": 2
+            })
+        )
+        .is_err()
+    );
+    assert!(
+        validate_tool_arguments(
+            "research.screen_catalog",
+            &json!({
+                "brokerId": "futu",
+                "accountId": "account",
+                "market": "US",
+                "cursor": "next",
+                "pageSize": 20,
+                "refresh": true
+            })
+        )
+        .is_ok()
+    );
+    assert!(
+        validate_tool_arguments(
+            "research.macro",
+            &json!({"operation": "indicator_history", "indicatorId": "cpi_yoy"})
+        )
+        .is_ok()
+    );
+    assert!(
+        validate_tool_arguments("research.macro", &json!({"operation": "indicator_history"}))
+            .is_err()
+    );
+    assert!(validate_tool_arguments("research.macro", &json!({"operation": "indicators"})).is_ok());
+}
+
+#[test]
 fn native_mcp_names_have_explicit_mapping_and_fail_closed_matrix() {
     let native = PRODUCTION_MCP_EXECUTABLE_TOOLS
         .iter()
@@ -333,9 +550,9 @@ fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(reviewed.len(), 69);
-    assert_eq!(native.len(), 49);
+    assert_eq!(native.len(), 64);
     assert!(native.is_subset(&reviewed));
-    assert_eq!(reviewed.len() - native.len(), 20);
+    assert_eq!(reviewed.len() - native.len(), 5);
 }
 
 #[test]
@@ -381,7 +598,7 @@ fn production_mcp_runtime_dependency_readiness_is_truthful() {
     );
     assert_eq!(
         mcp_tool_availability(&ports.mcp_catalog, Some(&ports), "research.screen_catalog"),
-        "fail-closed"
+        "ready"
     );
 
     ports.bound_adapters.remove(
@@ -639,7 +856,33 @@ fn modern_unknown_tool_is_json_rpc_invalid_params_not_http_success() {
 }
 
 #[test]
-fn modern_catalog_unavailable_tool_is_json_rpc_invalid_params_not_tool_success() {
+fn modern_tool_call_rejects_arguments_outside_the_advertised_schema() {
+    let runtime = ProductMcpServerRuntime::with_executor(catalog(), Arc::new(SuccessExecutor));
+    let port = available_port();
+    runtime
+        .apply(&enabled_record(port, "none", ""))
+        .expect("start MCP");
+
+    let (status, response) = request_modern_with_status(
+        port,
+        "tools/call",
+        1,
+        Some("system.status"),
+        json!({"name": "system.status", "arguments": {"unexpected": true}}),
+    );
+    assert_eq!(status, 400, "response={response}");
+    assert_eq!(response["error"]["code"], -32602);
+    assert_eq!(
+        response["error"]["message"],
+        "invalid arguments for system.status: arguments.unexpected is not allowed"
+    );
+    assert!(response.get("result").is_none(), "response={response}");
+
+    runtime.shutdown_blocking().expect("shutdown MCP");
+}
+
+#[test]
+fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success() {
     let bindings = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
         Some("yfinance"),
         true,
@@ -665,14 +908,14 @@ fn modern_catalog_unavailable_tool_is_json_rpc_invalid_params_not_tool_success()
         port,
         "tools/call",
         1,
-        Some("research.instrument"),
-        json!({"name": "research.instrument", "arguments": {}}),
+        Some("research.institutions"),
+        json!({"name": "research.institutions", "arguments": {}}),
     );
     assert_eq!(status, 400, "response={response}");
     assert_eq!(response["error"]["code"], -32602);
     assert_eq!(
         response["error"]["message"],
-        "tool \"research.instrument\" is unavailable in the Rust MCP runtime"
+        "tool \"research.institutions\" is unavailable in the Rust MCP runtime"
     );
     assert!(response.get("result").is_none(), "response={response}");
 
