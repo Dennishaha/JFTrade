@@ -227,6 +227,21 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
+                    trade_runtime_for_activation.set_institution_reader(Some(Arc::new(
+                        jftrade_integration_futu::OpenDInstitutionReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
+                    trade_runtime_for_activation.set_short_interest_reader(Some(Arc::new(
+                        jftrade_integration_futu::OpenDShortInterestReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
+                    trade_runtime_for_activation.set_technical_indicator_reader(Some(Arc::new(
+                        jftrade_integration_futu::FutuTechnicalIndicatorReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_option_expirations(Some(Arc::new(
                         jftrade_integration_futu::OpenDOptionExpirationReader::new(
                             provider.coordinator(),

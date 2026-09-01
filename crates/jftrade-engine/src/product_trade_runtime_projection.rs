@@ -11,6 +11,7 @@ use jftrade_integration_futu::{
     OptionZeroDteScreenerReadPort, OptionEarningsScreenerReadPort,
     OptionZeroDteContractReadPort, OptionSellerScreenerReadPort,
     ValuationDetailReadPort,
+    FutuInstitutionReadPort, FutuShortInterestReadPort, FutuIndicatorReadPort,
     FutuCorporateActionsReadPort, FutuCorporateActionsQuery, FutuCorporateActionsResult,
     FutuNewsQuery, FutuNewsReadPort, FutuNewsResult,
     PredictionComboQuotePort, PredictionMarketReadPort, PredictionMarketSubscriptionPort,
@@ -41,6 +42,8 @@ mod product_trade_runtime_futures;
 mod product_trade_runtime_projection_values;
 #[path = "product_trade_runtime_valuation.rs"]
 mod product_trade_runtime_valuation;
+#[path = "product_trade_runtime_research.rs"]
+mod product_trade_runtime_research;
 #[path = "product_trade_runtime_prediction.rs"]
 mod prediction;
 
@@ -111,6 +114,9 @@ pub(crate) struct SharedTradeReadRuntime {
         Arc<RwLock<Option<Arc<dyn PredictionComboQuotePort>>>>,
     prediction_subscription_state: Arc<Mutex<PredictionSubscriptionState>>,
     pub(crate) valuation_detail: Arc<RwLock<Option<Arc<dyn ValuationDetailReadPort>>>>,
+    pub(crate) institution_reader: Arc<RwLock<Option<Arc<dyn FutuInstitutionReadPort>>>>,
+    pub(crate) short_interest_reader: Arc<RwLock<Option<Arc<dyn FutuShortInterestReadPort>>>>,
+    pub(crate) technical_indicator_reader: Arc<RwLock<Option<Arc<dyn FutuIndicatorReadPort>>>>,
     pub(crate) news_reader: Arc<RwLock<Option<Arc<dyn FutuNewsReadPort>>>>,
     pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
     pub(crate) remote_watchlist_reader:
@@ -754,6 +760,9 @@ impl SharedTradeReadRuntime {
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.set_writer(None);
         self.set_news_reader(None);
+        self.set_institution_reader(None);
+        self.set_short_interest_reader(None);
+        self.set_technical_indicator_reader(None);
         self.set_prediction_adapters(None, None, None);
         self.prediction_subscription_state
             .lock()

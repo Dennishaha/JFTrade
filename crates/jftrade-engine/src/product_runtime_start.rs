@@ -170,6 +170,17 @@ pub async fn start_product_runtime(
                         runtime.coordinator(),
                     ),
                 )));
+                trade_runtime.set_institution_reader(Some(Arc::new(
+                    jftrade_integration_futu::OpenDInstitutionReader::new(runtime.coordinator()),
+                )));
+                trade_runtime.set_short_interest_reader(Some(Arc::new(
+                    jftrade_integration_futu::OpenDShortInterestReader::new(runtime.coordinator()),
+                )));
+                trade_runtime.set_technical_indicator_reader(Some(Arc::new(
+                    jftrade_integration_futu::FutuTechnicalIndicatorReader::new(
+                        runtime.coordinator(),
+                    ),
+                )));
                 trade_runtime.set_option_expirations(Some(Arc::new(
                     jftrade_integration_futu::OpenDOptionExpirationReader::new(
                         runtime.coordinator(),
@@ -354,6 +365,15 @@ pub async fn start_product_runtime(
         )));
         trade_runtime.set_valuation_detail(Some(Arc::new(
             jftrade_integration_futu::OpenDValuationDetailReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_institution_reader(Some(Arc::new(
+            jftrade_integration_futu::OpenDInstitutionReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_short_interest_reader(Some(Arc::new(
+            jftrade_integration_futu::OpenDShortInterestReader::new(Arc::clone(coordinator)),
+        )));
+        trade_runtime.set_technical_indicator_reader(Some(Arc::new(
+            jftrade_integration_futu::FutuTechnicalIndicatorReader::new(Arc::clone(coordinator)),
         )));
         trade_runtime.set_option_expirations(Some(Arc::new(
             jftrade_integration_futu::OpenDOptionExpirationReader::new(Arc::clone(coordinator)),
