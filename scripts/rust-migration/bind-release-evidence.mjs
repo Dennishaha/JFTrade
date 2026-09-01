@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 
 import {
+  parseSafePositiveInteger,
   TRUSTED_BINDING_WORKFLOWS,
   TRUSTED_PAYLOAD_WORKFLOWS,
   validateExternalEvidenceManifest,
@@ -61,8 +62,8 @@ function safeGitRef(value, label) {
 }
 
 function positiveInteger(value, label) {
-  if (Number.isInteger(value) && value > 0) return value;
-  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value.trim())) return Number(value);
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   throw new Error(`${label} must be a positive integer`);
 }
 
@@ -98,9 +99,12 @@ function safeRelativePath(value, label) {
 }
 
 function sameArtifact(left, right) {
+  const leftId = parseSafePositiveInteger(left?.id);
+  const rightId = parseSafePositiveInteger(right?.id);
   return isRecord(left) && isRecord(right)
     && String(left.name) === String(right.name)
-    && Number(left.id) === Number(right.id)
+    && leftId !== null
+    && leftId === rightId
     && left.digest === right.digest;
 }
 

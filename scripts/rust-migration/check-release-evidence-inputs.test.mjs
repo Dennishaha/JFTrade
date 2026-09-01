@@ -6,12 +6,72 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  parseSafePositiveInteger,
   RELEASE_EVIDENCE_INPUTS_SCHEMA,
   TRUSTED_EVIDENCE_WORKFLOWS,
   TRUSTED_PAYLOAD_WORKFLOWS,
   TRUSTED_SOURCE_WORKFLOWS,
   validateExternalEvidenceManifest,
 } from "./check-release-evidence-inputs.mjs";
+
+test("accepts only finite safe positive workflow and artifact identifiers", () => {
+  assert.equal(parseSafePositiveInteger(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+  assert.equal(parseSafePositiveInteger(String(Number.MAX_SAFE_INTEGER)), Number.MAX_SAFE_INTEGER);
+  for (const value of [
+    0,
+    -1,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.MAX_SAFE_INTEGER + 1,
+    "0",
+    "-1",
+    "1.5",
+    "1e3",
+    "9007199254740992",
+    "9".repeat(100),
+  ]) {
+    assert.equal(parseSafePositiveInteger(value), null, `value=${String(value)}`);
+  }
+});
+
+test("normalizes expected artifact ids without allowing unsafe metadata", (context) => {
+  const value = createFixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const stringExpected = structuredClone(value);
+  stringExpected.artifact = { ...stringExpected.artifact, id: String(stringExpected.artifact.id) };
+  const accepted = validateExternalEvidenceManifest(stringExpected.manifest, {
+    baseDirectory: stringExpected.root,
+    expected: stringExpected.expected,
+    expectedArtifactMetadata: stringExpected.artifact,
+    releaseArtifactDigests: stringExpected.releaseArtifactDigests,
+  });
+  assert.equal(accepted.valid, true, accepted.errors.join("; "));
+
+  for (const invalid of [0, -1, 1.5, "0", "-1", "1.5", "9007199254740992"]) {
+    const candidate = structuredClone(value);
+    candidate.artifact = { ...candidate.artifact, id: invalid };
+    const result = validateExternalEvidenceManifest(candidate.manifest, {
+      baseDirectory: candidate.root,
+      expected: candidate.expected,
+      expectedArtifactMetadata: candidate.artifact,
+      releaseArtifactDigests: candidate.releaseArtifactDigests,
+    });
+    assert.equal(result.valid, false, `expected id ${String(invalid)} should fail`);
+    assert.match(result.errors.join("\n"), /manifest\.artifact\.id/);
+  }
+
+  const unsafeActual = structuredClone(value);
+  unsafeActual.manifest.artifact.id = "9007199254740992";
+  const actualResult = validateExternalEvidenceManifest(unsafeActual.manifest, {
+    baseDirectory: unsafeActual.root,
+    expected: unsafeActual.expected,
+    expectedArtifactMetadata: unsafeActual.artifact,
+    releaseArtifactDigests: unsafeActual.releaseArtifactDigests,
+  });
+  assert.equal(actualResult.valid, false);
+  assert.match(actualResult.errors.join("\n"), /positive integer/);
+});
 
 const contracts = {
   "signed-updater-inputs": ["signed-updater", "jftrade.release.signed-updater.v2", {

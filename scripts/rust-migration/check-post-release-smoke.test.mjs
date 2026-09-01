@@ -87,6 +87,22 @@ test("validates all four runtime smoke targets without qualifying release eviden
   assert.equal(result.artifactDigests.length, 4);
 });
 
+test("rejects unsafe release workflow identifiers", () => {
+  for (const invalid of [0, -1, 1.5, "0", "-1", "1.5", "9007199254740992"]) {
+    const reports = allReports();
+    reports[0].releaseBinding.releaseRun.id = invalid;
+    const idResult = inspectPostReleaseSmokeReports({ reports });
+    assert.equal(idResult.valid, false, `workflow id ${String(invalid)} should fail`);
+    assert.match(idResult.errors.join("\n"), /releaseRun\.id must be a positive workflow run id/);
+
+    const attempts = allReports();
+    attempts[0].releaseBinding.releaseRun.attempt = invalid;
+    const attemptResult = inspectPostReleaseSmokeReports({ reports: attempts });
+    assert.equal(attemptResult.valid, false, `workflow attempt ${String(invalid)} should fail`);
+    assert.match(attemptResult.errors.join("\n"), /releaseRun\.attempt must be a positive workflow run attempt/);
+  }
+});
+
 test("requires a release binding and fails closed for legacy smoke reports", () => {
   const reports = allReports();
   delete reports[0].releaseBinding;

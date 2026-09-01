@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { REQUIRED_PLATFORMS } from "./check-release-candidate.mjs";
+import { parseSafePositiveInteger } from "./check-release-evidence-inputs.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const SEALED_BUNDLE_SCHEMA = "jftrade.sealed-release-bundle.v1";
@@ -89,8 +90,8 @@ function readJson(filePath, label) {
 }
 
 function positiveInteger(value, label) {
-  if (Number.isInteger(value) && value > 0) return value;
-  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value)) return Number(value);
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   throw new Error(`${label} must be a positive integer`);
 }
 
@@ -102,15 +103,17 @@ function digest(value, label, prefixed = false) {
 
 function assertWorkflowBinding(value, label, expected) {
   if (!isRecord(value)) throw new Error(`${label} must be an object`);
-  positiveInteger(value.id ?? value.runId, `${label}.id`);
-  positiveInteger(value.attempt ?? value.runAttempt, `${label}.attempt`);
+  const id = positiveInteger(value.id ?? value.runId, `${label}.id`);
+  const attempt = positiveInteger(value.attempt ?? value.runAttempt, `${label}.attempt`);
   for (const key of ["workflow", "ref", "commitSha"]) {
     if (typeof value[key] !== "string" || value[key].trim() === "") throw new Error(`${label}.${key} must be non-empty`);
     if (expected?.[key] !== undefined && value[key] !== expected[key]) throw new Error(`${label}.${key} does not match expected binding`);
   }
-  if (expected?.id !== undefined && String(value.id ?? value.runId) !== String(expected.id)) throw new Error(`${label}.id does not match expected binding`);
-  if (expected?.attempt !== undefined && Number(value.attempt ?? value.runAttempt) !== Number(expected.attempt)) throw new Error(`${label}.attempt does not match expected binding`);
-  return value;
+  const expectedId = expected?.id ?? expected?.runId;
+  const expectedAttempt = expected?.attempt ?? expected?.runAttempt;
+  if (expectedId !== undefined && id !== parseSafePositiveInteger(expectedId)) throw new Error(`${label}.id does not match expected binding`);
+  if (expectedAttempt !== undefined && attempt !== parseSafePositiveInteger(expectedAttempt)) throw new Error(`${label}.attempt does not match expected binding`);
+  return { ...value, id, attempt };
 }
 
 function validateArtifactMetadata(values, requiredNames, label, expected) {
@@ -123,21 +126,31 @@ function validateArtifactMetadata(values, requiredNames, label, expected) {
     const name = value.name;
     if (!requiredNames.includes(name)) throw new Error(`${label}[${index}].name is not a required artifact: ${name}`);
     if (byName.has(name)) throw new Error(`${label} contains duplicate artifact: ${name}`);
-    byName.set(name, value);
-    positiveInteger(value.id, `${label}[${index}].id`);
+    const id = positiveInteger(value.id, `${label}[${index}].id`);
     digest(value.digest, `${label}[${index}].digest`, true);
     if (value.expired !== false) throw new Error(`${label}[${index}].expired must be false`);
-    positiveInteger(value.runId, `${label}[${index}].runId`);
-    positiveInteger(value.runAttempt, `${label}[${index}].runAttempt`);
+    const runId = positiveInteger(value.runId, `${label}[${index}].runId`);
+    const runAttempt = positiveInteger(value.runAttempt, `${label}[${index}].runAttempt`);
     for (const key of ["workflow", "ref", "commitSha"]) {
       if (typeof value[key] !== "string" || value[key].trim() === "") throw new Error(`${label}[${index}].${key} must be non-empty`);
       if (expected?.[key] !== undefined && value[key] !== expected[key]) throw new Error(`${label}[${index}].${key} does not match expected binding`);
     }
-    if (expected?.runId !== undefined && String(value.runId) !== String(expected.runId)) throw new Error(`${label}[${index}].runId does not match expected binding`);
-    if (expected?.runAttempt !== undefined && Number(value.runAttempt) !== Number(expected.runAttempt)) throw new Error(`${label}[${index}].runAttempt does not match expected binding`);
+    if (expected?.runId !== undefined && runId !== parseSafePositiveInteger(expected.runId)) throw new Error(`${label}[${index}].runId does not match expected binding`);
+    if (expected?.runAttempt !== undefined && runAttempt !== parseSafePositiveInteger(expected.runAttempt)) throw new Error(`${label}[${index}].runAttempt does not match expected binding`);
+    byName.set(name, { ...value, id, runId, runAttempt });
   }
   for (const name of requiredNames) if (!byName.has(name)) throw new Error(`${label} is missing required artifact: ${name}`);
   return [...byName.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function validateSourceArtifactIdentifiers(values) {
+  for (const [index, value] of values.entries()) {
+    if (!isRecord(value)) throw new Error(`canonical sourceArtifacts[${index}] must be an object`);
+    const label = `canonical sourceArtifacts[${index}]`;
+    positiveInteger(value.id, `${label}.id`);
+    positiveInteger(value.runId, `${label}.runId`);
+    positiveInteger(value.runAttempt, `${label}.runAttempt`);
+  }
 }
 
 function safeTopLevelPath(value, label) {
@@ -300,6 +313,7 @@ export function verifyReleaseCandidateBundle({ evidencePath, candidateRoot, rele
   if (!Array.isArray(evidence.sourceArtifacts) || evidence.sourceArtifacts.length === 0) {
     throw new Error("canonical candidate evidence must include source artifact metadata");
   }
+  validateSourceArtifactIdentifiers(evidence.sourceArtifacts);
   const platforms = Object.keys(evidence.platforms);
   const missingPlatforms = REQUIRED_PLATFORMS.filter((platform) => !platforms.includes(platform));
   const unknownPlatforms = platforms.filter((platform) => !REQUIRED_PLATFORMS.includes(platform));

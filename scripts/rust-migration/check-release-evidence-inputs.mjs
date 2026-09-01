@@ -93,9 +93,31 @@ function requiredString(value, label, errors, pattern) {
   return result;
 }
 
+const MAX_SAFE_INTEGER_TEXT = String(Number.MAX_SAFE_INTEGER);
+
+/**
+ * Parse a decimal positive integer without allowing precision loss.  GitHub
+ * workflow and artifact identifiers are identity fields, so accepting an
+ * unsafe Number would allow distinct strings to compare equal after rounding.
+ */
+export function parseSafePositiveInteger(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!/^[1-9][0-9]*$/.test(text)
+    || text.length > MAX_SAFE_INTEGER_TEXT.length
+    || (text.length === MAX_SAFE_INTEGER_TEXT.length && text > MAX_SAFE_INTEGER_TEXT)) {
+    return null;
+  }
+  const parsed = Number(text);
+  return Number.isFinite(parsed) && Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 function positiveInteger(value, label, errors) {
-  if (Number.isInteger(value) && value > 0) return value;
-  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value.trim())) return Number(value);
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   errors.push(`${label} must be a positive integer`);
   return null;
 }
@@ -187,19 +209,27 @@ function bindingError(binding, expected, label, errors) {
   for (const key of ["repository", "releaseRef", "ref", "commitSha", "workflow"]) {
     if (binding[key] !== expected[key]) errors.push(`${label}.binding.${key} does not match manifest`);
   }
-  if (positiveInteger(binding.runId, `${label}.binding.runId`, errors) !== expected.runId) {
+  const runId = positiveInteger(binding.runId, `${label}.binding.runId`, errors);
+  const attempt = positiveInteger(binding.attempt, `${label}.binding.attempt`, errors);
+  if (runId === null || runId !== expected.runId) {
     errors.push(`${label}.binding.runId does not match manifest`);
   }
-  if (positiveInteger(binding.attempt, `${label}.binding.attempt`, errors) !== expected.attempt) {
+  if (attempt === null || attempt !== expected.attempt) {
     errors.push(`${label}.binding.attempt does not match manifest`);
   }
   if (!isRecord(binding.artifact)) {
     errors.push(`${label}.binding.artifact must be an object`);
   } else {
     addUnknownKeys(binding.artifact, ARTIFACT_KEYS, `${label}.binding.artifact`, errors);
-    if (binding.artifact.name !== expected.artifact.name
-      || Number(binding.artifact.id) !== Number(expected.artifact.id)
-      || binding.artifact.digest !== expected.artifact.digest) {
+    const artifactId = positiveInteger(binding.artifact.id, `${label}.binding.artifact.id`, errors);
+    const expectedArtifact = expected?.artifact;
+    const expectedArtifactId = parseSafePositiveInteger(expectedArtifact?.id);
+    if (!expectedArtifact
+      || binding.artifact.name !== expectedArtifact.name
+      || artifactId === null
+      || expectedArtifactId === null
+      || artifactId !== expectedArtifactId
+      || binding.artifact.digest !== expectedArtifact.digest) {
       errors.push(`${label}.binding.artifact does not match manifest`);
     }
   }
@@ -211,6 +241,9 @@ function validateBindingObject(binding, label, errors, trustedWorkflows = TRUSTE
     return null;
   }
   addUnknownKeys(binding, BINDING_KEYS, label, errors);
+  const artifactId = isRecord(binding.artifact)
+    ? positiveInteger(binding.artifact.id, `${label}.artifact.id`, errors)
+    : null;
   const normalized = {
     repository: requiredString(binding.repository, `${label}.repository`, errors, /^[^/\s]+\/[^/\s]+$/),
     releaseRef: requiredString(binding.releaseRef, `${label}.releaseRef`, errors, /^refs\/tags\/v\d+\.\d+\.\d+$/),
@@ -219,13 +252,14 @@ function validateBindingObject(binding, label, errors, trustedWorkflows = TRUSTE
     workflow: normalizeWorkflow(binding.workflow, `${label}.workflow`, errors, trustedWorkflows),
     runId: positiveInteger(binding.runId, `${label}.runId`, errors),
     attempt: positiveInteger(binding.attempt, `${label}.attempt`, errors),
-    artifact: binding.artifact,
+    artifact: isRecord(binding.artifact)
+      ? { ...binding.artifact, id: artifactId }
+      : binding.artifact,
   };
   if (!isRecord(binding.artifact)) errors.push(`${label}.artifact must be an object`);
   else {
     addUnknownKeys(binding.artifact, ARTIFACT_KEYS, `${label}.artifact`, errors);
     requiredString(binding.artifact.name, `${label}.artifact.name`, errors, /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
-    positiveInteger(binding.artifact.id, `${label}.artifact.id`, errors);
     digest(binding.artifact.digest, `${label}.artifact.digest`, errors, true);
   }
   return normalized;
@@ -384,21 +418,37 @@ function validateExpected(document, options, expected, errors) {
     if (configured[key] !== undefined && document[key] !== configured[key]) errors.push(`manifest.${key} does not match expected value`);
   }
   for (const key of ["runId", "attempt"]) {
-    if (configured[key] !== undefined && Number(document[key]) !== Number(configured[key])) errors.push(`manifest.${key} does not match expected value`);
+    if (configured[key] !== undefined) {
+      const actual = parseSafePositiveInteger(document[key]);
+      const expectedValue = parseSafePositiveInteger(configured[key]);
+      if (actual === null || expectedValue === null || actual !== expectedValue) {
+        errors.push(`manifest.${key} does not match expected value`);
+      }
+    }
   }
   if (configured.artifact) {
     for (const key of ARTIFACT_KEYS) {
-      if (document.artifact?.[key] !== configured.artifact[key]) errors.push(`manifest.artifact.${key} does not match expected value`);
+      const actual = key === "id"
+        ? parseSafePositiveInteger(document.artifact?.[key])
+        : document.artifact?.[key];
+      const expectedValue = key === "id"
+        ? parseSafePositiveInteger(configured.artifact[key])
+        : configured.artifact[key];
+      if (actual === null || expectedValue === null || actual !== expectedValue) {
+        errors.push(`manifest.artifact.${key} does not match expected value`);
+      }
     }
   }
+  const runId = parseSafePositiveInteger(document.runId);
+  const attempt = parseSafePositiveInteger(document.attempt);
   Object.assign(expected, {
     repository: document.repository,
     releaseRef: document.releaseRef,
     ref: document.ref,
     commitSha: document.commitSha,
     workflow: document.workflow,
-    runId: Number(document.runId),
-    attempt: Number(document.attempt),
+    runId,
+    attempt,
     artifact: document.artifact,
   });
 }
@@ -447,6 +497,17 @@ export function validateExternalEvidenceManifest(document, options = {}) {
   }
   if (options.expectedArtifactMetadata) {
     for (const key of ARTIFACT_KEYS) {
+      if (key === "id") {
+        const actualId = parseSafePositiveInteger(artifact?.id);
+        const expectedId = parseSafePositiveInteger(options.expectedArtifactMetadata.id);
+        if (expectedId === null) {
+          errors.push("manifest.artifact.id expected GitHub artifact metadata must be a positive integer");
+        }
+        if (actualId === null || expectedId === null || actualId !== expectedId) {
+          errors.push(`manifest.artifact.${key} does not match GitHub artifact metadata`);
+        }
+        continue;
+      }
       if (artifact?.[key] !== options.expectedArtifactMetadata[key]) {
         errors.push(`manifest.artifact.${key} does not match GitHub artifact metadata`);
       }

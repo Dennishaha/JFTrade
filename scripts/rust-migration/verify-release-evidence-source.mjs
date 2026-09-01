@@ -13,7 +13,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { validateReleaseEvidencePayload, TRUSTED_EXTERNAL_SOURCE_WORKFLOWS } from "./check-release-evidence-inputs.mjs";
+import {
+  parseSafePositiveInteger,
+  TRUSTED_EXTERNAL_SOURCE_WORKFLOWS,
+  validateReleaseEvidencePayload,
+} from "./check-release-evidence-inputs.mjs";
 
 const REQUIRED_REPORTS = Object.freeze([
   "signed-updater-inputs",
@@ -38,9 +42,9 @@ function required(value, label) {
 }
 
 function positive(value, label) {
-  const text = required(value, label);
-  if (!/^[1-9][0-9]*$/.test(text)) throw new Error(`${label} must be a positive integer`);
-  return Number(text);
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed === null) throw new Error(`${label} must be a positive integer`);
+  return parsed;
 }
 
 function rejectUnknown(value, allowed, label) {

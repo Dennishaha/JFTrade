@@ -11,6 +11,7 @@ import {
   createReleaseCandidateEvidence,
   writeReleaseCandidateEvidence,
 } from "./check-release-candidate-builder.mjs";
+import { parseSafePositiveInteger } from "./check-release-evidence-inputs.mjs";
 
 export { candidateMain as main };
 export {
@@ -132,18 +133,17 @@ function semverTag(value, label, errors) {
 }
 
 function runId(value, label, errors) {
-  if (!(Number.isInteger(value) && value > 0) && !(typeof value === "string" && /^\d+$/.test(value.trim()))) {
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed === null) {
     errors.push(`${label} must be a positive workflow run id`);
     return null;
   }
-  return typeof value === "number" ? value : value.trim();
+  return parsed;
 }
 
 function positiveAttempt(value, label, errors) {
-  if (Number.isInteger(value) && value >= 1) return value;
-  if (typeof value === "string" && /^\d+$/.test(value.trim()) && Number(value) >= 1) {
-    return Number(value);
-  }
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   errors.push(`${label} must be a positive integer`);
   return null;
 }
@@ -285,7 +285,7 @@ function normalizeWorkflowRun(value, label, errors) {
 
 function sameRun(left, right) {
   return left && right
-    && String(left.id) === String(right.id)
+    && left.id === right.id
     && left.attempt === right.attempt
     && left.workflow === right.workflow
     && left.ref === right.ref
@@ -672,18 +672,18 @@ export function inspectReleaseCandidateEvidence(document, options = {}) {
           errors.push(`${label}.digest must be a SHA-256 artifact digest`);
         }
         if (sourceArtifact.expired !== false) errors.push(`${label}.expired must be false`);
-        runId(sourceArtifact.runId, `${label}.runId`, errors);
-        positiveAttempt(sourceArtifact.runAttempt, `${label}.runAttempt`, errors);
+        const sourceArtifactRunId = runId(sourceArtifact.runId, `${label}.runId`, errors);
+        const sourceArtifactAttempt = positiveAttempt(sourceArtifact.runAttempt, `${label}.runAttempt`, errors);
         for (const key of ["workflow", "ref", "commitSha"]) {
           if (typeof sourceArtifact[key] !== "string" || sourceArtifact[key].trim() === "") errors.push(`${label}.${key} must be non-empty`);
         }
         if (sourceArtifact.workflow !== "desktop-release.yml") errors.push(`${label}.workflow must be desktop-release.yml`);
         if (typeof sourceArtifact.ref === "string" && !/^refs\/tags\/v\d+\.\d+\.\d+$/.test(sourceArtifact.ref)) errors.push(`${label}.ref must be a release tag ref`);
         if (typeof sourceArtifact.commitSha === "string" && !validCommit(sourceArtifact.commitSha)) errors.push(`${label}.commitSha must be a commit SHA`);
-        if (sourceWorkflow && String(sourceArtifact.runId) !== String(sourceWorkflow.id)) {
+        if (sourceWorkflow && sourceArtifactRunId !== sourceWorkflow.id) {
           errors.push(`${label}.runId does not match manifest.sourceWorkflowRun.id`);
         }
-        if (sourceWorkflow && Number(sourceArtifact.runAttempt) !== Number(sourceWorkflow.attempt)) {
+        if (sourceWorkflow && sourceArtifactAttempt !== sourceWorkflow.attempt) {
           errors.push(`${label}.runAttempt does not match manifest.sourceWorkflowRun.attempt`);
         }
         if (sourceWorkflow && sourceArtifact.workflow !== sourceWorkflow.workflow) errors.push(`${label}.workflow does not match manifest.sourceWorkflowRun.workflow`);

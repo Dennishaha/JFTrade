@@ -59,6 +59,23 @@ test("verifies canonical candidate package bytes against the publish directory",
   assert.equal(result.files.length, 8);
 });
 
+test("rejects unsafe source artifact identifiers in ordinary candidate evidence", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  for (const field of ["id", "runId", "runAttempt"]) {
+    for (const invalid of [0, -1, 1.5, "0", "-1", "1.5", "9007199254740992"]) {
+      const evidence = structuredClone(value.evidence);
+      evidence.sourceArtifacts[0][field] = invalid;
+      fs.writeFileSync(value.evidencePath, JSON.stringify(evidence));
+      assert.throws(() => verifyReleaseCandidateBundle({
+        evidencePath: value.evidencePath,
+        candidateRoot: value.candidate,
+        releaseRoot: value.release,
+      }), new RegExp(`canonical sourceArtifacts\\[0\\]\\.${field} must be a positive integer`));
+    }
+  }
+});
+
 test("fails closed when a published file drifts or source metadata is missing", (context) => {
   const value = fixture();
   context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
@@ -237,6 +254,23 @@ test("verifies a sealed four-platform bundle and its checksum declarations", (co
   assert.equal(result.files.length, value.files.length);
   assert.equal(result.sourceArtifacts.length, 4);
   assert.equal(result.sourceUpdaterArtifacts.length, 4);
+});
+
+test("rejects unsafe workflow and artifact identifiers before bundle comparison", (context) => {
+  const invalidValues = [0, -1, 1.5, "0", "-1", "1.5", "9007199254740992"];
+  for (const invalid of invalidValues) {
+    const value = sealedFixture();
+    context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+    const manifest = structuredClone(value.manifest);
+    manifest.sourceWorkflowRun.id = invalid;
+    fs.writeFileSync(value.manifestPath, JSON.stringify(manifest));
+    assert.throws(() => verifySealedReleaseBundle({
+      manifestPath: value.manifestPath,
+      evidencePath: value.evidencePath,
+      candidateRoot: value.candidate,
+      releaseRoot: value.release,
+    }), /sourceWorkflowRun\.id must be a positive integer/);
+  }
 });
 
 test("rejects sealed bundle hash drift, foreign source metadata, missing files, and symlinks", (context) => {

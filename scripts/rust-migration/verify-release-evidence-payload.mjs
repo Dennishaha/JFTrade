@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import process from "node:process";
-import { validateReleaseEvidencePayload } from "./check-release-evidence-inputs.mjs";
+import {
+  parseSafePositiveInteger,
+  validateReleaseEvidencePayload,
+} from "./check-release-evidence-inputs.mjs";
 
 function parseArgs(argv) {
   const result = {};
@@ -30,9 +33,9 @@ function required(value, label) {
 }
 
 function positive(value, label) {
-  const text = required(value, label);
-  if (!/^[1-9][0-9]*$/.test(text)) throw new Error(`${label} must be a positive integer`);
-  return Number(text);
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed === null) throw new Error(`${label} must be a positive integer`);
+  return parsed;
 }
 
 function main(argv = process.argv.slice(2)) {

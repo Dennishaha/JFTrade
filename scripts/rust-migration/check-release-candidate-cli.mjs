@@ -85,7 +85,7 @@ function parseArgs(args) {
       ...(hasExpectedRun ? {
         workflowRun: {
           id: expectedRunId,
-          attempt: Number(expectedAttempt),
+          attempt: expectedAttempt,
           workflow: expectedWorkflow,
           ref: expectedRef,
           commitSha: expectedCommit,
@@ -94,7 +94,7 @@ function parseArgs(args) {
       ...(hasExpectedSourceRun ? {
         sourceWorkflowRun: {
           id: expectedSourceRunId,
-          attempt: Number(expectedSourceAttempt),
+          attempt: expectedSourceAttempt,
           workflow: expectedSourceWorkflow,
           ref: expectedRef,
           commitSha: expectedCommit,

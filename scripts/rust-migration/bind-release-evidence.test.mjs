@@ -124,6 +124,10 @@ function fixture() {
 }
 
 function bind(value) {
+  return bindWith(value);
+}
+
+function bindWith(value, overrides = {}) {
   return bindReleaseEvidence({
     payloadRoot: value.root,
     outputRoot: path.join(value.root, "bound"),
@@ -131,9 +135,9 @@ function bind(value) {
     repository: "example/jftrade",
     releaseRef,
     releaseCommit,
-    producerRunId: 8801,
-    producerAttempt: 1,
-    producerArtifact,
+    producerRunId: overrides.producerRunId ?? 8801,
+    producerAttempt: overrides.producerAttempt ?? 1,
+    producerArtifact: overrides.producerArtifact ?? producerArtifact,
   });
 }
 
@@ -168,6 +172,32 @@ test("binds real payload reports without self-referencing output artifact", (con
     expectedArtifactMetadata: producerArtifact,
   });
   assert.equal(checked.valid, true, checked.errors.join("; "));
+});
+
+test("rejects unsafe producer workflow and artifact identifiers", (context) => {
+  const invalidValues = ["0", "-1", "1.5", "9007199254740992"];
+  for (const invalid of invalidValues) {
+    const runIdValue = fixture();
+    context.after(() => fs.rmSync(runIdValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(runIdValue, { producerRunId: invalid }),
+      /producerRunId must be a positive integer/,
+    );
+
+    const attemptValue = fixture();
+    context.after(() => fs.rmSync(attemptValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(attemptValue, { producerAttempt: invalid }),
+      /producerAttempt must be a positive integer/,
+    );
+
+    const artifactValue = fixture();
+    context.after(() => fs.rmSync(artifactValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(artifactValue, { producerArtifact: { ...producerArtifact, id: invalid } }),
+      /producerArtifact\.id must be a positive integer/,
+    );
+  }
 });
 
 test("rejects an unbound or placeholder payload report", (context) => {

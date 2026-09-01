@@ -154,6 +154,31 @@ test("builds and inspects a four-platform candidate bound to one workflow run", 
   assert.ok(RELEASE_CANDIDATE_LIMITATIONS.some((item) => /independent security/i.test(item)));
 });
 
+test("rejects unsafe workflow and source artifact identifiers", (context) => {
+  const value = builtFixture();
+  context.after(value.cleanup);
+  const invalidValues = [0, -1, 1.5, "0", "-1", "1.5", "9007199254740992"];
+  for (const invalid of invalidValues) {
+    const workflowRun = structuredClone(value.evidence);
+    workflowRun.workflowRun.id = invalid;
+    const workflowResult = inspectReleaseCandidateEvidence(workflowRun, { baseDirectory: value.root });
+    assert.equal(workflowResult.valid, false, `workflow id ${String(invalid)} should fail`);
+    assert.match(workflowResult.errors.join("\n"), /workflowRun\.id must be a positive workflow run id/);
+
+    const attempt = structuredClone(value.evidence);
+    attempt.sourceWorkflowRun.attempt = invalid;
+    const attemptResult = inspectReleaseCandidateEvidence(attempt, { baseDirectory: value.root });
+    assert.equal(attemptResult.valid, false, `source attempt ${String(invalid)} should fail`);
+    assert.match(attemptResult.errors.join("\n"), /sourceWorkflowRun\.attempt must be a positive integer/);
+
+    const artifact = structuredClone(value.evidence);
+    artifact.sourceArtifacts[0].id = invalid;
+    const artifactResult = inspectReleaseCandidateEvidence(artifact, { baseDirectory: value.root });
+    assert.equal(artifactResult.valid, false, `source artifact id ${String(invalid)} should fail`);
+    assert.match(artifactResult.errors.join("\n"), /sourceArtifacts\[0\]\.id must be a positive workflow run id/);
+  }
+});
+
 test("rejects a tag/ref mismatch and a workflow commit mismatch", (context) => {
   const value = builtFixture();
   context.after(value.cleanup);

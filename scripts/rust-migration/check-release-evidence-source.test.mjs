@@ -111,6 +111,21 @@ test("intake verifies real reports and only adds detached provenance", (context)
   assert.deepEqual(sidecar.binding, binding);
 });
 
+test("intake rejects unsafe workflow and artifact identifiers", (context) => {
+  const invalidValues = ["0", "-1", "1.5", "9007199254740992"];
+  for (const field of ["source_run_id", "source_run_attempt", "source_artifact_id"]) {
+    const root = fixture();
+    context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    for (const invalid of invalidValues) {
+      assert.throws(
+        () => verifySourceEvidence({ args: args(root, { [field]: invalid }) }),
+        /must be a positive integer/,
+        `${field}=${invalid}`,
+      );
+    }
+  }
+});
+
 test("intake fails closed for missing four-platform and independent evidence", (context) => {
   const root = fixture();
   context.after(() => fs.rmSync(root, { recursive: true, force: true }));

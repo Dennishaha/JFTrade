@@ -136,3 +136,29 @@ test("payload verifier rejects the legacy commit argument spelling", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unsupported argument: --payload-commit/);
 });
+
+test("payload verifier rejects unsafe workflow and artifact identifiers", () => {
+  const script = "scripts/rust-migration/verify-release-evidence-payload.mjs";
+  const baseArgs = [
+    "--root", "/tmp",
+    "--repository", "example/jftrade",
+    "--release-ref", "refs/tags/v1.2.3",
+    "--payload-ref", "refs/heads/release-evidence/v1.2.3",
+    "--payload-commit-sha", "a".repeat(40),
+    "--payload-workflow", "desktop-release-evidence-payload.yml",
+    "--payload-run-id", "1",
+    "--payload-run-attempt", "1",
+    "--payload-artifact", "payload-evidence",
+    "--payload-artifact-id", "1",
+    "--payload-artifact-digest", `sha256:${"b".repeat(64)}`,
+  ];
+  for (const field of ["--payload-run-id", "--payload-run-attempt", "--payload-artifact-id"]) {
+    for (const invalid of ["0", "-1", "1.5", "9007199254740992"]) {
+      const args = [...baseArgs];
+      args[args.indexOf(field) + 1] = invalid;
+      const result = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+      assert.notEqual(result.status, 0, `${field}=${invalid} should fail`);
+      assert.match(result.stderr, /must be a positive integer/);
+    }
+  }
+});

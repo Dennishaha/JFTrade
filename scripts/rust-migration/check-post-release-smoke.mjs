@@ -5,6 +5,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { parseSafePositiveInteger } from "./check-release-evidence-inputs.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export const POST_RELEASE_SMOKE_SCHEMA = "jftrade.post-release-smoke.v1";
@@ -82,15 +84,15 @@ function validDigest(value) {
 }
 
 function positiveRunId(value, label, errors) {
-  if (Number.isInteger(value) && value > 0) return value;
-  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value.trim())) return value.trim();
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   errors.push(`${label} must be a positive workflow run id`);
   return null;
 }
 
 function positiveAttempt(value, label, errors) {
-  if (Number.isInteger(value) && value >= 1) return value;
-  if (typeof value === "string" && /^[1-9][0-9]*$/.test(value.trim())) return Number(value.trim());
+  const parsed = parseSafePositiveInteger(value);
+  if (parsed !== null) return parsed;
   errors.push(`${label} must be a positive workflow run attempt`);
   return null;
 }
@@ -202,7 +204,7 @@ function bindingsEqual(left, right) {
     && left.releaseTag === right.releaseTag
     && left.releaseRef === right.releaseRef
     && left.commitSha === right.commitSha
-    && String(left.releaseRun.id) === String(right.releaseRun.id)
+    && left.releaseRun.id === right.releaseRun.id
     && left.releaseRun.attempt === right.releaseRun.attempt
     && left.releaseRun.workflow === right.releaseRun.workflow
     && left.releaseRun.ref === right.releaseRun.ref
