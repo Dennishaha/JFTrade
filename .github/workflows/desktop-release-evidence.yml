@@ -126,9 +126,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$PAYLOAD_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "payload_run_id must be a positive integer" >&2; exit 1; }
-          [[ "$PAYLOAD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "payload_run_attempt must be a positive integer" >&2; exit 1; }
-          [[ "$PAYLOAD_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "payload_artifact_id must be a positive integer" >&2; exit 1; }
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PAYLOAD_RUN_ID="$(safe_positive_integer "$PAYLOAD_RUN_ID" payload_run_id)"
+          PAYLOAD_RUN_ATTEMPT="$(safe_positive_integer "$PAYLOAD_RUN_ATTEMPT" payload_run_attempt)"
+          PAYLOAD_ARTIFACT_ID="$(safe_positive_integer "$PAYLOAD_ARTIFACT_ID" payload_artifact_id)"
           [[ "$PAYLOAD_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "payload_artifact must be a simple artifact name" >&2; exit 1; }
           [[ "$PAYLOAD_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload_artifact_digest must be a SHA-256 digest" >&2; exit 1; }
           [[ "$PAYLOAD_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ && "$PAYLOAD_WORKFLOW" != *".."* ]] || { echo "payload_workflow is unsafe" >&2; exit 1; }
@@ -141,7 +153,7 @@ jobs:
             --arg ref "$PAYLOAD_REF" \
             --arg attempt "$PAYLOAD_RUN_ATTEMPT" \
             --arg workflow "$PAYLOAD_WORKFLOW" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
             <<<"$run_json" >/dev/null || {
             echo "payload run is not a successful run bound to payload_ref@$PAYLOAD_COMMIT" >&2
             exit 1
@@ -149,10 +161,10 @@ jobs:
           artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID/artifacts?per_page=100")"
           jq -e \
             --arg name "$PAYLOAD_ARTIFACT" \
-            --argjson id "$PAYLOAD_ARTIFACT_ID" \
+            --arg id "$PAYLOAD_ARTIFACT_ID" \
             --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
-            --argjson run_id "$PAYLOAD_RUN_ID" \
-            '[.artifacts[] | select(.name == $name and .id == $id and .expired == false and .workflow_run.id == $run_id and .digest == $digest)] | length == 1' \
+            --arg run_id "$PAYLOAD_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select(.name == $name and (.id | safe_integer_equals($id)) and .expired == false and (.workflow_run.id | safe_integer_equals($run_id)) and .digest == $digest)] | length == 1' \
           <<<"$artifacts_json" >/dev/null || {
             echo "payload artifact metadata is missing, expired, ambiguous, or not bound to payload run" >&2
             exit 1
@@ -161,9 +173,9 @@ jobs:
           jq -e \
             --arg name "$PAYLOAD_ARTIFACT" \
             --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
-            --argjson id "$PAYLOAD_ARTIFACT_ID" \
-            --argjson run_id "$PAYLOAD_RUN_ID" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$PAYLOAD_ARTIFACT_ID" \
+            --arg run_id "$PAYLOAD_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$payload_artifact_json" >/dev/null || {
             echo "payload artifact detail does not match requested metadata" >&2
             exit 1
@@ -176,6 +188,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PAYLOAD_ARTIFACT_ID="$(safe_positive_integer "$PAYLOAD_ARTIFACT_ID" payload_artifact_id)"
           rm -rf payload
           mkdir -p payload
           archive="$(mktemp)"
@@ -209,6 +234,28 @@ jobs:
           import path from "node:path";
           import { TRUSTED_BINDING_WORKFLOWS } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
 
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? Number(integer) : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const parsed = parseSafePositiveInteger(value);
+            if (parsed === null) throw new Error(`${label} must be a safe positive integer`);
+            return parsed;
+          };
           const root = path.resolve("payload/reports");
           const ids = [
             "signed-updater-inputs",
@@ -230,9 +277,9 @@ jobs:
               ref: binding.ref,
               commitSha: binding.commitSha,
               workflow: binding.workflow,
-              runId: Number(binding.runId),
-              attempt: Number(binding.attempt),
-              artifact: { name: artifact.name, id: Number(artifact.id), digest: artifact.digest },
+              runId: requireSafePositiveInteger(binding.runId, "source report binding runId"),
+              attempt: requireSafePositiveInteger(binding.attempt, "source report binding attempt"),
+              artifact: { name: artifact.name, id: requireSafePositiveInteger(artifact.id, "source report binding artifact id"), digest: artifact.digest },
             };
             if (!TRUSTED_BINDING_WORKFLOWS.includes(normalized.workflow)) throw new Error(`source workflow is not trusted: ${normalized.workflow}`);
             if (normalized.repository !== process.env.REPOSITORY
@@ -240,10 +287,7 @@ jobs:
               || normalized.commitSha !== process.env.PAYLOAD_COMMIT) {
               throw new Error("source report binding does not match release or commit");
             }
-            if (!Number.isInteger(normalized.runId) || normalized.runId <= 0
-              || !Number.isInteger(normalized.attempt) || normalized.attempt <= 0) throw new Error("source report binding run is invalid");
             if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(normalized.artifact.name)
-              || !Number.isInteger(normalized.artifact.id) || normalized.artifact.id <= 0
               || !/^sha256:[a-f0-9]{64}$/.test(normalized.artifact.digest)) throw new Error("source report binding artifact is invalid");
             return normalized;
           };
@@ -265,15 +309,15 @@ jobs:
             releaseRef: process.env.RELEASE_REF,
             evidenceRef: sourceBinding.ref,
             payloadRun: {
-              id: Number(process.env.PAYLOAD_RUN_ID),
-              attempt: Number(process.env.PAYLOAD_RUN_ATTEMPT),
+              id: requireSafePositiveInteger(process.env.PAYLOAD_RUN_ID, "PAYLOAD_RUN_ID"),
+              attempt: requireSafePositiveInteger(process.env.PAYLOAD_RUN_ATTEMPT, "PAYLOAD_RUN_ATTEMPT"),
               workflow: "desktop-release-evidence-payload.yml",
               ref: process.env.EVIDENCE_REF,
               commitSha: process.env.PAYLOAD_COMMIT,
             },
             artifact: {
               name: process.env.PAYLOAD_ARTIFACT,
-              id: Number(process.env.PAYLOAD_ARTIFACT_ID),
+              id: requireSafePositiveInteger(process.env.PAYLOAD_ARTIFACT_ID, "PAYLOAD_ARTIFACT_ID"),
               digest: process.env.PAYLOAD_ARTIFACT_DIGEST,
             },
             sourceBinding,
@@ -289,6 +333,21 @@ jobs:
           source_artifact_id="$(jq -r '.sourceBinding.artifact.id' payload-artifact-metadata.json)"
           source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest' payload-artifact-metadata.json)"
           source_repository="$(jq -r '.sourceRepository' payload-artifact-metadata.json)"
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          source_run_id="$(safe_positive_integer "$source_run_id" source_binding.runId)"
+          source_attempt="$(safe_positive_integer "$source_attempt" source_binding.attempt)"
+          source_artifact_id="$(safe_positive_integer "$source_artifact_id" source_binding.artifact.id)"
           [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "source binding repository is invalid" >&2; exit 1; }
           source_branch="${source_ref#refs/heads/}"
           source_branch="${source_branch#refs/tags/}"
@@ -296,13 +355,13 @@ jobs:
           jq -e \
             --arg sha "$source_commit" --arg branch "$source_branch" --arg ref "$source_ref" \
             --arg attempt "$source_attempt" --arg workflow "$source_workflow" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
             <<<"$source_run" >/dev/null || { echo "source binding run is not a successful trusted run" >&2; exit 1; }
           source_artifact="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
           jq -e \
             --arg name "$source_artifact_name" --arg digest "$source_artifact_digest" \
-            --argjson id "$source_artifact_id" --argjson run_id "$source_run_id" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$source_artifact_id" --arg run_id "$source_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$source_artifact" >/dev/null || { echo "source binding artifact is not bound to the source run" >&2; exit 1; }
 
       - name: Stage byte-identical producer payload
@@ -337,15 +396,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$PRODUCER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "producer payload artifact id is invalid" >&2; exit 1; }
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PRODUCER_RUN_ID="$(safe_positive_integer "$PRODUCER_RUN_ID" producer_run_id)"
+          PRODUCER_ARTIFACT_ID="$(safe_positive_integer "$PRODUCER_ARTIFACT_ID" producer_artifact_id)"
           [[ "$PRODUCER_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer payload artifact digest is invalid" >&2; exit 1; }
           producer_payload_api="$(gh api "repos/$REPOSITORY/actions/artifacts/$PRODUCER_ARTIFACT_ID")"
           jq -e \
             --arg name "desktop-release-evidence-payload" \
             --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
-            --argjson id "$PRODUCER_ARTIFACT_ID" \
-            --argjson run_id "$PRODUCER_RUN_ID" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$PRODUCER_ARTIFACT_ID" \
+            --arg run_id "$PRODUCER_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$producer_payload_api" >/dev/null || { echo "producer payload artifact API metadata does not match upload outputs" >&2; exit 1; }
           printf '%s\n' "$producer_payload_api" > producer-payload-artifact-api.json
           jq -n \

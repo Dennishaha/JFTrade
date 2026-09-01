@@ -65,8 +65,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source_run_id must be a positive integer" >&2; exit 1; }
-          [[ "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source_run_attempt must be a positive integer" >&2; exit 1; }
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          SOURCE_RUN_ID="$(safe_positive_integer "$SOURCE_RUN_ID" source_run_id)"
+          SOURCE_RUN_ATTEMPT="$(safe_positive_integer "$SOURCE_RUN_ATTEMPT" source_run_attempt)"
           [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
           [[ "$GITHUB_REF" == "refs/tags/$RELEASE_REF" ]] || {
             echo "Qualification must be dispatched from the published tag ref; selected ref is $GITHUB_REF" >&2
@@ -79,27 +89,27 @@ jobs:
             --arg sha "$commit_sha" \
             --arg tag "$RELEASE_REF" \
             --arg attempt "$SOURCE_RUN_ATTEMPT" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt | safe_integer_equals($attempt)) and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
             <<<"$run_json" >/dev/null || {
             echo "source run is not a successful Desktop Release run bound to $RELEASE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
             exit 1
           }
           source_artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
-          jq -e --argjson run_id "$SOURCE_RUN_ID" \
-            '[.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"])' \
+          jq -e --arg run_id "$SOURCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id | safe_positive_integer_text) != null) and (.expired == false) and (.workflow_run.id | safe_integer_equals($run_id)) and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"])' \
             <<<"$source_artifacts_json" >/dev/null || {
             echo "source release artifacts are missing, expired, ambiguous, or lack API digests" >&2
             exit 1
           }
-          jq -e --argjson run_id "$SOURCE_RUN_ID" \
-            '[.artifacts[] | select((.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") and ((.id|type) == "number") and .id > 0 and .expired == false and .workflow_run.id == $run_id and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"])' \
+          jq -e --arg run_id "$SOURCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") and ((.id | safe_positive_integer_text) != null) and (.expired == false) and (.workflow_run.id | safe_integer_equals($run_id)) and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"])' \
             <<<"$source_artifacts_json" >/dev/null || {
             echo "source updater artifacts are missing, expired, ambiguous, or lack API digests" >&2
             exit 1
           }
-          jq -c --argjson run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
+          jq -c --arg run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
             --arg ref "refs/tags/$RELEASE_REF" --arg commit_sha "$commit_sha" \
-            '{releaseArtifacts: [.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name), updaterArtifacts: [.artifacts[] | select(.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name)}' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; {releaseArtifacts: [.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name), updaterArtifacts: [.artifacts[] | select(.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name)}' \
             <<<"$source_artifacts_json" > source-artifact-metadata.json
 
       - name: Verify external release evidence run provenance
@@ -114,8 +124,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$EVIDENCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_id must be a positive integer" >&2; exit 1; }
-          [[ "$EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "evidence_run_attempt must be a positive integer" >&2; exit 1; }
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          EVIDENCE_RUN_ID="$(safe_positive_integer "$EVIDENCE_RUN_ID" evidence_run_id)"
+          EVIDENCE_RUN_ATTEMPT="$(safe_positive_integer "$EVIDENCE_RUN_ATTEMPT" evidence_run_attempt)"
           [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" ]] || { echo "evidence_workflow is not a trusted producer workflow" >&2; exit 1; }
           [[ "$EVIDENCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "evidence_artifact must be a simple artifact name" >&2; exit 1; }
           run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
@@ -125,7 +147,7 @@ jobs:
             --arg tag "$RELEASE_REF" \
             --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
             --arg workflow ".github/workflows/$EVIDENCE_WORKFLOW" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt | safe_integer_equals($attempt)) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
             <<<"$run_json" >/dev/null || {
             echo "external evidence run is not a successful workflow bound to $RELEASE_REF@$commit_sha attempt $EVIDENCE_RUN_ATTEMPT" >&2
             exit 1
@@ -133,22 +155,23 @@ jobs:
           artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
           artifact_matches="$(jq -c \
             --arg name "$EVIDENCE_ARTIFACT" \
-            --argjson run_id "$EVIDENCE_RUN_ID" \
-            '[.artifacts[] | select(.id | type == "number" and . > 0) | select(.name == $name and .expired == false and .workflow_run.id == $run_id and (.digest | type == "string") and (.digest | test("^sha256:[0-9a-f]{64}$"))) | {id, name, digest, runId: .workflow_run.id}]' \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.id | safe_positive_integer_text) != null) | select(.name == $name and .expired == false and (.workflow_run.id | safe_integer_equals($run_id)) and (.digest | type == "string") and (.digest | test("^sha256:[0-9a-f]{64}$"))) | {id, name, digest, runId: .workflow_run.id}]' \
             <<<"$artifacts_json")"
           [[ "$(jq 'length' <<<"$artifact_matches")" == "1" ]] || {
             echo "external evidence artifact metadata is missing, ambiguous, expired, or lacks a digest" >&2
             exit 1
           }
           evidence_artifact_id="$(jq -r '.[0].id' <<<"$artifact_matches")"
+          evidence_artifact_id="$(safe_positive_integer "$evidence_artifact_id" evidence_artifact_id)"
           evidence_artifact_digest="$(jq -r '.[0].digest' <<<"$artifact_matches")"
           evidence_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$evidence_artifact_id")"
           jq -e \
             --arg name "$EVIDENCE_ARTIFACT" \
             --arg digest "$evidence_artifact_digest" \
-            --argjson id "$evidence_artifact_id" \
-            --argjson run_id "$EVIDENCE_RUN_ID" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$evidence_artifact_id" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$evidence_artifact_json" >/dev/null || {
             echo "external evidence artifact detail does not match run metadata" >&2
             exit 1
@@ -164,8 +187,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
           artifact_id="$(jq -r '.id // empty' "$EVIDENCE_ARTIFACT_ID_FILE")"
-          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]] || { echo "producer binding artifact id is invalid" >&2; exit 1; }
+          artifact_id="$(safe_positive_integer "$artifact_id" producer_binding_artifact_id)"
           rm -rf incoming/release-evidence
           mkdir -p incoming/release-evidence
           archive="$(mktemp)"
@@ -186,11 +221,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
           mkdir -p incoming
           while IFS= read -r item; do
             name="$(jq -r '.name' <<<"$item")"
             artifact_id="$(jq -r '.id' <<<"$item")"
-            [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]] || { echo "source artifact id is invalid: $name" >&2; exit 1; }
+            artifact_id="$(safe_positive_integer "$artifact_id" "source artifact id ($name)")"
             case "$name" in
               desktop-release-macos) destination="incoming/desktop-release-macos" ;;
               desktop-release-linux) destination="incoming/desktop-release-linux" ;;
@@ -227,6 +274,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          EVIDENCE_RUN_ID="$(safe_positive_integer "$EVIDENCE_RUN_ID" evidence_run_id)"
+          EVIDENCE_RUN_ATTEMPT="$(safe_positive_integer "$EVIDENCE_RUN_ATTEMPT" evidence_run_attempt)"
           mapfile -t manifest_matches < <(find incoming/release-evidence -type f -name release-evidence-inputs.json -print | sort)
           [[ "${#manifest_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one release-evidence-inputs.json" >&2; exit 1; }
           manifest_path="${manifest_matches[0]}"
@@ -240,21 +301,23 @@ jobs:
             --arg release_ref "refs/tags/$RELEASE_REF" \
             --arg commit "$release_commit" \
             --arg workflow "$EVIDENCE_WORKFLOW" \
-            --argjson run_id "$EVIDENCE_RUN_ID" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
             --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
-            '.repository == $repository and .releaseRef == $release_ref and .ref == $release_ref and .commitSha == $commit and .workflow == $workflow and (.runId|tonumber) == $run_id and (.attempt|tonumber) == ($attempt|tonumber)' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .repository == $repository and .releaseRef == $release_ref and .ref == $release_ref and .commitSha == $commit and .workflow == $workflow and (.runId | safe_integer_equals($run_id)) and (.attempt | safe_integer_equals($attempt))' \
             "$manifest_path" >/dev/null || { echo "producer manifest is not bound to qualification release or producer run" >&2; exit 1; }
           payload_id="$(jq -r '.artifact.id // empty' "$payload_metadata")"
+          payload_id="$(safe_positive_integer "$payload_id" payload_id)"
           payload_name="$(jq -r '.artifact.name // empty' "$payload_metadata")"
           payload_digest="$(jq -r '.artifact.digest // empty' "$payload_metadata")"
           payload_run_id="$(jq -r '.payloadRun.id // empty' "$payload_metadata")"
+          payload_run_id="$(safe_positive_integer "$payload_run_id" payload_run_id)"
           payload_run_attempt="$(jq -r '.payloadRun.attempt // empty' "$payload_metadata")"
+          payload_run_attempt="$(safe_positive_integer "$payload_run_attempt" payload_run_attempt)"
           payload_workflow="$(jq -r '.payloadRun.workflow // empty' "$payload_metadata")"
           payload_ref="$(jq -r '.payloadRun.ref // empty' "$payload_metadata")"
           payload_commit="$(jq -r '.payloadRun.commitSha // empty' "$payload_metadata")"
           evidence_ref="$(jq -r '.evidenceRef // empty' "$payload_metadata")"
           payload_release_ref="$(jq -r '.releaseRef // empty' "$payload_metadata")"
-          [[ "$payload_id" =~ ^[1-9][0-9]*$ && "$payload_run_id" =~ ^[1-9][0-9]*$ && "$payload_run_attempt" =~ ^[1-9][0-9]*$ ]] || { echo "payload binding metadata has invalid ids" >&2; exit 1; }
           [[ "$payload_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$payload_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload binding metadata has invalid artifact fields" >&2; exit 1; }
           [[ "$payload_workflow" == "desktop-release-evidence-payload.yml" ]] || { echo "payload binding metadata uses an untrusted workflow" >&2; exit 1; }
           [[ "$payload_release_ref" == "refs/tags/$RELEASE_REF" ]] || { echo "payload binding metadata releaseRef does not match release tag" >&2; exit 1; }
@@ -264,24 +327,27 @@ jobs:
           jq -e \
             --arg name "$payload_name" \
             --arg digest "$payload_digest" \
-            --argjson id "$payload_id" \
-            --argjson run_id "$payload_run_id" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$payload_id" \
+            --arg run_id "$payload_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$payload_artifact_json" >/dev/null || { echo "payload artifact API metadata does not match producer binding" >&2; exit 1; }
           source_workflow="$(jq -r '.sourceBinding.workflow // empty' "$payload_metadata")"
           source_ref="$(jq -r '.sourceBinding.ref // empty' "$payload_metadata")"
           source_commit="$(jq -r '.sourceBinding.commitSha // empty' "$payload_metadata")"
           source_run_id="$(jq -r '.sourceBinding.runId // empty' "$payload_metadata")"
+          source_run_id="$(safe_positive_integer "$source_run_id" source_run_id)"
           source_run_attempt="$(jq -r '.sourceBinding.attempt // empty' "$payload_metadata")"
+          source_run_attempt="$(safe_positive_integer "$source_run_attempt" source_run_attempt)"
           source_artifact_name="$(jq -r '.sourceBinding.artifact.name // empty' "$payload_metadata")"
           source_artifact_id="$(jq -r '.sourceBinding.artifact.id // empty' "$payload_metadata")"
+          source_artifact_id="$(safe_positive_integer "$source_artifact_id" source_artifact_id)"
           source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest // empty' "$payload_metadata")"
           source_repository="$(jq -r '.sourceRepository // empty' "$payload_metadata")"
           [[ "$source_workflow" == "desktop-release-evidence-source.yml" ]] || { echo "payload source workflow is not the fixed external producer" >&2; exit 1; }
           [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "payload source repository is invalid" >&2; exit 1; }
           [[ "$source_ref" =~ ^[A-Za-z0-9._/-]+$ && "$source_ref" != /* && "$source_ref" != *".."* ]] || { echo "payload source ref is unsafe" >&2; exit 1; }
-          [[ "$source_commit" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ && "$source_run_id" =~ ^[1-9][0-9]*$ && "$source_run_attempt" =~ ^[1-9][0-9]*$ ]] || { echo "payload source run binding is invalid" >&2; exit 1; }
-          [[ "$source_artifact_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$source_artifact_id" =~ ^[1-9][0-9]*$ && "$source_artifact_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload source artifact binding is invalid" >&2; exit 1; }
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload source commit is invalid" >&2; exit 1; }
+          [[ "$source_artifact_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$source_artifact_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload source artifact binding is invalid" >&2; exit 1; }
           source_run_json="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
           source_branch="${source_ref#refs/heads/}"
           source_branch="${source_branch#refs/tags/}"
@@ -291,30 +357,31 @@ jobs:
             --arg ref "$source_ref" \
             --arg attempt "$source_run_attempt" \
             --arg workflow "$source_workflow" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
             <<<"$source_run_json" >/dev/null || { echo "payload source run API metadata does not match source binding" >&2; exit 1; }
           source_artifact_json="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
           jq -e \
             --arg name "$source_artifact_name" \
             --arg digest "$source_artifact_digest" \
-            --argjson id "$source_artifact_id" \
-            --argjson run_id "$source_run_id" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$source_artifact_id" \
+            --arg run_id "$source_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$source_artifact_json" >/dev/null || { echo "payload source artifact API metadata does not match source binding" >&2; exit 1; }
           printf '%s\n' "$source_run_json" > source-payload-run-api.json
           printf '%s\n' "$source_artifact_json" > source-payload-artifact-api.json
           producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
+          producer_id="$(safe_positive_integer "$producer_id" producer_id)"
           producer_name="$(jq -r '.artifact.name // empty' "$manifest_path")"
           producer_digest="$(jq -r '.artifact.digest // empty' "$manifest_path")"
           [[ "$producer_name" == "desktop-release-evidence-payload" ]] || { echo "producer manifest must reference the fixed staging artifact" >&2; exit 1; }
-          [[ "$producer_id" =~ ^[1-9][0-9]*$ && "$producer_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer manifest artifact metadata is invalid" >&2; exit 1; }
+          [[ "$producer_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer manifest artifact metadata is invalid" >&2; exit 1; }
           producer_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$producer_id")"
           jq -e \
             --arg name "$producer_name" \
             --arg digest "$producer_digest" \
-            --argjson id "$producer_id" \
-            --argjson run_id "$EVIDENCE_RUN_ID" \
-            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            --arg id "$producer_id" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
             <<<"$producer_artifact_json" >/dev/null || { echo "producer staging artifact API metadata does not match manifest" >&2; exit 1; }
           printf '%s\n' "$producer_artifact_json" > producer-payload-artifact-api.json
           payload_run_json="$(gh api "repos/$REPOSITORY/actions/runs/$payload_run_id")"
@@ -326,7 +393,7 @@ jobs:
             --arg ref "$payload_ref" \
             --arg attempt "$payload_run_attempt" \
             --arg workflow "$payload_workflow" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
             <<<"$payload_run_json" >/dev/null || { echo "payload run API metadata does not match payload evidence ref" >&2; exit 1; }
           printf '%s\n' "$payload_artifact_json" > payload-artifact-api.json
 
@@ -337,11 +404,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
           mapfile -t manifest_matches < <(find incoming/release-evidence -type f -name release-evidence-inputs.json -print | sort)
           [[ "${#manifest_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one release-evidence-inputs.json" >&2; exit 1; }
           manifest_path="${manifest_matches[0]}"
           producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
-          [[ "$producer_id" =~ ^[1-9][0-9]*$ ]] || { echo "producer staging artifact id is invalid" >&2; exit 1; }
+          producer_id="$(safe_positive_integer "$producer_id" producer_staging_artifact_id)"
           rm -rf incoming/producer-payload
           mkdir -p incoming/producer-payload
           archive="$(mktemp)"
@@ -463,16 +542,49 @@ jobs:
           const root = "candidate-inputs";
           const tag = process.env.RELEASE_REF;
           const commitSha = process.env.COMMIT_SHA;
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? integer.toString() : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const text = parseSafePositiveInteger(value);
+            if (text === null) throw new Error(`${label} must be a safe positive integer`);
+            return text;
+          };
+          const safeIdentityEqual = (left, right) => {
+            const actual = parseSafePositiveInteger(left);
+            const expected = parseSafePositiveInteger(right);
+            return actual !== null && expected !== null && actual === expected;
+          };
+          const sourceRunId = requireSafePositiveInteger(process.env.SOURCE_RUN_ID, "SOURCE_RUN_ID");
+          const sourceRunAttempt = requireSafePositiveInteger(process.env.SOURCE_RUN_ATTEMPT, "SOURCE_RUN_ATTEMPT");
+          const qualificationRunId = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ID, "QUALIFICATION_RUN_ID");
+          const qualificationRunAttempt = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ATTEMPT, "QUALIFICATION_RUN_ATTEMPT");
+          const evidenceRunId = requireSafePositiveInteger(process.env.EVIDENCE_RUN_ID, "EVIDENCE_RUN_ID");
+          const evidenceRunAttempt = requireSafePositiveInteger(process.env.EVIDENCE_RUN_ATTEMPT, "EVIDENCE_RUN_ATTEMPT");
           const sourceRun = {
-            id: process.env.SOURCE_RUN_ID,
-            attempt: Number(process.env.SOURCE_RUN_ATTEMPT),
+            id: sourceRunId,
+            attempt: Number(sourceRunAttempt),
             workflow: "desktop-release.yml",
             ref: `refs/tags/${tag}`,
             commitSha,
           };
           const qualificationRun = {
-            id: process.env.QUALIFICATION_RUN_ID,
-            attempt: Number(process.env.QUALIFICATION_RUN_ATTEMPT),
+            id: qualificationRunId,
+            attempt: Number(qualificationRunAttempt),
             workflow: "desktop-release-qualification.yml",
             ref: `refs/tags/${tag}`,
             commitSha,
@@ -502,11 +614,11 @@ jobs:
           const payloadArtifact = payloadMetadata.artifact;
           const payloadApi = JSON.parse(fs.readFileSync("payload-artifact-api.json", "utf8"));
           if (!payloadArtifact || typeof payloadArtifact !== "object"
-            || payloadApi.id !== Number(payloadArtifact.id)
+            || !safeIdentityEqual(payloadApi.id, payloadArtifact.id)
             || payloadApi.name !== payloadArtifact.name
             || payloadApi.digest !== payloadArtifact.digest
             || payloadApi.expired !== false
-            || String(payloadApi.workflow_run?.id) !== String(payloadMetadata.payloadRun?.id)) {
+            || !safeIdentityEqual(payloadApi.workflow_run?.id, payloadMetadata.payloadRun?.id)) {
             throw new Error("producer payload artifact metadata is not bound to the GitHub artifact API");
           }
           const sourceBinding = payloadMetadata.sourceBinding;
@@ -514,24 +626,24 @@ jobs:
           const sourceArtifactApi = JSON.parse(fs.readFileSync("source-payload-artifact-api.json", "utf8"));
           if (!sourceBinding || typeof sourceBinding !== "object"
             || sourceRunApi.head_sha !== sourceBinding.commitSha
-            || String(sourceRunApi.run_attempt) !== String(sourceBinding.attempt)
-            || String(sourceRunApi.id) !== String(sourceBinding.runId)
-            || sourceArtifactApi.id !== Number(sourceBinding.artifact?.id)
+            || !safeIdentityEqual(sourceRunApi.run_attempt, sourceBinding.attempt)
+            || !safeIdentityEqual(sourceRunApi.id, sourceBinding.runId)
+            || !safeIdentityEqual(sourceArtifactApi.id, sourceBinding.artifact?.id)
             || sourceArtifactApi.name !== sourceBinding.artifact?.name
             || sourceArtifactApi.digest !== sourceBinding.artifact?.digest
             || sourceArtifactApi.expired !== false
-            || String(sourceArtifactApi.workflow_run?.id) !== String(sourceBinding.runId)) {
+            || !safeIdentityEqual(sourceArtifactApi.workflow_run?.id, sourceBinding.runId)) {
             throw new Error("payload source binding metadata is not bound to the GitHub source run/artifact APIs");
           }
           const producerArtifact = manifest.artifact;
           const producerApi = JSON.parse(fs.readFileSync("producer-payload-artifact-api.json", "utf8"));
           if (!producerArtifact || typeof producerArtifact !== "object"
             || producerArtifact.name !== "desktop-release-evidence-payload"
-            || producerApi.id !== Number(producerArtifact.id)
+            || !safeIdentityEqual(producerApi.id, producerArtifact.id)
             || producerApi.name !== producerArtifact.name
             || producerApi.digest !== producerArtifact.digest
             || producerApi.expired !== false
-            || String(producerApi.workflow_run?.id) !== String(process.env.EVIDENCE_RUN_ID)) {
+            || !safeIdentityEqual(producerApi.workflow_run?.id, evidenceRunId)) {
             throw new Error("producer staging artifact metadata is not bound to the GitHub artifact API");
           }
           const payloadBinding = sourceBinding;
@@ -579,8 +691,8 @@ jobs:
               ref: sourceRun.ref,
               commitSha,
               workflow: process.env.EVIDENCE_WORKFLOW,
-              runId: Number(process.env.EVIDENCE_RUN_ID),
-              attempt: Number(process.env.EVIDENCE_RUN_ATTEMPT),
+              runId: evidenceRunId,
+              attempt: Number(evidenceRunAttempt),
               artifact: producerArtifact,
               sourceBinding: payloadBinding,
             },
@@ -734,6 +846,28 @@ jobs:
           import { createHash } from "node:crypto";
           import fs from "node:fs";
           import path from "node:path";
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? integer.toString() : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const text = parseSafePositiveInteger(value);
+            if (text === null) throw new Error(`${label} must be a safe positive integer`);
+            return text;
+          };
           const root = path.resolve("candidate-inputs");
           const hash = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
           const canonicalPath = path.join(root, "release-candidate-evidence.json");
@@ -759,16 +893,20 @@ jobs:
             files.push({ path: entry.name, size: stat.size, sha256: hash(file) });
           }
           files.sort((left, right) => left.path.localeCompare(right.path));
+          const qualificationRunId = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ID, "QUALIFICATION_RUN_ID");
+          const qualificationRunAttempt = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ATTEMPT, "QUALIFICATION_RUN_ATTEMPT");
+          const sourceRunId = requireSafePositiveInteger(process.env.SOURCE_RUN_ID, "SOURCE_RUN_ID");
+          const sourceRunAttempt = requireSafePositiveInteger(process.env.SOURCE_RUN_ATTEMPT, "SOURCE_RUN_ATTEMPT");
           const qualificationRun = {
-            id: process.env.QUALIFICATION_RUN_ID,
-            attempt: Number(process.env.QUALIFICATION_RUN_ATTEMPT),
+            id: qualificationRunId,
+            attempt: Number(qualificationRunAttempt),
             workflow: "desktop-release-qualification.yml",
             ref: `refs/tags/${process.env.RELEASE_REF}`,
             commitSha: process.env.COMMIT_SHA,
           };
           const sourceWorkflowRun = {
-            id: process.env.SOURCE_RUN_ID,
-            attempt: Number(process.env.SOURCE_RUN_ATTEMPT),
+            id: sourceRunId,
+            attempt: Number(sourceRunAttempt),
             workflow: "desktop-release.yml",
             ref: `refs/tags/${process.env.RELEASE_REF}`,
             commitSha: process.env.COMMIT_SHA,
