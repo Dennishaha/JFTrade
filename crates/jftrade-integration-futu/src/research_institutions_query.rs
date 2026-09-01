@@ -780,5 +780,12 @@ pub type FutuInstitutionQueryError = InstitutionQueryError;
 pub type FutuInstitutionResult = InstitutionResult;
 pub type FutuInstitutionEntry = InstitutionEntry;
 pub type FutuInstitutionSecurity = InstitutionSecurity;
+/// Query-side security identity used by the ARK stock-activity operation.
+///
+/// The projection type above intentionally remains distinct from the wire
+/// request shape. Exporting this alias keeps engine adapters from reaching
+/// into generated protobuf modules while allowing them to construct the one
+/// institution query that is instrument-scoped.
+pub type FutuInstitutionSecurityQuery = InstitutionSecurityQuery;
 pub type FutuInstitutionSummary = InstitutionSummary;
 pub use InstitutionReadPort as FutuInstitutionReadPort;

@@ -215,7 +215,8 @@ pub use quote_push::{
 pub use research_institutions_query::{
     FutuInstitutionEntry, FutuInstitutionOperation, FutuInstitutionQuery,
     FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
-    FutuInstitutionSecurity, FutuInstitutionSummary, OpenDInstitutionReader,
+    FutuInstitutionSecurity, FutuInstitutionSecurityQuery, FutuInstitutionSummary,
+    OpenDInstitutionReader,
 };
 pub use research_short_interest_query::{
     FutuShortInterestItem, FutuShortInterestQuery, FutuShortInterestQueryError,

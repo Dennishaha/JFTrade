@@ -25,6 +25,9 @@ use company::{project_research_payload, research_helper_request};
 mod screen;
 pub(crate) use screen::ProductionResearchScreenHelperPort;
 
+#[path = "product_production_ports_research_futu.rs"]
+mod futu;
+
 #[derive(Debug)]
 pub(crate) struct ProductionResearchPresetPort {
     pub(crate) store: Arc<ResearchPresetStore>,
@@ -275,6 +278,30 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
             );
         }
         if provider == jftrade_settings::MarketDataProvider::Futu {
+            if path == "/api/v1/research/institutions" {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD institution research runtime is not ready".to_owned(),
+                    ));
+                }
+                return futu::read_institutions(self.trade_runtime.as_ref(), path, query);
+            }
+            if path.starts_with("/api/v1/research/short-interest/") {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD short-interest research runtime is not ready".to_owned(),
+                    ));
+                }
+                return futu::read_short_interest(self.trade_runtime.as_ref(), path, query);
+            }
+            if path.starts_with("/api/v1/research/technical-indicators/") {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD technical-indicator research runtime is not ready".to_owned(),
+                    ));
+                }
+                return futu::read_technical_indicators(self.trade_runtime.as_ref(), path, query);
+            }
             if path.starts_with("/api/v1/research/corporate-actions/") {
                 if !snapshot.opend_ready {
                     return Err(ResearchReadSnapshotError::Unavailable(
