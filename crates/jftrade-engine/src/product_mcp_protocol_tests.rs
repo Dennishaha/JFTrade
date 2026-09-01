@@ -320,7 +320,7 @@ fn alerts_and_research_tools_have_exact_production_adapters() {
         assert_eq!(mcp_tool_adapter(name), Some(adapter));
     }
     for name in ["strategy.pine_spec", "strategy.validate_pine"] {
-        assert!(!PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
+        assert!(PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name));
         assert_eq!(mcp_tool_adapter(name), None);
     }
 }

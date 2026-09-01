@@ -734,14 +734,22 @@ fn native_mcp_names_have_explicit_mapping_and_fail_closed_matrix() {
         let adapter = mcp_tool_adapter(name);
         let availability = mcp_tool_availability(&catalog, None, name);
         if native.contains(name) {
-            assert!(
-                adapter.is_some(),
-                "native tool {name} has no adapter mapping"
-            );
-            assert_eq!(
-                availability, "unavailable",
-                "native tool {name} must surface external unavailability"
-            );
+            if matches!(*name, "strategy.pine_spec" | "strategy.validate_pine") {
+                assert_eq!(
+                    adapter, None,
+                    "native Pine leaf should not require a route adapter"
+                );
+                assert_eq!(availability, "ready", "native Pine leaf is in-process");
+            } else {
+                assert!(
+                    adapter.is_some(),
+                    "native tool {name} has no adapter mapping"
+                );
+                assert_eq!(
+                    availability, "unavailable",
+                    "native tool {name} must surface external unavailability"
+                );
+            }
         } else {
             assert!(
                 adapter.is_none(),
@@ -763,9 +771,9 @@ fn reviewed_mcp_catalog_reports_native_and_fail_closed_counts() {
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(reviewed.len(), 69);
-    assert_eq!(native.len(), 67);
+    assert_eq!(native.len(), 69);
     assert!(native.is_subset(&reviewed));
-    assert_eq!(reviewed.len() - native.len(), 2);
+    assert_eq!(reviewed.len() - native.len(), 0);
 }
 
 #[test]
@@ -799,8 +807,63 @@ fn production_mcp_local_tools_use_the_real_bundle_ports() {
 }
 
 #[test]
+fn production_mcp_pine_leaves_execute_native_spec_and_validation() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let spec = executor
+        .execute_production("strategy.pine_spec", &json!({"section": "overview"}))
+        .expect("native Pine specification");
+    assert_eq!(spec["selectedSection"], "overview");
+
+    let validation = executor
+        .execute_production(
+            "strategy.validate_pine",
+            &json!({"script": "//@version=6\nstrategy(\"MCP\")"}),
+        )
+        .expect("native Pine validation");
+    assert_eq!(validation["ok"], true);
+    assert!(validation["saveHint"].is_null());
+}
+
+#[test]
+fn production_mcp_pine_validation_maps_bad_arguments_and_rejects_unsupported_scripts() {
+    let (_directory, ports) = production_bundle();
+    let executor = ProductionMcpToolExecutor::from_production_ports(Arc::new(ports));
+
+    let bad_arguments = executor
+        .execute_production("strategy.validate_pine", &json!({"script": 7}))
+        .expect_err("non-string Pine script");
+    assert_eq!(bad_arguments.status, 400);
+    assert_eq!(bad_arguments.code, "BAD_REQUEST");
+
+    let unsupported = executor
+        .execute_production(
+            "strategy.validate_pine",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Bad\")\nimport TradingView/ta/7"
+            }),
+        )
+        .expect("unsupported Pine script should produce diagnostics");
+    assert_eq!(unsupported["ok"], false);
+    assert!(
+        unsupported["errors"]
+            .as_array()
+            .is_some_and(|errors| !errors.is_empty())
+    );
+    assert!(unsupported["requirements"].is_null());
+}
+
+#[test]
 fn production_mcp_runtime_dependency_readiness_is_truthful() {
     let (_directory, mut ports) = production_bundle();
+    for name in ["strategy.pine_spec", "strategy.validate_pine"] {
+        assert_eq!(
+            mcp_tool_availability(&ports.mcp_catalog, Some(&ports), name),
+            "ready",
+            "native Pine leaf {name} must not depend on worker readiness"
+        );
+    }
     assert_eq!(
         mcp_tool_availability(
             &ports.mcp_catalog,
@@ -1313,35 +1376,9 @@ fn modern_technical_indicator_call_validates_calculation_payload() {
 }
 
 #[test]
-fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success() {
-    let bindings = production_adapter_bindings(&MarketDataCapabilityMatrix::new(
-        Some("yfinance"),
-        true,
-        true,
-    ));
-    let research = BTreeMap::from([
-        ("instrument", ProductionAdapterBinding::ExternalUnavailable),
-        ("financials", ProductionAdapterBinding::Ready),
-        ("valuation", ProductionAdapterBinding::Ready),
-        (
-            "institutions",
-            ProductionAdapterBinding::ExternalUnavailable,
-        ),
-        (
-            "short_interest",
-            ProductionAdapterBinding::ExternalUnavailable,
-        ),
-        (
-            "technical_indicators",
-            ProductionAdapterBinding::ExternalUnavailable,
-        ),
-        ("news", ProductionAdapterBinding::Ready),
-    ]);
-    let catalog = Arc::new(
-        ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
-            .expect("fixture MCP catalog"),
-    );
-    let runtime = ProductMcpServerRuntime::with_executor(catalog, Arc::new(NoopExecutor));
+fn modern_production_pine_tool_executes_without_pine_worker() {
+    let (_directory, ports) = production_bundle();
+    let runtime = ProductMcpServerRuntime::from_production_ports(Arc::new(ports));
     let port = available_port();
     runtime
         .apply(&enabled_record(port, "none", ""))
@@ -1352,15 +1389,20 @@ fn modern_catalog_fail_closed_tool_is_json_rpc_invalid_params_not_tool_success()
         "tools/call",
         1,
         Some("strategy.pine_spec"),
-        json!({"name": "strategy.pine_spec", "arguments": {}}),
+        json!({
+            "name": "strategy.pine_spec",
+            "arguments": {"section": "overview"}
+        }),
     );
-    assert_eq!(status, 400, "response={response}");
-    assert_eq!(response["error"]["code"], -32602);
+    assert_eq!(status, 200, "response={response}");
     assert_eq!(
-        response["error"]["message"],
-        "tool \"strategy.pine_spec\" is unavailable in the Rust MCP runtime"
+        response["result"]["structuredContent"]["selectedSection"],
+        "overview"
     );
-    assert!(response.get("result").is_none(), "response={response}");
+    assert!(
+        response["result"].get("isError").is_none(),
+        "response={response}"
+    );
 
     runtime.shutdown_blocking().expect("shutdown MCP");
 }

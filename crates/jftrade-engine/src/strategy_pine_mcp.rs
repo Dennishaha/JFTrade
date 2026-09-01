@@ -1,8 +1,8 @@
-//! Unwired native MCP leaf for Pine specification and validation.
+//! Native MCP leaves for Pine specification and validation.
 //!
-//! This file intentionally has no registration or production composition
-//! side effects.  The coordinator can install these functions only after the
-//! complete Pine compatibility corpus and an explicit owner hand-off pass.
+//! These leaves cover the reviewed native Pine subset only. They do not start
+//! or call the PineTS worker; full Pine runtime execution remains a separate
+//! production capability.
 
 use jftrade_strategy::pinespec::{build_tool_payload, validate_script};
 use serde_json::{Value, json};
@@ -32,14 +32,15 @@ impl StrategyPineMcpFailure {
             message: message.into(),
         }
     }
+    #[allow(dead_code)]
     pub fn envelope(&self) -> Value {
         json!({"ok": false, "error": {"code": self.code, "message": self.message}, "status": self.status})
     }
 }
 
-/// Execute one of the two native Pine MCP leaves without touching the shared
-/// MCP executor.  Callers must explicitly register this function in the
-/// composition root; no default profile invokes it.
+/// Execute one of the two native Pine MCP leaves without touching stores or
+/// external workers. The production MCP executor registers this dispatch
+/// alongside the reviewed read-only tool catalog.
 pub fn dispatch_strategy_pine_mcp(
     name: &str,
     arguments: &Value,

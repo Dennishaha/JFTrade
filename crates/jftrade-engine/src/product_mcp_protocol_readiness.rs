@@ -18,6 +18,12 @@ pub(crate) fn mcp_tool_availability(
     if !PRODUCTION_MCP_EXECUTABLE_TOOLS.contains(&name) {
         return "fail-closed";
     }
+    // These leaves compile and validate the reviewed native Pine subset
+    // entirely in-process. They intentionally do not depend on a PineTS
+    // worker or any production port in the composition bundle.
+    if matches!(name, "strategy.pine_spec" | "strategy.validate_pine") {
+        return "ready";
+    }
     let binding = match ports {
         Some(ports) if name == "execution.buying_power" => {
             ports.execution_operation_binding("/api/v1/execution/buying-power")

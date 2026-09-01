@@ -181,6 +181,8 @@ mod product_mcp_production_executor;
 mod product_mcp_protocol;
 #[path = "product_mcp_server.rs"]
 pub(crate) mod product_mcp_server;
+#[path = "strategy_pine_mcp.rs"]
+mod strategy_pine_mcp;
 use product_adk_mutation_port::{
     AdkMutationPort, AdkMutationRequest, AdkMutationResponse, adk_mutation_routes,
     dispatch_adk_mutation,

@@ -97,8 +97,8 @@ pub(crate) const REVIEWED_READ_ONLY_TOOLS: &[&str] = &[
 /// remains wire-compatible at 69 names, but only this explicit set may ever
 /// be projected as `ready` or dispatched by the Rust listener. Research
 /// capabilities without a concrete Rust port remain fail-closed until their
-/// production adapters are installed. At present only Pine specification and
-/// validation remain outside the native MCP executor.
+/// production adapters are installed. Pine specification and validation are
+/// native Rust leaves and do not require a production port bundle.
 pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "system.status",
     "system.futu_opend",
@@ -138,6 +138,8 @@ pub(crate) const PRODUCTION_MCP_EXECUTABLE_TOOLS: &[&str] = &[
     "strategy.definition_versions.list",
     "strategy.definition_versions.get",
     "strategy.instance_activity",
+    "strategy.pine_spec",
+    "strategy.validate_pine",
     "backtest.runs",
     "backtest.kline_sync_status",
     "backtest.result_view",

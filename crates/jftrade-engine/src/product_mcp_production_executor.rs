@@ -14,6 +14,7 @@ use super::product_mcp_protocol::{
     model_search_text, optional_bool, optional_integer, optional_string, provider_model,
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
+use super::strategy_pine_mcp::{PINE_SPEC_TOOL, VALIDATE_PINE_TOOL, dispatch_strategy_pine_mcp};
 use jftrade_store_sqlite::AdkStore;
 
 #[path = "product_mcp_production_executor_derivatives.rs"]
@@ -193,6 +194,7 @@ impl ProductionMcpToolExecutor {
             "strategy.definition_versions.list" => self.strategy_definition_versions(arguments),
             "strategy.definition_versions.get" => self.strategy_definition_version(arguments),
             "strategy.instance_activity" => self.strategy_instance_activity(arguments),
+            PINE_SPEC_TOOL | VALIDATE_PINE_TOOL => self.strategy_pine_mcp(name, arguments),
             "backtest.runs" => self.backtest_runs(arguments),
             "backtest.kline_sync_status" => self.backtest_kline_sync_status(arguments),
             "backtest.result_view" => self.backtest_result_view(arguments),
@@ -223,6 +225,11 @@ impl ProductionMcpToolExecutor {
             .provider
             .read(path, query)
             .map_err(provider_error)
+    }
+
+    fn strategy_pine_mcp(&self, name: &str, arguments: &Value) -> Result<Value, McpToolFailure> {
+        dispatch_strategy_pine_mcp(name, arguments)
+            .map_err(|error| McpToolFailure::failed(error.status, error.code, error.message))
     }
 
     fn market_capabilities(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
