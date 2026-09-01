@@ -1,0 +1,54 @@
+{
+  "version": "stage9.pine-mcp.v1",
+  "cases": [
+    {
+      "name": "spec-default",
+      "tool": "strategy.pine_spec",
+      "arguments": {},
+      "expected": {
+        "sourceFormat": "pine-v6",
+        "runtime": "pine-pinets",
+        "selectedSection": "",
+        "sectionCount": 7,
+        "examplesIncluded": false
+      }
+    },
+    {
+      "name": "spec-examples",
+      "tool": "strategy.pine_spec",
+      "arguments": {"section": " examples ", "includeExamples": true},
+      "expected": {
+        "sourceFormat": "pine-v6",
+        "runtime": "pine-pinets",
+        "selectedSection": "examples",
+        "sectionCount": 7,
+        "examplesIncluded": true
+      }
+    },
+    {
+      "name": "validate-default-requirements",
+      "tool": "strategy.validate_pine",
+      "arguments": {
+        "script": "//@version=6\nstrategy(\"MCP\")\nfast = ta.ema(close, 8)"
+      },
+      "expected": {
+        "ok": true,
+        "sourceFormat": "pine-v6",
+        "runtime": "pine-pinets",
+        "requirementsPresent": true,
+        "emaKey": "ma:EMA:8"
+      }
+    },
+    {
+      "name": "validate-rejects-unsupported-declaration",
+      "tool": "strategy.validate_pine",
+      "arguments": {
+        "script": "//@version=6\nstrategy(\"MCP\")\nimport TradingView/ta/7"
+      },
+      "expected": {
+        "ok": false,
+        "errorCode": "PINE_DECLARATION_UNSUPPORTED"
+      }
+    }
+  ]
+}

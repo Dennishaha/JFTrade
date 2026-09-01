@@ -3,6 +3,8 @@
 //! Strategy runtime control with a consumer-owned narrow trading port.
 
 mod model;
+pub mod pine;
+pub mod pinespec;
 mod runtime_registry;
 mod service;
 
