@@ -7,7 +7,8 @@ use jftrade_store_sqlite::{
 use serde_json::Value;
 
 use super::product_production_ports_backtest_parse::{
-    ParsedBacktestStart, parse_end_timestamp, parse_start_timestamp,
+    ParsedBacktestStart, normalize_execution_model_name, parse_end_timestamp,
+    parse_start_timestamp,
 };
 use crate::product::product_backtests_write_port::BacktestsWritePortError;
 
@@ -281,6 +282,15 @@ pub(super) fn parse_start_request(
         raw_symbol,
         text("code").unwrap_or(""),
     )?;
+    let execution_model = match object.get("executionModel") {
+        None => normalize_execution_model_name("")?,
+        Some(value) => {
+            let value = value.as_str().ok_or_else(|| {
+                BacktestsWritePortError::BadRequest("executionModel must be a string".to_owned())
+            })?;
+            normalize_execution_model_name(value)?
+        }
+    };
     let interval = text("interval").unwrap_or("1m").to_owned();
     if !matches!(
         interval.as_str(),
@@ -357,6 +367,7 @@ pub(super) fn parse_start_request(
         interval,
         rehab_type,
         session_scope,
+        execution_model,
         start_time_ms,
         end_time_ms,
     })
@@ -575,6 +586,67 @@ mod definition_resolution_tests {
         .expect_err("unsupported source");
         assert!(
             matches!(error, BacktestsWritePortError::BadRequest(message) if message.contains("unsupported strategy source format"))
+        );
+    }
+}
+
+#[cfg(test)]
+mod execution_model_tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    fn request_with_execution_model(value: Option<Value>) -> Value {
+        let mut request = json!({
+            "corpus": {
+                "cases": [{
+                    "symbol": "US.AAPL",
+                    "candles": [{
+                        "start": "2026-08-01T00:00:00Z",
+                        "end": "2026-08-01T00:01:00Z"
+                    }]
+                }]
+            }
+        });
+        if let Some(value) = value {
+            request["executionModel"] = value;
+        }
+        request
+    }
+
+    #[test]
+    fn execution_model_defaults_and_normalizes_ascii_case() {
+        let omitted = parse_start_request(&request_with_execution_model(None))
+            .expect("omitted execution model");
+        assert_eq!(omitted.execution_model, "conservative-bar-v1");
+
+        let mixed_case = parse_start_request(&request_with_execution_model(Some(json!(
+            "  CONSERVATIVE-BAR-V1  "
+        ))))
+        .expect("mixed-case execution model");
+        assert_eq!(mixed_case.execution_model, "conservative-bar-v1");
+    }
+
+    #[test]
+    fn execution_model_rejects_unsupported_name_with_original_value() {
+        let error = parse_start_request(&request_with_execution_model(Some(json!(
+            "  optimistic  "
+        ))))
+        .expect_err("unsupported execution model");
+        assert_eq!(
+            error,
+            BacktestsWritePortError::BadRequest(
+                "unsupported backtest executionModel:   optimistic  ".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn execution_model_rejects_non_string_value_as_bad_request() {
+        let error = parse_start_request(&request_with_execution_model(Some(json!(42))))
+            .expect_err("non-string execution model");
+        assert_eq!(
+            error,
+            BacktestsWritePortError::BadRequest("executionModel must be a string".to_owned())
         );
     }
 }

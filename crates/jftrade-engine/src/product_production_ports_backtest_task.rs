@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 
 use super::ProductionBacktestPort;
 use super::{persist_request_with_provider, requested_provider};
-use super::product_production_ports_backtest_parse::provider_id;
+use super::product_production_ports_backtest_parse::{provider_id, with_execution_model};
 use super::product_production_ports_backtest_strategy::{
     parse_start_request, resolve_strategy_payload,
 };
@@ -92,6 +92,8 @@ impl ProductionBacktestPort {
             provider_id(self.backtest_market_data_provider_state.get())
         };
         let request = parse_start_request(&execution_payload)?;
+        let execution_payload = with_execution_model(&execution_payload, &request.execution_model)?;
+        let persisted_payload = with_execution_model(payload, &request.execution_model)?;
         let candles = self
             ._market_data_store
             .read_candles(
@@ -123,7 +125,7 @@ impl ProductionBacktestPort {
         let run = jftrade_store_sqlite::StoredBacktestRun {
             id: run_id.clone(),
             status: "queued".to_owned(),
-            request_json: persist_request_with_provider(payload, provider_id),
+            request_json: persist_request_with_provider(&persisted_payload, provider_id),
             result_json: String::new(),
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
@@ -166,7 +168,7 @@ impl ProductionBacktestPort {
         Ok(BacktestsWritePortResult::Data(json!({
             "id": run_id,
             "status": "queued",
-            "request": payload,
+            "request": persisted_payload,
             "createdAt": timestamp,
             "updatedAt": timestamp,
             "marketDataProvider": provider_id,
