@@ -155,13 +155,14 @@ fn market_status<'a>(
         market,
         jftrade_kernel::WireTimestamp::from_offset_datetime(manager.inner.now()),
     )?;
+    let policy = policy_for_market(settings, market);
     let covered = snapshots
         .filter(|snapshot| normalize_market(&snapshot.market_code) == market)
         .find(|snapshot| {
             let now = manager.inner.now();
             snapshot.from.into_inner() <= now
                 && snapshot.to.into_inner() >= now
-                && snapshot.valid_until.into_inner() >= now
+                && crate::manager::snapshot_fresh(snapshot, &policy, now)
         });
     let (source, mode) = match schedule.as_ref().map(|value| value.source_id.as_str()) {
         Some(MANUAL_OVERRIDE_SOURCE_ID) => {
@@ -174,7 +175,6 @@ fn market_status<'a>(
         ),
         _ => (BUILTIN_SOURCE_ID.to_owned(), "builtin_fallback"),
     };
-    let policy = policy_for_market(settings, market);
     let mut fallback_chain = vec![MANUAL_OVERRIDE_SOURCE_ID.to_owned()];
     fallback_chain.extend(manager.inner.registry.ordered_source_ids(market, &policy));
     for source_id in policy_source_ids(&policy) {

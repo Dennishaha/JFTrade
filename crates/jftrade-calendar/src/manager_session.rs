@@ -1,8 +1,6 @@
+use crate::{CalendarManager, CalendarManagerError, manager_policy::market_day_start};
 use jftrade_kernel::WireTimestamp;
 use jiff::{Timestamp, tz::TimeZone};
-use time::{Date, Month, Time};
-
-use crate::{CalendarManager, CalendarManagerError};
 
 impl CalendarManager {
     /// Classifies an instant against the same authoritative schedule used by
@@ -23,20 +21,7 @@ impl CalendarManager {
         let timezone = TimeZone::get(timezone)
             .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
         let local = timestamp.to_zoned(timezone);
-        let date = local.date();
-        let local_day = Date::from_calendar_date(
-            i32::from(date.year()),
-            Month::try_from(
-                u8::try_from(date.month())
-                    .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?,
-            )
-            .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?,
-            u8::try_from(date.day())
-                .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?,
-        )
-        .map_err(|error| CalendarManagerError::InvalidSettings(error.to_string()))?;
-        let lookup =
-            WireTimestamp::from_offset_datetime(local_day.with_time(Time::MIDNIGHT).assume_utc());
+        let lookup = market_day_start(&market, at)?;
         let Some(schedule) = self.schedule(&market, lookup)? else {
             return Ok(None);
         };

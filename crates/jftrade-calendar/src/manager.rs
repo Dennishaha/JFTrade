@@ -8,7 +8,9 @@ use jftrade_kernel::WireTimestamp;
 use thiserror::Error;
 use time::{Date, Duration, Month, OffsetDateTime, Time};
 
-use crate::manager_policy::{builtin_schedule, manual_schedule};
+use crate::manager_policy::{
+    builtin_schedule, manual_schedule_with_raw_fallback, market_day_start,
+};
 use crate::{
     BUILTIN_SOURCE_ID, CalendarCancellationToken, CalendarManagerSettings, CalendarPersistencePort,
     CalendarRefreshResult, CalendarSnapshot, CalendarSourcePolicy, CalendarSourcePort,
@@ -312,7 +314,20 @@ impl ManagerInner {
                     self.cache_snapshot(snapshot.clone())?;
                     self.record_success(&snapshot)?;
                 }
-                Err(error) => self.record_failure(&snapshot.source_id, error)?,
+                Err(error) => {
+                    let source_id = snapshot.source_id.trim().to_owned();
+                    let detail = format!(
+                        "discard invalid cached snapshot {}/{}: {error}",
+                        snapshot.market_code, snapshot.source_id
+                    );
+                    self.record_failure(&source_id, detail)?;
+                    if let Err(delete_error) = persistence.delete(&snapshot) {
+                        self.record_failure(
+                            &source_id,
+                            format!("failed to delete invalid cached snapshot: {delete_error}"),
+                        )?;
+                    }
+                }
             }
         }
         for error in loaded.errors {
@@ -407,8 +422,8 @@ impl ManagerInner {
     }
 
     fn cache_snapshot(&self, snapshot: CalendarSnapshot) -> Result<(), CalendarManagerError> {
-        let start_year = snapshot.from.into_inner().year();
-        let end_year = snapshot.to.into_inner().year().max(start_year);
+        let start_year = market_local_year(&snapshot.market_code, snapshot.from)?;
+        let end_year = market_local_year(&snapshot.market_code, snapshot.to)?.max(start_year);
         let mut snapshots = self
             .snapshots
             .write()
@@ -483,12 +498,16 @@ impl ManagerInner {
         market: &str,
         at: WireTimestamp,
     ) -> Result<Option<TradingDaySchedule>, CalendarManagerError> {
+        let requested_at = at;
         let market = normalize_market(market);
         if !supported_market(&market) {
             return Err(CalendarManagerError::UnsupportedMarket(market));
         }
+        let at = market_day_start(&market, at)?;
         let settings = self.settings()?;
-        if let Some(schedule) = manual_schedule(&settings, &market, at) {
+        if let Some(schedule) =
+            manual_schedule_with_raw_fallback(&settings, &market, at, requested_at)
+        {
             return Ok(Some(schedule));
         }
         let policy = policy_for_market(&settings, &market);
@@ -513,7 +532,8 @@ impl ManagerInner {
                     continue;
                 }
                 if let Some(schedule) = snapshot.schedules.iter().find(|schedule| {
-                    same_date(schedule.date, at) && market_matches(&schedule.market_code, candidate)
+                    same_market_day(schedule.date, at, candidate)
+                        && market_matches(&schedule.market_code, candidate)
                 }) {
                     let mut schedule = schedule.clone();
                     schedule.market_code = market.clone();
@@ -523,6 +543,12 @@ impl ManagerInner {
             }
         }
         if policy.fallback_to_builtin {
+            if explicit_utc_date_input(requested_at)
+                && is_weekend(at.into_inner().weekday())
+                && !is_weekend(requested_at.into_inner().date().weekday())
+            {
+                return Ok(Some(builtin_schedule(&market, requested_at)));
+            }
             return Ok(Some(builtin_schedule(&market, at)));
         }
         Ok(None)
@@ -597,6 +623,12 @@ pub(crate) fn supported_market(market: &str) -> bool {
 }
 
 pub(crate) fn source_enabled(settings: &CalendarManagerSettings, source_id: &str) -> bool {
+    if matches!(
+        source_id.trim(),
+        BUILTIN_SOURCE_ID | crate::MANUAL_OVERRIDE_SOURCE_ID
+    ) {
+        return true;
+    }
     settings.source_policies.iter().any(|policy| {
         policy
             .enabled_source_ids
@@ -684,11 +716,15 @@ pub(crate) fn validate_snapshot(snapshot: &CalendarSnapshot) -> Result<(), Strin
     if snapshot.source_id.trim().is_empty() || snapshot.market_code.trim().is_empty() {
         return Err("snapshot marketCode and sourceId are required".to_owned());
     }
-    if !supported_market(&normalize_market(&snapshot.market_code)) {
+    let market = normalize_market(&snapshot.market_code);
+    if !supported_market(&market) {
         return Err(format!(
             "unsupported snapshot market {:?}",
             snapshot.market_code
         ));
+    }
+    if is_zero_timestamp(snapshot.from) || is_zero_timestamp(snapshot.to) {
+        return Err("missing snapshot range".to_owned());
     }
     if snapshot.to < snapshot.from {
         return Err("snapshot range is invalid".to_owned());
@@ -696,12 +732,17 @@ pub(crate) fn validate_snapshot(snapshot: &CalendarSnapshot) -> Result<(), Strin
     if snapshot.schedules.is_empty() {
         return Err("no schedules parsed".to_owned());
     }
-    if snapshot.schedules.iter().any(|schedule| {
-        schedule.date < snapshot.from
-            || schedule.date > snapshot.to
-            || !market_matches(&schedule.market_code, &snapshot.market_code)
-    }) {
-        return Err("snapshot schedule is outside its market or range".to_owned());
+    for schedule in &snapshot.schedules {
+        if is_zero_timestamp(schedule.date) {
+            return Err("schedule has empty date".to_owned());
+        }
+        if !market_matches(&schedule.market_code, &market) {
+            return Err("snapshot schedule market does not match snapshot market".to_owned());
+        }
+        if !schedule_within_market_range(schedule.date, snapshot.from, snapshot.to, &market) {
+            return Err("snapshot schedule is outside its market or range".to_owned());
+        }
+        validate_session_windows(&schedule.sessions)?;
     }
     Ok(())
 }
@@ -735,22 +776,33 @@ fn candidate_markets(market: &str) -> &'static [&'static str] {
 }
 
 fn market_matches(left: &str, right: &str) -> bool {
-    normalize_market(left) == normalize_market(right)
+    let left = normalize_market(left);
+    let right = normalize_market(right);
+    left == right
+        || (left == "CN" && matches!(right.as_str(), "SH" | "SZ"))
+        || (right == "CN" && matches!(left.as_str(), "SH" | "SZ"))
 }
 
-fn same_date(left: WireTimestamp, right: WireTimestamp) -> bool {
-    left.into_inner().date() == right.into_inner().date()
+fn same_market_day(left: WireTimestamp, right: WireTimestamp, market: &str) -> bool {
+    match (
+        market_day_start(market, left),
+        market_day_start(market, right),
+    ) {
+        (Ok(left), Ok(right)) => left.into_inner().date() == right.into_inner().date(),
+        _ => left.into_inner().date() == right.into_inner().date(),
+    }
 }
 
-fn snapshot_fresh(
+pub(crate) fn snapshot_fresh(
     snapshot: &CalendarSnapshot,
     policy: &CalendarSourcePolicy,
     now: OffsetDateTime,
 ) -> bool {
-    if snapshot.valid_until.into_inner() < now {
+    if !is_zero_timestamp(snapshot.valid_until) && snapshot.valid_until.into_inner() < now {
         return false;
     }
     if policy.stale_after_hours > 0
+        && !is_zero_timestamp(snapshot.fetched_at)
         && snapshot
             .fetched_at
             .into_inner()
@@ -760,6 +812,67 @@ fn snapshot_fresh(
         return false;
     }
     true
+}
+
+fn schedule_within_market_range(
+    schedule: WireTimestamp,
+    from: WireTimestamp,
+    to: WireTimestamp,
+    market: &str,
+) -> bool {
+    let Ok(schedule) = market_local_date(market, schedule) else {
+        return false;
+    };
+    let Ok(from) = market_local_date(market, from) else {
+        return false;
+    };
+    let Ok(to) = market_local_date(market, to) else {
+        return false;
+    };
+    schedule >= from && schedule <= to
+}
+
+fn validate_session_windows(sessions: &[crate::CalendarSessionWindow]) -> Result<(), String> {
+    let mut ordered = sessions.iter().collect::<Vec<_>>();
+    ordered.sort_by_key(|session| (session.start_minute, session.end_minute));
+    for (index, session) in ordered.iter().enumerate() {
+        if session.start_minute < 0
+            || session.end_minute > 24 * 60
+            || session.start_minute >= session.end_minute
+        {
+            return Err("session window must be within one day and open before close".to_owned());
+        }
+        if index > 0 && ordered[index - 1].end_minute > session.start_minute {
+            return Err("session windows must not overlap".to_owned());
+        }
+    }
+    Ok(())
+}
+
+fn is_zero_timestamp(value: WireTimestamp) -> bool {
+    let value = value.into_inner();
+    value.year() == 1
+        && value.month() == Month::January
+        && value.day() == 1
+        && value.time() == Time::MIDNIGHT
+        && value.offset() == time::UtcOffset::UTC
+}
+
+fn explicit_utc_date_input(value: WireTimestamp) -> bool {
+    let value = value.into_inner();
+    value.offset() == time::UtcOffset::UTC && value.time() == Time::MIDNIGHT
+}
+
+fn is_weekend(weekday: time::Weekday) -> bool {
+    matches!(weekday, time::Weekday::Saturday | time::Weekday::Sunday)
+}
+
+fn market_local_date(market: &str, at: WireTimestamp) -> Result<Date, CalendarManagerError> {
+    Ok(market_day_start(market, at)?.into_inner().date())
+}
+
+fn market_local_year(market: &str, at: WireTimestamp) -> Result<i32, CalendarManagerError> {
+    Ok(market_local_date(market, at)?.year())
 }
 
 pub(crate) fn wire_text(at: OffsetDateTime) -> String {

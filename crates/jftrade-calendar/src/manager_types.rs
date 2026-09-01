@@ -130,6 +130,20 @@ pub trait CalendarSourcePort: Send + Sync {
 pub trait CalendarPersistencePort: Send + Sync {
     fn load(&self) -> CalendarSnapshotLoadResult;
     fn save(&self, snapshot: &CalendarSnapshot) -> Result<(), String>;
+
+    /// Remove a persisted snapshot that failed validation during restore.
+    ///
+    /// Implementations that cannot mutate their backing store may keep the
+    /// default no-op; the manager still isolates the invalid value from its
+    /// in-memory cache.  The separate `delete_snapshot` hook keeps the port
+    /// compatible with adapters that use the store's Go-derived naming.
+    fn delete(&self, snapshot: &CalendarSnapshot) -> Result<(), String> {
+        self.delete_snapshot(snapshot)
+    }
+
+    fn delete_snapshot(&self, _snapshot: &CalendarSnapshot) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 impl CalendarPersistencePort for CalendarSnapshotStore {
@@ -140,6 +154,11 @@ impl CalendarPersistencePort for CalendarSnapshotStore {
     fn save(&self, snapshot: &CalendarSnapshot) -> Result<(), String> {
         CalendarSnapshotStore::save(self, snapshot)
             .map(|_| ())
+            .map_err(|error: CalendarSnapshotStoreError| error.to_string())
+    }
+
+    fn delete(&self, snapshot: &CalendarSnapshot) -> Result<(), String> {
+        CalendarSnapshotStore::delete(self, snapshot)
             .map_err(|error: CalendarSnapshotStoreError| error.to_string())
     }
 }

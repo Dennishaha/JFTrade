@@ -6,6 +6,7 @@ use jftrade_kernel::WireTimestamp;
 use serde::{Deserialize, Serialize};
 use tempfile::Builder;
 use thiserror::Error;
+use time::{Month, Time, UtcOffset};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,6 +90,8 @@ pub enum CalendarSnapshotStoreError {
     Encode(serde_json::Error),
     #[error("write exchange calendar snapshot: {0}")]
     Write(std::io::Error),
+    #[error("delete exchange calendar snapshot: {0}")]
+    Delete(std::io::Error),
 }
 
 impl CalendarSnapshotStore {
@@ -112,10 +115,9 @@ impl CalendarSnapshotStore {
         if !safe_component(&market) || !safe_component(source) {
             return Err(CalendarSnapshotStoreError::UnsafeIdentity);
         }
-        let year = snapshot.from.into_inner().year();
-        if year <= 0 {
+        let Some(year) = snapshot_year(snapshot) else {
             return Err(CalendarSnapshotStoreError::MissingYear);
-        }
+        };
         Ok(self
             .root
             .join(market)
@@ -139,6 +141,28 @@ impl CalendarSnapshotStore {
         Ok(path)
     }
 
+    /// Remove a snapshot file if it exists.  Restore uses this after rejecting
+    /// a decoded value so a corrupt cache cannot be reconsidered on every
+    /// startup; a malformed identity is reported rather than traversed.
+    pub fn delete(&self, snapshot: &CalendarSnapshot) -> Result<(), CalendarSnapshotStoreError> {
+        if self.root.as_os_str().is_empty() {
+            return Ok(());
+        }
+        let path = self.snapshot_path(snapshot)?;
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(CalendarSnapshotStoreError::Delete(error)),
+        }
+    }
+
+    pub fn delete_snapshot(
+        &self,
+        snapshot: &CalendarSnapshot,
+    ) -> Result<(), CalendarSnapshotStoreError> {
+        self.delete(snapshot)
+    }
+
     pub fn load(&self) -> CalendarSnapshotLoadResult {
         let mut result = CalendarSnapshotLoadResult::default();
         if self.root.as_os_str().is_empty() {
@@ -159,6 +183,25 @@ fn safe_component(value: &str) -> bool {
         && !value
             .chars()
             .any(|character| matches!(character, '/' | '\\' | ':' | '\0'))
+}
+
+fn snapshot_year(snapshot: &CalendarSnapshot) -> Option<i32> {
+    [snapshot.from, snapshot.to]
+        .into_iter()
+        .chain(snapshot.schedules.iter().map(|schedule| schedule.date))
+        .find_map(|timestamp| {
+            (!is_zero_timestamp(timestamp)).then_some(timestamp.into_inner().year())
+        })
+        .filter(|year| *year > 0)
+}
+
+fn is_zero_timestamp(value: WireTimestamp) -> bool {
+    let value = value.into_inner();
+    value.year() == 1
+        && value.month() == Month::January
+        && value.day() == 1
+        && value.time() == Time::MIDNIGHT
+        && value.offset() == UtcOffset::UTC
 }
 
 fn write_atomic(directory: &Path, path: &Path, body: &[u8]) -> std::io::Result<()> {
