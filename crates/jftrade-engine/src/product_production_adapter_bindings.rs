@@ -323,11 +323,10 @@ impl ProductionPortBundle {
             // and the local historical-candle store.  It does not call the
             // live helper/OpenD/router on the request path; missing candles
             // remain a request-level BACKTESTS_WRITE_UNAVAILABLE response.
-            // Keep only the provider-selection guard here so a corrupted or
-            // unset active provider cannot produce a synthetic run.
-            return Some(if self.backtest_execution_ready
-                && self.active_provider_state.get().is_some()
-            {
+            // Readiness therefore depends only on the worker probe.  The
+            // backtest provider is selected from its independent persisted
+            // state at request time and must not be coupled to live quotes.
+            return Some(if self.backtest_execution_ready {
                 ProductionAdapterBinding::Ready
             } else {
                 ProductionAdapterBinding::ExternalUnavailable

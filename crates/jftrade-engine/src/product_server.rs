@@ -155,7 +155,12 @@ pub(crate) async fn prepare_product_with_runtime_state(
         // A production backtest adapter is trusted only when the runtime
         // installed it after a successful Pine readiness probe.  Direct
         // ProductConfig injection remains a rehearsal seam and is ignored.
+        // The Pine analyze adapter shares that verified worker boundary;
+        // retaining a caller-supplied client here would let direct
+        // `start_product` report StrategyPine as Ready without probing it.
         config.backtest_execution_port = None;
+        config.strategy_pine_worker_port = None;
+        config.backtest_execution_port_verified = false;
     }
     // Compose one live hub before building production ports.  The websocket
     // adapter is part of the route-readiness projection, so it must observe

@@ -11,6 +11,10 @@ pub async fn start_product_runtime(
     // reachable and fails closed with the baseline 503 response.
     if config.product.is_production() {
         config.backtest_execution_port = None;
+        config.strategy_pine_worker_port = None;
+        config.product.backtest_execution_port = None;
+        config.product.strategy_pine_worker_port = None;
+        config.product.backtest_execution_port_verified = false;
     }
     if config.market_data_opend_provider.is_none()
         && config.market_data_opend.is_none()

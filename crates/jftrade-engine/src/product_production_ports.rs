@@ -410,7 +410,7 @@ pub(crate) fn production_ports(
     // prerequisite for this binding.
     bound_adapters.insert(
         ProductionRouteAdapter::BacktestStart,
-        if config.backtest_execution_port.is_some() {
+        if config.backtest_execution_port_verified && config.backtest_execution_port.is_some() {
             ProductionAdapterBinding::Ready
         } else {
             ProductionAdapterBinding::ExternalUnavailable
@@ -418,7 +418,7 @@ pub(crate) fn production_ports(
     );
     bound_adapters.insert(
         ProductionRouteAdapter::StrategyPine,
-        if config.strategy_pine_worker_port.is_some() {
+        if config.backtest_execution_port_verified && config.strategy_pine_worker_port.is_some() {
             ProductionAdapterBinding::Ready
         } else {
             ProductionAdapterBinding::ExternalUnavailable
@@ -529,7 +529,9 @@ pub(crate) fn production_ports(
         })?
         .with_active_provider_state(Arc::clone(&active_provider_state))
         .with_trade_runtime(config.trade_runtime.clone())
-        .with_backtest_execution_ready(config.backtest_execution_port.is_some()),
+        .with_backtest_execution_ready(
+            config.backtest_execution_port_verified && config.backtest_execution_port.is_some(),
+        ),
     );
     let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
@@ -750,7 +752,8 @@ pub(crate) fn production_ports(
         backtest_sync_workers,
         backtest_execution_workers,
         execution_reconciliation_worker,
-        backtest_execution_ready: config.backtest_execution_port.is_some(),
+        backtest_execution_ready: config.backtest_execution_port_verified
+            && config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),
         trade_write_port: config.trade_write_port.clone(),
         trade_logged_in: config.trade_logged_in,

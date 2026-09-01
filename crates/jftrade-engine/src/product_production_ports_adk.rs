@@ -295,7 +295,10 @@ impl ProductionToolCatalog {
             // store.  Live helper/OpenD/router availability is checked only
             // by other market-data routes; an empty local range is mapped by
             // the backtest handler to BACKTESTS_WRITE_UNAVAILABLE.
-            return if self.backtest_execution_ready && snapshot.provider.is_some() {
+            // The backtest provider is persisted independently from the live
+            // quote provider, so a missing live-provider selection must not
+            // hide an otherwise verified execution worker.
+            return if self.backtest_execution_ready {
                 ProductionAdapterBinding::Ready
             } else {
                 ProductionAdapterBinding::ExternalUnavailable
