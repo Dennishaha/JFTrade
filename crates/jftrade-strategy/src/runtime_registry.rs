@@ -3,6 +3,7 @@ use std::sync::RwLock;
 
 use jftrade_kernel::WireTimestamp;
 use thiserror::Error;
+use time::UtcOffset;
 
 use crate::RuntimeState;
 
@@ -52,6 +53,11 @@ impl StrategyRuntimeRegistry {
         }
         instance.definition_name = instance.definition_name.trim().to_owned();
         instance.active_symbols = normalize_symbols(instance.active_symbols);
+        instance.last_closed_kline_at = normalize_timestamp(instance.last_closed_kline_at);
+        instance.last_signal_at = normalize_timestamp(instance.last_signal_at);
+        instance.last_order_at = normalize_timestamp(instance.last_order_at);
+        instance.last_error_at = normalize_timestamp(instance.last_error_at);
+        instance.updated_at = normalize_timestamp(instance.updated_at);
         instance.last_error = instance
             .last_error
             .map(|error| error.trim().to_owned())
@@ -71,6 +77,42 @@ impl StrategyRuntimeRegistry {
             active_instances: read_instances(&self.instances).values().cloned().collect(),
         }
     }
+}
+
+/// Converts an optional observation timestamp to the UTC wire representation.
+///
+/// `None` is the Rust equivalent of Go's zero `time.Time`: it is omitted from
+/// an observation rather than serialized as a sentinel date. Keeping this
+/// normalization in the strategy registry means every consumer receives the
+/// same instant and precision regardless of the source offset.
+pub fn normalize_timestamp(value: Option<WireTimestamp>) -> Option<WireTimestamp> {
+    value.map(|timestamp| {
+        WireTimestamp::from_offset_datetime(timestamp.into_inner().to_offset(UtcOffset::UTC))
+    })
+}
+
+/// Formats an optional observation timestamp using the canonical UTC wire
+/// representation. `None` remains omitted.
+pub fn format_timestamp(value: Option<WireTimestamp>) -> Option<String> {
+    normalize_timestamp(value).map(|timestamp| timestamp.to_string())
+}
+
+/// Returns the newest of two optional observation timestamps.
+pub fn max_timestamp(
+    left: Option<WireTimestamp>,
+    right: Option<WireTimestamp>,
+) -> Option<WireTimestamp> {
+    match (left, right) {
+        (None, value) | (value, None) => value,
+        (Some(left), Some(right)) => Some(if right > left { right } else { left }),
+    }
+}
+
+/// Trims an optional diagnostic and omits blank values.
+pub fn optional_string(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
 }
 
 fn normalize_symbols(symbols: Vec<String>) -> Vec<String> {
@@ -155,5 +197,52 @@ mod tests {
         assert!(registry.remove(" z-runtime "));
         assert!(!registry.remove("missing"));
         assert_eq!(registry.snapshot().active_strategies(), 1);
+    }
+
+    #[test]
+    fn observation_values_use_utc_optional_and_newest_timestamp_semantics() {
+        let local = "2026-01-02T03:04:05.000000006+01:00"
+            .parse::<WireTimestamp>()
+            .expect("local timestamp");
+        let newer = "2026-01-02T04:04:05.000000006+01:00"
+            .parse::<WireTimestamp>()
+            .expect("newer timestamp");
+        let normalized = normalize_timestamp(Some(local)).expect("normalized timestamp");
+        assert_eq!(normalized.to_string(), "2026-01-02T02:04:05.000000006Z");
+        assert_eq!(format_timestamp(None), None);
+        assert_eq!(
+            format_timestamp(Some(local)).as_deref(),
+            Some("2026-01-02T02:04:05.000000006Z")
+        );
+        assert_eq!(max_timestamp(None, Some(local)), Some(local));
+        assert_eq!(max_timestamp(Some(local), Some(newer)), Some(newer));
+        assert_eq!(
+            optional_string(Some("  reason ".to_owned())).as_deref(),
+            Some("reason")
+        );
+        assert_eq!(optional_string(Some("  ".to_owned())), None);
+
+        let registry = StrategyRuntimeRegistry::default();
+        registry
+            .upsert(RuntimeInstanceSummary {
+                instance_id: "runtime-1".to_owned(),
+                definition_name: "strategy".to_owned(),
+                actual_state: RuntimeState::Running,
+                active_symbols: Vec::new(),
+                last_closed_kline_at: Some(local),
+                last_signal_at: None,
+                last_order_at: None,
+                last_error_at: None,
+                last_error: None,
+                updated_at: None,
+            })
+            .expect("upsert");
+        assert_eq!(
+            registry.snapshot().active_instances[0]
+                .last_closed_kline_at
+                .expect("timestamp")
+                .to_string(),
+            "2026-01-02T02:04:05.000000006Z"
+        );
     }
 }

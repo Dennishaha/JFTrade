@@ -17,7 +17,10 @@ pub use model::{
     canonical_stored_status, reconcile_status,
 };
 pub use notification::{NotificationEnvelope, NotificationPlanner};
-pub use portfolio::{AccountPortfolio, AccountRefresh, PortfolioOutcome, PositionProjection};
+pub use portfolio::{
+    AccountPortfolio, AccountRefresh, PortfolioOutcome, PositionProjection,
+    position_matches_symbol, sellable_quantity,
+};
 pub use real_trade::{
     RealTradeApprovalPolicy, RealTradeApprovalsResponse, RealTradeControlEvent,
     RealTradeControlState, RealTradeHardStopEntry, RealTradeHardStopEventsResponse,
@@ -25,5 +28,9 @@ pub use real_trade::{
     RealTradeKillSwitchStateResponse, RealTradeRiskEventsResponse, RealTradeRiskLimitsResponse,
     RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
 };
-pub use risk::{HardStop, RiskConfig, RiskDecision, RiskEngine};
+pub use risk::{
+    HardStop, RUNTIME_RISK_MODE_ENFORCE, RUNTIME_RISK_MODE_MONITOR, RUNTIME_RISK_MODE_OFF,
+    RiskConfig, RiskDecision, RiskEngine, RuntimeRiskContext, RuntimeRiskDecision,
+    RuntimeRiskOrder, RuntimeRiskSettings, evaluate_runtime_risk,
+};
 pub use session::{AccountSnapshot, BrokerSession, SessionState};

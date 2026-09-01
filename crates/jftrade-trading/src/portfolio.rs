@@ -16,6 +16,69 @@ pub struct PositionProjection {
     pub last_price: Fixed8,
 }
 
+impl PositionProjection {
+    /// Matches the strategy runtime's market-qualified and bare-symbol forms.
+    /// A position with no market can match the suffix of `US.AAPL`/`US:AAPL`,
+    /// while a market-qualified position can match either separator.
+    pub fn matches_symbol(&self, symbol: &str) -> bool {
+        position_matches_symbol(self, symbol)
+    }
+}
+
+/// Returns whether a position belongs to a strategy symbol after trimming and
+/// case-folding the market-qualified forms used by the Go runtime.
+pub fn position_matches_symbol(position: &PositionProjection, symbol: &str) -> bool {
+    let strategy_symbol = symbol.trim().to_ascii_uppercase();
+    if strategy_symbol.is_empty() {
+        return false;
+    }
+    let position_symbol = position.symbol.trim().to_ascii_uppercase();
+    if position_symbol.is_empty() {
+        return false;
+    }
+    if position_symbol == strategy_symbol {
+        return true;
+    }
+    let market = position.market.trim().to_ascii_uppercase();
+    if !market.is_empty()
+        && !position_symbol.contains('.')
+        && !position_symbol.contains(':')
+        && (strategy_symbol == format!("{market}.{position_symbol}")
+            || strategy_symbol == format!("{market}:{position_symbol}"))
+    {
+        return true;
+    }
+    if market.is_empty() {
+        if let Some((_, suffix)) = strategy_symbol.split_once('.')
+            && suffix == position_symbol
+        {
+            return true;
+        }
+        if let Some((_, suffix)) = strategy_symbol.split_once(':')
+            && suffix == position_symbol
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Sums sellable quantities for positions matching a strategy symbol.
+pub fn sellable_quantity(
+    positions: &[PositionProjection],
+    symbol: &str,
+) -> Result<Fixed8, TradingError> {
+    positions.iter().try_fold(Fixed8::ZERO, |total, position| {
+        if position.matches_symbol(symbol) {
+            total
+                .checked_add(position.sellable_quantity)
+                .map_err(|_| TradingError::Arithmetic)
+        } else {
+            Ok(total)
+        }
+    })
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AccountRefresh {
@@ -104,6 +167,20 @@ impl AccountPortfolio {
         self.positions.values().collect()
     }
 
+    pub fn sellable_quantity(&self, symbol: &str) -> Result<Fixed8, TradingError> {
+        self.positions()
+            .into_iter()
+            .try_fold(Fixed8::ZERO, |total, position| {
+                if position.matches_symbol(symbol) {
+                    total
+                        .checked_add(position.sellable_quantity)
+                        .map_err(|_| TradingError::Arithmetic)
+                } else {
+                    Ok(total)
+                }
+            })
+    }
+
     pub const fn generation(&self) -> u64 {
         self.generation
     }
@@ -161,7 +238,10 @@ mod tests {
 
     use jftrade_kernel::Fixed8;
 
-    use super::{AccountPortfolio, AccountRefresh, PortfolioOutcome, PositionProjection};
+    use super::{
+        AccountPortfolio, AccountRefresh, PortfolioOutcome, PositionProjection,
+        position_matches_symbol, sellable_quantity,
+    };
 
     fn refresh(id: &str, generation: u64, sequence: u64) -> AccountRefresh {
         AccountRefresh {
@@ -211,5 +291,46 @@ mod tests {
         assert_eq!(portfolio.generation(), 1);
         assert_eq!(portfolio.sequence(), 1);
         assert_eq!(portfolio.positions().len(), 1);
+    }
+
+    #[test]
+    fn positions_match_qualified_symbols_and_sum_sellable_quantity() {
+        let positions = vec![
+            PositionProjection {
+                account_id: "acc-1".to_owned(),
+                market: "US".to_owned(),
+                symbol: "AAPL".to_owned(),
+                quantity: Fixed8::from_str("5").expect("quantity"),
+                sellable_quantity: Fixed8::from_str("3").expect("sellable"),
+                last_price: Fixed8::from_str("100").expect("price"),
+            },
+            PositionProjection {
+                account_id: "acc-1".to_owned(),
+                market: "HK".to_owned(),
+                symbol: "00700".to_owned(),
+                quantity: Fixed8::from_str("10").expect("quantity"),
+                sellable_quantity: Fixed8::from_str("10").expect("sellable"),
+                last_price: Fixed8::from_str("300").expect("price"),
+            },
+        ];
+        assert!(positions[0].matches_symbol("us.aapl"));
+        assert!(position_matches_symbol(
+            &PositionProjection {
+                market: String::new(),
+                symbol: "AAPL".to_owned(),
+                ..positions[0].clone()
+            },
+            "US.AAPL"
+        ));
+        assert!(positions[0].matches_symbol("US:AAPL"));
+        assert!(!positions[1].matches_symbol("US.AAPL"));
+        assert_eq!(
+            sellable_quantity(&positions, "US.AAPL").expect("sellable quantity"),
+            Fixed8::from_str("3").expect("expected quantity")
+        );
+        assert_eq!(
+            sellable_quantity(&positions, " ").expect("empty quantity"),
+            Fixed8::ZERO
+        );
     }
 }
