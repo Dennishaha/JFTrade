@@ -12,7 +12,7 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 ## 运行时未闭合项
 
-HTTP production route、唯一写 owner、execution reconciliation、storage lease、Tauri readiness 与 `system/status` 投影没有仍需派工的实现门禁。MCP 只完成 transport 和 69 个工具名称的 catalog baseline：当前 49 个工具具备 native production executor，20 个仍明确 `fail-closed`（alerts 2、research 16、strategy Pine 2）；`tools/list` 的 69 个逐工具 input schema 与 Go reference 的 required/enum/bounds/`additionalProperties` 兼容也尚未闭合。后续实现必须继续保持真实 adapter 或 external-unavailable 语义，不得用 generic schema、fixture 成功或文档声明把剩余 MCP 工作标记为完成。已通过的 `allRouteGroups`、`uniqueWriteOwner`、execution reconciliation、storage lease、Tauri readiness 和 `system/status` 门禁只有在出现新的运行时回归证据时才重新登记。
+HTTP production route、唯一写 owner、execution reconciliation、storage lease、Tauri readiness 与 `system/status` 投影没有仍需派工的实现门禁。MCP 已完成 transport 和 69 个工具名称的 catalog baseline：当前 64 个工具具备 native production executor，5 个仍明确 `fail-closed`（`research.institutions`、`research.short_interest`、`research.technical_indicators`、`strategy.pine_spec`、`strategy.validate_pine`）。这 5 个工具没有对应的真实 Rust typed adapter，不能仅凭 broad research port 或 Pine analyze worker 标记为 ready。`tools/list` 的 69 个逐工具 input schema 与 Go reference 的 required/enum/bounds/`additionalProperties` 兼容也尚未由全量 deep-equality 门禁闭合。后续实现必须继续保持真实 adapter 或 external-unavailable 语义，不得用 generic schema、fixture 成功或文档声明把剩余 MCP 工作标记为完成。已通过的 `allRouteGroups`、`uniqueWriteOwner`、execution reconciliation、storage lease、Tauri readiness 和 `system/status` 门禁只有在出现新的运行时回归证据时才重新登记。
 
 ## Release 与终局放行项
 
