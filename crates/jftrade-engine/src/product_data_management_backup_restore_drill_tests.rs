@@ -27,6 +27,17 @@ fn backup_restore_upgrade_corruption_and_rollback_are_fail_closed() {
     let backup = maintenance
         .backup(DATABASE_STRATEGY, FIXED_TIMESTAMP)
         .expect("create verified backup");
+    let backup_path = Path::new(&backup.backup_path);
+    assert!(backup_path.is_file(), "backup must be a regular file");
+    assert_eq!(
+        fs::metadata(backup_path)
+            .expect("backup metadata")
+            .len(),
+        u64::try_from(backup.size_bytes).expect("non-negative backup size"),
+        "backup result must report the retained artifact size"
+    );
+    let backup_bytes = fs::read(backup_path).expect("read verified backup");
+    assert!(!backup_bytes.is_empty(), "verified backup must not be empty");
     assert_eq!(
         source_bytes,
         snapshot_files(Path::new(&source_descriptor.path)),
@@ -55,6 +66,12 @@ fn backup_restore_upgrade_corruption_and_rollback_are_fail_closed() {
     assert!(
         PathBuf::from(format!("{upgrade_path}.pre-migration.bak")).is_file(),
         "production migration must retain a verified rollback snapshot"
+    );
+    assert_eq!(
+        backup_bytes,
+        fs::read(format!("{upgrade_path}.pre-migration.bak"))
+            .expect("read upgrade rollback snapshot"),
+        "upgrade rollback snapshot must preserve the exact restored legacy bytes"
     );
     drop(upgraded);
 
@@ -107,6 +124,11 @@ fn backup_restore_upgrade_corruption_and_rollback_are_fail_closed() {
         current_version_from_path(Path::new(&source_descriptor.path)),
         Some(1),
         "the backup drill must not upgrade or replace the original source"
+    );
+    assert_eq!(
+        source_bytes,
+        snapshot_files(Path::new(&source_descriptor.path)),
+        "all recovery attempts must leave the legacy source untouched"
     );
 }
 
@@ -174,6 +196,7 @@ fn snapshot_files(path: &Path) -> Vec<(PathBuf, Vec<u8>)> {
         path.to_owned(),
         PathBuf::from(format!("{}-wal", path.display())),
         PathBuf::from(format!("{}-shm", path.display())),
+        PathBuf::from(format!("{}-journal", path.display())),
     ]
     .into_iter()
     .filter_map(|path| fs::read(&path).ok().map(|bytes| (path, bytes)))

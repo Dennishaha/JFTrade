@@ -33,16 +33,47 @@ function asDigest(value) {
   return /^[0-9a-f]{64}$/.test(digest) ? digest : null;
 }
 
-function expectedDigest(target, kind) {
+function digestSources(target, kind) {
   const names = kind === "artifact"
     ? ["artifactSha256", "artifactSHA256", "artifactDigest", "sha256", "digest"]
     : [`${kind}Sha256`, `${kind}SHA256`, `${kind}Digest`, "sha256", "digest"];
-  const nested = isRecord(target.digests) ? target.digests : {};
-  for (const name of [...names, kind]) {
-    const digest = asDigest(target[name] ?? nested[name]);
+  const nested = isRecord(target?.digests) ? target.digests : {};
+  const sources = [];
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(target ?? {}, name)) {
+      sources.push({ name, value: target[name] });
+    } else if (Object.prototype.hasOwnProperty.call(nested, name)) {
+      sources.push({ name: `digests.${name}`, value: nested[name] });
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(nested, kind)) {
+    sources.push({ name: `digests.${kind}`, value: nested[kind] });
+  }
+  return sources;
+}
+
+function expectedDigest(target, kind) {
+  for (const source of digestSources(target, kind)) {
+    const digest = asDigest(source.value);
     if (digest) return digest;
   }
   return null;
+}
+
+function validateDigestSources(target, kind, errors) {
+  const sources = digestSources(target, kind);
+  const valid = [];
+  for (const source of sources) {
+    const digest = asDigest(source.value);
+    if (!digest) {
+      errors.push(`${kind} digest ${source.name} must be a valid SHA-256 digest`);
+    } else {
+      valid.push(digest);
+    }
+  }
+  if (new Set(valid).size > 1) {
+    errors.push(`${kind} digest fields disagree`);
+  }
 }
 
 function pickField(target, kind) {
@@ -72,8 +103,60 @@ function targetEntries(manifest) {
   return [];
 }
 
-function resolveReference(reference, baseDirectory) {
-  return path.isAbsolute(reference) ? reference : path.resolve(baseDirectory, reference);
+function resolveReference(reference, baseDirectory, kind, errors) {
+  if (typeof reference !== "string" || reference.trim() === "") {
+    errors.push(`${kind} file reference is required`);
+    return null;
+  }
+  const value = reference.trim();
+  if (path.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.startsWith("\\\\")) {
+    errors.push(`${kind} file reference must be a relative POSIX path: ${reference}`);
+    return null;
+  }
+  if (value.includes("\\") || value.includes("\0")) {
+    errors.push(`${kind} file reference must be a relative POSIX path: ${reference}`);
+    return null;
+  }
+  const segments = value.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    errors.push(`${kind} file reference must not contain empty, dot or parent path segments: ${reference}`);
+    return null;
+  }
+
+  let root;
+  try {
+    root = fs.realpathSync(path.resolve(baseDirectory));
+  } catch (error) {
+    errors.push(`${kind} evidence directory is missing: ${error.message}`);
+    return null;
+  }
+  const resolved = path.resolve(root, ...segments);
+  const outside = path.relative(root, resolved);
+  if (outside === ".." || outside.startsWith(`..${path.sep}`)) {
+    errors.push(`${kind} file reference escapes the evidence directory: ${reference}`);
+    return null;
+  }
+
+  let current = root;
+  try {
+    for (const segment of segments) {
+      current = path.join(current, segment);
+      if (fs.lstatSync(current).isSymbolicLink()) {
+        errors.push(`${kind} file reference must not traverse a symlink: ${reference}`);
+        return null;
+      }
+    }
+    const real = fs.realpathSync(resolved);
+    const realOutside = path.relative(root, real);
+    if (realOutside === ".." || realOutside.startsWith(`..${path.sep}`)) {
+      errors.push(`${kind} file reference realpath escapes the evidence directory: ${reference}`);
+      return null;
+    }
+    return { path: resolved, realpath: real };
+  } catch (error) {
+    errors.push(`${kind} file is missing: ${reference} (${error.message})`);
+    return null;
+  }
 }
 
 function hashFile(filePath) {
@@ -92,13 +175,19 @@ function inspectFile(reference, expected, kind, baseDirectory, errors) {
     errors.push(`${kind} file reference is required`);
     return result;
   }
-  const filePath = resolveReference(reference, baseDirectory);
-  result.path = filePath;
+  const resolved = resolveReference(reference, baseDirectory, kind, errors);
+  if (!resolved) return result;
+  result.path = resolved.path;
+  result.realpath = resolved.realpath;
   let stat;
   try {
-    stat = fs.statSync(filePath);
+    stat = fs.lstatSync(resolved.realpath);
   } catch (error) {
     errors.push(`${kind} file is missing: ${reference} (${error.message})`);
+    return result;
+  }
+  if (stat.isSymbolicLink()) {
+    errors.push(`${kind} file reference must not traverse a symlink: ${reference}`);
     return result;
   }
   if (!stat.isFile()) {
@@ -106,21 +195,23 @@ function inspectFile(reference, expected, kind, baseDirectory, errors) {
     return result;
   }
   result.exists = true;
+  const nonEmpty = stat.size > 0;
+  if (!nonEmpty) errors.push(`${kind} file is empty: ${reference}`);
   if (expected === null) {
     errors.push(`${kind} file is missing a valid SHA-256 digest: ${reference}`);
   }
   try {
-    result.sha256 = hashFile(filePath);
+    result.sha256 = hashFile(resolved.realpath);
   } catch (error) {
     errors.push(`${kind} file could not be hashed: ${reference} (${error.message})`);
     return result;
   }
   if (expected !== null && result.sha256 !== expected) {
     errors.push(`${kind} SHA-256 mismatch for ${reference}`);
-  } else if (expected !== null) {
+  } else if (expected !== null && nonEmpty) {
     result.valid = true;
   }
-  return { ...result, contentPath: filePath };
+  return { ...result, contentPath: resolved.realpath };
 }
 
 function readJsonDocument(filePath, kind, errors) {
@@ -156,20 +247,98 @@ function readJsonDocument(filePath, kind, errors) {
   }
 }
 
+function validateSpdxPackages(packages, reference, errors) {
+  if (!Array.isArray(packages) || packages.length === 0) {
+    errors.push(`SPDX SBOM has no packages/components: ${reference}`);
+    return false;
+  }
+  let valid = true;
+  for (const [index, packageEntry] of packages.entries()) {
+    if (!isRecord(packageEntry) || typeof packageEntry.name !== "string"
+      || packageEntry.name.trim() === "") {
+      errors.push(`SPDX package ${index + 1} must include a name: ${reference}`);
+      valid = false;
+      continue;
+    }
+    const checksums = packageEntry.checksums;
+    if (checksums === undefined) continue;
+    if (!Array.isArray(checksums)) {
+      errors.push(`SPDX package ${index + 1} checksums must be an array: ${reference}`);
+      valid = false;
+      continue;
+    }
+    for (const [checksumIndex, checksum] of checksums.entries()) {
+      const algorithm = typeof checksum?.algorithm === "string"
+        ? checksum.algorithm.trim()
+        : "";
+      const value = checksum?.checksumValue;
+      if (!isRecord(checksum) || algorithm === "" || typeof value !== "string"
+        || value.trim() === "") {
+        errors.push(`SPDX package ${index + 1} checksum ${checksumIndex + 1} is invalid: ${reference}`);
+        valid = false;
+      } else if (/^sha-?256$/i.test(algorithm) && !asDigest(value)) {
+        errors.push(`SPDX package ${index + 1} checksum ${checksumIndex + 1} has an invalid SHA-256 digest: ${reference}`);
+        valid = false;
+      }
+    }
+  }
+  return valid;
+}
+
+function validateCycloneDxComponents(components, reference, errors) {
+  if (!Array.isArray(components) || components.length === 0) {
+    errors.push(`CycloneDX SBOM has no components: ${reference}`);
+    return false;
+  }
+  let valid = true;
+  for (const [index, component] of components.entries()) {
+    if (!isRecord(component) || typeof component.name !== "string" || component.name.trim() === "") {
+      errors.push(`CycloneDX component ${index + 1} must include a name: ${reference}`);
+      valid = false;
+      continue;
+    }
+    const hashes = component.hashes;
+    if (hashes === undefined) continue;
+    if (!Array.isArray(hashes)) {
+      errors.push(`CycloneDX component ${index + 1} hashes must be an array: ${reference}`);
+      valid = false;
+      continue;
+    }
+    for (const [hashIndex, hash] of hashes.entries()) {
+      const algorithm = typeof hash?.alg === "string" ? hash.alg.trim() : "";
+      const value = hash?.content;
+      if (!isRecord(hash) || algorithm === "" || typeof value !== "string" || value.trim() === "") {
+        errors.push(`CycloneDX component ${index + 1} hash ${hashIndex + 1} is invalid: ${reference}`);
+        valid = false;
+      } else if (/^sha-?256$/i.test(algorithm) && !asDigest(value)) {
+        errors.push(`CycloneDX component ${index + 1} hash ${hashIndex + 1} has an invalid SHA-256 digest: ${reference}`);
+        valid = false;
+      }
+    }
+  }
+  return valid;
+}
+
 function validateSbomDocument(document, reference, errors) {
   if (!isRecord(document)) {
     errors.push(`SBOM must be an SPDX or CycloneDX JSON object: ${reference}`);
     return { format: null, componentCount: 0, valid: false };
   }
-  if (typeof document.spdxVersion === "string" && /^SPDX-/i.test(document.spdxVersion)) {
+  if (typeof document.spdxVersion === "string" && /^SPDX-\d+\.\d+$/i.test(document.spdxVersion.trim())) {
     const packages = Array.isArray(document.packages) ? document.packages : [];
-    if (packages.length === 0) errors.push(`SPDX SBOM has no packages/components: ${reference}`);
-    return { format: "spdx", componentCount: packages.length, valid: packages.length > 0 };
+    return {
+      format: "spdx",
+      componentCount: packages.length,
+      valid: validateSpdxPackages(packages, reference, errors),
+    };
   }
-  if (typeof document.bomFormat === "string" && document.bomFormat.toLowerCase() === "cyclonedx") {
+  if (typeof document.bomFormat === "string" && document.bomFormat.trim().toLowerCase() === "cyclonedx") {
     const components = Array.isArray(document.components) ? document.components : [];
-    if (components.length === 0) errors.push(`CycloneDX SBOM has no components: ${reference}`);
-    return { format: "cyclonedx", componentCount: components.length, valid: components.length > 0 };
+    return {
+      format: "cyclonedx",
+      componentCount: components.length,
+      valid: validateCycloneDxComponents(components, reference, errors),
+    };
   }
   errors.push(`SBOM is neither SPDX nor CycloneDX JSON: ${reference}`);
   return { format: null, componentCount: 0, valid: false };
@@ -184,24 +353,48 @@ function provenanceSubjects(document) {
   return [];
 }
 
-function validateProvenanceDocument(document, reference, errors) {
+function validateProvenanceDocument(document, reference, expectedArtifactDigest, errors) {
   const subjects = provenanceSubjects(document);
   if (subjects.length === 0) {
     errors.push(`provenance JSON has no subject: ${reference}`);
     return { subjectCount: 0, digestCount: 0, valid: false };
   }
   let digestCount = 0;
+  const subjectDigests = [];
   for (const [index, subject] of subjects.entries()) {
-    const digest = isRecord(subject) && isRecord(subject.digest) ? subject.digest : null;
-    const sha256 = digest && Object.entries(digest)
-      .find(([name, value]) => name.toLowerCase() === "sha256" && asDigest(String(value)));
-    if (!sha256) {
+    if (!isRecord(subject) || typeof subject.name !== "string" || subject.name.trim() === "") {
+      errors.push(`provenance subject ${index + 1} must include a name: ${reference}`);
+      continue;
+    }
+    const digest = isRecord(subject.digest) ? subject.digest : null;
+    const sha256 = [];
+    for (const [name, value] of Object.entries(digest ?? {})) {
+      if (name.toLowerCase() !== "sha256") continue;
+      const normalized = asDigest(value);
+      if (!normalized) {
+        errors.push(`provenance subject ${index + 1} has an invalid SHA-256 digest: ${reference}`);
+      } else {
+        sha256.push(normalized);
+      }
+    }
+    if (sha256.length === 0) {
       errors.push(`provenance subject ${index + 1} has no SHA-256 digest: ${reference}`);
     } else {
       digestCount += 1;
+      subjectDigests.push(...sha256);
     }
   }
-  return { subjectCount: subjects.length, digestCount, valid: digestCount > 0 };
+  const artifactDigestMatched = expectedArtifactDigest !== null
+    && subjectDigests.includes(expectedArtifactDigest);
+  if (expectedArtifactDigest !== null && !artifactDigestMatched) {
+    errors.push(`provenance subjects do not include the artifact SHA-256 digest: ${reference}`);
+  }
+  return {
+    subjectCount: subjects.length,
+    digestCount,
+    artifactDigestMatched,
+    valid: digestCount === subjects.length && artifactDigestMatched,
+  };
 }
 
 function inspectTarget(target, baseDirectory, errors) {
@@ -210,6 +403,9 @@ function inspectTarget(target, baseDirectory, errors) {
     : typeof target?.target === "string" ? target.target.trim() : "";
   const targetErrors = [];
   if (!platform) targetErrors.push("target is missing platform");
+  validateDigestSources(target, "artifact", targetErrors);
+  validateDigestSources(target, "sbom", targetErrors);
+  validateDigestSources(target, "provenance", targetErrors);
   const artifactReference = pickField(target, "artifact");
   const sbomReference = pickField(target, "sbom");
   const provenanceReference = pickField(target, "provenance");
@@ -244,15 +440,25 @@ function inspectTarget(target, baseDirectory, errors) {
       if (Array.isArray(sbomDocument)) {
         targetErrors.push(`SBOM must be one SPDX or CycloneDX document: ${sbomReference}`);
       } else {
-        sbom.format = validateSbomDocument(sbomDocument, sbomReference, targetErrors).format;
-        sbom.componentCount = validateSbomDocument(sbomDocument, sbomReference, []).componentCount;
+        const validation = validateSbomDocument(sbomDocument, sbomReference, targetErrors);
+        sbom.format = validation.format;
+        sbom.componentCount = validation.componentCount;
+        sbom.documentValid = validation.valid;
       }
     }
   }
   if (provenance.valid && provenance.contentPath) {
     const provenanceDocument = readJsonDocument(provenance.contentPath, "provenance", targetErrors);
     if (provenanceDocument !== null) {
-      Object.assign(provenance, validateProvenanceDocument(provenanceDocument, provenanceReference, targetErrors));
+      Object.assign(
+        provenance,
+        validateProvenanceDocument(
+          provenanceDocument,
+          provenanceReference,
+          artifact.expectedSha256,
+          targetErrors,
+        ),
+      );
     }
   }
   errors.push(...targetErrors.map((error) => `${platform || "unknown target"}: ${error}`));
@@ -272,6 +478,7 @@ function inspectTarget(target, baseDirectory, errors) {
  * online, or qualify a release runner.  Those remain external release gates.
  */
 export function inspectSbomProvenance(manifest, options = {}) {
+  const settings = isRecord(options) ? options : {};
   const errors = [];
   const warnings = [];
   if (!isRecord(manifest)) {
@@ -279,18 +486,58 @@ export function inspectSbomProvenance(manifest, options = {}) {
   }
   const entries = isRecord(manifest) ? targetEntries(manifest) : [];
   if (entries.length === 0) errors.push("SBOM/provenance manifest has no target entries");
-  const baseDirectory = path.resolve(options.baseDirectory ?? repositoryRoot);
+  if (isRecord(manifest)) {
+    const collections = ["targets", "platforms", "artifacts"]
+      .filter((field) => Object.prototype.hasOwnProperty.call(manifest, field));
+    const directTargets = Object.keys(manifest)
+      .filter((key) => REQUIRED_TARGETS.includes(key));
+    if (collections.length > 1) {
+      errors.push("SBOM/provenance manifest must contain only one target collection");
+    }
+    if (collections.length > 0 && directTargets.length > 0) {
+      errors.push("SBOM/provenance manifest must not mix target collections and direct target entries");
+    }
+  }
+  let baseDirectory;
+  try {
+    baseDirectory = path.resolve(settings.baseDirectory ?? repositoryRoot);
+  } catch (error) {
+    baseDirectory = null;
+    errors.push(`SBOM/provenance evidence directory is invalid: ${error.message}`);
+  }
   const seen = new Set();
+  const seenFiles = new Map();
   const targets = [];
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
     const platform = typeof entry?.platform === "string" ? entry.platform.trim() : "";
     if (platform && seen.has(platform)) errors.push(`duplicate SBOM/provenance target: ${platform}`);
     if (platform) seen.add(platform);
     if (platform && !REQUIRED_TARGETS.includes(platform)) errors.push(`unknown SBOM/provenance target: ${platform}`);
-    targets.push(inspectTarget(entry, baseDirectory, errors));
+    const target = inspectTarget(entry, baseDirectory, errors);
+    const references = [
+      ["artifact", target.artifact],
+      ["SBOM", target.sbom],
+      ["provenance", target.provenance],
+    ];
+    const localFiles = new Set();
+    for (const [kind, file] of references) {
+      const filePath = file.realpath;
+      if (!filePath) continue;
+      if (localFiles.has(filePath)) {
+        errors.push(`${platform || `target ${index + 1}`}: duplicate evidence file reference: ${file.reference}`);
+      }
+      localFiles.add(filePath);
+      const previous = seenFiles.get(filePath);
+      if (previous) {
+        errors.push(`duplicate SBOM/provenance target file: ${file.reference} reused by ${previous}`);
+      } else {
+        seenFiles.set(filePath, `${platform || `target ${index + 1}`} ${kind}`);
+      }
+    }
+    targets.push(target);
   }
   const missingTargets = REQUIRED_TARGETS.filter((target) => !seen.has(target));
-  const requireTargets = options.requireTargets === true;
+  const requireTargets = settings.requireTargets === true;
   if (missingTargets.length > 0) {
     const message = `missing SBOM/provenance targets: ${missingTargets.join(", ")}`;
     if (requireTargets) errors.push(message);
@@ -320,21 +567,23 @@ export const validateSbomProvenance = inspectSbomProvenance;
 export const validateSbomProvenanceManifest = inspectSbomProvenance;
 
 export function checkSbomProvenance(manifestOrPath, options = {}) {
-  if (isRecord(manifestOrPath)) return inspectSbomProvenance(manifestOrPath, options);
-  const manifestPath = manifestOrPath || options.manifestPath;
+  const settings = isRecord(options) ? options : {};
+  if (isRecord(manifestOrPath)) return inspectSbomProvenance(manifestOrPath, settings);
+  const manifestPath = manifestOrPath || settings.manifestPath;
   if (!manifestPath) {
-    return inspectSbomProvenance(null, options);
+    return inspectSbomProvenance(null, settings);
   }
-  const absolutePath = path.resolve(manifestPath);
+  let absolutePath;
   let manifest;
   try {
+    absolutePath = path.resolve(manifestPath);
     manifest = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
   } catch (error) {
     return {
       schemaVersion: SBOM_PROVENANCE_SCHEMA,
       status: "invalid_inputs",
       valid: false,
-      requireTargets: options.requireTargets === true,
+      requireTargets: settings.requireTargets === true,
       targets: [],
       missingTargets: [...REQUIRED_TARGETS],
       errors: [`cannot read SBOM/provenance manifest ${manifestPath}: ${error.message}`],
@@ -349,8 +598,8 @@ export function checkSbomProvenance(manifestOrPath, options = {}) {
     };
   }
   return inspectSbomProvenance(manifest, {
-    ...options,
-    baseDirectory: options.baseDirectory ?? path.dirname(absolutePath),
+    ...settings,
+    baseDirectory: settings.baseDirectory ?? path.dirname(absolutePath),
   });
 }
 
