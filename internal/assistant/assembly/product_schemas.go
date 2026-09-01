@@ -41,10 +41,12 @@ func productToolInputSchema(name string) map[string]any {
 		"derivatives.option_analysis", "research.news", "research.technical_indicators":
 		return objectSchema(readProperties(instrumentOperationProperties(name)), []string{"instrumentId"})
 	case "derivatives.option_screen", "derivatives.option_events", "derivatives.warrants",
-		"derivatives.futures", "research.macro", "research.institutions", "research.industry",
+		"derivatives.futures", "research.institutions", "research.industry",
 		"alerts.price.list", "alerts.option_event.list",
 		"watchlist.remote.list":
 		return objectSchema(readProperties(operationProperties(name)), nil)
+	case "research.macro":
+		return researchMacroToolSchema()
 	case "execution.buying_power":
 		return objectSchema(productRuleProperties(), []string{
 			"accountId", "tradingEnvironment", "market", "instrument", "orderKind",
@@ -135,6 +137,18 @@ func objectSchema(properties map[string]any, required []string) map[string]any {
 	return schema
 }
 
+func researchMacroToolSchema() map[string]any {
+	schema := objectSchema(readProperties(operationProperties("research.macro")), nil)
+	schema["if"] = map[string]any{
+		"properties": map[string]any{
+			"operation": map[string]any{"const": "indicator_history"},
+		},
+		"required": []string{"operation"},
+	}
+	schema["then"] = map[string]any{"required": []string{"indicatorId"}}
+	return schema
+}
+
 func stringSchema(minLength, maxLength int) map[string]any {
 	return map[string]any{
 		"type": "string", "minLength": minLength, "maxLength": maxLength,
@@ -206,6 +220,8 @@ func operationProperties(name string) map[string]any {
 		}
 	case "research.institutions":
 		properties["institutionId"] = map[string]any{"type": "integer", "minimum": 1}
+	case "research.macro":
+		properties["indicatorId"] = stringSchema(1, 120)
 	case "research.industry":
 		properties["plateType"] = enumSchema("all", "industry", "concept", "region")
 		properties["plateSetType"] = enumSchema("all", "industry", "concept", "region")

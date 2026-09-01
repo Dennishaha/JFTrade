@@ -135,6 +135,46 @@ func TestProductToolRegistryAndOperationSchemasAreCatalogBacked(t *testing.T) {
 	}
 }
 
+func TestResearchMacroMCPDescriptorRequiresIndicatorIDForHistory(t *testing.T) {
+	registry := assistanttestkit.NewToolRegistry()
+	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
+	registered, ok := registry.Get("research.macro")
+	if !ok {
+		t.Fatal("research.macro is not registered")
+	}
+	schema := registered.Descriptor.InputSchema
+	properties, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("research.macro properties = %#v", schema["properties"])
+	}
+	indicatorID, ok := properties["indicatorId"].(map[string]any)
+	if !ok || indicatorID["type"] != "string" || indicatorID["minLength"] != 1 || indicatorID["maxLength"] != 120 {
+		t.Fatalf("research.macro indicatorId schema = %#v", properties["indicatorId"])
+	}
+	condition, ok := schema["if"].(map[string]any)
+	if !ok {
+		t.Fatalf("research.macro if condition = %#v", schema["if"])
+	}
+	conditionProperties, ok := condition["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("research.macro if properties = %#v", condition["properties"])
+	}
+	operation, ok := conditionProperties["operation"].(map[string]any)
+	if !ok || operation["const"] != "indicator_history" {
+		t.Fatalf("research.macro if operation = %#v", conditionProperties["operation"])
+	}
+	if required, ok := condition["required"].([]string); !ok || !slices.Equal(required, []string{"operation"}) {
+		t.Fatalf("research.macro if required = %#v", condition["required"])
+	}
+	then, ok := schema["then"].(map[string]any)
+	if !ok {
+		t.Fatalf("research.macro then condition = %#v", schema["then"])
+	}
+	if required, ok := then["required"].([]string); !ok || !slices.Equal(required, []string{"indicatorId"}) {
+		t.Fatalf("research.macro then required = %#v", then["required"])
+	}
+}
+
 func TestProductReadSchemasRejectInvalidRoutingAndFreeTextFields(t *testing.T) {
 	registry := assistanttestkit.NewToolRegistry()
 	RegisterJFTradeADKTools(nil, registry, ToolDeps{})
