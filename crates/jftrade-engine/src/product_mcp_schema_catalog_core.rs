@@ -222,6 +222,7 @@ fn strategy_pine_spec_schema() -> Value {
                     "expressions",
                     "indicators",
                     "orders",
+                    "support-matrix",
                     "unsupported",
                     "examples",
                 ]),

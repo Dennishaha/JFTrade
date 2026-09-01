@@ -19,4 +19,4 @@ function run(command, args) {
 run("go", ["test", "./scripts/rust-migration", "-run", "^TestStage9PineMCPFixtureMatchesCurrentGoOwner$", "-count=1"]);
 run("cargo", ["test", "-p", "jftrade-strategy", "--test", "pine_mcp_contract", "--", "--nocapture"]);
 run("cargo", ["test", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract", "--", "--nocapture"]);
-console.log("Stage 9 Pine MCP native leaf checks passed; externalEngine/saveHint contract is covered; production MCP wiring remains coordinator-owned and fail-closed.");
+console.log("Stage 9 Pine MCP native leaf parity checks passed; support-matrix, v4.0 score model, externalEngine/saveHint field sets, and validation payload shape are covered; production MCP wiring remains coordinator-owned and fail-closed.");

@@ -9,7 +9,7 @@
         "sourceFormat": "pine-v6",
         "runtime": "pine-pinets",
         "selectedSection": "",
-        "sectionCount": 7,
+        "sectionCount": 8,
         "examplesIncluded": false
       }
     },
@@ -21,7 +21,7 @@
         "sourceFormat": "pine-v6",
         "runtime": "pine-pinets",
         "selectedSection": "examples",
-        "sectionCount": 7,
+        "sectionCount": 8,
         "examplesIncluded": true
       }
     },
