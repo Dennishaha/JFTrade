@@ -712,10 +712,12 @@ pub(crate) fn run_case(case: &BacktestCase) -> Result<BacktestOutput, BacktestEr
         engine.apply_bar_intents(bar_index)?;
         processed_bars += 1;
     }
+    // A partially filled closing order can leave a real position segment closed
+    // while its remainder stays pending at the end of the replay. Finalize every
+    // order here so that segment contributes exactly once to trade statistics,
+    // matching the collector's pending-closing-order flush at run finalization.
     for order_index in 0..engine.orders.len() {
-        if engine.orders[order_index].status.closed() {
-            engine.finalize_closing_order(order_index);
-        }
+        engine.finalize_closing_order(order_index);
     }
     let last_close = case
         .candles
