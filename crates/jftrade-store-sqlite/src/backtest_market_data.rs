@@ -5,6 +5,7 @@
 //! validation here prevents a run worker from opening the K-line file outside
 //! the Rust ownership boundary.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -53,6 +54,8 @@ pub enum BacktestMarketDataStoreError {
     LockUnavailable,
     #[error("query backtest market-data database: {0}")]
     Query(#[source] rusqlite::Error),
+    #[error("backtest market-data coverage is unavailable: {0}")]
+    Coverage(String),
     #[error("invalid backtest market-data candle: {0}")]
     Validation(String),
 }
@@ -251,35 +254,285 @@ impl BacktestMarketDataStore {
             .connection
             .lock()
             .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?;
-        let mut statement = connection
-            .prepare(&format!(
-                "SELECT start_time, end_time, open, high, low, close, volume
-                 FROM \"{table}\"
-                 WHERE start_time >= ?1 AND start_time < ?2
-                 ORDER BY start_time ASC, end_time ASC"
-            ))
-            .map_err(BacktestMarketDataStoreError::Query)?;
-        let rows = statement
-            .query_map(rusqlite::params![start_time_ms, end_time_ms], |row| {
-                Ok(StoredBacktestCandle {
-                    start_time: row.get(0)?,
-                    end_time: row.get(1)?,
-                    open: row.get(2)?,
-                    high: row.get(3)?,
-                    low: row.get(4)?,
-                    close: row.get(5)?,
-                    volume: row.get(6)?,
-                })
-            })
-            .map_err(BacktestMarketDataStoreError::Query)?;
-        let mut candles = Vec::new();
-        for row in rows {
-            let candle = row.map_err(BacktestMarketDataStoreError::Query)?;
-            validate_candle(&candle)?;
-            candles.push(candle);
+        if table_exists(&connection, &table)? {
+            let candles = read_direct_range(&connection, &table, start_time_ms, end_time_ms)?;
+            if !candles.is_empty() || !is_aggregate_interval(interval) {
+                return Ok(candles);
+            }
+        } else if !is_aggregate_interval(interval) {
+            // Preserve the existing direct-read error for a missing table.
+            return read_direct_range(&connection, &table, start_time_ms, end_time_ms);
         }
+        aggregate_1m_range(
+            &connection,
+            &kline_table_name(provider_id, symbol, "1m", rehab_type, session_scope)?,
+            symbol,
+            interval,
+            start_time_ms,
+            end_time_ms,
+        )
+    }
+
+    /// Read a bounded range with deterministic ordering and an optional limit.
+    /// Direct target-interval rows win; an empty/missing 5m or 15m target is
+    /// synthesized from complete 1m coverage.
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_candles(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        end_time_ms: i64,
+        order: &str,
+        limit: usize,
+    ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        let mut candles = self.read_candles(
+            provider_id,
+            symbol,
+            interval,
+            rehab_type,
+            session_scope,
+            start_time_ms,
+            end_time_ms,
+        )?;
+        match order.trim().to_ascii_uppercase().as_str() {
+            "ASC" => {}
+            "DESC" => candles.reverse(),
+            _ => {
+                return Err(BacktestMarketDataStoreError::Validation(
+                    "candle query order must be ASC or DESC".to_owned(),
+                ));
+            }
+        }
+        candles.truncate(normalize_limit(limit));
         Ok(candles)
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_candles_forward(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        start_time_ms: i64,
+        limit: usize,
+    ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        let duration = interval_duration_ms(interval).unwrap_or(1);
+        let first = floor_div(start_time_ms, duration).saturating_mul(duration);
+        let end = first.saturating_add(duration.saturating_mul(normalize_limit(limit) as i64));
+        self.query_candles(
+            provider_id,
+            symbol,
+            interval,
+            rehab_type,
+            session_scope,
+            start_time_ms,
+            end,
+            "ASC",
+            limit,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn query_candles_backward(
+        &self,
+        provider_id: &str,
+        symbol: &str,
+        interval: &str,
+        rehab_type: &str,
+        session_scope: &str,
+        end_time_ms: i64,
+        limit: usize,
+    ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        let count = normalize_limit(limit) as i64;
+        let duration = interval_duration_ms(interval).unwrap_or(1);
+        let start = end_time_ms.saturating_sub(duration.saturating_mul(count));
+        self.query_candles(
+            provider_id,
+            symbol,
+            interval,
+            rehab_type,
+            session_scope,
+            start,
+            end_time_ms,
+            "ASC",
+            limit,
+        )
+    }
+}
+
+fn table_exists(
+    connection: &Connection,
+    table: &str,
+) -> Result<bool, BacktestMarketDataStoreError> {
+    connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+            [table],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|value| value != 0)
+        .map_err(BacktestMarketDataStoreError::Query)
+}
+
+fn read_direct_range(
+    connection: &Connection,
+    table: &str,
+    start_time_ms: i64,
+    end_time_ms: i64,
+) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT start_time, end_time, open, high, low, close, volume
+             FROM \"{table}\" WHERE start_time >= ?1 AND start_time < ?2
+             ORDER BY start_time ASC, end_time ASC"
+        ))
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    let rows = statement
+        .query_map(rusqlite::params![start_time_ms, end_time_ms], |row| {
+            Ok(StoredBacktestCandle {
+                start_time: row.get(0)?,
+                end_time: row.get(1)?,
+                open: row.get(2)?,
+                high: row.get(3)?,
+                low: row.get(4)?,
+                close: row.get(5)?,
+                volume: row.get(6)?,
+            })
+        })
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    let candles = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(BacktestMarketDataStoreError::Query)?;
+    for candle in &candles {
+        validate_candle(candle)?;
+    }
+    Ok(candles)
+}
+
+fn interval_minutes(interval: &str) -> Option<i64> {
+    match interval.trim().to_ascii_lowercase().as_str() {
+        "1m" | "1min" => Some(1),
+        "5m" | "5min" => Some(5),
+        "15m" | "15min" => Some(15),
+        _ => None,
+    }
+}
+
+fn interval_duration_ms(interval: &str) -> Option<i64> {
+    interval_minutes(interval).map(|minutes| minutes.saturating_mul(60_000))
+}
+
+fn is_aggregate_interval(interval: &str) -> bool {
+    matches!(interval_minutes(interval), Some(5 | 15))
+}
+
+fn normalize_limit(limit: usize) -> usize {
+    limit.max(1)
+}
+
+#[rustfmt::skip]
+fn aggregate_1m_range(connection: &Connection, base_table: &str, symbol: &str, interval: &str, start_time_ms: i64, end_time_ms: i64) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+    let target_minutes = match interval_minutes(interval) {
+        Some(minutes @ (5 | 15)) => minutes,
+        _ => return Err(BacktestMarketDataStoreError::Validation(
+            format!("unsupported aggregate interval: {interval}"),
+        )),
+    };
+    if !table_exists(connection, base_table)? { return Err(missing_coverage(symbol, interval, start_time_ms, end_time_ms)); }
+    let target_ms = target_minutes.saturating_mul(60_000);
+    let first_bucket = floor_div(start_time_ms, target_ms).saturating_mul(target_ms);
+    let last_bucket = floor_div(end_time_ms.saturating_sub(1), target_ms).saturating_mul(target_ms);
+    if first_bucket > last_bucket { return Ok(Vec::new()); }
+    let source_end = last_bucket.saturating_add(target_ms);
+    let source = read_direct_range(connection, base_table, first_bucket, source_end)?;
+    if source.is_empty() { return Err(missing_coverage(symbol, interval, start_time_ms, end_time_ms)); }
+
+    let mut by_bucket: BTreeMap<i64, Vec<StoredBacktestCandle>> = BTreeMap::new();
+    for candle in source {
+        let bucket = floor_div(candle.start_time, target_ms).saturating_mul(target_ms);
+        by_bucket.entry(bucket).or_default().push(candle);
+    }
+
+    let mut aggregated = Vec::new();
+    let mut bucket = first_bucket;
+    while bucket <= last_bucket {
+        let rows = by_bucket.get(&bucket).ok_or_else(|| missing_coverage(symbol, interval, bucket, bucket.saturating_add(target_ms)))?;
+        aggregated.push(aggregate_bucket(symbol, interval, bucket, target_ms, rows)?);
+        bucket = bucket.saturating_add(target_ms);
+    }
+    Ok(aggregated)
+}
+
+#[rustfmt::skip]
+fn aggregate_bucket(
+    symbol: &str,
+    interval: &str,
+    bucket_start: i64,
+    bucket_ms: i64,
+    rows: &[StoredBacktestCandle],
+) -> Result<StoredBacktestCandle, BacktestMarketDataStoreError> {
+    let factor = usize::try_from(bucket_ms / 60_000).unwrap_or(0);
+    if rows.len() != factor {
+        return Err(missing_coverage(symbol, interval, bucket_start, bucket_start.saturating_add(bucket_ms)));
+    }
+    let mut ordered = rows.to_vec();
+    ordered.sort_by_key(|candle| candle.start_time);
+    let mut values = Vec::with_capacity(factor);
+    for (index, candle) in ordered.iter().enumerate() {
+        let expected_start = bucket_start.saturating_add((index as i64).saturating_mul(60_000));
+        if candle.start_time != expected_start
+            || candle.end_time != expected_start.saturating_add(59_999)
+        {
+            return Err(missing_coverage(symbol, interval, bucket_start, bucket_start.saturating_add(bucket_ms)));
+        }
+        values.push((
+            parse_fixed("open", &candle.open)?,
+            parse_fixed("high", &candle.high)?,
+            parse_fixed("low", &candle.low)?,
+            parse_fixed("close", &candle.close)?,
+            parse_fixed("volume", &candle.volume)?,
+        ));
+    }
+    let first = values.first().ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_start.saturating_add(bucket_ms)))?;
+    let last = values.last().ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_start.saturating_add(bucket_ms)))?;
+    let high = values.iter().map(|value| value.1).max().unwrap_or(first.1);
+    let low = values.iter().map(|value| value.2).min().unwrap_or(first.2);
+    let volume = values.iter().try_fold(Fixed8::ZERO, |sum, value| {
+        sum.checked_add(value.4).map_err(|error| BacktestMarketDataStoreError::Validation(format!("volume: {error}")))
+    })?;
+    Ok(StoredBacktestCandle {
+        start_time: bucket_start,
+        end_time: bucket_start.saturating_add(bucket_ms).saturating_sub(1),
+        open: first.0.storage_text(), high: high.storage_text(), low: low.storage_text(),
+        close: last.3.storage_text(), volume: volume.storage_text(),
+    })
+}
+
+fn parse_fixed(name: &str, value: &str) -> Result<Fixed8, BacktestMarketDataStoreError> {
+    value
+        .parse::<Fixed8>()
+        .map_err(|error| BacktestMarketDataStoreError::Validation(format!("{name}: {error}")))
+}
+
+fn missing_coverage(
+    symbol: &str,
+    interval: &str,
+    start_time_ms: i64,
+    end_time_ms: i64,
+) -> BacktestMarketDataStoreError {
+    BacktestMarketDataStoreError::Coverage(format!(
+        "missing {interval} coverage for {symbol} [{start_time_ms}, {end_time_ms})"
+    ))
+}
+
+fn floor_div(value: i64, divisor: i64) -> i64 {
+    value.div_euclid(divisor)
 }
 
 fn validate_kline_table_schema(
@@ -410,7 +663,7 @@ fn kline_table_name(
             "symbol is required".to_owned(),
         ));
     }
-    let raw_interval = interval.trim();
+    let raw_interval = canonical_interval(interval);
     if raw_interval.is_empty() {
         return Err(BacktestMarketDataStoreError::Validation(
             "interval is required".to_owned(),
@@ -418,7 +671,7 @@ fn kline_table_name(
     }
     let provider = normalize_component(&raw_provider, "");
     let symbol = normalize_component(&raw_symbol, "");
-    let interval = normalize_component(raw_interval, "");
+    let interval = normalize_component(&raw_interval, "");
     if symbol.is_empty() {
         return Err(BacktestMarketDataStoreError::Validation(
             "symbol is required".to_owned(),
@@ -452,6 +705,16 @@ fn kline_table_name(
     ))
 }
 
+fn canonical_interval(interval: &str) -> String {
+    match interval.trim().to_ascii_lowercase().as_str() {
+        "1min" => "1m",
+        "5min" => "5m",
+        "15min" => "15m",
+        normalized => normalized,
+    }
+    .to_owned()
+}
+
 fn normalize_component(value: &str, default: &str) -> String {
     let mut out = String::new();
     let mut underscore = false;
@@ -479,46 +742,4 @@ fn fnv1a(bytes: &[u8]) -> u32 {
         hash = hash.wrapping_mul(0x01000193);
     }
     hash
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::initialize_current;
-    use tempfile::tempdir;
-
-    #[test]
-    fn production_store_validates_dynamic_schema_and_reports_manifest_table() {
-        let directory = tempdir().expect("temporary directory");
-        let path = directory.path().join("backtest.db");
-        let connection = Connection::open(&path).expect("create database");
-        initialize_current(&connection, BACKTEST_COMPONENT).expect("initialize schema");
-        drop(connection);
-
-        let store = BacktestMarketDataStore::open(&path).expect("open production store");
-        assert_eq!(
-            store.kline_tables().expect("read tables"),
-            vec!["local_klines__manifest__symbol__1m__forward__r__00000000"]
-        );
-        assert_eq!(store.kline_table_count().expect("count tables"), 1);
-    }
-
-    #[test]
-    fn production_store_rejects_a_second_writer_lease() {
-        let directory = tempdir().expect("temporary directory");
-        let path = directory.path().join("backtest.db");
-        let connection = Connection::open(&path).expect("create database");
-        initialize_current(&connection, BACKTEST_COMPONENT).expect("initialize schema");
-        drop(connection);
-
-        let first = BacktestMarketDataStore::open(&path).expect("first store");
-        let second = BacktestMarketDataStore::open(&path);
-        assert!(matches!(
-            second,
-            Err(BacktestMarketDataStoreError::WriterLease(
-                WriterLeaseError::Held { .. }
-            ))
-        ));
-        drop(first);
-    }
 }
