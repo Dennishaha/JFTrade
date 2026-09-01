@@ -1,4 +1,7 @@
-use crate::{CalendarManager, CalendarManagerError, manager_policy::market_day_start};
+use crate::{
+    CalendarManager, CalendarManagerError, manager_calendar::market_timezone,
+    manager_policy::market_day_start,
+};
 use jftrade_kernel::WireTimestamp;
 use jiff::{Timestamp, tz::TimeZone};
 
@@ -34,14 +37,5 @@ impl CalendarManager {
             .iter()
             .find(|window| (window.start_minute..window.end_minute).contains(&minute))
             .map(|window| window.kind.clone()))
-    }
-}
-
-fn market_timezone(market: &str) -> Option<&'static str> {
-    match market {
-        "US" => Some("America/New_York"),
-        "HK" => Some("Asia/Hong_Kong"),
-        "CN" | "SH" | "SZ" => Some("Asia/Shanghai"),
-        _ => None,
     }
 }

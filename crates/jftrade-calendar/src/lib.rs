@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod manager;
+mod manager_calendar;
 mod manager_policy;
 mod manager_probe;
 mod manager_projection;

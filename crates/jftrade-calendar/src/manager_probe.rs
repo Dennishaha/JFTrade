@@ -1,9 +1,7 @@
 use std::time::Duration as StdDuration;
 
-use crate::manager::{
-    fetch_window_for_market, normalize_market, normalized_markets, policy_for_market,
-    supported_market, wire_text,
-};
+use crate::manager::{normalize_market, normalized_markets, policy_for_market, supported_market};
+use crate::manager_calendar::{fetch_window_for_market, wire_text};
 use crate::{
     CalendarManager, CalendarManagerError, CalendarProbeItem, CalendarProbeResult,
     CalendarSourceRuntimeStatus,

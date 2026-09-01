@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::manager::{
-    normalize_market, normalized_markets, policy_for_market, policy_source_ids, wire_text,
-};
+use crate::manager::{normalize_market, normalized_markets, policy_for_market, policy_source_ids};
+use crate::manager_calendar::{snapshot_fresh, wire_text};
 use crate::{
     BUILTIN_SOURCE_ID, CalendarManager, CalendarManagerError, CalendarMarketStatus,
     CalendarSampleSchedule, CalendarSampleSession, CalendarSnapshot, CalendarSnapshotSummary,
@@ -162,7 +161,7 @@ fn market_status<'a>(
             let now = manager.inner.now();
             snapshot.from.into_inner() <= now
                 && snapshot.to.into_inner() >= now
-                && crate::manager::snapshot_fresh(snapshot, &policy, now)
+                && snapshot_fresh(snapshot, &policy, now)
         });
     let (source, mode) = match schedule.as_ref().map(|value| value.source_id.as_str()) {
         Some(MANUAL_OVERRIDE_SOURCE_ID) => {
