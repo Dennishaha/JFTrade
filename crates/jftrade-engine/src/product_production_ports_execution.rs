@@ -52,6 +52,11 @@ pub(crate) struct ProductionBacktestPort {
     pub(crate) backtest_market_data_provider_state: Arc<BacktestMarketDataProviderState>,
     pub(crate) sync_workers: Arc<BacktestSyncWorkerRegistry>,
     pub(crate) execution: Option<Arc<dyn BacktestExecutionPort>>,
+    /// Shared readiness for the Pine worker that backs production execution.
+    /// The execution adapter also checks this state at task time; keeping it
+    /// on the write port lets BacktestStart fail closed before persisting or
+    /// queueing a run when the worker has gone unhealthy.
+    pub(crate) pine_readiness: Option<Arc<jftrade_integration_pine::PineReadinessState>>,
     pub(crate) execution_workers: Arc<BacktestExecutionTaskRegistry>,
     pub(crate) strategy_definitions: Arc<StrategyDefinitionStore>,
 }

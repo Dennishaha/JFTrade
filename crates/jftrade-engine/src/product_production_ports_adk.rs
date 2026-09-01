@@ -65,6 +65,7 @@ pub(crate) struct ProductionToolCatalog {
     active_provider_state: Option<Arc<ActiveProviderState>>,
     trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     backtest_execution_ready: bool,
+    pine_readiness: Option<Arc<jftrade_integration_pine::PineReadinessState>>,
 }
 
 impl ProductionToolCatalog {
@@ -101,9 +102,17 @@ impl ProductionToolCatalog {
     ) -> Result<Self, String> {
         let mut tools = Vec::with_capacity(PRODUCTION_TOOL_DEFINITIONS.len());
         for definition in PRODUCTION_TOOL_DEFINITIONS {
-            let binding = match definition.research_operation {
-                Some(operation) => research_bindings.get(operation).copied(),
-                None => bindings.get(&definition.adapter).copied(),
+            let binding = if definition.id == "strategy.validate_pine" {
+                // Pine validation is implemented by the reviewed native Rust
+                // subset and does not call the managed PineTS worker.  Keep it
+                // callable even when the worker-backed analysis/backtest
+                // adapter is unavailable.
+                Some(ProductionAdapterBinding::Ready)
+            } else {
+                match definition.research_operation {
+                    Some(operation) => research_bindings.get(operation).copied(),
+                    None => bindings.get(&definition.adapter).copied(),
+                }
             };
             let Some(binding) = binding else {
                 return Err(format!(
@@ -140,6 +149,7 @@ impl ProductionToolCatalog {
             active_provider_state: None,
             trade_runtime: None,
             backtest_execution_ready: false,
+            pine_readiness: None,
         })
     }
 
@@ -177,6 +187,14 @@ impl ProductionToolCatalog {
     /// worker that passed its real startup probe.
     pub(crate) fn with_backtest_execution_ready(mut self, ready: bool) -> Self {
         self.backtest_execution_ready = ready;
+        self
+    }
+
+    pub(crate) fn with_pine_readiness(
+        mut self,
+        readiness: Option<Arc<jftrade_integration_pine::PineReadinessState>>,
+    ) -> Self {
+        self.pine_readiness = readiness;
         self
     }
 
@@ -281,6 +299,12 @@ impl ProductionToolCatalog {
         definition: &ProductionToolDefinition,
         snapshot: &crate::product::product_active_provider_state::ProviderRuntimeSnapshot,
     ) -> ProductionAdapterBinding {
+        if definition.id == "strategy.validate_pine" {
+            // This tool compiles and validates the supported Pine subset
+            // entirely in-process.  Its readiness is intentionally independent
+            // of the external PineTS execution worker.
+            return ProductionAdapterBinding::Ready;
+        }
         if let Some(operation) = definition.research_operation {
             return self.research_binding_for(operation, snapshot);
         }
@@ -290,7 +314,7 @@ impl ProductionToolCatalog {
             // updating the binding table.
             return ProductionAdapterBinding::ExternalUnavailable;
         };
-        if definition.adapter == ProductionRouteAdapter::BacktestStart {
+        if definition.id == "strategy.research_backtest" {
             // Backtests consume the verified PineTS worker and local candle
             // store.  Live helper/OpenD/router availability is checked only
             // by other market-data routes; an empty local range is mapped by
@@ -298,7 +322,12 @@ impl ProductionToolCatalog {
             // The backtest provider is persisted independently from the live
             // quote provider, so a missing live-provider selection must not
             // hide an otherwise verified execution worker.
-            return if self.backtest_execution_ready {
+            return if self.backtest_execution_ready
+                && self
+                    .pine_readiness
+                    .as_ref()
+                    .is_some_and(|readiness| readiness.is_ready())
+            {
                 ProductionAdapterBinding::Ready
             } else {
                 ProductionAdapterBinding::ExternalUnavailable

@@ -5,6 +5,16 @@ use super::*;
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
+    if config.product.is_production() && config.pine_workers.len() > 1 {
+        // Production execution currently binds the first healthy Pine worker
+        // to both backtests and strategy analysis.  Until routing and
+        // failover are implemented, reject extra workers before any process,
+        // provider, or database resource is started instead of leaving them
+        // silently unmanaged.
+        return Err(ProductRuntimeError::PineWorkerFailoverUnsupported {
+            configured: config.pine_workers.len(),
+        });
+    }
     // A production caller cannot smuggle a fixture/embedding execution port
     // into the API.  Backtest execution is bound below only after a real Pine
     // worker passes its readiness probe; without one the route remains
@@ -526,10 +536,12 @@ pub async fn start_product_runtime(
         );
         let result = start_pine_worker(worker).await;
         match result {
-            Ok((process, _health)) => {
+            Ok((process, _health, monitor)) => {
+                let readiness = monitor.state();
                 supervisor.pine_workers.push(process);
+                supervisor.pine_health_monitors.push(monitor);
                 if healthy_pine_execution_config.is_none() {
-                    healthy_pine_execution_config = Some(execution_config);
+                    healthy_pine_execution_config = Some((execution_config, readiness));
                 }
             }
             Err(error) => {
@@ -548,8 +560,10 @@ pub async fn start_product_runtime(
     // worker that passed the real gRPC readiness probe.  No worker means no
     // execution port, preserving the HTTP layer's 503 fail-closed result.
     if config.backtest_execution_port.is_none()
-        && let Some((spec, bearer_token, max_message_bytes, connect_timeout, request_timeout)) =
-            healthy_pine_execution_config
+        && let Some((
+            (spec, bearer_token, max_message_bytes, connect_timeout, request_timeout),
+            readiness,
+        )) = healthy_pine_execution_config
     {
         let mut execution =
             PineExecutionConfig::for_worker(&spec, bearer_token, connect_timeout, request_timeout);
@@ -558,7 +572,7 @@ pub async fn start_product_runtime(
         }
         match GrpcPineExecutionPort::new(execution) {
             Ok(port) => {
-                let port = Arc::new(port);
+                let port = Arc::new(port.with_readiness(readiness));
                 // The same verified gRPC client backs both backtest execution
                 // and the strategy-pine AnalyzeScript route.  Keeping one
                 // client per worker avoids a second unprobed endpoint.

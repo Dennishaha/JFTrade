@@ -193,3 +193,37 @@ fn tool_catalog_reprojects_provider_readiness_after_activation() {
     assert!(allowed_modes("research.news").is_empty());
     assert!(allowed_modes("research.screen").is_empty());
 }
+
+#[test]
+fn native_pine_validation_remains_callable_when_worker_is_unhealthy() {
+    let mut bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    bindings.insert(
+        ProductionRouteAdapter::StrategyPine,
+        ProductionAdapterBinding::ExternalUnavailable,
+    );
+    let provider_state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    let pine_readiness = jftrade_integration_pine::PineReadinessState::new("pineworker-1");
+    let catalog = ProductionToolCatalog::from_bindings(&bindings)
+        .expect("complete bindings")
+        .with_active_provider_state(provider_state)
+        .with_backtest_execution_ready(true)
+        .with_pine_readiness(Some(pine_readiness));
+
+    let callable_ids = catalog
+        .callable_tools()
+        .into_iter()
+        .filter_map(|tool| tool["id"].as_str().map(str::to_owned))
+        .collect::<Vec<_>>();
+
+    assert!(callable_ids.iter().any(|id| id == "strategy.validate_pine"));
+    assert!(
+        !callable_ids
+            .iter()
+            .any(|id| id == "strategy.research_backtest")
+    );
+}

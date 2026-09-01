@@ -12,9 +12,11 @@ use jftrade_integration_futu::{
 };
 use jftrade_marketdata::{InstrumentRef, ProviderReadiness, ProviderRouter};
 use tempfile::tempdir;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream as AsyncTcpStream;
 
 use super::*;
-use crate::product::product_production_ports;
+use crate::product::product_production_ports::{self, ProductionAdapterBinding};
 use crate::product_data_management;
 
 #[tokio::test]
@@ -57,6 +59,39 @@ async fn product_runtime_without_optional_workers_starts_and_stops_cleanly() {
             .all(|resource| resource.kind == "sqlite")
     );
     runtime.shutdown().await.expect("shutdown");
+}
+
+#[tokio::test]
+async fn production_runtime_rejects_multiple_pine_workers_without_failover() {
+    let directory = tempdir().expect("temporary directory");
+    let product = ProductConfig::desktop_production(
+        "127.0.0.1:0".parse().expect("product address"),
+        directory.path().join("settings.json"),
+        "a".repeat(32),
+    )
+    .expect("product config");
+    let retained = DesktopRetainedRuntimeConfig {
+        pine: Some(DesktopPineRuntimeConfig {
+            runtime_path: std::path::PathBuf::from("/unused/node"),
+            bundle_path: std::path::PathBuf::from("/unused/worker.mjs"),
+            proto_path: std::path::PathBuf::from("/unused/pine.proto"),
+            bearer_token: "b".repeat(32),
+            worker_count: 2,
+            log_path: None,
+        }),
+        marketdata: None,
+    };
+    let config = ProductRuntimeConfig::desktop(product, retained).expect("runtime config");
+
+    let result = start_product_runtime(config).await;
+    let Err(error) = result else {
+        panic!("production startup must reject unsupported Pine worker failover");
+    };
+    assert!(matches!(
+        &error,
+        ProductRuntimeError::PineWorkerFailoverUnsupported { configured: 2 }
+    ));
+    assert!(error.to_string().contains("failover"));
 }
 
 #[tokio::test]
@@ -435,6 +470,45 @@ fn assert_all_9_databases_can_acquire_writer_leases(settings_path: &std::path::P
     }
 }
 
+async fn request_json_with_status(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+    headers: &[(&str, &str)],
+) -> (u16, serde_json::Value) {
+    let body = body.unwrap_or_default();
+    let mut stream = AsyncTcpStream::connect(address)
+        .await
+        .expect("connect product API");
+    let extra_headers = headers
+        .iter()
+        .map(|(name, value)| format!("{name}: {value}\r\n"))
+        .collect::<String>();
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("write product request");
+    let mut response = Vec::new();
+    stream
+        .read_to_end(&mut response)
+        .await
+        .expect("read product response");
+    let response = String::from_utf8(response).expect("UTF-8 product response");
+    let (headers, body) = response.split_once("\r\n\r\n").expect("HTTP body");
+    let status = headers
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|value| value.parse().ok())
+        .expect("HTTP status");
+    (status, serde_json::from_str(body).expect("JSON response"))
+}
+
 /// External fixtures backing one composed runtime: real mock servers plus the
 /// controllable helper health flag and the mock PineTS worker gRPC server.
 struct TestRuntimeServers {
@@ -799,6 +873,230 @@ async fn test_helper_health_failure_dynamically_downgrades_provider_readiness() 
     assert!(monitor.snapshot().last_error.is_none());
 
     handle.shutdown().await.expect("shutdown");
+}
+
+/// The Pine health monitor is the shared production readiness source: a real
+/// failed HealthCheck downgrades both Pine-backed route bindings and the
+/// execution port, while a later healthy probe restores them.  Stopping the
+/// runtime then joins the monitor before tearing down the worker process.
+#[tokio::test]
+async fn pine_worker_health_failure_recovers_and_shutdown_joins_monitor() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let recorder = ShutdownEventRecorder::new();
+    let (config, servers) =
+        build_test_runtime_config(&temp_dir, recorder.clone(), None, false).await;
+
+    let handle = start_product_runtime(config)
+        .await
+        .expect("start product runtime");
+    let state = handle
+        .supervisor
+        .production_ports
+        .as_ref()
+        .and_then(|ports| ports.pine_readiness.clone())
+        .expect("shared Pine readiness state");
+    let ports = handle
+        .supervisor
+        .production_ports
+        .as_ref()
+        .expect("production ports");
+    let backtest = product_production_ports::ProductionRouteAdapter::BacktestStart;
+    let strategy_pine = product_production_ports::ProductionRouteAdapter::StrategyPine;
+
+    assert!(state.is_ready(), "startup probe must seed readiness");
+    assert_eq!(handle.backtest_execution_ready(), Some(true));
+    assert_eq!(
+        ports.adapter_binding(backtest),
+        Some(ProductionAdapterBinding::Ready)
+    );
+    assert_eq!(
+        ports.adapter_binding(strategy_pine),
+        Some(ProductionAdapterBinding::Ready)
+    );
+
+    let token = "a".repeat(32);
+    let auth_headers = [("Authorization", format!("Bearer {token}"))];
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "system status response: {response}");
+    assert!(
+        response["data"]["observability"].get("workers").is_none(),
+        "system status must preserve the Go-compatible observability shape: {response}"
+    );
+
+    // HealthCheck remains reachable but returns ok=false, matching a worker
+    // that is alive yet cannot execute Pine requests.
+    servers._pine_mock.set_ok(false);
+    for _ in 0..100 {
+        if !state.is_ready() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(!state.is_ready(), "failed HealthCheck must clear readiness");
+    assert_eq!(handle.backtest_execution_ready(), Some(false));
+    assert_eq!(
+        ports.adapter_binding(backtest),
+        Some(ProductionAdapterBinding::ExternalUnavailable)
+    );
+    assert_eq!(
+        ports.adapter_binding(strategy_pine),
+        Some(ProductionAdapterBinding::ExternalUnavailable)
+    );
+
+    // The public routes stay registered while the shared worker is down, but
+    // both execution surfaces fail closed before invoking or persisting work.
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "degraded system status response: {response}");
+    assert!(
+        response["data"]["observability"].get("workers").is_none(),
+        "degraded system status must preserve the Go-compatible observability shape: {response}"
+    );
+
+    let strategy_body = r#"{"script":"//@version=6\nindicator(\"unavailable\")"}"#;
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/strategy-pine/analyze",
+        Some(strategy_body),
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 503, "strategy-pine response: {response}");
+    assert_eq!(
+        response["error"]["code"],
+        "STRATEGY_PINE_ANALYZE_UNAVAILABLE"
+    );
+
+    let backtest_validation_cases = [
+        ("malformed json", "{", 400, "BAD_REQUEST"),
+        ("missing definition", "{}", 400, "BAD_REQUEST"),
+        (
+            "invalid interval",
+            r#"{"definitionId":"inline","strategyScript":"//@version=6\nindicator(\"unavailable\")","symbol":"US.AAPL","interval":"2m","startTime":"2026-08-01T00:00:00Z","endTime":"2026-08-02T00:00:00Z"}"#,
+            400,
+            "BAD_REQUEST",
+        ),
+        (
+            "missing definition resource",
+            r#"{"definitionId":"missing","market":"US","symbol":"US.AAPL","startTime":"2026-08-01T00:00:00Z","endTime":"2026-08-02T00:00:00Z"}"#,
+            404,
+            "NOT_FOUND",
+        ),
+        (
+            "definition version conflict",
+            r#"{"definitionId":"missing","definitionVersion":"v1","version":"v2"}"#,
+            409,
+            "CONFLICT",
+        ),
+    ];
+    for (name, body, expected_status, expected_code) in backtest_validation_cases {
+        let (status, response) = request_json_with_status(
+            handle.startup_record().address,
+            "POST",
+            "/api/v1/backtests",
+            Some(body),
+            &[("Authorization", auth_headers[0].1.as_str())],
+        )
+        .await;
+        assert_eq!(
+            status, expected_status,
+            "backtest {name} response: {response}"
+        );
+        assert_eq!(
+            response["error"]["code"], expected_code,
+            "backtest {name} response: {response}"
+        );
+    }
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/backtests",
+        None,
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "backtest list response: {response}");
+    assert!(
+        response["runs"].is_null(),
+        "unhealthy BacktestStart must not persist or queue a run: {response}"
+    );
+    assert!(
+        !ports
+            .mcp_catalog
+            .callable_tools()
+            .iter()
+            .any(|tool| tool["id"] == "strategy.research_backtest"),
+        "ADK catalog must hide Pine-backed backtest while worker is unhealthy"
+    );
+
+    // A recovered HealthCheck republishes ready evidence without recreating a
+    // process or changing the immutable route catalog.
+    servers._pine_mock.set_ok(true);
+    for _ in 0..100 {
+        if state.is_ready() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(state.is_ready(), "healthy probe must restore readiness");
+    assert_eq!(
+        ports.adapter_binding(backtest),
+        Some(ProductionAdapterBinding::Ready)
+    );
+    assert_eq!(
+        ports.adapter_binding(strategy_pine),
+        Some(ProductionAdapterBinding::Ready)
+    );
+    assert!(
+        ports
+            .mcp_catalog
+            .callable_tools()
+            .iter()
+            .any(|tool| tool["id"] == "strategy.research_backtest"),
+        "ADK catalog must restore Pine-backed backtest after recovery"
+    );
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "GET",
+        "/api/v1/system/status",
+        None,
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 200, "recovered system status response: {response}");
+    assert!(
+        response["data"]["observability"].get("workers").is_none(),
+        "recovered system status must preserve the Go-compatible observability shape: {response}"
+    );
+    // The readiness gate is no longer the reason for rejection after
+    // recovery; malformed input reaches the normal backtest validation path.
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/backtests",
+        Some("{}"),
+        &[("Authorization", auth_headers[0].1.as_str())],
+    )
+    .await;
+    assert_eq!(status, 400, "recovered backtest validation: {response}");
+    assert_eq!(response["error"]["code"], "BAD_REQUEST");
+
+    handle.shutdown().await.expect("shutdown product runtime");
+    assert!(!state.is_ready(), "shutdown must clear shared readiness");
 }
 
 #[tokio::test]

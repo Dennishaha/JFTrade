@@ -408,6 +408,10 @@ pub enum ProductRuntimeError {
     HelperProcess(#[from] ProcessError),
     #[error("desktop PineTS worker count must be greater than zero")]
     InvalidWorkerCount,
+    #[error(
+        "production runtime does not support PineTS worker failover; configured {configured} workers (maximum 1)"
+    )]
+    PineWorkerFailoverUnsupported { configured: usize },
     #[error("market-data router and OpenD session cannot share one runtime owner")]
     ConflictingMarketDataOwners,
     #[error("OpenD runtime task requires an explicitly composed OpenD session")]

@@ -378,6 +378,7 @@ mod tests {
             active_provider_state: None,
             trade_runtime: None,
             backtest_execution_ready: false,
+            pine_readiness: None,
         };
         let port = ProductionAdkPort {
             store: Arc::new(AdkStore::open(&adk_path).expect("open adk store")),

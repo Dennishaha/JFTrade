@@ -8,6 +8,7 @@ mod execution;
 mod mock_worker;
 mod pool;
 mod process;
+mod readiness;
 
 pub use asset::{PineBundle, PineBundleError};
 pub use backtest::{
@@ -26,4 +27,7 @@ pub use pool::{
 pub use process::{
     GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
     PineReadinessProbe, WorkerProcessSpec,
+};
+pub use readiness::{
+    DEFAULT_PINE_HEALTH_INTERVAL, PineReadinessMonitor, PineReadinessSnapshot, PineReadinessState,
 };

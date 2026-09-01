@@ -12,7 +12,7 @@ use jftrade_integration_futu::{
     OpenDProviderRuntime, OpenDSessionCoordinator, OpenDSessionRuntime,
 };
 use jftrade_integration_marketdata_helper::HelperProcess;
-use jftrade_integration_pine::PineProcess;
+use jftrade_integration_pine::{PineProcess, PineReadinessMonitor};
 use std::sync::{Arc, Mutex};
 
 use super::ProductRuntimeError;
@@ -58,6 +58,7 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) marketdata_helper: Option<Arc<Mutex<Option<HelperProcess>>>>,
     pub(crate) helper_health: Option<Arc<super::HelperHealthMonitor>>,
     pub(crate) pine_workers: Vec<PineProcess>,
+    pub(crate) pine_health_monitors: Vec<Arc<PineReadinessMonitor>>,
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) backtest_sync_workers: Option<Arc<BacktestSyncWorkerRegistry>>,
     pub(crate) backtest_execution_workers: Option<Arc<BacktestExecutionTaskRegistry>>,
@@ -93,6 +94,7 @@ impl ProductShutdownSupervisor {
             marketdata_helper: None,
             helper_health: None,
             pine_workers: Vec::new(),
+            pine_health_monitors: Vec::new(),
             production_ports: None,
             backtest_sync_workers: None,
             backtest_execution_workers: None,
@@ -112,6 +114,7 @@ impl ProductShutdownSupervisor {
                 .as_ref()
                 .is_some_and(|h| h.lock().is_ok_and(|g| g.is_some()))
             || !self.pine_workers.is_empty()
+            || !self.pine_health_monitors.is_empty()
             || self.backtest_sync_workers.is_some()
             || self.backtest_execution_workers.is_some()
             || self.execution_reconciliation_worker.is_some()
@@ -208,7 +211,13 @@ impl ProductShutdownSupervisor {
             }
             self.recorder.record("marketdata_helper");
         }
-        // 7. Stop Pine workers
+        // 7. Stop Pine health monitors before the process handles.  The
+        // monitor owns a real join handle; awaiting it here prevents a late
+        // probe from publishing readiness after the worker has been torn down.
+        while let Some(monitor) = self.pine_health_monitors.pop() {
+            monitor.shutdown().await;
+        }
+        // 8. Stop Pine workers
         let had_pine = !self.pine_workers.is_empty();
         while let Some(worker) = self.pine_workers.pop() {
             if let Err(error) = worker.stop().await {
@@ -218,7 +227,7 @@ impl ProductShutdownSupervisor {
         if had_pine {
             self.recorder.record("pine_worker");
         }
-        // 8. Release SQLite stores & 9 WriterLease locks last
+        // 9. Release SQLite stores & 10 WriterLease locks last
         if self.production_ports.is_some() {
             drop(self.production_ports.take());
             self.recorder.record("sqlite_lease");
@@ -306,7 +315,10 @@ impl ProductShutdownSupervisor {
             helper.terminate();
             self.recorder.record("marketdata_helper");
         }
-        // 6. Terminate Pine workers
+        // 6. Terminate Pine health monitors and workers
+        while let Some(monitor) = self.pine_health_monitors.pop() {
+            monitor.terminate();
+        }
         let had_pine = !self.pine_workers.is_empty();
         while let Some(mut worker) = self.pine_workers.pop() {
             worker.terminate();

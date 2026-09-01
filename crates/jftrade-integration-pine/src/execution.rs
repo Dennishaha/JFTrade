@@ -5,12 +5,15 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::time::timeout;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Endpoint;
 use tonic::{Request, Status};
+
+use crate::PineReadinessState;
 mod wire {
     tonic::include_proto!("jftrade.strategy.pineworker.v1");
 }
@@ -310,6 +313,7 @@ pub struct GrpcPineExecutionPort {
     endpoint_uri: String,
     endpoint: Endpoint,
     bearer_token: Option<String>,
+    readiness: Option<Arc<PineReadinessState>>,
     request_timeout: Duration,
     max_message_bytes: usize,
     max_source_bytes: usize,
@@ -341,6 +345,7 @@ impl GrpcPineExecutionPort {
             endpoint_uri: config.endpoint.trim().to_owned(),
             endpoint,
             bearer_token,
+            readiness: None,
             request_timeout: config.request_timeout,
             max_message_bytes: config.max_message_bytes,
             max_source_bytes: config.max_source_bytes,
@@ -351,7 +356,35 @@ impl GrpcPineExecutionPort {
     pub fn endpoint(&self) -> &str {
         &self.endpoint_uri
     }
+
+    /// Attach the shared readiness evidence for the process that backs this
+    /// client.  Ports created by fixtures without a monitor retain the
+    /// historical behavior; production composition always attaches the state
+    /// only after a real startup probe succeeds.
+    pub fn with_readiness(mut self, readiness: Arc<PineReadinessState>) -> Self {
+        self.readiness = Some(readiness);
+        self
+    }
+
+    pub fn readiness(&self) -> Option<Arc<PineReadinessState>> {
+        self.readiness.clone()
+    }
+
+    fn ensure_ready(&self) -> Result<(), PineExecutionError> {
+        let Some(readiness) = self.readiness.as_ref() else {
+            return Ok(());
+        };
+        if readiness.is_ready() {
+            Ok(())
+        } else {
+            Err(PineExecutionError::Unavailable(
+                readiness.unavailable_message(),
+            ))
+        }
+    }
+
     pub async fn run(&self, request: PineRunRequest) -> Result<PineRunResult, PineExecutionError> {
+        self.ensure_ready()?;
         timeout(self.request_timeout, self.run_inner(request))
             .await
             .map_err(|_| PineExecutionError::Timeout)?
@@ -376,6 +409,7 @@ impl GrpcPineExecutionPort {
         source: &str,
         include_ast: bool,
     ) -> Result<serde_json::Value, PineExecutionError> {
+        self.ensure_ready()?;
         let job_id = job_id.trim();
         let script_id = script_id.trim();
         if job_id.is_empty() || script_id.is_empty() {

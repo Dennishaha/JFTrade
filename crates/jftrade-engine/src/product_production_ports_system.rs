@@ -36,6 +36,7 @@ pub(crate) struct ProductionSystemPort {
     pub(crate) settings: Arc<SettingsFileStore>,
     pub(crate) opend_status: ProductionRuntimeStatus,
     pub(crate) worker_status: ProductionRuntimeStatus,
+    pub(crate) pine_readiness: Option<Arc<jftrade_integration_pine::PineReadinessState>>,
     pub(crate) execution_reconciliation_worker: Option<Arc<ExecutionReconciliationWorker>>,
     pub(crate) database_leases:
         crate::product::product_production_ports::ProductionDatabaseLeaseSnapshot,
@@ -70,6 +71,14 @@ impl ProductionSystemPort {
     /// observed while starting helper/Pine workers; "healthy" is only
     /// reported when every configured worker actually reached readiness.
     fn workers_evidence(&self) -> &'static str {
+        if self.worker_status == ProductionRuntimeStatus::Ready
+            && self
+                .pine_readiness
+                .as_ref()
+                .is_some_and(|readiness| !readiness.is_ready())
+        {
+            return "degraded";
+        }
         match self.worker_status {
             ProductionRuntimeStatus::Ready => "healthy",
             ProductionRuntimeStatus::Degraded | ProductionRuntimeStatus::Failed => "degraded",

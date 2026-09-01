@@ -157,6 +157,7 @@ fn production_port() -> (ProductionBacktestPort, tempfile::TempDir) {
             ),
             sync_workers: std::sync::Arc::new(BacktestSyncWorkerRegistry::default()),
             execution: None,
+            pine_readiness: None,
             execution_workers: std::sync::Arc::new(BacktestExecutionTaskRegistry::default()),
             strategy_definitions,
         },

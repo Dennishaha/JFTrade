@@ -113,7 +113,7 @@ pub(crate) use product_production_calendar::{
 };
 use crate::product::ProductError;
 use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
-use crate::product::product_production_route_registry::ProductionRouteAdapter;
+pub(crate) use crate::product::product_production_route_registry::ProductionRouteAdapter;
 
 pub(crate) fn production_ports(
     config: &ProductConfig,
@@ -374,6 +374,10 @@ pub(crate) fn production_ports(
     let backtest_execution_workers = Arc::new(BacktestExecutionTaskRegistry::default());
     let backtest_store_for_storage = Arc::clone(&backtest_store);
     let backtest_sync_tasks_for_storage = Arc::clone(&backtest_sync_tasks);
+    let pine_readiness = config
+        .strategy_pine_worker_port
+        .as_ref()
+        .and_then(|worker| worker.readiness());
     let backtest_port = Arc::new(ProductionBacktestPort {
         store: backtest_store,
         sync_tasks: backtest_sync_tasks,
@@ -383,6 +387,7 @@ pub(crate) fn production_ports(
         backtest_market_data_provider_state: Arc::clone(&backtest_market_data_provider_state),
         sync_workers: Arc::clone(&backtest_sync_workers),
         execution: config.backtest_execution_port.clone(),
+        pine_readiness: pine_readiness.clone(),
         execution_workers: Arc::clone(&backtest_execution_workers),
         strategy_definitions: Arc::clone(&strategy_def_store),
     });
@@ -531,7 +536,8 @@ pub(crate) fn production_ports(
         .with_trade_runtime(config.trade_runtime.clone())
         .with_backtest_execution_ready(
             config.backtest_execution_port_verified && config.backtest_execution_port.is_some(),
-        ),
+        )
+        .with_pine_readiness(pine_readiness.clone()),
     );
     let cancellation_registry = Arc::new(RunCancellationRegistry::default());
     let adk_chat_runtime = Arc::new(ProductionAdkChatRuntime::new(
@@ -676,6 +682,7 @@ pub(crate) fn production_ports(
         provider_status: config.provider_runtime_status.as_str(),
         opend_status: config.opend_runtime_status.as_str(),
         worker_status: config.worker_runtime_status.as_str(),
+        pine_readiness: pine_readiness.clone(),
         calendar_manager,
         auth_session: auth_session_mgr.clone(),
         auth_session_write: auth_session_mgr.clone(),
@@ -720,6 +727,7 @@ pub(crate) fn production_ports(
             settings: market_data_settings.clone(),
             opend_status: config.opend_runtime_status,
             worker_status: config.worker_runtime_status,
+            pine_readiness: pine_readiness.clone(),
             execution_reconciliation_worker: execution_reconciliation_worker.clone(),
             database_leases: database_leases.clone(),
             backtest_store: backtest_store_for_storage,

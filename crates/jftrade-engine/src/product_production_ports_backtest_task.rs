@@ -80,11 +80,6 @@ impl ProductionBacktestPort {
         &self,
         payload: &Value,
     ) -> Result<BacktestsWritePortResult, BacktestsWritePortError> {
-        let execution = self.execution.clone().ok_or_else(|| {
-            BacktestsWritePortError::Unavailable(
-                "backtest worker runtime is not configured".to_owned(),
-            )
-        })?;
         let execution_payload = resolve_strategy_payload(payload, &self.strategy_definitions)?;
         let provider_id = if let Some(provider_id) = requested_provider(payload)? {
             provider_id
@@ -93,6 +88,18 @@ impl ProductionBacktestPort {
         };
         let request = parse_start_request(&execution_payload)?;
         let execution_payload = with_execution_model(&execution_payload, &request.execution_model)?;
+        if let Some(readiness) = self.pine_readiness.as_ref()
+            && !readiness.is_ready()
+        {
+            return Err(BacktestsWritePortError::Unavailable(
+                readiness.unavailable_message(),
+            ));
+        }
+        let execution = self.execution.clone().ok_or_else(|| {
+            BacktestsWritePortError::Unavailable(
+                "backtest worker runtime is not configured".to_owned(),
+            )
+        })?;
         let persisted_payload = with_execution_model(payload, &request.execution_model)?;
         let candles = self
             ._market_data_store

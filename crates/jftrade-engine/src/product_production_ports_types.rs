@@ -364,6 +364,7 @@ pub(crate) struct ProductionPortBundle {
     pub provider_status: &'static str,
     pub opend_status: &'static str,
     pub worker_status: &'static str,
+    pub(crate) pine_readiness: Option<Arc<jftrade_integration_pine::PineReadinessState>>,
     pub calendar_manager: Arc<CalendarManager>,
     pub auth_session: Arc<dyn AuthSessionSnapshotPort>,
     pub auth_session_write: Arc<dyn AuthSessionWritePort>,
@@ -527,8 +528,11 @@ impl ProductionPortBundle {
     ) -> Option<Arc<ExecutionReconciliationWorker>> {
         self.execution_reconciliation_worker.clone()
     }
-    #[cfg(test)]
-    pub(crate) const fn backtest_execution_ready(&self) -> bool {
+    pub(crate) fn backtest_execution_ready(&self) -> bool {
         self.backtest_execution_ready
+            && self
+                .pine_readiness
+                .as_ref()
+                .is_some_and(|readiness| readiness.is_ready())
     }
 }

@@ -318,15 +318,16 @@ impl ProductionPortBundle {
                 ProductionAdapterBinding::ExternalUnavailable
             });
         }
-        if adapter == ProductionRouteAdapter::BacktestStart {
-            // BacktestStart is backed by the verified PineTS execution worker
-            // and the local historical-candle store.  It does not call the
-            // live helper/OpenD/router on the request path; missing candles
-            // remain a request-level BACKTESTS_WRITE_UNAVAILABLE response.
-            // Readiness therefore depends only on the worker probe.  The
-            // backtest provider is selected from its independent persisted
-            // state at request time and must not be coupled to live quotes.
-            return Some(if self.backtest_execution_ready {
+        if matches!(
+            adapter,
+            ProductionRouteAdapter::BacktestStart | ProductionRouteAdapter::StrategyPine
+        ) {
+            // BacktestStart and StrategyPine share the verified PineTS
+            // execution worker.  The adapter remains installed while the
+            // worker is unhealthy so the public route can return its normal
+            // 503/unavailable envelope; readiness follows the shared health
+            // snapshot rather than the startup boolean.
+            return Some(if self.backtest_execution_ready() {
                 ProductionAdapterBinding::Ready
             } else {
                 ProductionAdapterBinding::ExternalUnavailable

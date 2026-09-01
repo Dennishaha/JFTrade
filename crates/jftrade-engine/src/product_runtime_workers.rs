@@ -10,8 +10,8 @@ use jftrade_integration_marketdata_helper::{
     HelperClient, HelperClientConfig, HelperProcess, HelperProcessConfig, allocate_loopback_port,
 };
 use jftrade_integration_pine::{
-    GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessPolicy,
-    WorkerHealth, WorkerProcessSpec,
+    GrpcPineReadinessProbe, PineProcess, PineProcessConfig, PineProcessError, PineReadinessMonitor,
+    PineReadinessPolicy, PineReadinessState, WorkerHealth, WorkerProcessSpec,
 };
 
 use super::ProductRuntimeError;
@@ -112,15 +112,19 @@ impl DesktopRetainedRuntimeConfig {
 
 pub(crate) async fn start_pine_worker(
     config: PineWorkerRuntimeConfig,
-) -> Result<(PineProcess, WorkerHealth), PineProcessError> {
+) -> Result<(PineProcess, WorkerHealth, Arc<PineReadinessMonitor>), PineProcessError> {
     let probe = GrpcPineReadinessProbe::new(
         config.process.bearer_token.clone(),
         config.connect_timeout,
         config.request_timeout,
     )?;
-    let mut process = PineProcess::start(config.spec, config.process)?;
+    let spec = config.spec.clone();
+    let mut process = PineProcess::start(spec.clone(), config.process)?;
     let health = process.wait_until_ready(&probe, config.readiness).await?;
-    Ok((process, health))
+    let readiness = PineReadinessState::new(spec.worker_id.clone());
+    readiness.seed_success(health.clone());
+    let monitor = PineReadinessMonitor::spawn(readiness, probe, spec);
+    Ok((process, health, monitor))
 }
 
 pub(crate) async fn start_marketdata_helper(
