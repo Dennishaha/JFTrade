@@ -55,6 +55,12 @@ impl FeeEngine {
         quantity: Fixed8,
     ) -> Result<AppliedFees, BacktestError> {
         let notional = price.checked_mul(quantity)?;
+        // A trade without a positive notional or quantity is not billable.
+        // Keep this guard at the fee boundary so an order-basis fixed charge
+        // cannot turn a zero-value trade into a fee-bearing event.
+        if notional <= Fixed8::ZERO || quantity <= Fixed8::ZERO {
+            return Ok(AppliedFees::default());
+        }
         let mut applied = AppliedFees::default();
         for rule in self.rules.clone() {
             if !side_matches(&rule.side, side) {
@@ -239,5 +245,52 @@ mod tests {
         assert_eq!(first.total.storage_text(), "1");
         assert_eq!(second.total.storage_text(), "1.2");
         assert_eq!(engine.broker_total().storage_text(), "2.2");
+    }
+
+    #[test]
+    fn non_billable_trade_does_not_consume_per_order_fee() {
+        let rule = FeeRule {
+            id: "per-order".to_owned(),
+            label: "Per order".to_owned(),
+            group: "broker".to_owned(),
+            side: "both".to_owned(),
+            basis: "order".to_owned(),
+            rate: Fixed8::ZERO,
+            fixed_amount: "2".parse().expect("fixed amount"),
+            min_amount: Fixed8::ZERO,
+            max_amount: Fixed8::ZERO,
+            max_rate: Fixed8::ZERO,
+            rounding: String::new(),
+        };
+        let mut engine = FeeEngine::new(&[rule]);
+
+        let zero_notional = engine
+            .apply(9, "buy", Fixed8::ZERO, "1".parse().expect("quantity"))
+            .expect("zero-notional trade");
+        let first_billable = engine
+            .apply(
+                9,
+                "buy",
+                "100".parse().expect("price"),
+                "1".parse().expect("quantity"),
+            )
+            .expect("first billable trade");
+        let second_billable = engine
+            .apply(
+                9,
+                "buy",
+                "100".parse().expect("price"),
+                "1".parse().expect("quantity"),
+            )
+            .expect("second billable trade");
+
+        assert_eq!(zero_notional.total, Fixed8::ZERO);
+        assert_eq!(first_billable.total.storage_text(), "2");
+        assert_eq!(second_billable.total, Fixed8::ZERO);
+        assert_eq!(engine.broker_total().storage_text(), "2");
+        let breakdown = engine.breakdown();
+        assert_eq!(breakdown.len(), 1);
+        assert_eq!(breakdown[0].amount, "2");
+        assert_eq!(breakdown[0].count, 1);
     }
 }

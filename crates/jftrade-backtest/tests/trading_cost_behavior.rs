@@ -86,6 +86,81 @@ fn assert_fixed8_near(value: &Value, expected: &str) {
 }
 
 #[test]
+fn provided_fee_rules_apply_and_empty_rules_charge_nothing() {
+    let provided_rule = json!({
+        "id": "provided-rule",
+        "label": "Provided rule",
+        "group": "broker",
+        "side": "both",
+        "basis": "order",
+        "fixedAmount": "2"
+    });
+    let provided = run_case(base_case(
+        "provided-fee-rules",
+        "USD",
+        vec![provided_rule],
+        "1",
+    ))
+    .expect("run provided fee rules");
+    assert_eq!(provided["totalBrokerFees"], "2");
+    assert_eq!(provided["totalFees"], "2");
+    assert_eq!(
+        fee_breakdown(&provided, "broker", "provided-rule")["amount"],
+        "2"
+    );
+
+    let empty = run_case(base_case("empty-fee-rules", "USD", Vec::new(), "1"))
+        .expect("run empty fee rules");
+    assert_eq!(empty["totalBrokerFees"], "0");
+    assert_eq!(empty["totalMarketFees"], "0");
+    assert_eq!(empty["totalFees"], "0");
+    assert!(
+        empty["feeBreakdown"]
+            .as_array()
+            .expect("fee breakdown array")
+            .is_empty()
+    );
+}
+
+#[test]
+fn order_fee_is_charged_once_across_partial_fills() {
+    let rule = json!({
+        "id": "per-order",
+        "label": "Per order",
+        "group": "broker",
+        "side": "both",
+        "basis": "order",
+        "fixedAmount": "2"
+    });
+    let mut case = base_case("order-fee-partial-fills", "USD", vec![rule], "3");
+    // The 10% participation budget limits each of these bars to one share.
+    case["candles"] = json!([
+        candle(0, "100", "1000"),
+        candle(1, "100", "10"),
+        candle(2, "100", "10"),
+        candle(3, "100", "1000")
+    ]);
+    let result = run_case(case).expect("run partial-fill order fee case");
+
+    assert_eq!(result["totalFills"], 3);
+    assert_eq!(result["totalBrokerFees"], "2");
+    assert_eq!(result["totalFees"], "2");
+    let breakdown = fee_breakdown(&result, "broker", "per-order");
+    assert_eq!(breakdown["amount"], "2");
+    assert_eq!(breakdown["count"], 1);
+    let fills = result["fills"].as_array().expect("fills");
+    assert_eq!(fills[0]["totalFee"], "2");
+    assert_eq!(fills[1]["totalFee"], "0");
+    assert_eq!(fills[2]["totalFee"], "0");
+    for fill in fills {
+        assert_eq!(fill["clientOrderId"], "entry");
+        assert_eq!(fill["quantity"], "1");
+    }
+    assert_eq!(result["orders"][0]["status"], "FILLED");
+    assert_eq!(result["orders"][0]["filledQuantity"], "3");
+}
+
+#[test]
 fn hong_kong_market_rules_round_currency_unit_and_keep_fee_groups_separate() {
     let rules = vec![
         json!({
