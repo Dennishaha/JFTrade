@@ -3,27 +3,23 @@ impl ProductionAdkChatRuntime {
     /// durable function_call/function_call_output pairs back to Responses.
     /// A bounded loop prevents a provider from spinning forever.
     #[allow(clippy::never_loop)]
-    fn run_approval_continuation(
-        &self,
-        mut chat: ChatExecution,
-        cancellation: Arc<AtomicBool>,
-    ) {
+    fn run_approval_continuation(&self, mut chat: ChatExecution, cancellation: Arc<AtomicBool>) {
         const MAX_TOOL_ROUNDS: usize = 8;
         let owner_id = lease_owner_id(&chat.run_id);
-        let run_lease = match RunLeaseGuard::acquire(
-            Arc::clone(&self.store),
-            &chat.run_id,
-            &owner_id,
-        ) {
-            Ok(lease) => lease,
-            Err(AdkChatPortError::Conflict(_)) => return,
-            Err(_) => return,
-        };
+        let run_lease =
+            match self.acquire_run_lease_with_retry(&chat.run_id, &owner_id, &cancellation) {
+                Ok(lease) => lease,
+                Err(AdkChatPortError::Conflict(_)) => return,
+                Err(_) => return,
+            };
         for _round in 0..MAX_TOOL_ROUNDS {
             if run_lease.is_lost()
                 || cancellation.load(Ordering::Acquire)
                 || self.run_is_cancelled(&chat.run_id)
             {
+                if run_lease.is_lost() {
+                    return;
+                }
                 let error = cancellation_error();
                 let _ = self.persist_cancelled(&chat, &error, &run_lease);
                 return;
@@ -32,8 +28,7 @@ impl ProductionAdkChatRuntime {
                 Ok(Some(run)) => run,
                 Ok(None) => return,
                 Err(error) => {
-                    let _ =
-                        self.persist_failure(&chat, &storage_unavailable(error), &run_lease);
+                    let _ = self.persist_failure(&chat, &storage_unavailable(error), &run_lease);
                     return;
                 }
             };
@@ -51,8 +46,6 @@ impl ProductionAdkChatRuntime {
             let calls = executable_tool_calls(&payload);
             for call in calls {
                 if run_lease.is_lost() {
-                    let error = unavailable("assistant run execution lease was lost");
-                    let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
                 if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(&chat.run_id) {
@@ -80,6 +73,13 @@ impl ProductionAdkChatRuntime {
                     let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
+                if !replay_safe_tool(&name) || !self.tool_executor.supports(&name) {
+                    let error = tool_unavailable(format!(
+                        "tool {name} is not declared replay-safe by the production runtime"
+                    ));
+                    let _ = self.persist_failure(&chat, &error, &run_lease);
+                    return;
+                }
                 let idempotency_key = call_id.clone();
                 let input_json = match serde_json::to_string(&arguments) {
                     Ok(input_json) => input_json,
@@ -89,33 +89,17 @@ impl ProductionAdkChatRuntime {
                         return;
                     }
                 };
-                // Claim before invoking the side effect. A terminal row is
-                // replayed after restart; a live row belongs to another
-                // continuation and must not be executed concurrently.
-                let claim_run = match self.store.get_run(&chat.run_id) {
-                    Ok(Some(run)) => run,
-                    Ok(None) => return,
-                    Err(error) => {
-                        let failure = storage_unavailable(error);
-                        let _ = self.persist_failure(&chat, &failure, &run_lease);
-                        return;
-                    }
-                };
-                let claim = self.store.claim_tool_invocation_if_status_and_revision(
-                    &chat.run_id,
+                let claim = self.claim_tool_invocation_with_retry(
+                    &chat,
                     &idempotency_key,
                     &name,
                     &input_json,
-                    "RUNNING",
-                    &claim_run.updated_at,
                     &owner_id,
-                    run_lease.token(),
-                    // The production model timeout is capped at ten minutes;
-                    // keep the claim alive longer than that bound.
-                    Duration::from_secs(15 * 60),
+                    &run_lease,
+                    &cancellation,
                 );
                 let (outcome, claim_owner, claim_fencing_token) = match claim {
-                    Ok(AdkToolInvocationClaim::Replay(invocation)) => (
+                    Ok(Some(AdkToolInvocationClaim::Replay(invocation))) => (
                         serde_json::from_str::<Value>(&invocation.output_json)
                             .map(|value| {
                                 if invocation.status.eq_ignore_ascii_case("SUCCEEDED") {
@@ -131,18 +115,34 @@ impl ProductionAdkChatRuntime {
                         invocation.owner_id,
                         invocation.fencing_token,
                     ),
-                    Ok(AdkToolInvocationClaim::Execute(invocation)) => (
-                        self.tool_executor
+                    Ok(Some(AdkToolInvocationClaim::Execute(invocation))) => {
+                        let mut heartbeat = match ToolClaimHeartbeat::start(
+                            Arc::clone(&self.store),
+                            invocation.clone(),
+                        ) {
+                            Ok(heartbeat) => heartbeat,
+                            Err(error) => {
+                                let _ = self.persist_failure(&chat, &error, &run_lease);
+                                return;
+                            }
+                        };
+                        let outcome = self
+                            .tool_executor
                             .execute(&name, &arguments)
-                            .map_err(tool_unavailable),
-                        invocation.owner_id,
-                        invocation.fencing_token,
-                    ),
-                    Err(error) => (
-                        Err(storage_unavailable(error)),
-                        owner_id.clone(),
-                        0,
-                    ),
+                            .map_err(tool_unavailable);
+                        if heartbeat.stop() || run_lease.is_lost() {
+                            return;
+                        }
+                        (outcome, invocation.owner_id, invocation.fencing_token)
+                    }
+                    Ok(Some(AdkToolInvocationClaim::Live(_))) => {
+                        unreachable!("live tool claims are consumed by the retry helper")
+                    }
+                    Ok(None) => return,
+                    Err(error) => {
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
+                        return;
+                    }
                 };
                 match outcome {
                     Ok(output) => {
@@ -156,7 +156,9 @@ impl ProductionAdkChatRuntime {
                             claim_fencing_token,
                             run_lease.token(),
                         ) {
-                            let _ = self.persist_failure(&chat, &error, &run_lease);
+                            if !is_nonfatal_durable_error(&error) {
+                                let _ = self.persist_failure(&chat, &error, &run_lease);
+                            }
                             return;
                         }
                     }
@@ -171,7 +173,7 @@ impl ProductionAdkChatRuntime {
                                 "status": 503,
                             }
                         });
-                        let _ = self.persist_tool_result(
+                        if let Err(commit_error) = self.persist_tool_result(
                             &chat,
                             &call,
                             &idempotency_key,
@@ -180,8 +182,15 @@ impl ProductionAdkChatRuntime {
                             &claim_owner,
                             claim_fencing_token,
                             run_lease.token(),
-                        );
-                        let _ = self.persist_failure(&chat, &error, &run_lease);
+                        ) {
+                            if !is_nonfatal_durable_error(&commit_error) && !run_lease.is_lost() {
+                                let _ = self.persist_failure(&chat, &commit_error, &run_lease);
+                            }
+                            return;
+                        }
+                        if !is_nonfatal_durable_error(&error) {
+                            let _ = self.persist_failure(&chat, &error, &run_lease);
+                        }
                         return;
                     }
                 }
@@ -208,13 +217,10 @@ impl ProductionAdkChatRuntime {
                 }
             };
             let empty = serde_json::Map::new();
-            chat.request.tool_context = tool_context_from_payload(
-                latest_payload.as_object().unwrap_or(&empty),
-            );
+            chat.request.tool_context =
+                tool_context_from_payload(latest_payload.as_object().unwrap_or(&empty));
             let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
             if run_lease.is_lost() {
-                let error = unavailable("assistant run execution lease was lost");
-                let _ = self.persist_failure(&chat, &error, &run_lease);
                 return;
             }
             if cancellation.load(Ordering::Acquire) {
@@ -224,19 +230,27 @@ impl ProductionAdkChatRuntime {
             }
             match result {
                 Ok(response) if !response.tool_calls.is_empty() => {
-                    if let Err(error) = self.persist_tool_calls(&chat, &response, &run_lease) {
+                    if let Err(error) = self.persist_tool_calls(&chat, &response, &run_lease)
+                        && !is_nonfatal_durable_error(&error)
+                        && !run_lease.is_lost()
+                    {
                         let _ = self.persist_failure(&chat, &error, &run_lease);
                     }
                     return;
                 }
                 Ok(response) => {
-                    if let Err(error) = self.persist_success(&chat, response, &run_lease) {
+                    if let Err(error) = self.persist_success(&chat, response, &run_lease)
+                        && !run_lease.is_lost()
+                        && !is_nonfatal_durable_error(&error)
+                    {
                         let _ = self.persist_failure(&chat, &error, &run_lease);
                     }
                     return;
                 }
                 Err(error) => {
-                    let _ = self.persist_failure(&chat, &error, &run_lease);
+                    if !run_lease.is_lost() {
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
+                    }
                     return;
                 }
             }
@@ -246,7 +260,68 @@ impl ProductionAdkChatRuntime {
             code: "ADK_TOOL_LOOP_LIMIT".to_owned(),
             message: "assistant tool loop exceeded the production limit".to_owned(),
         };
-        let _ = self.persist_failure(&chat, &error, &run_lease);
+        if !run_lease.is_lost() {
+            let _ = self.persist_failure(&chat, &error, &run_lease);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn claim_tool_invocation_with_retry(
+        &self,
+        chat: &ChatExecution,
+        idempotency_key: &str,
+        name: &str,
+        input_json: &str,
+        owner_id: &str,
+        run_lease: &RunLeaseGuard,
+        cancellation: &Arc<AtomicBool>,
+    ) -> Result<Option<AdkToolInvocationClaim>, AdkChatPortError> {
+        loop {
+            if run_lease.is_lost()
+                || cancellation.load(Ordering::Acquire)
+                || self.run_is_cancelled(&chat.run_id)
+            {
+                return Ok(None);
+            }
+            let run = self
+                .store
+                .get_run(&chat.run_id)
+                .map_err(storage_unavailable)?
+                .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
+            let claim = self.store.claim_tool_invocation_if_status_and_revision(
+                &chat.run_id,
+                idempotency_key,
+                name,
+                input_json,
+                "RUNNING",
+                &run.updated_at,
+                owner_id,
+                run_lease.token(),
+                TOOL_CLAIM_TTL,
+            );
+            match claim {
+                Ok(AdkToolInvocationClaim::Live(invocation)) => {
+                    while unix_now_ms() < invocation.lease_expires_at_unix_ms {
+                        if run_lease.is_lost()
+                            || cancellation.load(Ordering::Acquire)
+                            || self.run_is_cancelled(&chat.run_id)
+                        {
+                            return Ok(None);
+                        }
+                        thread::sleep(Duration::from_millis(100));
+                    }
+                }
+                Ok(claim) => return Ok(Some(claim)),
+                Err(error) => match classify_durable_store_error(&error) {
+                    DurableErrorClass::LeaseHeldOrLost | DurableErrorClass::RevisionConflict => {
+                        return Ok(None);
+                    }
+                    DurableErrorClass::InvariantViolation | DurableErrorClass::StorageFailure => {
+                        return Err(runtime_store_error(error));
+                    }
+                },
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -267,14 +342,24 @@ impl ProductionAdkChatRuntime {
             .map_err(storage_unavailable)?
             .ok_or_else(|| unavailable("persisted ADK run disappeared"))?;
         if !run.status.eq_ignore_ascii_case("RUNNING") {
-            return Err(self.run_state_changed(&chat.run_id));
+            return Err(AdkChatPortError::Conflict(format!(
+                "assistant chat run is already {}",
+                run.status
+            )));
         }
-        let mut payload: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let mut payload: Value =
+            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
         let object = payload
             .as_object_mut()
             .ok_or_else(|| unavailable("persisted ADK run payload must be an object"))?;
-        let call_id = call.get("id").and_then(Value::as_str).unwrap_or(idempotency_key);
-        let tool_name = call.get("name").and_then(Value::as_str).unwrap_or("unknown");
+        let call_id = call
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or(idempotency_key);
+        let tool_name = call
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
         let input = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
         let output_json = serde_json::to_string(&output)
             .map_err(|error| unavailable(format!("encode tool result: {error}")))?;
@@ -313,7 +398,10 @@ impl ProductionAdkChatRuntime {
                     item.insert("status".to_owned(), Value::String(status.to_owned()));
                     item.insert("requiresUser".to_owned(), Value::Bool(false));
                     item.insert("output".to_owned(), output.clone());
-                    item.insert("completedAt".to_owned(), Value::String(run.updated_at.clone()));
+                    item.insert(
+                        "completedAt".to_owned(),
+                        Value::String(run.updated_at.clone()),
+                    );
                     if status != "SUCCEEDED" {
                         item.insert(
                             "errorCode".to_owned(),
@@ -327,7 +415,10 @@ impl ProductionAdkChatRuntime {
                 }
             }
         }
-        object.insert("resumeState".to_owned(), Value::String("tool_result_persisted".to_owned()));
+        object.insert(
+            "resumeState".to_owned(),
+            Value::String("tool_result_persisted".to_owned()),
+        );
         let event_id = format!("{}:tool:{}", chat.run_id, idempotency_key);
         let event_content = serde_json::to_string(&json!({
             "callId": call_id,
@@ -361,7 +452,7 @@ impl ProductionAdkChatRuntime {
                 self.session_store.as_ref(),
                 &event,
             )
-            .map_err(storage_unavailable)?;
+            .map_err(runtime_store_error)?;
         if commit.changed {
             return Ok(());
         }

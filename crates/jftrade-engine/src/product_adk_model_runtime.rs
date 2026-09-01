@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -16,7 +16,8 @@ use sha2::{Digest, Sha256};
 use jftrade_api::ApiStream;
 use jftrade_store_sqlite::{
     AdkApprovalStage, AdkRunEvent, AdkSessionStore, AdkStore, AdkStoreError,
-    AdkToolInvocationClaim, CreateAdkRunParams, StoredAdkRunLease,
+    AdkToolInvocationClaim, CreateAdkRunParams, StoredAdkRun, StoredAdkRunLease,
+    StoredAdkToolInvocation,
 };
 
 use crate::product::product_adk_chat_stream_port::{
@@ -52,7 +53,7 @@ pub(crate) struct ProductionAdkChatRuntime {
 /// Process-local cancellation fan-out for active provider calls.
 #[derive(Debug, Default)]
 pub(crate) struct RunCancellationRegistry {
-    active: Mutex<BTreeMap<String, Arc<AtomicBool>>>,
+    active: Mutex<BTreeMap<String, Vec<Arc<AtomicBool>>>>,
 }
 
 impl RunCancellationRegistry {
@@ -63,36 +64,46 @@ impl RunCancellationRegistry {
 
     fn register_token(&self, run_id: &str, token: Arc<AtomicBool>) -> Arc<AtomicBool> {
         if let Ok(mut active) = self.active.lock() {
-            active.insert(run_id.to_owned(), Arc::clone(&token));
+            active
+                .entry(run_id.to_owned())
+                .or_default()
+                .push(Arc::clone(&token));
         }
         token
     }
 
-    fn unregister(&self, run_id: &str) {
+    fn unregister(&self, run_id: &str, token: &Arc<AtomicBool>) {
         if let Ok(mut active) = self.active.lock() {
-            active.remove(run_id);
+            let remove_run = active.get_mut(run_id).is_some_and(|tokens| {
+                tokens.retain(|candidate| !Arc::ptr_eq(candidate, token));
+                tokens.is_empty()
+            });
+            if remove_run {
+                active.remove(run_id);
+            }
         }
     }
 
     pub(crate) fn cancel(&self, run_id: &str) -> bool {
-        let token = self
+        let tokens = self
             .active
             .lock()
             .ok()
-            .and_then(|active| active.get(run_id).cloned());
-        if let Some(token) = token {
+            .and_then(|active| active.get(run_id).cloned())
+            .unwrap_or_default();
+        for token in &tokens {
             token.store(true, Ordering::Release);
-            true
-        } else {
-            false
         }
+        !tokens.is_empty()
     }
 
     #[allow(dead_code)]
     fn cancel_all(&self) {
         if let Ok(active) = self.active.lock() {
-            for token in active.values() {
-                token.store(true, Ordering::Release);
+            for tokens in active.values() {
+                for token in tokens {
+                    token.store(true, Ordering::Release);
+                }
             }
         }
     }
@@ -292,6 +303,60 @@ impl ContinuationSupervisor {
 
 const RUN_LEASE_TTL: Duration = Duration::from_secs(30);
 const RUN_LEASE_HEARTBEAT: Duration = Duration::from_secs(10);
+const TOOL_CLAIM_TTL: Duration = Duration::from_secs(30);
+const TOOL_CLAIM_HEARTBEAT: Duration = Duration::from_secs(10);
+static STREAM_TASK_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+fn unix_now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| i64::try_from(duration.as_millis()).ok())
+        .unwrap_or(i64::MAX)
+}
+
+/// Durable conflicts are expected coordination outcomes, not storage
+/// failures.  Keeping their classification in the runtime prevents a live
+/// worker, a stale completion, or a run-lease takeover from being converted
+/// into a terminal FAILED projection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DurableErrorClass {
+    LeaseHeldOrLost,
+    RevisionConflict,
+    InvariantViolation,
+    StorageFailure,
+}
+
+pub(crate) fn classify_durable_store_error(error: &AdkStoreError) -> DurableErrorClass {
+    match error {
+        AdkStoreError::RunLeaseHeld { .. } | AdkStoreError::LeaseLost(_) => {
+            DurableErrorClass::LeaseHeldOrLost
+        }
+        AdkStoreError::RevisionChanged(_) => DurableErrorClass::RevisionConflict,
+        AdkStoreError::StaleToolClaim(_)
+        | AdkStoreError::Invariant(_)
+        | AdkStoreError::Conflict(_) => DurableErrorClass::InvariantViolation,
+        _ => DurableErrorClass::StorageFailure,
+    }
+}
+
+pub(crate) fn runtime_store_error(error: AdkStoreError) -> AdkChatPortError {
+    match classify_durable_store_error(&error) {
+        DurableErrorClass::StorageFailure => storage_unavailable(error),
+        DurableErrorClass::LeaseHeldOrLost | DurableErrorClass::RevisionConflict => {
+            AdkChatPortError::Conflict(error.to_string())
+        }
+        DurableErrorClass::InvariantViolation => AdkChatPortError::Failed {
+            status: 500,
+            code: "ADK_STORAGE_CORRUPT".to_owned(),
+            message: error.to_string(),
+        },
+    }
+}
+
+pub(crate) fn is_nonfatal_durable_error(error: &AdkChatPortError) -> bool {
+    matches!(error, AdkChatPortError::Conflict(_))
+}
 
 /// RAII guard for a durable ADK run lease and its heartbeat worker.
 #[derive(Debug)]
@@ -312,10 +377,14 @@ impl RunLeaseGuard {
     ) -> Result<Self, AdkChatPortError> {
         let lease = store
             .claim_run_lease(run_id, owner_id, RUN_LEASE_TTL)
-            .map_err(|error| match error {
-                AdkStoreError::Conflict(message) => AdkChatPortError::Conflict(message),
-                error => storage_unavailable(error),
-            })?;
+            .map_err(runtime_store_error)?;
+        Self::from_lease(store, lease)
+    }
+
+    fn from_lease(
+        store: Arc<AdkStore>,
+        lease: StoredAdkRunLease,
+    ) -> Result<Self, AdkChatPortError> {
         let stop = Arc::new(AtomicBool::new(false));
         let lost = Arc::new(AtomicBool::new(false));
         let (wake, receiver) = mpsc::channel();
@@ -391,6 +460,107 @@ impl RunLeaseGuard {
     }
 }
 
+/// Heartbeats one tool claim while its synchronous adapter is executing. The
+/// heartbeat stops before commit, leaving a full TTL window for the fenced
+/// transaction. A crashed process becomes reclaimable within `TOOL_CLAIM_TTL`.
+#[derive(Debug)]
+struct ToolClaimHeartbeat {
+    stop: Arc<AtomicBool>,
+    wake: Sender<()>,
+    heartbeat: Option<JoinHandle<()>>,
+    lost: Arc<AtomicBool>,
+}
+
+impl ToolClaimHeartbeat {
+    fn start(
+        store: Arc<AdkStore>,
+        invocation: StoredAdkToolInvocation,
+    ) -> Result<Self, AdkChatPortError> {
+        let stop = Arc::new(AtomicBool::new(false));
+        let lost = Arc::new(AtomicBool::new(false));
+        let (wake, receiver) = mpsc::channel();
+        let heartbeat_stop = Arc::clone(&stop);
+        let heartbeat_lost = Arc::clone(&lost);
+        let heartbeat = thread::Builder::new()
+            .name("jftrade-adk-tool-claim".to_owned())
+            .spawn(move || {
+                while !heartbeat_stop.load(Ordering::Acquire) {
+                    if receiver.recv_timeout(TOOL_CLAIM_HEARTBEAT).is_ok() {
+                        break;
+                    }
+                    if store
+                        .heartbeat_tool_invocation(&invocation, TOOL_CLAIM_TTL)
+                        .is_err()
+                    {
+                        heartbeat_lost.store(true, Ordering::Release);
+                        break;
+                    }
+                }
+            })
+            .map_err(|error| unavailable(format!("assistant tool claim heartbeat: {error}")))?;
+        Ok(Self {
+            stop,
+            wake,
+            heartbeat: Some(heartbeat),
+            lost,
+        })
+    }
+
+    fn stop(&mut self) -> bool {
+        self.stop.store(true, Ordering::Release);
+        let _ = self.wake.send(());
+        if let Some(handle) = self.heartbeat.take() {
+            let _ = handle.join();
+        }
+        self.lost.load(Ordering::Acquire)
+    }
+}
+
+impl Drop for ToolClaimHeartbeat {
+    fn drop(&mut self) {
+        let _ = self.stop();
+    }
+}
+
+impl ProductionAdkChatRuntime {
+    /// Wait for a live lease owner to finish before taking over. A retrying
+    /// continuation never steals an unexpired lease; once the durable expiry
+    /// is reached, the store's fencing token decides takeover atomically.
+    pub(crate) fn acquire_run_lease_with_retry(
+        &self,
+        run_id: &str,
+        owner_id: &str,
+        cancellation: &Arc<AtomicBool>,
+    ) -> Result<RunLeaseGuard, AdkChatPortError> {
+        loop {
+            if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(run_id) {
+                return Err(cancellation_error());
+            }
+            match RunLeaseGuard::acquire(Arc::clone(&self.store), run_id, owner_id) {
+                Ok(lease) => return Ok(lease),
+                Err(AdkChatPortError::Conflict(_)) => {
+                    let now_ms = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .ok()
+                        .and_then(|duration| i64::try_from(duration.as_millis()).ok())
+                        .unwrap_or(i64::MAX);
+                    let wait_ms = self
+                        .store
+                        .get_run_lease(run_id)
+                        .ok()
+                        .flatten()
+                        .map(|lease| lease.expires_at_unix_ms.saturating_sub(now_ms))
+                        .filter(|remaining| *remaining > 0)
+                        .map(|remaining| remaining.min(1_000) as u64)
+                        .unwrap_or(250);
+                    thread::sleep(Duration::from_millis(wait_ms.max(25)));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+}
+
 pub(super) fn lease_owner_id(run_id: &str) -> String {
     format!(
         "rust-adk:{}:{}:{:?}",
@@ -415,7 +585,7 @@ impl Drop for RunLeaseGuard {
 #[derive(Debug)]
 enum PreparedChat {
     Existing(AdkChatPortOutput),
-    New(ChatExecution),
+    New(ChatExecution, RunLeaseGuard),
 }
 
 #[derive(Clone, Debug)]

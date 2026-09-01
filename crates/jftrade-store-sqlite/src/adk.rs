@@ -102,6 +102,9 @@ pub enum AdkToolInvocationClaim {
     Execute(StoredAdkToolInvocation),
     /// A terminal outcome already exists and must be replayed.
     Replay(StoredAdkToolInvocation),
+    /// Another executor still owns an unexpired claim.  Callers may wait for
+    /// the reported durable expiry and retry under their run lease.
+    Live(StoredAdkToolInvocation),
 }
 
 /// Atomic result of resolving an approval and staging its pending run.
@@ -264,6 +267,20 @@ pub enum AdkStoreError {
     NotFound(String),
     #[error("adk conflict: {0}")]
     Conflict(String),
+    #[error("run {run_id} lease is held by {owner_id}")]
+    RunLeaseHeld {
+        run_id: String,
+        owner_id: String,
+        expires_at_unix_ms: i64,
+    },
+    #[error("adk lease lost: {0}")]
+    LeaseLost(String),
+    #[error("adk revision changed: {0}")]
+    RevisionChanged(String),
+    #[error("adk stale tool claim: {0}")]
+    StaleToolClaim(String),
+    #[error("adk durable invariant violation: {0}")]
+    Invariant(String),
     #[error("invalid adk request: {0}")]
     Validation(String),
     #[error("incompatible adk database: {0}")]
@@ -1193,10 +1210,48 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)?;
         if let Some(existing) = existing {
             if existing.expires_at_unix_ms > now_ms {
-                return Err(AdkStoreError::Conflict(format!(
-                    "run {run_id} lease is held by {}",
-                    existing.owner_id
-                )));
+                if existing.owner_id == owner_id {
+                    // Claiming a live lease by the same owner is a durable
+                    // heartbeat. Keep the fencing token stable so retries
+                    // from one continuation do not invalidate its own work.
+                    let affected = transaction
+                        .execute(
+                            "UPDATE adk_run_leases
+                             SET heartbeat_at_unix_ms = ?1, expires_at_unix_ms = ?2,
+                                 updated_at = ?3
+                             WHERE run_id = ?4 AND owner_id = ?5 AND fencing_token = ?6
+                               AND expires_at_unix_ms > ?7",
+                            params![
+                                now_ms,
+                                expires_ms,
+                                now_text,
+                                run_id,
+                                owner_id,
+                                existing.fencing_token,
+                                now_ms
+                            ],
+                        )
+                        .map_err(AdkStoreError::Query)?;
+                    if affected != 1 {
+                        return Err(AdkStoreError::LeaseLost(format!(
+                            "run {run_id} lease changed before same-owner renewal"
+                        )));
+                    }
+                    transaction.commit().map_err(AdkStoreError::Query)?;
+                    return Ok(StoredAdkRunLease {
+                        owner_id: owner_id.to_owned(),
+                        fencing_token: existing.fencing_token,
+                        heartbeat_at_unix_ms: now_ms,
+                        expires_at_unix_ms: expires_ms,
+                        updated_at: now_text,
+                        ..existing
+                    });
+                }
+                return Err(AdkStoreError::RunLeaseHeld {
+                    run_id: run_id.to_owned(),
+                    owner_id: existing.owner_id,
+                    expires_at_unix_ms: existing.expires_at_unix_ms,
+                });
             }
             let fencing_token = existing.fencing_token.saturating_add(1);
             let affected = transaction
@@ -1218,7 +1273,7 @@ impl AdkStore {
                 )
                 .map_err(AdkStoreError::Query)?;
             if affected != 1 {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::LeaseLost(format!(
                     "run {run_id} lease changed before takeover"
                 )));
             }
@@ -1292,7 +1347,7 @@ impl AdkStore {
             )
             .map_err(AdkStoreError::Query)?;
         if affected != 1 {
-            return Err(AdkStoreError::Conflict(format!(
+            return Err(AdkStoreError::LeaseLost(format!(
                 "run {} lease fencing token {} is no longer current",
                 lease.run_id, lease.fencing_token
             )));
@@ -1444,6 +1499,110 @@ impl AdkStore {
         // The transaction result is authoritative. A successful commit must
         // not be reported as failed merely because cleanup of the connection
         // alias was rejected; the next operation retries the cleanup.
+        let _ = connection.execute("DETACH DATABASE adk_session_events", []);
+        result
+    }
+
+    /// Atomically create a run or return the row that already owns the
+    /// caller-supplied request id. `IMMEDIATE` serialization closes the
+    /// lookup/insert race between concurrent first deliveries.
+    pub fn create_run_with_event_idempotent(
+        &self,
+        params: CreateAdkRunParams<'_>,
+        session_store: &AdkSessionStore,
+        event: &AdkRunEvent<'_>,
+        lease_owner_id: &str,
+        lease_ttl: Duration,
+    ) -> Result<(StoredAdkRun, Option<StoredAdkRunLease>), AdkStoreError> {
+        if params.id.trim().is_empty()
+            || params.session_id.trim().is_empty()
+            || params.client_request_id.trim().is_empty()
+            || event.id.trim().is_empty()
+            || event.session_id != params.session_id
+            || lease_owner_id.trim().is_empty()
+            || lease_ttl.is_zero()
+        {
+            return Err(AdkStoreError::Validation(
+                "idempotent run and initial event identities must be present and match".to_owned(),
+            ));
+        }
+        let mut connection = self.lock_connection()?;
+        let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
+        let result = (|| {
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(AdkStoreError::Query)?;
+            let existing = transaction
+                .query_row(
+                    "SELECT id, session_id, agent_id, status, client_request_id,
+                            request_fingerprint, payload_json, created_at, updated_at
+                     FROM adk_runs WHERE client_request_id = ?1",
+                    params![params.client_request_id],
+                    stored_run,
+                )
+                .optional()
+                .map_err(AdkStoreError::Query)?;
+            if let Some(existing) = existing {
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok((existing, None));
+            }
+            let now_value = OffsetDateTime::now_utc();
+            let now = now_value
+                .format(&Rfc3339)
+                .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+            let now_ms = (now_value.unix_timestamp_nanos() / 1_000_000) as i64;
+            let expires_ms =
+                now_ms.saturating_add(lease_ttl.as_millis().min(i64::MAX as u128) as i64);
+            transaction
+                .execute(
+                    "INSERT INTO adk_runs (id, session_id, agent_id, status, client_request_id, request_fingerprint, payload_json, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                    params![
+                        params.id,
+                        params.session_id,
+                        params.agent_id,
+                        params.status,
+                        params.client_request_id,
+                        params.request_fingerprint,
+                        params.payload_json,
+                        now,
+                    ],
+                )
+                .map_err(AdkStoreError::Query)?;
+            transaction
+                .execute(
+                    "INSERT INTO adk_run_leases
+                     (run_id, owner_id, fencing_token, heartbeat_at_unix_ms,
+                      expires_at_unix_ms, created_at, updated_at)
+                     VALUES (?1, ?2, 1, ?3, ?4, ?5, ?5)",
+                    params![params.id, lease_owner_id, now_ms, expires_ms, now],
+                )
+                .map_err(AdkStoreError::Query)?;
+            append_adk_session_events(&transaction, &now, params.id, std::slice::from_ref(event))?;
+            transaction.commit().map_err(AdkStoreError::Query)?;
+            Ok((
+                StoredAdkRun {
+                    id: params.id.to_owned(),
+                    session_id: params.session_id.to_owned(),
+                    agent_id: params.agent_id.to_owned(),
+                    status: params.status.to_owned(),
+                    client_request_id: params.client_request_id.to_owned(),
+                    request_fingerprint: params.request_fingerprint.to_owned(),
+                    payload_json: params.payload_json.to_owned(),
+                    created_at: now.clone(),
+                    updated_at: now.clone(),
+                },
+                Some(StoredAdkRunLease {
+                    run_id: params.id.to_owned(),
+                    owner_id: lease_owner_id.to_owned(),
+                    fencing_token: 1,
+                    heartbeat_at_unix_ms: now_ms,
+                    expires_at_unix_ms: expires_ms,
+                    created_at: now.clone(),
+                    updated_at: now,
+                }),
+            ))
+        })();
         let _ = connection.execute("DETACH DATABASE adk_session_events", []);
         result
     }
@@ -1916,7 +2075,7 @@ impl AdkStore {
             || run_updated_at != expected_updated_at
         {
             transaction.commit().map_err(AdkStoreError::Query)?;
-            return Err(AdkStoreError::Conflict(format!(
+            return Err(AdkStoreError::RevisionChanged(format!(
                 "run {run_id} changed before tool invocation claim"
             )));
         }
@@ -1932,7 +2091,7 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)?
             .is_some();
         if !lease_valid {
-            return Err(AdkStoreError::Conflict(format!(
+            return Err(AdkStoreError::LeaseLost(format!(
                 "run {run_id} lease fencing token {run_lease_token} is no longer current"
             )));
         }
@@ -1950,7 +2109,7 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)?;
         if let Some(existing) = existing {
             if existing.tool_name != tool_name || existing.input_json != input_json {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::Invariant(format!(
                     "tool invocation key {idempotency_key} was reused with different input"
                 )));
             }
@@ -1970,9 +2129,8 @@ impl AdkStore {
                 )
                 .map_err(AdkStoreError::Query)?;
             if lease_expires > now_ms as i64 {
-                return Err(AdkStoreError::Conflict(format!(
-                    "tool invocation {idempotency_key} is already in flight"
-                )));
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok(AdkToolInvocationClaim::Live(existing));
             }
             let fencing_token: i64 = transaction
                 .query_row(
@@ -2003,7 +2161,7 @@ impl AdkStore {
                 )
                 .map_err(AdkStoreError::Query)?;
             if invocation_affected != 1 {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::LeaseLost(format!(
                     "tool invocation {idempotency_key} lease is no longer current"
                 )));
             }
@@ -2053,6 +2211,64 @@ impl AdkStore {
         }))
     }
 
+    /// Extend a live tool claim while its owning run lease and both fencing
+    /// tokens remain current. A crashed process stops heartbeating, making the
+    /// invocation eligible for bounded restart takeover.
+    pub fn heartbeat_tool_invocation(
+        &self,
+        invocation: &StoredAdkToolInvocation,
+        lease_ttl: Duration,
+    ) -> Result<StoredAdkToolInvocation, AdkStoreError> {
+        if lease_ttl.is_zero() || invocation.fencing_token <= 0 || invocation.run_lease_token <= 0 {
+            return Err(AdkStoreError::Validation(
+                "tool invocation heartbeat requires valid fencing tokens and positive TTL"
+                    .to_owned(),
+            ));
+        }
+        let now = OffsetDateTime::now_utc();
+        let now_ms = (now.unix_timestamp_nanos() / 1_000_000) as i64;
+        let expires_ms = now_ms.saturating_add(lease_ttl.as_millis().min(i64::MAX as u128) as i64);
+        let now_text = now
+            .format(&Rfc3339)
+            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_tool_invocations
+                 SET lease_expires_at_unix_ms = ?1, updated_at = ?2
+                 WHERE run_id = ?3 AND idempotency_key = ?4 AND status = 'RUNNING'
+                   AND owner_id = ?5 AND fencing_token = ?6 AND run_lease_token = ?7
+                   AND lease_expires_at_unix_ms > ?8
+                   AND EXISTS (
+                     SELECT 1 FROM adk_run_leases
+                     WHERE run_id = ?3 AND owner_id = ?5 AND fencing_token = ?7
+                       AND expires_at_unix_ms > ?8
+                   )",
+                params![
+                    expires_ms,
+                    now_text,
+                    invocation.run_id,
+                    invocation.idempotency_key,
+                    invocation.owner_id,
+                    invocation.fencing_token,
+                    invocation.run_lease_token,
+                    now_ms,
+                ],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected != 1 {
+            return Err(AdkStoreError::LeaseLost(format!(
+                "tool invocation {} heartbeat fence is no longer current",
+                invocation.idempotency_key
+            )));
+        }
+        Ok(StoredAdkToolInvocation {
+            lease_expires_at_unix_ms: expires_ms,
+            updated_at: now_text,
+            ..invocation.clone()
+        })
+    }
+
     /// Atomically append one tool result to the run projection, invocation
     /// ledger and ADK session event journal.  The run status and updated_at
     /// token form the CAS fence; if another continuation or cancellation won
@@ -2100,6 +2316,7 @@ impl AdkStore {
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
+            let now_ms = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64;
             let transaction = connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(AdkStoreError::Query)?;
@@ -2117,7 +2334,7 @@ impl AdkStore {
                 .map_err(AdkStoreError::Query)?;
             if let Some(existing) = existing.as_ref() {
                 if existing.tool_name != tool_name || existing.input_json != input_json {
-                    return Err(AdkStoreError::Conflict(format!(
+                    return Err(AdkStoreError::Invariant(format!(
                         "tool invocation key {idempotency_key} was reused with different input"
                     )));
                 }
@@ -2134,12 +2351,17 @@ impl AdkStore {
             }
 
             let Some(invocation) = existing.as_ref() else {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::StaleToolClaim(format!(
                     "tool invocation {idempotency_key} must be claimed before result commit"
                 )));
             };
+            if invocation.lease_expires_at_unix_ms <= now_ms {
+                return Err(AdkStoreError::LeaseLost(format!(
+                    "tool invocation {idempotency_key} lease has expired"
+                )));
+            }
             if invocation.run_lease_token != run_lease_token {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::LeaseLost(format!(
                     "tool invocation {idempotency_key} belongs to run lease token {}, not {run_lease_token}",
                     invocation.run_lease_token
                 )));
@@ -2149,19 +2371,14 @@ impl AdkStore {
                     "SELECT 1 FROM adk_run_leases
                      WHERE run_id = ?1 AND owner_id = ?2 AND fencing_token = ?3
                        AND expires_at_unix_ms > ?4",
-                    params![
-                        id,
-                        invocation.owner_id,
-                        invocation.run_lease_token,
-                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64
-                    ],
+                    params![id, invocation.owner_id, invocation.run_lease_token, now_ms],
                     |row| row.get::<_, i64>(0),
                 )
                 .optional()
                 .map_err(AdkStoreError::Query)?
                 .is_some();
             if !lease_valid {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::LeaseLost(format!(
                     "run {id} lease fencing token {} is no longer current",
                     invocation.run_lease_token
                 )));
@@ -2176,7 +2393,7 @@ impl AdkStore {
                 )
                 .map_err(AdkStoreError::Query)?;
             if affected != 1 {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::RevisionChanged(format!(
                     "run {id} changed before tool result commit"
                 )));
             }
@@ -2197,7 +2414,8 @@ impl AdkStore {
                        updated_at = excluded.updated_at
                      WHERE adk_tool_invocations.owner_id = ?8
                        AND adk_tool_invocations.fencing_token = ?9
-                       AND adk_tool_invocations.status = 'RUNNING'",
+                       AND adk_tool_invocations.status = 'RUNNING'
+                       AND adk_tool_invocations.lease_expires_at_unix_ms > ?11",
                     params![
                         id,
                         idempotency_key,
@@ -2208,12 +2426,13 @@ impl AdkStore {
                         now,
                         owner_id,
                         fencing_token,
-                        invocation.run_lease_token
+                        invocation.run_lease_token,
+                        now_ms
                     ],
                 )
                 .map_err(AdkStoreError::Query)?;
             if invocation_affected != 1 {
-                return Err(AdkStoreError::Conflict(format!(
+                return Err(AdkStoreError::LeaseLost(format!(
                     "tool invocation {idempotency_key} lease is no longer current"
                 )));
             }
@@ -2232,7 +2451,7 @@ impl AdkStore {
                     lease_expires_at_unix_ms: 0,
                     input_json: input_json.to_owned(),
                     output_json: output_json.to_owned(),
-                    created_at: now.clone(),
+                    created_at: invocation.created_at.clone(),
                     updated_at: now,
                 },
             })
@@ -2337,7 +2556,7 @@ impl AdkStore {
                     .map_err(AdkStoreError::Query)?
                     .is_some();
                 if !lease_valid {
-                    return Err(AdkStoreError::Conflict(format!(
+                    return Err(AdkStoreError::LeaseLost(format!(
                         "run {id} lease fencing token {run_lease_token} is no longer current"
                     )));
                 }
@@ -3231,6 +3450,30 @@ impl AdkStore {
             .map_err(AdkStoreError::Query)
     }
 
+    /// Look up a run by the caller supplied idempotency key without scanning
+    /// the durable run projection.  The partial unique index on
+    /// `client_request_id` makes this a single-row, restart-safe lookup.
+    pub fn get_run_by_client_request_id(
+        &self,
+        client_request_id: &str,
+    ) -> Result<Option<StoredAdkRun>, AdkStoreError> {
+        let client_request_id = client_request_id.trim();
+        if client_request_id.is_empty() {
+            return Ok(None);
+        }
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "SELECT id, session_id, agent_id, status, client_request_id,
+                        request_fingerprint, payload_json, created_at, updated_at
+                 FROM adk_runs WHERE client_request_id = ?1",
+                params![client_request_id],
+                stored_run,
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
     pub fn upsert_skill(
         &self,
         id: &str,
@@ -3902,7 +4145,7 @@ fn ensure_current_run_lease(
         .map_err(AdkStoreError::Query)?
         .is_some();
     if !valid {
-        return Err(AdkStoreError::Conflict(format!(
+        return Err(AdkStoreError::LeaseLost(format!(
             "run {run_id} lease fencing token {run_lease_token} is no longer current"
         )));
     }
@@ -4323,6 +4566,30 @@ impl AdkTestCutoverStore {
             .create_run_with_event(params, session_store, event)
     }
 
+    pub fn create_run_with_event_idempotent(
+        &self,
+        params: CreateAdkRunParams<'_>,
+        session_store: &AdkSessionStore,
+        event: &AdkRunEvent<'_>,
+        lease_owner_id: &str,
+        lease_ttl: Duration,
+    ) -> Result<(StoredAdkRun, Option<StoredAdkRunLease>), AdkStoreError> {
+        self.inner.create_run_with_event_idempotent(
+            params,
+            session_store,
+            event,
+            lease_owner_id,
+            lease_ttl,
+        )
+    }
+
+    pub fn get_run_by_client_request_id(
+        &self,
+        client_request_id: &str,
+    ) -> Result<Option<StoredAdkRun>, AdkStoreError> {
+        self.inner.get_run_by_client_request_id(client_request_id)
+    }
+
     pub fn claim_run_lease(
         &self,
         run_id: &str,
@@ -4565,6 +4832,14 @@ impl AdkTestCutoverStore {
             run_lease_token,
             lease_ttl,
         )
+    }
+
+    pub fn heartbeat_tool_invocation(
+        &self,
+        invocation: &StoredAdkToolInvocation,
+        lease_ttl: Duration,
+    ) -> Result<StoredAdkToolInvocation, AdkStoreError> {
+        self.inner.heartbeat_tool_invocation(invocation, lease_ttl)
     }
 
     pub fn commit_tool_result_if_status_and_revision_with_event(

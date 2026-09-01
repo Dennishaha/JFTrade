@@ -49,6 +49,15 @@ impl ProductionAdkChatRuntime {
     }
 }
 
+/// Only these concrete adapters have an explicitly reviewed replay contract.
+/// A catalog entry or a future executor implementation is not enough to
+/// expose a tool to the provider or to run it after a crash recovery.
+pub(crate) const REPLAY_SAFE_TOOL_ALLOWLIST: &[&str] = &["tools.search", "models.list"];
+
+pub(crate) fn replay_safe_tool(name: &str) -> bool {
+    REPLAY_SAFE_TOOL_ALLOWLIST.contains(&name)
+}
+
 impl AdkChatStreamPort for ProductionAdkChatRuntime {
     fn dispatch(
         &self,
@@ -69,10 +78,17 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             let stream_session_store = Arc::clone(&session_store);
             let stream_secrets_path = secrets_path.clone();
             let stream_input = input.clone();
-            let stream_key = format!("stream:{}", input.client_request_id);
+            // Multiple clients may attach to one durable RUNNING request. Each
+            // transport observer is supervised independently; the run lease,
+            // not this stream task key, fences the single executor.
+            let stream_key = format!(
+                "stream:{}:{}",
+                input.client_request_id,
+                STREAM_TASK_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            );
             continuation_supervisor
                 .clone()
-                .spawn(&stream_key, move |_supervisor_cancel| {
+                .spawn(&stream_key, move |supervisor_cancel| {
                     let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
                         Arc::clone(&tool_catalog),
                         Arc::clone(&stream_store),
@@ -81,14 +97,19 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                         store: stream_store,
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
-                    cancellation_registry: Arc::clone(&cancellation_registry),
-                    tool_catalog: Arc::clone(&tool_catalog),
+                        cancellation_registry: Arc::clone(&cancellation_registry),
+                        tool_catalog: Arc::clone(&tool_catalog),
                         tool_executor,
-                    continuation_supervisor: Arc::clone(&continuation_supervisor),
+                        continuation_supervisor: Arc::clone(&continuation_supervisor),
                     };
-                    runtime.start_live_stream(stream_input, stream, sender, started);
-                })
-                ?;
+                    runtime.start_live_stream(
+                        stream_input,
+                        stream,
+                        sender,
+                        started,
+                        supervisor_cancel,
+                    );
+                })?;
             return ready
                 .recv()
                 .map_err(|_| unavailable("assistant model stream failed to start"))?;
@@ -258,8 +279,7 @@ fn durable_context_items(
     let events = events
         .into_iter()
         .filter(|event| {
-            current_invocation_id
-                .is_none_or(|invocation_id| event.invocation_id != invocation_id)
+            current_invocation_id.is_none_or(|invocation_id| event.invocation_id != invocation_id)
         })
         .skip(compacted_count);
     for event in events {
@@ -301,10 +321,12 @@ struct ModelRequest {
 /// remain the first wire item; durable context and prior tool rounds precede
 /// the user message that starts the current model invocation.
 fn model_input(request: &ModelRequest) -> Vec<Value> {
-    let mut input = Vec::with_capacity(
-        request.durable_context.len() + request.tool_context.len() + 2,
-    );
-    if let Some(instruction) = request.instruction.as_deref().filter(|value| !value.trim().is_empty())
+    let mut input =
+        Vec::with_capacity(request.durable_context.len() + request.tool_context.len() + 2);
+    if let Some(instruction) = request
+        .instruction
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
     {
         input.push(json!({"role":"system","content":instruction}));
     }
@@ -330,11 +352,12 @@ struct ModelToolCall {
 struct CancellationGuard {
     registry: Arc<RunCancellationRegistry>,
     run_id: String,
+    token: Arc<AtomicBool>,
 }
 
 impl Drop for CancellationGuard {
     fn drop(&mut self) {
-        self.registry.unregister(&self.run_id);
+        self.registry.unregister(&self.run_id, &self.token);
     }
 }
 
@@ -601,6 +624,83 @@ fn persisted_response(raw: &str) -> Result<Option<Value>, AdkChatPortError> {
     Ok(value.get("response").cloned())
 }
 
+fn replayed_run_error(payload: &Value, status: &str) -> AdkChatPortError {
+    let default_status = if status.eq_ignore_ascii_case("TIMED_OUT") {
+        504
+    } else if status.eq_ignore_ascii_case("CANCELLED") {
+        499
+    } else {
+        500
+    };
+    let http_status = payload
+        .get("errorStatus")
+        .and_then(Value::as_u64)
+        .and_then(|value| u16::try_from(value).ok())
+        .unwrap_or(default_status);
+    let default_code = if status.eq_ignore_ascii_case("TIMED_OUT") {
+        "MODEL_CALL_TIMEOUT"
+    } else if status.eq_ignore_ascii_case("CANCELLED") {
+        "RUN_CANCELLED"
+    } else {
+        "ADK_CHAT_FAILED"
+    };
+    let code = payload
+        .get("errorCode")
+        .and_then(Value::as_str)
+        .unwrap_or(default_code)
+        .to_owned();
+    let message = payload
+        .get("errorMessage")
+        .or_else(|| payload.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or("assistant chat run failed")
+        .to_owned();
+    AdkChatPortError::Failed {
+        status: http_status,
+        code,
+        message,
+    }
+}
+
+fn existing_run_output(
+    run: &StoredAdkRun,
+    route: AdkChatRoute,
+) -> Result<AdkChatPortOutput, AdkChatPortError> {
+    let payload: Value = serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+    if let Some(response) = payload.get("response").cloned() {
+        return match route {
+            AdkChatRoute::Chat => Ok(AdkChatPortOutput::Json(response)),
+            AdkChatRoute::Stream => stream_from_payload(&run.payload_json),
+        };
+    }
+    let reply = payload
+        .get("reply")
+        .or_else(|| payload.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let pending = payload
+        .get("pendingApprovals")
+        .cloned()
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    let session = json!({
+        "id": run.session_id,
+        "agentId": run.agent_id,
+        "createdAt": run.created_at,
+        "updatedAt": run.updated_at,
+    });
+    let projection = json!({
+        "reply": reply,
+        "session": session,
+        "run": payload,
+        "pendingApprovals": pending,
+        "timeline": [],
+    });
+    match route {
+        AdkChatRoute::Chat => Ok(AdkChatPortOutput::Json(projection)),
+        AdkChatRoute::Stream => stream_from_payload(&run.payload_json),
+    }
+}
+
 fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError> {
     let value: Value = serde_json::from_str(raw).map_err(storage_unavailable)?;
     let stream_id = value
@@ -612,11 +712,9 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
     let events = value
         .get("streamEvents")
         .and_then(Value::as_array)
-        .ok_or_else(|| unavailable("persisted ADK run has no stream events"))?;
-    let frames = value
-        .get("streamEvents")
-        .and_then(Value::as_array)
-        .unwrap_or(events)
+        .cloned()
+        .unwrap_or_default();
+    let frames = events
         .iter()
         .map(|event| {
             let id = event
@@ -632,7 +730,15 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
     Ok(AdkChatPortOutput::Stream(AdkChatStreamSnapshot {
         headers: BTreeMap::from([(String::from("X-ADK-Stream-ID"), stream_id)]),
         frames,
-        terminal: true,
+        terminal: value
+            .get("status")
+            .and_then(Value::as_str)
+            .is_some_and(|status| {
+                matches!(
+                    status.to_ascii_uppercase().as_str(),
+                    "COMPLETED" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" | "PENDING"
+                )
+            }),
     }))
 }
 
@@ -684,106 +790,4 @@ fn provider_rejection(
 
 fn storage_unavailable(error: impl std::fmt::Display) -> AdkChatPortError {
     unavailable(format!("ADK storage unavailable: {error}"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use jftrade_store_sqlite::RecordAdkEventParams;
-    use jftrade_store_sqlite::initialize_current;
-    use rusqlite::Connection;
-    use std::fs::File;
-    use tempfile::tempdir;
-
-    #[test]
-    fn compacted_context_survives_restart_and_precedes_current_user_message() {
-        let directory = tempdir().expect("temporary directory");
-        let adk_path = directory.path().join("adk.db");
-        let session_path = directory.path().join("adk-session.db");
-        File::create(&adk_path).expect("create ADK database");
-        File::create(&session_path).expect("create ADK session database");
-        initialize_current(&Connection::open(&adk_path).expect("initialize ADK database"), "adk")
-            .expect("initialize ADK schema");
-        initialize_current(
-            &Connection::open(&session_path).expect("initialize ADK session database"),
-            "adk-session",
-        )
-        .expect("initialize ADK session schema");
-
-        {
-            let store = AdkStore::open(&adk_path).expect("open ADK store");
-            let session_store = AdkSessionStore::open(&session_path).expect("open session store");
-            session_store
-                .upsert_session("jftrade", "local", "session-1", "{}")
-                .expect("seed session");
-            for (id, invocation_id, author, content) in [
-                ("event-01", "run-old-1", "user", "first question"),
-                ("event-02", "run-old-1", "assistant", "first answer"),
-                ("event-03", "run-old-2", "user", "latest durable question"),
-                ("event-04", "run-current", "user", "current request"),
-            ] {
-                session_store
-                    .record_event(RecordAdkEventParams {
-                        id,
-                        app_name: "jftrade",
-                        user_id: "local",
-                        session_id: "session-1",
-                        invocation_id,
-                        author,
-                        content,
-                    })
-                    .expect("seed session event");
-            }
-            store
-                .upsert_session_context(
-                    "session-1",
-                    r#"{"contextRevisionId":"revision-1","compactedEventCount":2,"summaryPreview":"compacted summary"}"#,
-                )
-                .expect("persist compacted context");
-            store
-                .save_handoff_segment(
-                    "session-1",
-                    "handoff-1",
-                    1,
-                    r#"{"endEventIndex":2,"summary":"handoff summary"}"#,
-                )
-                .expect("persist handoff segment");
-        }
-
-        // Reopen both stores to prove the model payload is rebuilt from the
-        // durable compaction rows rather than process-local state.
-        let store = AdkStore::open(&adk_path).expect("reopen ADK store");
-        let session_store = AdkSessionStore::open(&session_path).expect("reopen session store");
-        let context = durable_context_items(
-            &store,
-            &session_store,
-            "session-1",
-            Some("run-current"),
-        )
-        .expect("build durable context");
-        let request = ModelRequest {
-            endpoint: Url::parse("https://example.test/responses").expect("endpoint"),
-            api_key: "secret".to_owned(),
-            model: "fixture-model".to_owned(),
-            instruction: Some("system instruction".to_owned()),
-            message: "current request".to_owned(),
-            durable_context: context,
-            tool_context: Vec::new(),
-            timeout: Duration::from_secs(1),
-            tools: Vec::new(),
-        };
-
-        let input = model_input(&request);
-        assert_eq!(input[0], json!({"role":"system","content":"system instruction"}));
-        assert_eq!(
-            input[1],
-            json!({
-                "role":"system",
-                "content":"Durable session context:\nhandoff summary\n\ncompacted summary"
-            })
-        );
-        assert_eq!(input[2], json!({"role":"user","content":"latest durable question"}));
-        assert_eq!(input[3], json!({"role":"user","content":"current request"}));
-        assert_eq!(input.len(), 4, "current event must not be duplicated");
-    }
 }

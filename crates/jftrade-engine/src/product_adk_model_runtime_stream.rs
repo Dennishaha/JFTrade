@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
+use std::thread;
+use std::time::Duration;
 
 use jftrade_api::{ApiStream, ApiStreamSender};
 use jftrade_store_sqlite::AdkRunEvent;
@@ -17,11 +19,12 @@ use serde_json::{Value, json};
 
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatLiveStream, AdkChatPortError, AdkChatPortOutput, AdkChatRoute,
+    AdkChatStreamFrame, AdkChatStreamSnapshot,
 };
 
 use super::{
-    ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, lease_owner_id,
-    run_cancelled, storage_unavailable, stream_from_payload, unavailable,
+    ChatExecution, ModelResponse, ProductionAdkChatRuntime, RunLeaseGuard, run_cancelled,
+    storage_unavailable, stream_from_payload, unavailable,
 };
 
 #[path = "product_adk_model_runtime_stream_events.rs"]
@@ -34,28 +37,33 @@ impl ProductionAdkChatRuntime {
         stream: ApiStream,
         sender: ApiStreamSender,
         started: SyncSender<Result<AdkChatPortOutput, AdkChatPortError>>,
+        supervisor_cancel: Arc<AtomicBool>,
     ) {
         let prepared = self.prepare_chat(AdkChatRoute::Stream, &input);
         let chat = match prepared {
+            Ok(super::PreparedChat::Existing(AdkChatPortOutput::Stream(snapshot)))
+                if !snapshot.terminal =>
+            {
+                let output = AdkChatPortOutput::LiveStream(AdkChatLiveStream {
+                    headers: snapshot.headers.clone(),
+                    stream,
+                });
+                if started.send(Ok(output)).is_ok() {
+                    self.tail_existing_stream(snapshot, sender, supervisor_cancel);
+                }
+                return;
+            }
             Ok(super::PreparedChat::Existing(output)) => {
                 let _ = started.send(Ok(output));
                 return;
             }
-            Ok(super::PreparedChat::New(chat)) => chat,
+            Ok(super::PreparedChat::New(chat, run_lease)) => (chat, run_lease),
             Err(error) => {
                 let _ = started.send(Err(error));
                 return;
             }
         };
-        let owner_id = lease_owner_id(&chat.run_id);
-        let run_lease =
-            match RunLeaseGuard::acquire(Arc::clone(&self.store), &chat.run_id, &owner_id) {
-                Ok(lease) => lease,
-                Err(error) => {
-                    let _ = started.send(Err(error));
-                    return;
-                }
-            };
+        let (chat, run_lease) = chat;
         if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
             let disconnect = client_disconnected();
             let _ = self.persist_cancelled(&chat, &disconnect, &run_lease);
@@ -96,11 +104,100 @@ impl ProductionAdkChatRuntime {
             stream,
         });
         if started.send(Ok(output)).is_err() {
-            self.cancellation_registry.unregister(&chat.run_id);
+            self.cancellation_registry
+                .unregister(&chat.run_id, &cancellation);
             let _ = self.persist_cancelled(&chat, &client_disconnected(), &run_lease);
             return;
         }
         self.run_live_stream(chat, sender, cancellation, run_lease);
+    }
+
+    fn tail_existing_stream(
+        &self,
+        snapshot: AdkChatStreamSnapshot,
+        sender: ApiStreamSender,
+        cancellation: Arc<AtomicBool>,
+    ) {
+        if sender.send(b"retry: 3000\n\n".to_vec()).is_err() {
+            return;
+        }
+        let mut seen = 0usize;
+        for frame in snapshot.frames {
+            let bytes = match frame {
+                AdkChatStreamFrame::Event { data, .. } => super::encode_sse_event(&data),
+                AdkChatStreamFrame::Comment(comment) => format!("{comment}\n\n").into_bytes(),
+            };
+            if sender.send(bytes).is_err() {
+                return;
+            }
+            seen = seen.saturating_add(1);
+        }
+        let Some(run_id) = snapshot.headers.get("X-ADK-Stream-ID").cloned() else {
+            return;
+        };
+        let mut sent_current = false;
+        loop {
+            if cancellation.load(Ordering::Acquire) || sender.is_closed() {
+                return;
+            }
+            let run = match self.store.get_run(&run_id) {
+                Ok(Some(run)) => run,
+                Ok(None) => return,
+                Err(error) => {
+                    let event = json!({
+                        "type": "error",
+                        "message": format!("assistant stream replay failed: {error}"),
+                    });
+                    let _ = sender.send(super::encode_sse_event(&event));
+                    return;
+                }
+            };
+            let payload: Value = match serde_json::from_str(&run.payload_json) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    let event = json!({
+                        "type": "error",
+                        "message": format!("assistant stream replay is corrupt: {error}"),
+                    });
+                    let _ = sender.send(super::encode_sse_event(&event));
+                    return;
+                }
+            };
+            if !sent_current {
+                let current = json!({"type": "run", "run": payload.clone()});
+                if sender.send(super::encode_sse_event(&current)).is_err() {
+                    return;
+                }
+                sent_current = true;
+            }
+            let events = payload
+                .get("streamEvents")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            for event in events.iter().skip(seen) {
+                if sender.send(super::encode_sse_event(event)).is_err() {
+                    return;
+                }
+            }
+            seen = events.len();
+            if matches!(
+                run.status.to_ascii_uppercase().as_str(),
+                "COMPLETED" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "DENIED" | "PENDING"
+            ) {
+                if !events.last().is_some_and(|event| {
+                    event
+                        .get("type")
+                        .and_then(Value::as_str)
+                        .is_some_and(|kind| matches!(kind, "final" | "error"))
+                }) {
+                    let current = json!({"type": "run", "run": payload});
+                    let _ = sender.send(super::encode_sse_event(&current));
+                }
+                return;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
     }
 
     fn run_live_stream(
@@ -113,6 +210,7 @@ impl ProductionAdkChatRuntime {
         let _guard = super::CancellationGuard {
             registry: Arc::clone(&self.cancellation_registry),
             run_id: chat.run_id.clone(),
+            token: Arc::clone(&cancellation),
         };
         let result = super::stream_adapter::execute_model_stream(
             chat.request.clone(),
@@ -496,11 +594,29 @@ impl ProductionAdkChatRuntime {
         error: &AdkChatPortError,
         run_lease: &RunLeaseGuard,
     ) -> Result<(), AdkChatPortError> {
-        let message = match error {
-            AdkChatPortError::Unavailable(message) | AdkChatPortError::Conflict(message) => {
-                message.clone()
-            }
-            AdkChatPortError::Failed { code, message, .. } => format!("{code}: {message}"),
+        let (error_status, error_code, error_message, message) = match error {
+            AdkChatPortError::Unavailable(message) => (
+                503,
+                "ADK_UNAVAILABLE".to_owned(),
+                message.clone(),
+                message.clone(),
+            ),
+            AdkChatPortError::Conflict(message) => (
+                409,
+                "ADK_CHAT_IDEMPOTENCY_CONFLICT".to_owned(),
+                message.clone(),
+                message.clone(),
+            ),
+            AdkChatPortError::Failed {
+                status,
+                code,
+                message,
+            } => (
+                *status,
+                code.clone(),
+                message.clone(),
+                format!("{code}: {message}"),
+            ),
         };
         let status = if matches!(
             error,
@@ -534,6 +650,9 @@ impl ProductionAdkChatRuntime {
         payload["id"] = Value::String(chat.run_id.clone());
         payload["status"] = Value::String(status.to_owned());
         payload["message"] = Value::String(message.clone());
+        payload["errorStatus"] = Value::from(error_status);
+        payload["errorCode"] = Value::String(error_code);
+        payload["errorMessage"] = Value::String(error_message);
         let mut stream_event_id = None;
         let mut stream_event_content = None;
         if chat.route == AdkChatRoute::Stream {

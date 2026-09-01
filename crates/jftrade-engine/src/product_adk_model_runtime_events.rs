@@ -58,7 +58,7 @@ impl ProductionAdkChatRuntime {
         let prepared = self.prepare_chat(route, input)?;
         match prepared {
             PreparedChat::Existing(output) => Ok(output),
-            PreparedChat::New(chat) => self.execute_chat(chat),
+            PreparedChat::New(chat, run_lease) => self.execute_chat(chat, run_lease),
         }
     }
 
@@ -87,6 +87,14 @@ impl ProductionAdkChatRuntime {
             code: "BAD_REQUEST".to_owned(),
             message: "message is required".to_owned(),
         })?;
+        let fingerprint = fingerprint(&input.body);
+        if let Some(existing) = self
+            .store
+            .get_run_by_client_request_id(&input.client_request_id)
+            .map_err(storage_unavailable)?
+        {
+            return self.prepare_existing_run(existing, route, &fingerprint);
+        }
         let provider = self.resolve_provider(object)?;
         let agent_id = provider.agent_id.clone();
         let model = text_field(object, "model")
@@ -94,26 +102,6 @@ impl ProductionAdkChatRuntime {
             .unwrap_or(provider.model.clone());
         if model.is_empty() {
             return Err(unavailable("assistant model is not configured"));
-        }
-        let fingerprint = fingerprint(&input.body);
-        if let Some(existing) = self
-            .store
-            .list_runs()
-            .map_err(storage_unavailable)?
-            .into_iter()
-            .find(|run| run.client_request_id == input.client_request_id)
-        {
-            if existing.request_fingerprint != fingerprint {
-                return Err(AdkChatPortError::Conflict(
-                    "clientRequestId was already used with a different request".to_owned(),
-                ));
-            }
-            if let Some(response) = persisted_response(&existing.payload_json)? {
-                return Ok(PreparedChat::Existing(match route {
-                    AdkChatRoute::Chat => AdkChatPortOutput::Json(response),
-                    AdkChatRoute::Stream => stream_from_payload(&existing.payload_json)?,
-                }));
-            }
         }
         let session_payload = json!({
             "id": session_id,
@@ -143,6 +131,7 @@ impl ProductionAdkChatRuntime {
             "streamId": run_id,
             "streamEvents": [],
             "providerEvents": [],
+            "resumeState": "provider_executing",
             "requestMessage": message.clone(),
             "providerId": provider.id.clone(),
             "model": model.clone(),
@@ -158,8 +147,10 @@ impl ProductionAdkChatRuntime {
             author: "user",
             content: &message,
         };
-        self.store
-            .create_run_with_event(
+        let lease_owner = lease_owner_id(&run_id);
+        let (existing_or_created, stored_lease) = self
+            .store
+            .create_run_with_event_idempotent(
                 CreateAdkRunParams {
                     id: &run_id,
                     session_id: &session_id,
@@ -171,18 +162,14 @@ impl ProductionAdkChatRuntime {
                 },
                 self.session_store.as_ref(),
                 &initial_event,
+                &lease_owner,
+                RUN_LEASE_TTL,
             )
-            .map_err(|error| {
-                if error
-                    .to_string()
-                    .to_ascii_lowercase()
-                    .contains("constraint")
-                {
-                    AdkChatPortError::Conflict("chat request is already running".to_owned())
-                } else {
-                    storage_unavailable(error)
-                }
-            })?;
+            .map_err(storage_unavailable)?;
+        let Some(stored_lease) = stored_lease else {
+            return self.prepare_existing_run(existing_or_created, route, &fingerprint);
+        };
+        let run_lease = RunLeaseGuard::from_lease(Arc::clone(&self.store), stored_lease)?;
         let tools = self
             .tool_catalog
             .openai_tools()
@@ -191,7 +178,7 @@ impl ProductionAdkChatRuntime {
                 schema
                     .get("name")
                     .and_then(Value::as_str)
-                    .is_some_and(|name| self.tool_executor.supports(name))
+                    .is_some_and(|name| replay_safe_tool(name) && self.tool_executor.supports(name))
             })
             .collect();
         let tool_context = durable_context_items(
@@ -200,23 +187,75 @@ impl ProductionAdkChatRuntime {
             &session_id,
             Some(&run_id),
         )?;
-        Ok(PreparedChat::New(ChatExecution {
-            route,
-            run_id,
-            session_id,
-            agent_id,
-            request: ModelRequest {
-                endpoint: provider.endpoint,
-                api_key: provider.api_key,
-                model,
-                instruction: provider.instruction,
-                message: message.clone(),
-                durable_context: tool_context,
-                tool_context: Vec::new(),
-                timeout: provider.timeout,
-                tools,
+        Ok(PreparedChat::New(
+            ChatExecution {
+                route,
+                run_id,
+                session_id,
+                agent_id,
+                request: ModelRequest {
+                    endpoint: provider.endpoint,
+                    api_key: provider.api_key,
+                    model,
+                    instruction: provider.instruction,
+                    message: message.clone(),
+                    durable_context: tool_context,
+                    tool_context: Vec::new(),
+                    timeout: provider.timeout,
+                    tools,
+                },
             },
-        }))
+            run_lease,
+        ))
+    }
+
+    fn prepare_existing_run(
+        &self,
+        existing: StoredAdkRun,
+        route: AdkChatRoute,
+        fingerprint: &str,
+    ) -> Result<PreparedChat, AdkChatPortError> {
+        if existing.request_fingerprint != fingerprint {
+            return Err(AdkChatPortError::Conflict(
+                "clientRequestId was already used with a different request".to_owned(),
+            ));
+        }
+        let payload: Value =
+            serde_json::from_str(&existing.payload_json).map_err(storage_unavailable)?;
+        let persisted_route = payload
+            .get("route")
+            .and_then(Value::as_str)
+            .unwrap_or("chat");
+        let requested_route = match route {
+            AdkChatRoute::Chat => "chat",
+            AdkChatRoute::Stream => "stream",
+        };
+        if persisted_route != requested_route {
+            return Err(AdkChatPortError::Conflict(
+                "clientRequestId was already used on a different chat route".to_owned(),
+            ));
+        }
+        if let Some(response) = persisted_response(&existing.payload_json)? {
+            return Ok(PreparedChat::Existing(match route {
+                AdkChatRoute::Chat => AdkChatPortOutput::Json(response),
+                AdkChatRoute::Stream => stream_from_payload(&existing.payload_json)?,
+            }));
+        }
+        if matches!(
+            existing.status.to_ascii_uppercase().as_str(),
+            "FAILED" | "TIMED_OUT" | "CANCELLED"
+        ) && route == AdkChatRoute::Chat
+        {
+            return Err(replayed_run_error(&payload, &existing.status));
+        }
+        if existing.status.eq_ignore_ascii_case("RUNNING") {
+            match self.resume_approval(&existing.id) {
+                Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
+                Err(AdkChatPortError::Unavailable(_)) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        existing_run_output(&existing, route).map(PreparedChat::Existing)
     }
 
     pub(crate) fn resume_approval(&self, run_id: &str) -> Result<(), AdkChatPortError> {
@@ -325,6 +364,8 @@ impl ProductionAdkChatRuntime {
             Some("stream") => AdkChatRoute::Stream,
             _ => AdkChatRoute::Chat,
         };
+        let resumed_session_id = run.session_id.clone();
+        let resumed_run_id = run.id.clone();
         let tools = self
             .tool_catalog
             .openai_tools()
@@ -333,13 +374,13 @@ impl ProductionAdkChatRuntime {
                 schema
                     .get("name")
                     .and_then(Value::as_str)
-                    .is_some_and(|name| self.tool_executor.supports(name))
+                    .is_some_and(|name| replay_safe_tool(name) && self.tool_executor.supports(name))
             })
             .collect();
         let chat = ChatExecution {
             route,
-            run_id: run.id,
-            session_id: run.session_id,
+            run_id: resumed_run_id.clone(),
+            session_id: resumed_session_id.clone(),
             agent_id: run.agent_id,
             request: ModelRequest {
                 endpoint: provider.endpoint,
@@ -347,7 +388,12 @@ impl ProductionAdkChatRuntime {
                 model,
                 instruction: provider.instruction,
                 message,
-                durable_context: Vec::new(),
+                durable_context: durable_context_items(
+                    self.store.as_ref(),
+                    self.session_store.as_ref(),
+                    &resumed_session_id,
+                    Some(&resumed_run_id),
+                )?,
                 tool_context: tool_context_from_payload(object),
                 timeout: provider.timeout,
                 tools,
@@ -361,7 +407,9 @@ impl ProductionAdkChatRuntime {
         let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
         let continuation_run_id = chat.run_id.clone();
         let supervisor_for_task = Arc::clone(&continuation_supervisor);
-        continuation_supervisor.clone().spawn(&continuation_run_id, move |continuation_cancel| {
+        continuation_supervisor.clone().spawn(
+            &continuation_run_id,
+            move |continuation_cancel| {
                 let continuation_supervisor = supervisor_for_task;
                 let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
                     Arc::clone(&tool_catalog),
@@ -382,27 +430,28 @@ impl ProductionAdkChatRuntime {
                 let _guard = CancellationGuard {
                     registry: Arc::clone(&runtime.cancellation_registry),
                     run_id: chat.run_id.clone(),
+                    token: Arc::clone(&cancellation),
                 };
                 if runtime.run_is_cancelled(&chat.run_id) {
                     return;
                 }
                 runtime.run_approval_continuation(chat, cancellation);
-            })?;
+            },
+        )?;
         Ok(())
     }
 
-    fn execute_chat(&self, chat: ChatExecution) -> Result<AdkChatPortOutput, AdkChatPortError> {
-        let owner_id = lease_owner_id(&chat.run_id);
-        let run_lease = RunLeaseGuard::acquire(
-            Arc::clone(&self.store),
-            &chat.run_id,
-            &owner_id,
-        )?;
+    fn execute_chat(
+        &self,
+        chat: ChatExecution,
+        run_lease: RunLeaseGuard,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
         if chat.route == AdkChatRoute::Stream {
             let cancellation = self.cancellation_registry.register(&chat.run_id);
             let _guard = CancellationGuard {
                 registry: Arc::clone(&self.cancellation_registry),
                 run_id: chat.run_id.clone(),
+                token: Arc::clone(&cancellation),
             };
             let cancellation_for_stream = Arc::clone(&cancellation);
             let run_id = chat.run_id.clone();
@@ -423,6 +472,7 @@ impl ProductionAdkChatRuntime {
         let _guard = CancellationGuard {
             registry: Arc::clone(&self.cancellation_registry),
             run_id: chat.run_id.clone(),
+            token: Arc::clone(&cancellation),
         };
         if self.run_is_cancelled(&chat.run_id) {
             let error = cancellation_error();
@@ -481,7 +531,7 @@ impl ProductionAdkChatRuntime {
         let known = response
             .tool_calls
             .iter()
-            .all(|call| self.tool_executor.supports(&call.name));
+            .all(|call| replay_safe_tool(&call.name) && self.tool_executor.supports(&call.name));
         let status = if known { "PENDING" } else { "FAILED" };
         let mut pending = Vec::new();
         let mut approval_rows: Vec<(String, String)> = Vec::new();
@@ -560,6 +610,17 @@ impl ProductionAdkChatRuntime {
                     "assistant requested an unavailable tool".to_owned()
                 }),
             );
+            if !known {
+                object.insert("errorStatus".to_owned(), Value::from(503));
+                object.insert(
+                    "errorCode".to_owned(),
+                    Value::String("ADK_TOOL_UNAVAILABLE".to_owned()),
+                );
+                object.insert(
+                    "errorMessage".to_owned(),
+                    Value::String("assistant requested an unavailable tool".to_owned()),
+                );
+            }
         }
         let payload_json = payload.to_string();
         let approval_stages = approval_rows
@@ -607,9 +668,11 @@ impl ProductionAdkChatRuntime {
                 run_lease.owner_id(),
                 run_lease.token(),
             )
-            .map_err(storage_unavailable)?;
+            .map_err(runtime_store_error)?;
         if !updated {
-            return Err(unavailable("assistant chat run state changed before tool call staging"));
+            return Err(AdkChatPortError::Conflict(
+                "assistant chat run state changed before tool call staging".to_owned(),
+            ));
         }
         if !known {
             return Err(AdkChatPortError::Failed {
@@ -634,164 +697,4 @@ impl ProductionAdkChatRuntime {
             "timeline": [],
         })))
     }
-
-    fn resolve_provider(
-        &self,
-        request: &serde_json::Map<String, Value>,
-    ) -> Result<ResolvedProvider, AdkChatPortError> {
-        let requested = request
-            .get("providerId")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
-        let requested_agent_id = text_field(request, "agentId");
-        let providers = self.store.list_providers().map_err(storage_unavailable)?;
-        let (agent_id, agent_payload) = self.resolve_agent(requested_agent_id)?;
-        let agent_provider = agent_payload
-            .get("providerId")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
-        let parsed_providers = providers
-            .iter()
-            .map(|provider| {
-                serde_json::from_str::<Value>(&provider.payload_json)
-                    .map(|value| (provider, value))
-                    .map_err(|error| AdkChatPortError::Failed {
-                        status: 500,
-                        code: "ADK_STORAGE_CORRUPT".to_owned(),
-                        message: format!("stored ADK provider payload is invalid JSON: {error}"),
-                    })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let selected = if let Some(id) = requested.or(agent_provider) {
-            parsed_providers
-                .iter()
-                .find(|(provider, _)| provider.id == id)
-                .ok_or_else(|| unavailable("assistant model provider is unavailable"))?
-        } else {
-            parsed_providers
-                .iter()
-                .find(|(_, value)| {
-                    value
-                        .get("default")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false)
-                })
-                .ok_or_else(|| unavailable("no assistant model provider is configured"))?
-        };
-        let (selected, value) = selected;
-        let enabled = value
-            .get("enabled")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        if !enabled {
-            return Err(unavailable("assistant model provider is disabled"));
-        }
-        let endpoint = value
-            .get("baseUrl")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| unavailable("assistant model provider baseUrl is not configured"))?;
-        let endpoint = responses_endpoint(endpoint).map_err(|error| AdkChatPortError::Failed {
-            status: 502,
-            code: "MODEL_PROVIDER_UNAVAILABLE".to_owned(),
-            message: error,
-        })?;
-        let secrets = read_secrets(&self.secrets_path)?;
-        let api_key = secrets
-            .get(&selected.id)
-            .cloned()
-            .or_else(|| {
-                value
-                    .get("apiKey")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            })
-            .map(|key| key.trim().to_owned())
-            .filter(|key| !key.is_empty())
-            .ok_or_else(|| unavailable("assistant model provider API key is not configured"))?;
-        let instruction = agent_payload
-            .get("instruction")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .or_else(|| Some(DEFAULT_BUILTIN_AGENT_INSTRUCTION.to_owned()));
-        let timeout_ms = value
-            .get("requestTimeoutMs")
-            .and_then(Value::as_u64)
-            .unwrap_or(DEFAULT_TIMEOUT_MS)
-            .clamp(15_000, 600_000);
-        Ok(ResolvedProvider {
-            id: selected.id.clone(),
-            agent_id,
-            endpoint,
-            api_key,
-            model: value
-                .get("model")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .trim()
-                .to_owned(),
-            agent_model: agent_payload
-                .get("model")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_owned),
-            instruction,
-            timeout: Duration::from_millis(timeout_ms),
-        })
-    }
-
-    fn resolve_agent(
-        &self,
-        requested_agent_id: Option<String>,
-    ) -> Result<(String, Value), AdkChatPortError> {
-        if let Some(agent_id) = requested_agent_id {
-            let entity = self
-                .store
-                .get_agent(&agent_id)
-                .map_err(storage_unavailable)?
-                .ok_or_else(|| bad_agent("agent not found"))?;
-            let payload = parse_agent_payload(&entity.payload_json)?;
-            if !agent_enabled(&payload) {
-                return Err(bad_agent("agent is unavailable"));
-            }
-            return Ok((entity.id, payload));
-        }
-
-        let mut agents = self.store.list_agents().map_err(storage_unavailable)?;
-        agents.sort_by(|left, right| {
-            let left_primary = left.id.eq_ignore_ascii_case(DEFAULT_BUILTIN_AGENT_ID);
-            let right_primary = right.id.eq_ignore_ascii_case(DEFAULT_BUILTIN_AGENT_ID);
-            right_primary
-                .cmp(&left_primary)
-                .then_with(|| right.updated_at.cmp(&left.updated_at))
-                .then_with(|| left.id.cmp(&right.id))
-        });
-        let mut parsed = Vec::with_capacity(agents.len());
-        for agent in agents {
-            parsed.push((agent.id, parse_agent_payload(&agent.payload_json)?));
-        }
-        if let Some((id, payload)) = parsed.iter().find(|(id, payload)| {
-            id.eq_ignore_ascii_case(DEFAULT_BUILTIN_AGENT_ID) && agent_enabled(payload)
-        }) {
-            return Ok((id.clone(), payload.clone()));
-        }
-        if let Some((id, payload)) = parsed.iter().find(|(_, payload)| agent_enabled(payload)) {
-            return Ok((id.clone(), payload.clone()));
-        }
-        Ok((
-            DEFAULT_BUILTIN_AGENT_ID.to_owned(),
-            json!({
-                "id": DEFAULT_BUILTIN_AGENT_ID,
-                "status": "ENABLED",
-                "instruction": DEFAULT_BUILTIN_AGENT_INSTRUCTION,
-            }),
-        ))
-    }
-
 }
