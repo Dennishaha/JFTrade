@@ -12,8 +12,7 @@ for (const script of scripts) {
   assert(source.includes("cargo") && source.includes("rustup"), `${script.path} does not check the Rust toolchain`);
   assert(source.includes("pnpm run build:desktop"), `${script.path} does not invoke the Tauri release build`);
   assert(source.includes("JFTRADE_DESKTOP_RELEASE_TAG"), `${script.path} does not require a release tag`);
-  assert(!source.includes("go run ./cmd/jftrade-api"), `${script.path} still starts the Go API`);
-  assert(!source.includes("go build") || source.includes("reference"), `${script.path} must not build a Go production API`);
+  assert(source.includes("pnpm run check:zero-go"), `${script.path} does not enforce the zero-Go release gate`);
 }
 
 console.log("API release script tests passed");

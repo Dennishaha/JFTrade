@@ -533,6 +533,7 @@ jobs:
           copy_one LICENSE LICENSE
           copy_one docs/legal/third-party-notices.md THIRD-PARTY-NOTICES.md
 
+          node scripts/check-zero-go.mjs --artifact candidate-inputs
           node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
           node --input-type=module <<'NODE'
           import { createHash } from "node:crypto";

@@ -1,7 +1,11 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { buildDevWorker, nodeRuntimePath } from "./build-pineworker-dev.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 let workerPath = String(process.env.JFTRADE_PINEWORKER_BUNDLE ?? "").trim();
 if (workerPath === "") {
   try {
@@ -12,13 +16,22 @@ if (workerPath === "") {
   }
 }
 
-const status = spawnChecked("go", ["test", "./pkg/backtest", "-run", "TestRealPineTSBacktestSmoke", "-count=1", "-v"], {
+const status = spawnChecked("cargo", [
+  "test",
+  "-p",
+  "jftrade-integration-pine",
+  "--test",
+  "real_worker_smoke",
+  "--",
+  "--ignored",
+  "--nocapture",
+], {
+  cwd: repositoryRoot,
   env: {
     ...process.env,
-    JFTRADE_PINETS_BACKTEST_SMOKE: "1",
-    JFTRADE_PINEWORKER_BUNDLE: workerPath,
+    JFTRADE_PINEWORKER_BUNDLE: path.resolve(workerPath),
     JFTRADE_PINEWORKER_RUNTIME: String(process.env.JFTRADE_PINEWORKER_RUNTIME ?? "").trim() || nodeRuntimePath(),
-    JFTRADE_PINEWORKER_WORKERS: "1",
+    JFTRADE_PINEWORKER_PROTO: path.join(repositoryRoot, "proto/pineworker/pineworker.proto"),
   },
 });
 process.exit(status);

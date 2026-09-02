@@ -12,6 +12,10 @@ const baseline = JSON.parse(
 );
 
 const activePattern = /\bgo\s+(?:run|build|test|generate|vet)\b|actions\/setup-go|\.github\/actions\/setup-go|cmd\/jftrade-api|@wailsio\/runtime|\bwails(?:3)?\s+(?:build|dev|generate)\b/giu;
+const selfCheckFiles = new Set([
+  "scripts/check-go-retirement.test.mjs",
+  "scripts/check-zero-go.test.mjs",
+]);
 
 function git(args, options = {}) {
   return execFileSync("git", args, {
@@ -33,8 +37,8 @@ function isGoArtifact(file) {
   return file.endsWith(".go") || /(^|\/)go\.(?:mod|sum|work|work\.sum)$/u.test(file);
 }
 
-function isUnderActiveRoot(file) {
-  if (file === "scripts/check-go-retirement.test.mjs") return false;
+export function isUnderActiveRoot(file) {
+  if (selfCheckFiles.has(file)) return false;
   return baseline.activeConfigurationRoots.some((root) => file === root || file.startsWith(`${root}/`));
 }
 

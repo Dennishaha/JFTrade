@@ -44,6 +44,7 @@
     "check:ai-context": "node scripts/check-ai-context.mjs",
     "check:generated": "node scripts/generate-contracts.mjs --check",
     "check:go-retirement": "node scripts/check-go-retirement.mjs",
+    "check:zero-go": "node scripts/check-zero-go.mjs",
     "check:quick": "node scripts/test-affected.mjs --with-checks --profile=quick --worktree",
     "check:affected": "node scripts/test-affected.mjs --with-checks",
     "check:all": "node scripts/run-test-layer.mjs main",

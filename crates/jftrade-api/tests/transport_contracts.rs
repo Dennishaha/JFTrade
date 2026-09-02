@@ -26,7 +26,7 @@ async fn managed_sidecar_requires_bearer_protocol_and_verified_surface() {
     .expect("routes");
     let access = AccessPolicy {
         desktop_token: Some("private-rust-bearer".into()),
-        internal_proxy_protocol: Some("jftrade-go-rehearsal.v1".into()),
+        internal_proxy_protocol: Some("jftrade-product-rehearsal.v1".into()),
         ..AccessPolicy::default()
     };
     let router = build_router(ApiState::new(routes, access, port.clone()));
@@ -46,8 +46,8 @@ async fn managed_sidecar_requires_bearer_protocol_and_verified_surface() {
     for denied in [
         request(None, Some("desktop")),
         request(Some("wrong"), Some("desktop")),
-        request(Some("jftrade-go-rehearsal.v1"), None),
-        request(Some("jftrade-go-rehearsal.v1"), Some("unverified")),
+        request(Some("jftrade-product-rehearsal.v1"), None),
+        request(Some("jftrade-product-rehearsal.v1"), Some("unverified")),
     ] {
         let response = router.clone().oneshot(denied).await.expect("denied");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -55,7 +55,10 @@ async fn managed_sidecar_requires_bearer_protocol_and_verified_surface() {
     let websocket_token_substitution = Request::builder()
         .uri("/api/v1/settings/ui")
         .header("sec-websocket-protocol", "private-rust-bearer")
-        .header(INTERNAL_PROXY_PROTOCOL_HEADER, "jftrade-go-rehearsal.v1")
+        .header(
+            INTERNAL_PROXY_PROTOCOL_HEADER,
+            "jftrade-product-rehearsal.v1",
+        )
         .header(ACCESS_SURFACE_HEADER, "desktop")
         .body(Body::empty())
         .expect("request");
@@ -66,7 +69,10 @@ async fn managed_sidecar_requires_bearer_protocol_and_verified_surface() {
         .expect("denied");
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
     let accepted = router
-        .oneshot(request(Some("jftrade-go-rehearsal.v1"), Some("desktop")))
+        .oneshot(request(
+            Some("jftrade-product-rehearsal.v1"),
+            Some("desktop"),
+        ))
         .await
         .expect("accepted");
     assert_eq!(accepted.status(), StatusCode::OK);

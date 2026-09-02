@@ -74,6 +74,19 @@ test("rejects an empty SBOM even when its empty-file hash is supplied", () => {
   assert.match(result.errors.join("\n"), /SBOM file is empty/);
 });
 
+test("rejects Go and Wails components recorded in an SBOM", () => {
+  const { root, target } = fixture();
+  const sbom = JSON.stringify({
+    spdxVersion: "SPDX-2.3",
+    packages: [{ name: "legacy", externalRefs: [{ referenceLocator: "pkg:golang/example/legacy" }] }],
+  });
+  fs.writeFileSync(path.join(root, target.sbom), sbom);
+  target.sbomSha256 = sha256(sbom);
+  const result = inspectSbomProvenance({ targets: [target] }, { baseDirectory: root });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /SBOM zero-Go check/);
+});
+
 test("reports missing platform targets without failing unless required", () => {
   const { root, target } = fixture();
   const manifest = { targets: [target] };

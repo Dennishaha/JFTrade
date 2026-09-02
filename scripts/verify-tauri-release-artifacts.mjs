@@ -6,6 +6,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { inspectArtifact } from "./check-zero-go.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const manifestSchema = "jftrade.tauri-release-artifacts.v1";
 const platformNames = new Set([
@@ -151,6 +153,10 @@ export function inspectTauriReleaseArtifacts({
   requireVersion(version);
   const relativeRoot = path.resolve(root);
   if (!fs.existsSync(bundleRoot)) throw new Error(`Tauri bundle directory is missing: ${bundleRoot}`);
+  const zeroGoErrors = inspectArtifact(bundleRoot);
+  if (zeroGoErrors.length > 0) {
+    throw new Error(`Tauri bundle failed the zero-Go gate:\n${zeroGoErrors.map((error) => `- ${error}`).join("\n")}`);
+  }
   const packages = packageSpecs[platform].map((spec) =>
     findPackage(bundleRoot, version, platform, spec, relativeRoot),
   );

@@ -6,6 +6,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { inspectArtifact } from "../check-zero-go.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export const SBOM_PROVENANCE_SCHEMA = "jftrade.sbom-provenance-check.v1";
@@ -430,6 +432,10 @@ function inspectTarget(target, baseDirectory, errors) {
     baseDirectory,
     targetErrors,
   );
+  for (const [kind, inspected] of [["artifact", artifact], ["SBOM", sbom]]) {
+    if (!inspected.valid || !inspected.contentPath) continue;
+    targetErrors.push(...inspectArtifact(inspected.contentPath).map((error) => `${kind} zero-Go check: ${error}`));
+  }
   let sbomDocument;
   if (sbom.valid && sbom.contentPath) {
     sbomDocument = readJsonDocument(sbom.contentPath, "SBOM", targetErrors);

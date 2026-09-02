@@ -33,7 +33,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Enforce Go retirement
-        run: pnpm run check:go-retirement
+        run: |
+          pnpm run check:go-retirement
+          pnpm run check:zero-go
 
       - name: Generate and verify contracts
         run: |

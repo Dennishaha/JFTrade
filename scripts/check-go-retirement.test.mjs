@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateGoRetirement } from "./check-go-retirement.mjs";
+import { isUnderActiveRoot, validateGoRetirement } from "./check-go-retirement.mjs";
 
 const signature = (file, line) => new Map([[`${file}\0${line}`, 1]]);
 
@@ -32,4 +32,11 @@ test("retirement permits removing active commands and rejects new command signat
     baselineSignatures: baseline,
     currentSignatures: signature("package.json", "go build ./..."),
   }), ["new active Go/Wails configuration in package.json: go build ./..."]);
+});
+
+test("retirement excludes only the gate's own negative fixtures from active configuration", () => {
+  assert.equal(isUnderActiveRoot("scripts/check-go-retirement.test.mjs"), false);
+  assert.equal(isUnderActiveRoot("scripts/check-zero-go.test.mjs"), false);
+  assert.equal(isUnderActiveRoot("scripts/unrelated.test.mjs"), true);
+  assert.equal(isUnderActiveRoot("package.json"), true);
 });

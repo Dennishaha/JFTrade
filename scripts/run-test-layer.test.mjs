@@ -25,7 +25,7 @@ test("preflight checks generated docs before running the shared checks", () => {
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
-  assert.equal(parallelPreflightChecks.length, 10);
+  assert.equal(parallelPreflightChecks.length, 11);
 });
 
 test("main is the complete non-recursive gate and runs actionlint", () => {

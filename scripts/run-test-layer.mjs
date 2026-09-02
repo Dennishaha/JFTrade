@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 export const preflightChecks = [
+  ["pnpm", ["run", "check:zero-go"]],
   ["pnpm", ["run", "test:test-policy"]],
   ["pnpm", ["run", "check:test-names"]],
   ["pnpm", ["run", "check:openapi-quality"]],
@@ -21,8 +22,8 @@ export const preflightChecks = [
   ["pnpm", ["run", "typecheck"]],
 ];
 
-export const parallelPreflightChecks = preflightChecks.slice(0, 10);
-export const sequentialPreflightChecks = preflightChecks.slice(10);
+export const parallelPreflightChecks = preflightChecks.slice(0, 11);
+export const sequentialPreflightChecks = preflightChecks.slice(11);
 
 const checkGenerated = ["pnpm", ["run", "check:generated"]];
 const checkDiff = ["pnpm", ["run", "check:diff"]];

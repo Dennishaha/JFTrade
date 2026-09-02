@@ -269,6 +269,7 @@ function buildCommands(files, modules, withChecks, profile) {
     if (!moduleCommands.includes("pnpm run test:rust")) commands.push(...rustCommands);
   }
   if (withChecks) {
+    commands.unshift("pnpm run check:zero-go");
     commands.unshift("pnpm run check:go-retirement");
     commands.unshift("pnpm run check:ai-context");
     commands.unshift("pnpm run check:diff");

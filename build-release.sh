@@ -24,6 +24,7 @@ fi
 echo "Building the Rust/Tauri desktop release for the current host..."
 echo "Cross-platform release artifacts are produced by the Tauri CI matrix."
 pnpm install --frozen-lockfile
+pnpm run check:zero-go
 pnpm run build:desktop
 
 echo "Tauri release artifacts are under apps/desktop/src-tauri/target/release/bundle."

@@ -17,6 +17,10 @@ pnpm install --frozen-lockfile
 if ($LASTEXITCODE -ne 0) {
     throw "pnpm install failed"
 }
+pnpm run check:zero-go
+if ($LASTEXITCODE -ne 0) {
+    throw "zero-Go release gate failed"
+}
 pnpm run build:desktop
 if ($LASTEXITCODE -ne 0) {
     throw "Tauri desktop build failed"

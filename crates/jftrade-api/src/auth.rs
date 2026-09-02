@@ -63,9 +63,6 @@ pub fn desktop_trusted_origins() -> impl IntoIterator<Item = String> {
         "tauri://localhost".to_owned(),
         "http://tauri.localhost".to_owned(),
         "https://tauri.localhost".to_owned(),
-        "wails://localhost".to_owned(),
-        "http://wails.localhost".to_owned(),
-        "https://wails.localhost".to_owned(),
     ]
 }
 
@@ -218,7 +215,7 @@ pub fn canonical_origin(value: &str) -> Option<String> {
     let (scheme, rest) = value.split_once("://")?;
     if !matches!(
         scheme.to_ascii_lowercase().as_str(),
-        "http" | "https" | "tauri" | "wails"
+        "http" | "https" | "tauri"
     ) {
         return None;
     }
@@ -303,7 +300,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn origin_normalization_matches_go_scheme_and_authority_rules() {
+    fn origin_normalization_accepts_web_and_tauri_schemes() {
         assert_eq!(
             canonical_origin(" HTTPS://Example.COM/path?q=1 "),
             Some("https://example.com".into())
