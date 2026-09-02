@@ -145,11 +145,8 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
         let subscription = read_mock_frame(&mut session);
         assert_eq!(subscription.header.proto_id, PROTO_QOT_SUB);
         write_mock_response(&mut session, &subscription, field(1, 0));
-        session
-            .set_read_timeout(Some(Duration::from_secs(2)))
-            .expect("set session timeout");
         let mut byte = [0_u8; 1];
-        let _ = session.read(&mut byte);
+        while session.read(&mut byte).is_ok_and(|read| read > 0) {}
     });
 
     let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(2)));
@@ -165,7 +162,11 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
         }],
         0,
     );
-    provider.task.poll_interval = Duration::from_secs(10);
+    // This test owns the mock session only to prove composition and ordered
+    // shutdown. Keep the unrelated periodic poll asleep until shutdown wakes
+    // it, and let the runtime close the long-lived mock connection instead of
+    // racing a short server-side timeout on contended CI runners.
+    provider.task.poll_interval = Duration::from_secs(60 * 60);
     let directory = tempdir().expect("temporary directory");
     let product = ProductConfig::desktop_production(
         "127.0.0.1:0".parse().expect("product address"),
