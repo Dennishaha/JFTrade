@@ -66,6 +66,7 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
   const workspaceGate = rustQuality.indexOf("run: pnpm run check:rust");
   const compileOnlyConfig = `TAURI_CONFIG: '{"bundle":{"resources":[]}}'`;
 
+  assert.match(rustQuality, /timeout-minutes: 90/);
   assert.ok(dependencyStep >= 0, "Rust quality must install Tauri Linux system headers");
   assert.ok(workspaceGate > dependencyStep, "system headers must be installed before check:rust");
   assert.ok(
