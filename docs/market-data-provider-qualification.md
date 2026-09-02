@@ -19,7 +19,7 @@
 
 | 优先级 | 项目 | 当前状态 | 通过后实现顺序 | 未通过时的行为 |
 | --- | --- | --- | --- | --- |
-| P1 | 筛选结果行业 | 东财现货帧当前没有行业列，尚无稳定的批量补全证据 | sidecar 缓存/映射 → Go wire → 投影 → Web 行为测试 → 矩阵 | `industry: null` |
+| P1 | 筛选结果行业 | 东财现货帧当前没有行业列，尚无稳定的批量补全证据 | sidecar 缓存/映射 → Rust wire/port → 投影 → Web 行为测试 → 矩阵 | `industry: null` |
 | P1 | AKShare 分析师目标价 | 当前研报聚合没有目标价列 | 先验证字段来源和更新时间，再按现有 analyst wire 增加可选值 | `target_price: null` |
 | P2 | 估值时间序列与分位 | 当前 Provider 只有点值，不能支撑估值分位 | 需要带日期的历史序列、单位和最小样本数，再复用现有 `research.valuation` 409 边界 | 保持 409 |
 | P2 | 卖空历史序列 | 当前没有覆盖 US/HK/SH/SZ 的稳定历史序列 | 需要市场覆盖、日期序列、单位和限流行为全部通过 live smoke | 保持 409 |
@@ -30,8 +30,8 @@
 通过资格评估后，每个候选能力单独提交，顺序固定为：
 
 1. sidecar 上游适配、错误分类和脱敏 fixture；
-2. `internal/integration` wire/client/provider 适配；
-3. `internal/productfeatures` facade 与纯函数投影；
+2. `crates/jftrade-integration-marketdata-helper` wire/client/provider 适配；
+3. 对应 Rust domain port、engine facade 与纯函数投影；
 4. 前端能力集合和行为测试；
 5. 能力矩阵与 live smoke 更新。
 

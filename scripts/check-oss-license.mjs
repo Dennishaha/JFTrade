@@ -118,8 +118,6 @@ for (const needle of [
   "pinets",
   "Version: `0.9.31`",
   "github.com/c9s/bbgo@v1.64.2",
-  "Copyright (c) 2016 Mark Chenoweth",
-  "Copyright Suneido Software Corp.",
   "Permission is hereby granted, free of charge",
   "Apache License",
   "Version 2.0, January 2004",

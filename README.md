@@ -2,6 +2,8 @@
 
 JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看、历史数据同步、策略编写、回测、运行时设置和 ADK 助手放在同一个本地工作台里。
 
+当前主线是零 Go 的 Rust/Tauri 产品树：278 条 `/api/v1/*` 路由均由 Rust 持有，Go/Wails 源码、工具链和运行产物已删除。`0.29.0` 将是首个零 Go 版本，但四平台签名、真实升级/回滚、SBOM、安全审查和发布后 smoke 尚未闭合，因此当前工作树不代表已经具备 `0.29.0` 发布资格。
+
 前端与构建工具要求 Node.js `>=22.13` 和仓库固定的 pnpm `11.21.0`；依赖安装统一使用根目录 `pnpm-lock.yaml`。
 
 ## 快速开始
@@ -89,6 +91,8 @@ pnpm run test:affected -- --print
 pnpm run check:quick
 pnpm run check:rust
 pnpm run check:generated
+pnpm run check:go-retirement
+pnpm run check:zero-go
 pnpm run check:all
 ```
 
@@ -103,23 +107,18 @@ pnpm run generate:docs
 
 其中：
 
-- `generate:openapi` 从 `cmd/jftrade-api` 扫描 Swagger 注释，生成 `docs/swagger/*`
-- `generate:contracts` 统一生成 OpenAPI、Web API 类型和契约基线
+- `contracts/openapi/openapi.json` 是语言无关的 OpenAPI 规范源
+- `generate:openapi` 与 `generate:contracts` 从规范源生成 Web API 类型和参考文档
 - `generate:reference` 生成 `docs/reference/generated/*`
 - `generate:docs` 在契约生成后刷新参考文档
 - `check:generated` 在临时目录生成全部契约，并逐字节比较需要提交的契约产物，不修改工作树
 - `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
+- `check:go-retirement` 保留单调递减账本，拒绝恢复已删除的 Go/Wails 范围
+- `check:zero-go` 拒绝 Go 源码/模块/命令、Wails 入口，以及传入发布扫描器的 Go/Wails 产物
 
-`docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`contracts/openapi/openapi.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
+`apps/web/src/generated/openapi.ts` 和 `docs/reference/generated/*` 是生成产物，不要手工改；公开契约变化应先修改并审阅 `contracts/openapi/openapi.json`，再运行生成命令。
 
-Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
-
-```bash
-go run ./cmd/generate-futu-proto -source /path/to/FTAPIProtoFiles_10.9.6908
-go run ./cmd/generate-pineworker-proto
-```
-
-命令会校验并按需安装固定版本的 Go Protobuf 插件；生成失败时不会替换仓库内已有产物。
+Protobuf 规范统一位于 `proto/futu` 和 `proto/pineworker`。Rust build scripts 使用固定的 `protoc 34.1` 生成私有 Rust 类型，Node PineTS worker 直接加载中立 `.proto`；仓库不再安装或运行 Go protobuf 插件。
 
 Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade 会拒绝建立业务会话，并在设置页提示升级；安装包请从 [Futu OpenAPI 下载页](https://www.futunn.com/download/OpenAPI) 获取。
 
@@ -167,18 +166,17 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 ```text
 crates/jftrade-engine/     Rust 后端入口与 product composition
 crates/jftrade-api/        /api/v1/*、SSE、WebSocket transport
+crates/jftrade-*/          领域、存储与外部集成 crates
 apps/desktop/src-tauri/    Tauri 2 桌面入口与桌面专属服务
-cmd/jftrade-api/           Go reference/differential harness
-internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}/
-                           控制台业务能力
-internal/integration/futu/ 后端内部的 Futu/OpenD 集成
-pkg/futu/                  Futu exchange 适配层
-pkg/strategy/              Pine 和策略运行能力
-pkg/backtest/              回测与历史数据存储
 apps/web/                  Vue 3 控制台
+workers/pineworker/        Node PineTS gRPC worker
+workers/marketdata-sidecar/ Python market-data helper
+contracts/openapi/         语言无关 OpenAPI 规范源
+proto/                     Futu 与 Pine worker 中立 protobuf 契约
+runtime-assets/            Web、Pine、market-data 发布资产暂存目录
+tests/fixtures/rust-migration/ 历史兼容 corpus 与 Rust replay 输入
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
-build/                     桌面资源与平台构建辅助文件
 ```
 
 ## 开源许可

@@ -1,6 +1,6 @@
 # JFTrade 活动路线图
 
-更新时间：2026-08-31。
+更新时间：2026-09-02。
 
 本文只记录当前仍未闭合、且需要继续投入的工作。已完成事项只保留在 [Go → Rust 迁移账本](architecture/go-to-rust-migration.md)、[Stage 9 closeout manifest](../tests/fixtures/rust-migration/stage9/closeout-evidence.json) 和 Git 历史中，不再进入活动清单或后续智能体任务。
 
@@ -12,7 +12,9 @@ Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 
 
 ## 运行时未闭合项
 
-HTTP production route、唯一写 owner、execution reconciliation、storage lease、Tauri readiness 与 `system/status` 投影没有仍需派工的实现门禁。MCP 已完成 transport、69 个工具名称的 catalog baseline 和 native production executor：当前 69 个工具均具备 native executor，0 个仍结构性 `fail-closed`；其中 `strategy.pine_spec` 和 `strategy.validate_pine` 在进程内执行已审阅的 native Pine 子集，不等同于完整 Pine v6 runtime，provider/research 依赖在外部 runtime 或 typed reader 不可用时仍按契约返回 `unavailable`。`tools/list` 的 69 个逐工具 input schema 已通过 Go reference fixture 的 required/enum/bounds/`additionalProperties` 全量 deep-equality 门禁。后续实现必须继续保持真实 adapter 或 external-unavailable 语义，不得用 generic schema、fixture 成功或文档声明掩盖真实能力边界。已通过的 `allRouteGroups`、`uniqueWriteOwner`、execution reconciliation、storage lease、Tauri readiness 和 `system/status` 门禁只有在出现新的运行时回归证据时才重新登记。
+HTTP production route、唯一写 owner、execution reconciliation、storage lease、Tauri readiness、`system/status` 投影和零 Go 源码/入口删除没有仍需派工的实现门禁。MCP 已完成 transport、69 个工具名称的 catalog baseline 和 native production executor：当前 69 个工具均具备 native executor，0 个仍结构性 `fail-closed`；其中 `strategy.pine_spec` 和 `strategy.validate_pine` 在进程内执行已审阅的 native Pine 子集，不等同于完整 Pine v6 runtime，provider/research 依赖在外部 runtime 或 typed reader 不可用时仍按契约返回 `unavailable`。`tools/list` 的 69 个逐工具 input schema 已通过历史 fixture 的 required/enum/bounds/`additionalProperties` 全量 deep-equality Rust replay。后续实现必须继续保持真实 adapter 或 external-unavailable 语义，不得用 generic schema、fixture 成功或文档声明掩盖真实能力边界。已通过的 `allRouteGroups`、`uniqueWriteOwner`、`ownerDeletion`、execution reconciliation、storage lease、Tauri readiness 和 `system/status` 门禁只有在出现新的运行时回归证据时才重新登记。
+
+`0.29.0` 是计划中的首个零 Go 版本。升级资格使用线上原样发布的 `v0.27.0` 安装包和官方 checksum；不新增 Go 补丁版、不重建基线、不重新生成最终 corpus。
 
 ## Release 与终局放行项
 
@@ -20,12 +22,12 @@ HTTP production route、唯一写 owner、execution reconciliation、storage lea
 
 - [ ] **platformRelease**：完成 macOS ARM64、Linux x64、Windows x64/ARM64 的 Tauri package、签名、安装、升级、卸载、回滚和 runtime smoke 矩阵；本机 smoke 不能替代原生 runner 证据。
 - [ ] **signedUpdaterArtifact**：在 release signing workflow 生成并验证真实签名 updater artifact/feed，验证升级前停止 Rust API、Pine、Python 子进程并可回退。
-- [ ] **rollbackArtifact**：归档并验证上一版本签名安装包、updater metadata 和回退说明。
+- [ ] **rollbackArtifact**：归档并验证线上 `v0.27.0` 原始安装包/checksum、`0.29.0` updater metadata、升级前备份和回退说明；`v0.27.0` 没有发布签名，不能伪造签名证据。
 - [ ] **securityReview**：完成独立 security review，覆盖 owner 边界、监听器、凭据、更新权限、恢复路径和桌面能力授权。
 - [ ] **sbom**：为实际发布产物生成 SBOM 与 provenance，并完成依赖/许可证/来源审计归档。
 - [ ] **backupRestoreDrill**：用上一版本真实数据副本完成 backup/restore、schema upgrade、损坏恢复、回滚和 retained worker crash recovery 演练。
 - [ ] **postReleaseSmoke**：发布后在四个平台执行固定 post-release smoke，并将结果写入 closeout manifest；所有高风险 quirk 必须先有处置结论。
-- [ ] **hardCutReadiness**：上述开放证据全部可复现、回退有效且无双写后，才允许关闭 closeout，并同步最终发布证据、迁移文档、module map 和 Go/Wails 删除清单。
+- [ ] **hardCutReadiness**：上述开放证据全部可复现、回退有效且无双写后，才允许创建 `0.29.0` tag、关闭 closeout，并同步最终发布证据、迁移文档和 module map。
 
 ## 后续交接顺序
 
@@ -36,4 +38,4 @@ HTTP production route、唯一写 owner、execution reconciliation、storage lea
 
 ## 约束
 
-不改变公开 HTTP/OpenAPI、SSE、WebSocket、SQLite wire contract 或公开 `pkg/*` API；不接入 Go 路由、不做 Go fallback、不连接真实外部服务完成普通测试。任何内部 adapter 缺失都阻止 production 启动，外部依赖不可用则返回基线一致的 502/503。
+不改变公开 HTTP/OpenAPI、SSE、WebSocket、SQLite wire contract 或 worker contract；不恢复 Go 路由/工具链、不做 Go fallback、不连接真实外部服务完成普通测试。任何内部 adapter 缺失都阻止 production 启动，外部依赖不可用则返回基线一致的 502/503。

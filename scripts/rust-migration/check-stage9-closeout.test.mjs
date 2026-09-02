@@ -67,8 +67,6 @@ function releaseCandidateManifest() {
   for (const gate of ["postReleaseSmoke", "hardCutReadiness"]) {
     manifest.gates[gate].status = "open";
   }
-  manifest.ownerDeletion.go.status = "open";
-  manifest.ownerDeletion.wails.status = "open";
   return manifest;
 }
 
@@ -84,15 +82,15 @@ test("Stage 9 closeout fixture is structurally valid but remains open", () => {
   assert.match(result.blockers.join("\n"), /platform macos-arm64 package is open/);
 });
 
-test("Stage 9 closeout keeps hard-cut and owner-deletion gates open", () => {
+test("Stage 9 closeout records owner deletion while hard-cut remains open", () => {
   const manifest = readManifest();
   const result = evaluateCloseout(manifest, {
     expectedRouteOwnership: routeOwnershipSnapshot(repositoryRoot),
   });
   assert.equal(result.valid, true);
   assert.equal(manifest.gates.hardCutReadiness.status, "open");
-  assert.equal(manifest.ownerDeletion.go.status, "open");
-  assert.equal(manifest.ownerDeletion.wails.status, "open");
+  assert.equal(manifest.ownerDeletion.go.status, "passed");
+  assert.equal(manifest.ownerDeletion.wails.status, "passed");
   assert.ok(
     !result.blockers.some((blocker) => blocker.includes("is passed while prerequisite gate")),
   );
@@ -242,6 +240,18 @@ test("Stage 9 closeout keeps a passed owner gate blocked when its entrypoint is 
   assert.equal(result.valid, true);
   assert.equal(result.complete, false);
   assert.ok(result.blockers.some((blocker) => blocker.includes("entrypoint status is retained")));
+});
+
+test("Stage 9 owner deletion depends on route and unique-owner gates", () => {
+  const { manifest, expectedRouteOwnership } = completeManifest();
+  manifest.gates.allRouteGroups.status = "open";
+  const result = evaluateCloseout(manifest, { expectedRouteOwnership });
+  assert.equal(result.valid, true);
+  assert.equal(result.complete, false);
+  assert.ok(result.blockers.some((blocker) =>
+    blocker === "owner deletion go is passed while prerequisite gate allRouteGroups is not fully passed"));
+  assert.ok(result.blockers.some((blocker) =>
+    blocker === "owner deletion wails is passed while prerequisite gate allRouteGroups is not fully passed"));
 });
 
 test("Stage 9 candidate checker fails closed for a missing manifest", () => {

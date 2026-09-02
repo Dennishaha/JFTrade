@@ -34,9 +34,9 @@ JFTrade 的策略设计面是 Pine v6 原生源码工作台。当前 UI 不再�
 
 ## 前后端解析契约
 
-Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实现；前端 `strategyVisualBuilderPineParser` 只承担可视化往返子集的结构投影，不应扩张为第二套完整 Pine AST。
+Rust `jftrade-strategy::pine` 是完整语法、语义诊断和 lowering 的权威实现；前端 `strategyVisualBuilderPineParser` 只承担可视化往返子集的结构投影，不应扩张为第二套完整 Pine AST。
 
-[`tests/fixtures/pine-structure-corpus.json`](../../tests/fixtures/pine-structure-corpus.json) 是两个解析器共用的业务往返语料。它覆盖参数、状态、MTF、指标、集合统计、时间与交易时段、多级条件、订单生命周期、风险元数据和多种退出。Go 测试从 lowering 后 IR 核对 `let/if/order/exit/cancel/log/notify`、分支首节点以及订单、退出和风险字段；前端测试核对 visual block、分支归属和嵌套深度，并执行 `source → visual → Pine → visual` 往返，复核数量、方向、`from_entry`、退出触发和风险值。任一侧拒绝语料、静默丢失受支持语义或改变结构都会使 `pnpm run test:pine-structure-corpus` 失败。新增可视化往返语法时必须先补这份共享语料，不能只增加同类节点计数。
+[`tests/fixtures/pine-structure-corpus.json`](../../tests/fixtures/pine-structure-corpus.json) 是 Rust 与前端解析器共用的业务往返语料。它覆盖参数、状态、MTF、指标、集合统计、时间与交易时段、多级条件、订单生命周期、风险元数据和多种退出。Rust 测试从 lowering 后 IR 核对 `let/if/order/exit/cancel/log/notify`、分支首节点以及订单、退出和风险字段；前端测试核对 visual block、分支归属和嵌套深度，并执行 `source → visual → Pine → visual` 往返。任一侧拒绝语料、静默丢失受支持语义或改变结构都会使共享 corpus 门禁失败。
 
 ## 前端代码入口
 
@@ -53,14 +53,11 @@ Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实�
 
 ## 后端代码入口
 
-- [routes.go](../../internal/api/strategy/routes.go)：策略定义、实例生命周期与 Pine analyze HTTP 路由。
-- [service.go](../../internal/strategy/service.go)：稳定业务门面和 DesignStore/CatalogStore/RuntimeManager 端口。
-- [store.go](../../internal/store/strategy/store.go)：策略定义与版本的领域持久化实现。
-- [catalog_store.go](../../internal/app/apiserver/servercore/catalog_store.go)：当前实例目录持久化实现。
-- [strategy_adapters.go](../../internal/app/apiserver/servercore/strategy_adapters.go)：store/runtime 实现到 `internal/strategy` 端口的装配适配。
-- [pine](../../pkg/strategy/pine)：Pine 解析、语义诊断与 lowering。
-- [pineworker](../../pkg/strategy/pineworker)：PineTS gRPC client、worker manager 与执行契约。
-- [indicatorwarmup](../../pkg/strategy/indicatorwarmup)：Pine 需求解析、固定周期校验与预热 K 线估算。
+- [jftrade-api](../../crates/jftrade-api)：策略定义、实例生命周期与 Pine analyze HTTP transport。
+- [jftrade-strategy](../../crates/jftrade-strategy)：业务 service、Pine 解析、语义诊断、lowering、runtime registry 和 warmup 规则。
+- [jftrade-store-sqlite](../../crates/jftrade-store-sqlite)：策略定义、版本和实例持久化。
+- [jftrade-integration-pine](../../crates/jftrade-integration-pine)：PineTS gRPC client、worker lifecycle 与执行契约。
+- [jftrade-engine](../../crates/jftrade-engine)：production ports 和 composition adapter。
 
 ## 编辑与保存约束
 
@@ -81,7 +78,7 @@ Go `pkg/strategy/pine` 是完整语法、语义诊断和 lowering 的权威实�
 ## 最低验证
 
 ```bash
-go test ./internal/strategy ./internal/api/strategy ./pkg/strategy/... -count=1
+cargo test -p jftrade-strategy -p jftrade-integration-pine -p jftrade-engine --all-targets
 pnpm --filter @jftrade/web run test -- Strategy
 pnpm --filter @jftrade/web run typecheck
 pnpm run test:pine-structure-corpus

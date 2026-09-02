@@ -1,6 +1,6 @@
 # Tauri 2 桌面构建与发布
 
-JFTrade 的生产桌面壳是 Tauri 2，Rust engine 是唯一 API runtime。Go/Wails 文件和 bindings 仅保留给迁移期 reference/differential harness，不参与生产启动。
+JFTrade 的生产桌面壳是 Tauri 2，Rust engine 是唯一 API runtime。仓库没有 Go/Wails 源码、bindings、构建入口或运行产物；历史 fixture 只由 Rust replay 消费。
 
 ## 开发
 
@@ -52,8 +52,6 @@ pnpm run check:rust
 workflow 中取得证据后才能关闭 release gate。不要把本地 `cargo` 构建或单平台 smoke
 写成跨平台发布资格。
 
-## 迁移期 Go 工具
+## 零 Go 发布边界
 
-`cmd/jftrade-api`、`go generate ./cmd/jftrade-api`、`internal/desktop` reference
-tests 和 Go/Rust differential 继续保留给 OpenAPI 生成及 fixture 录制；它们不会由
-`start.sh`、`build-release.*`、Tauri 开发或生产入口调用。
+OpenAPI 从 `contracts/openapi/openapi.json` 生成，历史 Stage 2–9 fixture 只由 Rust replay 消费。`start.sh`、`build-release.*`、Tauri 开发和生产入口都执行零 Go 约束；bundle、candidate inputs 和 SBOM/provenance 还会扫描 Go build-info 与 Wails 组件。

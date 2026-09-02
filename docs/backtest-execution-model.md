@@ -5,7 +5,7 @@ JFTrade 当前只接受 `executionModel=conservative-bar-v1`。请求省略该�
 ## 职责边界
 
 - PineTS worker 执行 Pine 脚本，产出信号、图形输出和 order intents。
-- Go 负责撮合、订单/成交事件、账户余额、费用、资金曲线、结果持久化和风险边界。
+- Rust 负责撮合、订单/成交事件、账户余额、费用、资金曲线、结果持久化和风险边界。
 - 回测结果记录 `executionModel`，用于区分未来可能出现的其他成交模型。
 - 回测请求接受时固定模块级 `marketDataProvider`，运行只读取该来源在 schema v3 中隔离的历史缓存。
 - 本地 `InstrumentSpec` 提供 tick size、lot size、quantity step 和 quote currency；运行器使用 `backtest` exchange/session 身份，不创建 Futu Exchange 或连接 OpenD。
@@ -13,10 +13,10 @@ JFTrade 当前只接受 `executionModel=conservative-bar-v1`。请求省略该�
 
 主要实现位于：
 
-- `pkg/backtest/execution_model.go`
-- `pkg/backtest/conservative_bar_executor.go`
-- `pkg/backtest/pineworker_runner.go`
-- `internal/backtest/run.go`
+- `crates/jftrade-backtest/src/model.rs`
+- `crates/jftrade-backtest/src/engine.rs`
+- `crates/jftrade-integration-pine`
+- `crates/jftrade-engine/src/product_production_ports_backtest_*`
 
 ## `conservative-bar-v1` 规则
 
@@ -46,7 +46,8 @@ JFTrade 当前只接受 `executionModel=conservative-bar-v1`。请求省略该�
 ## 验证入口
 
 ```bash
-go test ./pkg/backtest ./internal/backtest -count=1
+cargo test -p jftrade-backtest
+pnpm run test:rust:backtest:differential
 pnpm --filter @jftrade/web run test -- backtestRequestPayload
 pnpm --filter @jftrade/web run typecheck
 ```

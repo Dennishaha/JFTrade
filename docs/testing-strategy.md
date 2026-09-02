@@ -6,13 +6,13 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 
 | 范围 | 全局/普通模块 | 关键业务域 | 改动代码 |
 | --- | ---: | ---: | ---: |
-| Go | 业务总量 ≥ 90%，普通 package ≥ 85% | ≥ 95% | 普通 ≥ 90%，关键域 ≥ 95% |
+| Rust | 不以单一行覆盖率替代行为证明 | route/owner/schema/订单/协议契约完整枚举 | 新行为必须覆盖成功、拒绝和恢复路径 |
 | Web | statements/lines ≥ 90%，branches/functions ≥ 85% | statements/lines/functions ≥ 95%，branches ≥ 90% | 与所属风险级别相同 |
 | PineTS worker | statements/lines ≥ 90%，functions ≥ 95%，branches ≥ 80% | 协议和运行边界由契约测试完整枚举 | 不降低全局门槛规避未覆盖改动 |
 
-关键 Go 域包括交易和订单、实盘行情、Futu/OpenD、回测和策略执行、安全认证、SQLite schema/migration。关键 Web 的静态 95/90 门槛当前覆盖下单确认、风控、订单状态和实时行情；`BacktestPage` 与 `useBacktestRuns` 仍按关键改动代码门槛检查，但在补足业务场景前不追溯施加静态 95/90 分支门槛。目录归类和实际阈值以覆盖检查器及 Vitest 配置为准。
+关键 Rust 域包括交易和订单、实盘行情、Futu/OpenD、回测和策略执行、安全认证、SQLite schema/migration。关键 Web 的静态 95/90 门槛当前覆盖下单确认、风控、订单状态和实时行情；`BacktestPage` 与 `useBacktestRuns` 仍按关键改动代码门槛检查，但在补足业务场景前不追溯施加静态 95/90 分支门槛。目录归类和实际阈值以 Rust gate、覆盖检查器及 Vitest 配置为准。
 
-`JFTRADE_DIFF_BASE` 指向 PR base SHA（main push 使用前一提交）时，Go 与 Web 额外检查新增/修改的可执行语句。没有可执行改动时报告为 `n/a`，不会以空报告伪造覆盖率。普通总量达标但新代码没有测试，增量门禁仍会失败。
+`JFTRADE_DIFF_BASE` 指向 PR base SHA（main push 使用前一提交）时，Web 额外检查新增/修改的可执行语句。Rust 变更由 affected crate、反向依赖、Clippy、workspace tests 和 differential replay 覆盖。没有可执行 Web 改动时报告为 `n/a`，不会以空报告伪造覆盖率。
 
 下列有限契约面要求“完整”，这里的完整是枚举和行为完整，而不是给复杂实现堆到 100% 行覆盖：
 
@@ -27,19 +27,19 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 
 | 层 | 内容 | 触发方式 |
 | --- | --- | --- |
-| L0 静态与契约 | lint、vet、typecheck、架构依赖、OpenAPI/API types/Tauri runtime 生成一致性、许可证和测试命名 | 每个 PR、main |
-| L1 单元与组件 | Go、Web、Pine worker 和 Python sidecar 的确定性测试；前三者执行覆盖率/增量覆盖率 | 每个 PR、main |
-| L2 隔离集成 | 临时 SQLite、`httptest`、mock OpenD/broker/Pine worker、mock yfinance + socket 阻断；禁止调用真实外部服务 | 每个 PR、main |
-| L3 系统回归 | release assets、嵌入 market-data helper 的启动/双 Provider 健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Go 回归、真实 PineTS backtest smoke 和三平台 desktop build | PR / main |
+| L0 静态与契约 | Rust fmt/Clippy、typecheck、架构依赖、OpenAPI/API types/Tauri runtime 生成一致性、许可证和测试命名 | 每个 PR、main |
+| L1 单元与组件 | Rust、Web、Pine worker 和 Python sidecar 的确定性测试；Web/worker 执行覆盖率与 Web 增量覆盖率 | 每个 PR、main |
+| L2 隔离集成 | 临时 SQLite、mock HTTP/OpenD/broker/Pine worker、mock yfinance + socket 阻断；禁止调用真实外部服务 | 每个 PR、main |
+| L3 系统回归 | release assets、嵌入 market-data helper 的启动/双 Provider 健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Rust replay、真实 PineTS backtest smoke 和桌面矩阵 | PR / main |
 | L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
-本地开发再按提交范围分为三个入口：`check:quick` 只读取相对 `HEAD` 的当前工作树，运行受影响 crate/package、Rust 反向依赖和迁移静态账本，并列出 deferred integration checks；`check:affected` 按 merge-base 运行完整 affected 集合，但不重复完整 Rust integration gate；`check:rust` 保留全部 Rust workspace 与 Stage 2–9 differential。`check:rust:workspace` 只执行 target health、layout、route coverage、fmt、Clippy 和 workspace tests，`check:rust:differential` 执行全部迁移 differential。target health 对每个 profile 最多扫描 50,000 个中间 `.rcgu.o` 后 fail-fast；该阈值高于一次完整冷门禁的正常产物，并在历史异常目录增长到数十万对象前阻断。独立 Stage 2–8 differential 最多两路并行，Stage 9 product differential 将 Go reference 与 Rust replay 分别按 package/target 批量执行并保持最后串行，避免 Cargo 启动风暴和共享 test-cutover 状态被并发放大。任何 Rust affected 输出中的 `check:rust` deferred 项仍须由集成分支完成。
+本地开发再按提交范围分为三个入口：`check:quick` 只读取相对 `HEAD` 的当前工作树，运行受影响 crate/package、Rust 反向依赖和迁移静态账本，并列出 deferred integration checks；`check:affected` 按 merge-base 运行完整 affected 集合，但不重复完整 Rust integration gate；`check:rust` 保留全部 Rust workspace 与 Stage 2–9 differential。`check:rust:workspace` 只执行 target health、layout、route coverage、fmt、Clippy 和 workspace tests，`check:rust:differential` 执行全部历史 fixture/corpus 的 Rust replay。target health 对每个 profile 最多扫描 50,000 个中间 `.rcgu.o` 后 fail-fast；该阈值高于一次完整冷门禁的正常产物，并在历史异常目录增长到数十万对象前阻断。独立 Stage 2–8 differential 最多两路并行，Stage 9 product differential 最后串行，避免 Cargo 启动风暴和共享 test-cutover 状态被并发放大。任何 Rust affected 输出中的 `check:rust` deferred 项仍须由集成分支完成。
 
-`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Go、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 yfinance sidecar job 可立即并行。yfinance lane 在 Python 3.11 和 3.14 上运行禁止外部行情网络的 pytest，只有 3.14 lane 构建并验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main 的 desktop matrix 使用 Python 3.14 验证 Linux AMD64、macOS ARM64、Windows AMD64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 `Build & Test` required check 汇总。
+`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Rust、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 market-data sidecar job 可立即并行。Python lane 运行禁止外部行情网络的 pytest，并由发布矩阵构建、验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main/release matrix 验证 Linux x64、macOS ARM64、Windows x64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 required check 汇总。
 
-每个覆盖 lane 会把命令输出及 Go/Web/worker 的 coverage 报告保存为 CI artifact（保留 7 天），并在对应 job summary 摘出总量和增量结果，便于定位门禁失败而不依赖本地复现。
+覆盖 lane 会把命令输出及 Web/worker coverage 报告保存为 CI artifact，并在对应 job summary 摘出总量和增量结果；Rust lane 保存 workspace/replay 输出和发布证据，便于定位失败而不依赖本地复现。
 
-真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，先运行 Go `TestLiveOpenD*` 合同，再显式执行默认 ignored 的 Rust `live_opend_provider_runtime_reads_generation_fenced_hk_quote`，覆盖 Rust health probe、ProviderRouter activation、managed demand、generation-fenced HK quote cache 与 shutdown release；未连通 OpenD、行情权限不足或没有显式确认时必须失败，绝不把 ignored/跳过当作通过。性能基准保留手动触发；每周在 GitHub 托管的 macOS ARM64 runner 上，将当前 main 与其上一提交放在同一 job 内连续比较。手动性能测试未填写 `compare_ref` 时同样比较上一提交，填写后才使用指定基线。
+真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，执行默认 ignored 的 Rust live contract，覆盖 health probe、ProviderRouter activation、managed demand、generation-fenced HK quote cache 与 shutdown release；未连通 OpenD、行情权限不足或没有显式确认时必须失败，绝不把 ignored/跳过当作通过。性能基准保留手动触发；比较 ref 必须显式或由 workflow 固定，不能把单次样本写成发布结论。
 
 ## 本地入口
 
@@ -56,7 +56,7 @@ pnpm run test:preflight
 # 单机可执行的 Linux CI 核心门禁，不包含 GitHub 三操作系统矩阵
 pnpm run test:ci-local
 
-# 完整本地门禁：ci-local、actionlint、完整 Go、当前平台 desktop 和真实 PineTS smoke
+# 完整本地门禁：ci-local、actionlint、完整 Rust、当前平台 desktop 和真实 PineTS smoke
 pnpm run check:all
 
 # test:main 是 check:all 的兼容入口
@@ -71,7 +71,7 @@ pnpm run check:rust
 # target health 报告大量中断编译遗留对象时，确认没有 Cargo 进程后显式清理
 pnpm run clean:rust:artifacts
 
-# 单独运行三套覆盖率门禁
+# 单独运行 Web 与 Pine worker 覆盖率门禁
 pnpm run test:coverage
 
 # 开发依赖安装后运行离线 helper 契约测试
@@ -91,7 +91,7 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 ## Python 行情 sidecar 与发布资产测试
 
-- Go 资产测试按 `GOOS/GOARCH` 选择 `release_assets` 中的 helper，拒绝缺失或空文件，校验 SHA-256，并验证释放目录和可执行文件权限受限；关闭 Provider 或应用时必须删除临时目录。
+- Rust/Tauri 资产测试按目标平台选择 `runtime-assets` 中的 helper，拒绝缺失或空文件，校验 SHA-256，并验证释放目录和可执行文件权限受限；关闭 Provider 或应用时必须删除临时目录。
 - sidecar manager 测试动态分配 loopback 端口、传入内部 endpoint、探测 `/healthz` 与 Provider health、停止进程和清理资产。正式运行只允许 JFTrade 自动托管的嵌入 helper；`JFTRADE_MARKETDATA_SIDECAR` 仅用于开发/测试绝对路径覆盖。
 - 设置与运行时测试覆盖新安装默认 `akshare`、明确的 Futu/yfinance 选择保留、历史 yfinance 连接配置不再参与运行时、启动恢复 helper 缺失或失败时保留已配置 Provider 并报告不可用，以及显式切换失败时保持旧 Provider。
 - Web/API 测试确认行情提供者菜单和契约只暴露 Provider 选择、状态与能力，不请求或渲染历史连接配置；设置页不再包含行情 Provider 分类；能力断言明确 yfinance 为延迟快照/历史 K 线、无实时推流和 Level 2。
@@ -109,13 +109,10 @@ JFTRADE_DIFF_BASE=origin/main pnpm run test:coverage
 
 测试文件名必须描述被验证的业务行为，不得包含任意大小写或分隔形式的 `coverage`，也不得使用 `c95`、`c_98`、`push95`、`_98_` 等覆盖率数字缩写，或 `more`、`additional`、`extra`、`complete` 等无业务语义后缀。`pnpm run check:test-names` 扫描当前全仓文件；历史违规文件已经全部改为行为名称，`scripts/test-name-allowlist.txt` 当前没有豁免项。检查器仍从 merge-base Git 文件树按当前规则推导历史上限，不信任基准提交里的旧清单，因此规则扩展后可纳管此前遗漏的文件，也不能通过“新增违规文件并写入清单”绕过门禁。
 
-`pnpm run check:test-quality` 使用 Go AST 识别 `testing.T` 失败调用、testify 断言和仓内断言 helper 调用。它会报告全仓所有未识别到断言的 `Test*`，但只对相对 merge-base 新增的缺口硬失败；普通函数调用、`Sleep`、`Skip` 或启动 goroutine 不再被当作断言。确实以“不 panic”、helper process 退出等效果作为契约的测试，必须在 `scripts/go-test-quality-exemptions.json` 中按文件、测试函数和具体理由登记；重复、理由过短或已经失效的条目都会失败。`report:test-quality` 保留为兼容入口，但执行同一硬门禁。
-
 ## 编写测试
 
-- Handler 断言参数绑定、状态码、错误码和 response envelope；service 通过 fake 覆盖业务规则与失败语义。
-- Store 使用临时数据库，覆盖 migration、旧数据归一、并发与重载；集成测试使用 mock server 或协议 fixture。跨出 Futu integration 边界的测试只能依赖 `internal/integration/futu/testkit` 的语义 fixture，不得直接 import OpenD codec 或生成 protobuf 包。
+- Transport 断言参数绑定、状态码、错误码和 response envelope；domain port 通过 fake 覆盖业务规则与失败语义。
+- Store 使用临时数据库，覆盖 migration、旧数据归一、并发与重载；集成测试使用 mock server 或协议 fixture。跨出 Futu integration 边界的测试只能依赖 `jftrade-integration-futu` 的公开测试支撑或录制 fixture，不得让领域 crate 直接依赖 OpenD codec 或生成 protobuf 类型。
 - market-data sidecar 测试必须通过 ASGI transport 以及 yfinance/AKShare fixture 覆盖双 Provider 的成功、失败和隔离契约，并全局阻止 socket；普通 CI 不访问真实 Yahoo Finance 或 AKShare 网络。
 - 用例必须断言业务结果、状态迁移或可观察副作用，而不只执行代码行。复杂 UI 和策略运行优先覆盖分支、拒绝路径和恢复路径。
-- 无法用值或状态表达、只能以“不 panic”等执行效果验证的 Go 用例必须登记带理由的测试质量例外，不得依赖任意函数调用骗过检查。
 - 真实网络、账户、交易和行情权限只出现在显式 live workflow；没有该环境时，不得以 `skip` 充当生产验证结论。

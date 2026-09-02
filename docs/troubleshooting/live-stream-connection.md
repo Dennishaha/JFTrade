@@ -10,13 +10,13 @@
 
 - `http://127.0.0.1:3000/api/v1/stream/live`
 
-这个路由由 [../../internal/api/live](../../internal/api/live) 管理连接与分发，
-行情采集生命周期位于 [../../internal/marketdata/collector.go](../../internal/marketdata/collector.go)，
-Futu exchange/stream 适配位于 [../../internal/integration/futu/marketdata_runtime.go](../../internal/integration/futu/marketdata_runtime.go)。
+这个路由由 [../../crates/jftrade-api](../../crates/jftrade-api) 的 `LiveHub` 管理连接与分发，
+行情采集生命周期位于 [../../crates/jftrade-marketdata](../../crates/jftrade-marketdata)，
+Futu stream 适配位于 [../../crates/jftrade-integration-futu](../../crates/jftrade-integration-futu)。
 
 它不是 bbgo 原生 WebSocket。
 
-盘口深度 SSE 则由 [../../internal/api/marketdata](../../internal/api/marketdata) 入口和 [../../internal/marketdata](../../internal/marketdata) 服务驱动，底层优先使用 Futu/OpenD 的 `Qot_UpdateOrderBook` 推送；如果推送不可用，会回退为 HTTP 查询 + 低频刷新，避免前端完全失去数据。
+盘口深度 SSE 由 `jftrade-api` transport、`jftrade-engine` production port 和 `jftrade-marketdata` 驱动，底层优先使用 Futu/OpenD 的 `Qot_UpdateOrderBook` 推送；如果推送不可用，会回退为查询 + 低频刷新，避免前端完全失去数据。
 
 ## 常见根因优先级
 
@@ -30,8 +30,7 @@ Futu exchange/stream 适配位于 [../../internal/integration/futu/marketdata_ru
 
 ```bash
 curl -fsS http://127.0.0.1:3000/api/v1/system/status
-go test ./internal/app/apiserver/servercore -run TestLiveWebSocketSendsHeartbeat
-go test ./internal/app/apiserver/servercore -run TestMarketDepthSSEStreamSendsInitialPayload
+cargo test -p jftrade-api -p jftrade-engine --all-targets
 ```
 
 如果第一个命令失败，优先处理进程和端口问题，不要先改前端样式或提示文案。

@@ -1,5 +1,7 @@
 {
   "version": 1,
+  "goRemovalStatus": "removed",
+  "historicalFields": ["goOwner", "cutover", "goDeleteWhen"],
   "bannedCrateSegments": [
     "common",
     "shared",
@@ -161,7 +163,7 @@
       "stage": 4,
       "status": "active",
       "layer": "adapter",
-      "goOwner": "internal/marketdataassets plus internal/app/apiserver/marketdataapp Python helper lifecycle and internal/integration/yfinance HTTP adapter",
+      "goOwner": "retired embedded market-data asset package, helper lifecycle, and HTTP adapter",
       "rustOwner": "jftrade-integration-marketdata-helper",
       "cutover": "jftrade-engine starts exactly one authenticated loopback helper and injects its adapter into jftrade-marketdata",
       "goDeleteWhen": "asset materialization, readiness, retry, cancellation, shutdown and packaged helper smoke pass all native targets with no Go helper owner",
@@ -197,7 +199,7 @@
       "stage": 1,
       "status": "active",
       "layer": "composition",
-      "goOwner": "internal/app/apiserver and cmd/jftrade-api",
+      "goOwner": "retired API server composition and standalone entrypoint",
       "rustOwner": "jftrade-engine",
       "cutover": "the single process-level composition choice",
       "goDeleteWhen": "all capability owners have moved and the Go entrypoints have completed rollback qualification",

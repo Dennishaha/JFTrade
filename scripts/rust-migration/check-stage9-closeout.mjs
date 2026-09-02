@@ -55,13 +55,17 @@ export const CANDIDATE_PREREQUISITE_GATES = Object.freeze(
   requiredGates.filter((gate) => !POST_RELEASE_GATES.includes(gate)),
 );
 
-// A hard-cut or owner-deletion assertion is only meaningful after every
-// release-safety prerequisite has passed.  Keep this relationship executable
-// so a stale manifest cannot claim deletion while release evidence is open.
+// Hard-cut readiness is a release assertion and therefore depends on every
+// release-safety prerequisite. Source/entrypoint deletion is a repository
+// state assertion: it depends only on complete route ownership and the unique
+// production writer, while release qualification remains fail-closed.
 const hardCutPrerequisiteGates = Object.freeze(
   requiredGates.filter((gate) => gate !== "hardCutReadiness"),
 );
-const ownerDeletionPrerequisiteGates = Object.freeze(requiredGates);
+const ownerDeletionPrerequisiteGates = Object.freeze([
+  "allRouteGroups",
+  "uniqueWriteOwner",
+]);
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);

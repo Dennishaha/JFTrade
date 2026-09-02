@@ -50,7 +50,7 @@ yfinance 快照优先读取 `Ticker.fast_info` 快速路径（15 秒缓存与 si
 
 yfinance 与 AKShare 都提供 `GET /api/v1/market-data/news/{market}/{symbol}?limit=`（`limit` 1–50，默认 10）和 `GET /api/v1/market-data/corporate-actions/{market}/{symbol}?from=&to=`（RFC3339 包含式边界，默认最近两年）。新闻条目含 `title`、`link`、`publisher`、`published_at`（RFC3339，可为 `null`）与 `summary`；公司行动事件含 `kind`（`dividend`/`split`）、`ex_date`（YYYY-MM-DD）、`amount`（每股，可空）与 `ratio`（可空），按 `(ex_date, kind)` 排序。AKShare 两项仅覆盖沪深：新闻经 `stock_news_em`（上游约 10 条），公司行动经 `stock_fhps_em`（半年报期 0630/1231，冷缓存可能较慢并返回 503 与 `Retry-After`）；美港请求在公共 API 返回 409 capability 错误（sidecar 层为 400 `AKSHARE_UNSUPPORTED`）。Futu 经 broker 查询管线支持这两项。assistant 对应只读工具为 `market.news` 与 `market.corporate_actions`，都经过当前活跃 Provider；指数成分股另有 assistant 工具 `market.index_constituents`（仅 SH/SZ，经 AKShare），刻意不暴露公开 HTTP API。
 
-控制台"资讯"与个股研究"公司行动"界面始终走 broker product-feature 管线（查询式 `/api/v1/market-data/news`、`/api/v1/research/corporate-actions/{instrumentId}`）。当活跃（或显式指定）Provider 为 yfinance/AKShare 时，`internal/productfeatures` 的 facade 会把这两个 feature 委托给上述 Provider 能力并投影为 `broker.FeatureResult`（新闻保留 `title/link/publisher/publishedAt/summary`；公司行动投影 `exDate` 与合成 `statement`，Futu 专有的公告日/进度/登记日等列为空），前端无需按 Provider 分支；assistant 的 `research.news`/`research.corporate_actions` 工具走同一路径同样生效。AKShare 的美港请求在该管线下返回 409 不支持错误。
+控制台"资讯"与个股研究"公司行动"界面始终走 broker product-feature 管线（查询式 `/api/v1/market-data/news`、`/api/v1/research/corporate-actions/{instrumentId}`）。当活跃（或显式指定）Provider 为 yfinance/AKShare 时，Rust engine facade 会把这两个 feature 委托给 Provider port 并投影为统一 feature result（新闻保留 `title/link/publisher/publishedAt/summary`；公司行动投影 `exDate` 与合成 `statement`，Futu 专有的公告日/进度/登记日等列为空），前端无需按 Provider 分支；assistant 的 `research.news`/`research.corporate_actions` 工具走同一路径同样生效。AKShare 的美港请求在该管线下返回 409 不支持错误。
 
 Yahoo 的美股盘外分钟数据只作为价格样本使用：上游盘前成交量通常为零，盘后还可能把截至当时的累计成交量放进单根分钟 K，不能解释为该分钟增量。JFTrade 因此把 Yahoo 美股盘前、盘后分钟 K 的 `volume` 统一标记为 `null`，价格 K 仍保留；成交量柱和量价指标只使用成交量有效的常规时段 K。日成交量直接读取 Yahoo 日 K，不从盘外分钟 K 聚合。Futu OpenD 的每根 K 线成交量不受此规则影响。
 
@@ -60,7 +60,7 @@ Futu 的可见标的若 `BasicQot` 订阅因行情权限、不支持或订阅额
 
 ## 研究中心只读能力
 
-榜单、板块热力、个股研究（资料/财务/分析师/股权）、事件日历、宏观指标和股票筛选与新闻一样走 broker product-feature 管线：Provider 为 yfinance/AKShare 时由 `internal/productfeatures` 的 facade 委托给嵌入式 Provider 并投影为统一的 `broker.FeatureResult`，控制台和 assistant 的 `research.*` 工具都无需按 Provider 分支。当前 Provider 不具备某能力时 facade 返回 409 capability 错误（如 AKShare 的估值/卖空、yfinance 的日历/宏观/板块），前端降级为研究页内置的 ProviderUnsupportedState 空态，不会报错中断页面。嵌入式 Provider 的业务级错误按 sidecar 原始状态透传：无数据返回 404（如公司资料、研报或新闻窗口为空）、非法参数返回 400，公共 API 以 `PROVIDER_REQUEST_FAILED` 呈现，不折叠成上游失败 502。
+榜单、板块热力、个股研究（资料/财务/分析师/股权）、事件日历、宏观指标和股票筛选与新闻一样走 broker product-feature 管线：Provider 为 yfinance/AKShare 时由 Rust engine facade 委托给嵌入式 Provider port 并投影为统一结果，控制台和 assistant 的 `research.*` 工具都无需按 Provider 分支。当前 Provider 不具备某能力时 facade 返回 409 capability 错误（如 AKShare 的估值/卖空、yfinance 的日历/宏观/板块），前端降级为研究页内置的 ProviderUnsupportedState 空态，不会报错中断页面。嵌入式 Provider 的业务级错误按 sidecar 原始状态透传：无数据返回 404（如公司资料、研报或新闻窗口为空）、非法参数返回 400，公共 API 以 `PROVIDER_REQUEST_FAILED` 呈现，不折叠成上游失败 502。
 
 嵌入式筛选使用手写的 `embedded-stock-screen-v1` 因子目录，共 9 个因子：`basic.code`/`basic.name`/`basic.industry` 三个标识因子（仅取值，`basic.code` 额外可排序），加 `simple.price`、`simple.change_pct`、`simple.volume`、`simple.market_cap`、`simple.pe_ttm`、`simple.pb` 六个可过滤数值因子（区间条件，均可排序）。`basic.name` 按 provider 交集只读不排（Yahoo screener 无名称排序字段，AKShare 侧本地可按名称排但目录按交集声明）；`basic.code` 排序在 AKShare 侧本地按代码排、yfinance 侧映射为 Yahoo 默认 `ticker` 排序。两个 Provider 都只接受单一排序键，多个排序键返回 409 capability 错误而非静默忽略。yfinance 侧翻译成 Yahoo EquityQuery（仅 US，单页 `limit` 上限 250，`offset` 独立直传支持任意翻页）；AKShare 侧复用 15 秒全市场现货目录在本地过滤、排序、分页（CN/SH/SZ/HK/US），不产生新的上游请求。US/HK 现货帧由 sidecar 直连东财 clist 构建（akshare 封装丢弃了 f23 市净率、f115 PE TTM 与港股总市值），因此六个数值因子在全部市场可用。两个 Provider 都不支持 `in` 枚举条件。
 
@@ -155,9 +155,9 @@ uv run --locked --project workers/marketdata-sidecar --extra runtime --extra tes
 
 Provider 实现、运行时切换与统一行情 service 的测试分别位于：
 
-- `internal/integration/yfinance`
-- `internal/integration/akshare`
-- `internal/app/apiserver/marketdataapp`
-- `internal/marketdata`
+- `workers/marketdata-sidecar`
+- `crates/jftrade-integration-marketdata-helper`
+- `crates/jftrade-marketdata`
+- `crates/jftrade-engine`
 
 公开设置或行情 HTTP 契约发生变化后，仍需执行 `pnpm run generate:docs`。

@@ -14,7 +14,7 @@
 
 迁移规则：
 
-1. `active → deprecated`：需要在本表登记替代端点与废弃日期，swagger 注解和 `httpserver.Deprecated` 中间件同时落地。
+1. `active → deprecated`：需要在本表登记替代端点与废弃日期，OpenAPI 标记和 Rust transport deprecation middleware 同时落地。
 2. `deprecated → removed/tombstone`：至少经过一个发布版本的兼容窗口，并用请求观测数据（`requestObservabilityMiddleware` 记录每个请求的 method+path+status）确认无活跃调用方。
 3. 删除时同步清理：路由、swagger 注解、前端 `generated/openapi.ts` 引用、本表条目。
 
@@ -22,10 +22,10 @@
 
 以下检查在 CI 中强制执行，不依赖本表：
 
-- `TestOpenAPICoversRegisteredAPIRoutes`（servercore）：所有已注册路由必须出现在 OpenAPI 契约中，无豁免。
-- `TestOpenAPIDocumentsWritableRequestBodies`：写操作的请求体必须是 typed DTO。
-- `TestOpenAPISpecStable`：契约快照与 `contracts/openapi/openapi.json` 一致（有意修改时用 `UPDATE_OPENAPI_SNAPSHOT=1` 更新）。
-- CI `Verify tracked contract artifacts are up to date`：`apps/web/src/generated/openapi.ts` 与 swagger 注解同步。
+- `pnpm run test:rust:stage9:route-coverage`：278 条 baseline 路由必须逐条出现在 ownership ledger，并由 Rust production manifest 持有。
+- `pnpm run check:openapi-quality`：写请求、schema、operationId 和公开错误面满足中立 OpenAPI 规则。
+- `pnpm run check:generated`：`contracts/openapi/openapi.json`、Web 类型和 reference 文档在临时目录生成并逐字节比较。
+- `pnpm run check:rust:production-policy`：生产 route assembly 不允许 forced registration、fallback 或 synthetic success。
 
 ## 当前 deprecated / tombstone 端点
 
@@ -37,7 +37,7 @@
 
 | 分组 | 端点 | 保留原因 |
 |---|---|---|
-| 能力目录 | `GET /alerts/price`、`GET /alerts/option-events`、`/watchlists/remote`、`/brokers/{id}/quote|securities|klines`、`/execution/buying-power`、`/research/technical-indicators/{id}` 等 | 进入 broker capability catalog（`TestCapabilityCatalogAPISurfacesAreRegistered` 强制路由存在），供 ADK 工具、MCP 客户端和外部 sidecar 使用 |
+| 能力目录 | `GET /alerts/price`、`GET /alerts/option-events`、`/watchlists/remote`、`/brokers/{id}/quote|securities|klines`、`/execution/buying-power`、`/research/technical-indicators/{id}` 等 | 进入 Rust broker capability catalog 和 route manifest，供 ADK 工具、MCP 客户端和外部 sidecar 使用 |
 | ADK 兼容面 | `POST /adk/chat`（非流式）、`GET /adk/optimization-tasks/{taskId}` | ADK/MCP 客户端使用；前端只用流式和列表接口 |
 | 批量运维 | `POST /system/exchange-calendars/refresh`、`POST /system/exchange-calendars/probe`（全市场批量版） | 运维入口，前端只调按市场版本 |
 

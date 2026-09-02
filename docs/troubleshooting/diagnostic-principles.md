@@ -8,8 +8,8 @@
 
 - `apps/desktop/src-tauri`：Tauri 2 桌面壳、桌面专属服务和受管 API 生命周期
 - `crates/jftrade-engine` + `crates/jftrade-api`：提供前端默认使用的 `/api/v1/*`
-- `cmd/jftrade-api`、`internal/app/apiserver` 和 `internal/api/*`：Go reference/differential harness，不是生产入口
-- `pkg/futu`、`pkg/strategy`、`pkg/backtest`：复用 bbgo 公共类型和运行时能力，但不提供独立 bbgo CLI 模式
+- `crates/jftrade-*`：领域、存储、Futu/Pine/helper integration 与完整 Rust production runtime
+- `tests/fixtures/rust-migration`：历史兼容输入，只由 Rust replay 消费，不是运行时 fallback
 
 排查时先分层，不要一上来假设所有问题都在 bbgo 或前端。
 

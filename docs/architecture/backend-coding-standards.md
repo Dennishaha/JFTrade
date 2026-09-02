@@ -1,103 +1,81 @@
-# 后端代码规范
+# Rust 后端编码与依赖边界
 
-本文定义 JFTrade Go 后端的分层写法。目标不是追求形式化 DDD，而是让目录边界、测试和 CI 规则能持续阻止职责漂移。
+更新时间：2026-09-02。本文只描述当前 Rust 产品树。
 
-## 分层职责
+## 分层
 
-### `internal/api/*`
+### `crates/jftrade-api`
 
-API transport 层只负责：
+只负责 HTTP/SSE/WebSocket transport：绑定、校验、认证、wire DTO、错误映射和连接生命周期。允许依赖领域公开 port/type，不得：
 
-- 绑定和校验 URI、query、JSON body。
-- 调用对应 service。
-- 把 service 错误映射为 HTTP status、错误码和响应 envelope。
-- 把业务 DTO 转成对外 JSON。
+- 直接打开 SQLite 或 settings 文件；
+- 依赖具体 store driver、Futu protobuf 或模型 Provider；
+- 启动 OpenD、Pine 或 Python 进程；
+- 持有业务状态的第二写 owner。
 
-API 层不得：
+### 领域 crates
 
-- 直接访问 `internal/store/*`、SQLite、`database/sql`、Gorm、sqlx。
-- 直接调用 `internal/integration/*`、Futu SDK、protobuf。
-- 持有后台任务生命周期或业务状态机。
-- 在 handler 内实现跨步骤业务编排；这类逻辑应下沉到 service。
+`jftrade-{settings,marketdata,trading,strategy,backtest,assistant,research,watchlist}` 承载业务规则与协议中立 port。不得依赖 `jftrade-api`、Axum handler、具体 SQLite driver、Futu protobuf 或桌面类型。
 
-### `internal/{system,settings,marketdata,trading,strategy,backtest,assistant}`
+跨域交互使用窄 DTO/port；第三处重复的 projection、validation 或 lifecycle 逻辑应提升到最窄共享 owner，而不是创建含糊的 `common/shared/utils` crate。
 
-业务 service 层负责：
+### Store crates
 
-- 承载业务规则、状态转移、输入归一化、错误语义。
-- 通过接口依赖外部能力，接口优先放在使用方包内。
-- 使用 context 传递请求生命周期，但不依赖 HTTP transport 类型。
+`jftrade-store-sqlite` 和 `jftrade-store-settings-file` 负责持久化、migration、事务、编码和 `WriterLease`。业务决策留在领域层；store 不依赖 HTTP transport 或具体外部协议。
 
-业务 service 层不得：
+每个生产数据库只能由一个 product runtime 持有 writer lease。mutation 必须在事务和 owner fence 内完成；取消、冲突、busy、schema drift 和崩溃恢复路径要有测试。
 
-- import Gin、`net/http` handler/response 类型或 `internal/api/*`。
-- 直接 import 具体数据库驱动、Gorm、sqlx、SQLite 实现。
-- 直接 import Futu protobuf 或把协议模型暴露给调用方。
+### Integration crates
 
-`internal/assistant` 暴露 Assistant 业务模型和 service 契约；`internal/assistant/assembly` 是应用适配边界，可以依赖其他业务 service 的公开类型来构造工具投影，但不得 import `internal/app/*`、`internal/api/*`、具体 `internal/store/*` 或 `internal/integration/*`。跨域 Assistant 工具编排应留在该包，不能回流到 `servercore`。具体 ADK Store/Runtime/ToolRegistry 构造仅允许出现在 assembly 内部和 `internal/assistant/testkit`，后者不得被生产代码使用。
+`jftrade-integration-futu`、`jftrade-integration-pine` 和 `jftrade-integration-marketdata-helper` 封装具体协议、I/O 和进程边界。生成 protobuf 类型不得离开对应 integration；领域层只接收 broker/provider-neutral DTO。
 
-`internal/assistant/engine` 是上述规则的显式基础设施例外：它拥有 ADK 本地持久化适配实现，只允许直接依赖 `internal/store/sqliteconn` 和 `internal/store/sqliteschema`，不得引入其他具体 store、integration、transport 或 application 包。该窄豁免由 `scripts/check-arch-deps.sh` 的 allowlist 强制，不改变“只在 assembly 构造引擎”的规则。
+Integration 不拥有全局 Provider 选择、业务缓存、策略状态或用户可见通知；这些 owner 由领域和 `jftrade-engine` composition 持有。
 
-### `internal/store/*`
+### `crates/jftrade-engine`
 
-持久化层只负责：
+唯一生产 composition root，负责：
 
-- 文件、SQLite 或其他存储引擎的 schema、codec、query 和 migration。
-- 把存储模型转换为 service 接口要求的业务模型。
+- 配置解析和 fail-closed admission；
+- schema/migration/WriterLease 顺序；
+- store、integration、worker 与领域 port 装配；
+- 278 production routes 注册；
+- runtime cancellation、join 和逆序 shutdown；
+- 外部依赖 unavailable adapter 与公开 502/503 语义。
 
-持久化层不得：
+业务规则不要堆入 composition root；重复装配逻辑拆成有清晰 owner 的 builder/adapter。
 
-- 调用 HTTP handler、Gin context 或 API response helper。
-- 直接调用 broker SDK、OpenD、LLM provider 或后台 runtime。
-- 包含业务状态机；复杂规则应在 service 中表达。
+## 文件与函数约束
 
-Store 对业务层暴露消费方定义的接口。应用装配若还需要关闭、可用性或维护能力，应组合最窄的 lifecycle/maintenance 端口，不能依赖 store 内部锁、map 或裸数据库连接。
+- Rust 默认 `#![forbid(unsafe_code)]`。
+- 生产函数通常不超过 80 行/60 语句；生产文件目标不超过 800 行。
+- 错误类型保留业务分类，transport 统一映射，禁止以字符串匹配承担控制流。
+- 取消和 timeout 要穿过 port 边界；启动的 task/process 必须有明确 owner、cancel、join 和 bounded shutdown。
+- 测试名描述业务行为，不使用 `more/additional/extra/complete` 等空泛词。
+- 普通测试只用 fixture、mock server、临时目录和 testkit，不连接真实 OpenD、数据源或模型 Provider。
 
-### `internal/integration/*`
+## 契约与生成物
 
-集成层负责：
+- `contracts/openapi/openapi.json` 是公开 HTTP 规范源。
+- `proto/` 是 Futu/Pine 中立 protobuf 源。
+- Web API 类型、reference 和 Rust protobuf 输出是生成物，不手工修改。
+- 公开契约变化运行 `pnpm run generate:docs` 和 `pnpm run check:generated`。
+- 历史 Stage 2–9 fixture 是只读兼容输入；不得生成新的 Go oracle 或在 consumer 侧归一化掉真实差异。
 
-- 封装外部 SDK、协议、protobuf、网络客户端和 provider adapter。
-- 把外部协议类型转换为 broker-neutral 或 service-defined DTO。
+## 最小验证
 
-集成层不得：
+Rust 变更按风险由窄到宽运行：
 
-- import `internal/api/*`。
-- 复用 Gin handler、HTTP response envelope 或前端 JSON 细节。
-- 拥有使用方业务状态，例如行情 demand、订阅 freshness、策略 runtime lifecycle。
+```bash
+cargo test -p <changed-crate> --all-targets
+pnpm run check:quick
+pnpm run check:rust
+```
 
-### `internal/app/*`
+契约变化额外运行 `pnpm run check:generated`。所有变更都必须保持：
 
-应用装配层负责：
+```bash
+pnpm run check:go-retirement
+pnpm run check:zero-go
+```
 
-- 进程生命周期、配置落地、依赖组装、路由装配。
-- 将 store、integration、service、transport 连接起来。
-- 处理启动/关闭顺序和兼容运行模式。
-
-应用装配层不得：
-
-- 新增可下沉到 service 的业务分支。
-- 把跨模块共享状态重新集中到一个全局对象中。
-- 绕过 service 直接让 handler 访问 store 或 integration。
-
-资源必须先登记关闭函数再发布给并发读取方；后续资源启动失败时按逆序回滚，shutdown 后到达的资源必须立即关闭且不得发布。正常关闭按 runtime consumer、依赖的业务 service、runtime provider、持久化资源的依赖逆序执行，允许重复/并发调用，并保留每个失败资源的名称。
-
-`internal/app/apiserver/application` 管理应用级资源序列，`stores` 管理持久化句柄，`runtimes` 管理 runtime 引用、切换同步和内部关闭顺序。`servercore` 只能装配这些句柄和窄 service 端口，不得重新增加平铺 store/runtime 字段或跨域 Assistant 工具实现。
-
-## 强制规则
-
-- `scripts/check-arch-deps.sh` 是项目级结构保护线，负责检查 repo-specific import 方向。
-- `servercore` 的生产 import、`TestImports` 和 `XTestImports` 都受硬门禁约束，不得直接依赖 `pkg/futu`、`internal/assistant/engine`、`pkg/backtest` 根包或其任意子包；协议测试必须经 `internal/integration/*/testkit` 等显式边界，测试代码没有 warning 级逃逸口。
-- `.golangci.yml` 使用 golangci-lint v2.12.0 的 `standard` 基线，启用默认的 `errcheck`、`govet`、`ineffassign`、`staticcheck` 和 `unused`；生产代码与测试代码统一受这些规则约束，生成代码按严格生成标记排除。
-- CI 另外运行 `go vet ./...` 和 `scripts/check-arch-deps.sh`，继续检查 Go 基础问题和项目特定的依赖方向。
-- 新增模块时先选择最窄目录；只有需要被其他 Go module 复用的稳定能力才放入 `pkg/*`。
-- 已有 `pkg/*` 的保留、内移和破坏性变更按 [public-package-policy.md](public-package-policy.md) 执行，不按文件行数或调用者数量单独决定。
-- 新增 shared helper 前先确认是否属于某个业务包；不要为了少量函数建立 `utils`、`common` 或大而全 helper 包。
-
-## 测试要求
-
-- Handler 测试验证参数绑定、状态码、错误码和响应 envelope，不启动真实 OpenD。
-- Service 测试使用 fake store/provider/broker，覆盖业务分支和错误语义。
-- Store 测试使用临时目录或临时数据库，覆盖 migration、旧数据归一和并发/重载场景。
-- Integration 测试使用 mock server 或协议 fixture；真实外部依赖只能放在显式集成测试路径。
-- 修改公开 API 时必须同步 OpenAPI、生成 TypeScript、baseline 和 reference 文档。`check:openapi-quality` 要求每个 JSON 2xx 都有具体 `Envelope.data`，SSE/WebSocket 使用真实协议 media/status；`check:web-contract-audit` 逐 schema 校验字段、required、nullable、枚举和数组元素类型。
+本地门禁不能替代真实平台安装、签名、升级/回滚、SBOM、安全审查或 post-release smoke。

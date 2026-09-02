@@ -21,29 +21,29 @@
 - `3203` Qot_GetSecuritySnapshot
 - `3262` Qot_GetSearchQuote（代码/名称跨市场搜索）
 
-交易相关协议则按 bbgo/sidecar 需求逐步扩展。
+交易相关协议按 Rust broker/trading port 的需求逐步扩展。
 
 ## 当前端口语义
 
-- `127.0.0.1:11110`：原生 OpenD TCP/protobuf API，当前 Go 客户端使用
+- `127.0.0.1:11110`：原生 OpenD TCP/protobuf API，当前 Rust integration 使用
 - `127.0.0.1:11111`：FTWebSocket / JavaScript API
 
-当前 [../../pkg/futu/opend/client.go](../../pkg/futu/opend/client.go) 通过 TCP 连接 `11110`。不要把 11111 写成 Go 原生 RPC 端口。
+当前 [../../crates/jftrade-integration-futu](../../crates/jftrade-integration-futu) 通过 TCP 连接 `11110`。不要把 11111 写成 Rust 原生 RPC 端口。
 
 ## 实现分层
 
 | 位置 | 职责 |
 | --- | --- |
-| `pkg/futu/codec` | 44 字节帧编解码 |
-| `pkg/futu/opend` | OpenD TCP 客户端、keepalive、请求响应关联 |
-| `pkg/futu/exchange.go` | Futu 适配层，对上提供 Exchange 能力 |
-| `pkg/futu/stream.go` | 基于 BasicQot push 的实时流桥接 |
+| `crates/jftrade-integration-futu` codec/session | 44 字节帧、TCP、keepalive、请求响应关联 |
+| `crates/jftrade-integration-futu` query/push adapters | Futu 能力与 broker-neutral DTO/event 映射 |
+| `crates/jftrade-marketdata` | Provider demand、cache、状态与实时流规则 |
+| `crates/jftrade-engine` | OpenD 生命周期、production ports 与 LiveHub bridge |
 
 ## 当前项目约定
 
 - 原生 TCP 客户端不依赖 WebSocket key 完成 API 探针和原生 RPC
 - OpenD settings 中的 key 仍会保留，用于与 FTWebSocket 相关的设置和诊断保持一致
-- sidecar 与 bbgo 共用 `pkg/futu`，但不是同一条调用链
+- Rust API、行情与交易通过同一个 engine-owned Futu integration，不存在第二条 Go/bbgo 调用链
 - 无市场前缀的代码或名称统一调用 `3262`，单次从 OpenD 读取最多 100 条；服务端再做市场筛选、去重和返回数量限制
 - `3262` 与 `3003` 都是只读调用，不申请行情订阅；搜索成功结果在服务进程内缓存 30 秒，并合并相同关键词的并发请求
 

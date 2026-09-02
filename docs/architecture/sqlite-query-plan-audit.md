@@ -1,5 +1,8 @@
 # SQLite 查询计划与索引审计
 
+> 历史审计：本文保留迁移前 Go store 的查询计划、路径和候选索引证据。
+> 当前 SQLite owner 与 schema gate 以 Rust store、迁移事实源和 closeout manifest 为准；本文不参与当前状态计算。
+
 更新时间：2026-07-29。
 
 本文记录 P3-2 对 9 个受管 SQLite 数据库的生产查询、现有索引和 `EXPLAIN QUERY PLAN` 结论。结论以实际 SQL 谓词、排序、调用频率、数据增长和写放大为依据，不以表名或单列 `WHERE` 猜测索引。

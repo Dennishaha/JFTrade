@@ -73,7 +73,7 @@
 - 改 security details 结构或前后端字段契约，先看 `apps/web/src/contracts`
 - 改实时状态机，先看 `marketDataRealtime.ts`
 - 改价格面板的 typed block 展示，先看 `WatchlistPanel.vue`
-- 改盘口深度档数、显示或 SSE / 回退策略，先看 `OrderBookPanel.vue` 和 `pkg/futu/adapter.go` 的 `ReadFeatures.orderBook`
+- 改盘口深度档数、显示或 SSE / 回退策略，先看 `OrderBookPanel.vue`、`jftrade-api` LiveHub 和 `jftrade-integration-futu`
 - 改最终渲染时间或 candle 叠加，先看 `charting/kline.ts`
 
 如果你准备同时改时间字段和图表展示，先同步阅读 [kline-guardrails.md](kline-guardrails.md)。

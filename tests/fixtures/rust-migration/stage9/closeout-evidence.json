@@ -178,6 +178,20 @@
       "scope": "local-only Rust explicit test-cutover profile, Go/Rust fixture replay, WebSocket product transport replay, and full Stage 9 product differential",
       "command": "node scripts/rust-migration/check-stage9-ws-live.mjs",
       "evidence": "The complete Go WebSocket corpus, Rust leaf replay, API transport contract, explicit product test-cutover route, and full Stage 9 product differential passed for GET /api/v1/ws/live. Evidence covers 101 handshake, event ordering/normalization, Origin plain-text rejection, connection-limit 503, unavailable-route plain-text response, subscription permit release, disconnect/reconnect, authenticated Go rehearsal, default-profile isolation, and unchanged settings bytes. Rust still uses only ephemeral connection metrics and an injected test-cutover gate; it does not own Provider/OpenD demand, notification replay, market ticks/depth, durable subscriptions, production WebSocket clients, or user-visible state. This historical group remained cutover-test-only with Go as the owner during rehearsal; generated swagger setup, real-provider recovery, release, security, backup/restore, and hard-cut evidence remain open. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "published-last-go-release-baseline",
+      "status": "passed",
+      "scope": "published v0.27.0 release bytes; immutable upgrade baseline for 0.29.0",
+      "command": "gh api repos/Dennishaha/JFTrade/releases/tags/v0.27.0 && curl --fail --location https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/SHA256SUMS",
+      "evidence": "tests/fixtures/rust-migration/stage9/last-go-release-baseline.json records v0.27.0, lightweight tag v0.27.0, commit 452dea115ca75c51361e8876c2aefd7c009839b8, publication time, release/package URLs and official SHA256SUMS values. No tag or detached release signature was published and the macOS/Windows package names are explicitly unsigned. The baseline must use the published bytes as-is; rebuilding it or regenerating a final Go corpus is prohibited."
+    },
+    {
+      "id": "zero-go-source-and-release-gate",
+      "status": "passed",
+      "scope": "tracked source tree plus Tauri bundle, candidate artifact and SBOM release admission",
+      "command": "pnpm run check:zero-go",
+      "evidence": "Passed on 2026-09-02 for the tracked repository: no Go source/module/work files, Go commands/setup-go, Go API/Wails production entrypoints or tracked Go executables remain. The same scanner is wired into Tauri bundle verification, release candidate inputs and SBOM/provenance checks; actual 0.29.0 installers remain subject to the open four-platform release gate."
     }
   ],
   "gates": {
@@ -276,7 +290,7 @@
     },
     "hardCutReadiness": {
       "status": "open",
-      "next": "Close every release-safety prerequisite and re-run the hard-cut readiness review before any owner deletion claim.",
+      "next": "Close every release-safety prerequisite and re-run the hard-cut readiness review before creating the 0.29.0 tag.",
       "evidence": [
         "All 278 baseline operations are route-qualified under the Rust composition, but platform release, signed updater, security, SBOM, rollback, backup/restore and post-release smoke prerequisites remain open; hard-cut readiness is therefore not complete."
       ]
@@ -305,27 +319,27 @@
   },
   "ownerDeletion": {
     "go": {
-      "status": "open",
+      "status": "passed",
       "entryStatus": "removed",
       "conditions": [
         "All route groups and production handlers have moved to Rust.",
         "Rust is the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
-        "Hard-cut, rollback artifact and backup/restore evidence is complete."
+        "The tracked source tree and active build graph contain no Go source, module, generator or production entrypoint."
       ],
       "evidence": [
-        "The Go production entrypoint is removed and the route ledger records Rust ownership; formal Go owner-deletion closeout remains open while release-safety prerequisites remain open."
+        "The route ledger records all 278 operations with Rust as production owner and Go removal complete; check:zero-go proves the tracked Go source, module, generator and production entrypoint are removed. Release-safety qualification remains independently open."
       ]
     },
     "wails": {
-      "status": "open",
+      "status": "passed",
       "entryStatus": "removed",
       "conditions": [
-        "The formal release workflow builds Tauri artifacts and the Tauri four-platform release lane is qualified.",
-        "Signed installer, upgrade, uninstall, rollback and WebView evidence is complete.",
-        "The Tauri production launcher hard cut and post-release smoke are complete."
+        "Tauri is the only production desktop composition and launcher.",
+        "The tracked source tree and active build graph contain no Wails production entrypoint or runtime dependency.",
+        "Release bundle and candidate admission execute the zero-Go/Wails artifact scanner."
       ],
       "evidence": [
-        "The Wails production entrypoint is removed and Tauri is the active desktop composition; formal Wails owner-deletion closeout remains gated by four-platform release, updater, rollback and post-release evidence."
+        "The Wails production entrypoint and build assets are removed, Tauri is the active desktop composition, and check:zero-go plus release artifact scanners prevent Wails runtime or product artifacts from returning. Four-platform release, updater, rollback and post-release qualification remain independently open."
       ]
     }
   }

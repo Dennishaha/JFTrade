@@ -1,5 +1,8 @@
 # bbgo 对外接口索引
 
+> 历史参考快照：下列路径和集成关系记录已删除的 Go/bbgo 实现，只用于解释历史 fixture 与迁移决策。
+> 当前生产架构不加载 bbgo；请以 `docs/architecture.md`、Rust crates 和 route manifest 为准。
+
 本文只整理当前项目实际依赖的 bbgo 公共接口与扩展点，不尝试穷举整个 bbgo 生态。
 
 ## 阅读前提

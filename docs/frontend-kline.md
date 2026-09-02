@@ -57,10 +57,10 @@ apps/web
 - [../apps/web/src/composables/market-data/marketDataQuery.ts](../apps/web/src/composables/market-data/marketDataQuery.ts)
 - [../apps/web/src/composables/market-data/marketDataRealtime.ts](../apps/web/src/composables/market-data/marketDataRealtime.ts)
 - [../apps/web/src/charting/kline.ts](../apps/web/src/charting/kline.ts)
-- [../internal/api/marketdata/routes.go](../internal/api/marketdata/routes.go)
-- [../internal/marketdata/collector.go](../internal/marketdata/collector.go)
-- [../internal/app/apiserver/servercore/market_data_adapters.go](../internal/app/apiserver/servercore/market_data_adapters.go)
-- [../internal/integration/futu/marketdata_runtime.go](../internal/integration/futu/marketdata_runtime.go)
+- [../crates/jftrade-api](../crates/jftrade-api)
+- [../crates/jftrade-marketdata](../crates/jftrade-marketdata)
+- [../crates/jftrade-engine](../crates/jftrade-engine)
+- [../crates/jftrade-integration-futu](../crates/jftrade-integration-futu)
 
 - `apps/web/tests/charting/kline.test.ts`
   - 覆盖分钟/小时 K 展示桶结束点、历史最后一根不被实时新桶吞掉、日线、周线、分钟线分桶，以及 stale history gap 抑制。
@@ -74,7 +74,7 @@ apps/web
   - 覆盖历史查询已经带回当前桶时，后续实时 tick 必须复用该当前桶的真实 open/high/low，而不是回退到上一根 close。
   - 覆盖首屏并行加载时，最新量柱必须复用当前桶 candle.volume，而不是 snapshot 累计 volume。
 
-- `pkg/futu/exchange_test.go`
+- `crates/jftrade-integration-futu` 的 query/mapper tests
   - 覆盖 Futu intraday 历史 K 标签时间减一个周期成为内部桶起点，以及日线不前移。
   - 覆盖查询窗口命中当前时间桶时，`Qot_GetKL` 当前未收盘 K 线会并入历史结果，供前端直接复用当前桶真实 OHLC。
 
@@ -85,4 +85,4 @@ apps/web
 - `apps/web/src/pages/WorkspacePage.vue`
 - `apps/web/src/components/workspace/LightweightChart.vue`
 - `apps/web/src/components/domain/market-data/VerticalQuoteWorkbench.vue`
-- `pkg/futu/exchange.go`
+- `crates/jftrade-integration-futu`

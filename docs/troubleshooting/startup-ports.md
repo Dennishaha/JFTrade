@@ -14,7 +14,7 @@
 | Tauri 桌面开发 | `pnpm run dev:desktop` | 桌面壳、菜单、IPC、窗口与产品联调 | Tauri 管理 Vite、Rust API 和 `JFTrade Dev`，保留仓库数据路径 |
 | Tauri 正式产品 | `pnpm run build:desktop` 构建产物 | 日常桌面使用 | `JFTrade` 独立单实例，使用系统用户数据目录和临时桌面 API 凭证 |
 
-Go `cmd/jftrade-api` 仅用于 reference/differential harness；生成 OpenAPI 或复现 Go baseline 时才运行它，不是生产或默认开发 API 入口。
+仓库没有 Go API fallback。历史 baseline 只能使用已发布 `v0.27.0` 安装包，不能从源码启动或重建。
 
 ## 默认端口
 
@@ -75,7 +75,7 @@ market info should not be empty, 0 markets loaded
 
 ## FUTU_OPEND_ADDR 缺失或端口写错
 
-当前默认值是 `127.0.0.1:11110`。如果 `FUTU_OPEND_ADDR` 缺失，`pkg/futu` 会回退到这个默认地址；如果你显式覆盖了错误端口，启动仍然会失败。
+当前默认值是 `127.0.0.1:11110`。如果 `FUTU_OPEND_ADDR` 缺失，Rust Futu integration 会使用这个默认地址；如果你显式覆盖了错误端口，启动仍然会失败。
 
 建议检查：
 
@@ -89,4 +89,4 @@ echo "$JFTRADE_FUTU_API_PORT"
 - 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失，还是发布态同源服务 6688 消失
 - 桌面问题还要区分 `JFTrade Dev` 的 3008 和正式 `JFTrade` 的 6699；不要把同通道单实例误判成两个通道互斥
 - 不要把 `/api/v1/*` 说成 bbgo 自带接口
-- 不要把 `start.sh` 的兼容行为等同于所有运行方式；独立 API 入口在 [`jftrade-api-rust`](../../crates/jftrade-engine/src/bin/jftrade-api-rust.rs)，桌面入口在 [../../apps/desktop/src-tauri](../../apps/desktop/src-tauri)。Go `cmd/jftrade-api` 仅供 reference/differential 验证
+- 不要把 `start.sh` 的兼容行为等同于所有运行方式；独立 API 入口在 [`jftrade-api-rust`](../../crates/jftrade-engine/src/bin/jftrade-api-rust.rs)，桌面入口在 [../../apps/desktop/src-tauri](../../apps/desktop/src-tauri)
