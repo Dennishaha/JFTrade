@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Enforce monotonic Go retirement
+        run: node scripts/check-go-retirement.mjs
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm

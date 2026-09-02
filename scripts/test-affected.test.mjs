@@ -140,6 +140,7 @@ test("runs Rust tests and quality gates for migration engine changes", () => {
   assert.deepEqual(plan.commands, [
     "pnpm run check:diff",
     "pnpm run check:ai-context",
+    "pnpm run check:go-retirement",
     "pnpm run check:rust:layout",
     "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
     "pnpm run test:rust:stage9:route-coverage",
@@ -158,6 +159,7 @@ test("quick Rust plan selects the changed package and defers the full integratio
   assert.deepEqual(plan.commands, [
     "pnpm run check:diff",
     "pnpm run check:ai-context",
+    "pnpm run check:go-retirement",
     "pnpm run check:rust:layout",
     "pnpm run check:rust:target-health",
     "cargo test -p jftrade-desktop -p jftrade-engine --all-targets",

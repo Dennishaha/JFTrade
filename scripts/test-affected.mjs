@@ -385,6 +385,7 @@ function buildCommands(files, modules, withChecks, goOptions, profile) {
     if (!moduleCommands.includes("pnpm run test:rust")) commands.push(...rustCommands);
   }
   if (withChecks) {
+    commands.unshift("pnpm run check:go-retirement");
     commands.unshift("pnpm run check:ai-context");
     commands.unshift("pnpm run check:diff");
     if (fallback.has("go") || modules.some((module) => module.id === "apiserver" || module.id === "assistant")) {
