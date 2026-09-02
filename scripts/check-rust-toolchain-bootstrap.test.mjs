@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const setupRustPath = new URL("../.github/actions/setup-rust/action.yml", import.meta.url);
+const ciWorkflowPath = new URL("../.github/workflows/ci.yml", import.meta.url);
 
 test("Rust bootstrap installs checksum-pinned protoc on every supported runner", async () => {
   const source = await readFile(setupRustPath, "utf8");
@@ -47,4 +48,19 @@ test("Rust bootstrap installs checksum-pinned protoc on every supported runner",
   assert.match(source, /libprotoc \$\{version\}/);
   assert.match(source, /GITHUB_PATH/);
   assert.match(source, /GITHUB_ENV/);
+});
+
+test("Rust quality provisions Linux desktop headers before checking the workspace", async () => {
+  const source = await readFile(ciWorkflowPath, "utf8");
+  const rustQuality = source.slice(
+    source.indexOf("  rust-quality:"),
+    source.indexOf("  rust-platform:"),
+  );
+  const dependencyStep = rustQuality.indexOf(
+    "run: bash scripts/install-linux-desktop-dependencies.sh",
+  );
+  const workspaceGate = rustQuality.indexOf("run: pnpm run check:rust");
+
+  assert.ok(dependencyStep >= 0, "Rust quality must install Tauri Linux system headers");
+  assert.ok(workspaceGate > dependencyStep, "system headers must be installed before check:rust");
 });

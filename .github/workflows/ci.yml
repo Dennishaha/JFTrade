@@ -71,6 +71,9 @@ jobs:
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
+      - name: Install Linux desktop dependencies
+        run: bash scripts/install-linux-desktop-dependencies.sh
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
