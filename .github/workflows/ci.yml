@@ -120,6 +120,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Install Linux desktop dependencies
+        if: ${{ runner.os == 'Linux' }}
+        run: bash scripts/install-linux-desktop-dependencies.sh
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 

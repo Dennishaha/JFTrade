@@ -64,6 +64,9 @@ runs:
         curl --fail --location --silent --show-error "$download_url" --output "$archive_path"
         if command -v sha256sum >/dev/null 2>&1; then
           actual_sha256="$(sha256sum "$archive_path" | awk '{print $1}')"
+          # GNU coreutils prefixes the complete output line with a backslash
+          # when a Windows path contains backslashes and needs escaping.
+          actual_sha256="${actual_sha256#\\}"
         else
           actual_sha256="$(shasum -a 256 "$archive_path" | awk '{print $1}')"
         fi
