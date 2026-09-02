@@ -1,17 +1,8 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-
-import { evaluateCloseout } from "./rust-migration/check-stage9-closeout.mjs";
-
-const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const defaultManifestPath = path.join(
-  repositoryRoot,
-  "tests/fixtures/rust-migration/stage9/closeout-evidence.json",
-);
 
 export const RELEASE_SIGNING_REQUIREMENTS = Object.freeze({
   macos: Object.freeze([
@@ -34,8 +25,14 @@ export const RELEASE_SIGNING_REQUIREMENTS = Object.freeze({
   ]),
 });
 
-function isPublish(environment) {
-  return String(environment.JFTRADE_DESKTOP_PUBLISH ?? "").trim() === "true";
+export const DESKTOP_RELEASE_OPERATIONS = Object.freeze(["rehearsal", "candidate", "publish"]);
+
+function releaseOperation(environment) {
+  const explicit = String(environment.JFTRADE_DESKTOP_OPERATION ?? "").trim();
+  if (explicit) return explicit;
+  return String(environment.JFTRADE_DESKTOP_PUBLISH ?? "").trim() === "true"
+    ? "publish"
+    : "rehearsal";
 }
 
 function missingSigningValues(environment) {
@@ -61,53 +58,45 @@ function validateUpdaterEndpoint(environment) {
 
 export function evaluateDesktopReleasePolicy({
   environment = process.env,
-  closeoutManifest,
-  expectedRouteOwnership,
-  checkCloseout = true,
 } = {}) {
-  if (!isPublish(environment)) {
-    return { publish: false, valid: true, blockers: [] };
+  const operation = releaseOperation(environment);
+  if (!DESKTOP_RELEASE_OPERATIONS.includes(operation)) {
+    return {
+      operation,
+      publish: false,
+      valid: false,
+      blockers: [`unsupported desktop release operation: ${operation}`],
+    };
   }
 
-  const blockers = missingSigningValues(environment).map(
-    (name) => `publish requires configured signing secret or updater value ${name}`,
-  );
-  const endpointError = validateUpdaterEndpoint(environment);
-  if (endpointError) blockers.push(endpointError);
-
-  if (checkCloseout) {
-    let manifest = closeoutManifest;
-    if (manifest === undefined) {
-      try {
-        manifest = JSON.parse(fs.readFileSync(defaultManifestPath, "utf8"));
-      } catch (error) {
-        blockers.push(`cannot read Stage 9 closeout evidence: ${error.message}`);
-      }
-    }
-    if (manifest !== undefined) {
-      const closeout = evaluateCloseout(manifest, { expectedRouteOwnership });
-      if (!closeout.valid) {
-        blockers.push(...closeout.errors.map((error) => `invalid closeout evidence: ${error}`));
-      } else if (!closeout.complete) {
-        blockers.push(...closeout.blockers.map((blocker) => `Stage 9 closeout gate: ${blocker}`));
-      }
-    }
+  const blockers = [];
+  if (operation === "candidate") {
+    blockers.push(...missingSigningValues(environment).map(
+      (name) => `candidate requires configured signing secret or updater value ${name}`,
+    ));
+    const endpointError = validateUpdaterEndpoint(environment);
+    if (endpointError) blockers.push(endpointError);
   }
-  return { publish: true, valid: blockers.length === 0, blockers };
+  return { operation, publish: operation === "publish", valid: blockers.length === 0, blockers };
 }
 
 function main(args = process.argv.slice(2)) {
-  const forcePublish = args.includes("--publish");
-  const signingOnly = args.includes("--signing-only");
-  const environment = forcePublish
-    ? { ...process.env, JFTRADE_DESKTOP_PUBLISH: "true" }
+  const operationIndex = args.indexOf("--operation");
+  const legacyPublish = args.includes("--publish");
+  const operation = operationIndex >= 0 ? args[operationIndex + 1] : legacyPublish ? "publish" : undefined;
+  if (operationIndex >= 0 && (!operation || operation.startsWith("--"))) {
+    console.error("--operation requires rehearsal, candidate, or publish");
+    return 1;
+  }
+  const environment = operation
+    ? { ...process.env, JFTRADE_DESKTOP_OPERATION: operation }
     : process.env;
-  const result = evaluateDesktopReleasePolicy({ environment, checkCloseout: !signingOnly });
+  const result = evaluateDesktopReleasePolicy({ environment });
   if (result.valid) {
-    console.log(result.publish ? "Desktop release publish policy passed." : "Desktop release dry-run policy passed.");
+    console.log(`Desktop release ${result.operation} policy passed.`);
     return 0;
   }
-  console.error("Desktop release publish policy failed closed:");
+  console.error(`Desktop release ${result.operation || "unknown"} policy failed closed:`);
   for (const blocker of result.blockers) console.error(`- ${blocker}`);
   return 1;
 }

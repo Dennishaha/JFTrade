@@ -12,12 +12,16 @@ const qualificationWorkflow = fs.readFileSync(
   "utf8",
 );
 
-test("desktop publish lane is gated by closeout and signing prerequisites", () => {
+test("desktop workflow separates rehearsal, candidate, and manual publish operations", () => {
+  assert.match(workflow, /source_ref:/);
+  assert.match(workflow, /planned_release_tag:/);
+  assert.match(workflow, /operation:/);
+  assert.match(workflow, /- rehearsal\s+- candidate\s+- publish/);
+  assert.doesNotMatch(workflow, /push:\s*\n\s*tags:/);
   assert.match(workflow, /Verify Stage 9 static release-candidate admission/);
   assert.match(workflow, /check-stage9-closeout\.mjs --candidate-static/);
   assert.match(workflow, /check-release-candidate\.mjs/);
   assert.match(workflow, /candidate_evidence_config/);
-  assert.match(workflow, /gh api[\s\S]*actions\/workflows\/\$CANDIDATE_WORKFLOW\/runs/);
   assert.match(workflow, /run_path/);
   assert.match(workflow, /run_status/);
   assert.match(workflow, /run_conclusion/);
@@ -36,7 +40,10 @@ test("desktop publish lane is gated by closeout and signing prerequisites", () =
   assert.match(workflow, /JFTRADE_TAURI_UPDATER_ENDPOINT:/);
   assert.match(workflow, /check-signed-updater-artifact\.mjs --config-only/);
   assert.match(workflow, /check-signed-updater-lifecycle\.mjs/);
-  assert.match(workflow, /JFTRADE_DESKTOP_PUBLISH == 'true'/);
+  assert.match(workflow, /JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'/);
+  assert.match(workflow, /inputs\.operation == 'publish'/);
+  assert.match(workflow, /needs: \[release-inputs\]/);
+  assert.doesNotMatch(workflow, /needs: \[release-inputs, macos, windows, windows_arm64, linux\]/);
   assert.match(workflow, /name: desktop-release-updater-macos/);
   assert.match(workflow, /name: desktop-release-updater-linux/);
   assert.match(workflow, /name: desktop-release-updater-windows-arm64/);
@@ -157,9 +164,11 @@ test("publish verifies the downloaded canonical candidate bundle without rebuild
   assert.match(publishSection, /--sealed-manifest/);
 });
 
-test("desktop publish lane cannot silently continue with unsigned platform credentials", () => {
-  assert.match(workflow, /Publishing requires complete macOS signing and notarization credentials/);
-  assert.match(workflow, /Publishing requires complete Windows signing credentials/);
+test("candidate lane fails closed on signing while rehearsal does not read secrets", () => {
+  assert.match(workflow, /Candidate requires complete macOS signing and notarization credentials/);
+  assert.match(workflow, /Candidate requires complete Windows signing credentials/);
+  assert.match(workflow, /Unsigned rehearsal does not read signing or notarization secrets/);
+  assert.match(workflow, /Unsigned rehearsal does not read Authenticode or updater signing secrets/);
   assert.doesNotMatch(workflow, /producing an unsigned (macOS|Windows) release/);
 });
 

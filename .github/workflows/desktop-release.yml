@@ -3,23 +3,32 @@ name: Desktop Release
 on:
   workflow_dispatch:
     inputs:
-      release_ref:
-        description: Main-validated Git ref/SHA for a dry run, or an exact vX.Y.Z tag to publish
+      source_ref:
+        description: Exact candidate branch, commit, or ref to build or publish
         required: true
-        default: main
+        default: release/0.29.0-candidate
         type: string
-      dry_run:
-        description: Build and verify artifacts without attesting or publishing a GitHub Release
-        required: false
-        default: true
-        type: boolean
+      planned_release_tag:
+        description: Planned vX.Y.Z release tag; rehearsal and candidate do not require it to exist
+        required: true
+        default: v0.29.0
+        type: string
+      operation:
+        description: Rehearse unsigned builds, build a signed candidate, or publish an existing formal candidate
+        required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+          - publish
       candidate_evidence_config:
         description: Relative config path inside the candidate qualification artifact (required for publish)
         required: false
         default: candidate-evidence-config.json
         type: string
       candidate_evidence_run_id:
-        description: Successful qualification workflow run id whose artifact is bound to this tag and commit (required for publish)
+        description: Successful formal candidate qualification run id bound to source_ref, tag and commit (required for publish)
         required: false
         default: ''
         type: string
@@ -33,20 +42,18 @@ on:
         required: false
         default: desktop-release-qualification.yml
         type: string
-  push:
-    tags:
-      - "v*"
-
 permissions: {}
 
 env:
-  JFTRADE_DESKTOP_BUILD_REF: ${{ github.event_name == 'push' && github.ref_name || inputs.release_ref }}
-  JFTRADE_DESKTOP_RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || (inputs.dry_run && format('v0.0.{0}', github.run_number) || inputs.release_ref) }}
-  JFTRADE_DESKTOP_PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true) }}
+  JFTRADE_DESKTOP_BUILD_REF: ${{ inputs.source_ref }}
+  JFTRADE_DESKTOP_RELEASE_TAG: ${{ inputs.planned_release_tag }}
+  JFTRADE_DESKTOP_OPERATION: ${{ inputs.operation }}
+  JFTRADE_DESKTOP_SIGNED_CANDIDATE: ${{ inputs.operation == 'candidate' }}
+  JFTRADE_DESKTOP_PUBLISH: ${{ inputs.operation == 'publish' }}
   JFTRADE_DESKTOP_BUILD_TIME: ${{ github.event.head_commit.timestamp || '' }}
 
 concurrency:
-  group: desktop-release-${{ github.event_name == 'push' && github.ref_name || inputs.release_ref }}
+  group: desktop-release-${{ inputs.operation }}-${{ inputs.source_ref }}-${{ inputs.planned_release_tag }}
   cancel-in-progress: false
 
 jobs:
@@ -79,11 +86,19 @@ jobs:
         run: |
           set -euo pipefail
           head_commit="$(git rev-parse HEAD)"
+          [[ "$JFTRADE_DESKTOP_OPERATION" =~ ^(rehearsal|candidate|publish)$ ]] || {
+            echo "operation must be rehearsal, candidate, or publish" >&2
+            exit 1
+          }
+          if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || [[ "$JFTRADE_DESKTOP_RELEASE_TAG" = "v0.0.0" ]]; then
+            echo "Invalid planned release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
+            exit 1
+          fi
+          [[ "$JFTRADE_DESKTOP_BUILD_REF" =~ ^[A-Za-z0-9._/-]+$ && "$JFTRADE_DESKTOP_BUILD_REF" != /* && "$JFTRADE_DESKTOP_BUILD_REF" != *".."* ]] || {
+            echo "source_ref is unsafe" >&2
+            exit 1
+          }
           if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then
-            if [[ ! "$JFTRADE_DESKTOP_RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || [[ "$JFTRADE_DESKTOP_RELEASE_TAG" = "v0.0.0" ]]; then
-              echo "Invalid release tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
-              exit 1
-            fi
             if ! git show-ref --verify --quiet "refs/tags/$JFTRADE_DESKTOP_RELEASE_TAG"; then
               echo "Publishing requires an existing tag: $JFTRADE_DESKTOP_RELEASE_TAG" >&2
               exit 1
@@ -94,7 +109,11 @@ jobs:
               exit 1
             fi
           else
-            echo "Dry run will build $JFTRADE_DESKTOP_BUILD_REF at $head_commit as $JFTRADE_DESKTOP_RELEASE_TAG."
+            [[ "$JFTRADE_DESKTOP_BUILD_REF" == "release/0.29.0-candidate" || "$JFTRADE_DESKTOP_BUILD_REF" == "refs/heads/release/0.29.0-candidate" ]] || {
+              echo "0.29.0 candidate builds must use release/0.29.0-candidate" >&2
+              exit 1
+            }
+            echo "$JFTRADE_DESKTOP_OPERATION will build $JFTRADE_DESKTOP_BUILD_REF at $head_commit for planned tag $JFTRADE_DESKTOP_RELEASE_TAG."
           fi
 
           git fetch --no-tags origin main:refs/remotes/origin/main
@@ -128,8 +147,8 @@ jobs:
           CANDIDATE_WORKFLOW: ${{ inputs.candidate_evidence_workflow || 'desktop-release-qualification.yml' }}
           RELEASE_TAG: ${{ env.JFTRADE_DESKTOP_RELEASE_TAG }}
           RELEASE_COMMIT: ${{ github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
           REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.source_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -146,20 +165,12 @@ jobs:
             exit 1
           }
           release_ref="refs/tags/$RELEASE_TAG"
+          candidate_ref="$CANDIDATE_REF"
+          [[ "$candidate_ref" == refs/heads/* ]] || candidate_ref="refs/heads/$candidate_ref"
           RELEASE_COMMIT="$(git rev-parse HEAD)"
           run_id="$CANDIDATE_RUN_ID"
-          if [[ "$EVENT_NAME" == "push" && -z "$run_id" ]]; then
-            runs_json="$(gh api \
-              --method GET \
-              "repos/$REPOSITORY/actions/workflows/$CANDIDATE_WORKFLOW/runs?status=success&head_sha=$RELEASE_COMMIT&per_page=100")"
-            run_id="$(jq -r \
-              --arg sha "$RELEASE_COMMIT" \
-              --arg tag "$RELEASE_TAG" \
-              '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)))] | sort_by(.created_at) | last.id // empty' \
-              <<<"$runs_json")"
-          fi
           [[ "$run_id" =~ ^[1-9][0-9]*$ ]] || {
-            echo "Publishing requires a successful candidate qualification run bound to $release_ref at $RELEASE_COMMIT; no run id was provided or found." >&2
+            echo "Publishing requires an explicitly supplied formal candidate qualification run bound to $candidate_ref and $release_ref at $RELEASE_COMMIT." >&2
             exit 1
           }
           run_json="$(gh api --method GET "repos/$REPOSITORY/actions/runs/$run_id")"
@@ -185,8 +196,9 @@ jobs:
             echo "Candidate run $run_id commit $run_sha does not match release commit $RELEASE_COMMIT" >&2
             exit 1
           }
-          [[ "$run_branch" == "$RELEASE_TAG" || "$run_branch" == "$release_ref" ]] || {
-            echo "Candidate run $run_id ref $run_branch does not match release tag $RELEASE_TAG" >&2
+          candidate_branch="${candidate_ref#refs/heads/}"
+          [[ "$run_branch" == "$candidate_branch" || "$run_branch" == "$candidate_ref" ]] || {
+            echo "Candidate run $run_id ref $run_branch does not match candidate ref $candidate_ref" >&2
             exit 1
           }
           [[ "$run_attempt" =~ ^[1-9][0-9]*$ && -n "$run_workflow" ]] || {
@@ -213,8 +225,8 @@ jobs:
             echo "config=$CANDIDATE_CONFIG"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Verify publish signing and updater prerequisites
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+      - name: Verify signed candidate prerequisites
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           JFTRADE_MACOS_CERTIFICATE_BASE64: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_BASE64 }}
           JFTRADE_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_PASSWORD }}
@@ -228,44 +240,53 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           JFTRADE_TAURI_UPDATER_PUBKEY: ${{ secrets.JFTRADE_TAURI_UPDATER_PUBKEY }}
           JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
-        run: node scripts/check-desktop-release-policy.mjs --publish --signing-only
+        run: node scripts/check-desktop-release-policy.mjs --operation candidate --signing-only
 
       - name: Setup Node and pnpm
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         uses: ./.github/actions/setup-pnpm
         with:
           cache: true
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Linux desktop dependencies
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Install workspace dependencies
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Enforce zero-Go release inputs
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run check:zero-go
 
       - name: Verify Stage 9 static release-candidate admission
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static
 
       - name: Audit locked pnpm dependencies
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run audit:dependencies
 
       - name: OSS license compliance
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: |
           pnpm run check:oss-license
           pnpm run check:pinets-compliance
 
       - name: Test Tauri release runtime contracts
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run test:tauri-release-runtime
 
       - name: Verify signed updater source contracts
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: |
           node scripts/rust-migration/check-signed-updater-artifact.mjs --config-only
           node scripts/rust-migration/check-signed-updater-lifecycle.mjs
 
       - name: Build release inputs
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: |
           pnpm run generate:docs
           git diff --exit-code -- \
@@ -278,14 +299,17 @@ jobs:
           git diff --check
 
       - name: Verify built PineTS worker with a real backtest
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         env:
           JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/runtime-assets/pine/worker.mjs
         run: pnpm run smoke:pinets-backtest
 
       - name: Verify shared desktop source
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run test:scripts -- desktop
 
       - name: Upload prepared release inputs
+        if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-build-inputs-${{ github.run_id }}
@@ -302,6 +326,7 @@ jobs:
 
   macos:
     name: macOS ARM64 DMG
+    if: inputs.operation != 'publish'
     needs: release-inputs
     runs-on: macos-15
     timeout-minutes: 40
@@ -339,6 +364,7 @@ jobs:
         run: node scripts/prepare-desktop-release.mjs
 
       - name: Configure macOS signing and notarization
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_MACOS_CERTIFICATE_PASSWORD }}
@@ -351,13 +377,8 @@ jobs:
           configured=0
           for value in "${values[@]}"; do test -n "$value" && configured=$((configured + 1)); done
           if [ "$configured" -eq 0 ]; then
-            if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then
-              echo "Publishing requires complete macOS signing and notarization credentials." >&2
-              exit 1
-            fi
-            echo "Signing credentials are not configured; this is an unsigned dry-run artifact."
-            echo "QUALIFIER=unsigned" >> "$GITHUB_ENV"
-            exit 0
+            echo "Candidate requires complete macOS signing and notarization credentials." >&2
+            exit 1
           fi
           if [ "$configured" -ne "${#values[@]}" ]; then echo "macOS signing secrets must be all set or all unset" >&2; exit 1; fi
           keychain="$RUNNER_TEMP/jftrade-signing.keychain-db"
@@ -374,6 +395,12 @@ jobs:
           echo "JFTRADE_MACOS_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
           echo "JFTRADE_MACOS_NOTARY_PROFILE=jftrade-ci" >> "$GITHUB_ENV"
           echo "QUALIFIER=signed" >> "$GITHUB_ENV"
+
+      - name: Mark unsigned macOS rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        run: |
+          echo "QUALIFIER=unsigned" >> "$GITHUB_ENV"
+          echo "Unsigned rehearsal does not read signing or notarization secrets."
 
       - name: Sign native market-data helper before embedding
         run: |
@@ -395,7 +422,8 @@ jobs:
       - name: Test macOS desktop package
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
-      - name: Build ARM64 DMG
+      - name: Build signed ARM64 DMG candidate
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -403,8 +431,12 @@ jobs:
           JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
+      - name: Build unsigned ARM64 DMG rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
       - name: Verify signed macOS updater output
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         run: |
           set -euo pipefail
           updater_dir="apps/desktop/src-tauri/target/release/bundle"
@@ -423,7 +455,7 @@ jobs:
         run: |
           mkdir -p artifacts
           updater_flag=()
-          if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then updater_flag=(--require-updater); fi
+          if [[ "$JFTRADE_DESKTOP_SIGNED_CANDIDATE" == "true" ]]; then updater_flag=(--require-updater); fi
           node scripts/verify-tauri-release-artifacts.mjs \
             --platform macos-arm64 \
             --architecture arm64 \
@@ -455,7 +487,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest macOS build provenance
-        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        if: ${{ github.event.repository.private == false && inputs.operation == 'candidate' }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -472,7 +504,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload macOS updater artifacts
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-updater-macos
@@ -483,6 +515,7 @@ jobs:
 
   windows:
     name: Windows x64 Installer
+    if: inputs.operation != 'publish'
     needs: release-inputs
     runs-on: windows-latest
     timeout-minutes: 35
@@ -520,18 +553,14 @@ jobs:
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Configure Windows signing
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
-          if ($configured.Count -eq 0) {
-            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { throw "Publishing requires complete Windows signing credentials." }
-            Write-Host "Authenticode credentials are not configured; this is an unsigned dry-run artifact."
-            "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
-            exit 0
-          }
+          if ($configured.Count -eq 0) { throw "Candidate requires complete Windows signing credentials." }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
@@ -544,6 +573,13 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT=$($imported.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Mark unsigned Windows rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        shell: pwsh
+        run: |
+          "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Unsigned rehearsal does not read Authenticode or updater signing secrets."
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
@@ -558,7 +594,8 @@ jobs:
       - name: Test Windows desktop package
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
-      - name: Build per-user NSIS installer
+      - name: Build signed per-user NSIS candidate
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -567,8 +604,13 @@ jobs:
         shell: pwsh
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
+      - name: Build unsigned per-user NSIS rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        shell: pwsh
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
       - name: Verify signed Windows updater output
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         run: |
           $signatures = Get-ChildItem apps/desktop/src-tauri/target/release/bundle -Recurse -Filter *.sig -File -ErrorAction SilentlyContinue
@@ -583,7 +625,7 @@ jobs:
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Verify Windows Authenticode signatures
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         run: |
           & signtool verify /pa apps/desktop/src-tauri/target/release/jftrade-desktop.exe
@@ -601,7 +643,7 @@ jobs:
             "--version", $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v'),
             "--output", "artifacts/tauri-release-windows-x64.json"
           )
-          if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { $arguments += "--require-updater" }
+          if ($env:JFTRADE_DESKTOP_SIGNED_CANDIDATE -eq "true") { $arguments += "--require-updater" }
           New-Item -ItemType Directory -Force artifacts | Out-Null
           node @arguments
 
@@ -622,7 +664,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Windows build provenance
-        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        if: ${{ github.event.repository.private == false && inputs.operation == 'candidate' }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -639,7 +681,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Windows updater artifacts
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-updater-windows
@@ -652,6 +694,7 @@ jobs:
 
   windows_arm64:
     name: Windows ARM64 Installer
+    if: inputs.operation != 'publish'
     needs: release-inputs
     runs-on: windows-11-arm
     timeout-minutes: 35
@@ -695,18 +738,14 @@ jobs:
           (Split-Path $makensis) | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Configure Windows signing
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         env:
           CERTIFICATE_BASE64: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.JFTRADE_WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           $configured = @($env:CERTIFICATE_BASE64, $env:CERTIFICATE_PASSWORD) | Where-Object { $_ }
-          if ($configured.Count -eq 0) {
-            if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { throw "Publishing requires complete Windows signing credentials." }
-            Write-Host "Authenticode credentials are not configured; this is an unsigned dry-run artifact."
-            "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
-            exit 0
-          }
+          if ($configured.Count -eq 0) { throw "Candidate requires complete Windows signing credentials." }
           if ($configured.Count -ne 2) { throw "Windows signing secrets must be all set or all unset" }
           $certificate = Join-Path $env:RUNNER_TEMP "jftrade-signing.pfx"
           [IO.File]::WriteAllBytes($certificate, [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
@@ -719,6 +758,13 @@ jobs:
           "JFTRADE_WINDOWS_CERTIFICATE_PASSWORD=$env:CERTIFICATE_PASSWORD" | Out-File -FilePath $env:GITHUB_ENV -Append
           "JFTRADE_WINDOWS_CERTIFICATE_THUMBPRINT=$($imported.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "QUALIFIER=signed" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Mark unsigned Windows ARM64 rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        shell: pwsh
+        run: |
+          "QUALIFIER=unsigned" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Unsigned rehearsal does not read Authenticode or updater signing secrets."
 
       - name: Build and smoke market data sidecar
         uses: ./.github/actions/build-marketdata-sidecar
@@ -733,7 +779,8 @@ jobs:
       - name: Test Windows ARM64 desktop package
         run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
 
-      - name: Build ARM64 NSIS installer
+      - name: Build signed ARM64 NSIS candidate
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -742,8 +789,13 @@ jobs:
         shell: pwsh
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
+      - name: Build unsigned ARM64 NSIS rehearsal
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        shell: pwsh
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
       - name: Verify signed Windows ARM64 updater output
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         run: |
           $signatures = Get-ChildItem apps/desktop/src-tauri/target/release/bundle -Recurse -Filter *.sig -File -ErrorAction SilentlyContinue
@@ -758,7 +810,7 @@ jobs:
           "path=$($artifact.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Verify Windows ARM64 Authenticode signatures
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         shell: pwsh
         run: |
           & signtool verify /pa apps/desktop/src-tauri/target/release/jftrade-desktop.exe
@@ -776,7 +828,7 @@ jobs:
             "--version", $env:JFTRADE_DESKTOP_RELEASE_TAG.TrimStart('v'),
             "--output", "artifacts/tauri-release-windows-arm64.json"
           )
-          if ($env:JFTRADE_DESKTOP_PUBLISH -eq "true") { $arguments += "--require-updater" }
+          if ($env:JFTRADE_DESKTOP_SIGNED_CANDIDATE -eq "true") { $arguments += "--require-updater" }
           New-Item -ItemType Directory -Force artifacts | Out-Null
           node @arguments
 
@@ -797,7 +849,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Windows ARM64 build provenance
-        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        if: ${{ github.event.repository.private == false && inputs.operation == 'candidate' }}
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.artifact.outputs.path }}
@@ -814,7 +866,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Windows ARM64 updater artifacts
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-updater-windows-arm64
@@ -827,6 +879,7 @@ jobs:
 
   linux:
     name: Linux x64 Packages
+    if: inputs.operation != 'publish'
     needs: release-inputs
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -874,7 +927,8 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "bundle=$dir" >> "$GITHUB_OUTPUT"
 
-      - name: Build Linux x64 release packages
+      - name: Build signed Linux x64 candidate packages
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -882,8 +936,12 @@ jobs:
           JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
 
+      - name: Build unsigned Linux x64 rehearsal packages
+        if: env.JFTRADE_DESKTOP_OPERATION == 'rehearsal'
+        run: pnpm run prepare:tauri-release && pnpm run build:desktop:tauri
+
       - name: Verify signed Linux updater output
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         run: |
           set -euo pipefail
           updater_dir="apps/desktop/src-tauri/target/release/bundle"
@@ -905,7 +963,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           updater_flag=()
-          if [[ "$JFTRADE_DESKTOP_PUBLISH" == "true" ]]; then updater_flag=(--require-updater); fi
+          if [[ "$JFTRADE_DESKTOP_SIGNED_CANDIDATE" == "true" ]]; then updater_flag=(--require-updater); fi
           node scripts/verify-tauri-release-artifacts.mjs \
             --platform linux-x64 \
             --architecture amd64 \
@@ -934,7 +992,7 @@ jobs:
           upload-release-assets: false
 
       - name: Attest Linux x64 build provenance
-        if: ${{ github.event.repository.private == false && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        if: ${{ github.event.repository.private == false && inputs.operation == 'candidate' }}
         uses: actions/attest@v4
         with:
           subject-path: |
@@ -956,7 +1014,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Linux updater artifacts
-        if: env.JFTRADE_DESKTOP_PUBLISH == 'true'
+        if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: desktop-release-updater-linux
@@ -967,15 +1025,8 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    if: >-
-      always() &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run != true)) &&
-      needs.release-inputs.result == 'success' &&
-      needs.macos.result == 'success' &&
-      needs.windows.result == 'success' &&
-      needs.windows_arm64.result == 'success' &&
-      needs.linux.result == 'success'
-    needs: [release-inputs, macos, windows, windows_arm64, linux]
+    if: inputs.operation == 'publish' && needs.release-inputs.result == 'success'
+    needs: [release-inputs]
     runs-on: ubuntu-latest
     permissions:
       actions: read
