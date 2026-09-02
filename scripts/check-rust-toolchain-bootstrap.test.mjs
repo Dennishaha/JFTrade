@@ -60,6 +60,14 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
     source.indexOf("  rust-platform:"),
     source.indexOf("  web-quality:"),
   );
+  const desktopLinuxSmoke = source.slice(
+    source.indexOf("  desktop-linux-smoke:"),
+    source.indexOf("  desktop-build:"),
+  );
+  const desktopBuild = source.slice(
+    source.indexOf("  desktop-build:"),
+    source.indexOf("  build-and-test:"),
+  );
   const dependencyStep = rustQuality.indexOf(
     "run: bash scripts/install-linux-desktop-dependencies.sh",
   );
@@ -78,4 +86,16 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
     rustPlatform.includes(compileOnlyConfig),
     "native compile checks must not require ignored release-package resources",
   );
+  for (const [name, job] of [
+    ["PR desktop smoke", desktopLinuxSmoke],
+    ["push desktop build", desktopBuild],
+  ]) {
+    const bindInputs = job.indexOf("node scripts/write-desktop-release-input-manifest.mjs");
+    const prepareRuntime = job.indexOf("pnpm run prepare:tauri-release");
+    const testDesktop = job.indexOf("cargo test -p jftrade-desktop");
+    assert.ok(bindInputs >= 0, `${name} must bind its downloaded desktop inputs`);
+    assert.ok(prepareRuntime > bindInputs, `${name} must bind inputs before preparing resources`);
+    assert.ok(prepareRuntime >= 0, `${name} must prepare the Tauri runtime resources`);
+    assert.ok(testDesktop > prepareRuntime, `${name} must prepare resources before desktop tests`);
+  }
 });

@@ -358,7 +358,11 @@ jobs:
         run: bash scripts/install-linux-desktop-dependencies.sh
 
       - name: Test desktop release profile
-        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
+        run: |
+          node scripts/write-desktop-release-input-manifest.mjs
+          pnpm run prepare:tauri-release
+          pnpm run test:tauri-release-runtime
+          cargo test -p jftrade-desktop
 
       - name: Build Linux desktop application
         run: pnpm run build:desktop:tauri
@@ -440,7 +444,11 @@ jobs:
           }
 
       - name: Test desktop release profile
-        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
+        run: |
+          node scripts/write-desktop-release-input-manifest.mjs
+          pnpm run prepare:tauri-release
+          pnpm run test:tauri-release-runtime
+          cargo test -p jftrade-desktop
 
       - name: Build desktop application
         run: ${{ matrix.build_command }}
