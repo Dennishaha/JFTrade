@@ -20,12 +20,5 @@ function run(command, args) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9WSLiveFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
 run("cargo", ["test", "-p", "jftrade-engine", "--test", "stage9_ws_live"]);
 console.log("Stage 9 ws-live Go/Rust fixture differential passed.");

@@ -46,7 +46,7 @@ function parseArgs(values: string[]) {
   return {
     address: options.get("address") ?? "127.0.0.1:50051",
     workerId: options.get("worker-id") ?? "pineworker-1",
-    protoPath: options.get("proto") ?? "pkg/strategy/pineworker/proto/pineworker.proto",
+    protoPath: options.get("proto") ?? "proto/pineworker/pineworker.proto",
     pinetsVersion: options.get("pinets-version") ?? "unknown",
     maxMessageBytes: Number(options.get("max-message-bytes") ?? -1),
     mock: options.get("mock") === "true",

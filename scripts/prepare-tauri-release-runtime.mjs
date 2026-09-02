@@ -93,7 +93,7 @@ export function releaseRuntimeInputs({
       "internal/pineworkerassets/assets/bin/worker.mjs",
     ),
     platform: targetPlatform,
-    protoDirectory: path.join(repositoryRoot, "pkg/strategy/pineworker/proto"),
+    protoDirectory: path.join(repositoryRoot, "proto/pineworker"),
     repositoryRoot,
     runtimeDirectory,
   };

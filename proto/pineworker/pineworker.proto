@@ -2,9 +2,7 @@ syntax = "proto3";
 
 package jftrade.strategy.pineworker.v1;
 
-option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
-
-import "proto/pineworker_types.proto";
+import "proto/pineworker/pineworker_types.proto";
 
 service PineWorker {
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);

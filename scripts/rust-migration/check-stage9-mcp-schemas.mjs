@@ -8,19 +8,7 @@ const commandTimeoutMs = 300_000;
 
 export const stage9MCPCommands = Object.freeze([
   Object.freeze({
-    label: "Go MCP schema fixture reference",
-    executable: "go",
-    args: [
-      "test",
-      "./scripts/rust-migration",
-      "-run",
-      "^TestStage9MCPToolSchemasMatchGoReference$",
-      "-count=1",
-      "-timeout=300s",
-    ],
-  }),
-  Object.freeze({
-    label: "Rust MCP schema deep-equality replay",
+    label: "Rust MCP schema compatibility replay",
     executable: "cargo",
     args: [
       "test",
@@ -55,7 +43,7 @@ export function main() {
   for (const command of stage9MCPCommands) {
     run(command);
   }
-  console.log("Stage 9 MCP schema parity passed: all 69 Go input schemas deep-match Rust descriptors.");
+  console.log("Stage 9 MCP schema replay passed: all 69 pinned input schemas deep-match Rust descriptors.");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

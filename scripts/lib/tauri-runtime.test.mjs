@@ -20,7 +20,7 @@ test("tauri dev prepares the retained PineTS asset and exact runtime paths", () 
   assert.equal(environment.JFTRADE_PINEWORKER_BUNDLE, path.join(root, "var/pineworker/worker.mjs"));
   assert.equal(
     environment.JFTRADE_PINEWORKER_PROTO,
-    path.join(root, "pkg/strategy/pineworker/proto/pineworker.proto"),
+    path.join(root, "proto/pineworker/pineworker.proto"),
   );
 });
 

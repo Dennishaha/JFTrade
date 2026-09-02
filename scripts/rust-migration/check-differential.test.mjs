@@ -6,20 +6,19 @@ import {
   assertEquivalent,
 } from "./check-differential.mjs";
 
-test("accepts identical Go Rust and golden snapshots", () => {
+test("accepts a Rust snapshot matching the pinned compatibility golden", () => {
   const snapshot = { componentId: "backtest", version: 3, klines: [] };
-  assert.doesNotThrow(() => assertEquivalent(snapshot, structuredClone(snapshot), structuredClone(snapshot)));
+  assert.doesNotThrow(() => assertEquivalent(snapshot, structuredClone(snapshot)));
   assert.doesNotThrow(() => assertBytesUnchanged(Buffer.from("db"), Buffer.from("db")));
 });
 
 test("rejects semantic drift and database byte mutations", () => {
   assert.throws(
     () => assertEquivalent(
-      { componentId: "backtest", version: 3 },
       { componentId: "backtest", version: 2 },
       { componentId: "backtest", version: 3 },
     ),
-    /differs from the Go oracle/,
+    /differs from the pinned golden/,
   );
   assert.throws(
     () => assertBytesUnchanged(Buffer.from("before"), Buffer.from("after")),

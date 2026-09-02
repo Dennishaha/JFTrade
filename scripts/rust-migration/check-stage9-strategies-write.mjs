@@ -23,13 +23,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "scripts/rust-migration/stage9_strategies_write_reference_test.go",
-  "-run",
-  "^TestStage9StrategiesWriteFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

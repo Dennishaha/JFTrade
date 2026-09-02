@@ -23,13 +23,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./internal/app/apiserver/webaccess",
-  "-run",
-  "^TestStage9AuthSessionWriteFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

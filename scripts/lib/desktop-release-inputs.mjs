@@ -3,9 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const desktopReleaseInputPaths = [
-  "docs/swagger/docs.go",
-  "docs/swagger/swagger.json",
-  "docs/swagger/swagger.yaml",
+  "contracts/openapi/openapi.json",
   "internal/frontendassets/dist.zip",
   "internal/pineworkerassets/assets/bin/worker.mjs",
 ];

@@ -12,14 +12,11 @@ import {
 } from "./generate-contracts.mjs";
 import { buildStage7Corpus } from "./rust-migration/generate-stage7-corpus.mjs";
 
-test("compares only committed outputs and keeps runtime Swagger temporary", () => {
+test("compares only language-neutral generated outputs", () => {
   assert.deepEqual(trackedOutputs, [
     "apps/web/src/generated/openapi.ts",
-    "tests/fixtures/openapi-baseline.json",
-    "docs/reference/generated/pine-v6-support.md",
   ]);
-  assert.equal(trackedOutputs.includes("docs/swagger/docs.go"), false);
-  assert.equal(trackedOutputs.includes("docs/swagger/swagger.runtime.json"), false);
+  assert.equal(trackedOutputs.includes("contracts/openapi/openapi.json"), false);
   assert.equal(trackedOutputs.includes("docs/reference/generated/api.md"), false);
   assert.equal(trackedOutputs.includes("docs/reference/generated/types.md"), false);
 });
@@ -38,7 +35,7 @@ test("reports drift using injected roots without requiring ignored local artifac
     rm(expectedRoot, { recursive: true, force: true }),
     rm(generatedRoot, { recursive: true, force: true }),
   ]));
-  const outputs = ["contract.txt", "tests/fixtures/openapi-baseline.json"];
+  const outputs = ["contract.txt", "generated/openapi.ts"];
   await writeOutputs(expectedRoot, outputs, "same");
   await writeOutputs(generatedRoot, outputs, "same");
 
@@ -46,7 +43,7 @@ test("reports drift using injected roots without requiring ignored local artifac
   await writeOutputs(generatedRoot, [outputs[1]], "changed");
   await assert.rejects(
     assertTrackedOutputsMatch(generatedRoot, { expectedRoot, outputs }),
-    /tests\/fixtures\/openapi-baseline\.json/,
+    /generated\/openapi\.ts/,
   );
 });
 
@@ -70,7 +67,7 @@ test("compares freshly generated OpenAPI with corpus, ownership, and Rust manife
     dependencies: ["production-adapter"],
     evidence: ["route-differential"],
   };
-  await writeJson(generatedRoot, "docs/swagger/swagger.json", openapi);
+  await writeJson(generatedRoot, "contracts/openapi/openapi.json", openapi);
   await writeJson(
     expectedRoot,
     "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",

@@ -45,16 +45,6 @@ export function assertStage6Equivalent(rustOutput, expected) {
   assert.equal(rustOutput.provider.attempts, 2);
 }
 
-export function runGoStage6Reference(root = repositoryRoot) {
-  runStage6Process("go", [
-    "test",
-    "./internal/assistant/engine",
-    "-run",
-    "^TestRustMigrationStage6AssistantContractMatchesCorpus$",
-    "-count=1",
-  ], { cwd: root, timeoutMs: 180_000 });
-}
-
 export function runRustStage6Reference(root = repositoryRoot) {
   const stdout = runStage6Process("cargo", [
     "run",
@@ -75,7 +65,6 @@ export function runStage6Differential(root = repositoryRoot) {
     path.join(stage6FixtureRoot(root), "assistant-rig-corpus.expected.json"),
     "utf8",
   ));
-  runGoStage6Reference(root);
   const rustOutput = runRustStage6Reference(root);
   assertStage6Equivalent(rustOutput, expected);
   return {
@@ -92,7 +81,7 @@ export function runStage6Differential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runStage6Differential();
   console.log(
-    `Go/Rust Stage 6 differential passed: ${result.statuses} statuses, ` +
+    `Rust Stage 6 compatibility replay passed: ${result.statuses} statuses, ` +
       `${result.transitions} transitions, ${result.invalidInputs} rejected input prompts, ` +
       `${result.claims} durable claims, ${result.tasks} workflow tasks, ` +
       `${result.artifacts} artifact versions and ${result.streamDeltas} stream deltas.`,

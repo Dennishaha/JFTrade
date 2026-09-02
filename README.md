@@ -110,7 +110,7 @@ pnpm run generate:docs
 - `check:generated` 在临时目录生成全部契约，并逐字节比较需要提交的契约产物，不修改工作树
 - `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
 
-`docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`tests/fixtures/openapi-baseline.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
+`docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`contracts/openapi/openapi.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
 
 Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
 

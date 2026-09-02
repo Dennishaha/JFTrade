@@ -23,20 +23,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "scripts/rust-migration/stage9_research_screens_reference_test.go",
-  "-run",
-  "^TestStage9ResearchScreensFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestResearchScreensWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

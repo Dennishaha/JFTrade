@@ -176,7 +176,7 @@ export function dirname(path: string): string {
 
 export function includeDirsForProto(path: string): string[] {
   const protoDir = dirname(path);
-  return Array.from(new Set([protoDir, dirname(protoDir)]));
+  return [dirname(dirname(protoDir))];
 }
 
 type UnaryCall = {

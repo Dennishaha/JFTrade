@@ -8,7 +8,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const generatedRoot = path.resolve(process.env.JFTRADE_GENERATED_ROOT || repoRoot);
-const inputPath = path.join(generatedRoot, "docs/swagger/swagger.json");
+const inputPath = path.resolve(
+  process.env.JFTRADE_OPENAPI_SOURCE || path.join(repoRoot, "contracts/openapi/openapi.json"),
+);
 const outputPath = path.join(generatedRoot, "apps/web/src/generated/openapi.ts");
 
 const httpMethods = ["get", "post", "put", "patch", "delete", "options", "head"];

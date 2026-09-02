@@ -44,16 +44,6 @@ export function assertStage7Equivalent(actual, expected) {
   assert.deepEqual(actual.cleanup.preview.candidates, actual.cleanup.approvedCandidates);
 }
 
-export function runGoStage7Reference(root = repositoryRoot) {
-  runStage7Process("go", [
-    "test",
-    "./internal/app/apiserver/servercore",
-    "-run",
-    "^TestOpenAPICoversRegisteredAPIRoutes$",
-    "-count=1",
-  ], { cwd: root, timeoutMs: 300_000 });
-}
-
 export function runRustStage7Reference(root = repositoryRoot) {
   const stdout = runStage7Process("cargo", [
     "run", "--quiet", "-p", "jftrade-engine", "--bin", "jftrade-stage7-shadow", "--",
@@ -65,9 +55,8 @@ export function runRustStage7Reference(root = repositoryRoot) {
 export function runStage7Differential(root = repositoryRoot) {
   const fixtures = stage7FixtureRoot(root);
   const corpus = JSON.parse(fs.readFileSync(path.join(fixtures, "api-control-plane-corpus.json"), "utf8"));
-  const baseline = JSON.parse(fs.readFileSync(path.join(root, "tests/fixtures/openapi-baseline.json"), "utf8"));
+  const baseline = JSON.parse(fs.readFileSync(path.join(root, "contracts/openapi/openapi.json"), "utf8"));
   assert.deepEqual(corpus, buildStage7Corpus(baseline), "Stage 7 route corpus drifted from OpenAPI baseline");
-  runGoStage7Reference(root);
   const expected = JSON.parse(fs.readFileSync(
     path.join(fixtures, "api-control-plane-corpus.expected.json"),
     "utf8",
@@ -84,7 +73,7 @@ export function runStage7Differential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runStage7Differential();
   console.log(
-    `Go/Rust Stage 7 differential passed: ${result.routes} OpenAPI operations, ` +
+    `Rust Stage 7 compatibility replay passed: ${result.routes} OpenAPI operations, ` +
       `${result.routeGroups} route groups and ${result.routeProbes} concrete route probes.`,
   );
 }

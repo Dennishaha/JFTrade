@@ -11,7 +11,7 @@ import {
 } from "./lib/openapi-quality.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const specPath = path.join(repoRoot, "docs/swagger/swagger.json");
+const specPath = path.join(repoRoot, "contracts/openapi/openapi.json");
 const allowlistPath = path.join(repoRoot, "scripts/openapi-quality-allowlist.json");
 
 const spec = JSON.parse(await readFile(specPath, "utf8"));

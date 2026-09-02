@@ -13,7 +13,7 @@ export function tauriDevelopmentEnvironment(repositoryRoot, sourceEnvironment, n
     JFTRADE_PINEWORKER_RUNTIME: sourceEnvironment.JFTRADE_PINEWORKER_RUNTIME ?? nodeRuntime,
     JFTRADE_PINEWORKER_PROTO:
       sourceEnvironment.JFTRADE_PINEWORKER_PROTO ??
-      path.join(repositoryRoot, "pkg/strategy/pineworker/proto/pineworker.proto"),
+      path.join(repositoryRoot, "proto/pineworker/pineworker.proto"),
   };
 }
 

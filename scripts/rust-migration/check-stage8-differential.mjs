@@ -52,7 +52,7 @@ export function assertStage8Configuration(config, facadeSource, expected) {
   for (const resource of [
     "../../../var/tauri-runtime/",
     "../../../internal/pineworkerassets/assets/bin/worker.mjs",
-    "../../../pkg/strategy/pineworker/proto/",
+    "../../../proto/pineworker/",
     "../../../internal/marketdataassets/assets/bin/",
   ]) {
     assert.ok(config.bundle.resources[resource], `Stage 9 release resource is missing: ${resource}`);
@@ -64,13 +64,6 @@ export function assertStage8Configuration(config, facadeSource, expected) {
   }
 }
 
-export function runGoStage8Reference(root = repositoryRoot) {
-  runStage8Process("go", [
-    "test", "./internal/desktop", "-count=1",
-    "-run", "^(TestDevelopmentDesktopBuildProfile|TestDesktopBuildChannelsCanCoexist|TestNormalizeDesktopDocsURL|TestNormalizeDesktopDocsURLRejectsUnsafePaths|TestSanitizeDesktopExternalURL|TestDesktopShutdownCancelsStartupAndReclaimsLateResources|TestProductDataDirByPlatform)$",
-  ], { cwd: root });
-}
-
 export function runRustStage8Reference(root = repositoryRoot) {
   const stdout = runStage8Process("cargo", [
     "run", "--quiet", "-p", "jftrade-desktop", "--bin", "jftrade-stage8-shadow", "--",
@@ -80,7 +73,6 @@ export function runRustStage8Reference(root = repositoryRoot) {
 }
 
 export function runStage8Differential(root = repositoryRoot) {
-  runGoStage8Reference(root);
   const expected = JSON.parse(fs.readFileSync(
     path.join(stage8FixtureRoot(root), "desktop-shell-corpus.expected.json"),
     "utf8",
@@ -103,7 +95,7 @@ export function runStage8Differential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runStage8Differential();
   console.log(
-    `Go/Rust Stage 8 differential passed: ${result.platforms} platform profiles, ` +
+    `Rust Stage 8 compatibility replay passed: ${result.platforms} platform profiles, ` +
       `${result.links} link cases, ${result.commands} facade commands and ${result.events} events.`,
   );
 }

@@ -8,47 +8,30 @@ import {
 
 function providers(overrides = {}) {
   return {
-    go: () => ({ engine: "go" }),
     rust: () => ({ engine: "rust" }),
-    expected: { engine: "go" },
-    assertEquivalent: (goOutput, rustOutput, expected) => {
-      assert.deepEqual(rustOutput, goOutput);
+    expected: { engine: "rust" },
+    assertEquivalent: (rustOutput, expected) => {
       assert.deepEqual(rustOutput, expected);
     },
     ...overrides,
   };
 }
 
-test("keeps Go as the default owner and lets the flag override the environment", () => {
-  assert.equal(resolveBacktestOwner([], {}), "go");
-  assert.equal(resolveBacktestOwner([], { JFTRADE_BACKTEST_CORE_OWNER: "shadow" }), "shadow");
-  assert.equal(resolveBacktestOwner(["--owner=go"], { JFTRADE_BACKTEST_CORE_OWNER: "rust" }), "go");
+test("keeps Rust as the only supported compatibility replay owner", () => {
+  assert.equal(resolveBacktestOwner([], {}), "rust");
+  assert.equal(resolveBacktestOwner([], { JFTRADE_BACKTEST_CORE_OWNER: "rust" }), "rust");
+  assert.equal(resolveBacktestOwner(["--owner=rust"], { JFTRADE_BACKTEST_CORE_OWNER: "other" }), "rust");
   assert.throws(() => resolveBacktestOwner(["--owner=other"], {}), /unsupported backtest owner/);
 });
 
-test("runs only the explicitly selected owner", () => {
-  let rustCalls = 0;
-  const result = selectBacktestOwner("go", providers({ rust: () => { rustCalls += 1; } }));
-  assert.deepEqual(result, { owner: "go", output: { engine: "go" }, shadowChecked: false });
-  assert.equal(rustCalls, 0);
-});
-
-test("shadow mode fails closed on a mismatch and returns the Go owner on agreement", () => {
-  assert.throws(() => selectBacktestOwner("shadow", providers()), /Expected values to be strictly deep-equal/);
-  const snapshot = { engine: "same" };
-  assert.deepEqual(
-    selectBacktestOwner("shadow", providers({
-      go: () => snapshot,
-      rust: () => structuredClone(snapshot),
-      expected: structuredClone(snapshot),
-    })),
-    { owner: "go", output: snapshot, shadowChecked: true },
+test("replays the pinned fixture and fails closed on drift", () => {
+  assert.deepEqual(selectBacktestOwner("rust", providers()), {
+    owner: "rust",
+    output: { engine: "rust" },
+    fixtureChecked: true,
+  });
+  assert.throws(
+    () => selectBacktestOwner("rust", providers({ expected: { engine: "different" } })),
+    /Expected values to be strictly deep-equal/,
   );
-});
-
-test("rollback after a Rust rehearsal is a stateless switch back to Go", () => {
-  const selectedRust = selectBacktestOwner("rust", providers());
-  const rolledBack = selectBacktestOwner("go", providers());
-  assert.deepEqual(selectedRust.output, { engine: "rust" });
-  assert.deepEqual(rolledBack, { owner: "go", output: { engine: "go" }, shadowChecked: false });
 });

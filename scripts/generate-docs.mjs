@@ -1,19 +1,19 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import process from "node:process";
 
 import ts from "./lib/typescript6.mjs";
 
 const sourceRoot = path.resolve(import.meta.dirname, "..");
 const generatedRoot = path.resolve(process.env.JFTRADE_GENERATED_ROOT || sourceRoot);
 const generatedDir = path.join(generatedRoot, "docs", "reference", "generated");
-const swaggerPath = path.join(generatedRoot, "docs", "swagger", "swagger.json");
+const swaggerPath = path.resolve(
+  process.env.JFTRADE_OPENAPI_SOURCE || path.join(sourceRoot, "contracts/openapi/openapi.json"),
+);
 const contractsPath = path.join(sourceRoot, "apps", "web", "src", "contracts", "index.ts");
-const execFileAsync = promisify(execFile);
 
 await fs.mkdir(generatedDir, { recursive: true });
-await Promise.all([generateApiDocs(), generateTypeDocs(), generatePineSupportDocs()]);
+await Promise.all([generateApiDocs(), generateTypeDocs()]);
 
 async function generateApiDocs() {
   const swagger = JSON.parse(await fs.readFile(swaggerPath, "utf8"));
@@ -38,7 +38,7 @@ async function generateApiDocs() {
   const lines = [
     "# HTTP API",
     "",
-    "> 自动生成，请勿手改。来源：`docs/swagger/swagger.json`。",
+    "> 自动生成，请勿手改。来源：`contracts/openapi/openapi.json`。",
     "",
   ];
 
@@ -140,13 +140,6 @@ async function generateTypeDocs() {
   }
 
   await fs.writeFile(path.join(generatedDir, "types.md"), `${lines.join("\n").trimEnd()}\n`, "utf8");
-}
-
-async function generatePineSupportDocs() {
-  await execFileAsync("go", ["run", "./cmd/generate-pine-spec-docs", "-out", generatedDir], {
-    cwd: sourceRoot,
-    maxBuffer: 1024 * 1024 * 10,
-  });
 }
 
 function collectParameters(operation) {

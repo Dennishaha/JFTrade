@@ -21,7 +21,7 @@ function fixture() {
   const nodeLicense = write("node-source/LICENSE", "node-license");
   write("internal/pineworkerassets/assets/bin/worker.mjs", "worker");
   for (const name of ["pineworker.proto", "pineworker_common.proto", "pineworker_types.proto"]) {
-    write(`pkg/strategy/pineworker/proto/${name}`, name);
+    write(`proto/pineworker/${name}`, name);
   }
   write(
     "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64/marketdata-sidecar-darwin-arm64",

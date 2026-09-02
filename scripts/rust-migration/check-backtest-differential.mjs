@@ -31,16 +31,7 @@ export function runProcess(command, args, options = {}) {
   return result.stdout.trim();
 }
 
-export function extractGoReference(output) {
-  const line = output
-    .split(/\r?\n/)
-    .find((candidate) => candidate.includes("rust_migration_stage3_test.go:") && candidate.includes("{\"version\""));
-  if (!line) throw new Error("Go stage 3 reference output marker is missing");
-  return JSON.parse(line.slice(line.indexOf("{\"version\"")));
-}
-
-export function assertBacktestEquivalent(goOutput, rustOutput, expected) {
-  assert.deepEqual(rustOutput, goOutput, "Rust backtest output differs from the Go execution model");
+export function assertBacktestEquivalent(rustOutput, expected) {
   assert.deepEqual(rustOutput, expected, "backtest output differs from the pinned stage 3 golden");
 }
 
@@ -48,18 +39,6 @@ export function loadStage3Expected(root = repositoryRoot) {
   return JSON.parse(fs.readFileSync(
     path.join(stage3FixtureRoot(root), "backtest-corpus.expected.json"),
     "utf8",
-  ));
-}
-
-export function runGoReference(root = repositoryRoot) {
-  return extractGoReference(runProcess(
-    "go",
-    ["test", "./pkg/backtest", "-run", "^TestRustMigrationStage3CorpusMatchesGolden$", "-count=1", "-v"],
-    {
-      cwd: root,
-      env: { JFTRADE_STAGE3_PRINT_REFERENCE: "1" },
-      timeoutMs: 120_000,
-    },
   ));
 }
 
@@ -79,9 +58,8 @@ export function runRustReference(root = repositoryRoot) {
 
 export function runBacktestDifferential(root = repositoryRoot) {
   const expected = loadStage3Expected(root);
-  const goOutput = runGoReference(root);
   const rustOutput = runRustReference(root);
-  assertBacktestEquivalent(goOutput, rustOutput, expected);
+  assertBacktestEquivalent(rustOutput, expected);
   return {
     cases: expected.cases.length,
     fills: expected.cases.reduce((total, item) => total + item.totalFills, 0),
@@ -92,6 +70,6 @@ export function runBacktestDifferential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runBacktestDifferential();
   console.log(
-    `Go/Rust backtest differential passed: ${result.cases} cases, ${result.fills} fills.`,
+    `Rust backtest compatibility replay passed: ${result.cases} cases, ${result.fills} fills.`,
   );
 }

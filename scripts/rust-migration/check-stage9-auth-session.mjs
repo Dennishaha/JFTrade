@@ -22,20 +22,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9AuthSessionFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestAuthSessionRehearsalPreservesWireAndRequiresRestartForGoRollback$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

@@ -22,20 +22,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "scripts/rust-migration/stage9_plugins_write_reference_test.go",
-  "-run",
-  "^TestStage9PluginsWriteFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestPluginsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

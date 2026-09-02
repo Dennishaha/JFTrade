@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package jftrade.strategy.pineworker.v1;
 
-option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
-
 message CandleBatch {
   uint32 encoding_version = 1;
   bytes payload = 2;

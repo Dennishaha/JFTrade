@@ -24,7 +24,7 @@
 
 - `TestOpenAPICoversRegisteredAPIRoutes`（servercore）：所有已注册路由必须出现在 OpenAPI 契约中，无豁免。
 - `TestOpenAPIDocumentsWritableRequestBodies`：写操作的请求体必须是 typed DTO。
-- `TestOpenAPISpecStable`：契约快照与 `tests/fixtures/openapi-baseline.json` 一致（有意修改时用 `UPDATE_OPENAPI_SNAPSHOT=1` 更新）。
+- `TestOpenAPISpecStable`：契约快照与 `contracts/openapi/openapi.json` 一致（有意修改时用 `UPDATE_OPENAPI_SNAPSHOT=1` 更新）。
 - CI `Verify tracked contract artifacts are up to date`：`apps/web/src/generated/openapi.ts` 与 swagger 注解同步。
 
 ## 当前 deprecated / tombstone 端点

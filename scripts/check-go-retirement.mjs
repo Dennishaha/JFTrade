@@ -34,6 +34,7 @@ function isGoArtifact(file) {
 }
 
 function isUnderActiveRoot(file) {
+  if (file === "scripts/check-go-retirement.test.mjs") return false;
   return baseline.activeConfigurationRoots.some((root) => file === root || file.startsWith(`${root}/`));
 }
 

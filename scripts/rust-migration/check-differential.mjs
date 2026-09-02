@@ -22,8 +22,7 @@ function run(command, args, root = repositoryRoot) {
   return result.stdout.trim();
 }
 
-export function assertEquivalent(goSnapshot, rustSnapshot, expectedSnapshot) {
-  assert.deepEqual(rustSnapshot, goSnapshot, "Rust snapshot differs from the Go oracle");
+export function assertEquivalent(rustSnapshot, expectedSnapshot) {
   assert.deepEqual(rustSnapshot, expectedSnapshot, "snapshot differs from the pinned golden");
 }
 
@@ -35,12 +34,10 @@ export function runDifferential(root = repositoryRoot) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-rust-stage2-"));
   const databasePath = path.join(temporaryRoot, "backtest.db");
   try {
-    const goOutput = run("go", [
-      "run",
-      "./scripts/rust-migration/cmd/sqlite-oracle",
-      "--sql",
+    const seededOutput = run("cargo", [
+      "run", "--quiet", "-p", "jftrade-store-sqlite", "--bin", "jftrade-sqlite-inspect", "--",
+      "--seed-sql",
       path.join(fixtureRoot, "backtest-readonly.sql"),
-      "--db",
       databasePath,
     ], root);
     const before = fs.readFileSync(databasePath);
@@ -60,7 +57,8 @@ export function runDifferential(root = repositoryRoot) {
       "utf8",
     ));
     assertBytesUnchanged(before, after);
-    assertEquivalent(JSON.parse(goOutput), JSON.parse(rustOutput), expected);
+    assertEquivalent(JSON.parse(seededOutput), expected);
+    assertEquivalent(JSON.parse(rustOutput), expected);
     return { rows: expected.klines.length, tables: expected.tables.length };
   } finally {
     fs.rmSync(temporaryRoot, { force: true, recursive: true });
@@ -70,6 +68,6 @@ export function runDifferential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runDifferential();
   console.log(
-    "Go/Rust SQLite differential passed: " + result.tables + " tables, " + result.rows + " K-lines.",
+    "Rust SQLite compatibility replay passed: " + result.tables + " tables, " + result.rows + " K-lines.",
   );
 }

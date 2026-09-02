@@ -95,7 +95,7 @@ describe("startWorkerGrpcServer", () => {
     const started = await startWorkerGrpcServer({
       workerId: "worker-1",
       executor: new DeterministicPineTSExecutor(),
-      protoPath: "/repo/pkg/strategy/pineworker/proto/pineworker.proto",
+      protoPath: "/repo/proto/pineworker/pineworker.proto",
       address: "127.0.0.1:50051",
       grpc,
       protoLoader,
@@ -104,9 +104,9 @@ describe("startWorkerGrpcServer", () => {
     });
 
     expect(started.port).toBe(50051);
-    expect(fakeServer.protoPath).toBe("/repo/pkg/strategy/pineworker/proto/pineworker.proto");
+    expect(fakeServer.protoPath).toBe("/repo/proto/pineworker/pineworker.proto");
     expect(fakeServer.protoOptions?.keepCase).toBe(true);
-    expect(fakeServer.protoOptions?.includeDirs).toEqual(["/repo/pkg/strategy/pineworker/proto", "/repo/pkg/strategy/pineworker"]);
+    expect(fakeServer.protoOptions?.includeDirs).toEqual(["/repo"]);
     expect(fakeServer.options).toMatchObject({
       "grpc.max_receive_message_length": 1024,
       "grpc.max_send_message_length": 1024,
@@ -118,10 +118,7 @@ describe("startWorkerGrpcServer", () => {
   });
 
   test("normalizes Windows proto paths before computing include dirs", () => {
-    expect(includeDirsForProto(String.raw`C:\repo\pkg\strategy\pineworker\proto\pineworker.proto`)).toEqual([
-      "C:/repo/pkg/strategy/pineworker/proto",
-      "C:/repo/pkg/strategy/pineworker",
-    ]);
+    expect(includeDirsForProto(String.raw`C:\repo\proto\pineworker\pineworker.proto`)).toEqual(["C:/repo"]);
   });
 
   test("rejects public listeners and weak configured tokens before loading proto", async () => {

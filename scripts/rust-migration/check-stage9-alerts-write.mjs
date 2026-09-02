@@ -24,20 +24,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9AlertsWriteFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestAlertsWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

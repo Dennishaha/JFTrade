@@ -2,9 +2,7 @@ syntax = "proto3";
 
 package jftrade.strategy.pineworker.v1;
 
-option go_package = "github.com/jftrade/jftrade-main/pkg/strategy/pineworker/pineworkerpb;pineworkerpb";
-
-import "proto/pineworker_common.proto";
+import "proto/pineworker/pineworker_common.proto";
 
 message HealthCheckRequest {}
 

@@ -41,20 +41,6 @@ export function assertStage5Equivalent(rustOutput, expected) {
   assert.equal(hasTrueDispatch(rustOutput), false, "Stage 5 shadow attempted a dispatch");
 }
 
-export function runGoStage5References(root = repositoryRoot) {
-  const packages = [
-    ["./internal/trading", "^TestRustMigrationStage5TradingStatusAndRiskMatchCorpus$"],
-    ["./internal/strategy/runtimecontrol", "^TestRustMigrationStage5StrategyRiskAndNotificationPlansMatchCorpus$"],
-    ["./pkg/futu", "^TestRustMigrationStage5OpenDTradeProtocolGateMatchesCorpus$"],
-  ];
-  for (const [pkg, testName] of packages) {
-    runStage5Process("go", ["test", pkg, "-run", testName, "-count=1"], {
-      cwd: root,
-      timeoutMs: 120_000,
-    });
-  }
-}
-
 export function runRustStage5Reference(root = repositoryRoot) {
   const stdout = runStage5Process("cargo", [
     "run",
@@ -75,7 +61,6 @@ export function runStage5Differential(root = repositoryRoot) {
     path.join(stage5FixtureRoot(root), "trading-strategy-corpus.expected.json"),
     "utf8",
   ));
-  runGoStage5References(root);
   const rustOutput = runRustStage5Reference(root);
   assertStage5Equivalent(rustOutput, expected);
   return {
@@ -100,7 +85,7 @@ function hasTrueDispatch(value) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runStage5Differential();
   console.log(
-    `Go/Rust Stage 5 differential passed: ${result.statuses} statuses, ` +
+    `Rust Stage 5 compatibility replay passed: ${result.statuses} statuses, ` +
       `${result.transitions} transitions, ${result.commands} command plans, ` +
       `${result.events} update events, ${result.positionRefreshes} position refreshes, ` +
       `${result.strategies} strategy scenarios; zero dispatches.`,

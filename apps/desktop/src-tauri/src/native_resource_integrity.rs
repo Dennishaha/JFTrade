@@ -45,7 +45,7 @@ fn retained_runtime_config(
     let pine_proto = required_asset(
         "JFTRADE_PINEWORKER_PROTO",
         repository_root
-            .map(|root| root.join("pkg/strategy/pineworker/proto/pineworker.proto"))
+            .map(|root| root.join("proto/pineworker/pineworker.proto"))
             .or_else(|| release_asset("runtime/pineworker/proto/pineworker.proto")),
         "PineTS protobuf contract",
     )?;

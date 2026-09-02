@@ -30,7 +30,7 @@ export function resolveFallbackChecks(files) {
   if (files.some((file) => file.startsWith(".github/workflows/"))) {
     checks.add("workflows");
   }
-  if (files.some((file) => file.startsWith("docs/swagger/") || file.startsWith("docs/reference/generated/") || file.startsWith("apps/web/src/generated/") || file === "tests/fixtures/openapi-baseline.json")) {
+  if (files.some((file) => file.startsWith("docs/swagger/") || file.startsWith("docs/reference/generated/") || file.startsWith("apps/web/src/generated/") || file === "contracts/openapi/openapi.json")) {
     checks.add("generated");
   }
   return checks;

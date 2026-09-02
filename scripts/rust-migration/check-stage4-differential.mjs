@@ -40,20 +40,6 @@ export function assertStage4Equivalent(rustOutput, expected) {
   );
 }
 
-export function runGoStage4References(root = repositoryRoot) {
-  const packages = [
-    ["./internal/marketdata", "^TestRustMigrationStage4DemandAndProviderLifecycleMatchesCorpus$"],
-    ["./internal/integration/futu", "^TestRustMigrationStage4OpenDFrameAndSubscriptionPlanMatchesCorpus$"],
-    ["./pkg/strategy/pineworker", "^TestRustMigrationStage4PineLifecycleMatchesCorpus$"],
-  ];
-  for (const [pkg, testName] of packages) {
-    runStage4Process("go", ["test", pkg, "-run", testName, "-count=1"], {
-      cwd: root,
-      timeoutMs: 120_000,
-    });
-  }
-}
-
 export function runRustStage4Reference(root = repositoryRoot) {
   const stdout = runStage4Process("cargo", [
     "run",
@@ -74,7 +60,6 @@ export function runStage4Differential(root = repositoryRoot) {
     path.join(stage4FixtureRoot(root), "provider-lifecycle-corpus.expected.json"),
     "utf8",
   ));
-  runGoStage4References(root);
   const rustOutput = runRustStage4Reference(root);
   assertStage4Equivalent(rustOutput, expected);
   return {
@@ -88,7 +73,7 @@ export function runStage4Differential(root = repositoryRoot) {
 if (pathToFileURL(path.resolve(process.argv[1] ?? "")).href === import.meta.url) {
   const result = runStage4Differential();
   console.log(
-    `Go/Rust Stage 4 differential passed: ${result.marketdataOperations} market-data operations, ` +
+    `Rust Stage 4 compatibility replay passed: ${result.marketdataOperations} market-data operations, ` +
       `${result.pineOperations} Pine lifecycle operations, ${result.physicalSubscriptions} OpenD subscriptions, ` +
       `${result.probes} health probes.`,
   );

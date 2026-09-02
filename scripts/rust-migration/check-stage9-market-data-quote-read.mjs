@@ -24,13 +24,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9MarketDataQuoteReadFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
 for (const testName of [
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_match_group_fixture_in_cutover_only",
   "product::tests::market_data_quote_read_tests::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",

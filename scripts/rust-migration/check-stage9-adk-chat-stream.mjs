@@ -24,27 +24,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "scripts/rust-migration/stage9_adk_chat_stream_reference_test.go",
-  "-run",
-  "^TestStage9ADKChatStreamFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/rustrehearsal",
-  "-run",
-  "^TestRehearsalProxyForwardsSelectedSSEOperationAndHeaders$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestADKChatStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

@@ -24,22 +24,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9ADKRead(SSE)?FixtureMatchesCurrentGoOwner$",
-  "-count=1",
-  "-timeout=300s",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestADKReadStreamRehearsalPreservesAuthenticatedSSEAndRecoversAcrossRestart$",
-  "-count=1",
-  "-timeout=300s",
-]);
 run("cargo", [
   "test",
   "-p",

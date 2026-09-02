@@ -23,20 +23,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "scripts/rust-migration/stage9_watchlists_remote_write_reference_test.go",
-  "-run",
-  "^TestStage9WatchlistsRemoteWriteFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
-run("go", [
-  "test",
-  "./internal/app/apiserver/servercoretest",
-  "-run",
-  "^TestWatchlistsRemoteWriteRehearsalFencesOwnersAndRecoversAcrossRestart$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

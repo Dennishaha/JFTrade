@@ -1,6 +1,6 @@
 # 前端 API 契约边界
 
-前端只有一份线上 wire contract：`docs/swagger/swagger.json` 生成的 `apps/web/src/generated/openapi.ts`。
+前端只有一份线上 wire contract：`contracts/openapi/openapi.json` 生成的 `apps/web/src/generated/openapi.ts`。
 
 ## 类型分层
 

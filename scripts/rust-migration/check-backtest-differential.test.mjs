@@ -3,29 +3,18 @@ import test from "node:test";
 
 import {
   assertBacktestEquivalent,
-  extractGoReference,
   runProcess,
 } from "./check-backtest-differential.mjs";
 
-test("extracts the machine-readable Go reference from test output", () => {
-  const output = [
-    "=== RUN   TestRustMigrationStage3CorpusMatchesGolden",
-    "    rust_migration_stage3_test.go:177: {\"version\":1,\"cases\":[]}",
-    "--- PASS: TestRustMigrationStage3CorpusMatchesGolden (0.00s)",
-  ].join("\n");
-  assert.deepEqual(extractGoReference(output), { version: 1, cases: [] });
-});
-
-test("requires Go Rust and golden outputs to agree", () => {
+test("requires the Rust replay to match the pinned compatibility golden", () => {
   const snapshot = { version: 1, cases: [{ id: "partial" }] };
   assert.doesNotThrow(() => assertBacktestEquivalent(
     snapshot,
     structuredClone(snapshot),
-    structuredClone(snapshot),
   ));
   assert.throws(
-    () => assertBacktestEquivalent(snapshot, { version: 1, cases: [] }, snapshot),
-    /differs from the Go execution model/,
+    () => assertBacktestEquivalent({ version: 1, cases: [] }, snapshot),
+    /pinned stage 3 golden/,
   );
 });
 

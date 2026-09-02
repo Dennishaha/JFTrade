@@ -24,13 +24,6 @@ function run(command, args, timeoutMs = 300_000) {
   }
 }
 
-run("go", [
-  "test",
-  "./scripts/rust-migration",
-  "-run",
-  "^TestStage9MarketDataPredictionReadFixtureMatchesCurrentGoOwner$",
-  "-count=1",
-]);
 run("cargo", [
   "test",
   "-p",

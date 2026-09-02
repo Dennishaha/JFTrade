@@ -16,7 +16,6 @@ function run(command, args) {
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed:\n${result.stderr || result.stdout}`);
 }
 
-run("go", ["test", "./scripts/rust-migration", "-run", "^TestStage9PineMCPFixtureMatchesCurrentGoOwner$", "-count=1"]);
 run("cargo", ["test", "-p", "jftrade-strategy", "--test", "pine_mcp_contract", "--", "--nocapture"]);
 run("cargo", ["test", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract", "--", "--nocapture"]);
 run("cargo", ["test", "-p", "jftrade-engine", "--lib", "product_mcp_server::", "--", "--nocapture"]);

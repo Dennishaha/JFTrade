@@ -92,7 +92,7 @@ export function buildStage7Corpus(openapi) {
 
 function run() {
   const openapi = JSON.parse(fs.readFileSync(
-    path.join(repositoryRoot, "tests/fixtures/openapi-baseline.json"),
+    path.join(repositoryRoot, "contracts/openapi/openapi.json"),
     "utf8",
   ));
   fs.mkdirSync(fixtureRoot, { recursive: true });
