@@ -267,8 +267,8 @@ jobs:
       - name: Test command packages
         run: go test ./cmd/... -count=1 -timeout 300s
 
-      - name: Check Tauri release runtime
-        run: pnpm run check:tauri-release-runtime
+      - name: Test Tauri release runtime contracts
+        run: pnpm run test:tauri-release-runtime
 
       - name: Go vulnerability check
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...

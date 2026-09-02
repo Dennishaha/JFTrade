@@ -53,6 +53,18 @@ pub(crate) struct ProductionAdkPort {
     pub(crate) chat_runtime: Option<Arc<dyn AdkChatStreamPort>>,
 }
 
+impl Drop for ProductionAdkPort {
+    fn drop(&mut self) {
+        // A direct production-port bundle drop is a supported lifecycle path
+        // in tests and in startup rollback.  Stop the concrete runtime before
+        // releasing its last Arc so its recovery scanner cannot retain the
+        // ADK writer lease for one polling interval after the bundle is gone.
+        if let Some(runtime) = self.chat_runtime.as_deref() {
+            runtime.shutdown();
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ProductionToolCatalog {
     tools: Vec<Value>,

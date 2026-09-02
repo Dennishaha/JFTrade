@@ -46,7 +46,10 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "check:rust:differential"]],
   ["go", ["build", "./..."]],
   ["go", ["test", "./cmd/...", "-count=1", "-timeout=300s"]],
-  ["pnpm", ["run", "check:tauri-release-runtime"]],
+  // A clean checkout has no prepared runtime (var/ is ignored).  The strict
+  // manifest check is exercised by the Tauri build after preparation; this
+  // layer runs the fixture-backed contracts before release assets exist.
+  ["pnpm", ["run", "test:tauri-release-runtime"]],
   ["pnpm", ["run", "test:scripts", "--", "desktop"]],
   ["pnpm", ["run", "build:frontend-assets:generated"]],
   ["node", ["scripts/report-web-bundle.mjs"]],

@@ -55,6 +55,10 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	if m == nil {
 		return errors.New("MCP server manager is unavailable")
 	}
+	return m.reconfigure(settings)
+}
+
+func (m *mcpServerManager) reconfigure(settings jfsettings.MCPServerSettings) error {
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
@@ -62,27 +66,9 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 	}
 
 	if !settings.Enabled {
-		server, handler, done := m.detachLocked()
-		m.settings = settings
-		m.lastErr = ""
-		m.mu.Unlock()
-		if err := stopMCPServer(server, handler, done); err != nil {
-			m.mu.Lock()
-			m.lastErr = err.Error()
-			m.mu.Unlock()
-			return err
-		}
-		return nil
+		return m.reconfigureDisabledLocked(settings)
 	}
-	if m.runtime == nil {
-		err := errors.New("ADK runtime is unavailable")
-		m.lastErr = err.Error()
-		m.mu.Unlock()
-		return err
-	}
-	if settings.AuthMode != "none" && strings.TrimSpace(settings.TokenHash) == "" {
-		err := errors.New("MCP server token is not configured")
-		m.lastErr = err.Error()
+	if err := m.validateEnabledSettingsLocked(settings); err != nil {
 		m.mu.Unlock()
 		return err
 	}
@@ -94,6 +80,38 @@ func (m *mcpServerManager) Reconfigure(settings jfsettings.MCPServerSettings) er
 		m.mu.Unlock()
 		return nil
 	}
+	return m.startEnabledLocked(settings)
+}
+
+func (m *mcpServerManager) reconfigureDisabledLocked(settings jfsettings.MCPServerSettings) error {
+	server, handler, done := m.detachLocked()
+	m.settings = settings
+	m.lastErr = ""
+	m.mu.Unlock()
+	if err := stopMCPServer(server, handler, done); err != nil {
+		m.mu.Lock()
+		m.lastErr = err.Error()
+		m.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+func (m *mcpServerManager) validateEnabledSettingsLocked(settings jfsettings.MCPServerSettings) error {
+	if m.runtime == nil {
+		err := errors.New("ADK runtime is unavailable")
+		m.lastErr = err.Error()
+		return err
+	}
+	if settings.AuthMode != "none" && strings.TrimSpace(settings.TokenHash) == "" {
+		err := errors.New("MCP server token is not configured")
+		m.lastErr = err.Error()
+		return err
+	}
+	return nil
+}
+
+func (m *mcpServerManager) startEnabledLocked(settings jfsettings.MCPServerSettings) error {
 
 	handler, err := m.createHandler()
 	if err != nil {

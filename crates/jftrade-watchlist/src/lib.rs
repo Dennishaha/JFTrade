@@ -48,7 +48,12 @@ pub fn group_name_key(value: &str) -> String {
 }
 
 pub fn normalize_instrument_id(value: &str) -> Result<String, WatchlistError> {
-    let normalized = value.trim().to_uppercase();
+    // The Go watchlist service delegates identity parsing to
+    // `market.ParseInstrument`, which accepts both the canonical dot form
+    // and the legacy colon form (for example, `us:aapl`).  Normalize the
+    // separator before validating so Rust does not reject IDs that the
+    // existing API already accepts.
+    let normalized = value.trim().to_uppercase().replace(':', ".");
     let Some((market, symbol)) = normalized.split_once('.') else {
         return Err(WatchlistError::InvalidInstrument);
     };
@@ -157,5 +162,23 @@ mod tests {
             normalize_instrument_id("BAD.AAPL"),
             Err(WatchlistError::InvalidInstrument)
         );
+    }
+
+    #[test]
+    fn instrument_normalization_accepts_go_colon_separator_and_aliases() {
+        assert_eq!(normalize_instrument_id(" us:aapl ").unwrap(), "US.AAPL");
+        assert_eq!(normalize_instrument_id("cnsh:600519").unwrap(), "SH.600519");
+        assert_eq!(normalize_instrument_id("CNSZ:000001").unwrap(), "SZ.000001");
+    }
+
+    #[test]
+    fn instrument_normalization_rejects_multiple_qualified_separators() {
+        for value in ["US:AAPL.EXTRA", "US:AAPL:EXTRA", "US:"] {
+            assert_eq!(
+                normalize_instrument_id(value),
+                Err(WatchlistError::InvalidInstrument),
+                "value={value}"
+            );
+        }
     }
 }

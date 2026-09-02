@@ -79,6 +79,18 @@ test("ci-local checks the working projection before running shared checks inline
     ),
     true,
   );
+  assert.equal(
+    commands.some(
+      ([command, args]) => command === "pnpm" && args.join(" ") === "run test:tauri-release-runtime",
+    ),
+    true,
+  );
+  assert.equal(
+    commands.some(
+      ([command, args]) => command === "pnpm" && args.join(" ") === "run check:tauri-release-runtime",
+    ),
+    false,
+  );
   assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
   assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
   const frontendBuildIndex = commands.findIndex(

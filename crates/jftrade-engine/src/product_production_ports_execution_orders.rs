@@ -472,6 +472,9 @@ impl BrokersWritePort for ProductionExecutionPort {
 #[cfg(test)]
 #[path = "product_production_ports_execution_preview_tests.rs"]
 mod execution_preview_tests;
+#[cfg(test)]
+#[path = "product_production_ports_execution_order_validation_tests.rs"]
+mod execution_order_validation_tests;
 
 include!("product_production_ports_execution_orders_impl.rs");
 fn replay_or_conflict(

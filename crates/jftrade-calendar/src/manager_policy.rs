@@ -104,7 +104,7 @@ pub(crate) fn builtin_schedule(market: &str, at: WireTimestamp) -> TradingDaySch
                     status,
                     reason,
                     observed,
-                    holiday_sessions.unwrap_or_else(|| sessions.clone()),
+                    holiday_sessions.unwrap_or_default(),
                 )
             },
         )
@@ -446,5 +446,105 @@ fn normalize_session_kind(kind: &str) -> String {
     match kind.trim().to_lowercase().as_str() {
         "closed" | "pre" | "regular" | "after" | "overnight" => kind.trim().to_lowercase(),
         _ => "unknown".to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use jftrade_kernel::WireTimestamp;
+
+    use super::*;
+
+    fn at(date: &str) -> WireTimestamp {
+        WireTimestamp::from_str(&format!("{date}T00:00:00Z")).expect("valid fixture date")
+    }
+
+    #[test]
+    fn builtin_us_closed_holidays_have_no_session_windows() {
+        for (date, reason, observed) in [
+            ("2026-06-19", "juneteenth", false),
+            ("2026-12-25", "christmas_day", false),
+            ("2027-12-31", "new_years_day_observed", true),
+        ] {
+            let schedule = builtin_schedule("US", at(date));
+            assert_eq!(schedule.market_code, "US");
+            assert_eq!(schedule.status, "closed", "date={date}");
+            assert_eq!(schedule.reason, reason, "date={date}");
+            assert_eq!(schedule.source_id, BUILTIN_SOURCE_ID, "date={date}");
+            assert_eq!(schedule.observed, observed, "date={date}");
+            assert!(schedule.sessions.is_empty(), "date={date}");
+        }
+    }
+
+    #[test]
+    fn builtin_us_early_close_preserves_extended_windows_and_shortens_regular_session() {
+        for (date, reason) in [
+            ("2026-07-02", "independence_day_early_close"),
+            ("2026-11-27", "black_friday_early_close"),
+            ("2026-12-24", "christmas_eve_early_close"),
+        ] {
+            let schedule = builtin_schedule("US", at(date));
+            assert_eq!(schedule.status, "early_close", "date={date}");
+            assert_eq!(schedule.reason, reason, "date={date}");
+            let bounds = schedule
+                .sessions
+                .iter()
+                .map(|session| {
+                    (
+                        session.kind.as_str(),
+                        session.start_minute,
+                        session.end_minute,
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                bounds,
+                vec![
+                    ("overnight", 0, 240),
+                    ("pre", 240, 570),
+                    ("regular", 570, 780),
+                    ("after", 780, 1080),
+                ],
+                "date={date}"
+            );
+        }
+    }
+
+    #[test]
+    fn builtin_hk_and_mainland_weekday_weekend_and_alias_boundaries_match_go() {
+        let hk_weekday = builtin_schedule("HK", at("2026-06-22"));
+        assert_eq!(hk_weekday.status, "open");
+        assert_eq!(hk_weekday.sessions.len(), 2);
+        assert_eq!(hk_weekday.sessions[0].kind, "regular");
+        assert_eq!(hk_weekday.sessions[0].start_minute, 570);
+        assert_eq!(hk_weekday.sessions[0].end_minute, 720);
+        assert_eq!(hk_weekday.sessions[1].start_minute, 780);
+        assert_eq!(hk_weekday.sessions[1].end_minute, 960);
+
+        let hk_weekend = builtin_schedule("HK", at("2026-06-20"));
+        assert_eq!(hk_weekend.status, "closed");
+        assert_eq!(hk_weekend.reason, "weekend");
+        assert!(hk_weekend.sessions.is_empty());
+
+        let cn_weekday = builtin_schedule("CN", at("2040-01-02"));
+        assert_eq!(cn_weekday.status, "open");
+        assert_eq!(cn_weekday.sessions.len(), 2);
+
+        let cn_holiday = builtin_schedule("CN", at("2026-06-19"));
+        assert_eq!(cn_holiday.status, "closed");
+        assert_eq!(cn_holiday.reason, "dragon_boat_festival_holiday");
+        assert!(cn_holiday.sessions.is_empty());
+
+        for market in ["SH", "SZ"] {
+            let alias_holiday = builtin_schedule(market, at("2026-10-01"));
+            assert_eq!(alias_holiday.status, "closed", "market={market}");
+            assert_eq!(
+                alias_holiday.reason, "national_day_holiday",
+                "market={market}"
+            );
+            assert!(alias_holiday.sessions.is_empty(), "market={market}");
+        }
     }
 }

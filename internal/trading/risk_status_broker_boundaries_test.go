@@ -79,48 +79,6 @@ func TestRiskDecisionAndHardStopBoundarySemantics(t *testing.T) {
 	}
 }
 
-func TestOrderStatusMapsEveryBrokerLifecycleFamily(t *testing.T) {
-	for _, test := range []struct {
-		raw  string
-		want string
-	}{
-		{raw: "created", want: OrderStatusCreated},
-		{raw: "precheck rejected", want: OrderStatusPrecheckReject},
-		{raw: "waiting_submit", want: OrderStatusSubmitting},
-		{raw: "submitted", want: OrderStatusBrokerAccepted},
-		{raw: "new", want: OrderStatusBrokerAccepted},
-		{raw: "filled_part", want: OrderStatusPartiallyFilled},
-		{raw: "filled_all", want: OrderStatusFilled},
-		{raw: "cancelling_all", want: OrderStatusCancelRequested},
-		{raw: "canceled_part", want: OrderStatusCancelled},
-		{raw: "submitfailed", want: OrderStatusRejected},
-		{raw: "expired", want: OrderStatusExpired},
-		{raw: "unexpected", want: OrderStatusUnknown},
-	} {
-		if got := CanonicalBrokerOrderStatus(test.raw); got != test.want {
-			t.Fatalf("CanonicalBrokerOrderStatus(%q) = %q, want %q", test.raw, got, test.want)
-		}
-	}
-	if got := CanonicalStoredOrderStatus("submitted"); got != OrderStatusSubmitted {
-		t.Fatalf("stored submitted = %q", got)
-	}
-	if got := CanonicalStoredOrderStatus("order_status_broker_accepted"); got != OrderStatusBrokerAccepted {
-		t.Fatalf("stored canonical prefix = %q", got)
-	}
-	if got, advanced := ReconcileCanonicalOrderStatus(OrderStatusUnknown, OrderStatusSubmitted); got != OrderStatusSubmitted || !advanced {
-		t.Fatalf("unknown reconciliation = %q / %v", got, advanced)
-	}
-	if got, advanced := ReconcileCanonicalOrderStatus(OrderStatusSubmitted, OrderStatusUnknown); got != OrderStatusSubmitted || advanced {
-		t.Fatalf("unknown incoming reconciliation = %q / %v", got, advanced)
-	}
-	if IsCanonicalTerminalOrderStatus(OrderStatusSubmitted) {
-		t.Fatal("submitted order was classified as terminal")
-	}
-	if got, advanced := ReconcileCanonicalOrderStatus(OrderStatusSubmitted, OrderStatusCreated); got != OrderStatusSubmitted || advanced {
-		t.Fatalf("invalid regression reconciliation = %q / %v", got, advanced)
-	}
-}
-
 func TestBrokerIdentityMismatchPropagatesAcrossReadAndWriteOperations(t *testing.T) {
 	service := NewService(WithActiveBroker(func() broker.Broker { return &stubBroker{id: "other"} }))
 	read := broker.ReadQuery{BrokerID: "futu", Market: "US"}

@@ -7,6 +7,11 @@ use crate::{OrderCommand, TradingEnvironment};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HardStop {
     pub broker_id: Option<String>,
+    /// Optional environment scope retained from the Go control-plane entry.
+    /// An omitted, blank, or `*` value matches either environment; populated
+    /// values are compared case-insensitively against the command's canonical
+    /// environment string.
+    pub trading_environment: Option<String>,
     pub account_id: Option<String>,
     pub market: Option<String>,
     pub symbol: Option<String>,
@@ -310,6 +315,7 @@ impl RiskEngine {
 impl HardStop {
     fn matches(&self, command: &OrderCommand) -> bool {
         owner_matches(&self.broker_id, &command.broker_id)
+            && owner_matches(&self.trading_environment, command.environment.as_str())
             && owner_matches(&self.account_id, &command.account_id)
             && exact_matches(&self.market, &command.market)
             && symbol_matches(&self.symbol, &command.market, &command.symbol)

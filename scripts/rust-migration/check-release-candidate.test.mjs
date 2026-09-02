@@ -210,6 +210,31 @@ test("fails closed on a tampered artifact digest and missing platform", (context
   assert.match(missingResult.errors.join("\n"), /missing release platform evidence: windows-arm64/);
 });
 
+test("rejects symlinked release evidence files", (context) => {
+  const value = builtFixture();
+  context.after(value.cleanup);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-release-candidate-outside-"));
+  context.after(() => fs.rmSync(outside, { recursive: true, force: true }));
+  const target = path.join(outside, "evidence.json");
+  const link = path.join(value.root, "evidence", "symlink.json");
+  fs.writeFileSync(target, "external evidence\n");
+  try {
+    fs.symlinkSync(target, link);
+  } catch (error) {
+    context.skip(`symbolic links are unavailable: ${error.code}`);
+    return;
+  }
+
+  const symlinked = structuredClone(value.evidence);
+  const entry = symlinked.prerequisites[0].evidence[0];
+  entry.path = "evidence/symlink.json";
+  entry.sha256 = digest(fs.readFileSync(target));
+  entry.size = fs.statSync(target).size;
+  const result = inspectReleaseCandidateEvidence(symlinked, { baseDirectory: value.root });
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /symlink/);
+});
+
 test("rejects prerequisite evidence from another run or ref", (context) => {
   const value = builtFixture();
   context.after(value.cleanup);

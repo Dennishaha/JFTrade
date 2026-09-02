@@ -2,8 +2,9 @@ use std::path::Path;
 
 use jftrade_owner_lock::WriterLeaseError;
 use jftrade_store_sqlite::{
-    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderStoreError,
-    ExecutionOrderTestCutoverStore, StoredExecutionOrder, StoredExecutionOrderEvent,
+    EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderReservation, ExecutionOrderStore,
+    ExecutionOrderStoreError, ExecutionOrderTestCutoverStore, StoredExecutionOrder,
+    StoredExecutionOrderEvent, StoredExecutionOrderPreview,
 };
 use rusqlite::Connection;
 
@@ -188,6 +189,171 @@ fn execution_orders_lifecycle_events_and_restart_durability() {
     );
     let seq3 = reopened.next_sequence("order").expect("next seq 3");
     assert_eq!(seq3, 3);
+}
+
+#[test]
+fn execution_order_reservation_replays_identity_without_retrying_unknown_submission() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("orders.db");
+    seed_go_execution_orders_schema(&path);
+    let store = open_store(&path);
+
+    let order = StoredExecutionOrder {
+        internal_order_id: "reserve-1".to_owned(),
+        broker_id: "futu".to_owned(),
+        broker_order_id: None,
+        broker_order_id_ex: None,
+        source: "system".to_owned(),
+        source_detail: "test".to_owned(),
+        trading_environment: "REAL".to_owned(),
+        account_id: "acc-1".to_owned(),
+        market: "US".to_owned(),
+        symbol: Some("AAPL".to_owned()),
+        side: Some("BUY".to_owned()),
+        order_type: Some("LIMIT".to_owned()),
+        status: "SUBMITTING".to_owned(),
+        raw_broker_status: None,
+        requested_quantity: Some(1.0),
+        requested_price: Some(100.0),
+        filled_quantity: Some(0.0),
+        filled_average_price: Some(0.0),
+        remark: None,
+        last_error: None,
+        last_error_code: None,
+        last_error_source: None,
+        submitted_at: None,
+        updated_at: TIMESTAMP_1.to_owned(),
+        created_at: TIMESTAMP_1.to_owned(),
+        order_kind: "single".to_owned(),
+        product_class: "stock".to_owned(),
+        quantity_mode: "units".to_owned(),
+        client_order_id: Some("client-stable-1".to_owned()),
+        preview_id: None,
+        normalized_request: r#"{"symbol":"US.AAPL","side":"BUY"}"#.to_owned(),
+        requested_amount: None,
+        payout: None,
+        fees: None,
+    };
+
+    assert!(matches!(
+        store
+            .reserve_order_with_preview(order.clone(), "request-hash", TIMESTAMP_1)
+            .expect("first reservation"),
+        ExecutionOrderReservation::Reserved(_)
+    ));
+    let mut replay = order.clone();
+    replay.internal_order_id = "reserve-2".to_owned();
+    assert!(matches!(
+        store
+            .reserve_order_with_preview(replay, "request-hash", TIMESTAMP_2)
+            .expect("duplicate reservation"),
+        ExecutionOrderReservation::Existing(existing) if existing.internal_order_id == "reserve-1"
+    ));
+    assert_eq!(store.order_count().expect("order count"), 1);
+    assert_eq!(
+        store
+            .find_order_by_client_identity("FUTU", "real", "acc-1", "CLIENT-STABLE-1")
+            .expect("find client identity")
+            .expect("reserved order")
+            .internal_order_id,
+        "reserve-1"
+    );
+
+    let mut unknown = order.clone();
+    unknown.status = "SUBMISSION_UNKNOWN".to_owned();
+    unknown.last_error = Some("broker timeout".to_owned());
+    unknown.updated_at = TIMESTAMP_2.to_owned();
+    store
+        .save_order(unknown, TIMESTAMP_2)
+        .expect("mark unknown");
+
+    let candidates = store
+        .list_reconciliation_candidates()
+        .expect("reconciliation candidates");
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].status, "SUBMISSION_UNKNOWN");
+    let mut retry = order;
+    retry.internal_order_id = "reserve-retry".to_owned();
+    assert!(matches!(
+        store
+            .reserve_order_with_preview(retry, "request-hash", TIMESTAMP_2)
+            .expect("unknown replay fence"),
+        ExecutionOrderReservation::Existing(existing)
+            if existing.internal_order_id == "reserve-1"
+    ));
+    assert_eq!(store.order_count().expect("order count after replay"), 1);
+}
+
+#[test]
+fn execution_order_preview_consumption_is_idempotent_and_expiry_fenced() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("orders.db");
+    seed_go_execution_orders_schema(&path);
+    let store = ExecutionOrderStore::open_existing(&path, EXECUTION_ORDERS_TEST_CUTOVER_PROFILE)
+        .expect("open execution orders store");
+
+    let preview = StoredExecutionOrderPreview {
+        preview_id: "preview-1".to_owned(),
+        request_hash: "request-hash".to_owned(),
+        broker_id: "futu".to_owned(),
+        capability_version: "futu-v1".to_owned(),
+        account_id: "acc-1".to_owned(),
+        expires_at: "2026-08-22T07:00:00Z".to_owned(),
+        quote_expires_at: None,
+        rfq_id: None,
+        normalized_request: r#"{"symbol":"US.AAPL"}"#.to_owned(),
+        created_at: TIMESTAMP_1.to_owned(),
+        consumed_at: None,
+    };
+    store.save_preview(&preview).expect("save preview");
+    store
+        .consume_preview("preview-1", "FUTU", "acc-1", "request-hash", TIMESTAMP_1)
+        .expect("first consume");
+    store
+        .consume_preview("preview-1", "futu", "acc-1", "request-hash", TIMESTAMP_2)
+        .expect("identical replay consume");
+    let changed = store
+        .consume_preview("preview-1", "futu", "acc-1", "changed-hash", TIMESTAMP_2)
+        .expect_err("changed request must be rejected");
+    assert!(
+        matches!(changed, ExecutionOrderStoreError::Validation(message) if message.contains("does not match"))
+    );
+
+    let mut expired = preview.clone();
+    expired.preview_id = "preview-expired".to_owned();
+    expired.expires_at = TIMESTAMP_1.to_owned();
+    store.save_preview(&expired).expect("save expired preview");
+    let expired_error = store
+        .consume_preview(
+            "preview-expired",
+            "futu",
+            "acc-1",
+            "request-hash",
+            TIMESTAMP_2,
+        )
+        .expect_err("expired preview must be rejected");
+    assert!(
+        matches!(expired_error, ExecutionOrderStoreError::Validation(message) if message.contains("expired"))
+    );
+
+    let mut quote_expired = preview;
+    quote_expired.preview_id = "preview-quote-expired".to_owned();
+    quote_expired.quote_expires_at = Some(TIMESTAMP_1.to_owned());
+    store
+        .save_preview(&quote_expired)
+        .expect("save quote-expired preview");
+    let quote_error = store
+        .consume_preview(
+            "preview-quote-expired",
+            "futu",
+            "acc-1",
+            "request-hash",
+            TIMESTAMP_2,
+        )
+        .expect_err("expired broker quote must be rejected");
+    assert!(
+        matches!(quote_error, ExecutionOrderStoreError::Validation(message) if message.contains("broker quote expired"))
+    );
 }
 
 fn open_store(path: &Path) -> ExecutionOrderTestCutoverStore {

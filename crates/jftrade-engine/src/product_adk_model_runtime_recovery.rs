@@ -8,7 +8,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -24,6 +24,65 @@ const RECOVERY_INITIAL_DELAY: Duration = Duration::from_millis(100);
 const PROVIDER_RETRY_BASE_MS: i64 = 1_000;
 const PROVIDER_RETRY_MAX_MS: i64 = 60_000;
 
+/// Health of the process-local durable recovery scanner.  A degraded scanner
+/// remains alive and can recover on its next successful poll; unavailable is
+/// reserved for startup failure, while shutdown is terminal for the instance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum DurableRecoveryStatus {
+    Ready,
+    Degraded,
+    Unavailable,
+    Shutdown,
+}
+
+impl DurableRecoveryStatus {
+    pub(super) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Degraded => "degraded",
+            Self::Unavailable => "unavailable",
+            Self::Shutdown => "shutdown",
+        }
+    }
+}
+
+/// Last scanner evidence retained for readiness and diagnostics.  Timestamps
+/// are unix epoch milliseconds and are intentionally process-local; no schema
+/// or public HTTP contract is needed for this health state.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct DurableRecoveryHealthSnapshot {
+    pub(super) status: DurableRecoveryStatus,
+    pub(super) healthy: bool,
+    pub(super) running: bool,
+    pub(super) last_success_at: Option<i64>,
+    pub(super) last_error: Option<String>,
+    pub(super) checked_at: Option<i64>,
+}
+
+impl DurableRecoveryHealthSnapshot {
+    fn ready() -> Self {
+        Self {
+            status: DurableRecoveryStatus::Ready,
+            healthy: true,
+            running: true,
+            last_success_at: None,
+            last_error: None,
+            checked_at: None,
+        }
+    }
+
+    fn unavailable(error: Option<String>) -> Self {
+        Self {
+            status: DurableRecoveryStatus::Unavailable,
+            healthy: false,
+            running: false,
+            last_success_at: None,
+            last_error: error,
+            checked_at: Some(unix_now_ms()),
+        }
+    }
+}
+
 /// Owns the one background scanner attached to a production ADK runtime.
 /// The weak runtime reference prevents a cycle and lets the scanner stop
 /// naturally if the runtime is dropped without an explicit shutdown call.
@@ -32,6 +91,7 @@ pub(super) struct DurableRunRecoverySupervisor {
     stop: Arc<AtomicBool>,
     wake: Sender<()>,
     join: Mutex<Option<JoinHandle<()>>>,
+    health: RwLock<DurableRecoveryHealthSnapshot>,
     /// Keep an OS-thread creation failure observable.  The production
     /// runtime treats a missing scanner as not ready instead of advertising
     /// durable recovery as enabled.
@@ -62,32 +122,99 @@ impl DurableRunRecoverySupervisor {
                     }
                 }
             });
-        let (join, startup_error) = match spawn_result {
-            Ok(handle) => (Some(handle), None),
+        let (join, startup_error, health) = match spawn_result {
+            Ok(handle) => (Some(handle), None, DurableRecoveryHealthSnapshot::ready()),
             Err(error) => {
                 let message = format!("failed to start ADK durable recovery supervisor: {error}");
                 eprintln!("{message}");
-                (None, Some(message))
+                (
+                    None,
+                    Some(message.clone()),
+                    DurableRecoveryHealthSnapshot::unavailable(Some(message)),
+                )
             }
         };
         Arc::new(Self {
             stop,
             wake,
             join: Mutex::new(join),
+            health: RwLock::new(health),
             startup_error,
         })
     }
 
     pub(super) fn is_ready(&self) -> bool {
-        self.startup_error.is_none() && self.join.lock().is_ok_and(|join| join.is_some())
+        self.startup_error.is_none()
+            && self.join.lock().is_ok_and(|join| join.is_some())
+            && self
+                .health
+                .read()
+                .is_ok_and(|health| health.status == DurableRecoveryStatus::Ready)
     }
 
     pub(super) fn startup_error(&self) -> Option<&str> {
         self.startup_error.as_deref()
     }
 
+    pub(super) fn health_snapshot(&self) -> DurableRecoveryHealthSnapshot {
+        self.health
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    /// Record a completed scan. A successful poll clears a previous transient
+    /// failure so one short SQLite outage does not permanently poison readiness.
+    fn record_scan_success(&self) {
+        let mut health = self
+            .health
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if self.stop.load(Ordering::Acquire) {
+            return;
+        }
+        let now = unix_now_ms();
+        health.status = DurableRecoveryStatus::Ready;
+        health.healthy = true;
+        health.running = true;
+        health.last_success_at = Some(now);
+        health.last_error = None;
+        health.checked_at = Some(now);
+    }
+
+    /// Record a failed scan while keeping the worker alive for a later retry.
+    fn record_scan_failure(&self, error: impl Into<String>) {
+        let mut health = self
+            .health
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if self.stop.load(Ordering::Acquire) {
+            return;
+        }
+        health.status = DurableRecoveryStatus::Degraded;
+        health.healthy = false;
+        health.running = true;
+        health.last_error = Some(error.into());
+        health.checked_at = Some(unix_now_ms());
+    }
+
+    fn mark_shutdown(&self, reason: impl Into<String>) {
+        let first_stop = !self.stop.swap(true, Ordering::AcqRel);
+        let mut health = self
+            .health
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        health.status = DurableRecoveryStatus::Shutdown;
+        health.healthy = false;
+        health.running = false;
+        if first_stop {
+            health.last_error = Some(reason.into());
+        }
+        health.checked_at = Some(unix_now_ms());
+    }
+
     pub(super) fn shutdown(&self) {
-        self.stop.store(true, Ordering::Release);
+        self.mark_shutdown("ADK durable recovery supervisor stopped");
         let _ = self.wake.send(());
         if let Ok(mut join) = self.join.lock()
             && let Some(handle) = join.take()
@@ -100,7 +227,7 @@ impl DurableRunRecoverySupervisor {
 
 impl Drop for DurableRunRecoverySupervisor {
     fn drop(&mut self) {
-        self.stop.store(true, Ordering::Release);
+        self.mark_shutdown("ADK durable recovery supervisor dropped");
         let _ = self.wake.send(());
         if let Ok(join) = self.join.get_mut()
             && let Some(handle) = join.take()
@@ -118,8 +245,16 @@ impl ProductionAdkChatRuntime {
     /// mutation and provider call across processes.
     pub(super) fn recover_durable_provider_runs(&self) {
         let runs = match self.store.list_runs() {
-            Ok(runs) => runs,
+            Ok(runs) => {
+                if let Some(supervisor) = self.recovery_supervisor.as_ref() {
+                    supervisor.record_scan_success();
+                }
+                runs
+            }
             Err(error) => {
+                if let Some(supervisor) = self.recovery_supervisor.as_ref() {
+                    supervisor.record_scan_failure(error.to_string());
+                }
                 eprintln!("ADK durable recovery scan failed: {error}");
                 return;
             }
@@ -143,14 +278,22 @@ impl ProductionAdkChatRuntime {
             }
             // A live lease means the original executor is still active.  Do
             // not create a second continuation until the lease expires.
-            if self
-                .store
-                .get_run_lease(&run.id)
-                .ok()
-                .flatten()
-                .is_some_and(|lease| lease.expires_at_unix_ms > unix_now_ms())
-            {
-                continue;
+            match self.store.get_run_lease(&run.id) {
+                Ok(Some(lease)) if lease.expires_at_unix_ms > unix_now_ms() => continue,
+                Ok(_) => {}
+                Err(error) => {
+                    if let Some(supervisor) = self.recovery_supervisor.as_ref() {
+                        supervisor.record_scan_failure(format!(
+                            "ADK durable recovery lease scan failed for run {}: {error}",
+                            run.id
+                        ));
+                    }
+                    eprintln!(
+                        "ADK durable recovery could not inspect lease for run {}: {error}",
+                        run.id
+                    );
+                    continue;
+                }
             }
             match self.resume_approval(&run.id) {
                 Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
@@ -202,6 +345,7 @@ impl ProductionAdkChatRuntime {
                     // provider outages. Leave the durable run untouched and
                     // let the next scan retry after the underlying condition
                     // has recovered.
+                    record_recovery_resume_failure(self.recovery_supervisor.as_ref(), &error);
                     eprintln!("ADK durable recovery skipped run {}: {error:?}", run.id);
                 }
                 Err(error) => eprintln!(
@@ -282,6 +426,27 @@ fn is_provider_configuration_unavailable(error: &AdkChatPortError) -> bool {
         ]
         .iter()
         .any(|marker| message.contains(marker))
+}
+
+fn is_recovery_infrastructure_error(error: &AdkChatPortError) -> bool {
+    let AdkChatPortError::Unavailable(message) = error else {
+        return false;
+    };
+    let message = message.to_ascii_lowercase();
+    message.starts_with("adk storage unavailable")
+        || message.starts_with("assistant run lease unavailable")
+}
+
+fn record_recovery_resume_failure(
+    supervisor: Option<&Arc<DurableRunRecoverySupervisor>>,
+    error: &AdkChatPortError,
+) {
+    if !is_recovery_infrastructure_error(error) {
+        return;
+    }
+    if let Some(supervisor) = supervisor {
+        supervisor.record_scan_failure(format!("ADK durable recovery resume failed: {error:?}"));
+    }
 }
 
 fn recoverable_state(payload: &Value) -> bool {
@@ -555,15 +720,6 @@ mod tests {
     }
 
     #[test]
-    fn successful_supervisor_start_is_reported_as_ready() {
-        let supervisor = DurableRunRecoverySupervisor::start(Weak::new());
-        assert!(supervisor.startup_error().is_none());
-        assert!(supervisor.is_ready());
-        supervisor.shutdown();
-        assert!(!supervisor.is_ready());
-    }
-
-    #[test]
     fn provider_retry_classifier_accepts_only_transient_failures() {
         let transient = |status: u16, code: &str| AdkChatPortError::Failed {
             status,
@@ -607,3 +763,7 @@ mod tests {
         )));
     }
 }
+
+#[cfg(test)]
+#[path = "product_adk_model_runtime_recovery_tests.rs"]
+mod health_tests;

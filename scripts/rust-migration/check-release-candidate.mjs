@@ -165,15 +165,46 @@ function readJson(filePath, label) {
 function resolveContained(reference, baseDirectory, label, errors) {
   const value = nonEmptyString(reference, `${label}.path`, errors);
   if (!value) return null;
-  if (path.isAbsolute(value)) {
-    errors.push(`${label}.path must be relative to the evidence base directory`);
+  if (path.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.startsWith("\\\\")
+    || value.includes("\\") || value.includes("\0")) {
+    errors.push(`${label}.path must be a relative POSIX path`);
     return null;
   }
-  const root = path.resolve(baseDirectory);
-  const resolved = path.resolve(root, value);
+  const segments = value.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    errors.push(`${label}.path must not contain empty, dot or parent path segments`);
+    return null;
+  }
+  let root;
+  try {
+    root = fs.realpathSync(path.resolve(baseDirectory));
+  } catch (error) {
+    errors.push(`${label} evidence directory is missing: ${error.message}`);
+    return null;
+  }
+  const resolved = path.resolve(root, ...segments);
   const relative = path.relative(root, resolved);
   if (relative === ".." || relative.startsWith(`..${path.sep}`)) {
     errors.push(`${label}.path escapes the evidence base directory`);
+    return null;
+  }
+  let current = root;
+  try {
+    for (const segment of segments) {
+      current = path.join(current, segment);
+      if (fs.lstatSync(current).isSymbolicLink()) {
+        errors.push(`${label}.path must not traverse a symlink`);
+        return null;
+      }
+    }
+    const real = fs.realpathSync(resolved);
+    const realRelative = path.relative(root, real);
+    if (realRelative === ".." || realRelative.startsWith(`..${path.sep}`)) {
+      errors.push(`${label}.path realpath escapes the evidence directory`);
+      return null;
+    }
+  } catch (error) {
+    errors.push(`${label} file is missing: ${value} (${error.message})`);
     return null;
   }
   return resolved;

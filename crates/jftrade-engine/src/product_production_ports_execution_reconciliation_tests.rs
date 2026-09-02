@@ -745,3 +745,6 @@ fn reconciliation_fails_closed_on_corrupt_event_payload() {
 
 #[path = "product_production_ports_execution_reconciliation_provider_tests.rs"]
 mod provider_projection_tests;
+
+#[path = "product_production_ports_execution_reconciliation_order_state_tests.rs"]
+mod order_state_tests;

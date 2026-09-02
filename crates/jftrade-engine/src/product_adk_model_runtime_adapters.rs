@@ -99,6 +99,10 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
     fn runtime_ready(&self) -> bool {
         ProductionAdkChatRuntime::runtime_ready(self)
     }
+
+    fn shutdown(&self) {
+        ProductionAdkChatRuntime::shutdown(self);
+    }
 }
 
 #[derive(Debug)]

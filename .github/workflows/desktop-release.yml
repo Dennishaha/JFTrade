@@ -257,8 +257,8 @@ jobs:
           pnpm run check:oss-license
           pnpm run check:pinets-compliance
 
-      - name: Verify Tauri host & runtime
-        run: pnpm run check:tauri-release-runtime
+      - name: Test Tauri release runtime contracts
+        run: pnpm run test:tauri-release-runtime
 
       - name: Verify signed updater source contracts
         run: |

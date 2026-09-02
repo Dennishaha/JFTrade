@@ -216,7 +216,13 @@ func waitForCapturedSidecarArgs(t *testing.T, path string) string {
 	for {
 		payload, err := os.ReadFile(path)
 		if err == nil {
-			return string(payload)
+			captured := string(payload)
+			// os.WriteFile creates/truncates the file before writing its
+			// payload. Wait for the trailing environment marker so this
+			// reader cannot observe the file between those two operations.
+			if strings.TrimSpace(captured) != "" && strings.Contains(captured, "PYTHONUNBUFFERED=") {
+				return captured
+			}
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("sidecar helper did not capture args: %v", err)

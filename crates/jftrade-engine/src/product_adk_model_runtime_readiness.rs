@@ -8,8 +8,16 @@ impl ProductionAdkChatRuntime {
             return false;
         };
         if !recovery_supervisor.is_ready() {
-            if let Some(error) = recovery_supervisor.startup_error() {
-                eprintln!("{error}; ADK runtime readiness is unavailable");
+            let health = recovery_supervisor.health_snapshot();
+            if let Some(error) = health
+                .last_error
+                .as_deref()
+                .or_else(|| recovery_supervisor.startup_error())
+            {
+                eprintln!(
+                    "ADK durable recovery is {}; runtime readiness is unavailable: {error}",
+                    health.status.as_str()
+                );
             }
             return false;
         }

@@ -40,6 +40,7 @@ describe("Tauri runtime configuration", () => {
   });
 
   it.each([
+    "",
     "https://127.0.0.1:3008",
     "http://localhost:3008",
     "http://example.com:3008",
@@ -58,6 +59,23 @@ describe("Tauri runtime configuration", () => {
       "unsafe desktop API configuration",
     );
     expect(window.__JFTRADE_RUNTIME_CONFIG__).toBeUndefined();
+  });
+
+  it("retries while the desktop API is still starting", async () => {
+    (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    invoke
+      .mockRejectedValueOnce(new Error("DESKTOP_NOT_READY"))
+      .mockResolvedValueOnce({
+        apiBaseUrl: "http://127.0.0.1:3008",
+        authRequired: true,
+        desktopMode: true,
+        desktopApiToken: "c".repeat(64),
+      });
+
+    await initializeTauriRuntimeConfig();
+
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(resolveDesktopApiToken()).toBe("c".repeat(64));
   });
 
   it("does not invoke Tauri from a browser without the native bridge", async () => {

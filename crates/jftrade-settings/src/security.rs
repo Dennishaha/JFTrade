@@ -455,6 +455,19 @@ mod tests {
     }
 
     #[test]
+    fn web_access_password_boundaries_match_go() {
+        assert_eq!(
+            validate_web_access_password("short"),
+            Err(SecuritySettingsError::PasswordTooShort)
+        );
+        assert_eq!(
+            validate_web_access_password(&"界".repeat(400)),
+            Err(SecuritySettingsError::PasswordTooLong)
+        );
+        assert_eq!(validate_web_access_password("123456789012345"), Ok(()));
+    }
+
+    #[test]
     fn listener_failure_rolls_back_password_and_port_together() {
         let original = SecuritySettingsRecord::new(true, false, 6688, "stored-verifier");
         let store = Arc::new(Store(RwLock::new(Some(original.clone()))));

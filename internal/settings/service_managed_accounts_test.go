@@ -10,28 +10,6 @@ import (
 	"github.com/jftrade/jftrade-main/internal/live"
 )
 
-func TestServiceCreateManagedAccountNormalizesClientFields(t *testing.T) {
-	store := &fakeStore{}
-	svc := NewService(store)
-
-	account, err := svc.CreateManagedAccount(jfsettings.ManagedBrokerAccount{
-		ID:                 "client-id",
-		AccountID:          "acc-1",
-		CreatedAt:          "client-created",
-		UpdatedAt:          "client-updated",
-		TradingEnvironment: "SIMULATE",
-	})
-	if err != nil {
-		t.Fatalf("CreateManagedAccount: %v", err)
-	}
-	if account.ID != "" || account.CreatedAt != "" || account.UpdatedAt != "" {
-		t.Fatalf("created account = %#v", account)
-	}
-	if len(store.managedAccounts) != 1 || store.managedAccounts[0].AccountID != "acc-1" {
-		t.Fatalf("stored accounts = %#v", store.managedAccounts)
-	}
-}
-
 func TestServiceNotificationAndMCPStatusAccessors(t *testing.T) {
 	store := &fakeStore{
 		systemNotifications: jfsettings.SystemNotificationSettings{Enabled: true, Mode: "all"},
@@ -93,27 +71,6 @@ func TestServiceDefaultMCPStatusAndTokenGeneration(t *testing.T) {
 	}
 	if !strings.HasPrefix(token, "jft_mcp_") || len(token) <= len("jft_mcp_") {
 		t.Fatalf("generated MCP token = %q", token)
-	}
-}
-
-func TestValidateWebAccessPasswordBoundaries(t *testing.T) {
-	if !errors.Is(validateWebAccessPassword("short"), ErrWebAccessPasswordTooShort) {
-		t.Fatal("short password was accepted")
-	}
-	if !errors.Is(validateWebAccessPassword(strings.Repeat("界", 400)), ErrWebAccessPasswordTooLong) {
-		t.Fatal("oversized password was accepted")
-	}
-	if err := validateWebAccessPassword("123456789012345"); err != nil {
-		t.Fatalf("minimum-length password rejected: %v", err)
-	}
-}
-
-func TestServiceCreateManagedAccountRejectsBlankAccountID(t *testing.T) {
-	svc := NewService(&fakeStore{})
-	if _, err := svc.CreateManagedAccount(jfsettings.ManagedBrokerAccount{}); err == nil {
-		t.Fatal("CreateManagedAccount error = nil, want bad request")
-	} else if !errors.Is(err, ErrBadRequest) || err.Error() != "accountId is required" {
-		t.Fatalf("CreateManagedAccount error = %v, want ErrBadRequest with field message", err)
 	}
 }
 
