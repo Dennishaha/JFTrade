@@ -27,4 +27,4 @@ pnpm install --frozen-lockfile
 pnpm run check:zero-go
 pnpm run build:desktop
 
-echo "Tauri release artifacts are under apps/desktop/src-tauri/target/release/bundle."
+echo "Tauri release artifacts are under target/release/bundle."

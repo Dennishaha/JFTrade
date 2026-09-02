@@ -21,9 +21,7 @@ export function releaseBundlePaths({
       : path.dirname(executable);
     return { executable, resourceRoot };
   }
-  const targetRoot = fs.existsSync(path.join(root, "apps/desktop/src-tauri"))
-    ? path.join(root, "apps/desktop/src-tauri/target/release")
-    : path.join(root, "target/release");
+  const targetRoot = path.join(root, "target/release");
   if (platform === "darwin") {
     const bundle = path.join(targetRoot, "bundle/macos/JFTrade.app");
     return {

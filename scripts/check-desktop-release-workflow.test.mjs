@@ -199,6 +199,7 @@ test("candidate lane fails closed on signing while rehearsal does not read secre
 
 test("desktop release builds and inspects Tauri bundles instead of legacy Wails outputs", () => {
   assert.doesNotMatch(workflow, /go tool wails3|bin\/JFTrade/);
+  assert.doesNotMatch(workflow, /apps\/desktop\/src-tauri\/target/);
   for (const platform of ["macos-arm64", "windows-x64", "windows-arm64", "linux-x64"]) {
     assert.match(workflow, new RegExp(`tauri-release-${platform}\\.json`));
     assert.match(workflow, new RegExp(`tauri-runtime-smoke-${platform}\\.json`));

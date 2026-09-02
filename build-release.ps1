@@ -26,4 +26,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "Tauri desktop build failed"
 }
 
-Write-Host "Tauri release artifacts are under apps/desktop/src-tauri/target/release/bundle." -ForegroundColor Green
+Write-Host "Tauri release artifacts are under target/release/bundle." -ForegroundColor Green

@@ -11,7 +11,7 @@ import {
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-tauri-artifacts-"));
-  const bundle = path.join(root, "apps/desktop/src-tauri/target/release/bundle");
+  const bundle = path.join(root, "target/release/bundle");
   const write = (relativePath, contents) => {
     const filePath = path.join(bundle, relativePath);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -30,7 +30,6 @@ test("records exact Tauri package hashes and explicit qualification limits", (co
   context.after(value.cleanup);
   const manifest = writeTauriReleaseArtifactManifest({
     root: value.root,
-    bundleRoot: value.bundle,
     platform: "linux-x64",
     architecture: "amd64",
     version: "1.2.3",

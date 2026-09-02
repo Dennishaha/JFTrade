@@ -102,5 +102,10 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
       job.includes(plannedReleaseTag),
       `${name} must bind its unsigned build to the planned release version`,
     );
+    assert.ok(job.includes("target/release/"), `${name} must consume the Cargo workspace target`);
+    assert.ok(
+      !job.includes("apps/desktop/src-tauri/target"),
+      `${name} must not look for workspace artifacts below the Tauri crate`,
+    );
   }
 });

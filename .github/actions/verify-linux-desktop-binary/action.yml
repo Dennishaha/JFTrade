@@ -5,7 +5,7 @@ inputs:
   artifact_path:
     description: Path to the Linux desktop binary
     required: false
-    default: apps/desktop/src-tauri/target/release/jftrade-desktop
+    default: target/release/jftrade-desktop
 
 runs:
   using: composite

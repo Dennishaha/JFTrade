@@ -24,6 +24,6 @@ Tauri 会监督 Rust API、Vite 和受管 runtime 三个进程阶段：
 JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run build:desktop
 ```
 
-验证重点是 `apps/desktop/src-tauri/target/release/bundle/` 中的官方 Tauri 产物、应用
+验证重点是 workspace 根目录 `target/release/bundle/` 中的官方 Tauri 产物、应用
 bundle 的签名/版本信息、API ready 日志、端口释放，以及缺少显式运行时配置时没有
 隐式构建行为。

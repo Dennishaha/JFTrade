@@ -372,7 +372,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ci-desktop-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: apps/desktop/src-tauri/target/release/jftrade-desktop
+          path: target/release/jftrade-desktop
           if-no-files-found: error
           retention-days: 1
 
@@ -389,19 +389,19 @@ jobs:
             platform: linux
             build_command: pnpm run build:desktop:tauri
             artifact_id: linux-x64
-            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop
+            artifact_path: target/release/jftrade-desktop
           - label: macOS ARM64
             runner: macos-15
             platform: macos
             build_command: pnpm run build:desktop:tauri
             artifact_id: macos-arm64
-            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop
+            artifact_path: target/release/jftrade-desktop
           - label: Windows x64
             runner: windows-latest
             platform: windows
             build_command: pnpm run build:desktop:tauri
             artifact_id: windows-x64
-            artifact_path: apps/desktop/src-tauri/target/release/jftrade-desktop.exe
+            artifact_path: target/release/jftrade-desktop.exe
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     env:
@@ -458,14 +458,14 @@ jobs:
       - name: Verify Linux desktop binary
         if: ${{ matrix.platform == 'linux' }}
         run: |
-          binary="apps/desktop/src-tauri/target/release/jftrade-desktop"
+          binary="target/release/jftrade-desktop"
           test -x "$binary"
           file "$binary" | grep -q 'ELF 64-bit'
 
       - name: Verify macOS desktop application
         if: ${{ matrix.platform == 'macos' }}
         run: |
-          binary="apps/desktop/src-tauri/target/release/jftrade-desktop"
+          binary="target/release/jftrade-desktop"
           test -x "$binary"
           file "$binary" | grep -q 'Mach-O 64-bit executable arm64'
           test "$(lipo -archs "$binary")" = "arm64"
@@ -474,7 +474,7 @@ jobs:
         if: ${{ matrix.platform == 'windows' }}
         shell: pwsh
         run: |
-          $artifact = (Resolve-Path "apps/desktop/src-tauri/target/release/jftrade-desktop.exe").Path
+          $artifact = (Resolve-Path "target/release/jftrade-desktop.exe").Path
           if ((Get-Item $artifact).Length -le 0) {
             throw "Windows desktop executable is empty"
           }

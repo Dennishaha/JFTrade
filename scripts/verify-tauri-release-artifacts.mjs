@@ -143,7 +143,7 @@ function collectUpdaterArchives(bundleRoot, relativeRoot) {
 
 export function inspectTauriReleaseArtifacts({
   root = repositoryRoot,
-  bundleRoot = path.join(root, "apps/desktop/src-tauri/target/release/bundle"),
+  bundleRoot = path.join(root, "target/release/bundle"),
   platform,
   version,
   architecture,

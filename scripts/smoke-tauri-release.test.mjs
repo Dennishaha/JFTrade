@@ -6,8 +6,10 @@ import test from "node:test";
 
 import { releaseBundlePaths, writeTauriSmokeReport } from "./smoke-tauri-release.mjs";
 
-test("resolves the native executable and resource root for supported bundles", () => {
-  const root = path.resolve("fixture-root");
+test("resolves workspace target paths even when the Tauri crate directory exists", (context) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-tauri-paths-"));
+  context.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "apps/desktop/src-tauri"), { recursive: true });
   const mac = releaseBundlePaths({ root, platform: "darwin", executableOverride: "" });
   assert.equal(
     mac.executable,
