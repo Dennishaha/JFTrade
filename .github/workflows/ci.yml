@@ -332,6 +332,7 @@ jobs:
     timeout-minutes: 25
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
+      JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -405,6 +406,7 @@ jobs:
     timeout-minutes: 25
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
+      JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"
     steps:
       - name: Checkout
         uses: actions/checkout@v7

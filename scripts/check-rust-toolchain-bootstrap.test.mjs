@@ -73,6 +73,7 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
   );
   const workspaceGate = rustQuality.indexOf("run: pnpm run check:rust");
   const compileOnlyConfig = `TAURI_CONFIG: '{"bundle":{"resources":[]}}'`;
+  const plannedReleaseTag = `JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"`;
 
   assert.match(rustQuality, /timeout-minutes: 90/);
   assert.match(rustQuality, /JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "1800000"/);
@@ -97,5 +98,9 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
     assert.ok(prepareRuntime > bindInputs, `${name} must bind inputs before preparing resources`);
     assert.ok(prepareRuntime >= 0, `${name} must prepare the Tauri runtime resources`);
     assert.ok(testDesktop > prepareRuntime, `${name} must prepare resources before desktop tests`);
+    assert.ok(
+      job.includes(plannedReleaseTag),
+      `${name} must bind its unsigned build to the planned release version`,
+    );
   }
 });
