@@ -50,17 +50,30 @@ test("Rust bootstrap installs checksum-pinned protoc on every supported runner",
   assert.match(source, /GITHUB_ENV/);
 });
 
-test("Rust quality provisions Linux desktop headers before checking the workspace", async () => {
+test("Rust CI provisions native headers and detaches compile-only checks from package resources", async () => {
   const source = await readFile(ciWorkflowPath, "utf8");
   const rustQuality = source.slice(
     source.indexOf("  rust-quality:"),
     source.indexOf("  rust-platform:"),
   );
+  const rustPlatform = source.slice(
+    source.indexOf("  rust-platform:"),
+    source.indexOf("  web-quality:"),
+  );
   const dependencyStep = rustQuality.indexOf(
     "run: bash scripts/install-linux-desktop-dependencies.sh",
   );
   const workspaceGate = rustQuality.indexOf("run: pnpm run check:rust");
+  const compileOnlyConfig = `TAURI_CONFIG: '{"bundle":{"resources":[]}}'`;
 
   assert.ok(dependencyStep >= 0, "Rust quality must install Tauri Linux system headers");
   assert.ok(workspaceGate > dependencyStep, "system headers must be installed before check:rust");
+  assert.ok(
+    rustQuality.includes(compileOnlyConfig),
+    "Rust quality must not require ignored release-package resources",
+  );
+  assert.ok(
+    rustPlatform.includes(compileOnlyConfig),
+    "native compile checks must not require ignored release-package resources",
+  );
 });

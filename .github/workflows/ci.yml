@@ -64,6 +64,8 @@ jobs:
     name: Rust Quality
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -93,6 +95,8 @@ jobs:
     name: Rust Compile (${{ matrix.label }})
     if: ${{ github.event_name == 'push' }}
     needs: rust-quality
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
     strategy:
       fail-fast: false
       matrix:
