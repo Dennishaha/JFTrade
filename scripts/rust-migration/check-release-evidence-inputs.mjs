@@ -246,7 +246,7 @@ function validateBindingObject(binding, label, errors, trustedWorkflows = TRUSTE
     : null;
   const normalized = {
     repository: requiredString(binding.repository, `${label}.repository`, errors, /^[^/\s]+\/[^/\s]+$/),
-    releaseRef: requiredString(binding.releaseRef, `${label}.releaseRef`, errors, /^refs\/tags\/v\d+\.\d+\.\d+$/),
+    releaseRef: safeGitRef(binding.releaseRef, `${label}.releaseRef`, errors),
     ref: safeGitRef(binding.ref, `${label}.ref`, errors),
     commitSha: requiredString(binding.commitSha, `${label}.commitSha`, errors, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
     workflow: normalizeWorkflow(binding.workflow, `${label}.workflow`, errors, trustedWorkflows),
@@ -463,8 +463,14 @@ export function validateExternalEvidenceManifest(document, options = {}) {
   if (document.$schema !== "./release-evidence-inputs.schema.json") errors.push("manifest.$schema must reference release-evidence-inputs.schema.json");
   if (document.schemaVersion !== RELEASE_EVIDENCE_INPUTS_SCHEMA) errors.push(`manifest.schemaVersion must be ${RELEASE_EVIDENCE_INPUTS_SCHEMA}`);
   const repository = requiredString(document.repository, "manifest.repository", errors, /^[^/\s]+\/[^/\s]+$/);
-  const releaseRef = requiredString(document.releaseRef, "manifest.releaseRef", errors, /^refs\/tags\/v\d+\.\d+\.\d+$/);
-  const ref = requiredString(document.ref, "manifest.ref", errors, /^refs\/tags\/v\d+\.\d+\.\d+$/);
+  const releaseRef = safeGitRef(document.releaseRef, "manifest.releaseRef", errors);
+  const ref = safeGitRef(document.ref, "manifest.ref", errors);
+  if (releaseRef && !/^refs\/(?:heads|tags)\//.test(releaseRef)) {
+    errors.push("manifest.releaseRef must be a fully qualified branch or tag ref");
+  }
+  if (ref && !/^refs\/(?:heads|tags)\//.test(ref)) {
+    errors.push("manifest.ref must be a fully qualified branch or tag ref");
+  }
   if (releaseRef && ref && releaseRef !== ref) errors.push("manifest.ref must equal manifest.releaseRef");
   const commitSha = requiredString(document.commitSha, "manifest.commitSha", errors, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/);
   const workflow = normalizeWorkflow(document.workflow, "manifest.workflow", errors);

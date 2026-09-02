@@ -12,7 +12,7 @@ import {
 } from "./bind-release-evidence.mjs";
 import { TRUSTED_SOURCE_WORKFLOWS, TRUSTED_PAYLOAD_WORKFLOWS, validateExternalEvidenceManifest } from "./check-release-evidence-inputs.mjs";
 
-const releaseRef = "refs/tags/v1.2.3";
+const releaseRef = "refs/heads/release/1.2.3-candidate";
 const releaseCommit = "a".repeat(40);
 const payloadArtifact = {
   name: "platform-evidence-payload",

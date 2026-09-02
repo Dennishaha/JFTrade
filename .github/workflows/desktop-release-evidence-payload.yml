@@ -3,13 +3,23 @@ name: Desktop Release Evidence Payload
 on:
   workflow_dispatch:
     inputs:
-      release_ref:
-        description: Exact vX.Y.Z tag covered by the external evidence payload
+      qualification_mode:
+        description: Evidence contract to preserve through payload staging
         required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by intake and payload runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
         type: string
-      evidence_ref:
-        description: Branch or commit containing this payload workflow run
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; it does not need to exist during qualification
         required: true
+        default: v0.29.0
         type: string
       source_run_id:
         description: Successful Desktop Release Evidence Intake run that published raw evidence
@@ -41,24 +51,25 @@ permissions: {}
 jobs:
   verify:
     name: Verify and publish external evidence payload
+    if: inputs.qualification_mode == 'candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       actions: write
       contents: read
     steps:
-      - name: Checkout trusted evidence ref
+      - name: Checkout exact candidate branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.evidence_ref }}
+          ref: ${{ inputs.candidate_ref }}
           fetch-depth: 0
 
       - name: Verify release and source run provenance
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          RELEASE_REF: ${{ inputs.release_ref }}
-          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
           SOURCE_WORKFLOW: ${{ inputs.source_workflow }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
@@ -68,21 +79,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
-          [[ "$EVIDENCE_REF" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_REF" != /* && "$EVIDENCE_REF" != *".."* ]] || { echo "evidence_ref is unsafe" >&2; exit 1; }
-          [[ "$GITHUB_REF" == "refs/heads/$EVIDENCE_REF" || "$GITHUB_REF" == "$EVIDENCE_REF" || "$GITHUB_REF" == "$EVIDENCE_REF" ]] || {
-            echo "payload workflow must run from evidence_ref" >&2
+          [[ "$PLANNED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "planned_release_tag must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || {
+            echo "payload workflow must run from candidate_ref" >&2
             exit 1
           }
           release_commit="$(git rev-parse HEAD)"
-          [[ "$GITHUB_SHA" == "$release_commit" ]] || { echo "payload GITHUB_SHA does not match checked-out evidence ref" >&2; exit 1; }
-          git fetch --no-tags origin "refs/tags/$RELEASE_REF:refs/tags/$RELEASE_REF"
-          [[ "$(git rev-parse "refs/tags/$RELEASE_REF^{commit}")" == "$release_commit" ]] || {
-            echo "evidence ref commit does not match release tag commit" >&2
-            exit 1
-          }
+          [[ "$GITHUB_SHA" == "$release_commit" ]] || { echo "payload GITHUB_SHA does not match candidate_ref" >&2; exit 1; }
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source run ids must be positive integers" >&2; exit 1; }
-          [[ "$SOURCE_WORKFLOW" == "desktop-release-evidence-intake.yml" ]] || {
+          [[ "$SOURCE_WORKFLOW" == "desktop-release-evidence-intake.yml" && "$SOURCE_ARTIFACT" == "desktop-release-evidence-intake" ]] || {
             echo "source workflow must be the fixed intake workflow" >&2
             exit 1
           }
@@ -98,7 +104,8 @@ jobs:
             --arg sha "$release_commit" \
             --arg attempt "$SOURCE_RUN_ATTEMPT" \
             --arg workflow "$SOURCE_WORKFLOW" \
-            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            --arg branch "${CANDIDATE_REF#refs/heads/}" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
             <<<"$source_run" >/dev/null || { echo "source run is not a successful intake run for the release commit" >&2; exit 1; }
           source_artifact="$(gh api "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
           jq -e \
@@ -135,11 +142,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          RELEASE_REF: ${{ inputs.release_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
         shell: bash
         run: |
           set -euo pipefail
-          release_version="${RELEASE_REF#v}"
+          release_version="${PLANNED_TAG#v}"
           updater_endpoint="$(jq -r '.endpoint // empty' incoming/updater-config.json)"
           updater_public_key="$(jq -r '.publicKey // empty' incoming/updater-config.json)"
           node scripts/rust-migration/check-signed-updater-artifact.mjs \
@@ -179,8 +186,7 @@ jobs:
 
       - name: Verify report semantics without synthesizing evidence
         env:
-          RELEASE_REF: ${{ inputs.release_ref }}
-          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -196,7 +202,7 @@ jobs:
           node scripts/rust-migration/verify-release-evidence-payload.mjs \
             --root incoming \
             --repository "$GITHUB_REPOSITORY" \
-            --release-ref "refs/tags/$RELEASE_REF" \
+            --release-ref "$CANDIDATE_REF" \
             --payload-ref "$SOURCE_REF" \
             --payload-commit-sha "$SOURCE_COMMIT" \
             --payload-workflow "$SOURCE_WORKFLOW" \
@@ -261,7 +267,7 @@ jobs:
             --arg schema_version "jftrade.release-evidence-payload-binding.v1" \
             --arg repository "$REPOSITORY" \
             --arg source_repository "$SOURCE_REPOSITORY" \
-            --arg release_ref "refs/tags/${{ inputs.release_ref }}" \
+            --arg release_ref "${{ inputs.candidate_ref }}" \
             --arg evidence_ref "$SOURCE_REF" \
             --argjson run_id "$PRODUCER_RUN_ID" \
             --argjson attempt "${{ github.run_attempt }}" \
@@ -286,5 +292,78 @@ jobs:
         with:
           name: desktop-release-evidence-payload-provenance
           path: payload-artifact-metadata.json
+          if-no-files-found: error
+          retention-days: 90
+
+  rehearsal-payload:
+    name: Preserve unsigned rehearsal intake bytes
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Verify rehearsal intake run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          SOURCE_WORKFLOW: ${{ inputs.source_workflow }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal planned_release_tag must be v0.29.0" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal must run from the fixed candidate branch" >&2; exit 1; }
+          [[ "$SOURCE_WORKFLOW" == "desktop-release-evidence-intake.yml" && "$SOURCE_ARTIFACT" == "desktop-release-rehearsal-intake" ]] || { echo "rehearsal payload only trusts the fixed intake artifact" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "rehearsal intake identity is invalid" >&2; exit 1; }
+          commit_sha="$(git rev-parse HEAD)"
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e --arg sha "$commit_sha" --arg branch "release/0.29.0-candidate" --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence-intake.yml" or .path == "desktop-release-evidence-intake.yml")' \
+            <<<"$run_json" >/dev/null || { echo "rehearsal intake run provenance mismatch" >&2; exit 1; }
+          artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
+          jq -e --arg name "$SOURCE_ARTIFACT" --arg digest "$SOURCE_ARTIFACT_DIGEST" --argjson id "$SOURCE_ARTIFACT_ID" --argjson run_id "$SOURCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$artifact_json" >/dev/null || { echo "rehearsal intake artifact provenance mismatch" >&2; exit 1; }
+
+      - name: Download and verify byte-identical rehearsal intake
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        run: |
+          set -euo pipefail
+          rm -rf incoming
+          mkdir incoming
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$SOURCE_ARTIFACT_DIGEST" ]] || { echo "rehearsal intake artifact digest drift" >&2; exit 1; }
+          unzip -q "$archive" -d incoming
+          [[ -f incoming/release-candidate-rehearsal.json && -z "$(find incoming -type l -print -quit)" ]] || { echo "rehearsal intake payload is invalid" >&2; exit 1; }
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input incoming/release-candidate-rehearsal.json \
+            --expected-ref refs/heads/release/0.29.0-candidate \
+            --expected-tag v0.29.0 \
+            --expected-commit "$(git rev-parse HEAD)"
+
+      - name: Upload byte-identical rehearsal payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-payload
+          path: incoming
           if-no-files-found: error
           retention-days: 90

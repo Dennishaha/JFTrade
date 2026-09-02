@@ -3,13 +3,23 @@ name: Desktop Release Evidence
 on:
   workflow_dispatch:
     inputs:
-      release_ref:
-        description: Exact vX.Y.Z tag whose release evidence is being bound
+      qualification_mode:
+        description: Evidence contract to bind
         required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by payload and producer runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
         type: string
-      evidence_ref:
-        description: Trusted branch or commit containing the external evidence payload run
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; it does not need to exist during qualification
         required: true
+        default: v0.29.0
         type: string
       payload_run_id:
         description: Successful workflow run that produced the external payload artifact
@@ -20,11 +30,11 @@ on:
         required: true
         type: string
       payload_ref:
-        description: Exact ref recorded by the payload run; must resolve to evidence_ref
+        description: Exact ref recorded by the payload run; must equal candidate_ref
         required: true
         type: string
       payload_commit_sha:
-        description: Commit SHA recorded by the payload run and evidence_ref checkout
+        description: Commit SHA recorded by the payload run and candidate_ref checkout
         required: true
         type: string
       payload_artifact:
@@ -45,29 +55,23 @@ permissions: {}
 jobs:
   produce:
     name: Bind externally produced release evidence
+    if: inputs.qualification_mode == 'candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       actions: write
       contents: read
     steps:
-      - name: Checkout release tag
+      - name: Checkout exact candidate commit
         uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ inputs.release_ref }}
+          ref: ${{ inputs.payload_commit_sha }}
           fetch-depth: 0
 
-      - name: Checkout trusted evidence ref
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.evidence_ref }}
-          path: evidence-ref
-          fetch-depth: 0
-
-      - name: Verify release and trusted payload ref
+      - name: Verify candidate and trusted payload ref
         env:
-          RELEASE_REF: ${{ inputs.release_ref }}
-          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
           PAYLOAD_REF: ${{ inputs.payload_ref }}
           PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
           PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
@@ -75,37 +79,21 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_COMMIT="$(git rev-parse HEAD)"
-          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
-          [[ "$GITHUB_REF" == "refs/tags/$RELEASE_REF" ]] || { echo "producer must run from the published release tag" >&2; exit 1; }
-          [[ "$GITHUB_SHA" == "$RELEASE_COMMIT" ]] || { echo "producer GITHUB_SHA does not match the release tag commit" >&2; exit 1; }
+          [[ "$PLANNED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "planned_release_tag must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "producer must run from candidate_ref" >&2; exit 1; }
+          [[ "$GITHUB_SHA" == "$RELEASE_COMMIT" ]] || { echo "producer GITHUB_SHA does not match the candidate commit" >&2; exit 1; }
           [[ "$PAYLOAD_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload_commit_sha must be a lowercase commit SHA" >&2; exit 1; }
-          [[ "$EVIDENCE_REF" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_REF" != /* && "$EVIDENCE_REF" != *".."* ]] || {
-            echo "evidence_ref is not a safe Git ref" >&2
-            exit 1
-          }
           [[ "$PAYLOAD_REF" =~ ^[A-Za-z0-9._/-]+$ && "$PAYLOAD_REF" != /* && "$PAYLOAD_REF" != *".."* ]] || {
             echo "payload_ref is not a safe Git ref" >&2
             exit 1
           }
-          [[ -n "$EVIDENCE_REF" && "$EVIDENCE_REF" != "$RELEASE_REF" && "$EVIDENCE_REF" != "refs/tags/$RELEASE_REF" ]] || {
-            echo "evidence_ref must be distinct from the published release tag" >&2
-            exit 1
-          }
-          [[ -n "$PAYLOAD_REF" && "$PAYLOAD_REF" == "$EVIDENCE_REF" ]] || {
-            echo "payload_ref must equal evidence_ref exactly" >&2
-            exit 1
-          }
-          [[ "$(git -C evidence-ref rev-parse HEAD)" == "$PAYLOAD_COMMIT" ]] || {
-            echo "evidence_ref checkout does not match payload_commit_sha" >&2
+          [[ "$PAYLOAD_REF" == "$CANDIDATE_REF" ]] || {
+            echo "payload_ref must equal candidate_ref exactly" >&2
             exit 1
           }
           [[ "$PAYLOAD_COMMIT" == "$RELEASE_COMMIT" ]] || {
-            echo "payload evidence must use the release tag commit" >&2
-            exit 1
-          }
-          git fetch --no-tags origin "refs/tags/$RELEASE_REF:refs/tags/$RELEASE_REF"
-          [[ "$(git rev-parse "refs/tags/$RELEASE_REF^{commit}")" == "$RELEASE_COMMIT" ]] || {
-            echo "release tag does not resolve to release_commit_sha" >&2
+            echo "payload evidence must use the candidate commit" >&2
             exit 1
           }
 
@@ -113,7 +101,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
           PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
           PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
@@ -122,7 +110,7 @@ jobs:
           PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
           PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
           PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
-          RELEASE_REF: ${{ inputs.release_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -218,8 +206,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          RELEASE_REF: refs/tags/${{ inputs.release_ref }}
-          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          RELEASE_REF: ${{ inputs.candidate_ref }}
+          EVIDENCE_REF: ${{ inputs.candidate_ref }}
           PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
           PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
           PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
@@ -427,7 +415,7 @@ jobs:
       - name: Bind payload reports without synthesizing evidence
         env:
           REPOSITORY: ${{ github.repository }}
-          RELEASE_REF: refs/tags/${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.candidate_ref }}
           PRODUCER_RUN_ID: ${{ github.run_id }}
           PRODUCER_ATTEMPT: ${{ github.run_attempt }}
           PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
@@ -455,5 +443,79 @@ jobs:
         with:
           name: desktop-release-evidence-bound
           path: bound-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  rehearsal-produce:
+    name: Bind byte-identical unsigned rehearsal payload
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.payload_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify rehearsal payload run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal planned_release_tag must be v0.29.0" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal must run from the fixed candidate branch" >&2; exit 1; }
+          [[ "$PAYLOAD_REF" == "$CANDIDATE_REF" && "$PAYLOAD_COMMIT" == "$(git rev-parse HEAD)" ]] || { echo "rehearsal payload ref/commit mismatch" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT" == "desktop-release-rehearsal-payload" ]] || { echo "rehearsal producer only trusts the rehearsal payload artifact" >&2; exit 1; }
+          [[ "$PAYLOAD_RUN_ID" =~ ^[1-9][0-9]*$ && "$PAYLOAD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$PAYLOAD_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PAYLOAD_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "rehearsal payload identity is invalid" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID")"
+          jq -e --arg sha "$PAYLOAD_COMMIT" --arg branch "release/0.29.0-candidate" --arg attempt "$PAYLOAD_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence-payload.yml" or .path == "desktop-release-evidence-payload.yml")' \
+            <<<"$run_json" >/dev/null || { echo "rehearsal payload run provenance mismatch" >&2; exit 1; }
+          artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID")"
+          jq -e --arg name "$PAYLOAD_ARTIFACT" --arg digest "$PAYLOAD_ARTIFACT_DIGEST" --argjson id "$PAYLOAD_ARTIFACT_ID" --argjson run_id "$PAYLOAD_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$artifact_json" >/dev/null || { echo "rehearsal payload artifact provenance mismatch" >&2; exit 1; }
+
+      - name: Download and validate byte-identical rehearsal payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        run: |
+          set -euo pipefail
+          rm -rf payload
+          mkdir payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$PAYLOAD_ARTIFACT_DIGEST" ]] || { echo "rehearsal payload artifact digest drift" >&2; exit 1; }
+          unzip -q "$archive" -d payload
+          [[ -f payload/release-candidate-rehearsal.json && -z "$(find payload -type l -print -quit)" ]] || { echo "rehearsal payload is invalid" >&2; exit 1; }
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input payload/release-candidate-rehearsal.json \
+            --expected-ref refs/heads/release/0.29.0-candidate \
+            --expected-tag v0.29.0 \
+            --expected-commit "$(git rev-parse HEAD)"
+
+      - name: Upload bound rehearsal evidence without rewriting receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-evidence
+          path: payload
           if-no-files-found: error
           retention-days: 90

@@ -11,6 +11,10 @@ const qualificationWorkflow = fs.readFileSync(
   ".github/workflows/desktop-release-qualification.yml",
   "utf8",
 );
+const evidenceSourceWorkflow = fs.readFileSync(
+  ".github/workflows/desktop-release-evidence-source.yml",
+  "utf8",
+);
 
 test("desktop workflow separates rehearsal, candidate, and manual publish operations", () => {
   assert.match(workflow, /source_ref:/);
@@ -95,7 +99,10 @@ test("post-release closeout is an independent evidence-ref workflow", () => {
 
 test("qualification workflow produces an artifact-bound candidate config from one verified run", () => {
   assert.match(qualificationWorkflow, /workflow_dispatch:/);
-  assert.match(qualificationWorkflow, /release_ref:/);
+  assert.match(qualificationWorkflow, /qualification_mode:/);
+  assert.match(qualificationWorkflow, /candidate_ref:/);
+  assert.match(qualificationWorkflow, /planned_release_tag:/);
+  assert.doesNotMatch(qualificationWorkflow, /git fetch[^\n]*refs\/tags|ref:\s*refs\/tags/);
   assert.match(qualificationWorkflow, /source_run_id:/);
   assert.match(qualificationWorkflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(qualificationWorkflow, /Download producer binding artifact by immutable id/);
@@ -124,7 +131,7 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /evidence_manifest:/);
   assert.match(qualificationWorkflow, /evidence_workflow is not a trusted producer workflow/);
   assert.match(qualificationWorkflow, /EVIDENCE_WORKFLOW.*desktop-release-evidence.yml/);
-  assert.match(qualificationWorkflow, /EVIDENCE_ARTIFACT.*simple artifact name/);
+  assert.match(qualificationWorkflow, /EVIDENCE_ARTIFACT" == "desktop-release-evidence-bound"/);
   assert.match(qualificationWorkflow, /artifact_matches/);
   assert.match(qualificationWorkflow, /EVIDENCE_RUN_ATTEMPT/);
   assert.match(qualificationWorkflow, /workflow_run.id/);
@@ -143,6 +150,24 @@ test("qualification workflow produces an artifact-bound candidate config from on
   assert.match(qualificationWorkflow, /Seal immutable release candidate bundle/);
   assert.match(qualificationWorkflow, /sealed-release-bundle\.json/);
   assert.match(qualificationWorkflow, /sourceUpdaterArtifacts/);
+});
+
+test("controlled evidence source performs a four-platform unsigned rehearsal", () => {
+  assert.match(evidenceSourceWorkflow, /environment: release-evidence/);
+  for (const runner of ["macos-15", "ubuntu-24.04", "windows-2025", "windows-11-arm"]) {
+    assert.match(evidenceSourceWorkflow, new RegExp(`runner: ${runner}`));
+  }
+  assert.match(evidenceSourceWorkflow, /last-go-release-baseline\.json/);
+  assert.match(evidenceSourceWorkflow, /candidate_artifacts_json/);
+  assert.match(evidenceSourceWorkflow, /actions\/artifacts\/\$REHEARSAL_ARTIFACT_ID\/zip/);
+  assert.match(evidenceSourceWorkflow, /candidate artifact digest drift/);
+  assert.match(evidenceSourceWorkflow, /run-desktop-release-rehearsal-unix\.sh/);
+  assert.match(evidenceSourceWorkflow, /run-desktop-release-rehearsal-windows\.ps1/);
+  assert.match(evidenceSourceWorkflow, /desktop-release-rehearsal-source/);
+  assert.match(evidenceSourceWorkflow, /packageSigning: "not_run"/);
+  assert.match(evidenceSourceWorkflow, /independentSecuritySignOff: "open"/);
+  assert.match(evidenceSourceWorkflow, /this workflow only performs unsigned rehearsal/);
+  assert.doesNotMatch(evidenceSourceWorkflow, /status:\s*candidate_ready/);
 });
 
 test("publish verifies the downloaded canonical candidate bundle without rebuilding it", () => {

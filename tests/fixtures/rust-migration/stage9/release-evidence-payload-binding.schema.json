@@ -11,7 +11,7 @@
     "schemaVersion": { "const": "jftrade.release-evidence-payload-binding.v1" },
     "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
     "sourceRepository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
-    "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+    "releaseRef": { "type": "string", "pattern": "^refs/(?:heads|tags)/(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
     "evidenceRef": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
     "payloadRun": {
       "type": "object",
@@ -41,7 +41,7 @@
       "required": ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"],
       "properties": {
         "repository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
-        "releaseRef": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+        "releaseRef": { "type": "string", "pattern": "^refs/(?:heads|tags)/(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
         "ref": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$" },
         "commitSha": { "type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$" },
         "workflow": { "enum": ["desktop-release-evidence-intake.yml", "desktop-release-evidence-source.yml"] },

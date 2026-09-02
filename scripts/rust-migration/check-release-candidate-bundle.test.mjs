@@ -140,7 +140,7 @@ function sealedFixture() {
     id: 100,
     attempt: 2,
     workflow: "desktop-release.yml",
-    ref: "refs/tags/v1.2.3",
+    ref: "refs/heads/release/1.2.3-candidate",
     commitSha: "a".repeat(40),
   };
   const qualificationRun = {

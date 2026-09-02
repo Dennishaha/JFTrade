@@ -9,7 +9,7 @@
 - Go/Wails 源码、模块文件、生成器、CI/构建入口、桌面入口和运行产物已从产品树删除。
 - `ownerDeletion.go` 与 `ownerDeletion.wails` 已关闭；它们证明的是仓库/入口状态，不代替发布资格。
 - `0.29.0` 直接作为首个零 Go 版本，不额外制作、重建或发布“最后一份 Go 兼容基线”。
-- Stage 9 closeout 仍为 `in_progress`。平台安装、签名 updater、安全审查、SBOM、升级/回滚、备份恢复和 post-release smoke 没有全部通过前，不允许创建 `0.29.0` tag，也不得声称正式迁移发布已经完成。
+- Stage 9 closeout 仍为 `in_progress`。unsigned rehearsal 不授权 tag 或 publish，也不关闭正式 gate；只有绑定候选分支同一 commit 的 formal `candidate_ready` 才允许创建 `0.29.0` tag。发布后的 post-release smoke 与 `hardCutReadiness` 继续决定最终 closeout，未通过前不得声称正式迁移发布已经完成。
 
 当前状态只由以下机器可读事实派生：
 
@@ -91,14 +91,17 @@ Stage 2–9 的历史 fixtures/corpus 保持原始字节和来源描述，requir
 
 ## `0.29.0` 发布资格
 
-以下均须绑定同一 release ref、commit、workflow run 和实际产物：
+候选资格必须绑定同一 candidate ref、planned tag、commit、workflow run 和实际产物；正式 tag 创建后还必须证明它指向该同一 commit：
 
 - 278 路由覆盖、认证矩阵、Rust production policy、生成契约和完整 Rust workspace 门禁通过。
 - 所有历史兼容 fixture 由 Rust replay 通过，覆盖成功、拒绝、空值、超时、恢复、流中断和 SQLite 升级。
 - 从已发布 `v0.27.0` 安装包到 `0.29.0` 的真实安装升级、数据迁移、备份恢复和核心功能 smoke 通过。
 - macOS ARM64、Linux x64、Windows x64/ARM64 完成 package/sign/install/upgrade/uninstall/rollback/runtime smoke；release matrix 若增加 Linux ARM64，必须以同样证据纳入 manifest 后再宣称支持。
 - 签名 updater、SBOM/provenance、独立安全审查、Pine/Python runtime 资产和最终安装包零 Go 检查通过。
+- formal `candidate_ready` 后才创建同 commit tag；publish 只消费 qualification sealed artifact，不重新构建。
 - 正式发布后完成固定 post-release smoke，并关闭 `hardCutReadiness` 和 closeout manifest。
+
+本轮允许独立的四平台 unsigned rehearsal：其 receipt 固定为 `rehearsal_passed` 且 `releaseQualified=false`，签名、notarization、updater signature 与独立 security sign-off 固定为 `not_run/open`。rehearsal 的 schema、checker 和 artifact 名称与 formal candidate 完全分离，不能被用于 tag、publish 或关闭下列八个 gate。
 
 `check-stage9-closeout.mjs --candidate-static` 只证明本地路由和唯一 owner；artifact-bound candidate checker 证明候选产物；默认 `--check` 只在发布后证据完整时允许 formal close。三者不可互相替代。
 
@@ -115,4 +118,4 @@ Stage 2–9 的历史 fixtures/corpus 保持原始字节和来源描述，requir
 - `postReleaseSmoke`
 - `hardCutReadiness`
 
-关闭这些 gate 前不新增 Go 补丁版、不重建基线、不重新打兼容 tag、不 push `0.29.0` tag。
+正式 `candidate_ready` 前不新增 Go 补丁版、不重建基线、不重新打兼容 tag、不 push `0.29.0` tag；rehearsal 通过不改变这一边界。

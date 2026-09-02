@@ -3,9 +3,23 @@ name: Desktop Release Qualification
 on:
   workflow_dispatch:
     inputs:
-      release_ref:
-        description: Exact vX.Y.Z tag checked out by the release candidate
+      qualification_mode:
+        description: Produce an unsigned rehearsal receipt or a formal signed candidate
         required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by all source and evidence runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
+        type: string
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; qualification does not require it to exist
+        required: true
+        default: v0.29.0
         type: string
       source_run_id:
         description: Successful Desktop Release run containing the four platform package artifacts
@@ -43,16 +57,17 @@ permissions: {}
 jobs:
   qualify:
     name: Build artifact-bound candidate evidence
+    if: inputs.qualification_mode == 'candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       actions: read
       contents: read
     steps:
-      - name: Checkout release tag
+      - name: Checkout exact candidate branch
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_ref }}
+          ref: ${{ inputs.candidate_ref }}
           fetch-depth: 0
 
       - name: Verify source release run provenance
@@ -60,7 +75,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
@@ -78,20 +94,22 @@ jobs:
           SOURCE_RUN_ID="$(safe_positive_integer "$SOURCE_RUN_ID" source_run_id)"
           SOURCE_RUN_ATTEMPT="$(safe_positive_integer "$SOURCE_RUN_ATTEMPT" source_run_attempt)"
           [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
-          [[ "$GITHUB_REF" == "refs/tags/$RELEASE_REF" ]] || {
-            echo "Qualification must be dispatched from the published tag ref; selected ref is $GITHUB_REF" >&2
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || {
+            echo "Qualification must be dispatched from candidate_ref; selected ref is $GITHUB_REF" >&2
             exit 1
           }
           commit_sha="$(git rev-parse HEAD)"
-          [[ "$GITHUB_SHA" == "$commit_sha" ]] || { echo "qualification GITHUB_SHA does not match the release tag commit" >&2; exit 1; }
+          [[ "$GITHUB_SHA" == "$commit_sha" ]] || { echo "qualification GITHUB_SHA does not match the candidate commit" >&2; exit 1; }
           run_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          candidate_branch="${CANDIDATE_REF#refs/heads/}"
           jq -e \
             --arg sha "$commit_sha" \
-            --arg tag "$RELEASE_REF" \
+            --arg branch "$candidate_branch" \
             --arg attempt "$SOURCE_RUN_ATTEMPT" \
-            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt | safe_integer_equals($attempt)) and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt | safe_integer_equals($attempt)) and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
             <<<"$run_json" >/dev/null || {
-            echo "source run is not a successful Desktop Release run bound to $RELEASE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
+            echo "source run is not a successful Desktop Release run bound to $CANDIDATE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
             exit 1
           }
           source_artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
@@ -108,7 +126,7 @@ jobs:
             exit 1
           }
           jq -c --arg run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
-            --arg ref "refs/tags/$RELEASE_REF" --arg commit_sha "$commit_sha" \
+            --arg ref "$CANDIDATE_REF" --arg commit_sha "$commit_sha" \
             'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; {releaseArtifacts: [.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name), updaterArtifacts: [.artifacts[] | select(.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name)}' \
             <<<"$source_artifacts_json" > source-artifact-metadata.json
 
@@ -119,7 +137,8 @@ jobs:
           EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
           EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
           EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
@@ -139,17 +158,18 @@ jobs:
           EVIDENCE_RUN_ID="$(safe_positive_integer "$EVIDENCE_RUN_ID" evidence_run_id)"
           EVIDENCE_RUN_ATTEMPT="$(safe_positive_integer "$EVIDENCE_RUN_ATTEMPT" evidence_run_attempt)"
           [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" ]] || { echo "evidence_workflow is not a trusted producer workflow" >&2; exit 1; }
-          [[ "$EVIDENCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "evidence_artifact must be a simple artifact name" >&2; exit 1; }
+          [[ "$EVIDENCE_ARTIFACT" == "desktop-release-evidence-bound" ]] || { echo "candidate qualification only trusts desktop-release-evidence-bound" >&2; exit 1; }
           run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
           commit_sha="$(git rev-parse HEAD)"
+          candidate_branch="${CANDIDATE_REF#refs/heads/}"
           jq -e \
             --arg sha "$commit_sha" \
-            --arg tag "$RELEASE_REF" \
+            --arg branch "$candidate_branch" \
             --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
             --arg workflow ".github/workflows/$EVIDENCE_WORKFLOW" \
-            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.head_branch == $tag or .head_branch == ("refs/tags/" + $tag)) and (.run_attempt | safe_integer_equals($attempt)) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt | safe_integer_equals($attempt)) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
             <<<"$run_json" >/dev/null || {
-            echo "external evidence run is not a successful workflow bound to $RELEASE_REF@$commit_sha attempt $EVIDENCE_RUN_ATTEMPT" >&2
+            echo "external evidence run is not a successful workflow bound to $CANDIDATE_REF@$commit_sha attempt $EVIDENCE_RUN_ATTEMPT" >&2
             exit 1
           }
           artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
@@ -267,7 +287,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
           EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
           EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
@@ -298,7 +319,7 @@ jobs:
           release_commit="$(git rev-parse HEAD)"
           jq -e \
             --arg repository "$REPOSITORY" \
-            --arg release_ref "refs/tags/$RELEASE_REF" \
+            --arg release_ref "$CANDIDATE_REF" \
             --arg commit "$release_commit" \
             --arg workflow "$EVIDENCE_WORKFLOW" \
             --arg run_id "$EVIDENCE_RUN_ID" \
@@ -320,9 +341,9 @@ jobs:
           payload_release_ref="$(jq -r '.releaseRef // empty' "$payload_metadata")"
           [[ "$payload_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$payload_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload binding metadata has invalid artifact fields" >&2; exit 1; }
           [[ "$payload_workflow" == "desktop-release-evidence-payload.yml" ]] || { echo "payload binding metadata uses an untrusted workflow" >&2; exit 1; }
-          [[ "$payload_release_ref" == "refs/tags/$RELEASE_REF" ]] || { echo "payload binding metadata releaseRef does not match release tag" >&2; exit 1; }
+          [[ "$payload_release_ref" == "$CANDIDATE_REF" ]] || { echo "payload binding metadata releaseRef does not match candidate ref" >&2; exit 1; }
           [[ "$evidence_ref" =~ ^[A-Za-z0-9._/-]+$ && "$evidence_ref" != /* && "$evidence_ref" != *".."* ]] || { echo "payload evidence ref is unsafe" >&2; exit 1; }
-          [[ "$payload_commit" == "$release_commit" && "$payload_ref" == "$evidence_ref" && "$evidence_ref" != "$RELEASE_REF" && "$evidence_ref" != "refs/tags/$RELEASE_REF" ]] || { echo "payload evidence ref/commit is not independently bound" >&2; exit 1; }
+          [[ "$payload_commit" == "$release_commit" && "$payload_ref" == "$CANDIDATE_REF" && "$evidence_ref" == "$CANDIDATE_REF" ]] || { echo "payload evidence ref/commit is not bound to candidate_ref" >&2; exit 1; }
           payload_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$payload_id")"
           jq -e \
             --arg name "$payload_name" \
@@ -453,7 +474,8 @@ jobs:
 
       - name: Assemble candidate inputs and prerequisite evidence
         env:
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
           EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
@@ -542,6 +564,7 @@ jobs:
           import { validateExternalEvidenceManifest } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
           const root = "candidate-inputs";
           const tag = process.env.RELEASE_REF;
+          const candidateRef = process.env.CANDIDATE_REF;
           const commitSha = process.env.COMMIT_SHA;
           const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
           const parseSafePositiveInteger = (value) => {
@@ -580,14 +603,14 @@ jobs:
             id: sourceRunId,
             attempt: Number(sourceRunAttempt),
             workflow: "desktop-release.yml",
-            ref: `refs/tags/${tag}`,
+            ref: candidateRef,
             commitSha,
           };
           const qualificationRun = {
             id: qualificationRunId,
             attempt: Number(qualificationRunAttempt),
             workflow: "desktop-release-qualification.yml",
-            ref: `refs/tags/${tag}`,
+            ref: candidateRef,
             commitSha,
           };
           const evidenceRoot = path.resolve("incoming/release-evidence");
@@ -825,8 +848,8 @@ jobs:
             --config candidate-evidence-config.json \
             --base-dir candidate-inputs \
             --output candidate-output/release-candidate-evidence.json \
-            --expected-ref "refs/tags/${{ inputs.release_ref }}" \
-            --expected-tag "${{ inputs.release_ref }}" \
+            --expected-ref "${{ inputs.candidate_ref }}" \
+            --expected-tag "${{ inputs.planned_release_tag }}" \
             --expected-commit "$(git rev-parse HEAD)" \
             --expected-run-id "${{ github.run_id }}" \
             --expected-attempt "${{ github.run_attempt }}" \
@@ -834,7 +857,8 @@ jobs:
 
       - name: Seal immutable release candidate bundle
         env:
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
           COMMIT_SHA: ${{ github.sha }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
@@ -902,14 +926,14 @@ jobs:
             id: qualificationRunId,
             attempt: Number(qualificationRunAttempt),
             workflow: "desktop-release-qualification.yml",
-            ref: `refs/tags/${process.env.RELEASE_REF}`,
+            ref: process.env.CANDIDATE_REF,
             commitSha: process.env.COMMIT_SHA,
           };
           const sourceWorkflowRun = {
             id: sourceRunId,
             attempt: Number(sourceRunAttempt),
             workflow: "desktop-release.yml",
-            ref: `refs/tags/${process.env.RELEASE_REF}`,
+            ref: process.env.CANDIDATE_REF,
             commitSha: process.env.COMMIT_SHA,
           };
           const manifest = {
@@ -951,8 +975,8 @@ jobs:
             --check \
             --input candidate-output/release-candidate-evidence.json \
             --base-dir candidate-inputs \
-            --expected-ref "refs/tags/${{ inputs.release_ref }}" \
-            --expected-tag "${{ inputs.release_ref }}" \
+            --expected-ref "${{ inputs.candidate_ref }}" \
+            --expected-tag "${{ inputs.planned_release_tag }}" \
             --expected-commit "$(git rev-parse HEAD)" \
             --expected-run-id "${{ github.run_id }}" \
             --expected-attempt "${{ github.run_attempt }}" \
@@ -968,3 +992,79 @@ jobs:
             candidate-inputs/**
             source-artifact-metadata.json
           if-no-files-found: error
+
+  qualify-rehearsal:
+    name: Qualify unsigned rehearsal receipt
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Verify rehearsal producer run and immutable artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal candidate ref or planned tag mismatch" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal qualification must run from candidate_ref" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$EVIDENCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "rehearsal run identity is invalid" >&2; exit 1; }
+          [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" && "$EVIDENCE_ARTIFACT" == "desktop-release-rehearsal-evidence" ]] || { echo "rehearsal qualification rejects formal candidate or unknown evidence artifacts" >&2; exit 1; }
+          commit_sha="$(git rev-parse HEAD)"
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
+          jq -e --arg sha "$commit_sha" --arg branch "release/0.29.0-candidate" --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence.yml" or .path == "desktop-release-evidence.yml")' \
+            <<<"$run_json" >/dev/null || { echo "rehearsal producer run provenance mismatch" >&2; exit 1; }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
+          match="$(jq -c --arg name "$EVIDENCE_ARTIFACT" --argjson run_id "$EVIDENCE_RUN_ID" '[.artifacts[] | select(.name == $name and .expired == false and .workflow_run.id == $run_id and (.digest|test("^sha256:[a-f0-9]{64}$")))]' <<<"$artifacts_json")"
+          [[ "$(jq length <<<"$match")" == 1 ]] || { echo "rehearsal evidence artifact is missing, ambiguous, expired, or undigested" >&2; exit 1; }
+          echo "EVIDENCE_ARTIFACT_ID=$(jq -r '.[0].id' <<<"$match")" >> "$GITHUB_ENV"
+          echo "EVIDENCE_ARTIFACT_DIGEST=$(jq -r '.[0].digest' <<<"$match")" >> "$GITHUB_ENV"
+
+      - name: Download, verify and archive rehearsal receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+        run: |
+          set -euo pipefail
+          rm -rf rehearsal-input rehearsal-output
+          mkdir rehearsal-input rehearsal-output
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$EVIDENCE_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$EVIDENCE_ARTIFACT_DIGEST" ]] || { echo "rehearsal evidence artifact digest drift" >&2; exit 1; }
+          unzip -q "$archive" -d rehearsal-input
+          mapfile -t receipts < <(find rehearsal-input -type f -name release-candidate-rehearsal.json -print)
+          [[ "${#receipts[@]}" == 1 && -z "$(find rehearsal-input -type l -print -quit)" ]] || { echo "rehearsal evidence must contain exactly one regular receipt" >&2; exit 1; }
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input "${receipts[0]}" \
+            --expected-ref "$CANDIDATE_REF" \
+            --expected-tag "$PLANNED_TAG" \
+            --expected-commit "$(git rev-parse HEAD)"
+          cp "${receipts[0]}" rehearsal-output/release-candidate-rehearsal.json
+
+      - name: Upload rehearsal-passed receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-receipt
+          path: rehearsal-output/release-candidate-rehearsal.json
+          if-no-files-found: error
+          retention-days: 90

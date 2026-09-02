@@ -18,8 +18,8 @@ const signature = "untrusted comment: external fixture\nRURqRkFLRV9TSUdOQVRVUkU=
 
 const binding = {
   repository: "example/jftrade",
-  releaseRef: "refs/tags/v1.2.3",
-  ref: "refs/tags/v1.2.3",
+  releaseRef: "refs/heads/release/1.2.3-candidate",
+  ref: "refs/heads/release/1.2.3-candidate",
   commitSha: "a".repeat(40),
   workflow: "desktop-release-evidence-source.yml",
   runId: 7001,

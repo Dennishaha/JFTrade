@@ -92,7 +92,9 @@ function expectedBinding(args) {
     throw new Error(`source_workflow is not the fixed external producer: ${workflow}`);
   }
   const releaseRef = required(args.release_ref, "release_ref");
-  if (!/^refs\/tags\/v\d+\.\d+\.\d+$/.test(releaseRef)) throw new Error("release_ref must be refs/tags/vX.Y.Z");
+  if (!/^refs\/(?:heads|tags)\/(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(releaseRef)) {
+    throw new Error("release_ref must be a fully qualified safe branch or tag ref");
+  }
   const sourceRef = required(args.source_ref, "source_ref");
   if (!/^(?!\/)(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(sourceRef)) throw new Error("source_ref is not a safe Git ref");
   const commitSha = required(args.source_commit_sha, "source_commit_sha");

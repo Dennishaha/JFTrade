@@ -38,6 +38,7 @@ export const scriptTestSuites = Object.freeze({
     "scripts/rust-migration/check-stage9-mcp-schemas.test.mjs",
     "scripts/rust-migration/check-release-candidate.test.mjs",
     "scripts/rust-migration/check-release-candidate-rehearsal.test.mjs",
+    "scripts/rust-migration/bind-release-candidate-rehearsal.test.mjs",
     "scripts/rust-migration/check-release-evidence-inputs.test.mjs",
     "scripts/rust-migration/check-release-candidate-bundle.test.mjs",
     "scripts/rust-migration/check-release-evidence-producer.test.mjs",

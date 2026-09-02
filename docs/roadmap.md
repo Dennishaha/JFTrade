@@ -8,7 +8,7 @@
 
 Stage 9 closeout manifest 仍为 `in_progress`。后续放行只处理 manifest 中状态为 `open` 或 `blocked` 的 gate；状态为 `passed` 的 gate 不再派工，也不得用历史本地检查结果替代发布证据。
 
-发布治理分为两个明确阶段：构建前由 `node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static` 只校验动态路由账本与唯一 owner；四平台产物汇总后再由独立 `check-release-candidate.mjs` 将真实 manifest、artifact、SHA256SUMS 与同一 workflow run/ref 的前置证据绑定。发布完成后，独立 post-release workflow 从更新后的 evidence ref 运行默认 `--check` 完整 closeout。任一 candidate 通过都不代表 release/closeout 已完成，也不证明 post-release smoke、hard-cut 或独立安全签字。
+发布治理分为两个明确阶段：构建前由 `node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static` 只校验动态路由账本与唯一 owner；四平台签名候选产物汇总后再由独立 `check-release-candidate.mjs` 将真实 manifest、artifact、SHA256SUMS 与同一候选分支 commit 的前置证据绑定。只有 `candidate_ready` 才允许让计划 tag 指向该同一 commit；publish 只消费该 qualification run 的 sealed artifact，不重新构建。发布完成后，独立 post-release workflow 从更新后的 evidence ref 运行默认 `--check` 完整 closeout。unsigned `rehearsal_passed` 永远不授权 tag 或 publish，也不关闭任何正式 gate。
 
 ## 运行时未闭合项
 
@@ -27,13 +27,13 @@ HTTP production route、唯一写 owner、execution reconciliation、storage lea
 - [ ] **sbom**：为实际发布产物生成 SBOM 与 provenance，并完成依赖/许可证/来源审计归档。
 - [ ] **backupRestoreDrill**：用上一版本真实数据副本完成 backup/restore、schema upgrade、损坏恢复、回滚和 retained worker crash recovery 演练。
 - [ ] **postReleaseSmoke**：发布后在四个平台执行固定 post-release smoke，并将结果写入 closeout manifest；所有高风险 quirk 必须先有处置结论。
-- [ ] **hardCutReadiness**：上述开放证据全部可复现、回退有效且无双写后，才允许创建 `0.29.0` tag、关闭 closeout，并同步最终发布证据、迁移文档和 module map。
+- [ ] **hardCutReadiness**：正式发布后的 smoke、回退和全部开放证据可复现且无双写后关闭 closeout，并同步最终发布证据、迁移文档和 module map；它不再作为创建 tag 的前置条件，tag 的唯一前置资格是绑定同一 commit 的正式 `candidate_ready`。
 
 ## 后续交接顺序
 
-1. 先运行静态 admission，再按 `platformRelease` 补齐四平台 Tauri release 矩阵，记录每个平台 package/sign/install/upgrade/uninstall/rollback/runtime smoke 证据。
-2. 在四平台 artifact 汇总后生成并校验独立 candidate evidence；并行准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom` 和 `securityReview` 的同 ref/commit 外部输入材料。固定的 `desktop-release-evidence-intake.yml` 先接收唯一 allowlist（`desktop-release-evidence-source.yml`）外部 runner 的 immutable artifact，逐项校验 GitHub run/ref/commit、artifact id/digest 和真实 prior-version/four-platform backup 与 independent security review 报告，然后只逐字节复制原始报告并写入 detached provenance sidecar；它不生成或重写任何 passed 报告。`desktop-release-evidence-payload.yml` 只能消费该 intake artifact，`desktop-release-evidence.yml` 再将其绑定到 producer staging artifact 和最终 binding artifact；manifest 的 `sourceBinding` 保留原始外部 run，避免 payload 自引用。qualification workflow 必须分别校验 producer 输出、payload 文件字节和所有 GitHub API 元数据。绝不把本地 checker 输出、命令文本或 external-required 占位值当作通过；真实签名环境或原生平台缺失时必须 fail-closed。
-3. release candidate evidence 与 updater/rollback 证据齐全后，再执行 `backupRestoreDrill` 并保留其外部证据引用。
+1. 可先在固定 `release/0.29.0-candidate` commit 上运行 unsigned rehearsal。`desktop-release-evidence-source.yml` 使用受保护的 `release-evidence` environment，在四个原生 runner 下载 immutable candidate artifact 与线上 `v0.27.0` 原始安装包，执行 install/first-start/upgrade/9-DB/runtime/uninstall/backup-restore/rollback/zero-Go；intake → payload → evidence → qualification 只归档 `rehearsal_passed`，签名、notarization、updater signature 与独立 security sign-off 固定为 `not_run/open`。
+2. 正式候选运行静态 admission 和完整签名四平台矩阵，并准备 `signedUpdaterArtifact`、`rollbackArtifact`、`sbom`、`backupRestoreDrill` 与独立 `securityReview` 的同 ref/commit 输入。四条 evidence workflow 统一使用 `qualification_mode`、`candidate_ref`、`planned_release_tag`，逐层校验 run/ref/SHA、immutable artifact ID/digest 与报告字节；formal 与 rehearsal artifact 名称和 checker 互不兼容。
+3. 只有 formal qualification 产生 `candidate_ready` 后，才创建指向同一 commit 的计划 tag；publish 必须显式消费该 qualification run 的 `desktop-release-candidate-evidence` sealed artifact，不接受 rehearsal receipt，也不重新构建。
 4. 正式发布后由独立 workflow 从 post-release evidence ref 执行 `postReleaseSmoke` 和默认 `--check`，最后复核 `hardCutReadiness` 并关闭 closeout。
 
 ## 约束

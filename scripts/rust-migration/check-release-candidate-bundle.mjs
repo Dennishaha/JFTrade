@@ -245,7 +245,12 @@ export function verifySealedReleaseBundle({ manifestPath, evidencePath, candidat
   if (!isRecord(manifest) || manifest.$schema !== "./sealed-release-bundle.schema.json" || manifest.schemaVersion !== SEALED_BUNDLE_SCHEMA) throw new Error(`sealed release bundle must use ${SEALED_BUNDLE_SCHEMA}`);
   if (typeof manifest.repository !== "string" || !/^[^/\s]+\/[^/\s]+$/.test(manifest.repository)) throw new Error("sealed bundle repository is invalid");
   if (typeof manifest.releaseTag !== "string" || !/^v\d+\.\d+\.\d+$/.test(manifest.releaseTag)
-    || manifest.releaseRef !== `refs/tags/${manifest.releaseTag}`) throw new Error("sealed bundle release tag/ref binding is invalid");
+    || typeof manifest.releaseRef !== "string"
+    || !/^refs\/(?:heads|tags)\/(?!.*\.\.)[A-Za-z0-9._/-]+$/.test(manifest.releaseRef)
+    || (manifest.releaseRef.startsWith("refs/tags/")
+      && manifest.releaseRef !== `refs/tags/${manifest.releaseTag}`)) {
+    throw new Error("sealed bundle candidate ref or planned tag binding is invalid");
+  }
   const sourceRun = assertWorkflowBinding(manifest.sourceWorkflowRun, "sealed bundle sourceWorkflowRun", expectedSourceWorkflowRun);
   const qualificationRun = assertWorkflowBinding(manifest.qualificationRun, "sealed bundle qualificationRun", expectedQualificationRun);
   const expectedSource = {

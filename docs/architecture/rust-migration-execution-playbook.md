@@ -87,10 +87,12 @@ owner deletion 不依赖尚未发布的安装包或 post-release smoke。它也�
 2. 四平台构建、签名、安装/升级/卸载/回滚/runtime smoke。
 3. artifact-bound candidate checker：绑定安装包、SHA256SUMS、签名 updater、SBOM/provenance、rollback、backup/restore 和 security evidence。
 4. 从线上 `v0.27.0` 原始安装包升级到 `0.29.0`，验证 9 个数据库、设置、备份恢复和核心功能。
-5. 正式发布后，从不同 evidence ref 运行四平台 post-release smoke 和完整 `--check`。
-6. 只有全部 gate 通过后关闭 `hardCutReadiness` 和 manifest。
+5. formal qualification 输出 `candidate_ready` 后，计划 tag 才可指向同一 commit；publish 只消费该 qualification run 的 sealed artifact，不重新构建。
+6. 正式发布后，从不同 evidence ref 运行四平台 post-release smoke 和完整 `--check`，再关闭 `hardCutReadiness` 和 manifest。
 
-`0.29.0` tag 必须在 Stage 9 closeout 允许后创建；不得为了触发证据流程预先创建一个被解释为正式放行的 tag。qualification workflow 的受控 tag/ref 规则以当前 release 文档和 workflow 为准。
+Unsigned rehearsal 使用独立的 `jftrade.release-candidate-rehearsal.v1`：`status=rehearsal_passed`、`qualificationLevel=unsigned-rehearsal`、`releaseQualified=false`。它必须在四平台执行真实 install/upgrade/rollback/runtime 与零 Go 检查，但 signing、notarization、updater signature 和独立 security sign-off 只能记录为 `not_run/open`；其 checker、artifact 和 receipt 均不得进入 formal candidate 或 publish 路径。
+
+`0.29.0` tag 必须在正式 `candidate_ready` 后创建，并且只能指向 qualification 绑定的同一 commit；不得为了触发 rehearsal 或收集证据预先创建 tag。`postReleaseSmoke` 与 `hardCutReadiness` 在 publish 后完成，因此不再反向阻塞 formal candidate qualification。
 
 ## 门禁分层
 

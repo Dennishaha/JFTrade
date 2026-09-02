@@ -27,6 +27,7 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - 零 Go 主线：278 条 `/api/v1/*` production route 均登记为 `cutover-qualified`、`productionOwner=rust`、`goRemovalStatus=removed`；Go/Wails 源码、模块、生成器、CI/构建入口和运行产物已删除，Tauri 是唯一桌面壳。
 - `0.29.0` 是计划中的首个零 Go 版本；线上最后一个正式 Go 基线是原样发布的 `v0.27.0`，其 tag、commit、安装包地址和官方 checksum 记录在 `last-go-release-baseline.json`，不重建、不补发、不生成新的最终 Go corpus。
 - 当前 closeout 尚未关闭：Stage 9 closeout 仍为 `in_progress`；四平台 package/install/upgrade/uninstall/rollback/runtime smoke、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部闭合。请用 `pnpm run report:rust:stage9:closeout` 查看当前证据，不要把 release/closeout 写成已完成。
+- 发布资格采用 candidate-ready → tag/publish → post-release closeout 两段式治理。四平台 unsigned rehearsal 使用独立 `rehearsal_passed` receipt 且始终 `releaseQualified=false`；它不读取签名 secret、不创建 tag/Release/updater feed，也不关闭八个正式 gate。
 - 生产 SQLite 由 Rust engine 统一初始化并以唯一 `WriterLease` 声明写属主；数据库损坏、schema drift 或租约冲突会 fail-closed。data-management cleanup/backup/compact/rebuild 走生产 fencing 流程。
 - Rust calendar manager 在生产 composition 中提供持久化、settings reload、source health/backoff、snapshot/cache、start/close/cancel 与控制操作；外部 calendar source 不可用时按各自契约 fail-closed。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。

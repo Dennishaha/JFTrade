@@ -19,16 +19,28 @@
       "id": "desktop",
       "paths": [
         "apps/desktop/src-tauri",
+        ".github/workflows/desktop-release.yml",
+        ".github/workflows/desktop-release-evidence-source.yml",
+        ".github/workflows/desktop-release-evidence-intake.yml",
+        ".github/workflows/desktop-release-evidence-payload.yml",
+        ".github/workflows/desktop-release-evidence.yml",
+        ".github/workflows/desktop-release-qualification.yml",
         "runtime-assets",
         "scripts/dev-tauri-frontend.mjs",
         "scripts/lib/desktop-release-inputs.mjs",
         "scripts/lib/tauri-runtime.mjs",
         "scripts/prepare-tauri-release-runtime.mjs",
         "scripts/run-tauri.mjs",
+        "scripts/run-desktop-release-rehearsal-unix.sh",
+        "scripts/run-desktop-release-rehearsal-windows.ps1",
         "scripts/smoke-tauri-release.mjs"
       ],
       "entrypoints": ["apps/desktop/src-tauri/src/main.rs"],
-      "affectedTests": ["pnpm run test:tauri-release-runtime"]
+      "affectedTests": [
+        "pnpm run test:tauri-release-runtime",
+        "pnpm run check:actionlint",
+        "node --test scripts/check-desktop-release-workflow.test.mjs scripts/rust-migration/check-release-evidence-producer.test.mjs"
+      ]
     },
     {
       "id": "contracts",

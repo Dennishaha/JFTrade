@@ -7,6 +7,7 @@ const producer = fs.readFileSync(".github/workflows/desktop-release-evidence.yml
 const payloadWorkflow = fs.readFileSync(".github/workflows/desktop-release-evidence-payload.yml", "utf8");
 const intakeWorkflow = fs.readFileSync(".github/workflows/desktop-release-evidence-intake.yml", "utf8");
 const qualification = fs.readFileSync(".github/workflows/desktop-release-qualification.yml", "utf8");
+const sourceWorkflow = fs.readFileSync(".github/workflows/desktop-release-evidence-source.yml", "utf8");
 const binder = fs.readFileSync("scripts/rust-migration/bind-release-evidence.mjs", "utf8");
 const schema = fs.readFileSync(
   "tests/fixtures/rust-migration/stage9/release-evidence-payload-binding.schema.json",
@@ -18,8 +19,9 @@ test("trusted evidence producer binds an external payload artifact", () => {
   assert.match(producer, /workflow_dispatch:/);
   assert.match(producer, /actions: write/);
   for (const input of [
-    "release_ref",
-    "evidence_ref",
+    "qualification_mode",
+    "candidate_ref",
+    "planned_release_tag",
     "payload_run_id",
     "payload_run_attempt",
     "payload_ref",
@@ -33,13 +35,13 @@ test("trusted evidence producer binds an external payload artifact", () => {
   assert.match(producer, /actions\/runs\/\$PAYLOAD_RUN_ID/);
   assert.match(producer, /actions\/runs\/\$PAYLOAD_RUN_ID\/artifacts/);
   assert.match(producer, /actions\/artifacts\/\$PAYLOAD_ARTIFACT_ID/);
-  assert.match(producer, /ref: refs\/tags\/\$\{\{ inputs\.release_ref \}\}/);
-  assert.match(producer, /path: evidence-ref/);
-  assert.match(producer, /git -C evidence-ref rev-parse HEAD/);
+  assert.match(producer, /ref: \$\{\{ inputs\.payload_commit_sha \}\}/);
+  assert.match(producer, /CANDIDATE_REF:\s*\$\{\{ inputs\.candidate_ref \}\}/);
+  assert.doesNotMatch(producer, /path: evidence-ref/);
   assert.match(producer, /GITHUB_SHA.*RELEASE_COMMIT/);
   assert.match(producer, /PAYLOAD_COMMIT.*RELEASE_COMMIT/);
-  assert.match(producer, /payload evidence must use the release tag commit/);
-  assert.match(producer, /payload_ref must equal evidence_ref exactly/);
+  assert.match(producer, /payload evidence must use the candidate commit/);
+  assert.match(producer, /payload_ref must equal candidate_ref exactly/);
   assert.match(producer, /actions\/artifacts\/\$PAYLOAD_ARTIFACT_ID\/zip/);
   assert.match(producer, /bind-release-evidence\.mjs/);
   assert.match(producer, /upload-artifact@v7/);
@@ -52,6 +54,22 @@ test("trusted evidence producer binds an external payload artifact", () => {
   assert.doesNotMatch(producer, /external_release_runner_evidence_required/);
   assert.doesNotMatch(producer, /status:\s*passed/);
   assert.doesNotMatch(producer, /check-signed-updater-lifecycle\.mjs\s*>/);
+});
+
+test("rehearsal and candidate artifacts are mode-separated through the evidence chain", () => {
+  for (const workflow of [intakeWorkflow, payloadWorkflow, producer, qualification]) {
+    assert.match(workflow, /qualification_mode:/);
+    assert.match(workflow, /candidate_ref:/);
+    assert.match(workflow, /planned_release_tag:/);
+  }
+  assert.match(sourceWorkflow, /desktop-release-rehearsal-source/);
+  assert.match(intakeWorkflow, /desktop-release-rehearsal-intake/);
+  assert.match(payloadWorkflow, /desktop-release-rehearsal-payload/);
+  assert.match(producer, /desktop-release-rehearsal-evidence/);
+  assert.match(qualification, /desktop-release-rehearsal-receipt/);
+  assert.match(qualification, /rehearsal qualification rejects formal candidate or unknown evidence artifacts/);
+  assert.match(qualification, /desktop-release-evidence-bound/);
+  assert.doesNotMatch(sourceWorkflow, /status:\s*candidate_ready/);
 });
 
 test("payload workflow is present and only validates then republishes external reports", () => {

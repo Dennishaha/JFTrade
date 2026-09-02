@@ -119,8 +119,8 @@ function createFixture() {
   const artifact = { name: "release-evidence-v2", id: 9001, digest: `sha256:${"1".repeat(64)}` };
   const binding = {
     repository: "example/jftrade",
-    releaseRef: "refs/tags/v1.2.3",
-    ref: "refs/tags/v1.2.3",
+    releaseRef: "refs/heads/release/1.2.3-candidate",
+    ref: "refs/heads/release/1.2.3-candidate",
     commitSha: "a".repeat(40),
     workflow: TRUSTED_EVIDENCE_WORKFLOWS[0],
     runId: 81234,

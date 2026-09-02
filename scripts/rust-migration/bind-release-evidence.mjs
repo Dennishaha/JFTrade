@@ -74,8 +74,10 @@ function commitSha(value, label) {
 }
 
 function releaseRef(value, label) {
-  const result = requiredString(value, label);
-  if (!/^refs\/tags\/v\d+\.\d+\.\d+$/.test(result)) throw new Error(`${label} must be refs/tags/vX.Y.Z`);
+  const result = safeGitRef(value, label);
+  if (!/^refs\/(?:heads|tags)\//.test(result)) {
+    throw new Error(`${label} must be a fully qualified branch or tag ref`);
+  }
   return result;
 }
 
