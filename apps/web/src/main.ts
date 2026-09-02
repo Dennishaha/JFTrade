@@ -14,6 +14,7 @@ import "vuetify/styles";
 import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
 import { queryClient } from "@/composables/settings/serverState";
+import { initializeTauriRuntimeConfig } from "./runtimeConfig";
 import { createConsoleRouter } from "./router";
 import { vuetifyTheme } from "./vuetifyTheme";
 import "./styles/tokens.css";
@@ -26,14 +27,26 @@ import "./styles/adk.css";
 import "./style.css";
 import "./styles/workspace.css";
 
-const vuetify = createVuetify({
-  icons: fontAwesomeIcons,
-  theme: vuetifyTheme,
+async function bootstrap(): Promise<void> {
+  await initializeTauriRuntimeConfig();
+  const vuetify = createVuetify({
+    icons: fontAwesomeIcons,
+    theme: vuetifyTheme,
+  });
+
+  const app = createApp(App);
+
+  app.use(VueQueryPlugin, { queryClient });
+  app.use(createConsoleRouter());
+  app.use(vuetify);
+  app.mount("#app");
+}
+
+void bootstrap().catch((error: unknown) => {
+  console.error("JFTrade web bootstrap failed", error);
+  const root = document.querySelector<HTMLElement>("#app");
+  if (root) {
+    root.textContent =
+      "JFTrade 启动失败：桌面运行时配置不可用，请查看桌面日志后退出并重试。";
+  }
 });
-
-const app = createApp(App);
-
-app.use(VueQueryPlugin, { queryClient });
-app.use(createConsoleRouter());
-app.use(vuetify);
-app.mount("#app");

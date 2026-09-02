@@ -2,26 +2,27 @@
 
 JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看、历史数据同步、策略编写、回测、运行时设置和 ADK 助手放在同一个本地工作台里。
 
+当前主线是零 Go 的 Rust/Tauri 产品树：278 条 `/api/v1/*` 路由均由 Rust 持有，Go/Wails 源码、工具链和运行产物已删除。`0.29.0` 将是首个零 Go 版本，但四平台签名、真实升级/回滚、SBOM、安全审查和发布后 smoke 尚未闭合，因此当前工作树不代表已经具备 `0.29.0` 发布资格。
+
 前端与构建工具要求 Node.js `>=22.13` 和仓库固定的 pnpm `11.21.0`；依赖安装统一使用根目录 `pnpm-lock.yaml`。
 
 ## 快速开始
 
-日常使用和桌面联调优先启动 `JFTrade Dev`。它保持桌面免登录，也提供配置可选 Web 访问的可信设置入口：
+日常使用和桌面联调优先启动 Tauri 桌面壳。它保持桌面免登录，也提供配置可选 Web 访问的入口：
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm run prepare:desktop-dev
-go tool wails3 dev -config ./build/config.yml -port 3003
+pnpm run dev:desktop
 ```
 
-`prepare:desktop-dev` 只显式生成 `var/pineworker/worker.mjs`；Wails 开发生命周期会使用这个固定路径，但不会自动构建或发现 Pine worker、Python helper 或 frozen sidecar。
+开发脚本会准备桌面调试所需的 PineTS runtime 资产，随后由 Tauri 管理 Vue dev server、受管 Rust API 和 Node/Python helper。
 
 只有进行纯浏览器前端开发时，才需要另外开两个终端。先在 `JFTrade Dev` 的“设置 → Web 访问”中设置密码并主动开启；独立 API 默认不会开放浏览器控制台。
 
 终端 1：启动后端服务：
 
 ```bash
-go run ./cmd/jftrade-api
+cargo run -p jftrade-engine --bin jftrade-api-rust
 ```
 
 终端 2：启动前端：
@@ -35,10 +36,8 @@ Web 已开启后可打开这些地址：
 
 - 控制台：`http://127.0.0.1:3003/`
 - 文档：`http://127.0.0.1:3003/docs/`
-- Swagger UI：`http://127.0.0.1:3000/swagger/`
-- Swagger JSON：`http://127.0.0.1:3000/swagger/doc.json`
 
-前端开发服务器在 `3003`，会把 `/api` 和 `/swagger` 转发到后端 `3000`。`cmd/jftrade-api` 是独立 API 入口；Wails 产品由 `cmd/jftrade-desktop` 启动同一套应用服务。
+前端开发服务器在 `3003`，会把 `/api` 转发到后端 `3000`。`jftrade-api-rust` 是独立 API 入口；Tauri 产品由 `apps/desktop/src-tauri` 启动受管同款生产运行时。
 
 ## 常用入口
 
@@ -51,7 +50,7 @@ pnpm run dev:docs
 
 VitePress 文档站默认在 `http://127.0.0.1:3001/`。
 
-本地按可选 Web 发布包的方式验收：
+本地按可选 Web 发布包的方式验收（兼容包装器，生产桌面入口仍使用 Tauri）：
 
 ```bash
 ./start.sh
@@ -67,29 +66,12 @@ Web 已在 `JFTrade Dev` 中开启后的入口：
 
 - 前端 + API：`http://127.0.0.1:6688/`
 
-生成发布产物：
-
-```bash
-./build-release.sh
-```
-
-Windows PowerShell:
-
-```powershell
-.\build-release.ps1
-```
-
-发布脚本会构建 `cmd/jftrade-api`，并把前端静态资源和文档站一起放进 `dist/`。
-
-Wails 正式产品使用 `vX.Y.Z` tag 作为唯一版本源。先显式准备发布资产，再由原生 Wails Taskfile 构建：
+生成 Tauri 发布产物：
 
 ```bash
 pnpm run prepare:desktop-release
-JFTRADE_DESKTOP_PREPARED=1 VERSION=1.2.3 COMMIT="$(git rev-parse HEAD)" \
-  go tool wails3 package GOOS=darwin GOARCH=arm64 QUALIFIER=unsigned
+pnpm run build:desktop
 ```
-
-Windows 和 Linux 在各自原生 runner 上使用相同的 `go tool wails3 package` 入口；产物写入 `bin/`。完整发布约束见 [桌面发布与通道隔离](docs/troubleshooting/desktop-release.md)。
 
 推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
 
@@ -101,14 +83,16 @@ git push origin v1.2.3
 ## 常用命令
 
 ```bash
-go test ./...
 pnpm run test:web
 pnpm run typecheck:web
 pnpm run build:web
 pnpm run build:docs
 pnpm run test:affected -- --print
 pnpm run check:quick
+pnpm run check:rust
 pnpm run check:generated
+pnpm run check:go-retirement
+pnpm run check:zero-go
 pnpm run check:all
 ```
 
@@ -123,29 +107,24 @@ pnpm run generate:docs
 
 其中：
 
-- `generate:openapi` 从 `cmd/jftrade-api` 扫描 Swagger 注释，生成 `docs/swagger/*`
-- `generate:contracts` 统一生成 OpenAPI、Web API 类型和契约基线
+- `contracts/openapi/openapi.json` 是语言无关的 OpenAPI 规范源
+- `generate:openapi` 与 `generate:contracts` 从规范源生成 Web API 类型和参考文档
 - `generate:reference` 生成 `docs/reference/generated/*`
 - `generate:docs` 在契约生成后刷新参考文档
 - `check:generated` 在临时目录生成全部契约，并逐字节比较需要提交的契约产物，不修改工作树
 - `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
+- `check:go-retirement` 保留单调递减账本，拒绝恢复已删除的 Go/Wails 范围
+- `check:zero-go` 拒绝 Go 源码/模块/命令、Wails 入口，以及传入发布扫描器的 Go/Wails 产物
 
-`docs/swagger/*`、`apps/web/src/generated/openapi.ts`、`tests/fixtures/openapi-baseline.json` 和 `docs/reference/generated/*` 是生成产物，不要手工改。
+`apps/web/src/generated/openapi.ts` 和 `docs/reference/generated/*` 是生成产物，不要手工改；公开契约变化应先修改并审阅 `contracts/openapi/openapi.json`，再运行生成命令。
 
-Protobuf Go 代码生成使用跨平台 Go 命令，并要求本机安装 `protoc 34.1`：
-
-```bash
-go run ./cmd/generate-futu-proto -source /path/to/FTAPIProtoFiles_10.9.6908
-go run ./cmd/generate-pineworker-proto
-```
-
-命令会校验并按需安装固定版本的 Go Protobuf 插件；生成失败时不会替换仓库内已有产物。
+Protobuf 规范统一位于 `proto/futu` 和 `proto/pineworker`。Rust build scripts 使用固定的 `protoc 34.1` 生成私有 Rust 类型，Node PineTS worker 直接加载中立 `.proto`；仓库不再安装或运行 Go protobuf 插件。
 
 Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade 会拒绝建立业务会话，并在设置页提示升级；安装包请从 [Futu OpenAPI 下载页](https://www.futunn.com/download/OpenAPI) 获取。
 
 ## 运行时文件
 
-浏览器开发、独立 API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：
+浏览器开发、独立 Rust API 入口和 `JFTrade Dev` 默认把运行时文件放在仓库内的 `var/jftrade-api/`。首次启动后通常会看到：
 
 - `settings.json`：本地设置
 - `backtest.db`：回测和历史数据相关存储
@@ -153,7 +132,7 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 
 配置优先级是：环境变量 > `settings.json` > 内置默认值。配置细节见 [docs/configuration.md](docs/configuration.md)，端口和启动排障见 [docs/troubleshooting/startup-ports.md](docs/troubleshooting/startup-ports.md)。
 
-正式 Wails 产品不迁移开发数据，也不在安装目录写入业务数据，默认使用系统用户数据目录：
+正式 Tauri 产品不迁移开发数据，也不在安装目录写入业务数据，默认使用系统用户数据目录：
 
 - macOS：`~/Library/Application Support/JFTrade`
 - Windows：`%LOCALAPPDATA%/JFTrade`
@@ -164,9 +143,9 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 - `127.0.0.1:3003`：前端开发服务器
 - `127.0.0.1:3000`：开发态后端服务
 - `127.0.0.1:3001`：文档开发服务器
-- `127.0.0.1:3008`：`JFTrade Dev` 桌面 sidecar
+- `127.0.0.1:3008`：`JFTrade Dev` Tauri sidecar
 - `127.0.0.1:6688`：默认的可选 Web 入口；端口可在设置中修改，桌面 Web 关闭时不创建该监听器
-- `127.0.0.1:6699`：正式 Wails 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
+- `127.0.0.1:6699`：正式 Tauri 产品 sidecar；始终仅限本机桌面 WebView，不作为浏览器入口
 - `127.0.0.1:11110`：Futu OpenD API
 - `127.0.0.1:11111`：Futu OpenD WebSocket
 
@@ -175,7 +154,7 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 - 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
 - 想改启动、端口或可选 Web 访问：读 [docs/configuration.md](docs/configuration.md)
-- 想构建或排查 Wails 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
+- 想构建或排查 Tauri 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)
 - 启动失败、OpenD 连不上、实时行情异常：读 [docs/troubleshooting.md](docs/troubleshooting.md)
 - 想理解模块边界和数据流：读 [docs/architecture.md](docs/architecture.md)
 - 想管理或扩展自选、Futu 分组导入和自选快照：读 [docs/watchlist.md](docs/watchlist.md)
@@ -185,21 +164,19 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 ## 目录导览
 
 ```text
-cmd/jftrade-api/           后端入口
-cmd/jftrade-desktop/       Wails v3 桌面入口与桌面专属服务
-internal/app/apiserver/    后端启动、装配、运行时目录
-internal/desktop/          正式产品系统用户数据目录解析
-internal/api/              /api/v1/*、SSE、WebSocket
-internal/{system,settings,marketdata,trading,strategy,backtest,assistant,watchlist}/
-                           控制台业务能力
-internal/integration/futu/ 后端内部的 Futu/OpenD 集成
-pkg/futu/                  Futu exchange 适配层
-pkg/strategy/              Pine 和策略运行能力
-pkg/backtest/              回测与历史数据存储
+crates/jftrade-engine/     Rust 后端入口与 product composition
+crates/jftrade-api/        /api/v1/*、SSE、WebSocket transport
+crates/jftrade-*/          领域、存储与外部集成 crates
+apps/desktop/src-tauri/    Tauri 2 桌面入口与桌面专属服务
 apps/web/                  Vue 3 控制台
+workers/pineworker/        Node PineTS gRPC worker
+workers/marketdata-sidecar/ Python market-data helper
+contracts/openapi/         语言无关 OpenAPI 规范源
+proto/                     Futu 与 Pine worker 中立 protobuf 契约
+runtime-assets/            Web、Pine、market-data 发布资产暂存目录
+tests/fixtures/rust-migration/ 历史兼容 corpus 与 Rust replay 输入
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
-build/                     Wails 配置、平台 Taskfile 与桌面资源
 ```
 
 ## 开源许可

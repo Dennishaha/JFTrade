@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T09:55:06.278Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go test -c -trimpath (three production-owner behavior harnesses)",
+    "rust": "cargo build --release"
+  },
+  "workload": {
+    "fixture": "trading-strategy-corpus.json",
+    "fixtureSha256": "d8dd01b492cde8480cf583d65de877323e2d59f5a10389f73457a1d9a77df287",
+    "expectedSha256": "9a66100ae3f0e6bdfda3f5ff8a517d929f003181d82654ef4820f1a7b0e49439",
+    "statuses": 10,
+    "transitions": 7,
+    "commandPlans": 6,
+    "updateEvents": 7,
+    "positionRefreshes": 5,
+    "finalPositions": 2,
+    "strategyScenarios": 3,
+    "auditEntries": 17
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": { "p50": 19.632, "p95": 21.641, "p99": 21.736 },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 22626304,
+    "corporaPerSecondP50": 50.937,
+    "binaryBytes": 40992566,
+    "resultHash": "sha256:9a66100ae3f0e6bdfda3f5ff8a517d929f003181d82654ef4820f1a7b0e49439"
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": { "p50": 3.335, "p95": 3.822, "p99": 4.109 },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 2457600,
+    "corporaPerSecondP50": 299.85,
+    "binaryBytes": 742624,
+    "resultHash": "sha256:9a66100ae3f0e6bdfda3f5ff8a517d929f003181d82654ef4820f1a7b0e49439"
+  },
+  "gates": {
+    "rustToGoP95": 0.177,
+    "rustToGoPeakRss": 0.109,
+    "p95RegressionGatePassed": true,
+    "rssRegressionGatePassed": true
+  },
+  "limitations": [
+    "The Go reference executes three compiled production-owner behavior harnesses while Rust uses one composition replay binary; this is not product-process startup or binary-size evidence.",
+    "The corpus is fixture/paper/shadow only. It opens no OpenD socket, sends no broker command, writes no SQLite data, and publishes no user-visible notification.",
+    "Read-only OpenD, explicit small live trading, crash recovery with durable storage, and manual no-double-order sign-off remain external product cutover gates.",
+    "This local result does not replace native Linux, Windows, and macOS CI qualification."
+  ]
+}

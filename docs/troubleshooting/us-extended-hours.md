@@ -17,7 +17,7 @@
 
 ## session 判定优先级
 
-当前 session 由 Go 进程中生效的 `pkg/market/calendar` 解析器统一判定。Yahoo 的 `marketState` 和 Python helper 固定时钟窗口都不是 session 事实来源；Futu/Yahoo 扩展行情块只有在对应日历窗口内才作为盘外行情展示。
+当前 session 由 Rust `jftrade-calendar` 和 engine 注入的 trading profile 统一判定。Yahoo 的 `marketState` 和 Python helper 固定时钟窗口都不是 session 事实来源；Futu/Yahoo 扩展行情块只有在对应日历窗口内才作为盘外行情展示。
 
 ## 优先检查的字段
 
@@ -49,11 +49,11 @@
 
 ## 回测侧的日历边界
 
-当前 session 分类、warmup 和 higher-period aggregation 共用 `pkg/market/calendar` 的日历解析器：
+当前 session 分类、warmup 和 higher-period aggregation 共用 `jftrade-calendar`：
 
 - 内置规则覆盖周末、已知完整休市日和美股半日市等基础日历。
-- sidecar 的 `internal/exchangecalendar.Manager` 按“人工覆盖 -> 已启用远端快照 -> 内置规则兜底”的顺序解析，并在服务装配时注入 `pkg/market`。
-- `pkg/market/session.go` 的 session、regular window 和 trading-period 计算都使用同一解析器，回测与指标聚合不再各自维护工作日假设。
+- Rust calendar manager 按“人工覆盖 -> 已启用远端快照 -> 内置规则兜底”的顺序解析，并由 `jftrade-engine` 注入行情、回测和策略 ports。
+- session、regular window 和 trading-period 计算使用同一解析器，回测与指标聚合不各自维护工作日假设。
 
 排查日历问题时先看 `/api/v1/system/exchange-calendars/status` 返回的 `effectiveSource`、`effectiveMode` 和覆盖范围。远端数据不可用但允许 fallback 时会继续使用内置规则；超出人工、远端和内置规则覆盖范围的特殊休市，以及临时停牌，仍不能仅靠计划日历推断。
 

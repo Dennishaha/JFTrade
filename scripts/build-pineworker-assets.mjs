@@ -6,7 +6,7 @@ import { buildPineWorkerBundle, dryRunPineWorkerBundleCommand } from "./lib/pine
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = resolve(process.env.JFTRADE_PINEWORKER_ASSET_OUT_DIR ?? join(rootDir, "internal/pineworkerassets/assets/bin"));
+const outDir = resolve(process.env.JFTRADE_PINEWORKER_ASSET_OUT_DIR ?? join(rootDir, "runtime-assets/pine"));
 const workerEntry = join(rootDir, "workers/pineworker/src/main.ts");
 const dryRun = process.env.JFTRADE_PINEWORKER_ASSET_BUILD_DRY_RUN === "1";
 

@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import { Events } from "@wailsio/runtime";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import {
-  ListDays,
-  OpenFolder,
-  ReadPage,
-} from "../wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplogservice";
 import type {
+  DesktopLogAppend,
   DesktopLogDay,
   DesktopLogLine,
-} from "../wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/models";
-
-type DesktopLogAppend = { day: string; line: DesktopLogLine };
+} from "@/composables/shared/desktopFacade";
+import { desktopFacade } from "@/composables/shared/desktopFacade";
 
 const latestPageOffset = -1;
 
@@ -40,7 +34,7 @@ const canPrevious = computed(() => offset.value > 0);
 const canNext = computed(() => offset.value + lines.value.length < total.value);
 
 async function loadDays(): Promise<void> {
-  days.value = (await ListDays()) ?? [];
+  days.value = (await desktopFacade.logs.listDays()) ?? [];
   if (!selectedDay.value && days.value.length > 0) {
     selectedDay.value = days.value[0]?.day ?? "";
   }
@@ -63,7 +57,7 @@ async function loadPage(requestedOffset = offset.value): Promise<void> {
   error.value = "";
   let loaded = false;
   try {
-    const result = await ReadPage(
+    const result = await desktopFacade.logs.readPage(
       selectedDay.value,
       selectedLevel.value,
       keyword.value,
@@ -109,7 +103,7 @@ function nextPage(): void {
 
 async function openFolder(): Promise<void> {
   try {
-    await OpenFolder();
+    await desktopFacade.logs.openFolder();
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : "无法打开日志目录";
   }
@@ -158,9 +152,9 @@ onMounted(async () => {
     await loadDays();
     initialized = true;
     await loadPage(latestPageOffset);
-    cancelAppend = Events.On("jftrade:desktop-log:append", (event) => {
-      appendLine(event.data as DesktopLogAppend);
-    });
+    const cancel = await desktopFacade.logs.onAppend(appendLine);
+    if (cancelAppend === stoppedAppendListener) cancel();
+    else cancelAppend = cancel;
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : "桌面日志服务不可用";
@@ -169,8 +163,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   cancelAppend?.();
+  cancelAppend = stoppedAppendListener;
   if (filterTimer != null) clearTimeout(filterTimer);
 });
+
+const stoppedAppendListener = () => undefined;
 </script>
 
 <template>

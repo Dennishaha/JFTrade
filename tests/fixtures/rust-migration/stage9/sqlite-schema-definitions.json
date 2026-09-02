@@ -1,0 +1,172 @@
+{
+  "version": "stage9.sqlite-schema-definitions.v1",
+  "definitions": [
+    {
+      "ID": "backtest",
+      "Version": 3,
+      "Statements": null,
+      "DynamicTable": {
+        "Pattern": "^local_klines__[a-z0-9_]+__[a-z0-9_]+__[a-z0-9_]+__(forward|backward|none)__(r|x)__[0-9a-f]{8}$",
+        "PrototypeName": "local_klines__manifest__symbol__1m__forward__r__00000000",
+        "Statement": "CREATE TABLE local_klines__manifest__symbol__1m__forward__r__00000000 (\n\t\t\t\tend_time INTEGER NOT NULL,\n\t\t\t\tstart_time INTEGER NOT NULL,\n\t\t\t\topen TEXT NOT NULL,\n\t\t\t\thigh TEXT NOT NULL,\n\t\t\t\tlow TEXT NOT NULL,\n\t\t\t\tclose TEXT NOT NULL,\n\t\t\t\tvolume TEXT NOT NULL,\n\t\t\t\tPRIMARY KEY (end_time)\n\t\t\t) WITHOUT ROWID"
+      }
+    },
+    {
+      "ID": "backtest-runs",
+      "Version": 1,
+      "Statements": [
+        "CREATE TABLE backtest_runs (\n\t\t\tid TEXT PRIMARY KEY,\n\t\t\tstatus TEXT NOT NULL DEFAULT '',\n\t\t\trequest_json TEXT NOT NULL DEFAULT '',\n\t\t\tresult_json TEXT NOT NULL DEFAULT '',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT '',\n\t\t\tupdated_at TEXT NOT NULL DEFAULT ''\n\t\t)",
+        "CREATE INDEX idx_backtest_runs_updated_at ON backtest_runs (updated_at DESC, id ASC)",
+        "CREATE INDEX idx_backtest_runs_status ON backtest_runs (status, updated_at DESC)"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "strategy",
+      "Version": 2,
+      "Statements": [
+        "CREATE TABLE strategy_log_events (\n\t\t\tid INTEGER PRIMARY KEY AUTOINCREMENT,\n\t\t\tinstance_id TEXT NOT NULL,\n\t\t\tat_ms INTEGER NOT NULL,\n\t\t\traw TEXT NOT NULL,\n\t\t\tlevel TEXT NOT NULL DEFAULT '',\n\t\t\tsource TEXT NOT NULL DEFAULT ''\n\t\t)",
+        "CREATE TABLE strategy_audit_events (\n\t\t\tid INTEGER PRIMARY KEY AUTOINCREMENT,\n\t\t\tinstance_id TEXT NOT NULL,\n\t\t\tkind TEXT NOT NULL,\n\t\t\tdetail TEXT NOT NULL DEFAULT '',\n\t\t\tat_ms INTEGER NOT NULL\n\t\t)",
+        "CREATE TABLE strategy_runtime_observations (\n\t\t\tinstance_id TEXT PRIMARY KEY,\n\t\t\tactual_status_snapshot TEXT NOT NULL DEFAULT '',\n\t\t\tactive_symbols_json TEXT NOT NULL DEFAULT '[]',\n\t\t\tlast_closed_kline_at_ms INTEGER,\n\t\t\tlast_signal_at_ms INTEGER,\n\t\t\tlast_order_at_ms INTEGER,\n\t\t\tlast_error_at_ms INTEGER,\n\t\t\tlast_error TEXT NOT NULL DEFAULT '',\n\t\t\tupdated_at_ms INTEGER\n\t\t)",
+        "CREATE TABLE strategy_catalog_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')",
+        "CREATE TABLE strategy_catalog_plugins (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')",
+        "CREATE TABLE strategy_catalog_strategies (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')",
+        "CREATE TABLE strategy_catalog_operations (operation_id TEXT PRIMARY KEY, plugin_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL DEFAULT '')",
+        "CREATE TABLE strategy_design_definitions (\n\t\t\tid TEXT PRIMARY KEY,\n\t\t\tname TEXT NOT NULL DEFAULT '',\n\t\t\tversion TEXT NOT NULL DEFAULT '',\n\t\t\tdescription TEXT NOT NULL DEFAULT '',\n\t\t\truntime TEXT NOT NULL DEFAULT '',\n\t\t\tsource_format TEXT NOT NULL DEFAULT '',\n\t\t\tsymbol TEXT NOT NULL DEFAULT '',\n\t\t\tinterval TEXT NOT NULL DEFAULT '',\n\t\t\tscript TEXT NOT NULL DEFAULT '',\n\t\t\tvisual_model_json TEXT NOT NULL DEFAULT '',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT '',\n\t\t\tupdated_at TEXT NOT NULL DEFAULT '',\n\t\t\tdeleted_at TEXT\n\t\t)",
+        "CREATE TABLE strategy_definition_versions (\n\t\t\tdefinition_id TEXT NOT NULL,\n\t\t\tversion TEXT NOT NULL,\n\t\t\tname TEXT NOT NULL DEFAULT '',\n\t\t\tdescription TEXT NOT NULL DEFAULT '',\n\t\t\truntime TEXT NOT NULL DEFAULT '',\n\t\t\tsource_format TEXT NOT NULL DEFAULT '',\n\t\t\tsymbol TEXT NOT NULL DEFAULT '',\n\t\t\tinterval TEXT NOT NULL DEFAULT '',\n\t\t\tscript TEXT NOT NULL DEFAULT '',\n\t\t\tvisual_model_json TEXT NOT NULL DEFAULT '',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT '',\n\t\t\tupdated_at TEXT NOT NULL DEFAULT '',\n\t\t\tsaved_at TEXT NOT NULL DEFAULT '',\n\t\t\tPRIMARY KEY (definition_id, version),\n\t\t\tFOREIGN KEY (definition_id) REFERENCES strategy_design_definitions(id) ON DELETE CASCADE\n\t\t)",
+        "CREATE INDEX idx_strategy_log_events_instance_at ON strategy_log_events (instance_id, at_ms DESC, id DESC)",
+        "CREATE INDEX idx_strategy_log_events_level ON strategy_log_events (level)",
+        "CREATE INDEX idx_strategy_audit_events_instance_at ON strategy_audit_events (instance_id, at_ms DESC, id DESC)",
+        "CREATE INDEX idx_strategy_audit_events_kind ON strategy_audit_events (kind)",
+        "CREATE INDEX idx_strategy_catalog_strategies_created_at ON strategy_catalog_strategies (created_at ASC, id ASC)",
+        "CREATE INDEX idx_strategy_catalog_operations_updated_at ON strategy_catalog_operations (updated_at DESC, operation_id ASC)",
+        "CREATE INDEX idx_strategy_design_definitions_updated_at ON strategy_design_definitions (updated_at DESC, id ASC)",
+        "CREATE INDEX idx_strategy_design_definitions_deleted_at ON strategy_design_definitions (deleted_at)",
+        "CREATE INDEX idx_strategy_definition_versions_saved_at ON strategy_definition_versions (definition_id, saved_at DESC, version DESC)",
+        "CREATE TRIGGER trg_strategy_definition_versions_immutable\n\t\t\tBEFORE UPDATE ON strategy_definition_versions\n\t\t\tBEGIN\n\t\t\t\tSELECT RAISE(ABORT, 'strategy definition versions are immutable');\n\t\t\tEND"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "execution-orders",
+      "Version": 5,
+      "Statements": [
+        "CREATE TABLE execution_orders (\n\t\t\tinternal_order_id TEXT PRIMARY KEY,\n\t\t\tbroker_id TEXT NOT NULL DEFAULT '',\n\t\t\tbroker_order_id TEXT,\n\t\t\tbroker_order_id_ex TEXT,\n\t\t\tsource TEXT NOT NULL DEFAULT '',\n\t\t\tsource_detail TEXT NOT NULL DEFAULT '',\n\t\t\ttrading_environment TEXT NOT NULL DEFAULT '',\n\t\t\taccount_id TEXT NOT NULL DEFAULT '',\n\t\t\tmarket TEXT NOT NULL DEFAULT '',\n\t\t\tsymbol TEXT,\n\t\t\tside TEXT,\n\t\t\torder_type TEXT,\n\t\t\tstatus TEXT NOT NULL DEFAULT '',\n\t\t\trequested_quantity REAL,\n\t\t\trequested_price REAL,\n\t\t\tfilled_quantity REAL,\n\t\t\tfilled_average_price REAL,\n\t\t\tremark TEXT,\n\t\t\tlast_error TEXT,\n\t\t\tlast_error_code TEXT,\n\t\t\tlast_error_source TEXT,\n\t\t\tsubmitted_at TEXT,\n\t\t\tupdated_at TEXT NOT NULL DEFAULT '',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT '',\n\t\t\traw_broker_status TEXT,\n\t\t\torder_kind TEXT NOT NULL DEFAULT 'single',\n\t\t\tproduct_class TEXT NOT NULL DEFAULT 'unknown',\n\t\t\tquantity_mode TEXT NOT NULL DEFAULT 'units',\n\t\t\tclient_order_id TEXT,\n\t\t\tpreview_id TEXT,\n\t\t\tnormalized_request TEXT NOT NULL DEFAULT '{}',\n\t\t\trequested_amount REAL,\n\t\t\tpayout REAL,\n\t\t\tfees REAL\n\t\t)",
+        "CREATE TABLE execution_order_legs (\n\t\t\tid TEXT PRIMARY KEY,\n\t\t\tinternal_order_id TEXT NOT NULL,\n\t\t\tleg_index INTEGER NOT NULL,\n\t\t\tbroker_leg_id TEXT,\n\t\t\tinstrument_id TEXT NOT NULL,\n\t\t\tproduct_class TEXT NOT NULL DEFAULT 'unknown',\n\t\t\tside TEXT NOT NULL DEFAULT '',\n\t\t\tratio INTEGER NOT NULL DEFAULT 1,\n\t\t\tprediction_side TEXT NOT NULL DEFAULT '',\n\t\t\trequested_quantity REAL,\n\t\t\trequested_amount REAL,\n\t\t\trequested_price REAL,\n\t\t\tstatus TEXT NOT NULL DEFAULT '',\n\t\t\tfilled_quantity REAL,\n\t\t\tfilled_amount REAL,\n\t\t\taverage_price REAL,\n\t\t\tfees REAL,\n\t\t\tpayout REAL,\n\t\t\tupdated_at TEXT NOT NULL DEFAULT '',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT ''\n\t\t)",
+        "CREATE TABLE execution_order_previews (\n\t\t\tpreview_id TEXT PRIMARY KEY,\n\t\t\trequest_hash TEXT NOT NULL,\n\t\t\tbroker_id TEXT NOT NULL,\n\t\t\tcapability_version TEXT NOT NULL,\n\t\t\taccount_id TEXT NOT NULL,\n\t\t\texpires_at TEXT NOT NULL,\n\t\t\tquote_expires_at TEXT,\n\t\t\trfq_id TEXT,\n\t\t\tnormalized_request TEXT NOT NULL,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tconsumed_at TEXT\n\t\t)",
+        "CREATE TABLE execution_prediction_quotes (\n\t\t\tquote_id TEXT PRIMARY KEY,\n\t\t\tbroker_id TEXT NOT NULL,\n\t\t\taccount_id TEXT NOT NULL,\n\t\t\ttrading_environment TEXT NOT NULL,\n\t\t\tmvc TEXT NOT NULL,\n\t\t\tlegs_hash TEXT NOT NULL,\n\t\t\tbid_price REAL,\n\t\t\task_price REAL,\n\t\t\tshould_retry INTEGER NOT NULL DEFAULT 0,\n\t\t\treceived_at TEXT NOT NULL,\n\t\t\texpires_at TEXT NOT NULL,\n\t\t\texpiry_source TEXT NOT NULL DEFAULT 'jftrade_policy',\n\t\t\tstatus TEXT NOT NULL DEFAULT 'active',\n\t\t\tconsumed_at TEXT,\n\t\t\tconsumed_preview_id TEXT,\n\t\t\tconsumed_client_order_id TEXT\n\t\t)",
+        "CREATE TABLE execution_order_events (\n\t\t\tid TEXT PRIMARY KEY,\n\t\t\tinternal_order_id TEXT NOT NULL,\n\t\t\tevent_type TEXT NOT NULL DEFAULT '',\n\t\t\tprevious_status TEXT,\n\t\t\tnext_status TEXT NOT NULL DEFAULT '',\n\t\t\tpayload_json TEXT NOT NULL DEFAULT '{}',\n\t\t\tcreated_at TEXT NOT NULL DEFAULT ''\n\t\t)",
+        "CREATE TABLE execution_seen_fills (fill_key TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT '')",
+        "CREATE TABLE execution_sequences (name TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)",
+        "CREATE INDEX idx_execution_orders_updated ON execution_orders (updated_at DESC, created_at DESC, internal_order_id DESC)",
+        "CREATE INDEX idx_execution_orders_broker_order ON execution_orders (broker_id, trading_environment, account_id, market, broker_order_id)",
+        "CREATE INDEX idx_execution_orders_broker_order_ex ON execution_orders (broker_id, trading_environment, account_id, market, broker_order_id_ex)",
+        "CREATE INDEX idx_execution_order_events_order ON execution_order_events (internal_order_id, created_at ASC, id ASC)",
+        "CREATE UNIQUE INDEX idx_execution_orders_client_id ON execution_orders (broker_id, trading_environment, account_id, client_order_id) WHERE client_order_id IS NOT NULL AND TRIM(client_order_id) \u003c\u003e ''",
+        "CREATE INDEX idx_execution_order_legs_order ON execution_order_legs (internal_order_id, leg_index ASC)",
+        "CREATE INDEX idx_execution_prediction_quotes_expiry ON execution_prediction_quotes (status, expires_at)"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "adk",
+      "Version": 4,
+      "Statements": [
+        "CREATE TABLE adk_providers (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_agents (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_sessions (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_runs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, client_request_id TEXT NOT NULL DEFAULT '', request_fingerprint TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_approvals (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_skills (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_audit_events (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)",
+        "CREATE TABLE adk_optimization_tasks (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_tasks (id TEXT PRIMARY KEY, status TEXT NOT NULL, agent_id TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_memory (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_session_contexts (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_handoff_segments (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)",
+        "CREATE TABLE adk_session_context_state (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_session_notices (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_session_composer_state (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_workflows (id TEXT PRIMARY KEY, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_workflow_triggers (id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, trigger_type TEXT NOT NULL, status TEXT NOT NULL, next_run_at TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_workflow_trigger_logs (id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, trigger_id TEXT NOT NULL, trigger_type TEXT NOT NULL, status TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_run_leases (run_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, fencing_token INTEGER NOT NULL, heartbeat_at_unix_ms INTEGER NOT NULL, expires_at_unix_ms INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
+        "CREATE TABLE adk_tool_invocations (run_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, tool_name TEXT NOT NULL, status TEXT NOT NULL, owner_id TEXT NOT NULL, fencing_token INTEGER NOT NULL, run_lease_token INTEGER NOT NULL, input_json TEXT NOT NULL, output_json TEXT NOT NULL, lease_expires_at_unix_ms INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (run_id, idempotency_key))",
+        "CREATE INDEX idx_adk_sessions_agent ON adk_sessions (agent_id, updated_at DESC)",
+        "CREATE INDEX idx_adk_runs_session ON adk_runs (session_id, created_at DESC)",
+        "CREATE UNIQUE INDEX idx_adk_runs_client_request ON adk_runs (client_request_id) WHERE client_request_id \u003c\u003e ''",
+        "CREATE INDEX idx_adk_approvals_status ON adk_approvals (status, updated_at DESC)",
+        "CREATE UNIQUE INDEX idx_adk_approvals_confirmation_call ON adk_approvals (json_extract(payload_json, '$.confirmationCallId')) WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') \u003c\u003e ''",
+        "CREATE INDEX idx_adk_audit_kind ON adk_audit_events (kind, created_at DESC)",
+        "CREATE INDEX idx_adk_tasks_status ON adk_tasks (status, updated_at DESC)",
+        "CREATE INDEX idx_adk_tasks_agent ON adk_tasks (agent_id, updated_at DESC)",
+        "CREATE UNIQUE INDEX idx_adk_memory_agent_scope_key ON adk_memory (agent_id, scope, memory_key)",
+        "CREATE INDEX idx_adk_session_contexts_updated ON adk_session_contexts (updated_at DESC)",
+        "CREATE INDEX idx_adk_handoff_segments_session ON adk_handoff_segments (session_id, sequence_no ASC)",
+        "CREATE INDEX idx_adk_session_context_state_updated ON adk_session_context_state (updated_at DESC)",
+        "CREATE INDEX idx_adk_session_notices_session ON adk_session_notices (session_id, created_at ASC)",
+        "CREATE INDEX idx_adk_workflows_status ON adk_workflows (status, updated_at DESC)",
+        "CREATE INDEX idx_adk_workflow_triggers_workflow ON adk_workflow_triggers (workflow_id, updated_at DESC)",
+        "CREATE INDEX idx_adk_workflow_triggers_due ON adk_workflow_triggers (trigger_type, status, next_run_at ASC)",
+        "CREATE INDEX idx_adk_workflow_trigger_logs_workflow ON adk_workflow_trigger_logs (workflow_id, created_at DESC)",
+        "CREATE INDEX idx_adk_workflow_trigger_logs_trigger ON adk_workflow_trigger_logs (trigger_id, created_at DESC)",
+        "CREATE INDEX idx_adk_workflow_trigger_logs_status ON adk_workflow_trigger_logs (status, updated_at DESC)",
+        "CREATE INDEX idx_adk_run_leases_expires ON adk_run_leases (expires_at_unix_ms ASC)",
+        "CREATE INDEX idx_adk_tool_invocations_status ON adk_tool_invocations (status, lease_expires_at_unix_ms ASC)"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "adk-session",
+      "Version": 4,
+      "Statements": [
+        "CREATE TABLE sessions (\n\t\t\tapp_name TEXT,\n\t\t\tuser_id TEXT,\n\t\t\tid TEXT,\n\t\t\tstate TEXT,\n\t\t\tcreate_time TIMESTAMP,\n\t\t\tupdate_time TIMESTAMP,\n\t\t\tPRIMARY KEY (app_name, user_id, id)\n\t\t)",
+        "CREATE TABLE events (\n\t\t\tid TEXT,\n\t\t\tapp_name TEXT,\n\t\t\tuser_id TEXT,\n\t\t\tsession_id TEXT,\n\t\t\tinvocation_id TEXT,\n\t\t\tauthor TEXT,\n\t\t\tactions BLOB,\n\t\t\tlong_running_tool_ids_json TEXT,\n\t\t\troutes_json TEXT,\n\t\t\toutput_json TEXT,\n\t\t\tnode_info_json TEXT,\n\t\t\trequested_input_json TEXT,\n\t\t\tbranch TEXT,\n\t\t\tisolation_scope TEXT,\n\t\t\ttimestamp TIMESTAMP,\n\t\t\tcontent TEXT,\n\t\t\tgrounding_metadata TEXT,\n\t\t\tcustom_metadata TEXT,\n\t\t\tusage_metadata TEXT,\n\t\t\tcitation_metadata TEXT,\n\t\t\tpartial NUMERIC,\n\t\t\tturn_complete NUMERIC,\n\t\t\terror_code TEXT,\n\t\t\terror_message TEXT,\n\t\t\tinterrupted NUMERIC,\n\t\t\tPRIMARY KEY (id, app_name, user_id, session_id),\n\t\t\tFOREIGN KEY (app_name, user_id, session_id) REFERENCES sessions(app_name, user_id, id) ON DELETE CASCADE\n\t\t)",
+        "CREATE TABLE app_states (app_name TEXT PRIMARY KEY, state TEXT, update_time TIMESTAMP)",
+        "CREATE TABLE user_states (app_name TEXT, user_id TEXT, state TEXT, update_time TIMESTAMP, PRIMARY KEY (app_name, user_id))"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "adk-artifact",
+      "Version": 1,
+      "Statements": [
+        "CREATE TABLE artifacts (\n\t\t\tapp_name TEXT NOT NULL,\n\t\t\tuser_id TEXT NOT NULL,\n\t\t\tsession_id TEXT NOT NULL,\n\t\t\tfile_name TEXT NOT NULL,\n\t\t\tversion INTEGER NOT NULL,\n\t\t\tpart_json TEXT NOT NULL,\n\t\t\tmime_type TEXT NOT NULL,\n\t\t\tcustom_metadata_json TEXT,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (app_name, user_id, session_id, file_name, version)\n\t\t)"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "watchlist",
+      "Version": 1,
+      "Statements": [
+        "CREATE TABLE watchlist_groups (\n\t\t\tgroup_id TEXT PRIMARY KEY,\n\t\t\tname TEXT NOT NULL,\n\t\t\tname_key TEXT NOT NULL UNIQUE,\n\t\t\tis_default INTEGER NOT NULL DEFAULT 0,\n\t\t\tprotected INTEGER NOT NULL DEFAULT 0,\n\t\t\trevision INTEGER NOT NULL DEFAULT 1,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL\n\t\t)",
+        "CREATE UNIQUE INDEX watchlist_groups_one_default ON watchlist_groups(is_default) WHERE is_default = 1",
+        "CREATE TABLE watchlist_instruments (\n\t\t\tinstrument_id TEXT PRIMARY KEY,\n\t\t\tmarket TEXT NOT NULL,\n\t\t\tsymbol TEXT NOT NULL,\n\t\t\tname TEXT NOT NULL DEFAULT '',\n\t\t\tinstrument_type TEXT NOT NULL DEFAULT '',\n\t\t\tmembership_revision INTEGER NOT NULL DEFAULT 0,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL\n\t\t)",
+        "CREATE TABLE watchlist_memberships (\n\t\t\tgroup_id TEXT NOT NULL,\n\t\t\tinstrument_id TEXT NOT NULL,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (group_id, instrument_id)\n\t\t)",
+        "CREATE INDEX watchlist_memberships_instrument ON watchlist_memberships(instrument_id, group_id)",
+        "CREATE TABLE watchlist_sources (\n\t\t\tsource_id TEXT PRIMARY KEY,\n\t\t\tbroker TEXT NOT NULL,\n\t\t\tdisplay_name TEXT NOT NULL,\n\t\t\tstatus TEXT NOT NULL,\n\t\t\tlast_error TEXT NOT NULL DEFAULT '',\n\t\t\tupdated_at TEXT NOT NULL\n\t\t)",
+        "CREATE TABLE watchlist_remote_groups (\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tname TEXT NOT NULL,\n\t\t\tgroup_type TEXT NOT NULL,\n\t\t\tambiguous INTEGER NOT NULL DEFAULT 0,\n\t\t\tmember_count INTEGER NOT NULL DEFAULT 0,\n\t\t\tremote_hash TEXT NOT NULL DEFAULT '',\n\t\t\tobserved_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (source_id, remote_group_id)\n\t\t)",
+        "CREATE TABLE watchlist_bindings (\n\t\t\tbinding_id TEXT PRIMARY KEY,\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tremote_name TEXT NOT NULL,\n\t\t\tlocal_group_id TEXT NOT NULL,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL,\n\t\t\tUNIQUE (source_id, remote_group_id)\n\t\t)",
+        "CREATE INDEX watchlist_bindings_local_group ON watchlist_bindings(local_group_id)",
+        "CREATE TABLE watchlist_remote_memberships (\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tinstrument_id TEXT NOT NULL,\n\t\t\tremote_hash TEXT NOT NULL,\n\t\t\tobserved_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (source_id, remote_group_id, instrument_id)\n\t\t)",
+        "CREATE TABLE watchlist_membership_origins (\n\t\t\tgroup_id TEXT NOT NULL,\n\t\t\tinstrument_id TEXT NOT NULL,\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tlast_imported_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (group_id, instrument_id, source_id, remote_group_id)\n\t\t)",
+        "CREATE INDEX watchlist_membership_origins_instrument ON watchlist_membership_origins(instrument_id, group_id)",
+        "CREATE TABLE watchlist_instrument_aliases (\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\talias_kind TEXT NOT NULL,\n\t\t\talias_value TEXT NOT NULL,\n\t\t\tinstrument_id TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL,\n\t\t\tPRIMARY KEY (source_id, alias_kind, alias_value)\n\t\t)",
+        "CREATE TABLE watchlist_import_previews (\n\t\t\tpreview_id TEXT PRIMARY KEY,\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tremote_group_name TEXT NOT NULL,\n\t\t\tlocal_group_id TEXT NOT NULL DEFAULT '',\n\t\t\tnew_group_name TEXT NOT NULL DEFAULT '',\n\t\t\tremote_hash TEXT NOT NULL,\n\t\t\tlocal_group_revision INTEGER NOT NULL,\n\t\t\tadded_json TEXT NOT NULL,\n\t\t\tunchanged_json TEXT NOT NULL,\n\t\t\tlocal_only_json TEXT NOT NULL,\n\t\t\tstatus TEXT NOT NULL DEFAULT 'pending',\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\texpires_at TEXT NOT NULL\n\t\t)",
+        "CREATE INDEX watchlist_import_previews_expiry ON watchlist_import_previews(status, expires_at)",
+        "CREATE TABLE watchlist_import_runs (\n\t\t\trun_id TEXT PRIMARY KEY,\n\t\t\tpreview_id TEXT NOT NULL,\n\t\t\tsource_id TEXT NOT NULL,\n\t\t\tremote_group_id TEXT NOT NULL,\n\t\t\tremote_group_name TEXT NOT NULL,\n\t\t\tlocal_group_id TEXT NOT NULL,\n\t\t\tstatus TEXT NOT NULL,\n\t\t\tadded_count INTEGER NOT NULL,\n\t\t\tremoved_count INTEGER NOT NULL,\n\t\t\tunchanged_count INTEGER NOT NULL,\n\t\t\tremote_hash TEXT NOT NULL,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tcompleted_at TEXT NOT NULL\n\t\t)",
+        "CREATE INDEX watchlist_import_runs_source ON watchlist_import_runs(source_id, run_id DESC)"
+      ],
+      "DynamicTable": null
+    },
+    {
+      "ID": "research",
+      "Version": 1,
+      "Statements": [
+        "CREATE TABLE research_screen_presets (\n\t\t\tpreset_id TEXT PRIMARY KEY,\n\t\t\tname TEXT NOT NULL,\n\t\t\tname_key TEXT NOT NULL UNIQUE,\n\t\t\tquery_schema_version INTEGER NOT NULL,\n\t\t\tquery_json TEXT NOT NULL,\n\t\t\trevision INTEGER NOT NULL DEFAULT 1,\n\t\t\tcreated_at TEXT NOT NULL,\n\t\t\tupdated_at TEXT NOT NULL\n\t\t)",
+        "CREATE INDEX research_screen_presets_updated_at ON research_screen_presets(updated_at DESC, preset_id)"
+      ],
+      "DynamicTable": null
+    }
+  ]
+}

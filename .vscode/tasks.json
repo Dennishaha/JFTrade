@@ -30,19 +30,9 @@
     {
       "label": "desktop:dev",
       "type": "shell",
-      "command": "go",
-      "args": [
-        "tool",
-        "wails3",
-        "dev",
-        "-config",
-        "./build/config.yml",
-        "-port",
-        "3003"
-      ],
-      "problemMatcher": [
-        "$go"
-      ],
+      "command": "pnpm",
+      "args": ["run", "dev:desktop"],
+      "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -51,22 +41,12 @@
       }
     },
     {
-      "label": "desktop:doctor",
-      "type": "shell",
-      "command": "go",
-      "args": ["tool", "wails3", "doctor"],
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
       "label": "test:desktop",
       "type": "shell",
       "command": "pnpm",
       "args": ["run", "test:desktop"],
       "group": "test",
-      "problemMatcher": [
-        "$go"
-      ]
+      "problemMatcher": []
     },
     {
       "label": "check:desktop",
@@ -74,9 +54,7 @@
       "command": "pnpm",
       "args": ["run", "check:desktop"],
       "group": "test",
-      "problemMatcher": [
-        "$go"
-      ]
+      "problemMatcher": []
     },
     {
       "label": "generate:docs",
@@ -286,16 +264,8 @@
     {
       "label": "desktop:dev",
       "type": "shell",
-      "command": "go",
-      "args": [
-        "tool",
-        "wails3",
-        "dev",
-        "-config",
-        "./build/config.yml",
-        "-port",
-        "3003"
-      ],
+      "command": "pnpm",
+      "args": ["run", "dev:desktop"],
       "group": "build",
       "problemMatcher": [],
       "presentation": {
@@ -308,12 +278,10 @@
     {
       "label": "desktop:build",
       "type": "shell",
-      "command": "go",
-      "args": ["tool", "wails3", "build"],
+      "command": "pnpm",
+      "args": ["run", "build:desktop"],
       "group": "build",
-      "problemMatcher": [
-        "$go"
-      ],
+      "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -322,20 +290,10 @@
       }
     },
     {
-      "label": "desktop:package",
-      "type": "shell",
-      "command": "go",
-      "args": ["tool", "wails3", "package"],
-      "group": "build",
-      "problemMatcher": [
-        "$go"
-      ]
-    },
-    {
       "label": "desktop:prepare-release",
       "type": "shell",
       "command": "pnpm",
-      "args": ["run", "prepare:desktop-release"],
+      "args": ["run", "prepare:tauri-release"],
       "group": "build",
       "problemMatcher": []
     },

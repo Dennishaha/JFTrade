@@ -1,111 +1,27 @@
 version: "3"
 
-includes:
-  common: ../Taskfile.yml
-
 tasks:
   build:
-    desc: Builds the JFTrade Windows executable
-    deps:
-      - task: common:update:build-assets
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-      - task: common:verify:release-inputs
+    desc: Builds the Tauri Windows application
     cmds:
-      - task: generate:syso
-        vars: { ARCH: "{{.ARCH}}" }
-      - defer: powershell -NoProfile -Command "Remove-Item -Force 'cmd/jftrade-desktop/jftrade_windows_{{.ARCH}}.syso' -ErrorAction SilentlyContinue"
-      - powershell -NoProfile -Command "New-Item -ItemType Directory -Force '{{.BIN_DIR}}' | Out-Null"
-      - >-
-        go build
-        {{if .BUILD_TAGS}}-tags "{{.BUILD_TAGS}}"{{end}}
-        -buildvcs=false
-        {{if ne .DEV "true"}}-trimpath -ldflags "-w -s -H windowsgui -X github.com/jftrade/jftrade-main/internal/buildinfo.Version={{.VERSION}} -X github.com/jftrade/jftrade-main/internal/buildinfo.Commit={{.COMMIT}} -X github.com/jftrade/jftrade-main/internal/buildinfo.BuildTime={{.BUILD_TIME}}"{{end}}
-        -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
-        ./cmd/jftrade-desktop
-    env:
-      GOOS: windows
-      GOARCH: "{{.ARCH}}"
-      CGO_ENABLED: "1"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      BUILD_TAGS: '{{if eq .DEV "true"}}{{.EXTRA_TAGS}}{{else}}production,release_assets{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}}{{end}}'
-
-  generate:syso:
-    desc: Generates the Wails Windows resource object
-    dir: build
-    cmds:
-      - >-
-        go tool wails3 generate syso
-        -arch {{.ARCH}}
-        -icon "{{.ROOT_DIR}}/{{.WAILS_BUILD_DIR}}/windows/icon.ico"
-        -manifest "{{.ROOT_DIR}}/{{.WAILS_BUILD_DIR}}/windows/wails.exe.manifest"
-        -info "{{.ROOT_DIR}}/{{.WAILS_BUILD_DIR}}/windows/info.json"
-        -out "../cmd/jftrade-desktop/jftrade_windows_{{.ARCH}}.syso"
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
+      - pnpm run build:desktop
 
   package:
-    desc: Packages the Windows executable as an NSIS installer
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Builds the Tauri Windows bundles
     cmds:
-      - >-
-        powershell -NoProfile -ExecutionPolicy Bypass -File
-        "scripts/windows/package-nsis.ps1"
-        -WailsBuildDir '{{.WAILS_BUILD_DIR}}'
-        -BinDir '{{.BIN_DIR}}'
-        -AppName '{{.APP_NAME}}'
-        -Installer '{{.INSTALLER}}'
-        -ArgFlag '{{.ARG_FLAG}}'
-      - >-
-        powershell -NoProfile -ExecutionPolicy Bypass -File
-        "scripts/windows/sign-release.ps1"
-        -Binary '{{.BIN_DIR}}/{{.APP_NAME}}.exe'
-        -Installer '{{.BIN_DIR}}/{{.INSTALLER}}'
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
-      QUALIFIER: '{{.QUALIFIER | default "unsigned"}}'
-      ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
-      INSTALLER_ARCH: '{{if eq .ARCH "amd64"}}x64{{else}}arm64{{end}}'
-      INSTALLER: '{{.INSTALLER | default (printf "%s-%s-windows-%s-%s-setup.exe" .APP_NAME .VERSION .INSTALLER_ARCH .QUALIFIER)}}'
+      - pnpm run build:desktop
 
   package:msix:
-    desc: Packages the Windows executable as an MSIX package
-    deps:
-      - task: build
-        vars:
-          VERSION: "{{.VERSION}}"
-          COMMIT: "{{.COMMIT}}"
-          BUILD_TIME: "{{.BUILD_TIME}}"
-          DEV: "false"
+    desc: Deprecated alias for the Tauri Windows bundle build
     cmds:
-      - >-
-        go tool wails3 tool msix
-        --config build/windows/msix.json
-        --name "{{.APP_NAME}}"
-        --executable "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
-        --arch {{.ARCH}}
-        --out "{{.BIN_DIR}}/{{.APP_NAME}}-{{.VERSION}}-windows-{{.ARCH}}.msix"
-        --use-makeappx
-    vars:
-      ARCH: '{{.ARCH | default "amd64"}}'
+      - pnpm run build:desktop
+
+  generate:syso:
+    desc: Deprecated alias; Tauri owns Windows resource generation
+    cmds:
+      - pnpm exec tauri info
 
   run:
-    desc: Runs the Windows development executable
+    desc: Runs the Tauri Windows development application
     cmds:
-      - '"{{.BIN_DIR}}/{{.APP_NAME}}.exe"'
-    env:
-      JFTRADE_DESKTOP_MODE: "1"
-      JFTRADE_API_BIND: "127.0.0.1:3008"
-      JFTRADE_SETTINGS_PATH: "var/jftrade-api/settings.json"
-      JFTRADE_BACKTEST_DB: "var/jftrade-api/backtest.db"
-      JFTRADE_PINEWORKER_BUNDLE: "{{.PINEWORKER_BUNDLE}}"
-      DISABLE_MARKETS_CACHE: "1"
+      - pnpm run dev:desktop

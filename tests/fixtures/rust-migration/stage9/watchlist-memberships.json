@@ -1,0 +1,70 @@
+{
+  "version": "stage9.watchlist-memberships.v1",
+  "cases": [
+    {
+      "name": "existing-us",
+      "market": "US",
+      "symbol": "AAPL",
+      "response": {
+        "instrumentId": "US.AAPL",
+        "revision": 2,
+        "groups": [
+          {
+            "groupId": "default",
+            "name": "自选股"
+          },
+          {
+            "groupId": "tech",
+            "name": "科技"
+          }
+        ]
+      }
+    },
+    {
+      "name": "existing-sh",
+      "market": "SH",
+      "symbol": "600519",
+      "response": {
+        "instrumentId": "SH.600519",
+        "revision": 1,
+        "groups": [
+          {
+            "groupId": "tech",
+            "name": "科技"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unknown-us",
+      "market": "US",
+      "symbol": "MSFT",
+      "response": {
+        "instrumentId": "US.MSFT",
+        "revision": 0,
+        "groups": []
+      }
+    },
+    {
+      "name": "cns-h-alias",
+      "market": "CNSH",
+      "symbol": "600519",
+      "response": {
+        "instrumentId": "SH.600519",
+        "revision": 1,
+        "groups": [
+          {
+            "groupId": "tech",
+            "name": "科技"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-market",
+      "market": "BAD",
+      "symbol": "AAPL",
+      "errorCode": "WATCHLIST_INVALID"
+    }
+  ]
+}

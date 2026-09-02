@@ -1,0 +1,2558 @@
+{
+  "version": "stage9.watchlist-write.v1",
+  "timestamp": "2026-08-23T00:00:00Z",
+  "cases": [
+    {
+      "name": "create-success",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"  Growth  \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Growth",
+              "protected": false,
+              "revision": 1,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "  Growth  ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Growth",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-empty-object",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid watchlist group payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-whitespace-name",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"   \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_INVALID",
+              "message": "invalid watchlist request: group name is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "   ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-unknown-field-and-trailing-value",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"Trailing\",\"unknown\":true}{\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Trailing",
+              "protected": false,
+              "revision": 1,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "Trailing",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Trailing",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-duplicate-name",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\" Growth \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_CONFLICT",
+              "message": "watchlist state conflict: UNIQUE constraint failed: watchlist_groups.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": " Growth ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "existing",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Growth",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-repository-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"  Growth  \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_UNAVAILABLE",
+              "message": "watchlist service is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "  Growth  ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "repo-unavailable"
+    },
+    {
+      "name": "create-failure-recovery",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"Recovered\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"  Growth  \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Recovered",
+              "protected": false,
+              "revision": 1,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "Recovered",
+          "route": "create-group"
+        },
+        {
+          "name": "  Growth  ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Recovered",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 2,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "create-failure-once"
+    },
+    {
+      "name": "create-cancelled",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"  Growth  \"}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "name": "  Growth  ",
+          "route": "create-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "create-port-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/groups",
+          "body": "{\"name\":\"  Growth  \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_UNAVAILABLE",
+              "message": "watchlist service is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "no-port"
+    },
+    {
+      "name": "update-success",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Updated",
+              "protected": false,
+              "revision": 2,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "  Updated  ",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Updated",
+            "protected": false,
+            "revision": 2,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-malformed-body",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid watchlist group payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Original",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-not-found",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/missing",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "missing",
+          "name": "  Updated  ",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-protected",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/default",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_GROUP_PROTECTED",
+              "message": "protected watchlist group cannot be deleted"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "default",
+          "name": "  Updated  ",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "default",
+            "isDefault": true,
+            "itemCount": 0,
+            "name": "自选股",
+            "protected": true,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-stale-revision",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_CONFLICT",
+              "message": "watchlist state conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "  Updated  ",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Original",
+            "protected": false,
+            "revision": 2,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-failure-recovery",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"  Updated  \",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Updated",
+              "protected": false,
+              "revision": 2,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "  Updated  ",
+          "route": "update-group"
+        },
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "  Updated  ",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Updated",
+            "protected": false,
+            "revision": 2,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 2,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "update-failure-once"
+    },
+    {
+      "name": "delete-group-success-and-repeat",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/groups/group-1"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "deleted": true
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "groupId": "group-1",
+          "route": "delete-group"
+        },
+        {
+          "groupId": "group-1",
+          "route": "delete-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 2,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "delete-group-protected",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/groups/default"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_GROUP_PROTECTED",
+              "message": "protected watchlist group cannot be deleted"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "groupId": "default",
+          "route": "delete-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "default",
+            "isDefault": true,
+            "itemCount": 0,
+            "name": "自选股",
+            "protected": true,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "delete-group-not-found",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/groups/missing"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "groupId": "missing",
+          "route": "delete-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "delete-binding-success-and-repeat",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/bindings?bindingId=binding-1",
+          "body": "{"
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/bindings?bindingId=binding-1"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "deleted": true
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "bindingId": "binding-1",
+          "route": "delete-binding"
+        },
+        {
+          "bindingId": "binding-1",
+          "route": "delete-binding"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 2,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "delete-binding-missing-id",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/bindings?sourceId=futu:default"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_INVALID",
+              "message": "invalid watchlist request: bindingId is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "bindingId": "",
+          "route": "delete-binding"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "delete-binding-malformed-query",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/watchlist/bindings?%zz"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid watchlist binding query"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-success-idempotent",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/US/AAPL/memberships",
+          "body": "{\"groupIds\":[\"tech\"],\"newGroupNames\":[],\"expectedRevision\":0}"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/US/AAPL/memberships",
+          "body": "{\"groupIds\":[\"tech\"],\"newGroupNames\":[],\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "groups": [
+                {
+                  "groupId": "tech",
+                  "name": "Tech"
+                }
+              ],
+              "instrumentId": "US.AAPL",
+              "revision": 1
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "groups": [
+                {
+                  "groupId": "tech",
+                  "name": "Tech"
+                }
+              ],
+              "instrumentId": "US.AAPL",
+              "revision": 1
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 0,
+          "groupIds": [
+            "tech"
+          ],
+          "instrumentId": "US.AAPL",
+          "newGroupNames": [],
+          "route": "replace-memberships"
+        },
+        {
+          "expectedRevision": 1,
+          "groupIds": [
+            "tech"
+          ],
+          "instrumentId": "US.AAPL",
+          "newGroupNames": [],
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "tech",
+            "isDefault": false,
+            "itemCount": 1,
+            "name": "Tech",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [
+          {
+            "groups": [
+              {
+                "groupId": "tech",
+                "name": "Tech"
+              }
+            ],
+            "instrumentId": "US.AAPL",
+            "revision": 1
+          }
+        ],
+        "mutationCalls": 2,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-new-groups-and-alias",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/CNSH/600519/memberships",
+          "body": "{\"groupIds\":[\"tech\",\"tech\"],\"newGroupNames\":[\" Growth \",\"growth\"],\"expectedRevision\":0}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "groups": [
+                {
+                  "groupId": "tech",
+                  "name": "科技"
+                },
+                {
+                  "groupId": "group-1",
+                  "name": "Growth"
+                }
+              ],
+              "instrumentId": "SH.600519",
+              "revision": 1
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 0,
+          "groupIds": [
+            "tech",
+            "tech"
+          ],
+          "instrumentId": "CNSH.600519",
+          "newGroupNames": [
+            " Growth ",
+            "growth"
+          ],
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "tech",
+            "isDefault": false,
+            "itemCount": 1,
+            "name": "科技",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          },
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 1,
+            "name": "Growth",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [
+          {
+            "groups": [
+              {
+                "groupId": "tech",
+                "name": "科技"
+              },
+              {
+                "groupId": "group-1",
+                "name": "Growth"
+              }
+            ],
+            "instrumentId": "SH.600519",
+            "revision": 1
+          }
+        ],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-unknown-group",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/US/AAPL/memberships",
+          "body": "{\"groupIds\":[\"missing\"],\"expectedRevision\":0}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 0,
+          "groupIds": [
+            "missing"
+          ],
+          "instrumentId": "US.AAPL",
+          "newGroupNames": null,
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-conflict",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/US/AAPL/memberships",
+          "body": "{\"groupIds\":[],\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_CONFLICT",
+              "message": "watchlist state conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupIds": [],
+          "instrumentId": "US.AAPL",
+          "newGroupNames": null,
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [
+          {
+            "groups": [],
+            "instrumentId": "US.AAPL",
+            "revision": 2
+          }
+        ],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-invalid-market",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/BAD/AAPL/memberships",
+          "body": "{\"groupIds\":[]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_INVALID",
+              "message": "invalid watchlist request: unsupported market \"BAD\""
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 0,
+          "groupIds": [],
+          "instrumentId": "BAD.AAPL",
+          "newGroupNames": null,
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "membership-failure-rolls-back",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/watchlist/instruments/US/AAPL/memberships",
+          "body": "{\"groupIds\":[\"tech\"],\"newGroupNames\":[],\"expectedRevision\":0}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 0,
+          "groupIds": [
+            "tech"
+          ],
+          "instrumentId": "US.AAPL",
+          "newGroupNames": [],
+          "route": "replace-memberships"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "tech",
+            "isDefault": false,
+            "itemCount": 1,
+            "name": "Tech",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [
+          {
+            "groups": [
+              {
+                "groupId": "tech",
+                "name": "Tech"
+              }
+            ],
+            "instrumentId": "US.AAPL",
+            "revision": 1
+          }
+        ],
+        "mutationCalls": 1,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "membership-failure"
+    },
+    {
+      "name": "preview-success-local-diff",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{\"sourceId\":\"futu:default\",\"remoteGroupId\":\"remote-tech\",\"localGroupId\":\"local\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "added": [
+                {
+                  "instrumentId": "US.MSFT",
+                  "name": "Microsoft",
+                  "selected": true,
+                  "type": "stock"
+                }
+              ],
+              "createdAt": "2026-08-23T00:00:00Z",
+              "expiresAt": "2026-08-23T00:10:00Z",
+              "localGroupId": "local",
+              "localGroupRevision": 3,
+              "localOnly": [],
+              "previewId": "preview-1",
+              "remoteGroupId": "remote-tech",
+              "remoteGroupName": "Tech",
+              "remoteHash": "2b8f08dc0e488f905ecc61ecfb01ade47420a9f54b544d7e32fffd1023db0b67",
+              "sourceId": "futu:default",
+              "unchanged": [
+                {
+                  "instrumentId": "US.AAPL",
+                  "name": "Apple",
+                  "selected": false,
+                  "type": "stock"
+                }
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "localGroupId": "local",
+          "newGroupName": "",
+          "remoteGroupId": "remote-tech",
+          "route": "preview-import",
+          "sourceId": "futu:default"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "local",
+            "isDefault": false,
+            "itemCount": 1,
+            "name": "Local",
+            "protected": false,
+            "revision": 3,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [
+          {
+            "groups": [
+              {
+                "groupId": "local",
+                "name": "Local"
+              }
+            ],
+            "instrumentId": "US.AAPL",
+            "revision": 1
+          }
+        ],
+        "mutationCalls": 1,
+        "previewCount": 1,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "preview-success-default-new-group",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{\"sourceId\":\"futu:default\",\"remoteGroupId\":\"remote-tech\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "added": [
+                {
+                  "instrumentId": "US.AAPL",
+                  "name": "Apple",
+                  "selected": true,
+                  "type": "stock"
+                }
+              ],
+              "createdAt": "2026-08-23T00:00:00Z",
+              "expiresAt": "2026-08-23T00:10:00Z",
+              "localGroupRevision": 0,
+              "localOnly": [],
+              "newGroupName": "Tech",
+              "previewId": "preview-1",
+              "remoteGroupId": "remote-tech",
+              "remoteGroupName": "Tech",
+              "remoteHash": "72e4532c534e57b5b2f2dbc8dfb4e504d098734e6319812857598a507c80cb56",
+              "sourceId": "futu:default",
+              "unchanged": []
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "localGroupId": "",
+          "newGroupName": "",
+          "remoteGroupId": "remote-tech",
+          "route": "preview-import",
+          "sourceId": "futu:default"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 1,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "preview-malformed-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid watchlist import preview payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "preview-missing-source",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{\"sourceId\":\"missing\",\"remoteGroupId\":\"remote-tech\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "localGroupId": "",
+          "newGroupName": "",
+          "remoteGroupId": "remote-tech",
+          "route": "preview-import",
+          "sourceId": "missing"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "preview-ambiguous-remote-group",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{\"sourceId\":\"futu:default\",\"remoteGroupId\":\"remote-one\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_REMOTE_GROUP_AMBIGUOUS",
+              "message": "remote watchlist group name is ambiguous"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "localGroupId": "",
+          "newGroupName": "",
+          "remoteGroupId": "remote-one",
+          "route": "preview-import",
+          "sourceId": "futu:default"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "preview-repository-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview",
+          "body": "{\"sourceId\":\"futu:default\",\"remoteGroupId\":\"remote-tech\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_UNAVAILABLE",
+              "message": "watchlist service is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "portMode": "no-port"
+    },
+    {
+      "name": "commit-success-and-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit",
+          "body": "{}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "addedCount": 2,
+              "completedAt": "2026-08-23T00:00:00Z",
+              "createdAt": "2026-08-23T00:00:00Z",
+              "localGroupId": "local",
+              "previewId": "preview-1",
+              "remoteGroupId": "remote-tech",
+              "remoteGroupName": "Tech",
+              "remoteHash": "2b8f08dc0e488f905ecc61ecfb01ade47420a9f54b544d7e32fffd1023db0b67",
+              "removedCount": 0,
+              "runId": "run-1",
+              "sourceId": "futu:default",
+              "status": "completed",
+              "unchangedCount": 0
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_PREVIEW_STALE",
+              "message": "watchlist import preview is stale"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "preview-1",
+          "route": "commit-import"
+        },
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "preview-1",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 1,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "local",
+            "isDefault": false,
+            "itemCount": 2,
+            "name": "Local",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [
+          {
+            "groups": [
+              {
+                "groupId": "local",
+                "name": "Local"
+              }
+            ],
+            "instrumentId": "US.AAPL",
+            "revision": 0
+          },
+          {
+            "groups": [
+              {
+                "groupId": "local",
+                "name": "Local"
+              }
+            ],
+            "instrumentId": "US.MSFT",
+            "revision": 0
+          }
+        ],
+        "mutationCalls": 1,
+        "previewCount": 1,
+        "runCount": 1
+      }
+    },
+    {
+      "name": "commit-not-found",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/missing/commit"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_NOT_FOUND",
+              "message": "watchlist resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "missing",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "commit-expired",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_PREVIEW_EXPIRED",
+              "message": "watchlist import preview has expired"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "preview-1",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 1,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "commit-stale-remote",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_PREVIEW_STALE",
+              "message": "watchlist import preview is stale"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "preview-1",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 1,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "commit-invalid-delete",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit",
+          "body": "{\"deleteInstrumentIds\":[\"US.AAPL\"]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_INVALID",
+              "message": "invalid watchlist request: US.AAPL is not local-only in this preview"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": [
+            "US.AAPL"
+          ],
+          "previewId": "preview-1",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "local",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Local",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 1,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "commit-failure-rolls-back",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/imports/preview-1/commit"
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "deleteInstrumentIds": null,
+          "previewId": "preview-1",
+          "route": "commit-import"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "local",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Local",
+            "protected": false,
+            "revision": 1,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 1,
+        "previewCount": 1,
+        "runCount": 0
+      },
+      "portMode": "commit-failure"
+    },
+    {
+      "name": "quotes-success-deduplicates",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/quotes/batch",
+          "body": "{\"instrumentIds\":[\"us:aapl\",\"US.AAPL\",\"SH.600519\"]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "errors": [],
+              "observedAt": "2026-08-23T00:00:00Z",
+              "quotes": [
+                {
+                  "instrumentId": "US.AAPL",
+                  "name": "Apple",
+                  "observedAt": "2026-08-23T00:00:00Z",
+                  "price": 100.5,
+                  "source": "fixture",
+                  "type": "stock"
+                },
+                {
+                  "instrumentId": "SH.600519",
+                  "name": "贵州茅台",
+                  "observedAt": "2026-08-23T00:00:00Z",
+                  "price": 88.25,
+                  "source": "fixture",
+                  "type": "stock"
+                }
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "instrumentIds": [
+            "us:aapl",
+            "US.AAPL",
+            "SH.600519"
+          ],
+          "route": "batch-quotes"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "quotes-item-errors",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/quotes/batch",
+          "body": "{\"instrumentIds\":[\"US.AAPL\",\"US.MSFT\"]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "errors": [
+                {
+                  "code": "NO_SNAPSHOT",
+                  "instrumentId": "US.AAPL",
+                  "message": "snapshot source returned no result"
+                },
+                {
+                  "code": "NO_PERMISSION",
+                  "instrumentId": "US.MSFT",
+                  "message": "quote permission denied"
+                }
+              ],
+              "observedAt": "2026-08-23T00:00:00Z",
+              "quotes": []
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "instrumentIds": [
+            "US.AAPL",
+            "US.MSFT"
+          ],
+          "route": "batch-quotes"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "quotes-source-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/quotes/batch",
+          "body": "{\"instrumentIds\":[\"US.AAPL\"]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_UNAVAILABLE",
+              "message": "watchlist service is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "instrumentIds": [
+            "US.AAPL"
+          ],
+          "route": "batch-quotes"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "quotes-malformed-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/quotes/batch",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid watchlist quote payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "quotes-cancelled-source",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/watchlist/quotes/batch",
+          "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "errors": [
+                {
+                  "code": "SNAPSHOT_FAILED",
+                  "instrumentId": "US.AAPL",
+                  "message": "context canceled"
+                }
+              ],
+              "observedAt": "2026-08-23T00:00:00Z",
+              "quotes": []
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "instrumentIds": [
+            "US.AAPL"
+          ],
+          "route": "batch-quotes"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [],
+        "memberships": [],
+        "mutationCalls": 0,
+        "previewCount": 0,
+        "runCount": 0
+      }
+    },
+    {
+      "name": "update-concurrent-revision-fence",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/watchlist/groups/group-1",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-23T00:00:00Z",
+              "groupId": "group-1",
+              "isDefault": false,
+              "itemCount": 0,
+              "name": "Concurrent",
+              "protected": false,
+              "revision": 2,
+              "updatedAt": "2026-08-23T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_CONFLICT",
+              "message": "watchlist state conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "WATCHLIST_CONFLICT",
+              "message": "watchlist state conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T00:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "calls": [
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "Concurrent",
+          "route": "update-group"
+        },
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "Concurrent",
+          "route": "update-group"
+        },
+        {
+          "expectedRevision": 1,
+          "groupId": "group-1",
+          "name": "Concurrent",
+          "route": "update-group"
+        }
+      ],
+      "expectedObservation": {
+        "bindings": [],
+        "committedPreviewCount": 0,
+        "groups": [
+          {
+            "createdAt": "2026-08-23T00:00:00Z",
+            "groupId": "group-1",
+            "isDefault": false,
+            "itemCount": 0,
+            "name": "Concurrent",
+            "protected": false,
+            "revision": 2,
+            "updatedAt": "2026-08-23T00:00:00Z"
+          }
+        ],
+        "memberships": [],
+        "mutationCalls": 3,
+        "previewCount": 0,
+        "runCount": 0
+      },
+      "concurrent": true
+    }
+  ]
+}

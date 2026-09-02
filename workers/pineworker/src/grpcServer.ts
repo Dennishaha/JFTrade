@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { runScriptWithPineTS, type RunAdapterOptions } from "./adapter";
 import { healthStatusToProto, runScriptRequestFromProto, runScriptResponseToProto } from "./protoMapping";
 import { workerVersion, type HealthStatus } from "./types";
@@ -26,6 +27,7 @@ export type WorkerServerOptions = RunAdapterOptions & {
   grpc: GrpcModule;
   protoLoader: ProtoLoaderModule;
   maxMessageBytes: number;
+  authToken?: string;
 };
 
 export type StartedWorkerServer = {
@@ -35,6 +37,7 @@ export type StartedWorkerServer = {
 };
 
 export async function startWorkerGrpcServer(options: WorkerServerOptions): Promise<StartedWorkerServer> {
+  validatePrivateBoundary(options.address, options.authToken);
   const protoPath = normalizeProtoPath(options.protoPath);
   const packageDefinition = options.protoLoader.loadSync(protoPath, {
     keepCase: true,
@@ -59,12 +62,24 @@ export async function startWorkerGrpcServer(options: WorkerServerOptions): Promi
   };
 }
 
-export function createServiceHandlers(options: RunAdapterOptions): Record<string, unknown> {
+function validatePrivateBoundary(address: string, authToken: string | undefined): void {
+  const host = address.slice(0, address.lastIndexOf(":"));
+  if (!(["127.0.0.1", "localhost", "[::1]"].includes(host))) {
+    throw new Error("pine worker must bind to a loopback address");
+  }
+  if (authToken !== undefined && authToken.trim() !== "" && authToken.trim().length < 32) {
+    throw new Error("pine worker bearer token must contain at least 32 characters");
+  }
+}
+
+export function createServiceHandlers(options: RunAdapterOptions & { authToken?: string }): Record<string, unknown> {
   return {
-    HealthCheck: (_call: unknown, callback: UnaryCallback) => {
+    HealthCheck: (call: UnaryCall, callback: UnaryCallback) => {
+      if (!authorize(call, options.authToken, callback)) return;
       callback(null, healthStatusToProto(healthStatus(options)));
     },
     RunScript: async (call: UnaryCall, callback: UnaryCallback) => {
+      if (!authorize(call, options.authToken, callback)) return;
       try {
         const request = runScriptRequestFromProto(asRecord(call.request));
         call.request = undefined;
@@ -76,6 +91,7 @@ export function createServiceHandlers(options: RunAdapterOptions): Record<string
       }
     },
     AnalyzeScript: async (call: UnaryCall, callback: UnaryCallback) => {
+      if (!authorize(call, options.authToken, callback)) return;
       try {
         const request = runScriptRequestFromProto({
           ...asRecord(call.request),
@@ -160,11 +176,31 @@ export function dirname(path: string): string {
 
 export function includeDirsForProto(path: string): string[] {
   const protoDir = dirname(path);
-  return Array.from(new Set([protoDir, dirname(protoDir)]));
+  return [dirname(dirname(protoDir))];
 }
 
 type UnaryCall = {
   request?: unknown;
+  metadata?: {
+    get(key: string): unknown[];
+  };
 };
 
 type UnaryCallback = (error: Error | null, response?: unknown) => void;
+
+function authorize(call: UnaryCall, token: string | undefined, callback: UnaryCallback): boolean {
+  const expected = token?.trim();
+  if (!expected) return true;
+  const provided = call.metadata?.get("authorization")[0];
+  if (typeof provided === "string") {
+    const providedBytes = Buffer.from(provided);
+    const expectedBytes = Buffer.from(`Bearer ${expected}`);
+    if (providedBytes.length === expectedBytes.length && timingSafeEqual(providedBytes, expectedBytes)) {
+      return true;
+    }
+  }
+  const error = new Error("missing or invalid pine worker bearer token") as Error & { code: number };
+  error.code = 16;
+  callback(error);
+  return false;
+}

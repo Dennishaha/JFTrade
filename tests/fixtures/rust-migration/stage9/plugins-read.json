@@ -1,0 +1,184 @@
+{
+  "version": "stage9.plugins-read.v1",
+  "cases": [
+    {
+      "name": "catalog",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins",
+      "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "data": {
+        "plugins": [
+          {
+            "compatibility": {
+              "host": {
+                "buildMode": "plugin",
+                "goVersion": "go1.26.6",
+                "goarch": "fixture",
+                "goos": "fixture",
+                "jftradeVersion": "fixture"
+              },
+              "mode": "plugin",
+              "requiresRebuild": false,
+              "supported": true
+            },
+            "descriptor": {
+              "description": "fixture strategy plugin",
+              "displayName": "Alpha Strategy",
+              "id": "alpha",
+              "keywords": [
+                "alpha",
+                "trend"
+              ],
+              "type": "strategy-go-plugin",
+              "version": "1.2.3"
+            },
+            "installation": {
+              "currentOperation": null,
+              "installPath": "plugins/alpha.so",
+              "installed": true,
+              "lastOperation": {
+                "completedAt": "2026-08-21T04:00:02Z",
+                "error": null,
+                "installPath": "plugins/alpha.so",
+                "message": "plugin metadata installed",
+                "operationId": "op-alpha",
+                "phase": "installed",
+                "pluginId": "alpha",
+                "progress": 100,
+                "startedAt": "2026-08-21T04:00:00Z",
+                "status": "SUCCEEDED",
+                "targetDir": "plugins",
+                "updatedAt": "2026-08-21T04:00:02Z"
+              },
+              "markerPath": "plugins/alpha.json",
+              "status": "INSTALLED",
+              "targetDir": "plugins",
+              "uninstallGuidance": {
+                "commands": {
+                  "posix": "rm -f 'plugins/alpha.so'",
+                  "powershell": "Remove-Item -LiteralPath 'plugins/alpha.so' -Force"
+                },
+                "exists": false,
+                "path": "plugins/alpha.so",
+                "pluginId": "alpha"
+              }
+            }
+          },
+          {
+            "compatibility": {
+              "host": {
+                "buildMode": "plugin",
+                "goVersion": "go1.26.6",
+                "goarch": "fixture",
+                "goos": "fixture",
+                "jftradeVersion": "fixture"
+              },
+              "mode": "plugin",
+              "requiresRebuild": false,
+              "supported": true
+            },
+            "descriptor": {
+              "description": "",
+              "displayName": "beta",
+              "id": "beta",
+              "keywords": [],
+              "type": "strategy-go-plugin",
+              "version": "0.1.0"
+            },
+            "installation": {
+              "currentOperation": null,
+              "installPath": "plugins/beta.so",
+              "installed": false,
+              "lastOperation": null,
+              "markerPath": "plugins/beta.json",
+              "status": "NOT_INSTALLED",
+              "targetDir": "plugins",
+              "uninstallGuidance": {
+                "commands": {
+                  "posix": "rm -f 'plugins/beta.so'",
+                  "powershell": "Remove-Item -LiteralPath 'plugins/beta.so' -Force"
+                },
+                "exists": false,
+                "path": "plugins/beta.so",
+                "pluginId": "beta"
+              }
+            }
+          }
+        ],
+        "targetDir": "plugins"
+      }
+    },
+    {
+      "name": "catalog-empty",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins",
+      "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "data": {
+        "plugins": [],
+        "targetDir": "plugins"
+      }
+    },
+    {
+      "name": "operation",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/operations/op-alpha",
+      "expectedStatus": 200,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "data": {
+        "operationId": "op-alpha",
+        "pluginId": "alpha",
+        "status": "SUCCEEDED",
+        "phase": "installed",
+        "progress": 100,
+        "message": "plugin metadata installed",
+        "targetDir": "plugins",
+        "installPath": "plugins/alpha.so",
+        "startedAt": "2026-08-21T04:00:00Z",
+        "updatedAt": "2026-08-21T04:00:02Z",
+        "completedAt": "2026-08-21T04:00:02Z",
+        "error": null
+      }
+    },
+    {
+      "name": "operation-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/operations/missing",
+      "expectedStatus": 404,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "plugin operation not found"
+    },
+    {
+      "name": "operation-blank-encoded",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/operations/%20",
+      "expectedStatus": 400,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "operationId is required"
+    },
+    {
+      "name": "operation-invalid-escape",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/operations/%ZZ",
+      "expectedStatus": 400,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "operationId is required"
+    }
+  ]
+}

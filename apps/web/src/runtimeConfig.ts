@@ -1,9 +1,49 @@
-type JFTradeRuntimeConfig = {
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+export type JFTradeRuntimeConfig = {
   apiBaseUrl?: string;
   authRequired?: boolean;
   desktopMode?: boolean;
   desktopApiToken?: string;
 };
+
+export async function initializeTauriRuntimeConfig(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const runtimeWindow = window as typeof window & {
+    __TAURI_INTERNALS__?: unknown;
+  };
+  if (runtimeWindow.__TAURI_INTERNALS__ == null) {
+    return;
+  }
+  const maxAttempts = 50;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const config = await tauriInvoke<JFTradeRuntimeConfig>("desktop_runtime_config");
+      const apiBaseUrl = normalizeApiBaseUrl(config.apiBaseUrl);
+      const token = config.desktopApiToken?.trim();
+      if (!isLoopbackHttpUrl(apiBaseUrl) || !token || token.length < 32) {
+        throw new Error("Tauri runtime returned an unsafe desktop API configuration");
+      }
+      window.__JFTRADE_RUNTIME_CONFIG__ = {
+        apiBaseUrl,
+        authRequired: config.authRequired === true,
+        desktopMode: true,
+        desktopApiToken: token,
+      };
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        (message.includes("DESKTOP_NOT_READY") || message.includes("starting")) &&
+        attempt < maxAttempts - 1
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 declare global {
   interface Window {
@@ -18,6 +58,24 @@ const buildTimeApiBaseUrl = (
 function normalizeApiBaseUrl(value: string | null | undefined): string | null {
   const trimmedValue = value?.trim().replace(/\/$/, "");
   return trimmedValue ? trimmedValue : null;
+}
+
+function isLoopbackHttpUrl(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" &&
+      (url.hostname === "127.0.0.1" || url.hostname === "[::1]") &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
 }
 
 function resolveRuntimeApiBaseUrl(): string | null {
@@ -66,14 +124,16 @@ export function resolveDesktopBridgeAvailable(): boolean {
   }
   const runtimeWindow = window as typeof window & {
     chrome?: { webview?: { postMessage?: unknown } };
+    __TAURI_INTERNALS__?: unknown;
+    __TAURI__?: unknown;
     webkit?: { messageHandlers?: { external?: { postMessage?: unknown } } };
-    wails?: { invoke?: unknown };
   };
   return (
     typeof runtimeWindow.chrome?.webview?.postMessage === "function" ||
+    runtimeWindow.__TAURI_INTERNALS__ != null ||
+    runtimeWindow.__TAURI__ != null ||
     typeof runtimeWindow.webkit?.messageHandlers?.external?.postMessage ===
-      "function" ||
-    typeof runtimeWindow.wails?.invoke === "function"
+      "function"
   );
 }
 

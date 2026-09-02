@@ -1,0 +1,914 @@
+{
+  "version": "stage9.alerts-write.v1",
+  "cases": [
+    {
+      "name": "price-success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu\u0026accountId=acct-1",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":190.5,\"enabled\":true}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "alerts.price.set",
+                  "operation": "set"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.price.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "accountId": "acct-1",
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "enabled": true,
+              "price": 190.5,
+              "symbol": "US.AAPL"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "option-events-success-repeated-broker-query",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu\u0026brokerId=ignored\u0026accountId=acct-2",
+          "body": "{\"operation\":\"add\",\"alertList\":[{\"key\":202}]}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "alerts.option_event.set",
+                  "operation": "set"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.option_event.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "accountId": "acct-2",
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "alertList": [
+                {
+                  "key": 202
+                }
+              ],
+              "operation": "add"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "price-null-body-nil-result",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu",
+          "body": "null"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "nil-result",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.price.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set"
+          }
+        ],
+        "payloadState": [
+          "nil"
+        ]
+      }
+    },
+    {
+      "name": "empty-body-wins-over-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=missing"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "option-events-empty-object",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "empty-result",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.option_event.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set"
+          }
+        ],
+        "payloadState": [
+          "empty_object"
+        ]
+      }
+    },
+    {
+      "name": "malformed-body-wins-over-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=missing",
+          "body": "{"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "array-body-rejected",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "[]"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "missing-broker-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=missing",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "missing-broker",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"missing\" is not registered"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "declared-capability-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"disable\"}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "capability-unavailable",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"futu\" feature \"alerts.option_event.set\" is unavailable: "
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "customization-adapter-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "adapter-unavailable",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"futu\" feature \"alerts.price.set\" is unavailable: adapter interface CustomizationService is not implemented"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "provider-http-forbidden",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"delete\",\"key\":202}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "provider-http-403",
+      "expected": [
+        {
+          "status": 403,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PROVIDER_REQUEST_FAILED",
+              "message": "provider denied alert write"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "key": 202,
+              "operation": "delete"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "provider-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "provider-unavailable",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "provider unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "price": 100,
+              "symbol": "US.AAPL"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "internal-write-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"modify\",\"key\":202}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "internal-failure",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "key": 202,
+              "operation": "modify"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "generic-rate-limit-retry-after",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "rate-limit",
+      "expected": [
+        {
+          "status": 429,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "3"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "MARKET_SNAPSHOT_RATE_LIMITED",
+              "message": "broker snapshot rate limited; retry after 2.5s"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "price": 100,
+              "symbol": "US.AAPL"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "price-repeated-write-is-forwarded-twice",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu\u0026accountId=acct-3",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu\u0026accountId=acct-3",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "alerts.price.set",
+                  "operation": "set"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.price.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "alerts.price.set",
+                  "operation": "set"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.price.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 2,
+        "actions": [
+          {
+            "accountId": "acct-3",
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "price": 100,
+              "symbol": "US.AAPL"
+            }
+          },
+          {
+            "accountId": "acct-3",
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "price": 100,
+              "symbol": "US.AAPL"
+            }
+          }
+        ],
+        "payloadState": [
+          "object",
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "option-events-failed-write-recovers-on-next-request",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"modify\",\"key\":202}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"modify\",\"key\":202}"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "failure-then-success",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "alerts.option_event.set",
+                  "operation": "set"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "alerts.option_event.set",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 2,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "key": 202,
+              "operation": "modify"
+            }
+          },
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "key": 202,
+              "operation": "modify"
+            }
+          }
+        ],
+        "payloadState": [
+          "object",
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "price-cancelled-request-defaults-to-broker-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/price?brokerId=futu",
+          "body": "{\"symbol\":\"US.AAPL\",\"price\":100}",
+          "context": "canceled"
+        }
+      ],
+      "featureId": "alerts.price.set",
+      "action": "set",
+      "portMode": "context-error",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.price.set",
+            "payload": {
+              "price": 100,
+              "symbol": "US.AAPL"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "option-events-deadline-request-defaults-to-broker-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/alerts/option-events?brokerId=futu",
+          "body": "{\"operation\":\"modify\",\"key\":202}",
+          "context": "deadline"
+        }
+      ],
+      "featureId": "alerts.option_event.set",
+      "action": "set",
+      "portMode": "context-error",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "set",
+            "brokerId": "futu",
+            "featureId": "alerts.option_event.set",
+            "payload": {
+              "key": 202,
+              "operation": "modify"
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    }
+  ]
+}

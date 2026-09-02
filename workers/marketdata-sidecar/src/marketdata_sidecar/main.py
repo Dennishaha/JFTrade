@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import logging
+import os
+import secrets
 from collections.abc import Sequence
 
 from fastapi import FastAPI, Request
@@ -35,7 +38,7 @@ from .routes import (
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
+def create_app(auth_token: str | None = None) -> FastAPI:
     application = FastAPI(
         title="JFTrade market-data sidecar",
         version=__version__,
@@ -53,6 +56,17 @@ def create_app() -> FastAPI:
         _http_error_handler,
     )
     application.add_exception_handler(Exception, _unexpected_error_handler)
+    configured_token = (
+        auth_token
+        if auth_token is not None
+        else os.environ.get("JFTRADE_MARKETDATA_HELPER_TOKEN", "")
+    ).strip()
+    if configured_token and len(configured_token) < 32:
+        raise ValueError("market-data helper token must contain at least 32 characters")
+    if configured_token:
+        application.middleware("http")(
+            _bearer_auth_middleware(configured_token),
+        )
     application.middleware("http")(_runtime_readiness_middleware)
     application.include_router(health.router)
     application.include_router(markets.router)
@@ -82,6 +96,22 @@ def create_app() -> FastAPI:
     application.include_router(calendar.router)
     application.include_router(screen.akshare_router)
     return application
+
+
+def _bearer_auth_middleware(expected_token: str):
+    expected = f"Bearer {expected_token}"
+
+    async def authenticate(request: Request, call_next):
+        provided = request.headers.get("authorization", "")
+        if not secrets.compare_digest(provided, expected):
+            return _error_response(
+                401,
+                "unauthenticated",
+                "missing or invalid market-data helper bearer token",
+            )
+        return await call_next(request)
+
+    return authenticate
 
 
 async def _runtime_readiness_middleware(
@@ -184,6 +214,16 @@ def _port(value: str) -> int:
     return port
 
 
+def _host(value: str) -> str:
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("host must be a loopback IP address") from exc
+    if not address.is_loopback:
+        raise argparse.ArgumentTypeError("host must be a loopback IP address")
+    return value
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the local JFTrade market-data sidecar.",
@@ -191,6 +231,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--host",
         default="127.0.0.1",
+        type=_host,
         help="host interface to bind (default: 127.0.0.1)",
     )
     parser.add_argument(

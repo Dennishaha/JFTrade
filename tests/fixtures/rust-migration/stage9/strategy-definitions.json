@@ -1,0 +1,212 @@
+{
+  "version": "stage9.strategy-definitions.v1",
+  "cases": [
+    {
+      "name": "list-current-only",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions",
+      "expectedStatus": 200,
+      "data": [
+        {
+          "createdAt": "\u003ctimestamp\u003e",
+          "description": "second saved description",
+          "id": "fixture-current",
+          "interval": "5m",
+          "name": "Fixture Current",
+          "runtime": "pine-pinets",
+          "script": "//@version=6\nstrategy(\"Fixture Current\", overlay=true)\nslow = ta.sma(close, 20)",
+          "sourceFormat": "pine-v6",
+          "symbol": "US.AAPL",
+          "updatedAt": "\u003ctimestamp\u003e",
+          "version": "0.1.1"
+        }
+      ]
+    },
+    {
+      "name": "detail-current-default-preview",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current",
+      "expectedStatus": 200,
+      "data": {
+        "createdAt": "\u003ctimestamp\u003e",
+        "derivedWarmupBars": 20,
+        "derivedWarmupInterval": "5m",
+        "description": "second saved description",
+        "id": "fixture-current",
+        "interval": "5m",
+        "name": "Fixture Current",
+        "runtime": "pine-pinets",
+        "script": "//@version=6\nstrategy(\"Fixture Current\", overlay=true)\nslow = ta.sma(close, 20)",
+        "sourceFormat": "pine-v6",
+        "symbol": "US.AAPL",
+        "updatedAt": "\u003ctimestamp\u003e",
+        "version": "0.1.1"
+      }
+    },
+    {
+      "name": "detail-current-query-preview",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current?interval=1m\u0026symbol=US.MSFT\u0026useExtendedHours=true",
+      "expectedStatus": 200,
+      "data": {
+        "createdAt": "\u003ctimestamp\u003e",
+        "derivedWarmupBars": 20,
+        "derivedWarmupInterval": "1m",
+        "description": "second saved description",
+        "id": "fixture-current",
+        "interval": "5m",
+        "name": "Fixture Current",
+        "runtime": "pine-pinets",
+        "script": "//@version=6\nstrategy(\"Fixture Current\", overlay=true)\nslow = ta.sma(close, 20)",
+        "sourceFormat": "pine-v6",
+        "symbol": "US.AAPL",
+        "updatedAt": "\u003ctimestamp\u003e",
+        "version": "0.1.1"
+      }
+    },
+    {
+      "name": "detail-invalid-query-boolean",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current?useExtendedHours=maybe",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid strategy definition query"
+    },
+    {
+      "name": "detail-malformed-query-escape-is-ignored",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current?useExtendedHours=%ZZ",
+      "expectedStatus": 200,
+      "data": {
+        "createdAt": "\u003ctimestamp\u003e",
+        "derivedWarmupBars": 20,
+        "derivedWarmupInterval": "5m",
+        "description": "second saved description",
+        "id": "fixture-current",
+        "interval": "5m",
+        "name": "Fixture Current",
+        "runtime": "pine-pinets",
+        "script": "//@version=6\nstrategy(\"Fixture Current\", overlay=true)\nslow = ta.sma(close, 20)",
+        "sourceFormat": "pine-v6",
+        "symbol": "US.AAPL",
+        "updatedAt": "\u003ctimestamp\u003e",
+        "version": "0.1.1"
+      }
+    },
+    {
+      "name": "detail-invalid-id-escape",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/%ZZ",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid definition id"
+    },
+    {
+      "name": "detail-missing",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/missing-definition",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "resource not found"
+    },
+    {
+      "name": "versions-current",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current/versions",
+      "expectedStatus": 200,
+      "data": [
+        {
+          "definitionId": "fixture-current",
+          "isCurrent": true,
+          "name": "Fixture Current",
+          "savedAt": "\u003ctimestamp\u003e",
+          "version": "0.1.1"
+        },
+        {
+          "definitionId": "fixture-current",
+          "isCurrent": false,
+          "name": "Fixture Current",
+          "savedAt": "\u003ctimestamp\u003e",
+          "version": "0.1.0"
+        }
+      ]
+    },
+    {
+      "name": "versions-invalid-id-escape",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/%ZZ/versions",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid definition id"
+    },
+    {
+      "name": "versions-soft-deleted",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-deleted/versions",
+      "expectedStatus": 200,
+      "data": [
+        {
+          "definitionId": "fixture-deleted",
+          "isCurrent": false,
+          "name": "Fixture Deleted",
+          "savedAt": "\u003ctimestamp\u003e",
+          "version": "0.1.0"
+        }
+      ]
+    },
+    {
+      "name": "versions-missing",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/missing-definition/versions",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "resource not found"
+    },
+    {
+      "name": "version-current-history",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current/versions/0.1.0",
+      "expectedStatus": 200,
+      "data": {
+        "createdAt": "\u003ctimestamp\u003e",
+        "definitionId": "fixture-current",
+        "description": "first saved description",
+        "id": "fixture-current",
+        "interval": "5m",
+        "isCurrent": false,
+        "name": "Fixture Current",
+        "runtime": "pine-pinets",
+        "savedAt": "\u003ctimestamp\u003e",
+        "script": "//@version=6\nstrategy(\"Fixture Current\", overlay=true)\nslow = ta.sma(close, 20)",
+        "sourceFormat": "pine-v6",
+        "symbol": "US.AAPL",
+        "updatedAt": "\u003ctimestamp\u003e",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "name": "version-invalid-id-escape",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/%ZZ/versions/0.1.0",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid definition version"
+    },
+    {
+      "name": "version-invalid-version-escape",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current/versions/%ZZ",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid definition version"
+    },
+    {
+      "name": "version-missing",
+      "method": "GET",
+      "path": "/api/v1/strategy-definitions/fixture-current/versions/9.9.9",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "resource not found"
+    }
+  ]
+}

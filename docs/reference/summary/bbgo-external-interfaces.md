@@ -1,12 +1,15 @@
 # bbgo 对外接口索引
 
+> 历史参考快照：下列路径和集成关系记录已删除的 Go/bbgo 实现，只用于解释历史 fixture 与迁移决策。
+> 当前生产架构不加载 bbgo；请以 `docs/architecture.md`、Rust crates 和 route manifest 为准。
+
 本文只整理当前项目实际依赖的 bbgo 公共接口与扩展点，不尝试穷举整个 bbgo 生态。
 
 ## 阅读前提
 
 当前项目与 bbgo 的关系是：
 
-- `cmd/jftrade` 已移除；当前入口是 [../../../cmd/jftrade-api/main.go](../../../cmd/jftrade-api/main.go)，只启动 JFTrade API sidecar
+- `cmd/jftrade` 已移除；当前生产入口是 [`jftrade-api-rust`](../../../crates/jftrade-engine/src/bin/jftrade-api-rust.rs)。Go [../../../cmd/jftrade-api/main.go](../../../cmd/jftrade-api/main.go) 只作为 reference/differential harness，不是生产 API sidecar
 - [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) 通过注册机制接入 bbgo exchange factory
 - [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) 复用 bbgo 的 Stream / StandardStream 抽象
 - [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) 复用 bbgo 通知系统

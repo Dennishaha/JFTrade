@@ -1,0 +1,267 @@
+name: Desktop Release Evidence Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      qualification_mode:
+        description: Evidence mode; this rehearsal workflow never emits formal candidate evidence
+        required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref
+        required: true
+        default: refs/heads/release/0.29.0-candidate
+        type: string
+      planned_release_tag:
+        description: Planned release tag; it need not exist for rehearsal
+        required: true
+        default: v0.29.0
+        type: string
+      candidate_commit_sha:
+        description: Exact commit shared by candidate branch and all candidate artifacts
+        required: true
+        type: string
+      candidate_run_id:
+        description: Desktop Release rehearsal run id that built the four platform artifacts
+        required: true
+        type: string
+      candidate_run_attempt:
+        description: Attempt number for candidate_run_id
+        required: true
+        default: "1"
+        type: string
+      candidate_artifacts_json:
+        description: Exact four-element JSON array of platform, name, id and digest
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  mode-guard:
+    name: Enforce unsigned rehearsal source scope
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Reject formal candidate evidence generation in the unsigned workflow
+        if: inputs.qualification_mode != 'rehearsal'
+        run: |
+          echo "Formal candidate evidence requires signed packages, updater signatures, notarization and independent security review; this workflow only performs unsigned rehearsal." >&2
+          exit 1
+
+  platform-rehearsal:
+    name: Native rehearsal (${{ matrix.platform }})
+    needs: mode-guard
+    if: inputs.qualification_mode == 'rehearsal'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            runner: macos-15
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: windows-x64
+            runner: windows-2025
+          - platform: windows-arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    environment: release-evidence
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_commit_sha }}
+          fetch-depth: 0
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Verify candidate branch, commit and source run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit_sha }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          CANDIDATE_RUN_ATTEMPT: ${{ inputs.candidate_run_attempt }}
+          CANDIDATE_ARTIFACTS: ${{ inputs.candidate_artifacts_json }}
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" ]] || { echo "candidate_ref must be refs/heads/release/0.29.0-candidate" >&2; exit 1; }
+          [[ "$PLANNED_TAG" == "v0.29.0" ]] || { echo "planned_release_tag must be v0.29.0" >&2; exit 1; }
+          [[ "$CANDIDATE_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ && "$(git rev-parse HEAD)" == "$CANDIDATE_COMMIT" ]] || { echo "candidate commit mismatch" >&2; exit 1; }
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ && "$CANDIDATE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "candidate run identity is invalid" >&2; exit 1; }
+          git fetch --no-tags origin "$CANDIDATE_REF:$CANDIDATE_REF"
+          [[ "$(git rev-parse "$CANDIDATE_REF^{commit}")" == "$CANDIDATE_COMMIT" ]] || { echo "candidate branch moved from candidate_commit_sha" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$CANDIDATE_RUN_ID")"
+          candidate_branch="${CANDIDATE_REF#refs/heads/}"
+          jq -e --arg sha "$CANDIDATE_COMMIT" --arg branch "$candidate_branch" --arg attempt "$CANDIDATE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
+            <<<"$run_json" >/dev/null || { echo "candidate run provenance mismatch" >&2; exit 1; }
+          expected='["desktop-release-linux","desktop-release-macos","desktop-release-windows","desktop-release-windows-arm64"]'
+          jq -e --argjson expected "$expected" '
+            type == "array" and length == 4
+            and ([.[].name] | sort == ($expected | sort))
+            and (all(.[]; (.platform|type) == "string" and (.id|type) == "number" and .id > 0 and (.digest|test("^sha256:[a-f0-9]{64}$"))))
+          ' <<<"$CANDIDATE_ARTIFACTS" >/dev/null || { echo "candidate_artifacts_json must bind exactly four artifacts" >&2; exit 1; }
+          item="$(jq -c --arg platform "$PLATFORM" '[.[] | select(.platform == $platform)] | if length == 1 then .[0] else error("missing or duplicate platform artifact") end' <<<"$CANDIDATE_ARTIFACTS")"
+          name="$(jq -r .name <<<"$item")"
+          id="$(jq -r .id <<<"$item")"
+          digest="$(jq -r .digest <<<"$item")"
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$CANDIDATE_RUN_ID/artifacts?per_page=100")"
+          jq -e --arg name "$name" --arg digest "$digest" --argjson id "$id" --argjson run_id "$CANDIDATE_RUN_ID" \
+            '[.artifacts[] | select(.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id)] | length == 1' \
+            <<<"$artifacts_json" >/dev/null || { echo "candidate artifact API metadata mismatch" >&2; exit 1; }
+          {
+            echo "REHEARSAL_ARTIFACT_NAME=$name"
+            echo "REHEARSAL_ARTIFACT_ID=$id"
+            echo "REHEARSAL_ARTIFACT_DIGEST=$digest"
+          } >> "$GITHUB_ENV"
+
+      - name: Download candidate artifact by immutable id and digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf candidate-artifact
+          mkdir candidate-artifact
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$REHEARSAL_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$REHEARSAL_ARTIFACT_DIGEST" ]] || { echo "candidate artifact digest drift" >&2; exit 1; }
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe candidate artifact path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d candidate-artifact
+          [[ -z "$(find candidate-artifact -type l -print -quit)" ]] || { echo "candidate artifact contains symlinks" >&2; exit 1; }
+
+      - name: Download and verify published v0.27.0 baseline bytes
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p baseline
+          url="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .url' tests/fixtures/rust-migration/stage9/last-go-release-baseline.json)"
+          expected="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .sha256' tests/fixtures/rust-migration/stage9/last-go-release-baseline.json)"
+          name="$(basename "$url")"
+          [[ -n "$url" && "$expected" =~ ^[a-f0-9]{64}$ ]] || { echo "published baseline entry missing for $PLATFORM" >&2; exit 1; }
+          curl --fail --location --retry 3 --output "baseline/$name" "$url"
+          [[ "$(sha256sum "baseline/$name" | awk '{print $1}')" == "$expected" ]] || { echo "published baseline SHA-256 mismatch" >&2; exit 1; }
+          echo "REHEARSAL_BASELINE_PACKAGE=$PWD/baseline/$name" >> "$GITHUB_ENV"
+
+      - name: Execute native install, upgrade, restore and rollback rehearsal
+        env:
+          REHEARSAL_PLATFORM: ${{ matrix.platform }}
+          REHEARSAL_CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REHEARSAL_PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          REHEARSAL_COMMIT_SHA: ${{ inputs.candidate_commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rehearsal-report
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pwsh -File scripts/run-desktop-release-rehearsal-windows.ps1 \
+              -CandidateRoot "$PWD/candidate-artifact" \
+              -BaselinePackage "$REHEARSAL_BASELINE_PACKAGE" \
+              -ReportPath "$PWD/rehearsal-report/platform-$REHEARSAL_PLATFORM.json"
+          else
+            bash scripts/run-desktop-release-rehearsal-unix.sh \
+              "$REHEARSAL_PLATFORM" "$PWD/candidate-artifact" "$REHEARSAL_BASELINE_PACKAGE" \
+              "$PWD/rehearsal-report/platform-$REHEARSAL_PLATFORM.json"
+          fi
+
+      - name: Upload native rehearsal report
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-${{ matrix.platform }}
+          path: rehearsal-report/platform-${{ matrix.platform }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  aggregate-rehearsal:
+    name: Aggregate unsigned rehearsal source
+    needs: platform-rehearsal
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_commit_sha }}
+
+      - name: Download four native reports from this run
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-release-rehearsal-*
+          path: incoming
+          merge-multiple: true
+
+      - name: Build raw source manifest without formal qualification claims
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          COMMIT_SHA: ${{ inputs.candidate_commit_sha }}
+          BUILD_RUN_ID: ${{ inputs.candidate_run_id }}
+          BUILD_RUN_ATTEMPT: ${{ inputs.candidate_run_attempt }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p raw-source/reports
+          cp incoming/platform-*.json raw-source/reports/
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const platforms = ["macos-arm64", "linux-x64", "windows-x64", "windows-arm64"];
+          const reports = Object.fromEntries(platforms.map((platform) => {
+            const file = path.join("raw-source/reports", `platform-${platform}.json`);
+            const value = JSON.parse(fs.readFileSync(file, "utf8"));
+            if (value.platform !== platform || value.status !== "passed") throw new Error(`invalid native report: ${platform}`);
+            return [platform, value];
+          }));
+          const manifest = {
+            schemaVersion: "jftrade.release-candidate-rehearsal-source.v1",
+            qualificationMode: "rehearsal",
+            repository: process.env.GITHUB_REPOSITORY,
+            candidateRef: process.env.CANDIDATE_REF,
+            plannedReleaseTag: process.env.PLANNED_TAG,
+            commitSha: process.env.COMMIT_SHA,
+            workflowRun: { id: Number(process.env.SOURCE_RUN_ID), attempt: Number(process.env.SOURCE_RUN_ATTEMPT), workflow: "desktop-release-evidence-source.yml", ref: process.env.CANDIDATE_REF, commitSha: process.env.COMMIT_SHA },
+            sourceWorkflowRun: { id: Number(process.env.BUILD_RUN_ID), attempt: Number(process.env.BUILD_RUN_ATTEMPT), workflow: "desktop-release.yml", ref: process.env.CANDIDATE_REF, commitSha: process.env.COMMIT_SHA },
+            platforms: Object.fromEntries(platforms.map((platform) => [platform, { status: reports[platform].status, artifact: reports[platform].artifact, checks: reports[platform].checks }])),
+            limitations: { packageSigning: "not_run", notarization: "not_run", updaterSignature: "not_run", independentSecuritySignOff: "open" },
+          };
+          fs.writeFileSync("raw-source/rehearsal-source.json", `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
+          NODE
+
+      - name: Upload immutable rehearsal source artifact
+        id: upload_source
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-source
+          path: raw-source
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record immutable source artifact identity
+        run: |
+          [[ "${{ steps.upload_source.outputs.artifact-id }}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${{ steps.upload_source.outputs.artifact-digest }}" =~ ^sha256:[a-f0-9]{64}$ ]]

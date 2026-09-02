@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/release-candidate-rehearsal.v1.json",
+  "title": "JFTrade unsigned release-candidate rehearsal receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "phase",
+    "status",
+    "qualificationLevel",
+    "releaseQualified",
+    "repository",
+    "candidateRef",
+    "plannedReleaseTag",
+    "commitSha",
+    "workflowRun",
+    "sourceWorkflowRun",
+    "artifact",
+    "platforms",
+    "limitations"
+  ],
+  "properties": {
+    "$schema": { "const": "./release-candidate-rehearsal.schema.json" },
+    "schemaVersion": { "const": "jftrade.release-candidate-rehearsal.v1" },
+    "phase": { "const": "pre-release" },
+    "status": { "const": "rehearsal_passed" },
+    "qualificationLevel": { "const": "unsigned-rehearsal" },
+    "releaseQualified": { "const": false },
+    "repository": { "const": "Dennishaha/jftrade" },
+    "candidateRef": { "const": "refs/heads/release/0.29.0-candidate" },
+    "plannedReleaseTag": { "const": "v0.29.0" },
+    "commitSha": { "$ref": "#/$defs/commitSha" },
+    "workflowRun": { "$ref": "#/$defs/workflowRun" },
+    "sourceWorkflowRun": { "$ref": "#/$defs/workflowRun" },
+    "artifact": { "$ref": "#/$defs/artifact" },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["macos-arm64", "linux-x64", "windows-x64", "windows-arm64"],
+      "properties": {
+        "macos-arm64": { "$ref": "#/$defs/platform" },
+        "linux-x64": { "$ref": "#/$defs/platform" },
+        "windows-x64": { "$ref": "#/$defs/platform" },
+        "windows-arm64": { "$ref": "#/$defs/platform" }
+      }
+    },
+    "limitations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageSigning", "notarization", "updaterSignature", "independentSecuritySignOff"],
+      "properties": {
+        "packageSigning": { "const": "not_run" },
+        "notarization": { "const": "not_run" },
+        "updaterSignature": { "const": "not_run" },
+        "independentSecuritySignOff": { "const": "open" }
+      }
+    }
+  },
+  "$defs": {
+    "commitSha": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+    },
+    "safePositiveInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "workflowRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attempt", "workflow", "ref", "commitSha"],
+      "properties": {
+        "id": { "$ref": "#/$defs/safePositiveInteger" },
+        "attempt": { "$ref": "#/$defs/safePositiveInteger" },
+        "workflow": { "type": "string", "pattern": "^[A-Za-z0-9._/-]+\\.yml$" },
+        "ref": { "const": "refs/heads/release/0.29.0-candidate" },
+        "commitSha": { "$ref": "#/$defs/commitSha" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "id", "digest"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+        "id": { "$ref": "#/$defs/safePositiveInteger" },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "artifact", "checks"],
+      "properties": {
+        "status": { "const": "passed" },
+        "artifact": { "$ref": "#/$defs/artifact" },
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "package",
+            "install",
+            "firstStart",
+            "upgrade",
+            "databaseUpgrade",
+            "runtimeSmoke",
+            "uninstall",
+            "backupRestore",
+            "rollback",
+            "zeroGo",
+            "sbomZeroGo"
+          ],
+          "properties": {
+            "package": { "const": "passed" },
+            "install": { "const": "passed" },
+            "firstStart": { "const": "passed" },
+            "upgrade": { "const": "passed" },
+            "databaseUpgrade": { "const": "passed" },
+            "runtimeSmoke": { "const": "passed" },
+            "uninstall": { "const": "passed" },
+            "backupRestore": { "const": "passed" },
+            "rollback": { "const": "passed" },
+            "zeroGo": { "const": "passed" },
+            "sbomZeroGo": { "const": "passed" }
+          }
+        }
+      }
+    }
+  }
+}

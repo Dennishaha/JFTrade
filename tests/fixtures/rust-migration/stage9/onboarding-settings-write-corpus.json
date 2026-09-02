@@ -1,0 +1,38 @@
+{
+  "version": "stage9.onboarding-settings-write.v1",
+  "cases": [
+    {
+      "name": "incomplete-clears-timestamps-and-keeps-existing-broker",
+      "seedDocument": {
+        "onboarding": {
+          "completed": true,
+          "completedAt": "2026-08-19T00:00:00Z",
+          "dismissedAt": "2026-08-19T01:00:00Z",
+          "lastBrokerId": "futu"
+        }
+      },
+      "input": {"completed": false, "dismissed": false, "lastBrokerId": " "}
+    },
+    {
+      "name": "complete-sets-first-completion-time-and-trims-broker",
+      "seedDocument": {},
+      "input": {"completed": true, "dismissed": false, "lastBrokerId": " other "}
+    },
+    {
+      "name": "dismissed-also-completes-onboarding",
+      "seedDocument": {"onboarding": {"completed": false, "lastBrokerId": ""}},
+      "input": {"completed": false, "dismissed": true, "lastBrokerId": "futu"}
+    },
+    {
+      "name": "dismissal-preserves-existing-completion-time",
+      "seedDocument": {
+        "onboarding": {
+          "completed": true,
+          "completedAt": "2026-08-18T00:00:00Z",
+          "lastBrokerId": "futu"
+        }
+      },
+      "input": {"completed": true, "dismissed": true, "lastBrokerId": ""}
+    }
+  ]
+}

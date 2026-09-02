@@ -1,0 +1,984 @@
+{
+  "version": "stage9.watchlists-remote-write.v1",
+  "timestamp": "2026-08-22T04:00:00Z",
+  "cases": [
+    {
+      "name": "explicit-success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu\u0026accountId=acct-1",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1,\"securityList\":[{\"market\":11,\"code\":\"AAPL\"}]}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "accountId": "acct-1",
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1,
+              "securityList": [
+                {
+                  "code": "AAPL",
+                  "market": 11
+                }
+              ]
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "default-broker-success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote",
+          "body": "{\"groupName\":\"Tech\",\"op\":2,\"securityList\":[]}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "default_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Tech",
+              "op": 2,
+              "securityList": []
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "repeated-broker-query-first-value",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu\u0026brokerId=ignored\u0026accountId=acct-2\u0026accountId=ignored",
+          "body": "{\"groupName\":\"Favorites\",\"op\":3,\"securityList\":[{\"market\":11,\"code\":\"MSFT\"}]}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "accountId": "acct-2",
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 3,
+              "securityList": [
+                {
+                  "code": "MSFT",
+                  "market": 11
+                }
+              ]
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "null-body-nil-payload",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "null"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "nil-result",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify"
+          }
+        ],
+        "payloadState": [
+          "nil"
+        ]
+      }
+    },
+    {
+      "name": "empty-object-payload",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "empty-result",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify"
+          }
+        ],
+        "payloadState": [
+          "empty_object"
+        ]
+      }
+    },
+    {
+      "name": "empty-body-wins-over-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=missing"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "malformed-body-wins-over-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=missing",
+          "body": "{"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "array-body-rejected",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "[]"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "missing-broker-capability",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=missing",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "missing-broker",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"missing\" is not registered"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "declared-capability-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "capability-unavailable",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"futu\" feature \"watchlist.remote.modify\" is unavailable: "
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "customization-adapter-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "adapter-unavailable",
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BROKER_CAPABILITY_UNAVAILABLE",
+              "message": "broker feature capability is unavailable: broker \"futu\" feature \"watchlist.remote.modify\" is unavailable: adapter interface CustomizationService is not implemented"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 0
+      }
+    },
+    {
+      "name": "provider-http-forbidden",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "provider-http-403",
+      "expected": [
+        {
+          "status": 403,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PROVIDER_REQUEST_FAILED",
+              "message": "provider denied remote watchlist write"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "provider-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "provider-unavailable",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "provider unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "internal-write-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "internal-failure",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "generic-rate-limit-retry-after",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "rate-limit",
+      "expected": [
+        {
+          "status": 429,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8",
+            "Retry-After": "3"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "MARKET_SNAPSHOT_RATE_LIMITED",
+              "message": "broker snapshot rate limited; retry after 2.5s"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "cancelled-request-defaults-to-broker-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}",
+          "context": "canceled"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "context-error",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "deadline-request-defaults-to-broker-failure",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}",
+          "context": "deadline"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "context-error",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 1,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "repeated-write-is-forwarded-twice",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu\u0026accountId=acct-3",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu\u0026accountId=acct-3",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "success",
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 2,
+        "actions": [
+          {
+            "accountId": "acct-3",
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          },
+          {
+            "accountId": "acct-3",
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object",
+          "object"
+        ]
+      }
+    },
+    {
+      "name": "failed-write-recovers-on-next-request",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/watchlists/remote?brokerId=futu",
+          "body": "{\"groupName\":\"Favorites\",\"op\":1}"
+        }
+      ],
+      "featureId": "watchlist.remote.modify",
+      "action": "modify",
+      "portMode": "failure-then-success",
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_FEATURE_FAILED",
+              "message": "write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "entries": [
+                {
+                  "accepted": true,
+                  "featureId": "watchlist.remote.modify",
+                  "operation": "modify"
+                }
+              ],
+              "provider": {
+                "asOf": "2026-08-22T04:00:00Z",
+                "brokerId": "futu",
+                "capability": "available",
+                "featureId": "watchlist.remote.modify",
+                "resolvedAt": "2026-08-22T04:00:00Z",
+                "securityFirm": "Futu/Moomoo via OpenD",
+                "selectionReason": "explicit_broker"
+              }
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          }
+        }
+      ],
+      "calls": {
+        "apply": 2,
+        "actions": [
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          },
+          {
+            "action": "modify",
+            "brokerId": "futu",
+            "featureId": "watchlist.remote.modify",
+            "payload": {
+              "groupName": "Favorites",
+              "op": 1
+            }
+          }
+        ],
+        "payloadState": [
+          "object",
+          "object"
+        ]
+      }
+    }
+  ]
+}

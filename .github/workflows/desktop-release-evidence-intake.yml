@@ -1,0 +1,311 @@
+name: Desktop Release Evidence Intake
+
+# This is the single provenance root for raw release evidence.  It accepts a
+# completed run from one fixed external evidence runner, verifies all GitHub
+# API identities and the immutable artifact digest, then republishes the
+# downloaded bytes unchanged.  It never emits a passed report itself.
+on:
+  workflow_dispatch:
+    inputs:
+      qualification_mode:
+        description: Evidence contract to preserve through intake
+        required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by source and intake runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
+        type: string
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; it does not need to exist during qualification
+        required: true
+        default: v0.29.0
+        type: string
+      source_ref:
+        description: Exact ref recorded by the external evidence run
+        required: true
+        type: string
+      source_repository:
+        description: owner/name repository that owns the external evidence run
+        required: true
+        type: string
+      source_commit_sha:
+        description: Commit SHA recorded by the external evidence run
+        required: true
+        type: string
+      source_run_id:
+        description: Completed run id from the fixed external evidence runner
+        required: true
+        type: string
+      source_run_attempt:
+        description: Attempt number for source_run_id
+        required: true
+        type: string
+      source_artifact:
+        description: Exact raw evidence artifact name
+        required: true
+        type: string
+      source_artifact_id:
+        description: Immutable GitHub artifact id for the raw evidence artifact
+        required: true
+        type: string
+      source_artifact_digest:
+        description: GitHub SHA-256 digest for the raw evidence artifact
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  # Do not turn this into an input.  A source artifact from another workflow
+  # is accepted only when the GitHub run API reports this exact path.
+  TRUSTED_EXTERNAL_SOURCE_WORKFLOW: desktop-release-evidence-source.yml
+
+jobs:
+  intake:
+    name: Intake immutable external release evidence
+    if: inputs.qualification_mode == 'candidate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify fixed source run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_COMMIT: ${{ inputs.source_commit_sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PLANNED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "planned_release_tag must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "intake must be dispatched from candidate_ref" >&2; exit 1; }
+          release_commit="$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" == "$release_commit" && "$SOURCE_COMMIT" == "$release_commit" ]] || { echo "intake checkout does not match candidate commit" >&2; exit 1; }
+          [[ "$SOURCE_REF" == "$CANDIDATE_REF" ]] || { echo "source_ref must equal candidate_ref" >&2; exit 1; }
+          [[ "$SOURCE_REPOSITORY" == "$REPOSITORY" ]] || { echo "source_repository must be the controlled repository" >&2; exit 1; }
+          [[ "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "source_commit_sha is invalid" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "source run ids must be positive integers" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source artifact id must be a positive integer" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "source artifact name is unsafe" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "source artifact digest is invalid" >&2; exit 1; }
+          source_run="$(gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          source_branch="${CANDIDATE_REF#refs/heads/}"
+          jq -e \
+            --arg sha "$SOURCE_COMMIT" \
+            --arg release_sha "$release_commit" \
+            --arg branch "$source_branch" \
+            --arg ref "$SOURCE_REF" \
+            --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            --arg workflow "$TRUSTED_EXTERNAL_SOURCE_WORKFLOW" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_sha == $release_sha and (.run_attempt|tostring) == $attempt and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run" >/dev/null || { echo "source run is not a successful fixed external evidence run for the release commit" >&2; exit 1; }
+          artifacts="$(gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          jq -e \
+            --arg name "$SOURCE_ARTIFACT" \
+            --arg digest "$SOURCE_ARTIFACT_DIGEST" \
+            --argjson id "$SOURCE_ARTIFACT_ID" \
+            --argjson run_id "$SOURCE_RUN_ID" \
+            '[.artifacts[] | select(.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id)] | length == 1' \
+            <<<"$artifacts" >/dev/null || { echo "source artifact is missing, expired, ambiguous, or digest-mismatched" >&2; exit 1; }
+          source_artifact_json="$(gh api "repos/$SOURCE_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
+          jq -e \
+            --arg name "$SOURCE_ARTIFACT" \
+            --arg digest "$SOURCE_ARTIFACT_DIGEST" \
+            --argjson id "$SOURCE_ARTIFACT_ID" \
+            --argjson run_id "$SOURCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact_json" >/dev/null || { echo "source artifact detail does not match immutable inputs" >&2; exit 1; }
+
+      - name: Download raw evidence by immutable artifact id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf incoming
+          mkdir -p incoming
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$SOURCE_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming
+          [[ -z "$(find incoming -type l -print -quit)" ]] || { echo "raw evidence archive must not contain symlinks" >&2; exit 1; }
+          [[ -d incoming/reports ]] || { echo "raw evidence artifact must contain reports/" >&2; exit 1; }
+
+      - name: Verify incoming reports and write detached provenance only
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_COMMIT: ${{ inputs.source_commit_sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/rust-migration/verify-release-evidence-source.mjs \
+            --root incoming \
+            --output incoming/source-binding.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-repository "$SOURCE_REPOSITORY" \
+            --release-ref "$CANDIDATE_REF" \
+            --source-ref "$SOURCE_REF" \
+            --source-commit-sha "$SOURCE_COMMIT" \
+            --source-workflow "$TRUSTED_EXTERNAL_SOURCE_WORKFLOW" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --source-run-attempt "$SOURCE_RUN_ATTEMPT" \
+            --source-artifact "$SOURCE_ARTIFACT" \
+            --source-artifact-id "$SOURCE_ARTIFACT_ID" \
+            --source-artifact-digest "$SOURCE_ARTIFACT_DIGEST"
+
+      - name: Publish immutable intake artifact without rewriting reports
+        id: upload_intake
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-intake
+          path: incoming
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify published intake artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          INTAKE_ARTIFACT_ID: ${{ steps.upload_intake.outputs.artifact-id }}
+          INTAKE_ARTIFACT_DIGEST: ${{ steps.upload_intake.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$INTAKE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$INTAKE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "published intake artifact outputs are invalid" >&2; exit 1; }
+          published="$(gh api "repos/$REPOSITORY/actions/artifacts/$INTAKE_ARTIFACT_ID")"
+          jq -e \
+            --arg name "desktop-release-evidence-intake" \
+            --arg digest "$INTAKE_ARTIFACT_DIGEST" \
+            --argjson id "$INTAKE_ARTIFACT_ID" \
+            --argjson run_id "${{ github.run_id }}" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$published" >/dev/null || { echo "published intake artifact API metadata mismatch" >&2; exit 1; }
+
+  rehearsal-intake:
+    name: Intake immutable unsigned rehearsal evidence
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify fixed rehearsal source run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_COMMIT: ${{ inputs.source_commit_sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal planned_release_tag must be v0.29.0" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$SOURCE_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal source_ref must be the fixed candidate branch" >&2; exit 1; }
+          [[ "$SOURCE_REPOSITORY" == "$REPOSITORY" ]] || { echo "rehearsal source must be in the same repository" >&2; exit 1; }
+          [[ "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ && "$(git rev-parse HEAD)" == "$SOURCE_COMMIT" ]] || { echo "source commit mismatch" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo "source run/artifact identity is invalid" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT" == "desktop-release-rehearsal-source" ]] || { echo "rehearsal source artifact name is fixed" >&2; exit 1; }
+          [[ "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "source artifact digest is invalid" >&2; exit 1; }
+          source_run="$(gh api "repos/$SOURCE_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e --arg sha "$SOURCE_COMMIT" --arg branch "release/0.29.0-candidate" --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence-source.yml" or .path == "desktop-release-evidence-source.yml")' \
+            <<<"$source_run" >/dev/null || { echo "rehearsal source run provenance mismatch" >&2; exit 1; }
+          source_artifact="$(gh api "repos/$SOURCE_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID")"
+          jq -e --arg name "$SOURCE_ARTIFACT" --arg digest "$SOURCE_ARTIFACT_DIGEST" --argjson id "$SOURCE_ARTIFACT_ID" --argjson run_id "$SOURCE_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$source_artifact" >/dev/null || { echo "rehearsal source artifact provenance mismatch" >&2; exit 1; }
+
+      - name: Download rehearsal source by immutable artifact id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+        run: |
+          set -euo pipefail
+          rm -rf incoming
+          mkdir incoming
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$SOURCE_ARTIFACT_DIGEST" ]] || { echo "rehearsal source artifact digest drift" >&2; exit 1; }
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe rehearsal source path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming
+          [[ -f incoming/rehearsal-source.json && -z "$(find incoming -type l -print -quit)" ]] || { echo "rehearsal source payload is invalid" >&2; exit 1; }
+
+      - name: Bind source artifact and validate independent rehearsal contract
+        run: |
+          set -euo pipefail
+          node scripts/rust-migration/bind-release-candidate-rehearsal.mjs \
+            --source incoming/rehearsal-source.json \
+            --output incoming/release-candidate-rehearsal.json \
+            --artifact-name "${{ inputs.source_artifact }}" \
+            --artifact-id "${{ inputs.source_artifact_id }}" \
+            --artifact-digest "${{ inputs.source_artifact_digest }}"
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input incoming/release-candidate-rehearsal.json \
+            --expected-ref "${{ inputs.source_ref }}" \
+            --expected-tag "${{ inputs.planned_release_tag }}" \
+            --expected-commit "${{ inputs.source_commit_sha }}" \
+            --expected-artifact-name "${{ inputs.source_artifact }}" \
+            --expected-artifact-id "${{ inputs.source_artifact_id }}" \
+            --expected-artifact-digest "${{ inputs.source_artifact_digest }}"
+
+      - name: Publish byte-preserving rehearsal intake
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-intake
+          path: incoming
+          if-no-files-found: error
+          retention-days: 90

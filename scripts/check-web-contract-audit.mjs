@@ -22,7 +22,7 @@ const repoRoot = resolve(scriptDir, "..");
 const webSourceRoot = join(repoRoot, "apps/web/src");
 const contractRoot = join(webSourceRoot, "contracts");
 const spec = JSON.parse(
-  readFileSync(join(repoRoot, "docs/swagger/swagger.json"), "utf8"),
+  readFileSync(join(repoRoot, "contracts/openapi/openapi.json"), "utf8"),
 );
 const generatedSource = readFileSync(
   join(webSourceRoot, "generated/openapi.ts"),

@@ -1,0 +1,27 @@
+{
+  "version": "stage9.basic-quote-nonfinite.v1",
+  "scope": "OpenD BasicQot CurPrice mapped into the collector quote model",
+  "cases": [
+    {
+      "name": "nan",
+      "price": "NaN",
+      "instrument": "US.AAPL",
+      "goBehavior": "panic",
+      "rustBehavior": "reject"
+    },
+    {
+      "name": "positive-infinity",
+      "price": "+Inf",
+      "instrument": "US.AAPL",
+      "goBehavior": "panic",
+      "rustBehavior": "reject"
+    },
+    {
+      "name": "negative-infinity",
+      "price": "-Inf",
+      "instrument": "US.AAPL",
+      "goBehavior": "panic",
+      "rustBehavior": "reject"
+    }
+  ]
+}

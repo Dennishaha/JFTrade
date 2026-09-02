@@ -7,6 +7,7 @@ import { createPeakRSSReader, installFatalErrorHandlers } from "./processRuntime
 
 declare const process: {
   argv?: string[];
+  env?: Record<string, string | undefined>;
   platform?: string;
   on?: (event: string, handler: (error: unknown) => void) => unknown;
   once?: (event: string, handler: () => void) => unknown;
@@ -18,6 +19,7 @@ const args = parseArgs((process?.argv ?? []).slice(2));
 installFatalErrorHandlers(process);
 const peakRSSBytes = createPeakRSSReader(process);
 const executor = args.mock ? new DeterministicPineTSExecutor() : await createNativePineTSExecutor(args.pinetsVersion);
+const authToken = process?.env?.JFTRADE_PINEWORKER_TOKEN?.trim();
 
 const server = await startWorkerGrpcServer({
   workerId: args.workerId,
@@ -27,6 +29,7 @@ const server = await startWorkerGrpcServer({
   grpc,
   protoLoader,
   maxMessageBytes: args.maxMessageBytes,
+  ...(authToken ? { authToken } : {}),
   peakRSSBytes,
 });
 await waitForShutdown(server.shutdown);
@@ -43,7 +46,7 @@ function parseArgs(values: string[]) {
   return {
     address: options.get("address") ?? "127.0.0.1:50051",
     workerId: options.get("worker-id") ?? "pineworker-1",
-    protoPath: options.get("proto") ?? "pkg/strategy/pineworker/proto/pineworker.proto",
+    protoPath: options.get("proto") ?? "proto/pineworker/pineworker.proto",
     pinetsVersion: options.get("pinets-version") ?? "unknown",
     maxMessageBytes: Number(options.get("max-message-bytes") ?? -1),
     mock: options.get("mock") === "true",

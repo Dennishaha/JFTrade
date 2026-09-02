@@ -42,7 +42,7 @@ JFTrade 自选系统以本地数据为主，统一管理跨市场、多分组标
 | 概念 | 含义 |
 | --- | --- |
 | 本地分组 | JFTrade 拥有的分组。默认“自选股”分组受保护，不能删除。 |
-| 标的 | 使用 `pkg/market.ParseInstrument` 规范化后的 canonical ID，例如 `US.AAPL`、`HK.00700`。 |
+| 标的 | 使用 `jftrade-watchlist::normalize_instrument_id` 规范化后的 canonical ID，例如 `US.AAPL`、`HK.00700`。 |
 | Membership | 标的与本地分组的多对多关系；同一标的可以属于多个组。 |
 | Source | 一个券商登录连接，不等同于交易账户。Futu 首个稳定 source 是 `futu:default`。 |
 | Binding | 一个远端分组与一个本地分组的导入关联，用于下次重复对账。 |
@@ -83,14 +83,14 @@ OpenD 没有分组创建接口，因此所有新分组都创建在 JFTrade。本
 ```mermaid
 flowchart LR
     UI[自选完整页 / 工作台侧栏] -->|可见行，每 3 秒| API[POST /api/v1/watchlist/quotes/batch]
-    API --> Service[internal/watchlist.Service]
+    API --> Service[jftrade-engine watchlist port]
     Service -->|2.5 秒缓存 + singleflight| Source[BatchSnapshotSource]
     Source -->|HK 每批 20，其他市场每批最多 400| Snapshot[Futu OpenD 3203]
     Snapshot --> Source
     Service --> UI
 ```
 
-这条链路不会进入 `internal/marketdata` collector demand，不调用 `GetBasicQot`，也不建立行情订阅。市场数据权限仍由 Futu/OpenD 决定；“不占订阅名额”不等于“绕过行情权限”。
+这条链路不会进入 `jftrade-marketdata` collector demand，不调用 `GetBasicQot`，也不建立行情订阅。市场数据权限仍由 Futu/OpenD 决定；“不占订阅名额”不等于“绕过行情权限”。
 
 批量失败按标的隔离。某一标的无权限、不支持或没有返回快照时，会进入响应的 `errors[]`，不影响同批其他标的。响应同时携带主时段价格、昨收、涨跌、session、数据时间，以及可用的盘前、盘后和夜盘块。
 
@@ -98,10 +98,10 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    Page[apps/web 自选页 / 工作台 / 星标框] --> API[internal/api/watchlist]
-    ADK[ADK watchlist.list] --> Service[internal/watchlist.Service]
+    Page[apps/web 自选页 / 工作台 / 星标框] --> API[jftrade-api watchlist routes]
+    ADK[ADK watchlist.list] --> Service[jftrade-engine watchlist port]
     API --> Service
-    Service --> Repo[internal/store/watchlist]
+    Service --> Repo[jftrade-store-sqlite]
     Repo --> DB[(watchlists.db)]
     Service --> Registry[WatchlistSourceReader registry]
     Registry --> FutuGroups[Futu 3222 / 3213]
@@ -114,11 +114,11 @@ flowchart TB
 
 职责边界：
 
-- `internal/api/watchlist`：Gin 参数绑定、响应 envelope 和业务错误到 HTTP 状态映射。
-- `internal/watchlist`：分组、membership、导入一致性、行情缓存和 connector port。
-- `internal/store/watchlist`：SQLite migration、事务、分页、binding、preview/run 和来源审计。
-- `servercore/watchlist_*.go`：生命周期装配、Futu connector 适配和运行状态探测。
-- `pkg/futu`：OpenD 3213/3222 protobuf/client wrapper，以及 broker-neutral 分组读取接口实现。
+- `crates/jftrade-api`：参数绑定、响应 envelope 和业务错误到 HTTP 状态映射。
+- `crates/jftrade-watchlist`：分组、membership、导入一致性和 connector port。
+- `crates/jftrade-store-sqlite`：SQLite migration、事务、分页、binding、preview/run 和来源审计。
+- `crates/jftrade-engine`：生命周期装配、行情缓存、Futu connector 适配和运行状态探测。
+- `crates/jftrade-integration-futu`：OpenD 3213/3222 protobuf/client 和 broker-neutral 分组读取实现。
 - `apps/web/src/components/domain/watchlist`：通过 props 和 composable 输入数据的领域 UI，不直接裸发 HTTP 请求。
 
 BBGO 继续负责行情、账户、交易和 stream 公共能力。它的实时 `Subscription` 表示订阅需求，不承担 JFTrade 收藏数据。
@@ -210,7 +210,7 @@ BBGO 继续负责行情、账户、交易和 stream 公共能力。它的实时 
 涉及自选系统的修改至少执行：
 
 ```bash
-go test ./internal/watchlist ./internal/store/watchlist ./internal/api/watchlist ./pkg/futu ./pkg/futu/opend ./internal/app/apiserver/servercore -count=1
+cargo test -p jftrade-watchlist -p jftrade-store-sqlite -p jftrade-engine --all-targets
 pnpm --filter @jftrade/web run typecheck
 pnpm --filter @jftrade/web run test:ci
 pnpm run generate:docs

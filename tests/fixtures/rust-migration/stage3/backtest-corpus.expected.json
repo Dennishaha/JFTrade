@@ -1,0 +1,660 @@
+{
+  "version": 1,
+  "executionModel": "conservative-bar-v1",
+  "cases": [
+    {
+      "id": "partial-fees-drawdown",
+      "status": "completed",
+      "processedBars": 5,
+      "cash": "10154.3",
+      "basePosition": "0",
+      "finalEquity": "10154.3",
+      "realizedPnl": "160",
+      "totalBrokerFees": "5.17",
+      "totalMarketFees": "0.53",
+      "totalFees": "5.7",
+      "totalFills": 3,
+      "totalTrades": 1,
+      "winningTrades": 1,
+      "winRate": "1",
+      "maxDrawdown": "0.0351228894",
+      "currentDrawdown": "0",
+      "orders": [
+        {
+          "orderId": "1100000001",
+          "clientOrderId": "long",
+          "side": "buy",
+          "orderType": "market",
+          "quantity": "50",
+          "status": "FILLED",
+          "filledQuantity": "50",
+          "filledPrice": "101.8",
+          "submittedAt": "2026-07-01T13:30:59.999Z",
+          "filledAt": "2026-07-01T13:32:00Z",
+          "reduceOnly": false
+        },
+        {
+          "orderId": "1100000002",
+          "clientOrderId": "exit",
+          "side": "sell",
+          "orderType": "limit",
+          "quantity": "50",
+          "status": "FILLED",
+          "filledQuantity": "50",
+          "filledPrice": "105",
+          "submittedAt": "2026-07-01T13:32:59.999Z",
+          "filledAt": "2026-07-01T13:33:00Z",
+          "reduceOnly": true
+        }
+      ],
+      "fills": [
+        {
+          "tradeId": "1200000001",
+          "orderId": "1100000001",
+          "clientOrderId": "long",
+          "side": "buy",
+          "price": "101",
+          "quantity": "10",
+          "quoteQuantity": "1010",
+          "time": "2026-07-01T13:31:00Z",
+          "maker": false,
+          "brokerFee": "1",
+          "marketFee": "0",
+          "totalFee": "1",
+          "realizedPnl": "0"
+        },
+        {
+          "tradeId": "1200000002",
+          "orderId": "1100000001",
+          "clientOrderId": "long",
+          "side": "buy",
+          "price": "102",
+          "quantity": "40",
+          "quoteQuantity": "4080",
+          "time": "2026-07-01T13:32:00Z",
+          "maker": false,
+          "brokerFee": "1.545",
+          "marketFee": "0",
+          "totalFee": "1.545",
+          "realizedPnl": "0"
+        },
+        {
+          "tradeId": "1200000003",
+          "orderId": "1100000002",
+          "clientOrderId": "exit",
+          "side": "sell",
+          "price": "105",
+          "quantity": "50",
+          "quoteQuantity": "5250",
+          "time": "2026-07-01T13:33:00Z",
+          "maker": true,
+          "brokerFee": "2.625",
+          "marketFee": "0.53",
+          "totalFee": "3.155",
+          "realizedPnl": "160"
+        }
+      ],
+      "equityCurve": [
+        {
+          "time": "2026-07-01T13:30:59.999Z",
+          "equity": "10000"
+        },
+        {
+          "time": "2026-07-01T13:31:59.999Z",
+          "equity": "10009"
+        },
+        {
+          "time": "2026-07-01T13:32:59.999Z",
+          "equity": "9657.455"
+        },
+        {
+          "time": "2026-07-01T13:33:59.999Z",
+          "equity": "10154.3"
+        },
+        {
+          "time": "2026-07-01T13:34:59.999Z",
+          "equity": "10154.3"
+        }
+      ],
+      "drawdownCurve": [
+        {
+          "time": "2026-07-01T13:30:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-01T13:31:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-01T13:32:59.999Z",
+          "drawdown": "0.0351228894"
+        },
+        {
+          "time": "2026-07-01T13:33:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-01T13:34:59.999Z",
+          "drawdown": "0"
+        }
+      ],
+      "feeBreakdown": [
+        {
+          "ruleId": "commission",
+          "label": "Broker commission",
+          "group": "broker",
+          "amount": "5.17",
+          "count": 3
+        },
+        {
+          "ruleId": "sell-regulatory",
+          "label": "Sell regulatory fee",
+          "group": "market",
+          "amount": "0.53",
+          "count": 1
+        }
+      ],
+      "indicators": [
+        {
+          "kind": "sma",
+          "period": 2,
+          "values": [
+            null,
+            "101",
+            "98.5",
+            "98.5",
+            "101.5"
+          ]
+        },
+        {
+          "kind": "ema",
+          "period": 2,
+          "values": [
+            "100",
+            "101.33333332",
+            "97.11111114",
+            "100.37037034",
+            "100.79012344"
+          ]
+        },
+        {
+          "kind": "sma",
+          "period": 3,
+          "values": [
+            null,
+            null,
+            "99",
+            "99.66666666",
+            "99.33333333"
+          ]
+        },
+        {
+          "kind": "ema",
+          "period": 3,
+          "values": [
+            "100",
+            "101",
+            "98",
+            "100",
+            "100.5"
+          ]
+        }
+      ],
+      "warnings": [],
+      "resultHash": "fnv1a64:050a2c89f71d3a2b"
+    },
+    {
+      "id": "atomic-stop-first",
+      "status": "completed",
+      "processedBars": 3,
+      "cash": "999.9",
+      "basePosition": "0",
+      "finalEquity": "999.9",
+      "realizedPnl": "-0.1",
+      "totalBrokerFees": "0",
+      "totalMarketFees": "0",
+      "totalFees": "0",
+      "totalFills": 2,
+      "totalTrades": 1,
+      "winningTrades": 0,
+      "winRate": "0",
+      "maxDrawdown": "0.0001",
+      "currentDrawdown": "0.0001",
+      "orders": [
+        {
+          "orderId": "1100000001",
+          "clientOrderId": "entry",
+          "side": "buy",
+          "orderType": "market",
+          "quantity": "1",
+          "status": "FILLED",
+          "filledQuantity": "1",
+          "filledPrice": "100",
+          "submittedAt": "2026-07-02T13:30:59.999Z",
+          "filledAt": "2026-07-02T13:30:59.999Z",
+          "reduceOnly": false
+        },
+        {
+          "orderId": "1100000002",
+          "clientOrderId": "take-profit",
+          "side": "sell",
+          "orderType": "limit",
+          "quantity": "1",
+          "status": "CANCELED",
+          "filledQuantity": "0",
+          "filledPrice": "0",
+          "submittedAt": "2026-07-02T13:30:59.999Z",
+          "filledAt": "2026-07-02T13:31:00Z",
+          "reduceOnly": true
+        },
+        {
+          "orderId": "1100000003",
+          "clientOrderId": "stop-loss",
+          "side": "sell",
+          "orderType": "stop_market",
+          "quantity": "1",
+          "status": "FILLED",
+          "filledQuantity": "1",
+          "filledPrice": "99.9",
+          "submittedAt": "2026-07-02T13:30:59.999Z",
+          "filledAt": "2026-07-02T13:31:00Z",
+          "reduceOnly": true
+        }
+      ],
+      "fills": [
+        {
+          "tradeId": "1200000001",
+          "orderId": "1100000001",
+          "clientOrderId": "entry",
+          "side": "buy",
+          "price": "100",
+          "quantity": "1",
+          "quoteQuantity": "100",
+          "time": "2026-07-02T13:30:59.999Z",
+          "maker": false,
+          "brokerFee": "0",
+          "marketFee": "0",
+          "totalFee": "0",
+          "realizedPnl": "0"
+        },
+        {
+          "tradeId": "1200000002",
+          "orderId": "1100000003",
+          "clientOrderId": "stop-loss",
+          "side": "sell",
+          "price": "99.9",
+          "quantity": "1",
+          "quoteQuantity": "99.9",
+          "time": "2026-07-02T13:31:00Z",
+          "maker": false,
+          "brokerFee": "0",
+          "marketFee": "0",
+          "totalFee": "0",
+          "realizedPnl": "-0.1"
+        }
+      ],
+      "equityCurve": [
+        {
+          "time": "2026-07-02T13:30:59.999Z",
+          "equity": "1000"
+        },
+        {
+          "time": "2026-07-02T13:31:59.999Z",
+          "equity": "999.9"
+        },
+        {
+          "time": "2026-07-02T13:32:59.999Z",
+          "equity": "999.9"
+        }
+      ],
+      "drawdownCurve": [
+        {
+          "time": "2026-07-02T13:30:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-02T13:31:59.999Z",
+          "drawdown": "0.0001"
+        },
+        {
+          "time": "2026-07-02T13:32:59.999Z",
+          "drawdown": "0.0001"
+        }
+      ],
+      "feeBreakdown": [],
+      "indicators": [
+        {
+          "kind": "sma",
+          "period": 2,
+          "values": [
+            null,
+            "100",
+            "100"
+          ]
+        },
+        {
+          "kind": "ema",
+          "period": 2,
+          "values": [
+            "100",
+            "99.99999999",
+            "99.99999998"
+          ]
+        }
+      ],
+      "warnings": [],
+      "resultHash": "fnv1a64:a78b44d97a24de2b"
+    },
+    {
+      "id": "stop-limit-slippage-short",
+      "status": "completed",
+      "processedBars": 4,
+      "cash": "4780.7",
+      "basePosition": "2",
+      "finalEquity": "4986.7",
+      "realizedPnl": "-11.2",
+      "totalBrokerFees": "0",
+      "totalMarketFees": "0",
+      "totalFees": "0",
+      "totalFills": 3,
+      "totalTrades": 1,
+      "winningTrades": 0,
+      "winRate": "0",
+      "maxDrawdown": "0.00346",
+      "currentDrawdown": "0.00266",
+      "orders": [
+        {
+          "orderId": "1100000001",
+          "clientOrderId": "buy-stop",
+          "side": "buy",
+          "orderType": "stop_market",
+          "quantity": "2",
+          "status": "FILLED",
+          "filledQuantity": "2",
+          "filledPrice": "106.1",
+          "submittedAt": "2026-07-03T13:30:59.999Z",
+          "filledAt": "2026-07-03T13:31:00Z",
+          "reduceOnly": false
+        },
+        {
+          "orderId": "1100000002",
+          "clientOrderId": "sell-stop",
+          "side": "sell",
+          "orderType": "stop_market",
+          "quantity": "1",
+          "status": "FILLED",
+          "filledQuantity": "1",
+          "filledPrice": "94.9",
+          "submittedAt": "2026-07-03T13:30:59.999Z",
+          "filledAt": "2026-07-03T13:31:00Z",
+          "reduceOnly": false
+        },
+        {
+          "orderId": "1100000003",
+          "clientOrderId": "stop-limit",
+          "side": "buy",
+          "orderType": "stop_limit",
+          "quantity": "1",
+          "status": "FILLED",
+          "filledQuantity": "1",
+          "filledPrice": "102",
+          "submittedAt": "2026-07-03T13:30:59.999Z",
+          "filledAt": "2026-07-03T13:32:00Z",
+          "reduceOnly": false
+        }
+      ],
+      "fills": [
+        {
+          "tradeId": "1200000001",
+          "orderId": "1100000001",
+          "clientOrderId": "buy-stop",
+          "side": "buy",
+          "price": "106.1",
+          "quantity": "2",
+          "quoteQuantity": "212.2",
+          "time": "2026-07-03T13:31:00Z",
+          "maker": false,
+          "brokerFee": "0",
+          "marketFee": "0",
+          "totalFee": "0",
+          "realizedPnl": "0"
+        },
+        {
+          "tradeId": "1200000002",
+          "orderId": "1100000002",
+          "clientOrderId": "sell-stop",
+          "side": "sell",
+          "price": "94.9",
+          "quantity": "1",
+          "quoteQuantity": "94.9",
+          "time": "2026-07-03T13:31:00Z",
+          "maker": false,
+          "brokerFee": "0",
+          "marketFee": "0",
+          "totalFee": "0",
+          "realizedPnl": "-11.2"
+        },
+        {
+          "tradeId": "1200000003",
+          "orderId": "1100000003",
+          "clientOrderId": "stop-limit",
+          "side": "buy",
+          "price": "102",
+          "quantity": "1",
+          "quoteQuantity": "102",
+          "time": "2026-07-03T13:32:00Z",
+          "maker": true,
+          "brokerFee": "0",
+          "marketFee": "0",
+          "totalFee": "0",
+          "realizedPnl": "0"
+        }
+      ],
+      "equityCurve": [
+        {
+          "time": "2026-07-03T13:30:59.999Z",
+          "equity": "5000"
+        },
+        {
+          "time": "2026-07-03T13:31:59.999Z",
+          "equity": "4982.7"
+        },
+        {
+          "time": "2026-07-03T13:32:59.999Z",
+          "equity": "4984.7"
+        },
+        {
+          "time": "2026-07-03T13:33:59.999Z",
+          "equity": "4986.7"
+        }
+      ],
+      "drawdownCurve": [
+        {
+          "time": "2026-07-03T13:30:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-03T13:31:59.999Z",
+          "drawdown": "0.00346"
+        },
+        {
+          "time": "2026-07-03T13:32:59.999Z",
+          "drawdown": "0.00306"
+        },
+        {
+          "time": "2026-07-03T13:33:59.999Z",
+          "drawdown": "0.00266"
+        }
+      ],
+      "feeBreakdown": [],
+      "indicators": [
+        {
+          "kind": "sma",
+          "period": 3,
+          "values": [
+            null,
+            null,
+            "100.66666666",
+            "101.66666666"
+          ]
+        },
+        {
+          "kind": "ema",
+          "period": 3,
+          "values": [
+            "100",
+            "100",
+            "101",
+            "102"
+          ]
+        }
+      ],
+      "warnings": [],
+      "resultHash": "fnv1a64:2812bb1ef3f5357c"
+    },
+    {
+      "id": "explicit-cancel-and-reduce-only",
+      "status": "completed",
+      "processedBars": 3,
+      "cash": "1000",
+      "basePosition": "0",
+      "finalEquity": "1000",
+      "realizedPnl": "0",
+      "totalBrokerFees": "0",
+      "totalMarketFees": "0",
+      "totalFees": "0",
+      "totalFills": 0,
+      "totalTrades": 0,
+      "winningTrades": 0,
+      "winRate": "0",
+      "maxDrawdown": "0",
+      "currentDrawdown": "0",
+      "orders": [
+        {
+          "orderId": "1100000001",
+          "clientOrderId": "reduce-empty",
+          "side": "sell",
+          "orderType": "market",
+          "quantity": "1",
+          "status": "CANCELED",
+          "filledQuantity": "0",
+          "filledPrice": "0",
+          "submittedAt": "2026-07-04T13:30:59.999Z",
+          "filledAt": "2026-07-04T13:31:00Z",
+          "reduceOnly": true
+        },
+        {
+          "orderId": "1100000002",
+          "clientOrderId": "far-limit",
+          "side": "buy",
+          "orderType": "limit",
+          "quantity": "1",
+          "status": "CANCELED",
+          "filledQuantity": "0",
+          "filledPrice": "0",
+          "submittedAt": "2026-07-04T13:30:59.999Z",
+          "filledAt": "2026-07-04T13:31:59.999Z",
+          "reduceOnly": false
+        }
+      ],
+      "fills": [],
+      "equityCurve": [
+        {
+          "time": "2026-07-04T13:30:59.999Z",
+          "equity": "1000"
+        },
+        {
+          "time": "2026-07-04T13:31:59.999Z",
+          "equity": "1000"
+        },
+        {
+          "time": "2026-07-04T13:32:59.999Z",
+          "equity": "1000"
+        }
+      ],
+      "drawdownCurve": [
+        {
+          "time": "2026-07-04T13:30:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-04T13:31:59.999Z",
+          "drawdown": "0"
+        },
+        {
+          "time": "2026-07-04T13:32:59.999Z",
+          "drawdown": "0"
+        }
+      ],
+      "feeBreakdown": [],
+      "indicators": [],
+      "warnings": [],
+      "resultHash": "fnv1a64:7f1d4b86ea7a1c80"
+    },
+    {
+      "id": "cancelled-before-next-bar",
+      "status": "cancelled",
+      "processedBars": 1,
+      "cash": "1000",
+      "basePosition": "0",
+      "finalEquity": "1000",
+      "realizedPnl": "0",
+      "totalBrokerFees": "0",
+      "totalMarketFees": "0",
+      "totalFees": "0",
+      "totalFills": 0,
+      "totalTrades": 0,
+      "winningTrades": 0,
+      "winRate": "0",
+      "maxDrawdown": "0",
+      "currentDrawdown": "0",
+      "orders": [
+        {
+          "orderId": "1100000001",
+          "clientOrderId": "pending",
+          "side": "buy",
+          "orderType": "market",
+          "quantity": "1",
+          "status": "NEW",
+          "filledQuantity": "0",
+          "filledPrice": "0",
+          "submittedAt": "2026-07-05T13:30:59.999Z",
+          "filledAt": "",
+          "reduceOnly": false
+        }
+      ],
+      "fills": [],
+      "equityCurve": [
+        {
+          "time": "2026-07-05T13:30:59.999Z",
+          "equity": "1000"
+        }
+      ],
+      "drawdownCurve": [
+        {
+          "time": "2026-07-05T13:30:59.999Z",
+          "drawdown": "0"
+        }
+      ],
+      "feeBreakdown": [],
+      "indicators": [
+        {
+          "kind": "sma",
+          "period": 2,
+          "values": [
+            null
+          ]
+        },
+        {
+          "kind": "ema",
+          "period": 2,
+          "values": [
+            "100"
+          ]
+        }
+      ],
+      "warnings": [],
+      "resultHash": "fnv1a64:7bdcc7e97e5432e1"
+    }
+  ]
+}

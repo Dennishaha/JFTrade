@@ -1,0 +1,1649 @@
+{
+  "version": "stage9.research-presets-write.v1",
+  "timestamp": "2026-08-22T04:00:00Z",
+  "cases": [
+    {
+      "name": "create-success",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"  Value  \",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-22T00:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Value",
+              "presetId": "rsp-create-success",
+              "querySchemaVersion": 2,
+              "revision": 1,
+              "updatedAt": "2026-08-22T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-create-success",
+            "name": "Value",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-22T00:00:00Z",
+            "updatedAt": "2026-08-22T00:00:00Z"
+          }
+        ],
+        "createCalls": 1,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-empty-input",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_INVALID",
+              "message": "invalid research screen preset: name is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-malformed-unknown-field",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Value\",\"definition\":{\"brokerId\":\"futu\"},\"unknown\":true}",
+          "portCall": false
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_INVALID",
+              "message": "invalid research screen preset payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-unavailable",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Value\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_UNAVAILABLE",
+              "message": "research preset store is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 1,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-failure-rolls-back",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"New\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-existing",
+            "name": "Existing",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 1,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-duplicate-name",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\" Value \",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-existing",
+            "name": "Value",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 1,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "create-concurrent-duplicate",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Concurrent\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-22T00:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Concurrent",
+              "presetId": "rsp-concurrent",
+              "querySchemaVersion": 2,
+              "revision": 1,
+              "updatedAt": "2026-08-22T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict: UNIQUE constraint failed: research_screen_presets.name_key"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-concurrent",
+            "name": "Concurrent",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-22T00:00:00Z",
+            "updatedAt": "2026-08-22T00:00:00Z"
+          }
+        ],
+        "createCalls": 8,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      },
+      "concurrent": true
+    },
+    {
+      "name": "patch-name-success",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\" Updated \",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-15T20:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Updated",
+              "presetId": "rsp-patch",
+              "querySchemaVersion": 2,
+              "revision": 2,
+              "updatedAt": "2026-08-22T00:01:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Updated",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 2,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-22T00:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 1,
+        "updateCalls": 1,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-empty-change",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_INVALID",
+              "message": "invalid research screen preset: name or definition is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Original",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-blank-percent-decoded-id",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/%20",
+          "body": "{\"name\":\"New\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_INVALID",
+              "message": "invalid research screen preset: preset id is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-not-found",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/missing",
+          "body": "{\"name\":\"New\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_NOT_FOUND",
+              "message": "research screen preset not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 1,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-revision-conflict",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Stale\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Original",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 2,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 1,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-unavailable",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"New\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_UNAVAILABLE",
+              "message": "research preset store is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Original",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 1,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-invalid-definition",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":1},\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_INVALID",
+              "message": "invalid research screen preset: querySchemaVersion: must be 2"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Original",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 1,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-failure-rolls-back-and-recovers",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Retry\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Retry\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_FAILED",
+              "message": "database write failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-15T20:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Retry",
+              "presetId": "rsp-patch",
+              "querySchemaVersion": 2,
+              "revision": 2,
+              "updatedAt": "2026-08-22T00:01:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Retry",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 2,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-22T00:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 2,
+        "updateCalls": 2,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "patch-concurrent-revision-fence",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-patch",
+          "body": "{\"name\":\"Concurrent\",\"expectedRevision\":1}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-15T20:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Concurrent",
+              "presetId": "rsp-patch",
+              "querySchemaVersion": 2,
+              "revision": 2,
+              "updatedAt": "2026-08-22T00:01:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_CONFLICT",
+              "message": "research screen preset conflict"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-patch",
+            "name": "Concurrent",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 2,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-22T00:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 8,
+        "updateCalls": 8,
+        "deleteCalls": 0
+      },
+      "concurrent": true
+    },
+    {
+      "name": "delete-success-and-repeat",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/research/screens/presets/rsp-delete",
+          "body": "{",
+          "portCall": true
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/v1/research/screens/presets/rsp-delete",
+          "body": "{",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "deleted": true
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_NOT_FOUND",
+              "message": "research screen preset not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 2
+      }
+    },
+    {
+      "name": "delete-not-found",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/research/screens/presets/missing",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_NOT_FOUND",
+              "message": "research screen preset not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 1
+      }
+    },
+    {
+      "name": "delete-unavailable",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/research/screens/presets/rsp-delete",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_UNAVAILABLE",
+              "message": "research preset store is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-delete",
+            "name": "Delete me",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 1
+      }
+    },
+    {
+      "name": "delete-failure-rolls-back",
+      "requests": [
+        {
+          "method": "DELETE",
+          "path": "/api/v1/research/screens/presets/rsp-delete",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_FAILED",
+              "message": "database delete failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-delete",
+            "name": "Delete me",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 1
+      }
+    },
+    {
+      "name": "cancel-create-recovers",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Cancelled\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "context": "canceled",
+          "portCall": true
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/research/screens/presets",
+          "body": "{\"name\":\"Recovered\",\"definition\":{\"brokerId\":\"futu\",\"market\":\"US\",\"catalogVersion\":\"futu-stock-screen-v1\",\"querySchemaVersion\":2,\"columns\":[{\"columnId\":\"price\",\"factor\":{\"instanceId\":\"price\",\"factorKey\":\"simple.price\"}}]}}",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "data": {
+              "createdAt": "2026-08-22T00:00:00Z",
+              "definition": {
+                "brokerId": "futu",
+                "catalogVersion": "futu-stock-screen-v1",
+                "columns": [
+                  {
+                    "columnId": "price",
+                    "factor": {
+                      "factorKey": "simple.price",
+                      "instanceId": "price",
+                      "params": {}
+                    }
+                  }
+                ],
+                "market": "US",
+                "pool": {},
+                "querySchemaVersion": 2
+              },
+              "name": "Recovered",
+              "presetId": "rsp-recovered",
+              "querySchemaVersion": 2,
+              "revision": 1,
+              "updatedAt": "2026-08-22T00:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-recovered",
+            "name": "Recovered",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-22T00:00:00Z",
+            "updatedAt": "2026-08-22T00:00:00Z"
+          }
+        ],
+        "createCalls": 1,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    },
+    {
+      "name": "timeout-update-fails-closed",
+      "requests": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/research/screens/presets/rsp-timeout",
+          "body": "{\"name\":\"Too late\",\"expectedRevision\":1}",
+          "context": "deadline-exceeded",
+          "portCall": true
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "envelope": {
+            "error": {
+              "code": "RESEARCH_PRESET_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ],
+      "expectedObservation": {
+        "presets": [
+          {
+            "presetId": "rsp-timeout",
+            "name": "Original",
+            "querySchemaVersion": 2,
+            "definition": {
+              "brokerId": "futu",
+              "market": "US",
+              "pool": {},
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "instanceId": "price",
+                    "factorKey": "simple.price",
+                    "params": {}
+                  }
+                }
+              ],
+              "catalogVersion": "futu-stock-screen-v1",
+              "querySchemaVersion": 2
+            },
+            "revision": 1,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ],
+        "createCalls": 0,
+        "getCalls": 0,
+        "updateCalls": 0,
+        "deleteCalls": 0
+      }
+    }
+  ]
+}

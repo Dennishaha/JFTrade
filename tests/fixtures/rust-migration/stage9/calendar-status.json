@@ -1,0 +1,156 @@
+{
+  "version": "stage9.calendar-status.v1",
+  "status": {
+    "autoRefreshEnabled": false,
+    "markets": [
+      {
+        "checkedAt": "2026-06-19T12:00:00Z",
+        "effectiveMode": "builtin_fallback",
+        "effectiveReason": "builtin_rules is serving this market because no fresh external snapshot currently covers the checked trading day",
+        "effectiveSource": "builtin_rules",
+        "fallbackChain": [
+          "manual_override",
+          "fixture_source",
+          "builtin_rules"
+        ],
+        "market": "US"
+      }
+    ],
+    "refreshIntervalHours": 24,
+    "snapshots": [
+      {
+        "checksum": "fixture-checksum-1",
+        "fetchedAt": "2026-01-02T03:00:00Z",
+        "from": "2026-01-01T00:00:00Z",
+        "market": "US",
+        "sampleSchedules": [
+          {
+            "date": "2026-01-19",
+            "market": "US",
+            "observed": true,
+            "reason": "fixture_holiday",
+            "sessions": null,
+            "sourceId": "fixture_source",
+            "status": "closed"
+          },
+          {
+            "date": "2026-11-27",
+            "market": "US",
+            "observed": false,
+            "reason": "fixture_early_close",
+            "sessions": [
+              {
+                "endMinute": 780,
+                "kind": "regular",
+                "startMinute": 570
+              }
+            ],
+            "sourceId": "fixture_source",
+            "status": "early_close"
+          }
+        ],
+        "schedulesParsed": 3,
+        "sourceId": "fixture_source",
+        "to": "2027-12-31T23:59:59Z",
+        "validUntil": "2026-01-09T03:00:00Z"
+      }
+    ],
+    "sources": [
+      {
+        "authority": "builtin",
+        "availabilityNote": "Offline fallback rules bundled with the application. They remain available even when all external sources fail.",
+        "consecutiveFailures": 0,
+        "enabled": true,
+        "healthFingerprint": "",
+        "healthState": "",
+        "id": "builtin_rules",
+        "kind": "builtin_rules",
+        "lastAlertAt": "0001-01-01T00:00:00Z",
+        "lastAlertFingerprint": "",
+        "lastAlertStatus": "",
+        "lastError": "",
+        "lastFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeAt": "0001-01-01T00:00:00Z",
+        "lastProbeError": "",
+        "lastProbeFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeMarket": "",
+        "lastProbeSchedules": 0,
+        "lastProbeStatus": "",
+        "lastProbeSuccessAt": "0001-01-01T00:00:00Z",
+        "lastSnapshotFetchedAt": "0001-01-01T00:00:00Z",
+        "lastSuccessAt": "0001-01-01T00:00:00Z",
+        "markets": [
+          "US",
+          "HK",
+          "CN",
+          "SH",
+          "SZ"
+        ],
+        "nextRefreshAt": "0001-01-01T00:00:00Z"
+      },
+      {
+        "authority": "fixture",
+        "availabilityNote": "",
+        "consecutiveFailures": 0,
+        "enabled": true,
+        "healthFingerprint": "",
+        "healthState": "healthy",
+        "id": "fixture_source",
+        "kind": "fixture",
+        "lastAlertAt": "0001-01-01T00:00:00Z",
+        "lastAlertFingerprint": "",
+        "lastAlertStatus": "",
+        "lastError": "",
+        "lastFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeAt": "0001-01-01T00:00:00Z",
+        "lastProbeError": "",
+        "lastProbeFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeMarket": "",
+        "lastProbeSchedules": 0,
+        "lastProbeStatus": "",
+        "lastProbeSuccessAt": "0001-01-01T00:00:00Z",
+        "lastSnapshotFetchedAt": "2026-01-02T03:00:00Z",
+        "lastSuccessAt": "2026-06-19T12:00:00Z",
+        "markets": [
+          "US"
+        ],
+        "nextRefreshAt": "0001-01-01T00:00:00Z"
+      },
+      {
+        "authority": "settings",
+        "availabilityNote": "Operator-defined overrides always take precedence over remote and builtin calendars.",
+        "consecutiveFailures": 0,
+        "enabled": true,
+        "healthFingerprint": "",
+        "healthState": "",
+        "id": "manual_override",
+        "kind": "manual_override",
+        "lastAlertAt": "0001-01-01T00:00:00Z",
+        "lastAlertFingerprint": "",
+        "lastAlertStatus": "",
+        "lastError": "",
+        "lastFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeAt": "0001-01-01T00:00:00Z",
+        "lastProbeError": "",
+        "lastProbeFailureAt": "0001-01-01T00:00:00Z",
+        "lastProbeMarket": "",
+        "lastProbeSchedules": 0,
+        "lastProbeStatus": "",
+        "lastProbeSuccessAt": "0001-01-01T00:00:00Z",
+        "lastSnapshotFetchedAt": "0001-01-01T00:00:00Z",
+        "lastSuccessAt": "0001-01-01T00:00:00Z",
+        "markets": [
+          "US",
+          "HK",
+          "CN",
+          "SH",
+          "SZ"
+        ],
+        "nextRefreshAt": "0001-01-01T00:00:00Z"
+      }
+    ],
+    "warmupMarkets": [
+      "US"
+    ]
+  }
+}

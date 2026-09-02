@@ -1,9 +1,5 @@
-# Go
-/bin/
-/dist/
-*.test
-*.out
-coverage.txt
+# Rust
+/target/
 
 # Node
 node_modules/
@@ -30,10 +26,10 @@ workers/pineworker/coverage/
 artifacts/
 apps/web/dist/
 packages/*/dist/
-internal/frontendassets/dist.zip
-internal/frontendassets/dist/
-internal/pineworkerassets/assets/bin/*
-!internal/pineworkerassets/assets/bin/.gitkeep
+runtime-assets/web/*
+!runtime-assets/web/.gitkeep
+runtime-assets/pine/*
+!runtime-assets/pine/.gitkeep
 docs/swagger/docs.go
 docs/swagger/swagger.json
 docs/swagger/swagger.yaml
@@ -55,14 +51,9 @@ otp.png
 # local var files
 var/
 
-# local debug/build binaries
-cmd/jftrade/__debug_bin*
-jftrade-api.exe
-jftrade-api
-
 # Native market-data sidecar build artifacts
-internal/marketdataassets/assets/bin/*
-!internal/marketdataassets/assets/bin/.gitkeep
+runtime-assets/marketdata/*
+!runtime-assets/marketdata/.gitkeep
 
 # Legacy yfinance sidecar artifacts are intentionally left in place during the
 # market-data sidecar migration and are never selected by the new asset loader.

@@ -1,0 +1,2945 @@
+{
+  "version": "stage9.brokers-write.v1",
+  "cases": [
+    {
+      "name": "place-success-query-normalization",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders?tradingEnvironment=%20simulate%20\u0026accountId=+ACC-1+\u0026market=us",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "ACC-1",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "us",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "us",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-success-query-defaults",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"AAPL\",\"side\":\"BUY\",\"orderType\":\"MARKET\",\"quantity\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "orderType": "MARKET",
+            "quantity": 1,
+            "side": "BUY",
+            "symbol": "AAPL",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-duplicate-query-first-values-win",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders?tradingEnvironment=\u0026tradingEnvironment=REAL\u0026accountId=\u0026accountId=ACC-2\u0026market=\u0026market=US",
+          "body": "{\"symbol\":\"AAPL\",\"side\":\"BUY\",\"orderType\":\"MARKET\",\"quantity\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "orderType": "MARKET",
+            "quantity": 1,
+            "side": "BUY",
+            "symbol": "AAPL",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-null-body-reaches-broker",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "orderType": "",
+            "quantity": 0,
+            "side": "",
+            "symbol": "",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false} {\"symbol\":\"ignored\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-unknown-fields-ignored",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"quantity\":1,\"unknownField\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "orderType": "LIMIT",
+            "quantity": 1,
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-malformed-field-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: unexpected EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-string-quantity-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"quantity\":\"1\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal string into Go struct field PlaceOrderRequest.quantity of type float64"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-number-symbol-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number into Go struct field PlaceOrderRequest.symbol of type string"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-scalar-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "1"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number into Go value of type trading.PlaceOrderRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-empty-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-malformed-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: unexpected EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-array-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "[]"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal array into Go value of type trading.PlaceOrderRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-malformed-query-precedes-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders?market=%zz",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid broker write query"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-broker-not-found",
+      "portMode": "missing-broker",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-no-active-broker",
+      "portMode": "no-broker",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NO_BROKER",
+              "message": "no active broker"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-trading-unsupported",
+      "portMode": "no-trading",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NO_TRADING",
+              "message": "broker does not support trading"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-pre-trade-risk-rejected",
+      "portMode": "place-risk",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PRE_TRADE_RISK_REJECTED",
+              "message": "real trading is disabled; enable runtime real-trade risk config before placing REAL orders"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-broker-failure",
+      "portMode": "place-error",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PLACE_ORDER_FAILED",
+              "message": "broker place failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-broker-timeout-uses-generic-failure",
+      "portMode": "place-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PLACE_ORDER_FAILED",
+              "message": "broker futu: [TIMEOUT] order timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-cancelled-uses-generic-failure",
+      "portMode": "place-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PLACE_ORDER_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-deadline-uses-generic-failure",
+      "portMode": "place-deadline",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}",
+          "context": "deadline"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PLACE_ORDER_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-repeat-submits-twice",
+      "portMode": "place-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-1",
+                "brokerOrderIdEx": "broker-order-1-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": {
+                "accountId": "",
+                "brokerOrderId": "broker-order-2",
+                "brokerOrderIdEx": "broker-order-2-ex",
+                "market": "HK",
+                "status": "SUBMITTED",
+                "tradingEnvironment": "SIMULATE"
+              },
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        },
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 2,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "place-nil-order-result-is-success",
+      "portMode": "place-nil",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"symbol\":\"US.AAPL\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"price\":100.25,\"quantity\":2,\"timeInForce\":\"DAY\",\"clientOrderId\":\"client-1\",\"remark\":\"fixture\",\"session\":\"RTH\",\"fillOutsideRTH\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "order": null,
+              "placedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "place",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "clientOrderId": "client-1",
+            "fillOutsideRTH": false,
+            "market": "HK",
+            "orderType": "LIMIT",
+            "price": 100.25,
+            "quantity": 2,
+            "remark": "fixture",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL",
+            "timeInForce": "DAY",
+            "tradingEnvironment": "SIMULATE"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 1,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-success-query-and-orders",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders?tradingEnvironment=REAL\u0026accountId=ACC-1\u0026market=US",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 2,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "market": "US",
+            "tradingEnvironment": "REAL"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-empty-object-is-zero-operation",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 0,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-null-body-is-zero-operation",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 0,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]} {\"orders\":null}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 2,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-unknown-fields-ignored",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":9,\"brokerOrderId\":\"broker-9\",\"symbol\":\"US.AAPL\"}],\"unknownField\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 1,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-9",
+              "OrderID": 9,
+              "Symbol": "US.AAPL"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-number-order-id-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":1.5}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number 1.5 into Go struct field CancelOrderItem.orders.orderId of type uint64"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-number-broker-order-id-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"brokerOrderId\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number into Go struct field CancelOrderItem.orders.brokerOrderId of type string"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-scalar-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "1"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number into Go value of type trading.CancelOrdersRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-empty-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-malformed-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: unexpected EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-array-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "[]"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal array into Go value of type trading.CancelOrdersRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-invalid-order-id-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":\"bad\"} ]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal string into Go struct field CancelOrderItem.orders.orderId of type uint64"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-malformed-query-precedes-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders?accountId=%zz",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid broker write query"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-broker-not-found",
+      "portMode": "missing-broker",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-no-active-broker",
+      "portMode": "no-broker",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NO_BROKER",
+              "message": "no active broker"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-trading-unsupported",
+      "portMode": "no-trading",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NO_TRADING",
+              "message": "broker does not support trading"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-broker-failure",
+      "portMode": "cancel-error",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "CANCEL_FAILED",
+              "message": "broker cancel failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-broker-timeout-uses-generic-failure",
+      "portMode": "cancel-timeout",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "CANCEL_FAILED",
+              "message": "broker futu: [TIMEOUT] cancel timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-cancelled-uses-generic-failure",
+      "portMode": "cancel-cancel",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "CANCEL_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-deadline-uses-generic-failure",
+      "portMode": "cancel-deadline",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}",
+          "context": "deadline"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "CANCEL_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 1,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "cancel-repeat-is-not-idempotent",
+      "portMode": "cancel-repeat",
+      "requests": [
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        },
+        {
+          "method": "DELETE",
+          "requestPath": "/api/v1/brokers/futu/orders",
+          "body": "{\"orders\":[{\"orderId\":7,\"brokerOrderId\":\"broker-7\",\"symbol\":\"US.AAPL\"},{\"orderId\":8,\"brokerOrderId\":\"broker-8\",\"symbol\":\"US.MSFT\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 2,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "cancelled": 2,
+              "cancelledAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        },
+        {
+          "kind": "cancel",
+          "orders": [
+            {
+              "BrokerOrderID": "broker-7",
+              "OrderID": 7,
+              "Symbol": "US.AAPL"
+            },
+            {
+              "BrokerOrderID": "broker-8",
+              "OrderID": 8,
+              "Symbol": "US.MSFT"
+            }
+          ],
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 2,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock?tradingEnvironment=REAL\u0026accountId=ACC-1\u0026market=US",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "market": "US",
+            "tradingEnvironment": "REAL"
+          },
+          "request": {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "market": "US",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "REAL",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-false-is-still-submitted",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": "",
+            "unlock": false
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-null-body-reaches_broker",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": "",
+            "unlock": false
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"} {\"unlock\":false}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-unknown-fields-ignored",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc\",\"unknownField\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-string-flag-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":\"true\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal string into Go struct field UnlockTradeRequest.unlock of type bool"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-number-password-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"passwordMd5\":1}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal number into Go struct field UnlockTradeRequest.passwordMd5 of type string"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-scalar-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "true"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal bool into Go value of type trading.UnlockTradeRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-empty-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-malformed-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: unexpected EOF"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-array-body-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "[]"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid request body: json: cannot unmarshal array into Go value of type trading.UnlockTradeRequest"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-malformed-query-precedes-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock?market=%zz",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid broker write query"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-broker-not-found",
+      "portMode": "missing-broker",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 404,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "resource not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-no-active-broker",
+      "portMode": "no-broker",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NO_BROKER",
+              "message": "no active broker"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-unsupported",
+      "portMode": "unlock-unsupported",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "NOT_SUPPORTED",
+              "message": "broker does not support trade unlock"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 0
+      }
+    },
+    {
+      "name": "unlock-broker-failure",
+      "portMode": "unlock-error",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "UNLOCK_FAILED",
+              "message": "broker unlock failed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-broker-timeout-uses-generic-failure",
+      "portMode": "unlock-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "UNLOCK_FAILED",
+              "message": "broker futu: [TIMEOUT] unlock timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-cancelled-uses-generic-failure",
+      "portMode": "unlock-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "UNLOCK_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-deadline-uses-generic-failure",
+      "portMode": "unlock-deadline",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}",
+          "context": "deadline"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "UNLOCK_FAILED",
+              "message": "context deadline exceeded"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 1
+      }
+    },
+    {
+      "name": "unlock-repeat-is-not-idempotent",
+      "portMode": "unlock-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/brokers/futu/unlock",
+          "body": "{\"unlock\":true,\"passwordMd5\":\"abc123\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "unlocked": true,
+              "unlockedAt": "2026-08-23T10:00:00Z"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        },
+        {
+          "kind": "unlock",
+          "query": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "tradingEnvironment": ""
+          },
+          "request": {
+            "accountId": "",
+            "brokerId": "futu",
+            "market": "HK",
+            "passwordMd5": "abc123",
+            "tradingEnvironment": "",
+            "unlock": true
+          }
+        }
+      ],
+      "observation": {
+        "placeCalls": 0,
+        "cancelCalls": 0,
+        "unlockCalls": 2
+      }
+    }
+  ]
+}

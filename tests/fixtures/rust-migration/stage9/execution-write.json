@@ -1,0 +1,3418 @@
+{
+  "version": "stage9.execution-write.v1",
+  "cases": [
+    {
+      "name": "buying-power-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"simulate\",\"market\":\"us\",\"featureId\":\"ignored\",\"instrument\":{\"instrumentId\":\"US.AAPL\",\"productClass\":\"option\"},\"orderKind\":\"single\",\"orderType\":\"LIMIT\",\"quantity\":2,\"price\":100}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "buyingPowerImpact": 37.5,
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "buying-power",
+          "query": {
+            "brokerId": "futu",
+            "accountId": " acct-1 ",
+            "tradingEnvironment": "simulate",
+            "market": "us",
+            "featureId": "execution.buying_power",
+            "instrument": {
+              "instrumentId": "US.AAPL",
+              "code": "",
+              "productClass": "option",
+              "marketSegment": "",
+              "quoteMarket": "",
+              "quantityMode": ""
+            },
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "quantity": 2,
+            "price": 100
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 1,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"simulate\",\"market\":\"us\",\"featureId\":\"ignored\",\"instrument\":{\"instrumentId\":\"US.AAPL\",\"productClass\":\"option\"},\"orderKind\":\"single\",\"orderType\":\"LIMIT\",\"quantity\":2,\"price\":100} {\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "buyingPowerImpact": 37.5,
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "buying-power",
+          "query": {
+            "brokerId": "futu",
+            "accountId": " acct-1 ",
+            "tradingEnvironment": "simulate",
+            "market": "us",
+            "featureId": "execution.buying_power",
+            "instrument": {
+              "instrumentId": "US.AAPL",
+              "code": "",
+              "productClass": "option",
+              "marketSegment": "",
+              "quoteMarket": "",
+              "quantityMode": ""
+            },
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "quantity": 2,
+            "price": 100
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 1,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-null-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "buyingPowerImpact": 37.5,
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "buying-power",
+          "query": {
+            "brokerId": "futu",
+            "accountId": "",
+            "tradingEnvironment": "",
+            "market": "",
+            "featureId": "execution.buying_power",
+            "instrument": {
+              "instrumentId": "",
+              "code": "",
+              "productClass": "",
+              "marketSegment": "",
+              "quoteMarket": "",
+              "quantityMode": ""
+            },
+            "orderKind": ""
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 1,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-empty-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid buying-power request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-malformed-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid buying-power request"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-timeout",
+      "portMode": "buying-power-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"simulate\",\"market\":\"us\",\"featureId\":\"ignored\",\"instrument\":{\"instrumentId\":\"US.AAPL\",\"productClass\":\"option\"},\"orderKind\":\"single\",\"orderType\":\"LIMIT\",\"quantity\":2,\"price\":100}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 504,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_TIMEOUT",
+              "message": "broker futu: [TIMEOUT] buying power timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "buying-power",
+          "query": {
+            "brokerId": "futu",
+            "accountId": " acct-1 ",
+            "tradingEnvironment": "simulate",
+            "market": "us",
+            "featureId": "execution.buying_power",
+            "instrument": {
+              "instrumentId": "US.AAPL",
+              "code": "",
+              "productClass": "option",
+              "marketSegment": "",
+              "quoteMarket": "",
+              "quantityMode": ""
+            },
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "quantity": 2,
+            "price": 100
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 1,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "buying-power-missing-broker",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/buying-power",
+          "body": "{\"brokerId\":\"missing\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"simulate\",\"market\":\"us\",\"featureId\":\"ignored\",\"instrument\":{\"instrumentId\":\"US.AAPL\",\"productClass\":\"option\"},\"orderKind\":\"single\",\"orderType\":\"LIMIT\",\"quantity\":2,\"price\":100}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "brokerId \"missing\" is not available"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "brokerId": "futu",
+              "buyingPowerImpact": 37.5,
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "legs": [
+                {
+                  "instrumentId": "US.OPTION.ONE",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "BUY"
+                },
+                {
+                  "instrumentId": "US.OPTION.TWO",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "SELL"
+                }
+              ],
+              "market": "US",
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "orderKind": "option_combo",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-e87de8753f1dd43613d5",
+              "productClass": "option",
+              "requestHash": "e87de8753f1dd43613d58debc51069ab424a946c85ac6542ca07ca9091af7d23",
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 1,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]} {\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "brokerId": "futu",
+              "buyingPowerImpact": 37.5,
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "legs": [
+                {
+                  "instrumentId": "US.OPTION.ONE",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "BUY"
+                },
+                {
+                  "instrumentId": "US.OPTION.TWO",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "SELL"
+                }
+              ],
+              "market": "US",
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "orderKind": "option_combo",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-e87de8753f1dd43613d5",
+              "productClass": "option",
+              "requestHash": "e87de8753f1dd43613d58debc51069ab424a946c85ac6542ca07ca9091af7d23",
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 1,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-repeated-request-replays",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "brokerId": "futu",
+              "buyingPowerImpact": 37.5,
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "legs": [
+                {
+                  "instrumentId": "US.OPTION.ONE",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "BUY"
+                },
+                {
+                  "instrumentId": "US.OPTION.TWO",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "SELL"
+                }
+              ],
+              "market": "US",
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "orderKind": "option_combo",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-e87de8753f1dd43613d5",
+              "productClass": "option",
+              "requestHash": "e87de8753f1dd43613d58debc51069ab424a946c85ac6542ca07ca9091af7d23",
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "brokerId": "futu",
+              "buyingPowerImpact": 37.5,
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "legs": [
+                {
+                  "instrumentId": "US.OPTION.ONE",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "BUY"
+                },
+                {
+                  "instrumentId": "US.OPTION.TWO",
+                  "productClass": "option",
+                  "ratio": 1,
+                  "side": "SELL"
+                }
+              ],
+              "market": "US",
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "orderKind": "option_combo",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-e87de8753f1dd43613d5",
+              "productClass": "option",
+              "requestHash": "e87de8753f1dd43613d58debc51069ab424a946c85ac6542ca07ca9091af7d23",
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        },
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 2,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-null-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "orderKind must be option_combo or event_parlay"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-empty-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid combo preview payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-malformed-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid combo preview payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-mixed-legs",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.EVENT.TWO\",\"side\":\"SELL\",\"productClass\":\"event_contract\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "combo cannot mix product classes"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-rate-limited",
+      "portMode": "combo-preview-rate",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 429,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_RATE_LIMITED",
+              "message": "broker futu: [RATE_LIMITED] combo preview limited"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 1,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-cancelled",
+      "portMode": "combo-preview-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 1,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-event-parlay-price-is-rejected",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\"acct-1\",\"market\":\"us\",\"clientOrderId\":\"parlay-client\",\"orderKind\":\"event_parlay\",\"productClass\":\"event_contract\",\"rfqId\":\"rfq-1\",\"mvc\":\"mvc-1\",\"amount\":25,\"quoteExpiresAt\":\"2030-01-01T00:00:00Z\",\"price\":0.42,\"legs\":[{\"instrumentId\":\"US.EVENT.ONE\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"yes\"},{\"instrumentId\":\"US.EVENT.TWO\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"no\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "event parlay price is bound to the server-side RFQ and must not be provided"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-preview-event-parlay-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\"acct-1\",\"market\":\"us\",\"clientOrderId\":\"parlay-client\",\"orderKind\":\"event_parlay\",\"productClass\":\"event_contract\",\"rfqId\":\"rfq-1\",\"mvc\":\"mvc-1\",\"amount\":25,\"quoteExpiresAt\":\"2030-01-01T00:00:00Z\",\"legs\":[{\"instrumentId\":\"US.EVENT.ONE\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"yes\"},{\"instrumentId\":\"US.EVENT.TWO\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"no\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "accountImpact": {
+                "buyingPowerDecrease": 37.5
+              },
+              "allowed": true,
+              "brokerId": "futu",
+              "buyingPowerImpact": 37.5,
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "legs": [
+                {
+                  "instrumentId": "US.EVENT.ONE",
+                  "predictionSide": "YES",
+                  "productClass": "event_contract",
+                  "ratio": 1,
+                  "side": "BUY"
+                },
+                {
+                  "instrumentId": "US.EVENT.TWO",
+                  "predictionSide": "NO",
+                  "productClass": "event_contract",
+                  "ratio": 1,
+                  "side": "BUY"
+                }
+              ],
+              "market": "US",
+              "optionAnalysis": {
+                "ask": 1.3,
+                "bid": 1.1,
+                "strategy": "vertical"
+              },
+              "orderKind": "event_parlay",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-682e9bbb5af8da664867",
+              "productClass": "event_contract",
+              "requestHash": "682e9bbb5af8da66486784111bba0bb77ffca2c4e52f8291d6673e33bf2f5cf0",
+              "warnings": [
+                "fixture warning"
+              ]
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "parlay-client",
+            "orderKind": "event_parlay",
+            "productClass": "event_contract",
+            "previewId": "",
+            "rfqId": "rfq-1",
+            "mvc": "mvc-1",
+            "quoteExpiresAt": "2030-01-01T00:00:00Z",
+            "amount": 25,
+            "legs": [
+              {
+                "instrumentId": "US.EVENT.ONE",
+                "productClass": "event_contract",
+                "side": "BUY",
+                "ratio": 1,
+                "predictionSide": "YES"
+              },
+              {
+                "instrumentId": "US.EVENT.TWO",
+                "productClass": "event_contract",
+                "side": "BUY",
+                "ratio": 1,
+                "predictionSide": "NO"
+              }
+            ]
+          },
+          "kind": "combo-preview"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 1,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-order-1",
+              "message": "combo order submitted to broker",
+              "operation": "PLACE_COMBO",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 1,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]} {\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-order-1",
+              "message": "combo order submitted to broker",
+              "operation": "PLACE_COMBO",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 1,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-null-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "orderKind must be option_combo or event_parlay"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-empty-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid combo order payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-missing-preview",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "previewId is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-broker-timeout",
+      "portMode": "combo-place-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 504,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_TIMEOUT",
+              "message": "broker futu: [TIMEOUT] combo timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 1,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-repeated-write-submits-twice",
+      "portMode": "combo-place-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-order-1",
+              "message": "combo order submitted to broker",
+              "operation": "PLACE_COMBO",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-order-2",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-order-2",
+              "message": "combo order submitted to broker",
+              "operation": "PLACE_COMBO",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        },
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 2,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-cancelled",
+      "portMode": "combo-place-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"FUTU\",\"accountId\":\" acct-1 \",\"market\":\"us\",\"clientOrderId\":\"combo-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"option_combo\",\"underlyingInstrumentId\":\"us.aapl\",\"optionStrategy\":\"vertical\",\"nearExpiry\":\"2026-07-17\",\"spread\":10,\"legs\":[{\"instrumentId\":\" us.option.one \",\"side\":\" buy \",\"ratio\":1},{\"instrumentId\":\"US.OPTION.TWO\",\"side\":\"SELL\",\"ratio\":1}]}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "combo-client",
+            "orderKind": "option_combo",
+            "productClass": "option",
+            "previewId": "preview-fixed",
+            "underlyingInstrumentId": "US.AAPL",
+            "optionStrategy": "vertical",
+            "nearExpiry": "2026-07-17",
+            "spread": 10,
+            "legs": [
+              {
+                "instrumentId": "US.OPTION.ONE",
+                "productClass": "option",
+                "side": "BUY",
+                "ratio": 1
+              },
+              {
+                "instrumentId": "US.OPTION.TWO",
+                "productClass": "option",
+                "side": "SELL",
+                "ratio": 1
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 1,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-place-event-parlay-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\"acct-1\",\"market\":\"us\",\"clientOrderId\":\"parlay-client\",\"previewId\":\"preview-fixed\",\"orderKind\":\"event_parlay\",\"productClass\":\"event_contract\",\"rfqId\":\"rfq-1\",\"mvc\":\"mvc-1\",\"amount\":25,\"quoteExpiresAt\":\"2030-01-01T00:00:00Z\",\"legs\":[{\"instrumentId\":\"US.EVENT.ONE\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"yes\"},{\"instrumentId\":\"US.EVENT.TWO\",\"side\":\"buy\",\"ratio\":1,\"predictionSide\":\"no\"}]}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-order-1",
+              "message": "combo order submitted to broker",
+              "operation": "PLACE_COMBO",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "intent": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "clientOrderId": "parlay-client",
+            "orderKind": "event_parlay",
+            "productClass": "event_contract",
+            "previewId": "preview-fixed",
+            "rfqId": "rfq-1",
+            "mvc": "mvc-1",
+            "quoteExpiresAt": "2030-01-01T00:00:00Z",
+            "amount": 25,
+            "legs": [
+              {
+                "instrumentId": "US.EVENT.ONE",
+                "productClass": "event_contract",
+                "side": "BUY",
+                "ratio": 1,
+                "predictionSide": "YES"
+              },
+              {
+                "instrumentId": "US.EVENT.TWO",
+                "productClass": "event_contract",
+                "side": "BUY",
+                "ratio": 1,
+                "predictionSide": "NO"
+              }
+            ]
+          },
+          "kind": "combo-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 1,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-success-trims-id",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/%20combo-1%20/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-1",
+              "message": "combo cancel submitted to broker",
+              "operation": "CANCEL_COMBO",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "combo-1",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 1,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-blank-id-reaches-service",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/%20/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "",
+              "message": "combo cancel submitted to broker",
+              "operation": "CANCEL_COMBO",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 1,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-not-found",
+      "portMode": "combo-cancel-not-found",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/unknown/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "execution order not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "unknown",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 1,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-timeout",
+      "portMode": "combo-cancel-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/combo-1/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 504,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_TIMEOUT",
+              "message": "broker futu: [TIMEOUT] combo cancel timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "combo-1",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 1,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-cancelled",
+      "portMode": "combo-cancel-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/combo-1/cancel",
+          "body": "",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "combo-1",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 1,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "combo-cancel-repeated-write-is-not-idempotent",
+      "portMode": "combo-cancel-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/combo-1/cancel"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/combos/combo-1/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-combo-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "combo-1",
+              "message": "combo cancel submitted to broker",
+              "operation": "CANCEL_COMBO",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "execution combo is already terminal"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "combo-1",
+          "kind": "combo-cancel"
+        },
+        {
+          "internalOrderId": "combo-1",
+          "kind": "combo-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 2,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-success",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "amount": null,
+              "brokerId": "futu",
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "market": "US",
+              "orderKind": "single",
+              "orderType": "LIMIT",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-ca3ab387d739887da6fd",
+              "previewValid": true,
+              "price": 100.5,
+              "productClass": "equity",
+              "quantity": 2,
+              "quantityMode": "units",
+              "requestHash": "ca3ab387d739887da6fd027f1de360255fd0f578e8c787ff02aba5515ee04e90",
+              "side": "BUY",
+              "symbol": "US.AAPL",
+              "tradingEnvironment": "SIMULATE"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"} {\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accountId": "acct-1",
+              "amount": null,
+              "brokerId": "futu",
+              "capabilityVersion": "2026-07-17.opend-10.9.6908",
+              "expiresAt": "2026-08-23T10:05:00Z",
+              "market": "US",
+              "orderKind": "single",
+              "orderType": "LIMIT",
+              "previewAt": "2026-08-23T10:00:00Z",
+              "previewId": "preview-ca3ab387d739887da6fd",
+              "previewValid": true,
+              "price": 100.5,
+              "productClass": "equity",
+              "quantity": 2,
+              "quantityMode": "units",
+              "requestHash": "ca3ab387d739887da6fd027f1de360255fd0f578e8c787ff02aba5515ee04e90",
+              "side": "BUY",
+              "symbol": "US.AAPL",
+              "tradingEnvironment": "SIMULATE"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-null-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "symbol or code is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-empty-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid execution order payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-malformed-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid execution order payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-option-requires-client-id",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\"acct-1\",\"market\":\"US\",\"symbol\":\"AAPL260717C00200000\",\"productClass\":\"option\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"quantity\":1,\"price\":2.25}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "clientOrderId is required for derivative and event-contract previews"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-preview-option-provider-timeout",
+      "portMode": "order-preview-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/previews",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\"acct-1\",\"market\":\"US\",\"symbol\":\"AAPL260717C00200000\",\"productClass\":\"option\",\"side\":\"BUY\",\"orderType\":\"LIMIT\",\"quantity\":1,\"price\":2.25,\"clientOrderId\":\"option-client\"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "broker futu: [TIMEOUT] order preview timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "kind": "order-preview",
+          "query": {
+            "brokerId": "futu",
+            "accountId": "acct-1",
+            "tradingEnvironment": "SIMULATE",
+            "market": "US",
+            "featureId": "execution.order_preview",
+            "instrument": {
+              "instrumentId": "US.AAPL260717C00200000",
+              "code": "AAPL260717C00200000",
+              "productClass": "option",
+              "marketSegment": "derivatives",
+              "quoteMarket": "US",
+              "tradeMarket": "US",
+              "quantityMode": "contracts"
+            },
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "quantity": 1,
+            "price": 2.25
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 1,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-success-env-precedence",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-1",
+              "message": "order submitted to broker",
+              "operation": "PLACE",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 1,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-trailing-json-first-value-wins",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"} {\"ignored\":true}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-1",
+              "message": "order submitted to broker",
+              "operation": "PLACE",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 1,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-null-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "null"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "symbol or code is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-empty-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid execution order payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-malformed-body",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid execution order payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-missing-broker",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"missing\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "brokerId \"missing\" is not available"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-broker-timeout",
+      "portMode": "order-place-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 504,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_TIMEOUT",
+              "message": "broker futu: [TIMEOUT] order timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 1,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-risk-rejected",
+      "portMode": "order-place-risk",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"REAL\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "PRE_TRADE_RISK_REJECTED",
+              "message": "real trading is disabled; enable runtime real-trade risk config before placing REAL orders"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-cancelled",
+      "portMode": "order-place-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 1,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-place-repeated-write-submits-twice",
+      "portMode": "order-place-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders",
+          "body": "{\"brokerId\":\"futu\",\"accountId\":\" acct-1 \",\"tradingEnvironment\":\"SIMULATE\",\"env\":\"REAL\",\"market\":\"us\",\"symbol\":\"AAPL\",\"side\":\" buy \",\"orderType\":\"limit\",\"timeInForce\":\"day\",\"quantity\":2,\"price\":100.5,\"clientOrderId\":\"order-client\",\"remark\":\" fixture order \"}"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-1",
+              "message": "order submitted to broker",
+              "operation": "PLACE",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-2",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-2",
+              "message": "order submitted to broker",
+              "operation": "PLACE",
+              "orderStatus": "SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        },
+        {
+          "command": {
+            "brokerId": "futu",
+            "orderKind": "single",
+            "orderType": "LIMIT",
+            "previewId": "",
+            "productClass": "equity",
+            "quantityMode": "units",
+            "query": {
+              "brokerId": "futu",
+              "accountId": "acct-1",
+              "tradingEnvironment": "SIMULATE",
+              "market": "US",
+              "symbol": "US.AAPL",
+              "productClass": "equity",
+              "quantityMode": "units",
+              "side": "BUY",
+              "orderType": "LIMIT",
+              "price": 100.5,
+              "quantity": 2,
+              "timeInForce": "DAY",
+              "clientOrderId": "order-client",
+              "remark": "fixture order",
+              "session": "RTH",
+              "fillOutsideRTH": false
+            },
+            "remark": "fixture order",
+            "session": "RTH",
+            "side": "BUY",
+            "symbol": "US.AAPL"
+          },
+          "kind": "order-place"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 2,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-cancel-success-trims-id",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/%20order-1%20/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-1",
+              "message": "cancel request submitted to broker",
+              "operation": "CANCEL",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "order-1",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 1
+      }
+    },
+    {
+      "name": "order-cancel-blank-id-reaches-service",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/%20/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "",
+              "message": "cancel request submitted to broker",
+              "operation": "CANCEL",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 1
+      }
+    },
+    {
+      "name": "order-cancel-invalid-percent-is-bound-as-literal",
+      "portMode": "success",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/%zz/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": false,
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "internalOrderId is invalid"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 0
+      }
+    },
+    {
+      "name": "order-cancel-not-found",
+      "portMode": "order-cancel-not-found",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/unknown/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "execution order not found"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "unknown",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 1
+      }
+    },
+    {
+      "name": "order-cancel-timeout",
+      "portMode": "order-cancel-timeout",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/order-1/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 504,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_TIMEOUT",
+              "message": "broker futu: [TIMEOUT] cancel timed out"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "order-1",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 1
+      }
+    },
+    {
+      "name": "order-cancel-cancelled",
+      "portMode": "order-cancel-cancel",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/order-1/cancel",
+          "body": "",
+          "context": "canceled"
+        }
+      ],
+      "expected": [
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "context canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "order-1",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 1
+      }
+    },
+    {
+      "name": "order-cancel-repeated-write-is-not-idempotent",
+      "portMode": "order-cancel-repeat",
+      "requests": [
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/order-1/cancel"
+        },
+        {
+          "method": "POST",
+          "requestPath": "/api/v1/execution/orders/order-1/cancel"
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "data": {
+              "accepted": true,
+              "brokerErrorCode": null,
+              "brokerOrderId": "broker-order-1",
+              "brokerOrderIdEx": null,
+              "checkedAt": "2026-08-23T10:00:00Z",
+              "internalOrderId": "order-1",
+              "message": "cancel request submitted to broker",
+              "operation": "CANCEL",
+              "orderStatus": "CANCEL_SUBMITTED"
+            },
+            "ok": true,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        },
+        {
+          "status": 502,
+          "headers": {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          "portCall": true,
+          "envelope": {
+            "error": {
+              "code": "BROKER_COMMAND_FAILED",
+              "message": "execution order is already terminal"
+            },
+            "ok": false,
+            "timestamp": "2026-08-23T10:00:00Z"
+          }
+        }
+      ],
+      "goCalls": [
+        {
+          "internalOrderId": "order-1",
+          "kind": "order-cancel"
+        },
+        {
+          "internalOrderId": "order-1",
+          "kind": "order-cancel"
+        }
+      ],
+      "observation": {
+        "buyingPowerCalls": 0,
+        "comboPreviewCalls": 0,
+        "comboPlaceCalls": 0,
+        "comboCancelCalls": 0,
+        "orderPreviewCalls": 0,
+        "orderPlaceCalls": 0,
+        "orderCancelCalls": 2
+      }
+    }
+  ]
+}

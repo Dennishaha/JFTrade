@@ -6,12 +6,9 @@ import { fileURLToPath } from "node:url";
 import { spawnChecked } from "./lib/spawn.mjs";
 
 export const preflightChecks = [
+  ["pnpm", ["run", "check:zero-go"]],
   ["pnpm", ["run", "test:test-policy"]],
   ["pnpm", ["run", "check:test-names"]],
-  ["pnpm", ["run", "check:test-quality"]],
-  ["pnpm", ["run", "check:servercore-budget"]],
-  ["pnpm", ["run", "check:assistant-budget"]],
-  ["pnpm", ["run", "check:go-file-length"]],
   ["pnpm", ["run", "check:openapi-quality"]],
   ["pnpm", ["run", "check:web-api-boundary"]],
   ["pnpm", ["run", "check:web-contract-index"]],
@@ -20,16 +17,13 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:web-component-budget"]],
   ["pnpm", ["run", "check:web-file-length"]],
   ["pnpm", ["run", "test:pine-structure-corpus"]],
-  ["pnpm", ["run", "lint:go"]],
-  ["pnpm", ["run", "lint:go:errorlint"]],
-  ["pnpm", ["run", "vet:go"]],
+  ["pnpm", ["run", "check:rust:workspace"]],
   ["pnpm", ["run", "test:coverage"]],
   ["pnpm", ["run", "typecheck"]],
-  ["pnpm", ["run", "check:arch-deps"]],
 ];
 
-export const parallelPreflightChecks = preflightChecks.slice(0, 13);
-export const sequentialPreflightChecks = preflightChecks.slice(13);
+export const parallelPreflightChecks = preflightChecks.slice(0, 11);
+export const sequentialPreflightChecks = preflightChecks.slice(11);
 
 const checkGenerated = ["pnpm", ["run", "check:generated"]];
 const checkDiff = ["pnpm", ["run", "check:diff"]];
@@ -42,15 +36,15 @@ const ciLocalBeforePreflight = [
   ["pnpm", ["run", "check:oss-license"]],
 ];
 const ciLocalAfterPreflight = [
-  ["go", ["build", "./..."]],
-  ["go", ["test", "./cmd/...", "-count=1", "-timeout=300s"]],
-  ["pnpm", ["run", "check:wails-bindings"]],
+  ["pnpm", ["run", "check:rust:differential"]],
+  // A clean checkout has no prepared runtime (var/ is ignored).  The strict
+  // manifest check is exercised by the Tauri build after preparation; this
+  // layer runs the fixture-backed contracts before release assets exist.
+  ["pnpm", ["run", "test:tauri-release-runtime"]],
   ["pnpm", ["run", "test:scripts", "--", "desktop"]],
   ["pnpm", ["run", "build:frontend-assets:generated"]],
   ["node", ["scripts/report-web-bundle.mjs"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/frontendassets", "-run", "TestFileSystem"]],
   ["pnpm", ["run", "build:pineworker"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-count=1"]],
   ["pnpm", ["run", "test:pinets-release-check"]],
   ["pnpm", ["run", "check:pinets-compliance"]],
   ["pnpm", ["run", "test:pinets-shadow-corpus"]],
@@ -58,7 +52,6 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "test:marketdata-sidecar-asset-build"]],
   ["pnpm", ["run", "build:marketdata-sidecar"]],
   ["pnpm", ["run", "smoke:marketdata-sidecar"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"]],
 ];
 
 const sequentialStage = (...commands) => ({ mode: "sequential", commands });
@@ -71,7 +64,6 @@ const ciLocalStages = [
 ];
 const mainAfterCiLocal = [
   checkActionlint,
-  ["pnpm", ["run", "test:go"]],
   ["pnpm", ["run", "test:desktop"]],
   ["pnpm", ["run", "smoke:pinets-backtest"]],
 ];
@@ -129,15 +121,31 @@ async function runParallelStage(commands, runner, stdout, stderr) {
   }
 
   const results = await Promise.all(commands.map(async (command) => {
+    const startedAt = Date.now();
+    const heartbeat = setInterval(() => {
+      stdout.write(`  ... ${formatCommand(command)} still running (${formatDuration(Date.now() - startedAt)})\n`);
+    }, 30_000);
+    heartbeat.unref?.();
     try {
-      return normalizeParallelResult(await runner(command));
+      return {
+        ...normalizeParallelResult(await runner(command)),
+        elapsedMs: Date.now() - startedAt,
+      };
     } catch (error) {
-      return { status: 1, stdout: "", stderr: `${errorMessage(error)}\n` };
+      return {
+        status: 1,
+        stdout: "",
+        stderr: `${errorMessage(error)}\n`,
+        elapsedMs: Date.now() - startedAt,
+      };
+    } finally {
+      clearInterval(heartbeat);
     }
   }));
 
   for (const [index, result] of results.entries()) {
     writeCommandHeader(stdout, commands[index]);
+    stdout.write(`> completed in ${formatDuration(result.elapsedMs)}\n`);
     if (result.stdout) {
       stdout.write(result.stdout);
     }
@@ -167,6 +175,8 @@ function runBufferedCommand([command, args]) {
   return new Promise((complete) => {
     const stdout = [];
     const stderr = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
     let completed = false;
     const finish = (status) => {
       if (completed) {
@@ -183,8 +193,12 @@ function runBufferedCommand([command, args]) {
       shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
-    child.stderr.on("data", (chunk) => stderr.push(Buffer.from(chunk)));
+    child.stdout.on("data", (chunk) => {
+      stdoutBytes = appendBufferedOutput(stdout, stdoutBytes, chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderrBytes = appendBufferedOutput(stderr, stderrBytes, chunk);
+    });
     child.once("error", (error) => {
       stderr.push(Buffer.from(`${error.message}\n`));
       finish(1);
@@ -220,6 +234,23 @@ function formatCommand([command, args]) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function appendBufferedOutput(chunks, currentBytes, chunk, limit = 4 * 1024 * 1024) {
+  if (currentBytes >= limit) return currentBytes;
+  const value = Buffer.from(chunk);
+  const remaining = limit - currentBytes;
+  if (value.length <= remaining) {
+    chunks.push(value);
+    return currentBytes + value.length;
+  }
+  chunks.push(value.subarray(0, remaining));
+  chunks.push(Buffer.from("\n[output truncated by test runner]\n"));
+  return limit;
+}
+
+function formatDuration(milliseconds) {
+  return `${(milliseconds / 1_000).toFixed(1)}s`;
 }
 
 async function main() {

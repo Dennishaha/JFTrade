@@ -1,0 +1,222 @@
+{
+  "version": "stage6.v1",
+  "statuses": [
+    { "status": "RUNNING", "terminal": false },
+    { "status": "COMPLETED", "terminal": true },
+    { "status": "PENDING_APPROVAL", "terminal": false },
+    { "status": "PENDING_INPUT", "terminal": false },
+    { "status": "FAILED", "terminal": true },
+    { "status": "DENIED", "terminal": true },
+    { "status": "CANCELLED", "terminal": true },
+    { "status": "TIMED_OUT", "terminal": true },
+    { "status": "PAUSED", "terminal": false }
+  ],
+  "transitions": [
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "PENDING_APPROVAL", "to": "PENDING_APPROVAL" },
+    { "accepted": true, "changed": true, "from": "PENDING_APPROVAL", "status": "RUNNING", "to": "RUNNING" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "PENDING_INPUT", "to": "PENDING_INPUT" },
+    { "accepted": true, "changed": true, "from": "PENDING_INPUT", "status": "RUNNING", "to": "RUNNING" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "PAUSED", "to": "PAUSED" },
+    { "accepted": true, "changed": true, "from": "PAUSED", "status": "RUNNING", "to": "RUNNING" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "COMPLETED", "to": "COMPLETED" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "FAILED", "to": "FAILED" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "TIMED_OUT", "to": "TIMED_OUT" },
+    { "accepted": true, "changed": true, "from": "RUNNING", "status": "CANCELLED", "to": "CANCELLED" },
+    { "accepted": true, "changed": true, "from": "PENDING_APPROVAL", "status": "DENIED", "to": "DENIED" },
+    { "accepted": false, "error": "run transition from Completed to Running is not allowed", "from": "COMPLETED", "status": "COMPLETED", "to": "RUNNING" }
+  ],
+  "rig": {
+    "messages": [
+      { "content": "You are the JFTrade assistant.", "role": "system" },
+      { "content": [{ "text": "Review AAPL and ask only if blocked.", "type": "text" }], "role": "user" },
+      { "content": [{ "text": "I will inspect the available context.", "type": "text" }], "id": null, "role": "assistant" }
+    ],
+    "model": "fixed-transcript-v1",
+    "recordTelemetryContent": false,
+    "tools": [
+      {
+        "description": "Ask only for a genuinely blocking decision; never substitute input for write approval.",
+        "name": "interaction.request_user",
+        "parameters": {
+          "properties": {
+            "blockingReason": {
+              "description": "Why the original task cannot safely continue without this user answer. Do not use workload reduction as a reason.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "decisionKind": {
+              "description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions.",
+              "enum": ["missing_required_context", "material_tradeoff", "scope_boundary"],
+              "type": "string"
+            },
+            "questions": {
+              "description": "All decisions needed for the current step. Ask them together.",
+              "items": {
+                "properties": {
+                  "allowOther": { "type": "boolean" },
+                  "options": {
+                    "description": "Present exactly two or three concise choices.",
+                    "items": {
+                      "properties": {
+                        "description": { "type": "string" },
+                        "label": { "type": "string" },
+                        "recommended": { "type": "boolean" }
+                      },
+                      "required": ["label"],
+                      "type": "object"
+                    },
+                    "maxItems": 3,
+                    "minItems": 2,
+                    "type": "array"
+                  },
+                  "question": { "type": "string" }
+                },
+                "required": ["question", "options"],
+                "type": "object"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "title": {
+              "description": "Optional short title displayed above the questions.",
+              "type": "string"
+            }
+          },
+          "required": ["decisionKind", "blockingReason", "questions"],
+          "type": "object"
+        }
+      }
+    ]
+  },
+  "approval": {
+    "approvalStatus": "APPROVED",
+    "auditKinds": ["run.started", "approval.pending", "approval.approved"],
+    "checkpointSha256": "e50f81d749d7e4b993402b0fbe837d8cadcb349824d7252e41fa75f833879ed0",
+    "firstResolutionChanged": true,
+    "persistedPending": 1,
+    "persistedStatus": "PENDING_APPROVAL",
+    "replayResolutionChanged": false,
+    "requiresUser": false,
+    "status": "RUNNING",
+    "toolStatus": "RUNNING"
+  },
+  "input": {
+    "activeRequest": null,
+    "answers": [{ "optionId": "q1-o1", "questionId": "q1" }],
+    "auditKinds": ["run.started", "input.pending", "input.answered"],
+    "checkpointSha256": "817eb7b5673e5c8e96a7d5ec9ac65ef1365cebeda7d7268d1b38ba3f4d4b3e3d",
+    "decisionKind": "material_tradeoff",
+    "firstResolutionChanged": true,
+    "persistedRequestStatus": "PENDING",
+    "persistedStatus": "PENDING_INPUT",
+    "replayResolutionChanged": false,
+    "requestStatus": "ANSWERED",
+    "status": "RUNNING"
+  },
+  "invalidInputs": [
+    { "accepted": false, "error": "input request is invalid: blockingReason describes a non-blocking optional next step" },
+    { "accepted": false, "error": "input request is invalid: question is empty or non-blocking" },
+    { "accepted": false, "error": "input request is invalid: each question requires two or three options" }
+  ],
+  "claims": {
+    "failClosedFirstToken": 1,
+    "finalCheckpointSha256": "a3d58138bafe4c972afd906271e5512fa9be6e536e15cfa2d7525b0916127e50",
+    "firstLeaseToken": 1,
+    "firstToolToken": 1,
+    "heldError": "RUN_LEASE_HELD",
+    "inFlightError": "TOOL_INVOCATION_IN_FLIGHT",
+    "invocations": [
+      {
+        "fencingToken": 2,
+        "idempotencyKey": "read-aapl",
+        "input": { "symbol": "AAPL" },
+        "leaseExpiresAtUnixMs": 1203,
+        "output": { "price": "100.00" },
+        "ownerId": "executor-c",
+        "runId": "claim-run",
+        "runLeaseToken": 3,
+        "status": "COMPLETED",
+        "toolName": "marketdata.quote"
+      },
+      {
+        "fencingToken": 1,
+        "idempotencyKey": "write-aapl",
+        "input": { "quantity": "1", "symbol": "AAPL" },
+        "leaseExpiresAtUnixMs": 1305,
+        "ownerId": "executor-c",
+        "runId": "claim-run",
+        "runLeaseToken": 3,
+        "status": "INDETERMINATE",
+        "toolName": "trade.submit"
+      }
+    ],
+    "outcomeUnknownError": "TOOL_OUTCOME_UNKNOWN",
+    "replay": {
+      "execute": false,
+      "fencingToken": 2,
+      "idempotencyKey": "read-aapl",
+      "output": { "price": "100.00" },
+      "ownerId": "executor-c",
+      "replayed": true,
+      "runId": "claim-run",
+      "runLeaseToken": 3
+    },
+    "restoredCheckpointSha256": "3ff103f6946da65ee4ae69f8dbc404ac911432b43b749f82c1908176469d8302",
+    "takeoverLeaseToken": 2,
+    "takeoverToolToken": 2
+  },
+  "workflow": {
+    "firstReady": "inspect",
+    "invalid": [
+      { "accepted": false, "error": "workflow task self depends on itself" },
+      { "accepted": false, "error": "workflow task missing depends on missing task absent" },
+      { "accepted": false, "error": "workflow task graph contains a cycle" }
+    ],
+    "secondReady": "analyze",
+    "tasks": [
+      { "dependsOn": [], "id": "inspect", "order": 1, "resultSummary": "first complete", "status": "DONE", "title": "Inspect context" },
+      { "dependsOn": ["inspect"], "id": "analyze", "order": 2, "status": "IN_PROGRESS", "title": "Analyze evidence" },
+      { "dependsOn": ["analyze"], "id": "report", "order": 3, "status": "TODO", "title": "Report result" }
+    ]
+  },
+  "artifacts": {
+    "latest": {
+      "contentBase64": "cmVwb3J0IHYy",
+      "contentSha256": "sha256:report-v2",
+      "createdAt": "2026-08-19T00:00:00Z",
+      "filename": "report.md",
+      "namespace": "analysis",
+      "sessionId": "session-stage6",
+      "version": 2
+    },
+    "snapshotSha256": "3ea9fc067bb306660515100decc406c87c4770cdd8356abbb95e156f86fbfd60",
+    "versionOne": {
+      "contentBase64": "cmVwb3J0IHYx",
+      "contentSha256": "sha256:report-v1",
+      "createdAt": "2026-08-19T00:00:00Z",
+      "filename": "report.md",
+      "namespace": "analysis",
+      "sessionId": "session-stage6",
+      "version": 1
+    },
+    "versions": 2
+  },
+  "provider": {
+    "attempts": 2,
+    "auditKinds": ["run.started", "provider.error"],
+    "checkpointSha256": "6f708c89c70c90ee7091ba69a16ae5d178798749c2b101114908773e554d9d49",
+    "degraded": true,
+    "deltas": [
+      { "reasoningContent": "Inspecting fixed context. " },
+      { "reply": "AAPL review complete." },
+      { "toolProgress": "marketdata.quote completed" }
+    ],
+    "errorCode": "",
+    "failureReason": "",
+    "message": "AAPL review complete.",
+    "providerResponseId": "fixed-response-1",
+    "status": "RUNNING",
+    "toolRequests": [{ "arguments": { "symbol": "AAPL" }, "id": "provider-tool-1", "name": "marketdata.quote" }],
+    "usage": { "durationMs": 42, "modelCalls": 1, "tokensIn": 120, "tokensOut": 24, "toolCallsTotal": 1 }
+  }
+}

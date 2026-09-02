@@ -1,0 +1,645 @@
+{
+  "version": "stage9.product-slice.v10",
+  "appearanceCases": [
+    {
+      "name": "defaults",
+      "input": {
+        "upColor": "",
+        "downColor": ""
+      },
+      "expected": {
+        "upColor": "#16c784",
+        "downColor": "#ea3943"
+      }
+    },
+    {
+      "name": "trim-and-lowercase",
+      "input": {
+        "upColor": " #ABCDEF ",
+        "downColor": "#010203"
+      },
+      "expected": {
+        "upColor": "#abcdef",
+        "downColor": "#010203"
+      }
+    },
+    {
+      "name": "reject-invalid-hex",
+      "input": {
+        "upColor": "#12345g",
+        "downColor": "112233"
+      },
+      "expected": {
+        "upColor": "#16c784",
+        "downColor": "#ea3943"
+      }
+    },
+    {
+      "name": "reject-non-ascii",
+      "input": {
+        "upColor": "#１２３４５６",
+        "downColor": "#abcdef"
+      },
+      "expected": {
+        "upColor": "#16c784",
+        "downColor": "#abcdef"
+      }
+    }
+  ],
+  "onboardingCases": [
+    {
+      "name": "new-user-without-account",
+      "input": {},
+      "dependenciesSatisfied": true,
+      "expected": {
+        "state": {"completed": false, "lastBrokerId": ""},
+        "shouldShowOobe": true,
+        "reasons": [{"code": "NO_MANAGED_ACCOUNTS", "severity": "info", "message": "No managed broker accounts have been configured."}],
+        "brokerEnabled": false,
+        "brokerConfigured": false
+      }
+    },
+    {
+      "name": "completed-and-ready",
+      "input": {
+        "onboarding": {"completed": true, "completedAt": "2026-08-19T00:00:00Z", "lastBrokerId": " futu "},
+        "integration": {"enabled": true},
+        "accounts": [{"enabled": true}]
+      },
+      "dependenciesSatisfied": true,
+      "expected": {
+        "state": {"completed": true, "completedAt": "2026-08-19T00:00:00Z", "lastBrokerId": "futu"},
+        "shouldShowOobe": false,
+        "reasons": [],
+        "brokerEnabled": true,
+        "brokerConfigured": true
+      }
+    },
+    {
+      "name": "completed-but-runtime-degraded",
+      "input": {
+        "onboarding": {"completed": true, "completedAt": "2026-08-19T00:00:00Z", "lastBrokerId": "futu"},
+        "integration": {"enabled": false},
+        "accounts": [{"enabled": true}]
+      },
+      "dependenciesSatisfied": false,
+      "expected": {
+        "state": {"completed": true, "completedAt": "2026-08-19T00:00:00Z", "lastBrokerId": "futu"},
+        "shouldShowOobe": true,
+        "reasons": [{"code": "RUNTIME_DEPENDENCY_UNSATISFIED", "severity": "warning", "message": "Required runtime dependencies are missing or do not meet the minimum version."}],
+        "brokerEnabled": false,
+        "brokerConfigured": true
+      }
+    },
+    {
+      "name": "incomplete-runtime-and-account-reasons-stay-ordered",
+      "input": {
+        "onboarding": {"completed": false, "completedAt": "must-clear", "dismissedAt": "2026-08-19T01:00:00Z", "lastBrokerId": " futu "},
+        "accounts": [{"enabled": false}]
+      },
+      "dependenciesSatisfied": false,
+      "expected": {
+        "state": {"completed": false, "dismissedAt": "2026-08-19T01:00:00Z", "lastBrokerId": "futu"},
+        "shouldShowOobe": true,
+        "reasons": [
+          {"code": "RUNTIME_DEPENDENCY_UNSATISFIED", "severity": "warning", "message": "Required runtime dependencies are missing or do not meet the minimum version."},
+          {"code": "NO_MANAGED_ACCOUNTS", "severity": "info", "message": "No managed broker accounts have been configured."}
+        ],
+        "brokerEnabled": false,
+        "brokerConfigured": false
+      }
+    }
+  ],
+  "futuInstallCases": [
+    {
+      "name": "missing-integration-uses-defaults",
+      "input": {},
+      "expected": {"host": "127.0.0.1", "apiPort": 11110, "websocketPort": 11111, "maxWebSocketConnections": 20, "useEncryption": false, "websocketKeyRequired": false, "marketDataTransport": "bbgo-opend-tcp-api", "minimumVersion": "10.9.6908"}
+    },
+    {
+      "name": "saved-key-is-only-exposed-as-presence",
+      "input": {"integration": {"enabled": true, "config": {"host": "10.0.0.8", "apiPort": 21110, "websocketPort": 21111, "maxWebSocketConnections": 7, "useEncryption": false, "websocketKey": "top-secret"}}},
+      "expected": {"host": "10.0.0.8", "apiPort": 21110, "websocketPort": 21111, "maxWebSocketConnections": 7, "useEncryption": false, "websocketKeyRequired": true, "marketDataTransport": "bbgo-opend-tcp-api", "minimumVersion": "10.9.6908"}
+    },
+    {
+      "name": "legacy-zero-values-remain-visible",
+      "input": {"integration": {"enabled": false, "config": {}}},
+      "expected": {"host": "", "apiPort": 0, "websocketPort": 0, "maxWebSocketConnections": 0, "useEncryption": false, "websocketKeyRequired": false, "marketDataTransport": "bbgo-opend-tcp-api", "minimumVersion": "10.9.6908"}
+    },
+    {
+      "name": "whitespace-key-is-not-configured",
+      "input": {"integration": {"enabled": true, "config": {"host": "localhost", "apiPort": 11110, "websocketPort": 11111, "maxWebSocketConnections": 20, "useEncryption": true, "websocketKey": "  "}}},
+      "expected": {"host": "localhost", "apiPort": 11110, "websocketPort": 11111, "maxWebSocketConnections": 20, "useEncryption": true, "websocketKeyRequired": false, "marketDataTransport": "bbgo-opend-tcp-api", "minimumVersion": "10.9.6908"}
+    }
+  ],
+  "executionCases": [
+    {
+      "name": "defaults",
+      "input": {
+        "defaultTradingEnvironment": "",
+        "brokerOrderHistoryLookbackDays": 0,
+        "seenFillRetentionDays": 0
+      },
+      "expected": {
+        "defaultTradingEnvironment": "SIMULATE",
+        "brokerOrderHistoryLookbackDays": 30,
+        "seenFillRetentionDays": 90
+      }
+    },
+    {
+      "name": "trim-uppercase-and-bounds",
+      "input": {
+        "defaultTradingEnvironment": " real ",
+        "brokerOrderHistoryLookbackDays": 999,
+        "seenFillRetentionDays": 9999
+      },
+      "expected": {
+        "defaultTradingEnvironment": "REAL",
+        "brokerOrderHistoryLookbackDays": 365,
+        "seenFillRetentionDays": 3650
+      }
+    },
+    {
+      "name": "invalid-values-use-defaults",
+      "input": {
+        "defaultTradingEnvironment": "paper",
+        "brokerOrderHistoryLookbackDays": -1,
+        "seenFillRetentionDays": -2
+      },
+      "expected": {
+        "defaultTradingEnvironment": "SIMULATE",
+        "brokerOrderHistoryLookbackDays": 30,
+        "seenFillRetentionDays": 90
+      }
+    },
+    {
+      "name": "valid-values-pass-through",
+      "input": {
+        "defaultTradingEnvironment": "simulate",
+        "brokerOrderHistoryLookbackDays": 7,
+        "seenFillRetentionDays": 365
+      },
+      "expected": {
+        "defaultTradingEnvironment": "SIMULATE",
+        "brokerOrderHistoryLookbackDays": 7,
+        "seenFillRetentionDays": 365
+      }
+    }
+  ],
+  "securityCases": [
+    {
+      "name": "defaults",
+      "input": {
+        "webAccessEnabled": false,
+        "publicAccessEnabled": false,
+        "webPort": 0,
+        "passwordHash": ""
+      },
+      "expected": {
+        "webAccessEnabled": false,
+        "publicAccessEnabled": false,
+        "webPort": 6688,
+        "passwordConfigured": false
+      }
+    },
+    {
+      "name": "enabled-without-password-fails-closed",
+      "input": {
+        "webAccessEnabled": true,
+        "publicAccessEnabled": true,
+        "webPort": 7443,
+        "passwordHash": "  "
+      },
+      "expected": {
+        "webAccessEnabled": false,
+        "publicAccessEnabled": false,
+        "webPort": 7443,
+        "passwordConfigured": false
+      }
+    },
+    {
+      "name": "configured-public-access",
+      "input": {
+        "webAccessEnabled": true,
+        "publicAccessEnabled": true,
+        "webPort": 7443,
+        "passwordHash": " $2a$10$fixture "
+      },
+      "expected": {
+        "webAccessEnabled": true,
+        "publicAccessEnabled": true,
+        "webPort": 7443,
+        "passwordConfigured": true
+      }
+    },
+    {
+      "name": "disabled-access-keeps-password-configured",
+      "input": {
+        "webAccessEnabled": false,
+        "publicAccessEnabled": true,
+        "webPort": 0,
+        "passwordHash": "$2a$10$fixture"
+      },
+      "expected": {
+        "webAccessEnabled": false,
+        "publicAccessEnabled": false,
+        "webPort": 6688,
+        "passwordConfigured": true
+      }
+    }
+  ],
+  "marketDataProviderCases": [
+    { "name": "default-empty", "input": "", "expected": "akshare" },
+    { "name": "trim-futu", "input": " FUTU ", "expected": "futu" },
+    { "name": "normalize-yfinance", "input": " YFinance ", "expected": "yfinance" },
+    { "name": "normalize-akshare", "input": " AKSHARE ", "expected": "akshare" },
+    { "name": "unknown-fails-to-default", "input": "custom", "expected": "akshare" }
+  ],
+  "backtestMarketDataProviderCases": [
+    { "name": "missing-both-defaults", "activeProvider": null, "backtestProvider": null, "expected": "akshare" },
+    { "name": "missing-module-value-falls-back-to-active", "activeProvider": "yfinance", "backtestProvider": null, "expected": "yfinance" },
+    { "name": "module-value-overrides-active", "activeProvider": "akshare", "backtestProvider": "futu", "expected": "futu" },
+    { "name": "invalid-module-value-fails-to-default", "activeProvider": "futu", "backtestProvider": "custom", "expected": "akshare" }
+  ],
+  "exchangeCalendarCases": [
+    {
+      "name": "legacy-empty-document",
+      "input": {},
+      "expected": {
+        "autoRefreshEnabled": false,
+        "errorNotificationsEnabled": true,
+        "refreshIntervalHours": 24,
+        "warmupMarkets": ["US", "HK", "CN"],
+        "sourcePolicies": [
+          {
+            "market": "US",
+            "preferredSourceIds": ["nyse_official"],
+            "enabledSourceIds": ["nyse_official", "builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 72
+          },
+          {
+            "market": "HK",
+            "preferredSourceIds": ["hk_gov_1823_ical"],
+            "enabledSourceIds": ["hk_gov_1823_ical", "builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 168
+          },
+          {
+            "market": "CN",
+            "enabledSourceIds": ["builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 168
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit-flags-and-bounds",
+      "input": {
+        "autoRefreshEnabled": true,
+        "errorNotificationsEnabled": false,
+        "refreshIntervalHours": 9999,
+        "warmupMarkets": [" us ", "US", " hk "]
+      },
+      "expected": {
+        "autoRefreshEnabled": true,
+        "errorNotificationsEnabled": false,
+        "refreshIntervalHours": 720,
+        "warmupMarkets": ["US", "HK"],
+        "sourcePolicies": [
+          {
+            "market": "US",
+            "preferredSourceIds": ["nyse_official"],
+            "enabledSourceIds": ["nyse_official", "builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 72
+          },
+          {
+            "market": "HK",
+            "preferredSourceIds": ["hk_gov_1823_ical"],
+            "enabledSourceIds": ["hk_gov_1823_ical", "builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 168
+          },
+          {
+            "market": "CN",
+            "enabledSourceIds": ["builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": 168
+          }
+        ]
+      }
+    },
+    {
+      "name": "legacy-source-and-invalid-policy",
+      "input": {
+        "refreshIntervalHours": 6,
+        "warmupMarkets": ["HK"],
+        "sourcePolicies": [
+          {
+            "market": " hk ",
+            "preferredSourceIds": [" hkex_official ", "hk_gov_1823_ical"],
+            "enabledSourceIds": ["builtin_rules", "builtin_rules"],
+            "fallbackToBuiltin": true,
+            "staleAfterHours": -1
+          },
+          { "market": "  ", "fallbackToBuiltin": false }
+        ]
+      },
+      "expected": {
+        "autoRefreshEnabled": false,
+        "errorNotificationsEnabled": true,
+        "refreshIntervalHours": 6,
+        "warmupMarkets": ["HK"],
+        "sourcePolicies": [
+          {
+            "market": "HK",
+            "preferredSourceIds": ["hk_gov_1823_ical"],
+            "enabledSourceIds": ["builtin_rules"],
+            "fallbackToBuiltin": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "manual-override-filtering",
+      "input": {
+        "refreshIntervalHours": 24,
+        "warmupMarkets": ["US"],
+        "sourcePolicies": [
+          { "market": "US", "enabledSourceIds": ["builtin_rules"], "fallbackToBuiltin": true }
+        ],
+        "manualOverrides": [
+          {
+            "market": " us ",
+            "date": " 2026-01-02 ",
+            "status": " CLOSED ",
+            "sessions": [
+              { "kind": " regular ", "startMinute": 570, "endMinute": 960 },
+              { "kind": "bad", "startMinute": 100, "endMinute": 100 }
+            ],
+            "reason": " holiday ",
+            "observed": true
+          },
+          { "market": "", "date": "2026-01-03", "status": "closed" }
+        ]
+      },
+      "expected": {
+        "autoRefreshEnabled": false,
+        "errorNotificationsEnabled": true,
+        "refreshIntervalHours": 24,
+        "warmupMarkets": ["US"],
+        "sourcePolicies": [
+          { "market": "US", "enabledSourceIds": ["builtin_rules"], "fallbackToBuiltin": true }
+        ],
+        "manualOverrides": [
+          {
+            "market": "US",
+            "date": "2026-01-02",
+            "status": "closed",
+            "sessions": [
+              { "kind": "regular", "startMinute": 570, "endMinute": 960 }
+            ],
+            "reason": "holiday",
+            "observed": true
+          }
+        ]
+      }
+    }
+  ],
+  "assistantRuntimeCases": [
+    {
+      "name": "defaults",
+      "input": { "runTimeoutMs": 0, "streamIdleTimeoutMs": 0 },
+      "expected": { "runTimeoutMs": 1800000, "streamIdleTimeoutMs": 300000 }
+    },
+    {
+      "name": "minimum-bounds",
+      "input": { "runTimeoutMs": 1, "streamIdleTimeoutMs": 1 },
+      "expected": { "runTimeoutMs": 60000, "streamIdleTimeoutMs": 30000 }
+    },
+    {
+      "name": "maximum-bounds",
+      "input": { "runTimeoutMs": 99999999, "streamIdleTimeoutMs": 99999999 },
+      "expected": { "runTimeoutMs": 43200000, "streamIdleTimeoutMs": 900000 }
+    },
+    {
+      "name": "valid-values-pass-through",
+      "input": { "runTimeoutMs": 3600000, "streamIdleTimeoutMs": 120000 },
+      "expected": { "runTimeoutMs": 3600000, "streamIdleTimeoutMs": 120000 }
+    }
+  ],
+  "mcpServerCases": [
+    {
+      "name": "defaults",
+      "input": { "enabled": false, "port": 0, "authMode": "", "tokenHash": "" },
+      "expected": { "enabled": false, "port": 6697, "authMode": "token", "tokenConfigured": false }
+    },
+    {
+      "name": "valid-none-with-token",
+      "input": { "enabled": true, "port": 6700, "authMode": " none ", "tokenHash": " $argon2id$fixture " },
+      "expected": { "enabled": true, "port": 6700, "authMode": "none", "tokenConfigured": true }
+    },
+    {
+      "name": "invalid-port-and-mode-use-defaults",
+      "input": { "enabled": true, "port": 80, "authMode": "basic", "tokenHash": "  " },
+      "expected": { "enabled": true, "port": 6697, "authMode": "token", "tokenConfigured": false }
+    },
+    {
+      "name": "maximum-port-and-case-folding",
+      "input": { "enabled": false, "port": 65535, "authMode": " NONE ", "tokenHash": "verifier" },
+      "expected": { "enabled": false, "port": 65535, "authMode": "none", "tokenConfigured": true }
+    }
+  ],
+  "systemNotificationCases": [
+    {
+      "name": "invalid-mode-uses-important-defaults",
+      "input": { "enabled": false, "mode": "", "levels": [], "categories": [], "soundEnabled": false },
+      "expected": {
+        "enabled": false,
+        "mode": "important",
+        "levels": ["warn", "error"],
+        "categories": ["broker.connection", "strategy.order.signal", "execution.order", "execution.fill"],
+        "soundEnabled": false
+      }
+    },
+    {
+      "name": "all-omits-filters",
+      "input": { "enabled": true, "mode": " ALL ", "levels": ["warn"], "categories": ["a"], "soundEnabled": true },
+      "expected": { "enabled": true, "mode": "all", "soundEnabled": true }
+    },
+    {
+      "name": "custom-trims-and-deduplicates",
+      "input": {
+        "enabled": true,
+        "mode": " CUSTOM ",
+        "levels": [" WARN ", "warn", "Error", ""],
+        "categories": ["a", " a ", "B", ""],
+        "soundEnabled": false
+      },
+      "expected": {
+        "enabled": true,
+        "mode": "custom",
+        "levels": ["warn", "error"],
+        "categories": ["a", "B"],
+        "soundEnabled": false
+      }
+    },
+    {
+      "name": "important-overrides-custom-filters",
+      "input": { "enabled": true, "mode": "important", "levels": ["info"], "categories": ["custom"], "soundEnabled": true },
+      "expected": {
+        "enabled": true,
+        "mode": "important",
+        "levels": ["warn", "error"],
+        "categories": ["broker.connection", "strategy.order.signal", "execution.order", "execution.fill"],
+        "soundEnabled": true
+      }
+    }
+  ],
+  "pineWorkerCases": [
+    {
+      "name": "zero-clamps-to-minimum",
+      "input": { "backtestWorkerLimit": 0, "instanceWorkerLimit": 0, "nodeBinaryPath": "" },
+      "expected": { "backtestWorkerLimit": 1, "instanceWorkerLimit": 1, "nodeBinaryPath": "" }
+    },
+    {
+      "name": "maximum-bounds",
+      "input": { "backtestWorkerLimit": 1001, "instanceWorkerLimit": 9999, "nodeBinaryPath": " node " },
+      "expected": { "backtestWorkerLimit": 1000, "instanceWorkerLimit": 1000, "nodeBinaryPath": "node" }
+    },
+    {
+      "name": "nested-balanced-quotes",
+      "input": { "backtestWorkerLimit": 2, "instanceWorkerLimit": 10, "nodeBinaryPath": " ' \"/opt/node/bin/node\" ' " },
+      "expected": { "backtestWorkerLimit": 2, "instanceWorkerLimit": 10, "nodeBinaryPath": "/opt/node/bin/node" }
+    },
+    {
+      "name": "unbalanced-quotes-retained",
+      "input": { "backtestWorkerLimit": 4, "instanceWorkerLimit": 12, "nodeBinaryPath": "\"/opt/node'" },
+      "expected": { "backtestWorkerLimit": 4, "instanceWorkerLimit": 12, "nodeBinaryPath": "\"/opt/node'" }
+    }
+  ],
+  "seedDocument": {
+    "interfaces": {
+      "apiBind": "127.0.0.1:3000"
+    },
+    "security": {
+      "passwordHash": "$2a$10$fixture"
+    },
+    "futureOwner": {
+      "enabled": true
+    }
+  },
+  "writeAppearance": {
+    "upColor": " #ABCDEF ",
+    "downColor": "invalid"
+  },
+  "expectedStoredAppearance": {
+    "upColor": "#abcdef",
+    "downColor": "#ea3943"
+  },
+  "writeExecution": {
+    "defaultTradingEnvironment": " real ",
+    "brokerOrderHistoryLookbackDays": 999,
+    "seenFillRetentionDays": 0
+  },
+  "expectedStoredExecution": {
+    "defaultTradingEnvironment": "REAL",
+    "brokerOrderHistoryLookbackDays": 365,
+    "seenFillRetentionDays": 90
+  },
+  "writeAssistantRuntime": { "runTimeoutMs": 1, "streamIdleTimeoutMs": 99999999 },
+  "expectedStoredAssistantRuntime": { "runTimeoutMs": 60000, "streamIdleTimeoutMs": 900000 },
+  "writeSystemNotifications": {
+    "enabled": true,
+    "mode": "custom",
+    "levels": [" WARN ", "warn", "Error"],
+    "categories": ["a", " a ", "B"],
+    "soundEnabled": false
+  },
+  "expectedStoredSystemNotifications": {
+    "enabled": true,
+    "mode": "custom",
+    "levels": ["warn", "error"],
+    "categories": ["a", "B"],
+    "soundEnabled": false
+  },
+  "writePineWorker": {
+    "backtestWorkerLimit": 1001,
+    "instanceWorkerLimit": 0,
+    "nodeBinaryPath": " ' /managed/node ' "
+  },
+  "expectedStoredPineWorker": {
+    "backtestWorkerLimit": 1000,
+    "instanceWorkerLimit": 1,
+    "nodeBinaryPath": "/managed/node"
+  },
+  "notificationForwardCases": [
+    {
+      "name": "disabled-rejects",
+      "settings": { "enabled": false, "mode": "all", "levels": [], "categories": [], "soundEnabled": true },
+      "level": "warn",
+      "category": "system.notification.test",
+      "expected": false
+    },
+    {
+      "name": "all-forwards",
+      "settings": { "enabled": true, "mode": "all", "levels": [], "categories": [], "soundEnabled": true },
+      "level": "info",
+      "category": "custom",
+      "expected": true
+    },
+    {
+      "name": "important-level-is-case-insensitive",
+      "settings": { "enabled": true, "mode": "important", "levels": ["warn", "error"], "categories": ["execution.fill"], "soundEnabled": false },
+      "level": " WARN ",
+      "category": "unmatched",
+      "expected": true
+    },
+    {
+      "name": "custom-category-is-case-insensitive",
+      "settings": { "enabled": true, "mode": "custom", "levels": ["error"], "categories": ["Broker.Connection"], "soundEnabled": false },
+      "level": "info",
+      "category": " broker.connection ",
+      "expected": true
+    },
+    {
+      "name": "custom-unmatched-rejects",
+      "settings": { "enabled": true, "mode": "custom", "levels": ["error"], "categories": ["execution.fill"], "soundEnabled": true },
+      "level": "info",
+      "category": "system.notification.test",
+      "expected": false
+    }
+  ],
+  "nodeVersionCases": [
+    {
+      "name": "minimum-compatible-version",
+      "output": "v22.0.0\n",
+      "expectedStatus": "ok",
+      "expectedDetectedVersion": "22.0.0",
+      "expectedMessage": "Node.js 22.0.0 is available."
+    },
+    {
+      "name": "newer-compatible-version",
+      "output": "v24.6.1\n",
+      "expectedStatus": "ok",
+      "expectedDetectedVersion": "24.6.1",
+      "expectedMessage": "Node.js 24.6.1 is available."
+    },
+    {
+      "name": "outdated-version",
+      "output": "v20.11.1",
+      "expectedStatus": "outdated",
+      "expectedDetectedVersion": "20.11.1",
+      "expectedMessage": "Node.js 20.11.1 is below the required 22.0.0."
+    },
+    {
+      "name": "unrecognized-version",
+      "output": "not-a-version",
+      "expectedStatus": "error",
+      "expectedDetectedVersion": "not-a-version",
+      "expectedMessage": "Node.js returned an unrecognized version: not-a-version"
+    }
+  ]
+}

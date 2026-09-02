@@ -321,7 +321,7 @@ function serverOptions(overrides: {
   return {
     workerId: "worker-1",
     executor: statefulExecutor(),
-    protoPath: "/repo/pkg/strategy/pineworker/proto/pineworker.proto",
+    protoPath: "/repo/proto/pineworker/pineworker.proto",
     address: "127.0.0.1:50051",
     grpc,
     protoLoader: { loadSync: () => ({}) },

@@ -57,8 +57,8 @@ marketdata-sidecar --version
 curl http://127.0.0.1:7788/healthz
 ```
 
-正式安装包使用随 Go 二进制嵌入的 PyInstaller `onedir` helper，产物位于
-`internal/marketdataassets/assets/bin/<platform>`。构建使用：
+正式安装包使用随 Rust/Tauri 产品打包的 PyInstaller `onedir` helper，产物位于
+`runtime-assets/marketdata/<platform>`。构建使用：
 
 ```bash
 uv sync --locked --extra runtime --extra build

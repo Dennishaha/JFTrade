@@ -1,0 +1,521 @@
+name: Desktop Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      qualification_mode:
+        description: Evidence contract to bind
+        required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by payload and producer runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
+        type: string
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; it does not need to exist during qualification
+        required: true
+        default: v0.29.0
+        type: string
+      payload_run_id:
+        description: Successful workflow run that produced the external payload artifact
+        required: true
+        type: string
+      payload_run_attempt:
+        description: Attempt number of payload_run_id
+        required: true
+        type: string
+      payload_ref:
+        description: Exact ref recorded by the payload run; must equal candidate_ref
+        required: true
+        type: string
+      payload_commit_sha:
+        description: Commit SHA recorded by the payload run and candidate_ref checkout
+        required: true
+        type: string
+      payload_artifact:
+        description: Exact external payload artifact name
+        required: true
+        type: string
+      payload_artifact_id:
+        description: GitHub artifact id for payload_artifact
+        required: true
+        type: string
+      payload_artifact_digest:
+        description: GitHub SHA-256 digest for payload_artifact
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  produce:
+    name: Bind externally produced release evidence
+    if: inputs.qualification_mode == 'candidate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.payload_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify candidate and trusted payload ref
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_COMMIT="$(git rev-parse HEAD)"
+          [[ "$PLANNED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "planned_release_tag must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "producer must run from candidate_ref" >&2; exit 1; }
+          [[ "$GITHUB_SHA" == "$RELEASE_COMMIT" ]] || { echo "producer GITHUB_SHA does not match the candidate commit" >&2; exit 1; }
+          [[ "$PAYLOAD_COMMIT" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload_commit_sha must be a lowercase commit SHA" >&2; exit 1; }
+          [[ "$PAYLOAD_REF" =~ ^[A-Za-z0-9._/-]+$ && "$PAYLOAD_REF" != /* && "$PAYLOAD_REF" != *".."* ]] || {
+            echo "payload_ref is not a safe Git ref" >&2
+            exit 1
+          }
+          [[ "$PAYLOAD_REF" == "$CANDIDATE_REF" ]] || {
+            echo "payload_ref must equal candidate_ref exactly" >&2
+            exit 1
+          }
+          [[ "$PAYLOAD_COMMIT" == "$RELEASE_COMMIT" ]] || {
+            echo "payload evidence must use the candidate commit" >&2
+            exit 1
+          }
+
+      - name: Verify payload run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_WORKFLOW: desktop-release-evidence-payload.yml
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PAYLOAD_RUN_ID="$(safe_positive_integer "$PAYLOAD_RUN_ID" payload_run_id)"
+          PAYLOAD_RUN_ATTEMPT="$(safe_positive_integer "$PAYLOAD_RUN_ATTEMPT" payload_run_attempt)"
+          PAYLOAD_ARTIFACT_ID="$(safe_positive_integer "$PAYLOAD_ARTIFACT_ID" payload_artifact_id)"
+          [[ "$PAYLOAD_ARTIFACT" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || { echo "payload_artifact must be a simple artifact name" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload_artifact_digest must be a SHA-256 digest" >&2; exit 1; }
+          [[ "$PAYLOAD_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ && "$PAYLOAD_WORKFLOW" != *".."* ]] || { echo "payload_workflow is unsafe" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID")"
+          payload_branch="${PAYLOAD_REF#refs/heads/}"
+          payload_branch="${payload_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$PAYLOAD_COMMIT" \
+            --arg branch "$payload_branch" \
+            --arg ref "$PAYLOAD_REF" \
+            --arg attempt "$PAYLOAD_RUN_ATTEMPT" \
+            --arg workflow "$PAYLOAD_WORKFLOW" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            <<<"$run_json" >/dev/null || {
+            echo "payload run is not a successful run bound to payload_ref@$PAYLOAD_COMMIT" >&2
+            exit 1
+          }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID/artifacts?per_page=100")"
+          jq -e \
+            --arg name "$PAYLOAD_ARTIFACT" \
+            --arg id "$PAYLOAD_ARTIFACT_ID" \
+            --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            --arg run_id "$PAYLOAD_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select(.name == $name and (.id | safe_integer_equals($id)) and .expired == false and (.workflow_run.id | safe_integer_equals($run_id)) and .digest == $digest)] | length == 1' \
+          <<<"$artifacts_json" >/dev/null || {
+            echo "payload artifact metadata is missing, expired, ambiguous, or not bound to payload run" >&2
+            exit 1
+          }
+          payload_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID")"
+          jq -e \
+            --arg name "$PAYLOAD_ARTIFACT" \
+            --arg digest "$PAYLOAD_ARTIFACT_DIGEST" \
+            --arg id "$PAYLOAD_ARTIFACT_ID" \
+            --arg run_id "$PAYLOAD_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$payload_artifact_json" >/dev/null || {
+            echo "payload artifact detail does not match requested metadata" >&2
+            exit 1
+          }
+      - name: Download the verified payload artifact by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PAYLOAD_ARTIFACT_ID="$(safe_positive_integer "$PAYLOAD_ARTIFACT_ID" payload_artifact_id)"
+          rm -rf payload
+          mkdir -p payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe artifact archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d payload
+          [[ -z "$(find payload -type l -print -quit)" ]] || { echo "payload archive must not contain symlinks" >&2; exit 1; }
+          [[ -f payload/reports/signed-updater-inputs.json ]] || { echo "payload archive has no reports directory" >&2; exit 1; }
+
+      - name: Derive source binding metadata without rewriting reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: ${{ inputs.candidate_ref }}
+          EVIDENCE_REF: ${{ inputs.candidate_ref }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { TRUSTED_BINDING_WORKFLOWS } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
+
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? Number(integer) : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const parsed = parseSafePositiveInteger(value);
+            if (parsed === null) throw new Error(`${label} must be a safe positive integer`);
+            return parsed;
+          };
+          const root = path.resolve("payload/reports");
+          const ids = [
+            "signed-updater-inputs",
+            "sbom-provenance-inputs",
+            "rollback-artifact-pair",
+            "backup-restore-drill",
+            "security-review-inputs",
+          ];
+          const fields = ["repository", "releaseRef", "ref", "commitSha", "workflow", "runId", "attempt", "artifact"];
+          const normalize = (binding) => {
+            if (!binding || typeof binding !== "object" || Array.isArray(binding)) throw new Error("source report binding is required");
+            const unknown = Object.keys(binding).filter((key) => !fields.includes(key));
+            if (unknown.length) throw new Error(`source report binding has unsupported field(s): ${unknown.join(", ")}`);
+            const artifact = binding.artifact;
+            if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) throw new Error("source report binding artifact is required");
+            const normalized = {
+              repository: binding.repository,
+              releaseRef: binding.releaseRef,
+              ref: binding.ref,
+              commitSha: binding.commitSha,
+              workflow: binding.workflow,
+              runId: requireSafePositiveInteger(binding.runId, "source report binding runId"),
+              attempt: requireSafePositiveInteger(binding.attempt, "source report binding attempt"),
+              artifact: { name: artifact.name, id: requireSafePositiveInteger(artifact.id, "source report binding artifact id"), digest: artifact.digest },
+            };
+            if (!TRUSTED_BINDING_WORKFLOWS.includes(normalized.workflow)) throw new Error(`source workflow is not trusted: ${normalized.workflow}`);
+            if (normalized.repository !== process.env.REPOSITORY
+              || normalized.releaseRef !== process.env.RELEASE_REF
+              || normalized.commitSha !== process.env.PAYLOAD_COMMIT) {
+              throw new Error("source report binding does not match release or commit");
+            }
+            if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(normalized.artifact.name)
+              || !/^sha256:[a-f0-9]{64}$/.test(normalized.artifact.digest)) throw new Error("source report binding artifact is invalid");
+            return normalized;
+          };
+          let sourceBinding;
+          for (const id of ids) {
+            const file = path.join(root, `${id}.json`);
+            const stat = fs.lstatSync(file);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size === 0) throw new Error(`source report is not a regular file: ${id}`);
+            const document = JSON.parse(fs.readFileSync(file, "utf8"));
+            const current = normalize(document.binding);
+            if (!sourceBinding) sourceBinding = current;
+            else if (JSON.stringify(current) !== JSON.stringify(sourceBinding)) throw new Error("source report bindings are inconsistent");
+          }
+          const metadata = {
+            $schema: "./release-evidence-payload-binding.schema.json",
+            schemaVersion: "jftrade.release-evidence-payload-binding.v1",
+            repository: process.env.REPOSITORY,
+            sourceRepository: JSON.parse(fs.readFileSync(path.resolve("payload/payload-artifact-metadata.json"), "utf8")).sourceRepository,
+            releaseRef: process.env.RELEASE_REF,
+            evidenceRef: sourceBinding.ref,
+            payloadRun: {
+              id: requireSafePositiveInteger(process.env.PAYLOAD_RUN_ID, "PAYLOAD_RUN_ID"),
+              attempt: requireSafePositiveInteger(process.env.PAYLOAD_RUN_ATTEMPT, "PAYLOAD_RUN_ATTEMPT"),
+              workflow: "desktop-release-evidence-payload.yml",
+              ref: process.env.EVIDENCE_REF,
+              commitSha: process.env.PAYLOAD_COMMIT,
+            },
+            artifact: {
+              name: process.env.PAYLOAD_ARTIFACT,
+              id: requireSafePositiveInteger(process.env.PAYLOAD_ARTIFACT_ID, "PAYLOAD_ARTIFACT_ID"),
+              digest: process.env.PAYLOAD_ARTIFACT_DIGEST,
+            },
+            sourceBinding,
+          };
+          fs.writeFileSync("payload-artifact-metadata.json", `${JSON.stringify(metadata, null, 2)}\n`, { flag: "wx" });
+          NODE
+          source_workflow="$(jq -r '.sourceBinding.workflow' payload-artifact-metadata.json)"
+          source_ref="$(jq -r '.sourceBinding.ref' payload-artifact-metadata.json)"
+          source_commit="$(jq -r '.sourceBinding.commitSha' payload-artifact-metadata.json)"
+          source_run_id="$(jq -r '.sourceBinding.runId' payload-artifact-metadata.json)"
+          source_attempt="$(jq -r '.sourceBinding.attempt' payload-artifact-metadata.json)"
+          source_artifact_name="$(jq -r '.sourceBinding.artifact.name' payload-artifact-metadata.json)"
+          source_artifact_id="$(jq -r '.sourceBinding.artifact.id' payload-artifact-metadata.json)"
+          source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest' payload-artifact-metadata.json)"
+          source_repository="$(jq -r '.sourceRepository' payload-artifact-metadata.json)"
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          source_run_id="$(safe_positive_integer "$source_run_id" source_binding.runId)"
+          source_attempt="$(safe_positive_integer "$source_attempt" source_binding.attempt)"
+          source_artifact_id="$(safe_positive_integer "$source_artifact_id" source_binding.artifact.id)"
+          [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "source binding repository is invalid" >&2; exit 1; }
+          source_branch="${source_ref#refs/heads/}"
+          source_branch="${source_branch#refs/tags/}"
+          source_run="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
+          jq -e \
+            --arg sha "$source_commit" --arg branch "$source_branch" --arg ref "$source_ref" \
+            --arg attempt "$source_attempt" --arg workflow "$source_workflow" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run" >/dev/null || { echo "source binding run is not a successful trusted run" >&2; exit 1; }
+          source_artifact="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
+          jq -e \
+            --arg name "$source_artifact_name" --arg digest "$source_artifact_digest" \
+            --arg id "$source_artifact_id" --arg run_id "$source_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$source_artifact" >/dev/null || { echo "source binding artifact is not bound to the source run" >&2; exit 1; }
+
+      - name: Stage byte-identical producer payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf payload-output
+          mkdir -p payload-output/reports
+          for report in signed-updater-inputs sbom-provenance-inputs rollback-artifact-pair backup-restore-drill security-review-inputs; do
+            source="payload/reports/$report.json"
+            [[ -f "$source" && ! -L "$source" && -s "$source" ]] || { echo "missing payload report: $source" >&2; exit 1; }
+            cp -- "$source" "payload-output/reports/$report.json"
+          done
+          cp -- payload-artifact-metadata.json payload-output/payload-artifact-metadata.json
+
+      - name: Upload producer payload staging artifact
+        id: upload_payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-payload
+          path: payload-output
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Verify producer payload artifact outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
+          PRODUCER_ARTIFACT_DIGEST: ${{ steps.upload_payload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          PRODUCER_RUN_ID="$(safe_positive_integer "$PRODUCER_RUN_ID" producer_run_id)"
+          PRODUCER_ARTIFACT_ID="$(safe_positive_integer "$PRODUCER_ARTIFACT_ID" producer_artifact_id)"
+          [[ "$PRODUCER_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer payload artifact digest is invalid" >&2; exit 1; }
+          producer_payload_api="$(gh api "repos/$REPOSITORY/actions/artifacts/$PRODUCER_ARTIFACT_ID")"
+          jq -e \
+            --arg name "desktop-release-evidence-payload" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            --arg id "$PRODUCER_ARTIFACT_ID" \
+            --arg run_id "$PRODUCER_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$producer_payload_api" >/dev/null || { echo "producer payload artifact API metadata does not match upload outputs" >&2; exit 1; }
+          printf '%s\n' "$producer_payload_api" > producer-payload-artifact-api.json
+          jq -n \
+            --arg name "desktop-release-evidence-payload" \
+            --argjson id "$PRODUCER_ARTIFACT_ID" \
+            --arg digest "$PRODUCER_ARTIFACT_DIGEST" \
+            '{name:$name,id:$id,digest:$digest}' > producer-artifact-metadata.json
+
+      - name: Bind payload reports without synthesizing evidence
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: ${{ inputs.candidate_ref }}
+          PRODUCER_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_ARTIFACT_ID: ${{ steps.upload_payload.outputs.artifact-id }}
+          PRODUCER_ARTIFACT_DIGEST: ${{ steps.upload_payload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf bound-evidence
+          node scripts/rust-migration/bind-release-evidence.mjs \
+            --payload-root payload \
+            --output-root bound-evidence \
+            --payload-metadata payload-artifact-metadata.json \
+            --repository "$REPOSITORY" \
+            --release-ref "$RELEASE_REF" \
+            --release-commit "$(git rev-parse HEAD)" \
+            --producer-run-id "$PRODUCER_RUN_ID" \
+            --producer-attempt "$PRODUCER_ATTEMPT" \
+            --producer-artifact-name desktop-release-evidence-payload \
+            --producer-artifact-id "$PRODUCER_ARTIFACT_ID" \
+            --producer-artifact-digest "$PRODUCER_ARTIFACT_DIGEST" \
+            > bound-evidence-summary.json
+
+      - name: Upload bound release evidence artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-evidence-bound
+          path: bound-evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  rehearsal-produce:
+    name: Bind byte-identical unsigned rehearsal payload
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.payload_commit_sha }}
+          fetch-depth: 0
+
+      - name: Verify rehearsal payload run and artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PAYLOAD_REF: ${{ inputs.payload_ref }}
+          PAYLOAD_COMMIT: ${{ inputs.payload_commit_sha }}
+          PAYLOAD_RUN_ID: ${{ inputs.payload_run_id }}
+          PAYLOAD_RUN_ATTEMPT: ${{ inputs.payload_run_attempt }}
+          PAYLOAD_ARTIFACT: ${{ inputs.payload_artifact }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal planned_release_tag must be v0.29.0" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal must run from the fixed candidate branch" >&2; exit 1; }
+          [[ "$PAYLOAD_REF" == "$CANDIDATE_REF" && "$PAYLOAD_COMMIT" == "$(git rev-parse HEAD)" ]] || { echo "rehearsal payload ref/commit mismatch" >&2; exit 1; }
+          [[ "$PAYLOAD_ARTIFACT" == "desktop-release-rehearsal-payload" ]] || { echo "rehearsal producer only trusts the rehearsal payload artifact" >&2; exit 1; }
+          [[ "$PAYLOAD_RUN_ID" =~ ^[1-9][0-9]*$ && "$PAYLOAD_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$PAYLOAD_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PAYLOAD_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "rehearsal payload identity is invalid" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$PAYLOAD_RUN_ID")"
+          jq -e --arg sha "$PAYLOAD_COMMIT" --arg branch "release/0.29.0-candidate" --arg attempt "$PAYLOAD_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence-payload.yml" or .path == "desktop-release-evidence-payload.yml")' \
+            <<<"$run_json" >/dev/null || { echo "rehearsal payload run provenance mismatch" >&2; exit 1; }
+          artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID")"
+          jq -e --arg name "$PAYLOAD_ARTIFACT" --arg digest "$PAYLOAD_ARTIFACT_DIGEST" --argjson id "$PAYLOAD_ARTIFACT_ID" --argjson run_id "$PAYLOAD_RUN_ID" \
+            '.id == $id and .name == $name and .digest == $digest and .expired == false and .workflow_run.id == $run_id' \
+            <<<"$artifact_json" >/dev/null || { echo "rehearsal payload artifact provenance mismatch" >&2; exit 1; }
+
+      - name: Download and validate byte-identical rehearsal payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PAYLOAD_ARTIFACT_ID: ${{ inputs.payload_artifact_id }}
+          PAYLOAD_ARTIFACT_DIGEST: ${{ inputs.payload_artifact_digest }}
+        run: |
+          set -euo pipefail
+          rm -rf payload
+          mkdir payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$PAYLOAD_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$PAYLOAD_ARTIFACT_DIGEST" ]] || { echo "rehearsal payload artifact digest drift" >&2; exit 1; }
+          unzip -q "$archive" -d payload
+          [[ -f payload/release-candidate-rehearsal.json && -z "$(find payload -type l -print -quit)" ]] || { echo "rehearsal payload is invalid" >&2; exit 1; }
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input payload/release-candidate-rehearsal.json \
+            --expected-ref refs/heads/release/0.29.0-candidate \
+            --expected-tag v0.29.0 \
+            --expected-commit "$(git rev-parse HEAD)"
+
+      - name: Upload bound rehearsal evidence without rewriting receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-evidence
+          path: payload
+          if-no-files-found: error
+          retention-days: 90

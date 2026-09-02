@@ -1,12 +1,12 @@
 # 配置
 
-独立 API、浏览器开发态和 `JFTrade Dev` 的运行时配置默认位于仓库内 `var/jftrade-api/settings.json`。首次启动后，运行时目录中通常会出现：
+独立 Rust API、浏览器开发态和 `JFTrade Dev` 的运行时配置默认位于仓库内 `var/jftrade-api/settings.json`。首次启动后，运行时目录中通常会出现：
 
 - `settings.json`
 - `backtest.db`
 - `watchlists.db`
 
-正式 Wails 产品使用独立的系统用户数据目录，不扫描、复制或移动仓库数据：
+正式 Tauri 产品使用独立的系统用户数据目录，不扫描、复制或移动仓库数据：
 
 | 平台    | 默认目录                                   |
 | ------- | ------------------------------------------ |
@@ -28,14 +28,14 @@
 
 ## 常用环境变量
 
-- `JFTRADE_API_BIND`：独立 API/Wails sidecar 监听地址。开发 API 默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:3008`，正式桌面产品默认 `127.0.0.1:6699`。
+- `JFTRADE_RUST_API_BIND`：独立 Rust API/Tauri sidecar 监听地址。独立 API 默认 `127.0.0.1:3000`，`JFTrade Dev` 默认 `127.0.0.1:3008`，正式桌面产品默认 `127.0.0.1:6699`。
 - `JFTRADE_GUI_BIND`：带内嵌前端的生产 HTTP 服务监听地址，默认 `127.0.0.1:6688`；该端口同时提供前端、API、SSE、WS 和 Swagger。
 - `JFTRADE_GUI_API_BASE_URL`：历史兼容字段；单端口生产服务始终使用同源 API，不再依赖该覆盖。
 - `JFTRADE_SETTINGS_PATH`：运行时配置文件路径。
 - `JFTRADE_BACKTEST_DB`：回测数据库路径。
 - `JFTRADE_WATCHLIST_DB`：本地自选主数据库路径。未设置时使用 `settings.json` 同目录下的 `watchlists.db`。
 
-桌面 profile 由编译期 `release_assets` build tag 决定，不通过运行时环境变量猜测。Wails sidecar 始终只监听 loopback；显式 `JFTRADE_API_BIND` 只负责其内部端口，不再承担浏览器访问。可选 Web 入口使用独立监听器和用户设置的端口，因此公网开关不会改变 Wails sidecar 的边界。任一端口被占用时启动都会返回明确的端口冲突，不会结束或接管已有进程。
+桌面 profile 由 Tauri 构建配置决定，不通过运行时环境变量猜测。Tauri sidecar 始终只监听 loopback；显式 `JFTRADE_RUST_API_BIND` 只负责其内部端口，不再承担浏览器访问。可选 Web 入口使用独立监听器和用户设置的端口，因此公网开关不会改变 Tauri sidecar 的边界。任一端口被占用时启动都会返回明确的端口冲突，不会结束或接管已有进程。
 
 ## `settings.json` 里的关键部分
 
@@ -51,7 +51,7 @@
 }
 ```
 
-带内嵌前端的独立生产后端仍使用 `guiBind`。`apiBind` 保留给独立 API 开发态和 Wails sidecar。Wails 桌面产品另从 `security.webPort` 读取可选 Web 端口：
+带内嵌前端的独立生产后端仍使用 `guiBind`。`apiBind` 保留给独立 API 开发态和 Tauri sidecar。Tauri 桌面产品另从 `security.webPort` 读取可选 Web 端口：
 
 ```json
 {
@@ -111,17 +111,17 @@ OpenD 连接配置位于 `integration.config`。常用字段包括：
 
 - `activeMarketDataProvider`：只接受 `futu`、`yfinance` 或 `akshare`。
 
-发布版 Go 二进制内置由 CPython 3.14.x 构建的当前平台 PyInstaller `onedir` helper。首次使用会在设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/` 原子发布并完整校验，后续启动校验后直接复用；不会复用或清理旧 `cache/yfinance-sidecar`。helper 使用动态 loopback 端口，yfinance 与 AKShare 在同一进程中独立懒加载和报告健康。用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。源码开发模式最低要求 Python 3.11；解释器依次从 `JFTRADE_MARKETDATA_DEV_PYTHON`、workspace `.venv`、PATH 和平台常见路径解析，旧 `JFTRADE_YFINANCE_*` 仅作低优先级兼容别名。JFTrade 不自动安装 pip 包、升级 Python 或创建虚拟环境。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 订阅在满足最短持有时间后由 collector 后台退订。yfinance 和 AKShare 都不支持实时推流或 Level 2，collector 使用 15 秒 HTTP 轮询；二者激活时禁止启动实盘策略。详细能力见 [行情数据源](./market-data-providers.md)。
+发布版 Tauri 资源内置由 CPython 3.14.x 构建的当前平台 PyInstaller `onedir` helper。首次使用会在设置目录下的 `cache/marketdata-sidecar/<bundle-sha256>/` 原子发布并完整校验，后续启动校验后直接复用；不会复用或清理旧 `cache/yfinance-sidecar`。helper 使用动态 loopback 端口，yfinance 与 AKShare 在同一进程中独立懒加载和报告健康。用户不需要安装 Python，也不能配置连接地址、Python 路径或超时。源码开发模式最低要求 Python 3.11；解释器依次从 `JFTRADE_MARKETDATA_DEV_PYTHON`、workspace `.venv`、PATH 和平台常见路径解析，旧 `JFTRADE_YFINANCE_*` 仅作低优先级兼容别名。JFTrade 不自动安装 pip 包、升级 Python 或创建虚拟环境。切离 Futu 会立即清理旧行情缓存并撤销 Futu demand；OpenD 订阅在满足最短持有时间后由 collector 后台退订。yfinance 和 AKShare 都不支持实时推流或 Level 2，collector 使用 15 秒 HTTP 轮询；二者激活时禁止启动实盘策略。详细能力见 [行情数据源](./market-data-providers.md)。
 
 ## Web 访问与密码
 
-JFTrade 默认仅供 Wails 桌面应用使用，普通用户不需要密码、Key 或额外配置。正式桌面产品每次启动会在内存中生成临时桌面能力凭证并自动注入当前 WebView；它不会持久化，也不需要用户查看或管理。
+JFTrade 默认仅供 Tauri 桌面应用使用，普通用户不需要密码、Key 或额外配置。正式桌面产品每次启动会在内存中生成临时桌面能力凭证并自动注入当前 WebView；它不会持久化，也不需要用户查看或管理。
 
 需要浏览器访问时，在桌面端打开“设置 → Web 访问”，确认或修改对外端口，设置不少于 15 个字符的 Web 访问密码并主动开启。后端只在 `settings.json` 中保存带随机盐的 Argon2id 单向校验值，读取设置的 API 不返回密码或校验值。启停 Web、改变端口或网络范围会立即创建、替换或释放监听器，同时使已有浏览器会话和长连接失效，桌面端不受影响。若新端口已被占用，保存会失败并保留原端口与原设置。
 
-Web 关闭时，Wails 桌面产品不会创建浏览器监听器。开启后默认监听 `127.0.0.1:<webPort>`，仅供本机浏览器访问；打开“允许局域网/其他设备访问”后立即改为 `0.0.0.0:<webPort>`。当前内置服务只提供 HTTP，因此该选项仅适合可信局域网。通过互联网访问必须自行配置全程 HTTPS 反向代理，不能直接暴露 JFTrade 端口；同机代理应转发 `X-Forwarded-Proto: https` 和 `X-Forwarded-For`，JFTrade 只信任来自 loopback 的这些声明，并据此签发 `Secure` 会话 Cookie，以及执行访问范围和登录限速判断。
+Web 关闭时，Tauri 桌面产品不会创建浏览器监听器。开启后默认监听 `127.0.0.1:<webPort>`，仅供本机浏览器访问；打开“允许局域网/其他设备访问”后立即改为 `0.0.0.0:<webPort>`。当前内置服务只提供 HTTP，因此该选项仅适合可信局域网。通过互联网访问必须自行配置全程 HTTPS 反向代理，不能直接暴露 JFTrade 端口；同机代理应转发 `X-Forwarded-Proto: https` 和 `X-Forwarded-For`，JFTrade 只信任来自 loopback 的这些声明，并据此签发 `Secure` 会话 Cookie，以及执行访问范围和登录限速判断。
 
-正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理同一开发命令启动的本机 Vite 服务（默认 `127.0.0.1:3003`）。`/runtime-config.js` 仍由 Gin 生成浏览器配置，不会把浏览器引向 Wails sidecar。开发代理只接受 loopback 目标。
+正式产品从内嵌前端资源提供 Web UI；`JFTrade Dev` 没有内嵌资源，因此可选 Web 监听器会代理 Tauri 开发命令启动的本机 Vite 服务（默认 `127.0.0.1:3003`）。`/runtime-config.js` 由 Rust API 生成浏览器配置，不会把浏览器引向 Tauri sidecar。开发代理只接受 loopback 目标。
 
 Web 访问的启停、端口、改密和网络范围只能从可信桌面应用修改；浏览器设置页仅展示状态。旧版 `adminAuthRequired` 和 `secrets/admin.key` 不会迁移成 Web 密码，应用也不会读取、迁移或删除这些遗留内容；升级后 Web 保持关闭。
 

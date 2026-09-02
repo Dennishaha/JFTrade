@@ -1,0 +1,306 @@
+{
+  "version": "stage6.v1",
+  "now": "2026-08-19T00:00:00Z",
+  "session": {
+    "id": "session-stage6",
+    "agentId": "agent-stage6",
+    "title": "Rust Assistant differential",
+    "createdAt": "2026-08-19T00:00:00Z",
+    "updatedAt": "2026-08-19T00:00:00Z"
+  },
+  "statuses": [
+    "RUNNING",
+    "COMPLETED",
+    "PENDING_APPROVAL",
+    "PENDING_INPUT",
+    "FAILED",
+    "DENIED",
+    "CANCELLED",
+    "TIMED_OUT",
+    "PAUSED"
+  ],
+  "transitions": [
+    { "from": "RUNNING", "to": "PENDING_APPROVAL" },
+    { "from": "PENDING_APPROVAL", "to": "RUNNING" },
+    { "from": "RUNNING", "to": "PENDING_INPUT" },
+    { "from": "PENDING_INPUT", "to": "RUNNING" },
+    { "from": "RUNNING", "to": "PAUSED" },
+    { "from": "PAUSED", "to": "RUNNING" },
+    { "from": "RUNNING", "to": "COMPLETED" },
+    { "from": "RUNNING", "to": "FAILED" },
+    { "from": "RUNNING", "to": "TIMED_OUT" },
+    { "from": "RUNNING", "to": "CANCELLED" },
+    { "from": "PENDING_APPROVAL", "to": "DENIED" },
+    { "from": "COMPLETED", "to": "RUNNING" }
+  ],
+  "completionInput": {
+    "providerId": "fake-provider",
+    "model": "fixed-transcript-v1",
+    "messages": [
+      { "role": "system", "content": "You are the JFTrade assistant." },
+      { "role": "user", "content": "Review AAPL and ask only if blocked." },
+      { "role": "assistant", "content": "I will inspect the available context." }
+    ],
+    "tools": [
+      {
+        "name": "interaction.request_user",
+        "displayName": "向用户提问",
+        "description": "Ask only for a genuinely blocking decision; never substitute input for write approval.",
+        "category": "interaction",
+        "permission": "read_internal",
+        "riskLevel": "low",
+        "idempotencyMode": "replay_safe",
+        "allowedModes": ["approval", "less_approval", "all"],
+        "requiresApprovalIn": [],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "decisionKind": {
+              "type": "string",
+              "enum": ["missing_required_context", "material_tradeoff", "scope_boundary"],
+              "description": "The genuine blocking boundary. Optional next steps and whether to continue are not blocking decisions."
+            },
+            "blockingReason": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Why the original task cannot safely continue without this user answer. Do not use workload reduction as a reason."
+            },
+            "title": {
+              "type": "string",
+              "description": "Optional short title displayed above the questions."
+            },
+            "questions": {
+              "type": "array",
+              "minItems": 1,
+              "description": "All decisions needed for the current step. Ask them together.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": { "type": "string" },
+                  "options": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 3,
+                    "description": "Present exactly two or three concise choices.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": { "type": "string" },
+                        "description": { "type": "string" },
+                        "recommended": { "type": "boolean" }
+                      },
+                      "required": ["label"]
+                    }
+                  },
+                  "allowOther": { "type": "boolean" }
+                },
+                "required": ["question", "options"]
+              }
+            }
+          },
+          "required": ["decisionKind", "blockingReason", "questions"]
+        }
+      }
+    ]
+  },
+  "approval": {
+    "runId": "approval-run",
+    "approved": true,
+    "approval": {
+      "id": "approval-1",
+      "runId": "approval-run",
+      "agentId": "agent-stage6",
+      "toolName": "trade.submit",
+      "input": { "symbol": "AAPL", "quantity": "1" },
+      "status": "PENDING",
+      "reason": "The tool may place an order.",
+      "functionCallId": "tool-call-approval",
+      "confirmationCallId": "confirmation-1",
+      "createdAt": "2026-08-19T00:00:00Z",
+      "updatedAt": "2026-08-19T00:00:00Z"
+    },
+    "toolCall": {
+      "id": "tool-call-approval",
+      "runId": "approval-run",
+      "toolName": "trade.submit",
+      "permission": "write",
+      "status": "PENDING",
+      "input": { "symbol": "AAPL", "quantity": "1" },
+      "requiresUser": false,
+      "idempotencyKey": "approval-order-1",
+      "createdAt": "2026-08-19T00:00:00Z",
+      "updatedAt": "2026-08-19T00:00:00Z"
+    }
+  },
+  "input": {
+    "runId": "input-run",
+    "requestId": "input-1",
+    "functionCallId": "tool-call-input",
+    "draft": {
+      "decisionKind": "material_tradeoff",
+      "blockingReason": "The execution mode materially changes the requested result.",
+      "title": "Choose execution mode",
+      "questions": [
+        {
+          "question": "Which execution mode should be used?",
+          "options": [
+            { "label": "Paper", "description": "No broker write", "recommended": true },
+            { "label": "Live", "description": "Requires approval" }
+          ],
+          "allowOther": false
+        }
+      ]
+    },
+    "answers": [
+      { "questionId": "q1", "optionId": "q1-o1" }
+    ]
+  },
+  "invalidInputs": [
+    {
+      "decisionKind": "material_tradeoff",
+      "blockingReason": "This is an optional next step.",
+      "questions": [
+        {
+          "question": "Choose a mode",
+          "options": [
+            { "label": "A" },
+            { "label": "B" }
+          ],
+          "allowOther": false
+        }
+      ]
+    },
+    {
+      "decisionKind": "scope_boundary",
+      "blockingReason": "A scope decision is required.",
+      "questions": [
+        {
+          "question": "Would you like me to continue?",
+          "options": [
+            { "label": "Yes" },
+            { "label": "No" }
+          ],
+          "allowOther": false
+        }
+      ]
+    },
+    {
+      "decisionKind": "missing_required_context",
+      "blockingReason": "A required account identifier is missing.",
+      "questions": [
+        {
+          "question": "Choose an account",
+          "options": [
+            { "label": "Only one" }
+          ],
+          "allowOther": false
+        }
+      ]
+    }
+  ],
+  "claims": {
+    "runId": "claim-run",
+    "firstOwner": "executor-a",
+    "secondOwner": "executor-b",
+    "thirdOwner": "executor-c",
+    "fourthOwner": "executor-d",
+    "startUnixMs": 1000,
+    "ttlMs": 100,
+    "replaySafe": {
+      "idempotencyKey": "read-aapl",
+      "toolName": "marketdata.quote",
+      "input": { "symbol": "AAPL" }
+    },
+    "failClosed": {
+      "idempotencyKey": "write-aapl",
+      "toolName": "trade.submit",
+      "input": { "symbol": "AAPL", "quantity": "1" }
+    }
+  },
+  "workflowTasks": [
+    {
+      "id": "inspect",
+      "title": "Inspect context",
+      "status": "TODO",
+      "dependsOn": [],
+      "order": 1
+    },
+    {
+      "id": "analyze",
+      "title": "Analyze evidence",
+      "status": "TODO",
+      "dependsOn": ["inspect"],
+      "order": 2
+    },
+    {
+      "id": "report",
+      "title": "Report result",
+      "status": "TODO",
+      "dependsOn": ["analyze"],
+      "order": 3
+    }
+  ],
+  "invalidWorkflows": [
+    [
+      { "id": "self", "title": "Self", "status": "TODO", "dependsOn": ["self"], "order": 1 }
+    ],
+    [
+      { "id": "missing", "title": "Missing", "status": "TODO", "dependsOn": ["absent"], "order": 1 }
+    ],
+    [
+      { "id": "a", "title": "A", "status": "TODO", "dependsOn": ["b"], "order": 1 },
+      { "id": "b", "title": "B", "status": "TODO", "dependsOn": ["a"], "order": 2 }
+    ]
+  ],
+  "artifacts": [
+    {
+      "sessionId": "session-stage6",
+      "namespace": "analysis",
+      "filename": "report.md",
+      "version": 1,
+      "contentSha256": "sha256:report-v1",
+      "contentBase64": "cmVwb3J0IHYx",
+      "createdAt": "2026-08-19T00:00:00Z"
+    },
+    {
+      "sessionId": "session-stage6",
+      "namespace": "analysis",
+      "filename": "report.md",
+      "version": 2,
+      "contentSha256": "sha256:report-v2",
+      "contentBase64": "cmVwb3J0IHYy",
+      "createdAt": "2026-08-19T00:00:00Z"
+    }
+  ],
+  "providerScript": [
+    {
+      "kind": "failure",
+      "failure": {
+        "kind": "transient",
+        "code": "PROVIDER_NETWORK",
+        "message": "temporary upstream disconnect"
+      }
+    },
+    {
+      "kind": "turn",
+      "turn": {
+        "deltas": [
+          { "kind": "reasoning", "text": "Inspecting fixed context. " },
+          { "kind": "reply", "text": "AAPL review complete." },
+          { "kind": "tool_progress", "text": "marketdata.quote completed" }
+        ],
+        "toolRequests": [
+          { "id": "provider-tool-1", "name": "marketdata.quote", "arguments": { "symbol": "AAPL" } }
+        ],
+        "usage": {
+          "modelCalls": 1,
+          "toolCallsTotal": 1,
+          "durationMs": 42,
+          "tokensIn": 120,
+          "tokensOut": 24
+        },
+        "providerResponseId": "fixed-response-1"
+      }
+    }
+  ]
+}

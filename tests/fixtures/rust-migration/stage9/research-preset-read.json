@@ -1,0 +1,79 @@
+{
+  "version": "stage9.research-preset-read.v1",
+  "cases": [
+    {
+      "name": "list",
+      "method": "GET",
+      "requestPath": "/api/v1/research/screens/presets",
+      "expectedStatus": 200,
+      "data": {
+        "presets": [
+          {
+            "createdAt": "2026-08-15T20:00:00Z",
+            "definition": {
+              "brokerId": "futu",
+              "catalogVersion": "futu-stock-screen-v1",
+              "columns": [
+                {
+                  "columnId": "price",
+                  "factor": {
+                    "factorKey": "simple.price",
+                    "instanceId": "price",
+                    "params": {}
+                  }
+                }
+              ],
+              "market": "US",
+              "pool": {},
+              "querySchemaVersion": 2
+            },
+            "name": "Value",
+            "presetId": "preset-value",
+            "querySchemaVersion": 2,
+            "revision": 1,
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get",
+      "method": "GET",
+      "requestPath": "/api/v1/research/screens/presets/preset-value",
+      "expectedStatus": 200,
+      "data": {
+        "createdAt": "2026-08-15T20:00:00Z",
+        "definition": {
+          "brokerId": "futu",
+          "catalogVersion": "futu-stock-screen-v1",
+          "columns": [
+            {
+              "columnId": "price",
+              "factor": {
+                "factorKey": "simple.price",
+                "instanceId": "price",
+                "params": {}
+              }
+            }
+          ],
+          "market": "US",
+          "pool": {},
+          "querySchemaVersion": 2
+        },
+        "name": "Value",
+        "presetId": "preset-value",
+        "querySchemaVersion": 2,
+        "revision": 1,
+        "updatedAt": "2026-08-15T20:01:00Z"
+      }
+    },
+    {
+      "name": "missing",
+      "method": "GET",
+      "requestPath": "/api/v1/research/screens/presets/missing",
+      "expectedStatus": 404,
+      "errorCode": "RESEARCH_PRESET_NOT_FOUND",
+      "errorMessage": "research screen preset not found"
+    }
+  ]
+}

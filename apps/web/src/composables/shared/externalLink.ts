@@ -1,22 +1,15 @@
 import { resolveDesktopMode } from "@/runtimeConfig";
+import { desktopFacade } from "@/composables/shared/desktopFacade";
 
-function isDesktopWailsOrigin(): boolean {
+function isDesktopOrigin(): boolean {
   if (typeof window === "undefined") return false;
-  const { protocol, hostname } = window.location;
-  return (
-    resolveDesktopMode() ||
-    protocol === "wails:" ||
-    hostname === "wails.localhost"
-  );
+  return resolveDesktopMode() || desktopFacade.backend() === "tauri";
 }
 
 async function openWithDesktopBinding(url: string): Promise<boolean> {
-  if (!isDesktopWailsOrigin()) return false;
+  if (!isDesktopOrigin()) return false;
   try {
-    const { OpenLink } = await import(
-      "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/desktoplinkservice"
-    );
-    await OpenLink(url);
+    await desktopFacade.links.open(url);
     return true;
   } catch {
     return false;
@@ -26,7 +19,7 @@ async function openWithDesktopBinding(url: string): Promise<boolean> {
 function openWithBrowserFallback(url: string): void {
   if (typeof window === "undefined") return;
   const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (opened == null && isDesktopWailsOrigin() && isDocsLink(url)) {
+  if (opened == null && isDesktopOrigin() && isDocsLink(url)) {
     window.location.href = url;
   }
 }

@@ -1,0 +1,1185 @@
+{
+  "version": "stage9.market-data-provider-actions.v1",
+  "cases": [
+    {
+      "name": "normalize-success-alias",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "{\"market\":\"us\",\"symbol\":\"aapl\"}",
+      "expectedStatus": 200,
+      "data": {
+        "code": "AAPL",
+        "instrumentId": "US.AAPL",
+        "market": "US",
+        "prefix": "US",
+        "resolvedMarket": "US",
+        "symbol": "US.AAPL"
+      },
+      "providerCall": {
+        "market": "us",
+        "symbol": "aapl"
+      }
+    },
+    {
+      "name": "normalize-empty-object",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "{}",
+      "expectedStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "symbol or code is required",
+      "providerCall": {}
+    },
+    {
+      "name": "normalize-null-body",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "null",
+      "expectedStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "symbol or code is required",
+      "providerCall": null
+    },
+    {
+      "name": "normalize-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid normalize request"
+    },
+    {
+      "name": "normalize-invalid-instrument",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "{\"market\":\"US\",\"symbol\":\"\"}",
+      "expectedStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "symbol or code is required",
+      "providerCall": {
+        "market": "US",
+        "symbol": ""
+      }
+    },
+    {
+      "name": "normalize-provider-error-maps-to-invalid",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/instruments/normalize",
+      "body": "{\"market\":\"US\",\"symbol\":\"AAPL\"}",
+      "expectedStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "fixture normalization provider failure",
+      "providerCall": {
+        "market": "US",
+        "symbol": "AAPL"
+      }
+    },
+    {
+      "name": "analysis-body-overrides-query-operation",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test\u0026market=US\u0026operation=volatility\u0026operation=quote\u0026custom=query",
+      "body": "{\"operation\":\"strategy_analysis\",\"market\":\"HK\",\"custom\":\"body\",\"bodyOnly\":true}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_analysis",
+            "instrumentId": "US.AAPL",
+            "market": "US",
+            "operation": "strategy_analysis"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_analysis",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "bodyOnly": true,
+          "custom": "body",
+          "market": "HK",
+          "operation": "strategy_analysis"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-empty-object",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test\u0026market=US",
+      "body": "{}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_analysis",
+            "instrumentId": "US.AAPL",
+            "market": "US",
+            "operation": null
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_analysis",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {},
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test\u0026market=US",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid request body"
+    },
+    {
+      "name": "analysis-invalid-contract-operation",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"quote\"}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: operation quote requires a concrete option contract instrumentId"
+    },
+    {
+      "name": "analysis-capability-unsupported",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL?brokerId=missing\u0026market=US",
+      "body": "{}",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "analysis-provider-warming",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL260821C00100000?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"volatility\"}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL260821C00100000",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "operation": "volatility"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-provider-busy",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL260821C00100000?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"volatility\"}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL260821C00100000",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "operation": "volatility"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-provider-403",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL260821C00100000?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"volatility\"}",
+      "expectedStatus": 403,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "option analysis entitlement denied",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL260821C00100000",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "operation": "volatility"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-provider-422",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL260821C00100000?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"volatility\"}",
+      "expectedStatus": 422,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "option analysis input rejected",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL260821C00100000",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "operation": "volatility"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "analysis-provider-502",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/analysis/US.AAPL260821C00100000?brokerId=api-test\u0026market=US",
+      "body": "{\"operation\":\"volatility\"}",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "option analysis upstream failed",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_analysis",
+        "instrumentId": "US.AAPL260821C00100000",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "operation": "volatility"
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "zero-dte-success-body-context-wins",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=query-broker\u0026accountId=query-account\u0026tradingEnvironment=simulate",
+      "body": "{\"brokerId\":\"api-test\",\"accountId\":\"body-account\",\"tradingEnvironment\":\"real\",\"market\":\"us\",\"underlyingInstrumentId\":\"us.spx\",\"underlyingProductClass\":\"index\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\",\"multiplier\":100},\"sort\":\"volume\",\"optionType\":\"call\"}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "derivatives.option_events",
+            "instrumentId": "US.SPX",
+            "market": "US",
+            "operation": "zero_dte_contract"
+          }
+        ],
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "derivatives.option_events",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "body-account",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "multiplier": 100,
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "call",
+          "sort": "volume",
+          "underlyingProductClass": "index"
+        },
+        "productClass": "option",
+        "tradingEnvironment": "REAL"
+      }
+    },
+    {
+      "name": "zero-dte-empty-object",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{}",
+      "expectedStatus": 400,
+      "errorCode": "OPTION_CHAIN_CONTEXT_REQUIRED",
+      "errorMessage": "invalid 0DTE chain context"
+    },
+    {
+      "name": "zero-dte-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "OPTION_CHAIN_CONTEXT_REQUIRED",
+      "errorMessage": "invalid 0DTE chain context"
+    },
+    {
+      "name": "zero-dte-non-us",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"hk\",\"underlyingInstrumentId\":\"HK.00700\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"HSI\"}}",
+      "expectedStatus": 422,
+      "errorCode": "OPTION_ZERO_DTE_UNAVAILABLE",
+      "errorMessage": "0DTE option research is available only in the US market"
+    },
+    {
+      "name": "zero-dte-missing-chain-context",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200}",
+      "expectedStatus": 400,
+      "errorCode": "OPTION_CHAIN_CONTEXT_REQUIRED",
+      "errorMessage": "0DTE option chain context is required"
+    },
+    {
+      "name": "zero-dte-capability-unsupported",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=missing",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "zero-dte-provider-warming",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "",
+          "sort": "",
+          "underlyingProductClass": ""
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "zero-dte-provider-busy",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "",
+          "sort": "",
+          "underlyingProductClass": ""
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "zero-dte-provider-403",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 403,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "0DTE entitlement denied",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "",
+          "sort": "",
+          "underlyingProductClass": ""
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "zero-dte-provider-422",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 422,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "0DTE contract filters rejected",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "",
+          "sort": "",
+          "underlyingProductClass": ""
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "zero-dte-provider-502",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/options/events/zero-dte-contracts?brokerId=api-test",
+      "body": "{\"market\":\"US\",\"underlyingInstrumentId\":\"US.SPX\",\"expiryTimestamp\":1787395200,\"chain\":{\"productCode\":\"SPX\"}}",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "0DTE upstream failed",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "featureId": "derivatives.option_events",
+        "instrumentId": "US.SPX",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "derivatives",
+        "pageSize": 100,
+        "params": {
+          "chainLocator": {
+            "productCode": "SPX"
+          },
+          "expiryTimestamp": 1787395200,
+          "operation": "zero_dte_contract",
+          "optionType": "",
+          "sort": "",
+          "underlyingProductClass": ""
+        },
+        "productClass": "option",
+        "tradingEnvironment": ""
+      }
+    },
+    {
+      "name": "combo-success-query-fallback",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=query-account\u0026tradingEnvironment=simulate",
+      "body": "{\"accountId\":\"body-account\",\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"us.ec-yes\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"us.ec-no\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":2}]}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "feature": "prediction.combo_quote",
+            "instrumentId": "",
+            "market": "US",
+            "operation": "quote"
+          }
+        ],
+        "metadata": {
+          "askPrice": 0.47,
+          "bidPrice": 0.42,
+          "expirySource": "jftrade_policy",
+          "mvc": "0.50",
+          "quoteExpiresAt": "fixture-time",
+          "quoteId": "fixture-quote-1",
+          "receivedAt": "fixture-time",
+          "shouldRetry": false
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "prediction.combo_quote",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "FUTUINC",
+          "selectionReason": "explicit_broker"
+        },
+        "warnings": [
+          "RFQ 有效期由 JFTrade 服务端接收时间起固定为 30 秒。"
+        ]
+      },
+      "providerCall": {
+        "accountId": "body-account",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 2,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "combo-empty-object",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: brokerId, accountId, tradingEnvironment, and mvc are required"
+    },
+    {
+      "name": "combo-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid prediction combo quote payload"
+    },
+    {
+      "name": "combo-invalid-leg",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":0}]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: prediction combo quote requires at least two legs"
+    },
+    {
+      "name": "combo-capability-unsupported",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=missing\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"missing\" is not registered"
+    },
+    {
+      "name": "combo-ineligible-account",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=hk-account\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 403,
+      "errorCode": "PREDICTION_MARKET_INELIGIBLE",
+      "errorMessage": "prediction market requires an eligible Moomoo US account"
+    },
+    {
+      "name": "combo-provider-warming",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "accountId": "account-1",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "combo-provider-busy",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "accountId": "account-1",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "combo-provider-rate-limited",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 429,
+      "headers": {
+        "Retry-After": "7"
+      },
+      "errorCode": "MARKET_SNAPSHOT_RATE_LIMITED",
+      "errorMessage": "broker snapshot rate limited; retry after 6.5s",
+      "providerCall": {
+        "accountId": "account-1",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "combo-provider-422",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 422,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "combo quote rejected",
+      "providerCall": {
+        "accountId": "account-1",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "combo-provider-502",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/prediction/combos/quotes?brokerId=api-test\u0026accountId=account-1\u0026tradingEnvironment=simulate",
+      "body": "{\"mvc\":\"0.50\",\"legs\":[{\"instrumentId\":\"US.EC-YES\",\"side\":\"buy\",\"predictionSide\":\"yes\",\"ratio\":1},{\"instrumentId\":\"US.EC-NO\",\"side\":\"sell\",\"predictionSide\":\"no\",\"ratio\":1}]}",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "combo quote upstream failed",
+      "providerCall": {
+        "accountId": "account-1",
+        "brokerId": "api-test",
+        "featureId": "prediction.combo_quote",
+        "instrumentId": "",
+        "kind": "featureQuery",
+        "market": "US",
+        "marketSegment": "prediction",
+        "pageSize": 2,
+        "params": {
+          "legs": [
+            {
+              "instrumentId": "US.EC-YES",
+              "predictionSide": "YES",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "BUY"
+            },
+            {
+              "instrumentId": "US.EC-NO",
+              "predictionSide": "NO",
+              "productClass": "event_contract",
+              "ratio": 1,
+              "side": "SELL"
+            }
+          ],
+          "mvc": "0.50",
+          "operation": "quote"
+        },
+        "productClass": "event_contract",
+        "tradingEnvironment": "SIMULATE"
+      }
+    },
+    {
+      "name": "batch-success-order-and-deduplicate",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test\u0026market=US",
+      "body": "{\"instrumentIds\":[\"us.aapl\",\"US.MSFT\",\"US.AAPL\"],\"symbols\":[\"HK.00700\",\"hk.00700\"]}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "lastPrice": 101.25,
+            "observedAt": "2026-08-21T13:30:00Z",
+            "symbol": "US.AAPL"
+          },
+          {
+            "lastPrice": 101.25,
+            "observedAt": "2026-08-21T13:30:00Z",
+            "symbol": "US.MSFT"
+          },
+          {
+            "lastPrice": 101.25,
+            "observedAt": "2026-08-21T13:30:00Z",
+            "symbol": "HK.00700"
+          }
+        ],
+        "metadata": {
+          "requestedSymbols": [
+            "US.AAPL",
+            "US.MSFT",
+            "HK.00700"
+          ],
+          "subscriptionCreated": false
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.snapshots",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL",
+          "US.MSFT",
+          "HK.00700"
+        ]
+      }
+    },
+    {
+      "name": "batch-null-instrument-ids-with-symbols",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test\u0026market=US",
+      "body": "{\"instrumentIds\":null,\"symbols\":[\"US.AAPL\"]}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "lastPrice": 101.25,
+            "observedAt": "2026-08-21T13:30:00Z",
+            "symbol": "US.AAPL"
+          }
+        ],
+        "metadata": {
+          "requestedSymbols": [
+            "US.AAPL"
+          ],
+          "subscriptionCreated": false
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.snapshots",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-omitted-symbols",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test\u0026market=US",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 200,
+      "data": {
+        "asOf": "fixture-time",
+        "entries": [
+          {
+            "lastPrice": 101.25,
+            "observedAt": "2026-08-21T13:30:00Z",
+            "symbol": "US.AAPL"
+          }
+        ],
+        "metadata": {
+          "requestedSymbols": [
+            "US.AAPL"
+          ],
+          "subscriptionCreated": false
+        },
+        "provider": {
+          "asOf": "fixture-time",
+          "brokerId": "api-test",
+          "capability": "available",
+          "featureId": "market.snapshots",
+          "resolvedAt": "fixture-time",
+          "securityFirm": "Fixture",
+          "selectionReason": "explicit_broker"
+        }
+      },
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-invalid-json",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid request body"
+    },
+    {
+      "name": "batch-empty-arrays",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[],\"symbols\":[]}",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "invalid product feature query: at least one instrumentId is required"
+    },
+    {
+      "name": "batch-capability-unsupported",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 409,
+      "errorCode": "BROKER_CAPABILITY_UNAVAILABLE",
+      "errorMessage": "broker feature capability is unavailable: broker \"api-test\" feature \"market.snapshots\" is unavailable: "
+    },
+    {
+      "name": "batch-provider-warming",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "1"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_WARMING",
+      "errorMessage": "行情服务正在预热，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-provider-busy",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 503,
+      "headers": {
+        "Retry-After": "2"
+      },
+      "errorCode": "MARKET_DATA_PROVIDER_BUSY",
+      "errorMessage": "行情服务当前繁忙，请稍后重试",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-provider-rate-limited",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 429,
+      "headers": {
+        "Retry-After": "7"
+      },
+      "errorCode": "MARKET_SNAPSHOT_RATE_LIMITED",
+      "errorMessage": "broker snapshot rate limited; retry after 6.5s",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-provider-403",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 403,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "snapshot entitlement denied",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-provider-422",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 422,
+      "errorCode": "PROVIDER_REQUEST_FAILED",
+      "errorMessage": "snapshot symbol rejected",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    },
+    {
+      "name": "batch-provider-502",
+      "method": "POST",
+      "requestPath": "/api/v1/market-data/snapshots?brokerId=api-test",
+      "body": "{\"instrumentIds\":[\"US.AAPL\"]}",
+      "expectedStatus": 502,
+      "errorCode": "BROKER_FEATURE_FAILED",
+      "errorMessage": "snapshot upstream failed",
+      "providerCall": {
+        "accountId": "",
+        "brokerId": "api-test",
+        "kind": "batchSnapshot",
+        "market": "US",
+        "symbols": [
+          "US.AAPL"
+        ]
+      }
+    }
+  ]
+}

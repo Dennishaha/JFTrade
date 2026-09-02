@@ -1,0 +1,62 @@
+{
+  "version": "stage9.broker-settings-write.v1",
+  "seedDocument": {},
+  "integration": {
+    "brokerId": "ignored",
+    "enabled": true,
+    "config": {
+      "type": "",
+      "host": " ",
+      "apiPort": 0,
+      "websocketPort": -1,
+      "maxWebSocketConnections": 0,
+      "useEncryption": true,
+      "websocketKey": "write-secret",
+      "tradeMarket": "",
+      "securityFirm": ""
+    },
+    "updatedAt": "client-updated",
+    "createdAt": "client-created"
+  },
+  "createFirst": {
+    "id": "client-id",
+    "brokerId": " FUTU ",
+    "accountId": " ACC-1 ",
+    "displayName": " ",
+    "tradingEnvironment": " real ",
+    "market": " us ",
+    "securityFirm": " ",
+    "enabled": true,
+    "updatedAt": "client-updated",
+    "createdAt": "client-created"
+  },
+  "upsertFirst": {
+    "brokerId": "futu",
+    "accountId": "ACC-1",
+    "displayName": "Replacement",
+    "tradingEnvironment": "REAL",
+    "market": "US",
+    "securityFirm": "FUTUSECURITIES",
+    "enabled": false
+  },
+  "createSecond": {
+    "brokerId": "",
+    "accountId": "ACC-2",
+    "displayName": "Second",
+    "tradingEnvironment": "",
+    "market": "",
+    "securityFirm": null,
+    "enabled": true
+  },
+  "updateSecond": {
+    "brokerId": "futu",
+    "accountId": " ACC-2 ",
+    "displayName": " Updated Second ",
+    "tradingEnvironment": " simulate ",
+    "market": " hk ",
+    "securityFirm": "  FUTUSECURITIES  ",
+    "enabled": false
+  },
+  "deleteId": "futu|REAL|ACC-1|US",
+  "missingId": "missing"
+}

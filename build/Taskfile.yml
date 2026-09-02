@@ -1,18 +1,12 @@
 version: "3"
 
-vars:
-  WAILS_BUILD_DIR: '{{.WAILS_BUILD_DIR | default "var/wails-build"}}'
-  VERSION: '{{.VERSION | default "0.0.0"}}'
-  COMMIT: '{{.COMMIT | default "unknown"}}'
-  BUILD_TIME: '{{.BUILD_TIME | default "dev"}}'
-
 tasks:
   dev:frontend:
-    desc: Runs the Vue development server under Wails supervision
+    desc: Runs the Vue development server for Tauri development
     dir: .
     env:
       JFTRADE_DESKTOP_MODE: "1"
-      WAILS_VITE_PORT: '{{.WAILS_VITE_PORT | default "3003"}}'
+      TAURI_VITE_PORT: '{{.TAURI_VITE_PORT | default "3003"}}'
       VITE_DEV_API_TARGET: '{{.VITE_DEV_API_TARGET | default "http://127.0.0.1:3008"}}'
     cmds:
       - pnpm run dev:web
@@ -23,85 +17,32 @@ tasks:
       - pnpm run build:frontend-assets
 
   prepare:release-assets:
-    desc: Explicitly prepares all embedded release assets
+    desc: Explicitly prepares all embedded Tauri release assets
     cmds:
-      - pnpm run prepare:desktop-release
+      - pnpm run prepare:tauri-release
 
+  # Compatibility aliases for callers of the retired Wails task graph.  The
+  # aliases intentionally route to the Tauri preparation/check commands and
+  # never invoke the removed Go desktop toolchain.
   generate:bindings:
-    desc: Generates the checked-in Wails TypeScript bindings
+    desc: Deprecated alias; Tauri has no generated Go bindings
     cmds:
-      - go tool wails3 generate bindings -ts -i -noevents -d apps/web/src/wails ./cmd/jftrade-desktop
+      - pnpm run check:tauri-release-runtime
 
   generate:icons:
-    desc: Generates Wails platform icons into the ignored build directory
+    desc: Deprecated alias; Tauri icons are checked in and configured directly
     cmds:
-      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}/darwin" "{{.WAILS_BUILD_DIR}}/windows"
-        platforms: [linux, darwin]
-      - cmd: >-
-          powershell -NoProfile -Command
-          "New-Item -ItemType Directory -Force -Path '{{.WAILS_BUILD_DIR}}/darwin','{{.WAILS_BUILD_DIR}}/windows' | Out-Null"
-        platforms: [windows]
-      - >-
-        go tool wails3 generate icons
-        -input build/desktop/appicon.png
-        -macfilename "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
-        -windowsfilename "{{.WAILS_BUILD_DIR}}/windows/icon.ico"
+      - pnpm exec tauri info
 
   update:build-assets:
-    desc: Generates versioned Wails platform assets in the ignored build directory
+    desc: Deprecated alias for Tauri release runtime preparation
     cmds:
-      - cmd: rm -rf "{{.WAILS_BUILD_DIR}}"
-        platforms: [linux, darwin]
-      - cmd: >-
-          powershell -NoProfile -Command
-          "Remove-Item -Recurse -Force '{{.WAILS_BUILD_DIR}}' -ErrorAction SilentlyContinue;
-          New-Item -ItemType Directory -Force '{{.WAILS_BUILD_DIR}}' | Out-Null"
-        platforms: [windows]
-      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}"
-        platforms: [linux, darwin]
-      - >-
-        go tool wails3 update build-assets
-        -name "{{.APP_NAME}}"
-        -binaryname "{{.APP_NAME}}"
-        -config build/config.yml
-        -dir "{{.WAILS_BUILD_DIR}}"
-        -productname "{{.APP_NAME}}"
-        -productidentifier com.jftrade.desktop
-        -productcompany JFTrade
-        -productdescription "JFTrade desktop application"
-        -productcomments "Wails v3 desktop shell for JFTrade; commit {{.COMMIT}}; built {{.BUILD_TIME}}"
-        -productcopyright "Copyright (C) 2026 JFTrade Contributors"
-        -productversion "{{.VERSION}}"
-        -silent
-      - cmd: mkdir -p "{{.WAILS_BUILD_DIR}}/darwin" "{{.WAILS_BUILD_DIR}}/windows"
-        platforms: [linux, darwin]
-      - cmd: >-
-          powershell -NoProfile -Command
-          "New-Item -ItemType Directory -Force -Path '{{.WAILS_BUILD_DIR}}/darwin','{{.WAILS_BUILD_DIR}}/windows' | Out-Null"
-        platforms: [windows]
-      - >-
-        go tool wails3 generate icons
-        -input build/desktop/appicon.png
-        -macfilename "{{.WAILS_BUILD_DIR}}/darwin/icons.icns"
-        -windowsfilename "{{.WAILS_BUILD_DIR}}/windows/icon.ico"
+      - pnpm run prepare:tauri-release
 
   verify:release-inputs:
-    desc: Verifies that release assets were prepared explicitly
+    desc: Verifies prepared Tauri release runtime inputs
     cmds:
-      - cmd: >-
-          if [ "{{.DEV}}" = "true" ]; then
-          exit 0;
-          fi;
-          if [ "${JFTRADE_DESKTOP_PREPARED:-}" != "1" ]; then
-          echo "Release assets are not prepared. Run 'pnpm run prepare:desktop-release' first, then set JFTRADE_DESKTOP_PREPARED=1." >&2;
-          exit 1;
-          fi;
-          node scripts/prepare-desktop-release.mjs
-        platforms: [linux, darwin]
-      - cmd: >-
-          powershell -NoProfile -ExecutionPolicy Bypass -File
-          "scripts/windows/verify-release-inputs.ps1" -Dev "{{.DEV}}"
-        platforms: [windows]
+      - pnpm run check:tauri-release-runtime
 
   go:mod:tidy:
     desc: Runs go mod tidy explicitly

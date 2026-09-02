@@ -1,0 +1,82 @@
+{
+  "version": "stage9.backtests-sync-read.v1",
+  "cases": [
+    {
+      "name": "queued",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/sync/fixture-queued",
+      "expectedStatus": 200,
+      "data": {
+        "completedBatches": 0,
+        "completedIntervals": 0,
+        "currentInterval": "",
+        "marketDataProvider": "futu",
+        "retries": 0,
+        "startedAt": "2026-08-15T20:00:00Z",
+        "status": "queued",
+        "symbol": "US.AAPL",
+        "taskId": "fixture-queued",
+        "totalBatches": 0,
+        "totalIntervals": 0,
+        "updatedAt": ""
+      }
+    },
+    {
+      "name": "running",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/sync/fixture-running",
+      "expectedStatus": 200,
+      "data": {
+        "completedBatches": 2,
+        "completedIntervals": 1,
+        "currentInterval": "1d",
+        "marketDataProvider": "futu",
+        "retries": 1,
+        "startedAt": "2026-08-15T20:00:00Z",
+        "status": "running",
+        "symbol": "US.AAPL",
+        "taskId": "fixture-running",
+        "totalBatches": 4,
+        "totalIntervals": 2,
+        "updatedAt": "2026-08-15T20:01:00Z"
+      }
+    },
+    {
+      "name": "failed",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/sync/fixture-failed",
+      "expectedStatus": 200,
+      "data": {
+        "completedBatches": 2,
+        "completedIntervals": 1,
+        "currentInterval": "1d",
+        "error": "OpenD unavailable",
+        "marketDataProvider": "futu",
+        "retries": 1,
+        "startedAt": "2026-08-15T20:00:00Z",
+        "status": "failed",
+        "symbol": "US.AAPL",
+        "taskId": "fixture-failed",
+        "totalBatches": 4,
+        "totalIntervals": 2,
+        "updatedAt": "2026-08-15T20:01:00Z"
+      }
+    },
+    {
+      "name": "missing",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/sync/missing-task",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "sync task not found"
+    },
+    {
+      "name": "blank",
+      "method": "GET",
+      "requestPath": "/api/v1/backtests/sync/%20",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "taskId is required"
+    }
+  ]
+}

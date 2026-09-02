@@ -25,16 +25,18 @@ test("preflight checks generated docs before running the shared checks", () => {
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
-  assert.equal(parallelPreflightChecks.length, 13);
+  assert.equal(parallelPreflightChecks.length, 11);
 });
 
 test("main is the complete non-recursive gate and runs actionlint", () => {
   const commands = commandsForLayer("main");
   assert.equal(commands.some(([command, args]) => command === "pnpm" && args.join(" ") === "run test:ci-local"), false);
   assert.ok(commands.some(([command, args]) => command === checkDiff[0] && args.join(" ") === checkDiff[1].join(" ")));
-  assert.deepEqual(commands.slice(-4), [
+  assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust"), 0);
+  assert.deepEqual(commands.slice(-3), [
     checkActionlint,
-    ["pnpm", ["run", "test:go"]],
     ["pnpm", ["run", "test:desktop"]],
     ["pnpm", ["run", "smoke:pinets-backtest"]],
   ]);
@@ -76,6 +78,20 @@ test("ci-local checks the working projection before running shared checks inline
     ),
     true,
   );
+  assert.equal(
+    commands.some(
+      ([command, args]) => command === "pnpm" && args.join(" ") === "run test:tauri-release-runtime",
+    ),
+    true,
+  );
+  assert.equal(
+    commands.some(
+      ([command, args]) => command === "pnpm" && args.join(" ") === "run check:tauri-release-runtime",
+    ),
+    false,
+  );
+  assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
+  assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
   const frontendBuildIndex = commands.findIndex(
     ([command, args]) => command === "pnpm" && args.join(" ") === "run build:frontend-assets:generated",
   );
@@ -88,11 +104,14 @@ test("ci-local checks the working projection before running shared checks inline
     "pnpm",
     ["run", "smoke:marketdata-sidecar"],
   ]);
-  assert.deepEqual(commands[marketDataBuildIndex + 2], [
-    "go",
-    ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"],
-  ]);
+  assert.equal(commands[marketDataBuildIndex + 2], undefined);
 });
+
+function countPnpmScript(commands, script) {
+  return commands.filter(
+    ([command, args]) => command === "pnpm" && args.join(" ") === `run ${script}`,
+  ).length;
+}
 
 test("rejects unknown test layers", () => {
   assert.throws(() => commandsForLayer("unknown"), /unknown test layer/);

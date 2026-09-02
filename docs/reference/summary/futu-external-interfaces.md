@@ -1,5 +1,8 @@
 # Futu 对外接口索引
 
+> 历史参考快照：本文的 Go 路径已退役，只保留 OpenD 协议选型与迁移来源。
+> 当前实现位于 `crates/jftrade-integration-futu`，protobuf 位于 `proto/futu`；本文不参与当前 owner 或能力状态计算。
+
 本文整理当前项目实际依赖，或者后续扩展时最容易碰到的 Futu OpenD / 行情 / 交易接口族，并给出在原始文档中的查找位置。
 
 ## 线上文档

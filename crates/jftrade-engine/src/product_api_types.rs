@@ -1,0 +1,88 @@
+#[derive(Clone, Default)]
+struct ProductStage9WritePorts {
+    execution: Option<Arc<dyn ExecutionWritePort>>,
+    system: Option<Arc<dyn SystemWritePort>>,
+    market_data_subscription_mutation: Option<Arc<dyn MarketDataSubscriptionMutationPort>>,
+    brokers: Option<Arc<dyn BrokersWritePort>>,
+    research_screen: Option<Arc<dyn ResearchScreenWritePort>>,
+}
+
+struct ProductOptionalPorts {
+    /// Canonical production route bindings.  Rehearsal profiles leave this
+    /// unset and keep their legacy opt-in dispatch surface; production always
+    /// supplies the registry built from the concrete port bundle.
+    production_routes:
+        Option<Arc<crate::product::product_production_route_registry::ProductionRouteRegistry>>,
+    /// Shared production composition used to evaluate route readiness at
+    /// dispatch time.  The registry owns the canonical route set, while this
+    /// bundle is the live capability source that tracks provider transitions
+    /// and teardown.
+    production_ports:
+        Option<Arc<crate::product::product_production_ports::ProductionPortBundle>>,
+    notification: Option<Arc<dyn ProductNotificationPort>>,
+    calendar_manager: Option<Arc<CalendarManager>>,
+    watchlist_membership_snapshot: Option<Arc<dyn WatchlistMembershipSnapshotPort>>,
+    watchlist_read_snapshot: Option<Arc<dyn WatchlistReadSnapshotPort>>,
+    portfolio_snapshot: Option<Arc<dyn PortfolioSnapshotPort>>,
+    research_read_snapshot: Option<Arc<dyn ResearchReadSnapshotPort>>,
+    research_preset_read_snapshot: Option<Arc<dyn ResearchPresetReadSnapshotPort>>,
+    execution_read_snapshot: Option<Arc<dyn ExecutionReadSnapshotPort>>,
+    market_data_provider_read_snapshot: Option<Arc<dyn MarketDataProviderReadSnapshotPort>>,
+    market_data_catalog_read_snapshot: Option<Arc<dyn MarketDataCatalogReadSnapshotPort>>,
+    market_data_derivative_read_snapshot: Option<Arc<dyn MarketDataDerivativeReadSnapshotPort>>,
+    market_data_options_read_snapshot: Option<Arc<dyn MarketDataOptionsReadSnapshotPort>>,
+    market_data_news_actions_read_snapshot: Option<Arc<dyn MarketDataNewsActionsReadSnapshotPort>>,
+    market_data_news_search_read_snapshot:
+        Option<Arc<dyn MarketDataNewsSearchReadSnapshotPort>>,
+    adk_read_snapshot: Option<Arc<dyn AdkReadSnapshotPort>>,
+    market_data_quote_read_snapshot: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
+    market_data_prediction_read_snapshot: Option<Arc<dyn MarketDataPredictionReadSnapshotPort>>,
+    market_data_runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
+    broker_read_snapshot: Option<Arc<dyn BrokerReadSnapshotPort>>,
+    system_read_snapshot: Option<Arc<dyn SystemReadSnapshotPort>>,
+    remote_watchlist_snapshot: Option<Arc<dyn RemoteWatchlistSnapshotPort>>,
+    remote_watchlist_write: Option<Arc<dyn RemoteWatchlistWritePort>>,
+    watchlist_write: Option<Arc<dyn WatchlistWritePort>>,
+    plugin_uninstall_guidance_snapshot: Option<Arc<dyn PluginUninstallGuidanceSnapshotPort>>,
+    plugin_snapshot: Option<Arc<dyn PluginSnapshotPort>>,
+    plugin_write: Option<Arc<dyn PluginWritePort>>,
+    research_preset_write: Option<Arc<dyn ResearchPresetWritePort>>,
+    strategy_definition_write: Option<Arc<dyn StrategyDefinitionWritePort>>,
+    market_data_provider_actions: Option<Arc<dyn MarketDataProviderActionsPort>>,
+    adk_chat_stream: Option<Arc<dyn AdkChatStreamPort>>,
+    adk_mutation: Option<Arc<dyn AdkMutationPort>>,
+    alert_snapshot: Option<Arc<dyn AlertSnapshotPort>>,
+    alert_write: Option<Arc<dyn AlertWritePort>>,
+    strategy_definition_snapshot: Option<Arc<dyn StrategyDefinitionSnapshotPort>>,
+    strategy_pine_analyze_snapshot: Option<Arc<dyn StrategyPineAnalyzeSnapshotPort>>,
+    backtest_read_snapshot: Option<Arc<dyn BacktestReadSnapshotPort>>,
+    backtest_sync_read_snapshot: Option<Arc<dyn BacktestSyncReadSnapshotPort>>,
+    backtests_write: Option<Arc<dyn BacktestsWritePort>>,
+    strategy_read_snapshot: Option<Arc<dyn StrategyReadSnapshotPort>>,
+    strategy_runtime_status: Option<Arc<dyn StrategyRuntimeStatusPort>>,
+    strategy_runtime_write: Option<Arc<dyn StrategyRuntimeWritePort>>,
+    auth_session_snapshot: Option<Arc<dyn AuthSessionSnapshotPort>>,
+    auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
+    auth_session_invalidation:
+        Option<Arc<dyn product_auth_session_manager::AuthSessionInvalidationPort>>,
+    stage9_write_ports: ProductStage9WritePorts,
+}
+
+struct ProductSettingsServices {
+    appearance: AppearanceService,
+    brokers: BrokerSettingsService,
+    onboarding: OnboardingSettingsService,
+    futu_install: FutuOpenDInstallSettingsService,
+    execution: ExecutionService,
+    assistant_runtime: AssistantRuntimeService,
+    system_notifications: SystemNotificationService,
+    pine_worker: PineWorkerSettingsService,
+    security: SecuritySettingsService,
+    market_data_provider: MarketDataProviderSettingsService,
+    backtest_market_data_provider: BacktestMarketDataProviderSettingsService,
+    mcp_server: McpServerSettingsService,
+    exchange_calendars: ExchangeCalendarSettingsService,
+    data_management: OverviewService,
+    cleanup_preview: Arc<CleanupPreviewService>,
+    maintenance: MaintenanceService,
+}

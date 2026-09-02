@@ -1,0 +1,754 @@
+{
+  "version": "stage9.plugins-write.v1",
+  "cases": [
+    {
+      "name": "install-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "install-success-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 1,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 1,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "uninstall-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/uninstall"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": true,
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "uninstall-success-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "uninstalled",
+              "progress": 100,
+              "message": "plugin metadata uninstalled",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": false,
+        "durableStatus": "NOT_INSTALLED",
+        "durableOperationCount": 1,
+        "memoryPluginPresent": true,
+        "memoryInstalled": false,
+        "memoryStatus": "NOT_INSTALLED",
+        "saveCount": 1,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "install-repeat",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": true,
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "install-repeat-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "install-repeat-2",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 2,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 2,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "uninstall-repeat",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/uninstall",
+        "/api/v1/plugins/alpha/uninstall"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "uninstall-repeat-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "uninstalled",
+              "progress": 100,
+              "message": "plugin metadata uninstalled",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "uninstall-repeat-2",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "uninstalled",
+              "progress": 100,
+              "message": "plugin metadata uninstalled",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": false,
+        "durableStatus": "NOT_INSTALLED",
+        "durableOperationCount": 2,
+        "memoryPluginPresent": true,
+        "memoryInstalled": false,
+        "memoryStatus": "NOT_INSTALLED",
+        "saveCount": 2,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "mixed-state",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/uninstall",
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        "",
+        "",
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        200,
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "mixed-state-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "mixed-state-2",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "uninstalled",
+              "progress": 100,
+              "message": "plugin metadata uninstalled",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "mixed-state-3",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 3,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 3,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "body-ignored",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        "not-json"
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "body-ignored-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 1,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 1,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "blank-encoded",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/%20/install"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "pluginId is invalid"
+          },
+          "ok": false
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": false,
+        "durableStatus": "NOT_INSTALLED",
+        "durableOperationCount": 0,
+        "memoryPluginPresent": true,
+        "memoryInstalled": false,
+        "memoryStatus": "NOT_INSTALLED",
+        "saveCount": 0,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "missing-catalog-install",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/missing/install"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": false,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "plugin install failed"
+          },
+          "ok": false
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": false,
+        "durableInstalled": false,
+        "durableStatus": "",
+        "durableOperationCount": 0,
+        "memoryPluginPresent": false,
+        "memoryInstalled": false,
+        "memoryStatus": "",
+        "saveCount": 0,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "missing-catalog-uninstall",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/missing/uninstall"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": false,
+      "initialInstalled": false,
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "plugin uninstall failed"
+          },
+          "ok": false
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": false,
+        "durableInstalled": false,
+        "durableStatus": "",
+        "durableOperationCount": 0,
+        "memoryPluginPresent": false,
+        "memoryInstalled": false,
+        "memoryStatus": "",
+        "saveCount": 0,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "persist-failure-install",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "persistFailure": true,
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "plugin install failed"
+          },
+          "ok": false
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": false,
+        "durableStatus": "NOT_INSTALLED",
+        "durableOperationCount": 0,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 1,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "persist-failure-uninstall",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/uninstall"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": true,
+      "persistFailure": true,
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "plugin uninstall failed"
+          },
+          "ok": false
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 0,
+        "memoryPluginPresent": true,
+        "memoryInstalled": false,
+        "memoryStatus": "NOT_INSTALLED",
+        "saveCount": 1,
+        "resourceEvents": []
+      }
+    },
+    {
+      "name": "concurrent-install",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install",
+        "/api/v1/plugins/alpha/install"
+      ],
+      "requestBodies": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "initialPluginPresent": true,
+      "initialInstalled": false,
+      "concurrent": true,
+      "expectedStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-1",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-2",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-3",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-4",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-5",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-6",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-7",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        },
+        {
+          "data": {
+            "operation": {
+              "operationId": "concurrent-install-8",
+              "pluginId": "alpha",
+              "status": "SUCCEEDED",
+              "phase": "installed",
+              "progress": 100,
+              "message": "plugin metadata installed",
+              "targetDir": "plugins",
+              "installPath": "plugins/alpha.so",
+              "startedAt": "2026-08-22T00:00:00Z",
+              "updatedAt": "2026-08-22T00:00:00Z",
+              "completedAt": "2026-08-22T00:00:00Z",
+              "error": null
+            }
+          },
+          "ok": true
+        }
+      ],
+      "expectedObservation": {
+        "durablePluginPresent": true,
+        "durableInstalled": true,
+        "durableStatus": "INSTALLED",
+        "durableOperationCount": 8,
+        "memoryPluginPresent": true,
+        "memoryInstalled": true,
+        "memoryStatus": "INSTALLED",
+        "saveCount": 8,
+        "resourceEvents": []
+      }
+    }
+  ]
+}

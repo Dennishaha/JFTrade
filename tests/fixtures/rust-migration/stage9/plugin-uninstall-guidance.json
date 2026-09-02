@@ -1,0 +1,67 @@
+{
+  "version": "stage9.plugin-uninstall-guidance.v1",
+  "cases": [
+    {
+      "name": "normal",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/pine-plan/uninstall-guidance",
+      "expectedStatus": 200,
+      "response": {
+        "pluginId": "pine-plan",
+        "path": "plugins/pine-plan.so",
+        "exists": false,
+        "commands": {
+          "posix": "rm -f 'plugins/pine-plan.so'",
+          "powershell": "Remove-Item -LiteralPath 'plugins/pine-plan.so' -Force"
+        }
+      }
+    },
+    {
+      "name": "quoted-path",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/quote-plugin/uninstall-guidance",
+      "expectedStatus": 200,
+      "response": {
+        "pluginId": "quote-plugin",
+        "path": "plugins/O'Brien/plugin.so",
+        "exists": false,
+        "commands": {
+          "posix": "rm -f 'plugins/O'\\''Brien/plugin.so'",
+          "powershell": "Remove-Item -LiteralPath 'plugins/O''Brien/plugin.so' -Force"
+        }
+      }
+    },
+    {
+      "name": "unknown",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/missing/uninstall-guidance",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "plugin not found"
+    },
+    {
+      "name": "blank-encoded",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/%20/uninstall-guidance",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "pluginId is invalid"
+    },
+    {
+      "name": "invalid-escape",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins/%ZZ/uninstall-guidance",
+      "expectedStatus": 400,
+      "errorCode": "BAD_REQUEST",
+      "errorMessage": "pluginId is invalid"
+    },
+    {
+      "name": "blank",
+      "method": "GET",
+      "requestPath": "/api/v1/plugins//uninstall-guidance",
+      "expectedStatus": 404,
+      "errorCode": "NOT_FOUND",
+      "errorMessage": "unknown endpoint /api/v1/plugins//uninstall-guidance"
+    }
+  ]
+}

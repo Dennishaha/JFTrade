@@ -1,0 +1,266 @@
+{
+  "version": "stage4.v1",
+  "providers": [
+    {
+      "descriptor": {
+        "selectionId": "futu",
+        "providerId": "futu",
+        "displayName": "Futu OpenD",
+        "brokerId": "futu",
+        "source": "futu",
+        "defaultMarket": "HK",
+        "supportedMarkets": ["HK", "US", "SH", "SZ"],
+        "transports": ["stream", "snapshot"],
+        "capabilities": {
+          "snapshots": true,
+          "streamingQuotes": true,
+          "streamingCandles": true,
+          "streamingDepth": true,
+          "historicalCandles": true,
+          "tickCandles": true,
+          "orderBookDepth": true,
+          "instrumentSearch": true,
+          "extendedHours": true,
+          "candleIntervals": ["1m", "1d"],
+          "orderBookLevels": [10],
+          "sessions": ["regular", "extended"],
+          "priceAdjustments": ["none", "forward", "backward"],
+          "historicalLookbackDays": {}
+        },
+        "constraints": {
+          "requiresOpenD": true,
+          "requiresMarketDataRight": true,
+          "usesSubscriptionQuota": true
+        },
+        "notes": []
+      },
+      "health": {
+        "connected": true,
+        "streamMode": "streaming",
+        "activeCount": 0,
+        "readiness": "ready"
+      }
+    },
+    {
+      "descriptor": {
+        "selectionId": "akshare",
+        "providerId": "akshare",
+        "displayName": "AKShare",
+        "source": "akshare",
+        "defaultMarket": "CN",
+        "supportedMarkets": ["CN", "HK", "US"],
+        "transports": ["snapshot-poll"],
+        "capabilities": {
+          "snapshots": true,
+          "streamingQuotes": false,
+          "streamingCandles": false,
+          "streamingDepth": false,
+          "historicalCandles": true,
+          "tickCandles": false,
+          "orderBookDepth": false,
+          "instrumentSearch": true,
+          "extendedHours": false,
+          "candleIntervals": ["1d"],
+          "orderBookLevels": [],
+          "sessions": ["regular"],
+          "priceAdjustments": ["none", "forward", "backward"],
+          "historicalLookbackDays": {}
+        },
+        "constraints": {
+          "requiresOpenD": false,
+          "requiresMarketDataRight": false,
+          "usesSubscriptionQuota": false
+        },
+        "notes": []
+      },
+      "health": {
+        "connected": false,
+        "streamMode": "snapshot-poll-delayed",
+        "activeCount": 0,
+        "readiness": "warming"
+      }
+    },
+    {
+      "descriptor": {
+        "selectionId": "yfinance",
+        "providerId": "yfinance",
+        "displayName": "Yahoo Finance",
+        "source": "yfinance",
+        "defaultMarket": "US",
+        "supportedMarkets": ["US", "HK"],
+        "transports": ["snapshot-poll"],
+        "capabilities": {
+          "snapshots": true,
+          "streamingQuotes": false,
+          "streamingCandles": false,
+          "streamingDepth": false,
+          "historicalCandles": true,
+          "tickCandles": false,
+          "orderBookDepth": false,
+          "instrumentSearch": true,
+          "extendedHours": false,
+          "candleIntervals": ["1m", "1d"],
+          "orderBookLevels": [],
+          "sessions": ["regular"],
+          "priceAdjustments": ["none"],
+          "historicalLookbackDays": {}
+        },
+        "constraints": {
+          "requiresOpenD": false,
+          "requiresMarketDataRight": false,
+          "usesSubscriptionQuota": false
+        },
+        "notes": []
+      },
+      "health": {
+        "connected": false,
+        "streamMode": "snapshot-poll-delayed",
+        "activeCount": 0,
+        "readiness": "unknown"
+      }
+    }
+  ],
+  "helper": {
+    "endpoint": "http://127.0.0.1:47888",
+    "bearerToken": "stage4_marketdata_token_0123456789abcdef"
+  },
+  "pine": {
+    "workers": [
+      {"workerId": "pineworker-1", "address": "127.0.0.1:45051"},
+      {"workerId": "pineworker-2", "address": "127.0.0.1:45052"}
+    ],
+    "health": [
+      {
+        "workerId": "pineworker-1",
+        "health": {
+          "ok": true,
+          "version": "0.1.0",
+          "pineTsVersion": "fixture",
+          "capabilities": ["health", "run", "live-session-v1"]
+        }
+      },
+      {
+        "workerId": "pineworker-2",
+        "health": {
+          "ok": true,
+          "version": "0.1.0",
+          "pineTsVersion": "fixture",
+          "capabilities": ["health", "run", "live-session-v1"]
+        }
+      }
+    ],
+    "operations": [
+      {"op": "reserve", "operation": "open", "sessionId": "session-a", "succeeded": true},
+      {"op": "reserve", "operation": "none", "sessionId": null, "succeeded": true},
+      {"op": "reserve", "operation": "append", "sessionId": "session-a", "succeeded": true},
+      {"op": "restart", "workerId": "pineworker-1"},
+      {"op": "reserve", "operation": "append", "sessionId": "session-a", "succeeded": true},
+      {"op": "reserve", "operation": "open", "sessionId": "session-b", "succeeded": false},
+      {"op": "reserve", "operation": "append", "sessionId": "session-b", "succeeded": true}
+    ]
+  },
+  "marketdataOperations": [
+    {"op": "activate", "providerId": "futu", "mode": "explicit"},
+    {
+      "op": "acquire",
+      "consumerId": "chart",
+      "refs": [{"channel": "snapshot", "market": "", "symbol": "us.aapl"}],
+      "managed": false,
+      "nowMs": 10
+    },
+    {
+      "op": "cache_insert",
+      "tick": {
+        "instrumentId": "US.AAPL",
+        "price": 188.5,
+        "volume": 10,
+        "observedAtMs": 100,
+        "providerGeneration": 1
+      }
+    },
+    {"op": "cache_lookup", "instrumentId": "US.AAPL", "nowMs": 110, "maxAgeMs": 10},
+    {
+      "op": "acquire",
+      "consumerId": "strategy",
+      "refs": [{"channel": "KLINE", "market": "US", "symbol": "AAPL", "interval": "1M"}],
+      "managed": true,
+      "nowMs": 20
+    },
+    {"op": "activate", "providerId": "akshare", "mode": "explicit"},
+    {"op": "release", "consumerId": "strategy"},
+    {"op": "activate", "providerId": "akshare", "mode": "startup_restore"},
+    {"op": "cache_lookup", "instrumentId": "US.AAPL", "nowMs": 111, "maxAgeMs": 10},
+    {
+      "op": "acquire",
+      "consumerId": "strategy-2",
+      "refs": [{"channel": "KLINE", "market": "US", "symbol": "AAPL", "interval": "1m"}],
+      "managed": true,
+      "nowMs": 30
+    },
+    {"op": "activate", "providerId": "yfinance", "mode": "explicit"},
+    {
+      "op": "update_health",
+      "providerId": "yfinance",
+      "health": {
+        "connected": true,
+        "streamMode": "snapshot-poll-fallback",
+        "activeCount": 1,
+        "readiness": "ready"
+      }
+    },
+    {"op": "activate", "providerId": "yfinance", "mode": "explicit"},
+    {"op": "expire", "nowMs": 100, "ttlMs": 50}
+  ],
+  "futu": {
+    "refs": [
+      {"channel": "SNAPSHOT", "market": "US", "symbol": "AAPL"},
+      {"channel": "KLINE", "market": "US", "symbol": "AAPL", "interval": "1M"},
+      {"channel": "ORDER_BOOK", "market": "HK", "symbol": "00700"}
+    ],
+    "frameProtoId": 3004,
+    "frameSerialNo": 42,
+    "frameBody": [1, 2, 3, 4, 5],
+    "generation": 7,
+    "subscribedAtMs": 1000,
+    "releaseBeforeMs": 60999,
+    "releaseAtMs": 61000,
+    "probeCases": [
+      {
+        "name": "healthy",
+        "state": {
+          "qotLoggedIn": true,
+          "tradeLoggedIn": true,
+          "serverVersion": "10.9.100",
+          "programStatus": "Ready",
+          "programTimestamp": "2026-08-19T00:00:00Z",
+          "markets": [{"market": "HK", "state": 5}, {"market": "US", "state": 5}]
+        },
+        "versionSupported": true
+      },
+      {
+        "name": "quote_logged_out",
+        "state": {
+          "qotLoggedIn": false,
+          "tradeLoggedIn": true,
+          "serverVersion": "10.9.100",
+          "programStatus": "Ready",
+          "programTimestamp": null,
+          "markets": []
+        },
+        "versionSupported": true
+      },
+      {
+        "name": "unsupported_version",
+        "state": {
+          "qotLoggedIn": true,
+          "tradeLoggedIn": true,
+          "serverVersion": "9.0.0",
+          "programStatus": "Ready",
+          "programTimestamp": null,
+          "markets": []
+        },
+        "versionSupported": false
+      }
+    ]
+  }
+}

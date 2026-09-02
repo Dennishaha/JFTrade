@@ -29,7 +29,14 @@
             }
         },
         {
-            "name": "Dev Backend",
+            "name": "Dev Backend (Rust)",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "cargo run -p jftrade-engine --bin jftrade-api-rust"
+        },
+        {
+            "name": "Dev Backend (Go)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -74,11 +81,11 @@
             "command": "pnpm run dev:api:pineworker"
         },
         {
-            "name": "Dev Desktop (Wails)",
+            "name": "Dev Desktop (Tauri)",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "go tool wails3 dev -config ./build/config.yml -port 3003"
+            "command": "pnpm run dev:desktop"
         }
     ]
 }

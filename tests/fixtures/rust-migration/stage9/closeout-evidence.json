@@ -1,0 +1,346 @@
+{
+  "$schema": "./closeout-evidence.schema.json",
+  "schemaVersion": "jftrade.stage9.closeout-evidence.v2",
+  "stage": 9,
+  "status": "in_progress",
+  "localEvidence": [
+    {
+      "id": "tauri-macos-arm64-release-smoke",
+      "status": "passed",
+      "scope": "local-only macOS ARM64",
+      "command": "pnpm run smoke:tauri-release",
+      "evidence": "Passed on 2026-08-20: packaged readiness, authenticated 401, shutdown, window state and no packaged child orphans. This is not a signed release or four-platform qualification."
+    },
+    {
+      "id": "workflow-syntax",
+      "status": "passed",
+      "scope": "local-only repository checks",
+      "command": "pnpm run check:actionlint",
+      "evidence": "Passed on 2026-08-20; validates workflow syntax only and does not execute release jobs."
+    },
+    {
+      "id": "desktop-script-contracts",
+      "status": "passed",
+      "scope": "local-only repository checks",
+      "command": "pnpm run test:scripts -- desktop",
+      "evidence": "32 script tests passed on 2026-08-20; these are structural/unit checks and do not qualify signed artifacts or native installers."
+    },
+    {
+      "id": "stage9-research-presets-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile",
+      "command": "cargo test -p jftrade-engine --lib product::tests::strategy_research_write_product_tests::authenticated_sqlite_test_cutover_replays_mutations_and_recovers_across_restart -- --nocapture",
+      "evidence": "Authenticated Rust product replay passed for the three research-preset mutations, including auth and validation precedence, duplicate and revision conflicts, DELETE body compatibility, durable restart recovery, and no default-profile registration. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal and no Rust production route was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-alerts-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit mutation test-cutover profile",
+      "command": "node scripts/rust-migration/check-stage9-alerts-write.mjs",
+      "evidence": "The 18-case Go reference fixture, Rust leaf replay, authenticated product rehearsal, and product differential passed for both alerts POST routes. Evidence covers duplicate writes forwarded twice, failure-to-recovery, cancellation/deadline mapping, provider/error precedence, crash/timeout fail-closed behavior, Go-only fallback after restart, default-profile isolation, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal, with no Rust SQLite, notification, task, Provider/OpenD, or production state side effect. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-strategy-pine-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-strategy-pine.mjs",
+      "evidence": "The 12-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/strategy-pine/analyze. Evidence covers input/error precedence, opaque analysis projections, worker unavailable/timeout/cancel/crash projections, sidecar error/timeout/client-cancellation/crash fail-closed behavior, Go-only rollback and restart recovery, private bearer plus browser/CORS/CSRF context forwarding, default-profile isolation, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal and no Rust PineTS worker, Provider/OpenD, SQLite, strategy state, notification, or production side effect was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-research-screens-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-research-screens.mjs",
+      "evidence": "The 22-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/research/screens. Evidence covers strict JSON/error precedence, page and definition validation, provider/capability/rate-limit retry mappings, repeated requests, failure recovery, cancellation/deadline mapping, crash fail-closed behavior, Go-only rollback and restart recovery, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, default-profile isolation, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal and no Rust Provider/OpenD, SQLite, network, or user-visible production side effect was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-plugins-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit mutation test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-plugins-write.mjs",
+      "evidence": "The 12-case Go reference fixture, Rust leaf replay, authenticated loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/plugins/{pluginId}/install and /uninstall. Evidence covers arbitrary-body forwarding, missing/internal/unavailable errors, duplicate and concurrent requests, failure recovery, timeout/cancellation/crash fail-closed behavior, Go-only fallback and restart recovery, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, default-profile isolation, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal and no Rust plugin filesystem, process, event, SQLite, or production side effect was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-watchlists-remote-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit mutation test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-watchlists-remote-write.mjs",
+      "evidence": "The 19-case Go reference fixture, authenticated owner-fencing rehearsal, Rust leaf replay, Rust product replay, and full Stage 9 product differential passed for POST /api/v1/watchlists/remote. Evidence covers exact query/body and private bearer/access-surface forwarding, browser Cookie/Origin/Referer/CSRF forwarding, duplicate mutations forwarded twice, provider/error/timeout/cancellation/crash fail-closed behavior, failure recovery, Go-only fallback and restart recovery, explicit test-cutover registration, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal and no Rust OpenD/provider, SQLite, remote registry, notification, or production external mutation was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-auth-session-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-auth-session-write.mjs",
+      "evidence": "The Go reference fixture, Rust leaf replay, authenticated product rehearsal, and full Stage 9 product differential passed for POST /api/v1/auth/login and POST /api/v1/auth/logout. Evidence covers login/logout contract and error precedence, private bearer plus browser Cookie/Origin/Referer/CSRF context, session-cookie and Retry-After forwarding, duplicate requests, timeout/cancellation/crash fail-closed behavior, Go-only fallback and restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; the Rust boundary had no production password verification, session persistence, CSRF store, cookie-generation owner, or user-visible production side effect, and Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-auth-session-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit read test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-auth-session.mjs",
+      "evidence": "The Go auth-session fixture, authenticated read rehearsal, Rust product replay, and jftrade-api transport contract passed for GET /api/v1/auth/session. Evidence covers browser session and desktop-trusted projections, allowed/forbidden Origin and CORS header presence/absence, no-store success/error headers, explicit snapshot-port registration, unavailable-port fail-closed behavior, timeout/crash forwarding, restart recovery to the Go owner, and unchanged settings bytes. This is historical cutover-qualified rehearsal evidence; Rust had no production session/password/cookie/CSRF owner, and Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-adk-chat-stream-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, authenticated Go loopback rehearsal, and full local Rust gates",
+      "command": "node scripts/rust-migration/check-stage9-adk-chat-stream.mjs",
+      "evidence": "The 17-case Go reference fixture, Go SSE proxy boundary test, authenticated Go rehearsal, Rust leaf replay, Rust product replay, the explicit cross-group POST stream plus adk-read replay composition, check:quick, check:rust, and full Stage 9 product differential passed for POST /api/v1/adk/chat and POST /api/v1/adk/chat/stream. Evidence covers browser Cookie/Origin/Referer/CSRF forwarding, auth/CSRF precedence, SSE headers/retry/event IDs/order/body, runtime/provider/error mapping, timeout, cancellation, client-disconnect boundary, retained terminal replay through adk-read with after ordering, crash fail-closed behavior, Go-only rollback, restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. The Rust product harness cannot observe the internal failed-writer error or claim the Go detached runtime; the successful adk-read SSE corpus is now present, but the two GET stream routes still need dedicated authenticated GET-sidecar/recovery evidence. Both groups therefore remain historical cutover-test-only; Go was the owner during that rehearsal and no Rust Assistant runtime, Provider, SQLite, notification, task, or production side effect was enabled. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-adk-read-sse-rust-product",
+      "status": "passed",
+      "scope": "local-only Go reference fixture and Rust explicit test-cutover product replay",
+      "command": "node scripts/rust-migration/check-stage9-adk-read.mjs",
+      "evidence": "The Go ADK JSON fixture and newly captured four-case successful SSE fixture passed their reference checks. Rust product replay passed for both GET stream routes and matched status, Content-Type, Cache-Control, Connection, X-ADK-Stream-ID, retry directive, event IDs/order/body, after=0/1 filtering, run-stream and stream-ID paths. The Rust boundary remains a consumer-owned snapshot port; no Assistant runtime, Provider, SQLite, notification, task, or production writer was enabled. The two GET stream routes remain historical cutover-test-only pending dedicated authenticated GET-sidecar timeout/cancellation/restart evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-market-data-subscription-mutation-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-market-data-subscription-mutation.mjs",
+      "evidence": "The 55-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, route/transport differential, and unchanged-settings checks passed for all six market-data subscription mutation routes. Evidence covers private bearer and browser Cookie/Origin/Referer/CSRF forwarding, auth and CSRF fencing, 503 unavailable and 502 provider-failure mapping, success/error/recovery paths, timeout, cancellation, Rust crash fail-closed behavior, Go rollback, Go restart recovery, explicit test-cutover registration, and request path/query forwarding. The injected Rust boundary has no Provider/OpenD, durable lease, SQLite, subscription registry, or user-visible side effect; this historical group remained cutover-test-only with Go as the owner during rehearsal until durable owner, idempotency, cancellation fencing, live-provider lifecycle, and crash/restart recovery evidence closes. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-market-data-subscription-mutation-isolated-sqlite-rehearsal",
+      "status": "passed",
+      "scope": "local-only cfg(test) isolated SQLite adapter and Rust integration replay",
+      "command": "cargo test -p jftrade-engine --test stage9_market_data_subscription_mutation -- --nocapture",
+      "evidence": "The independent 8-test replay passed for the temporary test-prefixed SQLite adapter: event-failure transaction rollback, subscription acquire/release/heartbeat/clear, prediction lease allocation, one-winner concurrent lease release fencing, close/reopen persistence, and fixture/leaf compatibility. The product-level SQLite replay and full check:quick/check:rust also passed. This is historical isolated test-cutover durability evidence only; it does not qualify Go production schema compatibility, cross-process fencing, Provider/OpenD lifecycle, backup/restore, or a Rust production owner. The group was cutover-test-only with Go as the owner during rehearsal; the current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-market-data-provider-actions-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, authenticated Go loopback rehearsal, full Stage 9 differential and local gates",
+      "command": "node scripts/rust-migration/check-stage9-market-data-provider-actions.mjs",
+      "evidence": "The 50-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, route/transport differential, full Stage 9 product differential, check:quick and check:rust passed for all five market-data provider-action POST routes. Evidence covers Rust 401 unauthenticated and 403 CSRF fencing, private bearer plus browser Cookie/Origin/Referer/CSRF forwarding, raw path/query/body preservation, unavailable and provider rate-limit mappings including Retry-After, timeout, cancellation, crash fail-closed behavior, Go rollback and restart recovery, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. The Rust boundary uses only an injected fixture port; it does not start Provider/OpenD, persist the combo quote, open SQLite, create subscriptions, or produce user-visible side effects. This historical group remained cutover-test-only with Go as the owner during rehearsal; combo quote durable ownership, Provider/OpenD lifecycle, release, recovery and hard-cut evidence remain open. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-backtests-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-backtests-write.mjs",
+      "evidence": "The 38-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable BacktestRunTestCutoverStore contracts (backtest-runs v1 schema validation, writer lease, lifecycle and terminal delete enforcement), check:quick, check:rust, and complete Stage 9 product differential passed for all backtest write routes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-brokers-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-brokers-write.mjs",
+      "evidence": "The 65-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable ExecutionOrderTestCutoverStore contracts (execution-orders v5 schema validation, single-writer lease, atomic CAS cancel, and journaled events), check:quick, check:rust, and complete Stage 9 product differential passed for all broker write routes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-execution-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-execution-write.mjs",
+      "evidence": "The 57-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable ExecutionOrderTestCutoverStore contracts (execution-orders v5 schema validation, writer lease, combo/order placing and atomic CAS cancel), check:quick, check:rust, and complete Stage 9 product differential passed for all seven execution mutation routes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-watchlist-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-watchlist-write.mjs",
+      "evidence": "The Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable WatchlistTestCutoverStore contracts (watchlist v1 schema validation, writer lease, revision fencing, and import preview/commit lifecycle), check:quick, check:rust, and complete Stage 9 product differential passed for all eight local watchlist mutation routes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-system-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-system-write.mjs",
+      "evidence": "The 47-case/68-request Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, and full Stage 9 product differential passed for all seven system control mutations. Evidence covers private Bearer/internal protocol fencing, browser Cookie/Origin/Referer/CSRF forwarding, exact method/path/body projection, validation precedence, unavailable and 409 owner-failure recovery, timeout, cancellation, Rust crash fail-closed behavior, repeated mutation forwarding, safe Go rollback and restart through validation before the real owner, explicit test-cutover registration, default-profile isolation, and unchanged settings bytes. Rust uses only an injected SystemWritePort; the rehearsal does not connect OpenD, invoke a real-trade control, persist risk or broker state, publish notifications/tasks, or dispatch a second Go/Rust mutation. This historical group remained cutover-test-only with Go as the owner during rehearsal; durable real-trade control-plane transactions, idempotency, cancellation/restart recovery, real OpenD qualification, release, security, backup/restore and hard-cut evidence remain open. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-strategies-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-strategies-write.mjs",
+      "evidence": "The 35-case/36-request Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable StrategyRuntimeTestCutoverStore contracts (strategy v2 schema validation, writer lease, observations, catalog operations, and audit events), check:quick, check:rust, and full Stage 9 product differential passed for all seven strategy runtime mutations. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-strategy-definitions-write-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite store and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-strategy-definitions-write.mjs",
+      "evidence": "The 20-case Go reference fixture, Rust leaf replay, authenticated Go loopback rehearsal, Rust product replay, durable StrategyDefinitionTestCutoverStore contracts (strategy v2 schema validation, immutable versions trigger, soft deletion, and writer lease), check:quick, check:rust, and full Stage 9 product differential passed for all five strategy definition mutations. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-adk-mutations-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, durable SQLite stores (adk v4, adk-session v4, adk-artifact v1) and authenticated Go loopback rehearsal",
+      "command": "node scripts/rust-migration/check-stage9-adk-mutations.mjs",
+      "evidence": "The 40-case Go reference fixture, Rust leaf replay, authenticated owner-fencing rehearsal, Rust product replay, durable AdkTestCutoverStore, AdkSessionTestCutoverStore, and AdkArtifactTestCutoverStore contracts, full Stage 9 product differential, check:quick, and check:rust passed for all 37 ADK mutation/control routes. This is historical cutover-qualified rehearsal evidence; Go was the owner during that rehearsal. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "stage9-ws-live-authenticated-rust-product",
+      "status": "passed",
+      "scope": "local-only Rust explicit test-cutover profile, Go/Rust fixture replay, WebSocket product transport replay, and full Stage 9 product differential",
+      "command": "node scripts/rust-migration/check-stage9-ws-live.mjs",
+      "evidence": "The complete Go WebSocket corpus, Rust leaf replay, API transport contract, explicit product test-cutover route, and full Stage 9 product differential passed for GET /api/v1/ws/live. Evidence covers 101 handshake, event ordering/normalization, Origin plain-text rejection, connection-limit 503, unavailable-route plain-text response, subscription permit release, disconnect/reconnect, authenticated Go rehearsal, default-profile isolation, and unchanged settings bytes. Rust still uses only ephemeral connection metrics and an injected test-cutover gate; it does not own Provider/OpenD demand, notification replay, market ticks/depth, durable subscriptions, production WebSocket clients, or user-visible state. This historical group remained cutover-test-only with Go as the owner during rehearsal; generated swagger setup, real-provider recovery, release, security, backup/restore, and hard-cut evidence remain open. The current route ledger records Rust as production owner."
+    },
+    {
+      "id": "published-last-go-release-baseline",
+      "status": "passed",
+      "scope": "published v0.27.0 release bytes; immutable upgrade baseline for 0.29.0",
+      "command": "gh api repos/Dennishaha/JFTrade/releases/tags/v0.27.0 && curl --fail --location https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/SHA256SUMS",
+      "evidence": "tests/fixtures/rust-migration/stage9/last-go-release-baseline.json records v0.27.0, lightweight tag v0.27.0, commit 452dea115ca75c51361e8876c2aefd7c009839b8, publication time, release/package URLs and official SHA256SUMS values. No tag or detached release signature was published and the macOS/Windows package names are explicitly unsigned. The baseline must use the published bytes as-is; rebuilding it or regenerating a final Go corpus is prohibited."
+    },
+    {
+      "id": "zero-go-source-and-release-gate",
+      "status": "passed",
+      "scope": "tracked source tree plus Tauri bundle, candidate artifact and SBOM release admission",
+      "command": "pnpm run check:zero-go",
+      "evidence": "Passed on 2026-09-02 for the tracked repository: no Go source/module/work files, Go commands/setup-go, Go API/Wails production entrypoints or tracked Go executables remain. The same scanner is wired into Tauri bundle verification, release candidate inputs and SBOM/provenance checks; actual 0.29.0 installers remain subject to the open four-platform release gate."
+    }
+  ],
+  "gates": {
+    "allRouteGroups": {
+      "status": "passed",
+      "owner": "Rust",
+      "evidence": [
+        "All 278 operations across all capabilities (watchlist, strategy-definitions, strategies, backtests, brokers, execution, adk, market-data, settings, system, ws) are cutover-qualified with durable SQLite and settings file stores, zero remaining operations, and Rust as production owner."
+      ]
+    },
+    "uniqueWriteOwner": {
+      "status": "passed",
+      "owner": "Rust",
+      "evidence": [
+        "All 9 SQLite managed schemas (backtest, backtest-runs, strategy, execution-orders, adk, adk-session, adk-artifact, watchlist, research) and settings-file store have durable implementations with single-writer owner locks (.jftrade-owner.lock) in jftrade-store-sqlite and jftrade-store-settings-file, with Rust as the sole write owner."
+      ]
+    },
+    "platformRelease": {
+      "status": "open",
+      "evidence": [
+        "The release workflow builds Tauri artifacts; four-platform release qualification is not recorded here."
+      ],
+      "platforms": {
+        "macos-arm64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "Local Tauri smoke is recorded above, but the machine has no full Xcode and no signing identity; no signed installer/upgrade/rollback evidence is available."
+          ]
+        },
+        "linux-x64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Tauri Linux release package and native install/upgrade/rollback observation are recorded."
+          ]
+        },
+        "windows-x64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Windows x64 Tauri signed installer and native lifecycle evidence are recorded."
+          ]
+        },
+        "windows-arm64": {
+          "package": "open",
+          "signed": "open",
+          "install": "open",
+          "upgrade": "open",
+          "uninstall": "open",
+          "rollback": "open",
+          "runtimeSmoke": "open",
+          "evidence": [
+            "No Windows ARM64 Tauri signed installer and native lifecycle evidence are recorded."
+          ]
+        }
+      }
+    },
+    "signedUpdaterArtifact": {
+      "status": "open",
+      "next": "Generate and verify a real signed Tauri updater artifact and feed on the release signing workflow.",
+      "evidence": [
+        "NativeUpdaterConfig enforces strict HTTPS endpoint validation without credentials and required public key pairing in apps/desktop/src-tauri; update_check and update_install lifecycle contracts are verified with process cleanup before upgrade.",
+        "Production signed updater artifact feed and release workflow qualification remain open."
+      ]
+    },
+    "securityReview": {
+      "status": "open",
+      "next": "Complete independent security review of ownership, updater, credentials, listeners, recovery and release permissions.",
+      "evidence": [
+        "Workspace policy enforces #![forbid(unsafe_code)] across all Rust crates; cargo-deny verifies zero advisories, allowed licenses, and clean source closures; authenticated loopback access policy and single-writer owner locks protect all state mutations.",
+        "Formal independent release security sign-off remains open."
+      ]
+    },
+    "sbom": {
+      "status": "open",
+      "next": "Attach SBOM and provenance for the exact Tauri artifacts that pass the release matrix.",
+      "evidence": [
+        "Cargo dependency closure and license compliance are verified via cargo-deny check; exact Tauri release artifact SBOM and provenance generation remain open for CI release pipeline."
+      ]
+    },
+    "hardCutReadiness": {
+      "status": "open",
+      "next": "Close every release-safety prerequisite and re-run the hard-cut readiness review before creating the 0.29.0 tag.",
+      "evidence": [
+        "All 278 baseline operations are route-qualified under the Rust composition, but platform release, signed updater, security, SBOM, rollback, backup/restore and post-release smoke prerequisites remain open; hard-cut readiness is therefore not complete."
+      ]
+    },
+    "rollbackArtifact": {
+      "status": "open",
+      "next": "Verify the immediately preceding signed installer, updater metadata and rollback instructions on all four platforms before hard cut.",
+      "evidence": [
+        "No four-platform signed rollback artifact rehearsal is recorded."
+      ]
+    },
+    "backupRestoreDrill": {
+      "status": "open",
+      "next": "Exercise backup, upgrade, corruption recovery, rollback and retained worker crash recovery on every target using copies of real prior-version data.",
+      "evidence": [
+        "jftrade-datamanagement OverviewService and MaintenanceService verify backup, rebuild, vacuum, and cleanup operations across all 9 SQLite databases and settings; full multi-platform live data recovery drill remains open."
+      ]
+    },
+    "postReleaseSmoke": {
+      "status": "open",
+      "next": "Run the fixed post-release smoke immediately after publishing the hard-cut artifacts and attach results for every platform.",
+      "evidence": [
+        "No Rust/Tauri hard-cut release exists, so post-release smoke evidence cannot yet exist."
+      ]
+    }
+  },
+  "ownerDeletion": {
+    "go": {
+      "status": "passed",
+      "entryStatus": "removed",
+      "conditions": [
+        "All route groups and production handlers have moved to Rust.",
+        "Rust is the unique production write owner for product state, SQLite, Provider, trading, Assistant and listeners.",
+        "The tracked source tree and active build graph contain no Go source, module, generator or production entrypoint."
+      ],
+      "evidence": [
+        "The route ledger records all 278 operations with Rust as production owner and Go removal complete; check:zero-go proves the tracked Go source, module, generator and production entrypoint are removed. Release-safety qualification remains independently open."
+      ]
+    },
+    "wails": {
+      "status": "passed",
+      "entryStatus": "removed",
+      "conditions": [
+        "Tauri is the only production desktop composition and launcher.",
+        "The tracked source tree and active build graph contain no Wails production entrypoint or runtime dependency.",
+        "Release bundle and candidate admission execute the zero-Go/Wails artifact scanner."
+      ],
+      "evidence": [
+        "The Wails production entrypoint and build assets are removed, Tauri is the active desktop composition, and check:zero-go plus release artifact scanners prevent Wails runtime or product artifacts from returning. Four-platform release, updater, rollback and post-release qualification remain independently open."
+      ]
+    }
+  }
+}

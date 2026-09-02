@@ -1,0 +1,99 @@
+{
+  "eventLimit": 2,
+  "slowThresholdMs": 10,
+  "minimumImportance": "low",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/slow",
+      "status": 200,
+      "latencyMs": 10,
+      "requestId": "request-1"
+    },
+    {
+      "method": "POST",
+      "path": "/failure",
+      "status": 503,
+      "latencyMs": 15,
+      "requestId": "request-2"
+    },
+    {
+      "method": "GET",
+      "path": "/fast-failure",
+      "status": 500,
+      "latencyMs": 0,
+      "requestId": "request-3"
+    }
+  ],
+  "openDCalls": [
+    {
+      "operation": "proto_3006",
+      "requestId": "request-1"
+    },
+    {
+      "operation": "proto_3007",
+      "requestId": "request-2",
+      "error": "quote permission denied"
+    }
+  ],
+  "expected": {
+    "recentErrors": [
+      {
+        "level": "error",
+        "importance": "high",
+        "message": "api request failed",
+        "error": "HTTP 500",
+        "method": "GET",
+        "path": "/fast-failure",
+        "status": 500,
+        "requestId": "request-3",
+        "source": "api"
+      },
+      {
+        "level": "error",
+        "importance": "high",
+        "message": "api request failed",
+        "error": "HTTP 503",
+        "method": "POST",
+        "path": "/failure",
+        "status": 503,
+        "latencyMs": 15,
+        "requestId": "request-2",
+        "source": "api"
+      }
+    ],
+    "recentSlowRequests": [
+      {
+        "level": "info",
+        "importance": "low",
+        "message": "api request",
+        "method": "POST",
+        "path": "/failure",
+        "status": 503,
+        "latencyMs": 15,
+        "requestId": "request-2",
+        "source": "api"
+      },
+      {
+        "level": "info",
+        "importance": "low",
+        "message": "api request",
+        "method": "GET",
+        "path": "/slow",
+        "status": 200,
+        "latencyMs": 10,
+        "requestId": "request-1",
+        "source": "api"
+      }
+    ],
+    "openD": {
+      "totalCalls": 2,
+      "failedCalls": 1,
+      "lastError": "quote permission denied",
+      "lastOperation": "proto_3007",
+      "lastRequestId": "request-2"
+    },
+    "slowThresholdMs": 10,
+    "minimumImportance": "low"
+  }
+}

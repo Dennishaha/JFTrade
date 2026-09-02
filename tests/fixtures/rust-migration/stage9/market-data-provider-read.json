@@ -1,0 +1,219 @@
+{
+  "version": "stage9.market-data-provider-read.v1",
+  "cases": [
+    {
+      "name": "provider-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/provider",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "descriptor": {
+          "brokerId": "futu",
+          "capabilities": {
+            "candleIntervals": [
+              "1m",
+              "1d"
+            ],
+            "extendedHours": true,
+            "historicalCandles": true,
+            "historicalLookbackDays": {
+              "1d": 3650
+            },
+            "instrumentSearch": true,
+            "orderBookDepth": true,
+            "orderBookLevels": [
+              5,
+              10
+            ],
+            "priceAdjustments": [
+              "none"
+            ],
+            "sessions": [
+              "regular",
+              "extended"
+            ],
+            "snapshots": true,
+            "streamingCandles": true,
+            "streamingDepth": true,
+            "streamingQuotes": true,
+            "tickCandles": true
+          },
+          "constraints": {
+            "requiresMarketDataRight": true,
+            "requiresOpenD": true,
+            "usesSubscriptionQuota": true
+          },
+          "defaultMarket": "HK",
+          "displayName": "Futu OpenD",
+          "notes": [
+            "fixture provider"
+          ],
+          "providerId": "futu-opend",
+          "selectionId": "futu",
+          "source": "bbgo:futu",
+          "supportedMarkets": [
+            "HK",
+            "US"
+          ],
+          "transports": [
+            "opend"
+          ]
+        },
+        "health": {
+          "activeCount": 0,
+          "connected": true,
+          "readiness": "ready",
+          "streamMode": "push-stream"
+        },
+        "runtime": {
+          "ActiveCount": 0,
+          "Closed": false,
+          "Connected": false,
+          "Generation": 0,
+          "LastRefreshAt": "0001-01-01T00:00:00Z",
+          "QuoteFailures": 0,
+          "QuoteLastError": "",
+          "QuoteRetryAt": "0001-01-01T00:00:00Z",
+          "StreamFailures": 0,
+          "StreamLastError": "",
+          "StreamRetryAt": "0001-01-01T00:00:00Z"
+        },
+        "subscriptions": {
+          "brokerState": {
+            "desiredCount": 0,
+            "entries": [],
+            "ownActiveCount": 0,
+            "pendingReleaseCount": 0,
+            "remainQuota": null,
+            "totalUsedQuota": null
+          },
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "quota": {
+            "byMarket": [],
+            "totalLimit": null,
+            "totalRemaining": null,
+            "totalUsed": 0
+          },
+          "remainQuota": null,
+          "totalActiveSubscriptions": 0,
+          "totalUsedQuota": null
+        }
+      }
+    },
+    {
+      "name": "provider-degraded",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/provider?fixture=degraded",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "descriptor": {
+          "brokerId": "futu",
+          "capabilities": {
+            "candleIntervals": [
+              "1m",
+              "1d"
+            ],
+            "extendedHours": true,
+            "historicalCandles": true,
+            "historicalLookbackDays": {
+              "1d": 3650
+            },
+            "instrumentSearch": true,
+            "orderBookDepth": true,
+            "orderBookLevels": [
+              5,
+              10
+            ],
+            "priceAdjustments": [
+              "none"
+            ],
+            "sessions": [
+              "regular",
+              "extended"
+            ],
+            "snapshots": true,
+            "streamingCandles": true,
+            "streamingDepth": true,
+            "streamingQuotes": true,
+            "tickCandles": true
+          },
+          "constraints": {
+            "requiresMarketDataRight": true,
+            "requiresOpenD": true,
+            "usesSubscriptionQuota": true
+          },
+          "defaultMarket": "HK",
+          "displayName": "Futu OpenD",
+          "notes": [
+            "fixture provider"
+          ],
+          "providerId": "futu-opend",
+          "selectionId": "futu",
+          "source": "bbgo:futu",
+          "supportedMarkets": [
+            "HK",
+            "US"
+          ],
+          "transports": [
+            "opend"
+          ]
+        },
+        "health": {
+          "activeCount": 0,
+          "connected": false,
+          "lastError": "provider warming",
+          "streamMode": "idle"
+        },
+        "runtime": {
+          "ActiveCount": 0,
+          "Closed": false,
+          "Connected": false,
+          "Generation": 0,
+          "LastRefreshAt": "0001-01-01T00:00:00Z",
+          "QuoteFailures": 0,
+          "QuoteLastError": "",
+          "QuoteRetryAt": "0001-01-01T00:00:00Z",
+          "StreamFailures": 0,
+          "StreamLastError": "",
+          "StreamRetryAt": "0001-01-01T00:00:00Z"
+        },
+        "subscriptions": {
+          "brokerState": {
+            "desiredCount": 0,
+            "entries": [],
+            "ownActiveCount": 0,
+            "pendingReleaseCount": 0,
+            "remainQuota": null,
+            "totalUsedQuota": null
+          },
+          "desiredCount": 0,
+          "entries": [],
+          "ownActiveCount": 0,
+          "pendingReleaseCount": 0,
+          "quota": {
+            "byMarket": [],
+            "totalLimit": null,
+            "totalRemaining": null,
+            "totalUsed": 0
+          },
+          "remainQuota": null,
+          "totalActiveSubscriptions": 0,
+          "totalUsedQuota": null
+        }
+      }
+    },
+    {
+      "name": "provider-failed",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/provider?fixture=error",
+      "expectedStatus": 502,
+      "errorCode": "MARKET_DATA_PROVIDER_FAILED",
+      "errorMessage": "provider unavailable"
+    }
+  ]
+}

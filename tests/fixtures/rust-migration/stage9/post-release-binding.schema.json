@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/post-release-binding.v1.json",
+  "title": "JFTrade published release binding",
+  "description": "Immutable provenance shared by every independently observed post-release smoke report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseTag",
+    "releaseRef",
+    "commitSha",
+    "releaseRun",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "jftrade.post-release-binding.v1" },
+    "releaseTag": {
+      "type": "string",
+      "pattern": "^v\\d+\\.\\d+\\.\\d+$"
+    },
+    "releaseRef": {
+      "type": "string",
+      "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$"
+    },
+    "commitSha": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+    },
+    "releaseRun": { "$ref": "#/$defs/releaseRun" },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "$defs": {
+    "releaseRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "attempt", "workflow", "ref", "commitSha"],
+      "properties": {
+        "id": { "$ref": "#/$defs/safePositiveInteger" },
+        "attempt": { "$ref": "#/$defs/safePositiveInteger" },
+        "workflow": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "pattern": "^refs/tags/v\\d+\\.\\d+\\.\\d+$" },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+        },
+        "url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+        },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "safePositiveInteger": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        {
+          "type": "string",
+          "pattern": "^(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[0-1][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]{1}|9007199254740990|9007199254740991)$"
+        }
+      ]
+    }
+  }
+}

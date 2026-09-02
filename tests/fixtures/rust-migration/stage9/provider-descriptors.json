@@ -1,0 +1,108 @@
+[
+  {
+    "selectionId": "futu",
+    "providerId": "futu-opend",
+    "displayName": "Futu OpenD",
+    "brokerId": "futu",
+    "source": "bbgo:futu",
+    "defaultMarket": "HK",
+    "supportedMarkets": ["HK", "US", "CN", "SH", "SZ"],
+    "transports": ["opend-tcp", "push-stream", "snapshot-poll-fallback"],
+    "capabilities": {
+      "snapshots": true,
+      "streamingQuotes": true,
+      "streamingCandles": true,
+      "streamingDepth": true,
+      "historicalCandles": true,
+      "tickCandles": true,
+      "orderBookDepth": true,
+      "instrumentSearch": true,
+      "extendedHours": true,
+      "candleIntervals": ["tick", "1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+      "orderBookLevels": [1, 5, 10, 25, 50],
+      "sessions": ["RTH", "ETH", "ALL", "OVERNIGHT"],
+      "priceAdjustments": ["none", "forward", "backward"]
+    },
+    "constraints": {
+      "requiresOpenD": true,
+      "requiresMarketDataRight": true,
+      "usesSubscriptionQuota": true
+    },
+    "notes": [
+      "Futu-first provider; data entitlement and subscription quota are enforced by Futu OpenD.",
+      "Historical candles and real-time pushes can diverge during extended sessions; UI surfaces observed timestamps and transport mode."
+    ]
+  },
+  {
+    "selectionId": "yfinance",
+    "providerId": "yahoo-finance",
+    "displayName": "Yahoo Finance (yfinance)",
+    "brokerId": "yfinance",
+    "source": "yfinance",
+    "defaultMarket": "US",
+    "supportedMarkets": ["US", "HK", "SH", "SZ"],
+    "transports": ["http-poll"],
+    "capabilities": {
+      "snapshots": true,
+      "streamingQuotes": false,
+      "streamingCandles": false,
+      "streamingDepth": false,
+      "historicalCandles": true,
+      "tickCandles": false,
+      "orderBookDepth": false,
+      "instrumentSearch": true,
+      "extendedHours": true,
+      "candleIntervals": ["1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+      "orderBookLevels": null,
+      "sessions": ["regular", "pre", "after", "closed"],
+      "priceAdjustments": ["none", "forward"],
+      "historicalLookbackDays": {"15m": 60, "1h": 730, "1m": 7, "30m": 60, "5m": 60}
+    },
+    "constraints": {
+      "requiresOpenD": false,
+      "requiresMarketDataRight": false,
+      "usesSubscriptionQuota": false
+    },
+    "notes": [
+      "Quotes may be delayed by 15 minutes under Yahoo Finance's free data access.",
+      "US, HK, SH, and SZ snapshots and historical candles are available through delayed HTTP polling.",
+      "Order book depth, streaming quotes, and trading are unavailable; Yahoo does not provide a dependable overnight session."
+    ]
+  },
+  {
+    "selectionId": "akshare",
+    "providerId": "akshare",
+    "displayName": "AKShare",
+    "brokerId": "akshare",
+    "source": "akshare",
+    "defaultMarket": "US",
+    "supportedMarkets": ["US", "HK", "SH", "SZ"],
+    "transports": ["http-poll"],
+    "capabilities": {
+      "snapshots": true,
+      "streamingQuotes": false,
+      "streamingCandles": false,
+      "streamingDepth": false,
+      "historicalCandles": true,
+      "tickCandles": false,
+      "orderBookDepth": false,
+      "instrumentSearch": true,
+      "extendedHours": false,
+      "candleIntervals": ["1m", "5m", "15m", "30m", "1h", "1d", "1w", "1mo"],
+      "orderBookLevels": null,
+      "sessions": ["regular", "closed"],
+      "priceAdjustments": ["none", "forward", "backward"],
+      "historicalLookbackDays": {"1m": 5, "US:15m": 5, "US:1h": 5, "US:30m": 5, "US:5m": 5}
+    },
+    "constraints": {
+      "requiresOpenD": false,
+      "requiresMarketDataRight": false,
+      "usesSubscriptionQuota": false
+    },
+    "notes": [
+      "Quotes are best-effort and may be delayed by the upstream public data source.",
+      "US, HK, SH, and SZ securities and historical candles are available through HTTP polling.",
+      "Streaming quotes, order book depth, extended hours, and trading are unavailable."
+    ]
+  }
+]

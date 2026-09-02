@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package jftrade.strategy.pineworker.v1;
+
+import "proto/pineworker/pineworker_common.proto";
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool ok = 1;
+  string worker_id = 2;
+  string version = 3;
+  string pinets_version = 4;
+  repeated string capabilities = 5;
+}
+
+message AnalyzeScriptRequest {
+  string job_id = 1;
+  string script_id = 2;
+  string source = 3;
+  map<string, string> params = 4;
+}
+
+message AnalyzeScriptResponse {
+  string job_id = 1;
+  bool ok = 2;
+  repeated Diagnostic diagnostics = 3;
+  repeated string inputs = 4;
+  repeated string plots = 5;
+  map<string, string> strategy_config = 6;
+  WorkerMetadata metadata = 7;
+  string error = 8;
+}
+
+message RunScriptRequest {
+  string job_id = 1;
+  string script_id = 2;
+  string source = 3;
+  string symbol = 4;
+  string timeframe = 5;
+  string mode = 6;
+  CandleBatch candles = 7;
+  map<string, string> params = 8;
+  bool include_plots = 9;
+  // Live sessions retain PineTS state inside one worker. open carries the
+  // complete warmup history, append carries only newly closed candles, and
+  // close releases the state. Empty means a traditional stateless run.
+  string session_id = 10;
+  string session_operation = 11;
+  uint64 expected_revision = 12;
+  string chart_type = 13;
+}
+
+message RunScriptResponse {
+  string job_id = 1;
+  repeated PlotOutput plots = 2;
+  repeated OrderIntent order_intents = 3;
+  repeated string logs = 4;
+  repeated string warnings = 5;
+  repeated Diagnostic diagnostics = 6;
+  WorkerMetadata metadata = 7;
+  string error = 8;
+  repeated AlertEvent alerts = 9;
+  repeated VisualOutput visual_outputs = 10;
+  StrategyMetrics strategy_metrics = 11;
+  string session_id = 12;
+  uint64 session_revision = 13;
+}

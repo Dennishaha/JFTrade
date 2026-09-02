@@ -1,0 +1,1363 @@
+{
+  "version": "stage9.auth-session-write.v1",
+  "cases": [
+    {
+      "name": "login-success",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "set-cookie": "jftrade_web_session=fixture-session-token; Path=/; Expires=Sat, 22 Aug 2026 16:00:00 GMT; Max-Age=43200; HttpOnly; SameSite=Strict",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after"
+          ],
+          "envelope": {
+            "data": {
+              "authenticated": true,
+              "csrfToken": "fixture-csrf-token",
+              "expiresAt": "fixture-time"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ]
+    },
+    {
+      "name": "login-empty-password",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        }
+      ]
+    },
+    {
+      "name": "login-invalid-json",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 400,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "BAD_REQUEST",
+              "message": "invalid login payload"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-null-and-trailing-json",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "null",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"} {\"ignored\":true}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 200,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "set-cookie": "jftrade_web_session=fixture-session-token; Path=/; Expires=Sat, 22 Aug 2026 16:00:00 GMT; Max-Age=43200; HttpOnly; SameSite=Strict",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after"
+          ],
+          "envelope": {
+            "data": {
+              "authenticated": true,
+              "csrfToken": "fixture-csrf-token",
+              "expiresAt": "fixture-time"
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ]
+    },
+    {
+      "name": "login-origin-forbidden",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://forbidden.example.test"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": false,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 403,
+          "responseHeaders": {
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "access-control-allow-credentials",
+            "access-control-allow-origin",
+            "retry-after",
+            "set-cookie",
+            "vary"
+          ],
+          "envelope": {
+            "error": {
+              "code": "ORIGIN_FORBIDDEN",
+              "message": "request origin is not allowed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-disabled-precedes-payload",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": false,
+            "webAuthAvailable": false
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 403,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "WEB_ACCESS_DISABLED",
+              "message": "Web access is disabled; enable it in the desktop settings"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-unavailable-precedes-payload",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": false
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 503,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "WEB_AUTH_UNAVAILABLE",
+              "message": "Web password authentication is unavailable"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-trusted-desktop-bypasses-payload",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "not-json",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": true,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": false,
+            "webAuthAvailable": false
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "data": {
+              "authenticated": true,
+              "csrfToken": ""
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-rate-limit-after-eight-failures",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"wrong-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "INVALID_PASSWORD",
+              "message": "invalid Web access password"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "invalid-password"
+        },
+        {
+          "status": 429,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "retry-after": "300",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "LOGIN_RATE_LIMITED",
+              "message": "too many failed login attempts"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "login-canceled",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 408,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "REQUEST_CANCELED",
+              "message": "login request was canceled"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "canceled"
+        }
+      ]
+    },
+    {
+      "name": "login-configuration-changed",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 409,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "WEB_AUTH_CONFIGURATION_CHANGED",
+              "message": "Web access settings changed during login; try again"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "configuration-changed"
+        }
+      ]
+    },
+    {
+      "name": "login-session-creation-failed",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": "{\"password\":\"stage9-auth-session-write-password\"}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Origin": "https://fixture.jftrade.local"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 500,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "WEB_AUTH_FAILED",
+              "message": "failed to create session"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true,
+          "portError": "failed"
+        }
+      ]
+    },
+    {
+      "name": "logout-browser-ignores-malformed-body",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "not-json",
+          "headers": {
+            "Cookie": "jftrade_web_session=fixture-session-token",
+            "Origin": "https://fixture.jftrade.local",
+            "X-CSRF-Token": "fixture-csrf-token"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": true,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": true,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "set-cookie": "jftrade_web_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0; HttpOnly; SameSite=Strict",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "retry-after"
+          ],
+          "envelope": {
+            "data": {
+              "authenticated": false
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ]
+    },
+    {
+      "name": "logout-unauthenticated",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": false,
+            "originProvided": false,
+            "originAllowed": false,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 401,
+          "responseHeaders": {
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-expose-headers": "X-Request-ID",
+            "content-type": "application/json; charset=utf-8",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "access-control-allow-credentials",
+            "access-control-allow-origin",
+            "cache-control",
+            "retry-after",
+            "set-cookie",
+            "vary"
+          ],
+          "envelope": {
+            "error": {
+              "code": "WEB_AUTH_REQUIRED",
+              "message": "Web password authentication is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "logout-browser-requires-origin",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "",
+          "headers": {
+            "Content-Type": "application/json",
+            "Cookie": "jftrade_web_session=fixture-session-token",
+            "X-CSRF-Token": "fixture-csrf-token"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": true,
+            "originProvided": false,
+            "originAllowed": false,
+            "csrfValid": true,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 403,
+          "responseHeaders": {
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-expose-headers": "X-Request-ID",
+            "content-type": "application/json; charset=utf-8",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "access-control-allow-credentials",
+            "access-control-allow-origin",
+            "cache-control",
+            "retry-after",
+            "set-cookie",
+            "vary"
+          ],
+          "envelope": {
+            "error": {
+              "code": "ORIGIN_FORBIDDEN",
+              "message": "write request origin is not allowed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "logout-browser-rejects-invalid-csrf",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "",
+          "headers": {
+            "Content-Type": "application/json",
+            "Cookie": "jftrade_web_session=fixture-session-token",
+            "Origin": "https://fixture.jftrade.local",
+            "X-CSRF-Token": "wrong-csrf-token"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": true,
+            "originProvided": true,
+            "originAllowed": true,
+            "csrfValid": false,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 403,
+          "responseHeaders": {
+            "access-control-allow-credentials": "true",
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-allow-origin": "https://fixture.jftrade.local",
+            "access-control-expose-headers": "X-Request-ID",
+            "content-type": "application/json; charset=utf-8",
+            "vary": "Origin",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "cache-control",
+            "retry-after",
+            "set-cookie"
+          ],
+          "envelope": {
+            "error": {
+              "code": "CSRF_FAILED",
+              "message": "valid CSRF token is required"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "logout-origin-forbidden-precedes-session",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "",
+          "headers": {
+            "Content-Type": "application/json",
+            "Cookie": "jftrade_web_session=fixture-session-token",
+            "Origin": "https://forbidden.example.test",
+            "X-CSRF-Token": "fixture-csrf-token"
+          },
+          "requestContext": {
+            "desktopTrusted": false,
+            "browserAuthenticated": true,
+            "originProvided": true,
+            "originAllowed": false,
+            "csrfValid": true,
+            "webAccessEnabled": true,
+            "webAuthAvailable": true
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 403,
+          "responseHeaders": {
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-expose-headers": "X-Request-ID",
+            "content-type": "application/json; charset=utf-8",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "access-control-allow-credentials",
+            "access-control-allow-origin",
+            "cache-control",
+            "retry-after",
+            "set-cookie",
+            "vary"
+          ],
+          "envelope": {
+            "error": {
+              "code": "ORIGIN_FORBIDDEN",
+              "message": "request origin is not allowed"
+            },
+            "ok": false,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": false
+        }
+      ]
+    },
+    {
+      "name": "logout-trusted-desktop-bypasses-csrf",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "body": "",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "requestContext": {
+            "desktopTrusted": true,
+            "browserAuthenticated": false,
+            "originProvided": false,
+            "originAllowed": false,
+            "csrfValid": false,
+            "webAccessEnabled": false,
+            "webAuthAvailable": false
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": 200,
+          "responseHeaders": {
+            "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+            "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "access-control-expose-headers": "X-Request-ID",
+            "cache-control": "no-store",
+            "content-type": "application/json; charset=utf-8",
+            "set-cookie": "jftrade_web_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0; HttpOnly; SameSite=Strict",
+            "x-request-id": "fixture-auth-session-write-id"
+          },
+          "absentHeaders": [
+            "access-control-allow-credentials",
+            "access-control-allow-origin",
+            "retry-after",
+            "vary"
+          ],
+          "envelope": {
+            "data": {
+              "authenticated": false
+            },
+            "ok": true,
+            "timestamp": "2026-08-22T04:00:00Z"
+          },
+          "portCall": true
+        }
+      ]
+    }
+  ]
+}

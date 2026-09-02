@@ -1,0 +1,1070 @@
+name: Desktop Release Qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      qualification_mode:
+        description: Produce an unsigned rehearsal receipt or a formal signed candidate
+        required: true
+        default: rehearsal
+        type: choice
+        options:
+          - rehearsal
+          - candidate
+      candidate_ref:
+        description: Exact candidate branch ref shared by all source and evidence runs
+        required: true
+        default: refs/heads/release/0.29.0-candidate
+        type: string
+      planned_release_tag:
+        description: Planned vX.Y.Z tag; qualification does not require it to exist
+        required: true
+        default: v0.29.0
+        type: string
+      source_run_id:
+        description: Successful Desktop Release run containing the four platform package artifacts
+        required: true
+        type: string
+      source_run_attempt:
+        description: Attempt of the source Desktop Release dry-run
+        required: false
+        default: "1"
+        type: string
+      evidence_run_id:
+        description: Successful signing/evidence workflow run containing externally produced updater, SBOM, rollback, backup and security evidence
+        required: true
+        type: string
+      evidence_run_attempt:
+        description: Attempt of the external signing/evidence workflow run
+        required: true
+        type: string
+      evidence_workflow:
+        description: Workflow filename that produced the external evidence artifact
+        required: true
+        type: string
+      evidence_artifact:
+        description: Exact producer binding artifact containing release-evidence-inputs.json and payload-bound prerequisite files
+        required: true
+        type: string
+      evidence_manifest:
+        description: Relative manifest path inside evidence_artifact
+        required: false
+        default: release-evidence-inputs.json
+        type: string
+
+permissions: {}
+
+jobs:
+  qualify:
+    name: Build artifact-bound candidate evidence
+    if: inputs.qualification_mode == 'candidate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Verify source release run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          SOURCE_RUN_ID="$(safe_positive_integer "$SOURCE_RUN_ID" source_run_id)"
+          SOURCE_RUN_ATTEMPT="$(safe_positive_integer "$SOURCE_RUN_ATTEMPT" source_run_attempt)"
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release_ref must be a vX.Y.Z tag" >&2; exit 1; }
+          [[ "$CANDIDATE_REF" =~ ^refs/heads/[A-Za-z0-9._/-]+$ && "$CANDIDATE_REF" != *".."* ]] || { echo "candidate_ref is unsafe" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || {
+            echo "Qualification must be dispatched from candidate_ref; selected ref is $GITHUB_REF" >&2
+            exit 1
+          }
+          commit_sha="$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" == "$commit_sha" ]] || { echo "qualification GITHUB_SHA does not match the candidate commit" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          candidate_branch="${CANDIDATE_REF#refs/heads/}"
+          jq -e \
+            --arg sha "$commit_sha" \
+            --arg branch "$candidate_branch" \
+            --arg attempt "$SOURCE_RUN_ATTEMPT" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt | safe_integer_equals($attempt)) and (.path == ".github/workflows/desktop-release.yml" or .path == "desktop-release.yml")' \
+            <<<"$run_json" >/dev/null || {
+            echo "source run is not a successful Desktop Release run bound to $CANDIDATE_REF@$commit_sha attempt $SOURCE_RUN_ATTEMPT" >&2
+            exit 1
+          }
+          source_artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          jq -e --arg run_id "$SOURCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") and ((.id | safe_positive_integer_text) != null) and (.expired == false) and (.workflow_run.id | safe_integer_equals($run_id)) and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"])' \
+            <<<"$source_artifacts_json" >/dev/null || {
+            echo "source release artifacts are missing, expired, ambiguous, or lack API digests" >&2
+            exit 1
+          }
+          jq -e --arg run_id "$SOURCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") and ((.id | safe_positive_integer_text) != null) and (.expired == false) and (.workflow_run.id | safe_integer_equals($run_id)) and ((.digest|type) == "string") and (.digest|test("^sha256:[0-9a-f]{64}$")))] | select(length == 4) | select([.[].name] | sort == ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"])' \
+            <<<"$source_artifacts_json" >/dev/null || {
+            echo "source updater artifacts are missing, expired, ambiguous, or lack API digests" >&2
+            exit 1
+          }
+          jq -c --arg run_id "$SOURCE_RUN_ID" --argjson run_attempt "$SOURCE_RUN_ATTEMPT" \
+            --arg ref "$CANDIDATE_REF" --arg commit_sha "$commit_sha" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; {releaseArtifacts: [.artifacts[] | select(.name == "desktop-release-macos" or .name == "desktop-release-linux" or .name == "desktop-release-windows" or .name == "desktop-release-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name), updaterArtifacts: [.artifacts[] | select(.name == "desktop-release-updater-macos" or .name == "desktop-release-updater-linux" or .name == "desktop-release-updater-windows" or .name == "desktop-release-updater-windows-arm64") | select((.id | safe_positive_integer_text) != null) | select(.workflow_run.id | safe_integer_equals($run_id)) | {name, id, digest, expired, runId: .workflow_run.id, runAttempt: $run_attempt, workflow: "desktop-release.yml", ref: $ref, commitSha: $commit_sha}] | sort_by(.name)}' \
+            <<<"$source_artifacts_json" > source-artifact-metadata.json
+
+      - name: Verify external release evidence run provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          EVIDENCE_RUN_ID="$(safe_positive_integer "$EVIDENCE_RUN_ID" evidence_run_id)"
+          EVIDENCE_RUN_ATTEMPT="$(safe_positive_integer "$EVIDENCE_RUN_ATTEMPT" evidence_run_attempt)"
+          [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" ]] || { echo "evidence_workflow is not a trusted producer workflow" >&2; exit 1; }
+          [[ "$EVIDENCE_ARTIFACT" == "desktop-release-evidence-bound" ]] || { echo "candidate qualification only trusts desktop-release-evidence-bound" >&2; exit 1; }
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
+          commit_sha="$(git rev-parse HEAD)"
+          candidate_branch="${CANDIDATE_REF#refs/heads/}"
+          jq -e \
+            --arg sha "$commit_sha" \
+            --arg branch "$candidate_branch" \
+            --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
+            --arg workflow ".github/workflows/$EVIDENCE_WORKFLOW" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt | safe_integer_equals($attempt)) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            <<<"$run_json" >/dev/null || {
+            echo "external evidence run is not a successful workflow bound to $CANDIDATE_REF@$commit_sha attempt $EVIDENCE_RUN_ATTEMPT" >&2
+            exit 1
+          }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
+          artifact_matches="$(jq -c \
+            --arg name "$EVIDENCE_ARTIFACT" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; [.artifacts[] | select((.id | safe_positive_integer_text) != null) | select(.name == $name and .expired == false and (.workflow_run.id | safe_integer_equals($run_id)) and (.digest | type == "string") and (.digest | test("^sha256:[0-9a-f]{64}$"))) | {id, name, digest, runId: .workflow_run.id}]' \
+            <<<"$artifacts_json")"
+          [[ "$(jq 'length' <<<"$artifact_matches")" == "1" ]] || {
+            echo "external evidence artifact metadata is missing, ambiguous, expired, or lacks a digest" >&2
+            exit 1
+          }
+          evidence_artifact_id="$(jq -r '.[0].id' <<<"$artifact_matches")"
+          evidence_artifact_id="$(safe_positive_integer "$evidence_artifact_id" evidence_artifact_id)"
+          evidence_artifact_digest="$(jq -r '.[0].digest' <<<"$artifact_matches")"
+          evidence_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$evidence_artifact_id")"
+          jq -e \
+            --arg name "$EVIDENCE_ARTIFACT" \
+            --arg digest "$evidence_artifact_digest" \
+            --arg id "$evidence_artifact_id" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$evidence_artifact_json" >/dev/null || {
+            echo "external evidence artifact detail does not match run metadata" >&2
+            exit 1
+          }
+          jq --argjson attempt "$EVIDENCE_RUN_ATTEMPT" '.[0] + {runAttempt: $attempt}' <<<"$artifact_matches" > evidence-artifact-metadata.json
+          printf '%s\n' "$evidence_artifact_json" > evidence-bound-artifact-api.json
+
+      - name: Download producer binding artifact by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVIDENCE_ARTIFACT_ID_FILE: evidence-artifact-metadata.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          artifact_id="$(jq -r '.id // empty' "$EVIDENCE_ARTIFACT_ID_FILE")"
+          artifact_id="$(safe_positive_integer "$artifact_id" producer_binding_artifact_id)"
+          rm -rf incoming/release-evidence
+          mkdir -p incoming/release-evidence
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$artifact_id/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe evidence archive path: $entry" >&2; exit 1; }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming/release-evidence
+          [[ -z "$(find incoming/release-evidence -type l -print -quit)" ]] || { echo "producer binding archive must not contain symlinks" >&2; exit 1; }
+          [[ -f incoming/release-evidence/release-evidence-inputs.json ]] || { echo "producer binding archive has no release-evidence-inputs.json" >&2; exit 1; }
+
+      - name: Download source artifacts by immutable ids
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          mkdir -p incoming
+          while IFS= read -r item; do
+            name="$(jq -r '.name' <<<"$item")"
+            artifact_id="$(jq -r '.id' <<<"$item")"
+            artifact_id="$(safe_positive_integer "$artifact_id" "source artifact id ($name)")"
+            case "$name" in
+              desktop-release-macos) destination="incoming/desktop-release-macos" ;;
+              desktop-release-linux) destination="incoming/desktop-release-linux" ;;
+              desktop-release-windows) destination="incoming/desktop-release-windows" ;;
+              desktop-release-windows-arm64) destination="incoming/desktop-release-windows-arm64" ;;
+              desktop-release-updater-macos) destination="incoming/desktop-release-updater-macos" ;;
+              desktop-release-updater-linux) destination="incoming/desktop-release-updater-linux" ;;
+              desktop-release-updater-windows) destination="incoming/desktop-release-updater-windows" ;;
+              desktop-release-updater-windows-arm64) destination="incoming/desktop-release-updater-windows-arm64" ;;
+              *) echo "unexpected source artifact: $name" >&2; exit 1 ;;
+            esac
+            rm -rf "$destination"
+            mkdir -p "$destination"
+            archive="$(mktemp)"
+            trap 'rm -f "$archive"' EXIT
+            gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+              "repos/$REPOSITORY/actions/artifacts/$artifact_id/zip" > "$archive"
+            while IFS= read -r entry; do
+              [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || { echo "unsafe source archive path: $entry" >&2; exit 1; }
+            done < <(unzip -Z1 "$archive")
+            unzip -q "$archive" -d "$destination"
+            [[ -z "$(find "$destination" -type l -print -quit)" ]] || { echo "source artifact archive must not contain symlinks: $name" >&2; exit 1; }
+            rm -f "$archive"
+          done < <(jq -c '.releaseArtifacts[], .updaterArtifacts[]' source-artifact-metadata.json)
+
+      - name: Verify producer binding and payload artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          EVIDENCE_RUN_ID="$(safe_positive_integer "$EVIDENCE_RUN_ID" evidence_run_id)"
+          EVIDENCE_RUN_ATTEMPT="$(safe_positive_integer "$EVIDENCE_RUN_ATTEMPT" evidence_run_attempt)"
+          mapfile -t manifest_matches < <(find incoming/release-evidence -type f -name release-evidence-inputs.json -print | sort)
+          [[ "${#manifest_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one release-evidence-inputs.json" >&2; exit 1; }
+          manifest_path="${manifest_matches[0]}"
+          mapfile -t payload_metadata_matches < <(find incoming/release-evidence -type f -name payload-artifact-metadata.json -print | sort)
+          [[ "${#payload_metadata_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one payload-artifact-metadata.json" >&2; exit 1; }
+          payload_metadata="${payload_metadata_matches[0]}"
+          [[ -z "$(find incoming/release-evidence -type l -print -quit)" ]] || { echo "producer binding artifact must not contain symlinks" >&2; exit 1; }
+          release_commit="$(git rev-parse HEAD)"
+          jq -e \
+            --arg repository "$REPOSITORY" \
+            --arg release_ref "$CANDIDATE_REF" \
+            --arg commit "$release_commit" \
+            --arg workflow "$EVIDENCE_WORKFLOW" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .repository == $repository and .releaseRef == $release_ref and .ref == $release_ref and .commitSha == $commit and .workflow == $workflow and (.runId | safe_integer_equals($run_id)) and (.attempt | safe_integer_equals($attempt))' \
+            "$manifest_path" >/dev/null || { echo "producer manifest is not bound to qualification release or producer run" >&2; exit 1; }
+          payload_id="$(jq -r '.artifact.id // empty' "$payload_metadata")"
+          payload_id="$(safe_positive_integer "$payload_id" payload_id)"
+          payload_name="$(jq -r '.artifact.name // empty' "$payload_metadata")"
+          payload_digest="$(jq -r '.artifact.digest // empty' "$payload_metadata")"
+          payload_run_id="$(jq -r '.payloadRun.id // empty' "$payload_metadata")"
+          payload_run_id="$(safe_positive_integer "$payload_run_id" payload_run_id)"
+          payload_run_attempt="$(jq -r '.payloadRun.attempt // empty' "$payload_metadata")"
+          payload_run_attempt="$(safe_positive_integer "$payload_run_attempt" payload_run_attempt)"
+          payload_workflow="$(jq -r '.payloadRun.workflow // empty' "$payload_metadata")"
+          payload_ref="$(jq -r '.payloadRun.ref // empty' "$payload_metadata")"
+          payload_commit="$(jq -r '.payloadRun.commitSha // empty' "$payload_metadata")"
+          evidence_ref="$(jq -r '.evidenceRef // empty' "$payload_metadata")"
+          payload_release_ref="$(jq -r '.releaseRef // empty' "$payload_metadata")"
+          [[ "$payload_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$payload_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload binding metadata has invalid artifact fields" >&2; exit 1; }
+          [[ "$payload_workflow" == "desktop-release-evidence-payload.yml" ]] || { echo "payload binding metadata uses an untrusted workflow" >&2; exit 1; }
+          [[ "$payload_release_ref" == "$CANDIDATE_REF" ]] || { echo "payload binding metadata releaseRef does not match candidate ref" >&2; exit 1; }
+          [[ "$evidence_ref" =~ ^[A-Za-z0-9._/-]+$ && "$evidence_ref" != /* && "$evidence_ref" != *".."* ]] || { echo "payload evidence ref is unsafe" >&2; exit 1; }
+          [[ "$payload_commit" == "$release_commit" && "$payload_ref" == "$CANDIDATE_REF" && "$evidence_ref" == "$CANDIDATE_REF" ]] || { echo "payload evidence ref/commit is not bound to candidate_ref" >&2; exit 1; }
+          payload_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$payload_id")"
+          jq -e \
+            --arg name "$payload_name" \
+            --arg digest "$payload_digest" \
+            --arg id "$payload_id" \
+            --arg run_id "$payload_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$payload_artifact_json" >/dev/null || { echo "payload artifact API metadata does not match producer binding" >&2; exit 1; }
+          source_workflow="$(jq -r '.sourceBinding.workflow // empty' "$payload_metadata")"
+          source_ref="$(jq -r '.sourceBinding.ref // empty' "$payload_metadata")"
+          source_commit="$(jq -r '.sourceBinding.commitSha // empty' "$payload_metadata")"
+          source_run_id="$(jq -r '.sourceBinding.runId // empty' "$payload_metadata")"
+          source_run_id="$(safe_positive_integer "$source_run_id" source_run_id)"
+          source_run_attempt="$(jq -r '.sourceBinding.attempt // empty' "$payload_metadata")"
+          source_run_attempt="$(safe_positive_integer "$source_run_attempt" source_run_attempt)"
+          source_artifact_name="$(jq -r '.sourceBinding.artifact.name // empty' "$payload_metadata")"
+          source_artifact_id="$(jq -r '.sourceBinding.artifact.id // empty' "$payload_metadata")"
+          source_artifact_id="$(safe_positive_integer "$source_artifact_id" source_artifact_id)"
+          source_artifact_digest="$(jq -r '.sourceBinding.artifact.digest // empty' "$payload_metadata")"
+          source_repository="$(jq -r '.sourceRepository // empty' "$payload_metadata")"
+          [[ "$source_workflow" == "desktop-release-evidence-source.yml" ]] || { echo "payload source workflow is not the fixed external producer" >&2; exit 1; }
+          [[ "$source_repository" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]] || { echo "payload source repository is invalid" >&2; exit 1; }
+          [[ "$source_ref" =~ ^[A-Za-z0-9._/-]+$ && "$source_ref" != /* && "$source_ref" != *".."* ]] || { echo "payload source ref is unsafe" >&2; exit 1; }
+          [[ "$source_commit" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "payload source commit is invalid" >&2; exit 1; }
+          [[ "$source_artifact_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ && "$source_artifact_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "payload source artifact binding is invalid" >&2; exit 1; }
+          source_run_json="$(gh api "repos/$source_repository/actions/runs/$source_run_id")"
+          source_branch="${source_ref#refs/heads/}"
+          source_branch="${source_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$source_commit" \
+            --arg branch "$source_branch" \
+            --arg ref "$source_ref" \
+            --arg attempt "$source_run_attempt" \
+            --arg workflow "$source_workflow" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == (".github/workflows/" + $workflow))' \
+            <<<"$source_run_json" >/dev/null || { echo "payload source run API metadata does not match source binding" >&2; exit 1; }
+          source_artifact_json="$(gh api "repos/$source_repository/actions/artifacts/$source_artifact_id")"
+          jq -e \
+            --arg name "$source_artifact_name" \
+            --arg digest "$source_artifact_digest" \
+            --arg id "$source_artifact_id" \
+            --arg run_id "$source_run_id" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$source_artifact_json" >/dev/null || { echo "payload source artifact API metadata does not match source binding" >&2; exit 1; }
+          printf '%s\n' "$source_run_json" > source-payload-run-api.json
+          printf '%s\n' "$source_artifact_json" > source-payload-artifact-api.json
+          producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
+          producer_id="$(safe_positive_integer "$producer_id" producer_id)"
+          producer_name="$(jq -r '.artifact.name // empty' "$manifest_path")"
+          producer_digest="$(jq -r '.artifact.digest // empty' "$manifest_path")"
+          [[ "$producer_name" == "desktop-release-evidence-payload" ]] || { echo "producer manifest must reference the fixed staging artifact" >&2; exit 1; }
+          [[ "$producer_digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "producer manifest artifact metadata is invalid" >&2; exit 1; }
+          producer_artifact_json="$(gh api "repos/$REPOSITORY/actions/artifacts/$producer_id")"
+          jq -e \
+            --arg name "$producer_name" \
+            --arg digest "$producer_digest" \
+            --arg id "$producer_id" \
+            --arg run_id "$EVIDENCE_RUN_ID" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; (.id | safe_integer_equals($id)) and .name == $name and .digest == $digest and .expired == false and (.workflow_run.id | safe_integer_equals($run_id))' \
+            <<<"$producer_artifact_json" >/dev/null || { echo "producer staging artifact API metadata does not match manifest" >&2; exit 1; }
+          printf '%s\n' "$producer_artifact_json" > producer-payload-artifact-api.json
+          payload_run_json="$(gh api "repos/$REPOSITORY/actions/runs/$payload_run_id")"
+          payload_branch="${payload_ref#refs/heads/}"
+          payload_branch="${payload_branch#refs/tags/}"
+          jq -e \
+            --arg sha "$payload_commit" \
+            --arg branch "$payload_branch" \
+            --arg ref "$payload_ref" \
+            --arg attempt "$payload_run_attempt" \
+            --arg workflow "$payload_workflow" \
+            'def safe_positive_integer_text: if type == "number" then if isfinite and floor == . and . > 0 and . <= 9007199254740991 then tostring else null end elif type == "string" then (sub("^\\s+"; "") | sub("\\s+$"; "")) as $text | if ($text | test("^[1-9][0-9]*$")) and (($text|length) < 16 or (($text|length) == 16 and $text <= "9007199254740991")) then $text else null end else null end; def safe_integer_equals($expected): (safe_positive_integer_text) as $actual | ($expected | safe_positive_integer_text) as $wanted | $actual != null and $wanted != null and $actual == $wanted; .status == "completed" and .conclusion == "success" and .head_sha == $sha and (.run_attempt | safe_integer_equals($attempt)) and ($ref == $sha or .head_branch == $branch or .head_branch == $ref) and (.path == $workflow or .path == ($workflow | sub("^\.github/workflows/"; "")))' \
+            <<<"$payload_run_json" >/dev/null || { echo "payload run API metadata does not match payload evidence ref" >&2; exit 1; }
+          printf '%s\n' "$payload_artifact_json" > payload-artifact-api.json
+
+      - name: Download producer staging payload by immutable id
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_SAFE_INTEGER_TEXT=9007199254740991
+          safe_positive_integer() {
+            local value="$1" label="$2"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]] || (( ${#value} > ${#MAX_SAFE_INTEGER_TEXT} )) \
+              || { (( ${#value} == ${#MAX_SAFE_INTEGER_TEXT} )) && [[ "$value" > "$MAX_SAFE_INTEGER_TEXT" ]]; }; then
+              echo "$label must be a safe positive integer" >&2
+              return 1
+            fi
+            printf '%s\n' "$value"
+          }
+          mapfile -t manifest_matches < <(find incoming/release-evidence -type f -name release-evidence-inputs.json -print | sort)
+          [[ "${#manifest_matches[@]}" -eq 1 ]] || { echo "producer binding artifact must contain exactly one release-evidence-inputs.json" >&2; exit 1; }
+          manifest_path="${manifest_matches[0]}"
+          producer_id="$(jq -r '.artifact.id // empty' "$manifest_path")"
+          producer_id="$(safe_positive_integer "$producer_id" producer_staging_artifact_id)"
+          rm -rf incoming/producer-payload
+          mkdir -p incoming/producer-payload
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/vnd.github+json" -H "Accept: application/zip" \
+            "repos/$REPOSITORY/actions/artifacts/$producer_id/zip" > "$archive"
+          while IFS= read -r entry; do
+            [[ "$entry" != /* && "$entry" != *".."* && "$entry" != *"\\"* ]] || {
+              echo "unsafe producer staging archive path: $entry" >&2
+              exit 1
+            }
+          done < <(unzip -Z1 "$archive")
+          unzip -q "$archive" -d incoming/producer-payload
+          [[ -z "$(find incoming/producer-payload -type l -print -quit)" ]] || {
+            echo "producer staging archive must not contain symlinks" >&2
+            exit 1
+          }
+          for report in signed-updater-inputs sbom-provenance-inputs rollback-artifact-pair backup-restore-drill security-review-inputs; do
+            file="incoming/producer-payload/reports/$report.json"
+            [[ -f "$file" && ! -L "$file" && -s "$file" ]] || {
+              echo "producer staging payload is missing regular report: $report" >&2
+              exit 1
+            }
+          done
+          metadata="incoming/producer-payload/payload-artifact-metadata.json"
+          [[ -f "$metadata" && ! -L "$metadata" && -s "$metadata" ]] || {
+            echo "producer staging payload is missing payload metadata" >&2
+            exit 1
+          }
+
+      - name: Assemble candidate inputs and prerequisite evidence
+        env:
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_MANIFEST: ${{ inputs.evidence_manifest }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          QUALIFICATION_RUN_ID: ${{ github.run_id }}
+          QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="$RELEASE_REF"
+          commit_sha="$(git rev-parse HEAD)"
+          export COMMIT_SHA="$commit_sha"
+          mkdir -p candidate-inputs/evidence
+          find_one() {
+            local search_root="$1" pattern="$2" label="$3"
+            mapfile -t matches < <(find "$search_root" -type f -name "$pattern" -print | sort)
+            [[ "${#matches[@]}" -eq 1 ]] || { echo "$label count is ${#matches[@]}" >&2; exit 1; }
+            printf '%s\n' "${matches[0]}"
+          }
+          copy_one() {
+            local source="$1" name="$2"
+            [[ "$name" != /* && "$name" != *"/"* && "$name" != *"\\"* && "$name" != *".."* ]] || {
+              echo "unsafe sealed bundle basename: $name" >&2
+              exit 1
+            }
+            if [[ -e "candidate-inputs/$name" ]]; then
+              cmp -s "$source" "candidate-inputs/$name" || {
+                echo "sealed bundle basename collision: $name" >&2
+                exit 1
+              }
+              return
+            fi
+            [[ -f "$source" && ! -L "$source" ]] || { echo "sealed bundle source is not a regular file: $source" >&2; exit 1; }
+            cp -- "$source" "candidate-inputs/$name"
+            [[ -s "candidate-inputs/$name" ]]
+          }
+          copy_support_files() {
+            local source_root="$1"
+            while IFS= read -r -d '' source; do
+              local name="${source##*/}"
+              case "$name" in
+                tauri-release-*.json|tauri-runtime-smoke-*.json|*.spdx.json|*.sig|*.tar.gz|*.zip)
+                  copy_one "$source" "$name"
+                  ;;
+              esac
+            done < <(find "$source_root" -type f -print0 | sort -z)
+          }
+          [[ "$EVIDENCE_MANIFEST" =~ ^[A-Za-z0-9._/-]+$ && "$EVIDENCE_MANIFEST" != /* ]] || {
+            echo "evidence_manifest must be a relative POSIX path without shell metacharacters" >&2
+            exit 1
+          }
+          for platform in macos-arm64 linux-x64 windows-x64 windows-arm64; do
+            source_dir="incoming/desktop-release-${platform%%-*}"
+            [[ "$platform" == "windows-arm64" ]] && source_dir="incoming/desktop-release-windows-arm64"
+            manifest="$(find_one "$source_dir" "tauri-release-$platform.json" "$platform manifest")"
+            copy_one "$manifest" "tauri-release-$platform.json"
+          done
+          copy_one "$(find_one incoming/desktop-release-macos '*.dmg' 'macOS package')" "JFTrade-$release_tag-macos-arm64.dmg"
+          copy_one "$(find_one incoming/desktop-release-linux '*.AppImage' 'Linux AppImage')" "JFTrade-$release_tag-linux-x64.AppImage"
+          copy_one "$(find_one incoming/desktop-release-linux '*.deb' 'Linux deb')" "JFTrade-$release_tag-linux-x64.deb"
+          copy_one "$(find_one incoming/desktop-release-linux '*.rpm' 'Linux rpm')" "JFTrade-$release_tag-linux-x64.rpm"
+          copy_one "$(find_one incoming/desktop-release-windows '*-setup.exe' 'Windows x64 package')" "JFTrade-$release_tag-windows-x64-setup.exe"
+          copy_one "$(find_one incoming/desktop-release-windows-arm64 '*-setup.exe' 'Windows ARM64 package')" "JFTrade-$release_tag-windows-arm64-setup.exe"
+          copy_support_files incoming/desktop-release-macos
+          copy_support_files incoming/desktop-release-linux
+          copy_support_files incoming/desktop-release-windows
+          copy_support_files incoming/desktop-release-windows-arm64
+          copy_support_files incoming/desktop-release-updater-macos
+          copy_support_files incoming/desktop-release-updater-linux
+          copy_support_files incoming/desktop-release-updater-windows
+          copy_support_files incoming/desktop-release-updater-windows-arm64
+          copy_one LICENSE LICENSE
+          copy_one docs/legal/third-party-notices.md THIRD-PARTY-NOTICES.md
+
+          node scripts/check-zero-go.mjs --artifact candidate-inputs
+          node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import fs from "node:fs";
+          import path from "node:path";
+          import { validateExternalEvidenceManifest } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
+          const root = "candidate-inputs";
+          const tag = process.env.RELEASE_REF;
+          const candidateRef = process.env.CANDIDATE_REF;
+          const commitSha = process.env.COMMIT_SHA;
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? integer.toString() : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const text = parseSafePositiveInteger(value);
+            if (text === null) throw new Error(`${label} must be a safe positive integer`);
+            return text;
+          };
+          const safeIdentityEqual = (left, right) => {
+            const actual = parseSafePositiveInteger(left);
+            const expected = parseSafePositiveInteger(right);
+            return actual !== null && expected !== null && actual === expected;
+          };
+          const sourceRunId = requireSafePositiveInteger(process.env.SOURCE_RUN_ID, "SOURCE_RUN_ID");
+          const sourceRunAttempt = requireSafePositiveInteger(process.env.SOURCE_RUN_ATTEMPT, "SOURCE_RUN_ATTEMPT");
+          const qualificationRunId = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ID, "QUALIFICATION_RUN_ID");
+          const qualificationRunAttempt = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ATTEMPT, "QUALIFICATION_RUN_ATTEMPT");
+          const evidenceRunId = requireSafePositiveInteger(process.env.EVIDENCE_RUN_ID, "EVIDENCE_RUN_ID");
+          const evidenceRunAttempt = requireSafePositiveInteger(process.env.EVIDENCE_RUN_ATTEMPT, "EVIDENCE_RUN_ATTEMPT");
+          const sourceRun = {
+            id: sourceRunId,
+            attempt: Number(sourceRunAttempt),
+            workflow: "desktop-release.yml",
+            ref: candidateRef,
+            commitSha,
+          };
+          const qualificationRun = {
+            id: qualificationRunId,
+            attempt: Number(qualificationRunAttempt),
+            workflow: "desktop-release-qualification.yml",
+            ref: candidateRef,
+            commitSha,
+          };
+          const evidenceRoot = path.resolve("incoming/release-evidence");
+          const evidenceManifestPath = path.resolve(evidenceRoot, process.env.EVIDENCE_MANIFEST);
+          const manifestRelative = path.relative(evidenceRoot, evidenceManifestPath);
+          if (!manifestRelative || manifestRelative === ".." || manifestRelative.startsWith(`..${path.sep}`)
+            || process.env.EVIDENCE_MANIFEST.split("/").some((part) => !part || part === "." || part === "..")) {
+            throw new Error("evidence_manifest must stay inside the downloaded evidence artifact");
+          }
+          let manifestCursor = evidenceRoot;
+          for (const part of manifestRelative.split(path.sep)) {
+            manifestCursor = path.join(manifestCursor, part);
+            if (fs.lstatSync(manifestCursor).isSymbolicLink()) throw new Error("evidence_manifest must not traverse a symlink");
+          }
+          const manifest = JSON.parse(fs.readFileSync(evidenceManifestPath, "utf8"));
+          const schemaPath = "tests/fixtures/rust-migration/stage9/release-evidence-inputs.schema.json";
+          const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+          if (schema.$id !== "https://jftrade.local/schemas/release-evidence-inputs.v2.json"
+            || schema.properties?.schemaVersion?.const !== "jftrade.release-evidence-inputs.v2"
+            || schema.properties?.workflow?.enum?.length !== 1
+            || schema.properties.workflow.enum[0] !== process.env.EVIDENCE_WORKFLOW) {
+            throw new Error(`unsupported ${schemaPath}`);
+          }
+          const payloadMetadata = JSON.parse(fs.readFileSync("incoming/release-evidence/payload-artifact-metadata.json", "utf8"));
+          const payloadArtifact = payloadMetadata.artifact;
+          const payloadApi = JSON.parse(fs.readFileSync("payload-artifact-api.json", "utf8"));
+          if (!payloadArtifact || typeof payloadArtifact !== "object"
+            || !safeIdentityEqual(payloadApi.id, payloadArtifact.id)
+            || payloadApi.name !== payloadArtifact.name
+            || payloadApi.digest !== payloadArtifact.digest
+            || payloadApi.expired !== false
+            || !safeIdentityEqual(payloadApi.workflow_run?.id, payloadMetadata.payloadRun?.id)) {
+            throw new Error("producer payload artifact metadata is not bound to the GitHub artifact API");
+          }
+          const sourceBinding = payloadMetadata.sourceBinding;
+          const sourceRunApi = JSON.parse(fs.readFileSync("source-payload-run-api.json", "utf8"));
+          const sourceArtifactApi = JSON.parse(fs.readFileSync("source-payload-artifact-api.json", "utf8"));
+          if (!sourceBinding || typeof sourceBinding !== "object"
+            || sourceRunApi.head_sha !== sourceBinding.commitSha
+            || !safeIdentityEqual(sourceRunApi.run_attempt, sourceBinding.attempt)
+            || !safeIdentityEqual(sourceRunApi.id, sourceBinding.runId)
+            || !safeIdentityEqual(sourceArtifactApi.id, sourceBinding.artifact?.id)
+            || sourceArtifactApi.name !== sourceBinding.artifact?.name
+            || sourceArtifactApi.digest !== sourceBinding.artifact?.digest
+            || sourceArtifactApi.expired !== false
+            || !safeIdentityEqual(sourceArtifactApi.workflow_run?.id, sourceBinding.runId)) {
+            throw new Error("payload source binding metadata is not bound to the GitHub source run/artifact APIs");
+          }
+          const producerArtifact = manifest.artifact;
+          const producerApi = JSON.parse(fs.readFileSync("producer-payload-artifact-api.json", "utf8"));
+          if (!producerArtifact || typeof producerArtifact !== "object"
+            || producerArtifact.name !== "desktop-release-evidence-payload"
+            || !safeIdentityEqual(producerApi.id, producerArtifact.id)
+            || producerApi.name !== producerArtifact.name
+            || producerApi.digest !== producerArtifact.digest
+            || producerApi.expired !== false
+            || !safeIdentityEqual(producerApi.workflow_run?.id, evidenceRunId)) {
+            throw new Error("producer staging artifact metadata is not bound to the GitHub artifact API");
+          }
+          const payloadBinding = sourceBinding;
+          const expectedKinds = {
+            "signed-updater-inputs": "signed-updater",
+            "sbom-provenance-inputs": "sbom-provenance",
+            "rollback-artifact-pair": "rollback-artifact",
+            "backup-restore-drill": "backup-restore",
+            "security-review-inputs": "security-review",
+          };
+          const producerPayloadRoot = path.resolve("incoming/producer-payload");
+          for (const id of Object.keys(expectedKinds)) {
+            const staged = path.join(producerPayloadRoot, "reports", `${id}.json`);
+            if (!fs.existsSync(staged) || fs.lstatSync(staged).isSymbolicLink()) {
+              throw new Error(`producer staging payload is missing ${id}`);
+            }
+          }
+          const stagedMetadataPath = path.join(producerPayloadRoot, "payload-artifact-metadata.json");
+          if (!fs.existsSync(stagedMetadataPath) || fs.lstatSync(stagedMetadataPath).isSymbolicLink()
+            || !fs.readFileSync(stagedMetadataPath).equals(fs.readFileSync("incoming/release-evidence/payload-artifact-metadata.json"))) {
+            throw new Error("producer staging payload metadata is not byte-identical to bound metadata");
+          }
+          const sourceArtifactMetadata = JSON.parse(fs.readFileSync("source-artifact-metadata.json", "utf8"));
+          const sourceArtifacts = sourceArtifactMetadata.releaseArtifacts;
+          fs.copyFileSync("source-artifact-metadata.json", path.join(root, "source-artifact-metadata.json"));
+          const releaseArtifactPaths = {
+            "macos-arm64": [`${root}/JFTrade-${tag}-macos-arm64.dmg`],
+            "linux-x64": [
+              `${root}/JFTrade-${tag}-linux-x64.AppImage`,
+              `${root}/JFTrade-${tag}-linux-x64.deb`,
+              `${root}/JFTrade-${tag}-linux-x64.rpm`,
+            ],
+            "windows-x64": [`${root}/JFTrade-${tag}-windows-x64-setup.exe`],
+            "windows-arm64": [`${root}/JFTrade-${tag}-windows-arm64-setup.exe`],
+          };
+          const releaseArtifactDigests = Object.fromEntries(Object.entries(releaseArtifactPaths).map(([platform, files]) => [
+            platform,
+            files.map((file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex")),
+          ]));
+          const externalValidation = validateExternalEvidenceManifest(manifest, {
+            baseDirectory: "incoming/release-evidence",
+            expected: {
+              repository: process.env.REPOSITORY,
+              releaseRef: sourceRun.ref,
+              ref: sourceRun.ref,
+              commitSha,
+              workflow: process.env.EVIDENCE_WORKFLOW,
+              runId: evidenceRunId,
+              attempt: Number(evidenceRunAttempt),
+              artifact: producerArtifact,
+              sourceBinding: payloadBinding,
+            },
+            expectedArtifactMetadata: producerArtifact,
+            releaseArtifactDigests,
+          });
+          if (!externalValidation.valid) {
+            throw new Error(`external evidence manifest is invalid: ${externalValidation.errors.join("; ")}`);
+          }
+          const externalRun = {
+            id: manifest.runId,
+            attempt: manifest.attempt,
+            workflow: manifest.workflow,
+            ref: manifest.ref,
+            commitSha: manifest.commitSha,
+          };
+          const payloadRun = {
+            id: payloadBinding.runId,
+            attempt: payloadBinding.attempt,
+            workflow: payloadBinding.workflow,
+            ref: payloadBinding.ref,
+            commitSha: payloadBinding.commitSha,
+          };
+          const copyReleaseAsset = (sourcePath) => {
+            const name = path.basename(sourcePath);
+            if (!(name.endsWith(".sig") || name.endsWith(".tar.gz") || name.endsWith(".zip")
+              || name === "latest.json" || name === "updater.json" || (name.startsWith("latest-") && name.endsWith(".json")))) return;
+            const sourceRoot = path.resolve("incoming/release-evidence");
+            const outside = path.relative(sourceRoot, path.resolve(sourcePath));
+            if (outside === ".." || outside.startsWith(`..${path.sep}`)) throw new Error(`release asset escapes evidence artifact: ${name}`);
+            let cursor = sourceRoot;
+            for (const part of outside.split(path.sep).filter(Boolean)) {
+              cursor = path.join(cursor, part);
+              if (fs.lstatSync(cursor).isSymbolicLink()) throw new Error(`release asset traverses symlink: ${name}`);
+            }
+            const target = path.resolve(root, name);
+            if (fs.existsSync(target)) {
+              if (!fs.lstatSync(target).isFile() || !fs.readFileSync(target).equals(fs.readFileSync(sourcePath))) throw new Error(`release asset basename collision: ${name}`);
+              return;
+            }
+            fs.copyFileSync(sourcePath, target);
+          };
+          const prerequisites = [
+            {
+              id: "candidate-admission",
+              kind: "stage9-closeout-admission",
+              status: "passed",
+              releaseRef: sourceRun.ref,
+              commitSha,
+              workflowRun: qualificationRun,
+              sourceWorkflowRun: sourceRun,
+              evidence: [{
+                path: "evidence/candidate-admission.json",
+                kind: "stage9-closeout-admission",
+                schemaVersion: "jftrade.stage9-closeout-admission.v1",
+              }],
+            },
+            ...Object.entries(expectedKinds).map(([id, kind]) => {
+              const entry = manifest.evidence?.[id];
+              if (!entry || entry.kind !== kind || !Array.isArray(entry.files) || entry.files.length !== 1) {
+                throw new Error(`external evidence manifest missing valid ${id}`);
+              }
+              const evidence = entry.files.map((file) => {
+                const relative = file.path;
+                const source = path.resolve("incoming/release-evidence", relative);
+                const staged = path.join(producerPayloadRoot, "reports", `${id}.json`);
+                if (!fs.readFileSync(source).equals(fs.readFileSync(staged))) {
+                  throw new Error(`${id} report is not byte-identical to producer staging payload`);
+                }
+                if (id === "signed-updater-inputs") copyReleaseAsset(source);
+                const target = path.resolve("candidate-inputs/evidence", id, relative);
+                if (!target.startsWith(`${path.resolve("candidate-inputs/evidence", id)}${path.sep}`)) {
+                  throw new Error(`${id} target path escapes candidate evidence directory`);
+                }
+                if (fs.existsSync(target)) throw new Error(`${id} evidence target collides: ${relative}`);
+                fs.mkdirSync(path.dirname(target), { recursive: true });
+                fs.copyFileSync(source, target);
+                return {
+                  path: path.relative(root, target).split(path.sep).join("/"),
+                  sha256: file.sha256,
+                  size: file.size,
+                  kind,
+                  schemaVersion: file.schemaVersion,
+                };
+              });
+              return {
+                id,
+                kind,
+                status: "passed",
+                releaseRef: sourceRun.ref,
+                commitSha,
+                workflowRun: qualificationRun,
+                sourceWorkflowRun: payloadRun,
+                evidence,
+              };
+            }),
+          ];
+          const packageFor = (platform, names) => ({
+            manifest: `tauri-release-${platform}.json`,
+            artifacts: names.map((name) => ({ path: name })),
+          });
+          const config = {
+            baseDirectory: root,
+            releaseRef: sourceRun.ref,
+            releaseTag: tag,
+            commitSha,
+            workflowRun: qualificationRun,
+            sourceWorkflowRun: sourceRun,
+            sourceArtifacts,
+            platforms: {
+              "macos-arm64": packageFor("macos-arm64", [`JFTrade-${tag}-macos-arm64.dmg`]),
+              "linux-x64": packageFor("linux-x64", [`JFTrade-${tag}-linux-x64.AppImage`, `JFTrade-${tag}-linux-x64.deb`, `JFTrade-${tag}-linux-x64.rpm`]),
+              "windows-x64": packageFor("windows-x64", [`JFTrade-${tag}-windows-x64-setup.exe`]),
+              "windows-arm64": packageFor("windows-arm64", [`JFTrade-${tag}-windows-arm64-setup.exe`]),
+            },
+            sha256sums: "SHA256SUMS",
+            prerequisites,
+          };
+          fs.writeFileSync("candidate-evidence-config.json", `${JSON.stringify(config, null, 2)}\n`);
+          NODE
+          (cd candidate-inputs && find . -maxdepth 1 -type f ! -name SHA256SUMS ! -name source-artifact-metadata.json -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - name: Build and validate candidate evidence
+        run: |
+          set -euo pipefail
+          mkdir -p candidate-output
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --build \
+            --config candidate-evidence-config.json \
+            --base-dir candidate-inputs \
+            --output candidate-output/release-candidate-evidence.json \
+            --expected-ref "${{ inputs.candidate_ref }}" \
+            --expected-tag "${{ inputs.planned_release_tag }}" \
+            --expected-commit "$(git rev-parse HEAD)" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-attempt "${{ github.run_attempt }}" \
+            --expected-workflow "desktop-release-qualification.yml"
+
+      - name: Seal immutable release candidate bundle
+        env:
+          RELEASE_REF: ${{ inputs.planned_release_tag }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          COMMIT_SHA: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          QUALIFICATION_RUN_ID: ${{ github.run_id }}
+          QUALIFICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          cp -- candidate-output/release-candidate-evidence.json candidate-inputs/release-candidate-evidence.json
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import fs from "node:fs";
+          import path from "node:path";
+          const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+          const parseSafePositiveInteger = (value) => {
+            let text;
+            if (typeof value === "number") {
+              if (!Number.isSafeInteger(value) || value <= 0) return null;
+              text = BigInt(value).toString();
+            } else if (typeof value === "string") {
+              text = value.trim();
+              if (!/^[1-9][0-9]*$/.test(text)) return null;
+            } else return null;
+            try {
+              const integer = BigInt(text);
+              return integer > 0n && integer <= MAX_SAFE_INTEGER ? integer.toString() : null;
+            } catch {
+              return null;
+            }
+          };
+          const requireSafePositiveInteger = (value, label) => {
+            const text = parseSafePositiveInteger(value);
+            if (text === null) throw new Error(`${label} must be a safe positive integer`);
+            return text;
+          };
+          const root = path.resolve("candidate-inputs");
+          const hash = (file) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+          const canonicalPath = path.join(root, "release-candidate-evidence.json");
+          const canonical = JSON.parse(fs.readFileSync(canonicalPath, "utf8"));
+          const sourceMetadata = JSON.parse(fs.readFileSync(path.join(root, "source-artifact-metadata.json"), "utf8"));
+          const sourceArtifacts = sourceMetadata.releaseArtifacts;
+          const sourceUpdaterArtifacts = sourceMetadata.updaterArtifacts;
+          const requiredSource = ["desktop-release-linux", "desktop-release-macos", "desktop-release-windows", "desktop-release-windows-arm64"];
+          const requiredUpdater = ["desktop-release-updater-linux", "desktop-release-updater-macos", "desktop-release-updater-windows", "desktop-release-updater-windows-arm64"];
+          const exact = (values, names, label) => {
+            if (!Array.isArray(values) || values.length !== names.length || new Set(values.map((entry) => entry?.name)).size !== names.length
+              || names.some((name) => !values.some((entry) => entry?.name === name))) throw new Error(`${label} is not exactly the required artifact set`);
+            return values;
+          };
+          exact(sourceArtifacts, requiredSource, "sourceArtifacts");
+          exact(sourceUpdaterArtifacts, requiredUpdater, "sourceUpdaterArtifacts");
+          const files = [];
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (!entry.isFile() || entry.name === "source-artifact-metadata.json" || entry.name === "release-candidate-evidence.json" || entry.name === "sealed-release-bundle.json") continue;
+            const file = path.join(root, entry.name);
+            const stat = fs.lstatSync(file);
+            if (stat.isSymbolicLink() || stat.size <= 0) throw new Error(`sealed release file is not a regular non-empty file: ${entry.name}`);
+            files.push({ path: entry.name, size: stat.size, sha256: hash(file) });
+          }
+          files.sort((left, right) => left.path.localeCompare(right.path));
+          const qualificationRunId = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ID, "QUALIFICATION_RUN_ID");
+          const qualificationRunAttempt = requireSafePositiveInteger(process.env.QUALIFICATION_RUN_ATTEMPT, "QUALIFICATION_RUN_ATTEMPT");
+          const sourceRunId = requireSafePositiveInteger(process.env.SOURCE_RUN_ID, "SOURCE_RUN_ID");
+          const sourceRunAttempt = requireSafePositiveInteger(process.env.SOURCE_RUN_ATTEMPT, "SOURCE_RUN_ATTEMPT");
+          const qualificationRun = {
+            id: qualificationRunId,
+            attempt: Number(qualificationRunAttempt),
+            workflow: "desktop-release-qualification.yml",
+            ref: process.env.CANDIDATE_REF,
+            commitSha: process.env.COMMIT_SHA,
+          };
+          const sourceWorkflowRun = {
+            id: sourceRunId,
+            attempt: Number(sourceRunAttempt),
+            workflow: "desktop-release.yml",
+            ref: process.env.CANDIDATE_REF,
+            commitSha: process.env.COMMIT_SHA,
+          };
+          const manifest = {
+            $schema: "./sealed-release-bundle.schema.json",
+            schemaVersion: "jftrade.sealed-release-bundle.v1",
+            repository: process.env.REPOSITORY,
+            releaseRef: sourceWorkflowRun.ref,
+            releaseTag: process.env.RELEASE_REF,
+            commitSha: process.env.COMMIT_SHA,
+            qualificationRun,
+            sourceWorkflowRun,
+            sourceArtifacts,
+            sourceUpdaterArtifacts,
+            canonicalEvidence: {
+              path: "release-candidate-evidence.json",
+              size: fs.statSync(canonicalPath).size,
+              sha256: hash(canonicalPath),
+            },
+            files,
+          };
+          fs.writeFileSync(path.join(root, "sealed-release-bundle.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+          rm -rf sealed-release-check
+          mkdir sealed-release-check
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          const root = path.resolve("candidate-inputs");
+          const target = path.resolve("sealed-release-check");
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, "sealed-release-bundle.json"), "utf8"));
+          for (const entry of manifest.files) fs.copyFileSync(path.join(root, entry.path), path.join(target, entry.path));
+          NODE
+          node scripts/rust-migration/check-release-candidate-bundle.mjs \
+            --sealed-manifest candidate-inputs/sealed-release-bundle.json \
+            --evidence candidate-inputs/release-candidate-evidence.json \
+            --candidate-root candidate-inputs \
+            --release-root sealed-release-check
+          node scripts/rust-migration/check-release-candidate.mjs \
+            --check \
+            --input candidate-output/release-candidate-evidence.json \
+            --base-dir candidate-inputs \
+            --expected-ref "${{ inputs.candidate_ref }}" \
+            --expected-tag "${{ inputs.planned_release_tag }}" \
+            --expected-commit "$(git rev-parse HEAD)" \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-attempt "${{ github.run_attempt }}" \
+            --expected-workflow "desktop-release-qualification.yml"
+
+      - name: Upload artifact-bound qualification config
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-candidate-evidence
+          path: |
+            candidate-evidence-config.json
+            candidate-output/release-candidate-evidence.json
+            candidate-inputs/**
+            source-artifact-metadata.json
+          if-no-files-found: error
+
+  qualify-rehearsal:
+    name: Qualify unsigned rehearsal receipt
+    if: inputs.qualification_mode == 'rehearsal'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact candidate commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.candidate_ref }}
+          fetch-depth: 0
+
+      - name: Verify rehearsal producer run and immutable artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_RUN_ATTEMPT: ${{ inputs.evidence_run_attempt }}
+          EVIDENCE_WORKFLOW: ${{ inputs.evidence_workflow }}
+          EVIDENCE_ARTIFACT: ${{ inputs.evidence_artifact }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_REF" == "refs/heads/release/0.29.0-candidate" && "$PLANNED_TAG" == "v0.29.0" ]] || { echo "rehearsal candidate ref or planned tag mismatch" >&2; exit 1; }
+          [[ "$GITHUB_REF" == "$CANDIDATE_REF" ]] || { echo "rehearsal qualification must run from candidate_ref" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ && "$EVIDENCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$EVIDENCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "rehearsal run identity is invalid" >&2; exit 1; }
+          [[ "$EVIDENCE_WORKFLOW" == "desktop-release-evidence.yml" && "$EVIDENCE_ARTIFACT" == "desktop-release-rehearsal-evidence" ]] || { echo "rehearsal qualification rejects formal candidate or unknown evidence artifacts" >&2; exit 1; }
+          commit_sha="$(git rev-parse HEAD)"
+          run_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID")"
+          jq -e --arg sha "$commit_sha" --arg branch "release/0.29.0-candidate" --arg attempt "$EVIDENCE_RUN_ATTEMPT" \
+            '.status == "completed" and .conclusion == "success" and .head_sha == $sha and .head_branch == $branch and (.run_attempt|tostring) == $attempt and (.path == ".github/workflows/desktop-release-evidence.yml" or .path == "desktop-release-evidence.yml")' \
+            <<<"$run_json" >/dev/null || { echo "rehearsal producer run provenance mismatch" >&2; exit 1; }
+          artifacts_json="$(gh api "repos/$REPOSITORY/actions/runs/$EVIDENCE_RUN_ID/artifacts?per_page=100")"
+          match="$(jq -c --arg name "$EVIDENCE_ARTIFACT" --argjson run_id "$EVIDENCE_RUN_ID" '[.artifacts[] | select(.name == $name and .expired == false and .workflow_run.id == $run_id and (.digest|test("^sha256:[a-f0-9]{64}$")))]' <<<"$artifacts_json")"
+          [[ "$(jq length <<<"$match")" == 1 ]] || { echo "rehearsal evidence artifact is missing, ambiguous, expired, or undigested" >&2; exit 1; }
+          echo "EVIDENCE_ARTIFACT_ID=$(jq -r '.[0].id' <<<"$match")" >> "$GITHUB_ENV"
+          echo "EVIDENCE_ARTIFACT_DIGEST=$(jq -r '.[0].digest' <<<"$match")" >> "$GITHUB_ENV"
+
+      - name: Download, verify and archive rehearsal receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          PLANNED_TAG: ${{ inputs.planned_release_tag }}
+        run: |
+          set -euo pipefail
+          rm -rf rehearsal-input rehearsal-output
+          mkdir rehearsal-input rehearsal-output
+          archive="$(mktemp)"
+          trap 'rm -f "$archive"' EXIT
+          gh api -H "Accept: application/zip" "repos/$REPOSITORY/actions/artifacts/$EVIDENCE_ARTIFACT_ID/zip" > "$archive"
+          [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$EVIDENCE_ARTIFACT_DIGEST" ]] || { echo "rehearsal evidence artifact digest drift" >&2; exit 1; }
+          unzip -q "$archive" -d rehearsal-input
+          mapfile -t receipts < <(find rehearsal-input -type f -name release-candidate-rehearsal.json -print)
+          [[ "${#receipts[@]}" == 1 && -z "$(find rehearsal-input -type l -print -quit)" ]] || { echo "rehearsal evidence must contain exactly one regular receipt" >&2; exit 1; }
+          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+            --check --input "${receipts[0]}" \
+            --expected-ref "$CANDIDATE_REF" \
+            --expected-tag "$PLANNED_TAG" \
+            --expected-commit "$(git rev-parse HEAD)"
+          cp "${receipts[0]}" rehearsal-output/release-candidate-rehearsal.json
+
+      - name: Upload rehearsal-passed receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-rehearsal-receipt
+          path: rehearsal-output/release-candidate-rehearsal.json
+          if-no-files-found: error
+          retention-days: 90

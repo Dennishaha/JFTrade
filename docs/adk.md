@@ -4,19 +4,18 @@ JFTrade 的 ADK 集成在现有 sidecar 内提供 Agent 控制面，不嵌入 Go
 
 ## 产品定位与使用观测
 
-ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模块。当前保留 workflow 编排、child workflow、execution lease、goal state、approval 和工具幂等完整能力；实现已收口到仓库私有的 `internal/assistant/engine`，不再对外暗示稳定 Go API。
+ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模块。当前保留 workflow 编排、child workflow、execution lease、goal state、approval 和工具幂等完整能力；实现由 `jftrade-assistant`、`jftrade-engine` 与 Rust SQLite stores 持有。
 
 `GET /api/v1/adk/metrics` 在现有运行指标上增加本机滚动 7 日使用窗口，包括 run、session、approval 和 workflow invocation，并同时返回 workflow definition/trigger 的启用数。工具指标还记录输出字节数、最大输出、截断次数、错误数、可重试错误数和稳定错误码分布，不记录原始工具输出。设置页展示近 7 日 ADK 运行和 Workflow 调用，用于发版复盘功能接受度。这些指标只聚合本地 SQLite 中的业务记录，不上传用户数据，也不将“低频使用”自动等同于“应删除”。
 
 ## 后端边界
 
-- `internal/assistant/engine`：仓库私有 ADK 引擎，保存 provider、agent、session、run、approval、skill，并适配 `google.golang.org/adk/v2`。
-- `internal/api/assistant`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
-- `internal/assistant.Service`：封装 session、run、approval、provider、agent、
-  skill、observability 与 optimization 业务门面。
-- `internal/assistant/assembly`：构造并持有 ADK store/session、工具目录、workflow bridge 与本机 MCP listener；跨领域能力由应用装配以窄 callback 注入，避免通过 HTTP 回环调用自身。
+- `crates/jftrade-assistant`：provider、agent、session、run、approval、skill 与 workflow 领域规则和窄 port。
+- `crates/jftrade-api`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
+- `crates/jftrade-engine`：构造并持有 ADK store/session/artifact、工具目录、workflow/task runtime 与本机 MCP listener；跨领域能力通过 production port 注入。
+- `crates/jftrade-store-sqlite`：ADK、session 和 artifact 的 schema、事务与唯一 writer lease。
 
-`assembly.Handle` 不向应用层暴露 ADK Runtime、Store、ToolRegistry 或 MCP server 实例；应用层只使用 Assistant service、状态/配置动作、broker-neutral workflow 事件、数据库维护端口和幂等 `Close`。
+领域 crate 不向 transport 暴露具体 Store 或 MCP server；`jftrade-engine` 只向 API 注入 Assistant ports、状态/配置动作、broker-neutral workflow 事件和幂等 shutdown handle。
 
 实际执行链使用 ADK Go v2：
 
@@ -149,7 +148,7 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 
 ## API 访问权限
 
-- Wails 桌面端使用每进程临时能力凭证，无需用户输入密码或 Key。
+- Tauri 桌面端使用每进程临时能力凭证，无需用户输入密码或 Key。
 - Web 默认关闭。用户在桌面设置中开启后，所有 `/api/v1/adk/*` 以及交易、策略、回测、设置和插件 API 都要求 Web 密码会话。
 - 浏览器以 Web 访问密码调用 `POST /api/v1/auth/login` 后获得 `HttpOnly`、`SameSite=Strict` 会话；会话默认 12 小时过期。
 - cookie 写请求必须来自配置的 GUI Origin，并携带登录或 session 状态接口返回的 `X-CSRF-Token`。
@@ -253,7 +252,7 @@ ADK Go v2.2.0 的能力审计按“原生机制存在”与“JFTrade 产品语�
 ## 验证
 
 ```bash
-go test ./internal/assistant ./internal/api/assistant ./internal/app/apiserver/servercore ./internal/assistant/engine
+cargo test -p jftrade-assistant -p jftrade-engine -p jftrade-store-sqlite --all-targets
 pnpm run typecheck:web
 pnpm run build:web
 ```

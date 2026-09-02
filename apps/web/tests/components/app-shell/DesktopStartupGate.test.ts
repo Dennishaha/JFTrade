@@ -10,13 +10,15 @@ const bindings = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop",
+  "@/composables/shared/desktopFacade",
   () => ({
-    DesktopStartupService: {
-      Snapshot: bindings.snapshot,
-      Quit: bindings.quit,
+    desktopFacade: {
+      startup: {
+        snapshot: bindings.snapshot,
+        quit: bindings.quit,
+      },
+      logs: { openFolder: bindings.openFolder },
     },
-    DesktopLogService: { OpenFolder: bindings.openFolder },
   }),
 );
 
@@ -77,7 +79,7 @@ describe("desktop startup gate", () => {
     expect(wrapper.emitted("ready")).toBeUndefined();
   });
 
-  it("recovers when the Wails bridge becomes callable after mount", async () => {
+  it("recovers when the desktop bridge becomes callable after mount", async () => {
     vi.useFakeTimers();
     bindings.snapshot
       .mockRejectedValueOnce(new Error("bridge not ready"))

@@ -1,0 +1,212 @@
+{
+  "version": "stage9.execution-read.v1",
+  "cases": [
+    {
+      "name": "orders-default",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders",
+      "expectedStatus": 200,
+      "data": {
+        "orders": [
+          {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "brokerOrderId": "broker-1",
+            "brokerOrderIdEx": null,
+            "clientOrderId": null,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "fees": null,
+            "filledAveragePrice": null,
+            "filledQuantity": 2,
+            "internalOrderId": "order-1",
+            "lastError": null,
+            "lastErrorCode": null,
+            "lastErrorSource": null,
+            "market": "US",
+            "orderKind": "",
+            "orderType": "LIMIT",
+            "payout": null,
+            "previewId": null,
+            "productClass": "",
+            "quantityMode": "",
+            "rawBrokerStatus": "SUBMITTED",
+            "remark": null,
+            "requestedAmount": null,
+            "requestedPrice": 100.5,
+            "requestedQuantity": 10,
+            "side": "BUY",
+            "source": "fixture",
+            "sourceDetail": "reference",
+            "status": "BROKER_ACCEPTED",
+            "submittedAt": null,
+            "symbol": "US.AAPL",
+            "tradingEnvironment": "SIMULATE",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "orders-active",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders?scope=%20ACTIVE%20\u0026brokerId=%20futu%20\u0026accountId=%20ACC-1%20\u0026market=us",
+      "expectedStatus": 200,
+      "data": {
+        "orders": [
+          {
+            "accountId": "ACC-1",
+            "brokerId": "futu",
+            "brokerOrderId": "broker-1",
+            "brokerOrderIdEx": null,
+            "clientOrderId": null,
+            "createdAt": "2026-08-15T20:00:00Z",
+            "fees": null,
+            "filledAveragePrice": null,
+            "filledQuantity": 2,
+            "internalOrderId": "order-1",
+            "lastError": null,
+            "lastErrorCode": null,
+            "lastErrorSource": null,
+            "market": "US",
+            "orderKind": "",
+            "orderType": "LIMIT",
+            "payout": null,
+            "previewId": null,
+            "productClass": "",
+            "quantityMode": "",
+            "rawBrokerStatus": "SUBMITTED",
+            "remark": null,
+            "requestedAmount": null,
+            "requestedPrice": 100.5,
+            "requestedQuantity": 10,
+            "side": "BUY",
+            "source": "fixture",
+            "sourceDetail": "reference",
+            "status": "BROKER_ACCEPTED",
+            "submittedAt": null,
+            "symbol": "US.AAPL",
+            "tradingEnvironment": "SIMULATE",
+            "updatedAt": "2026-08-15T20:01:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "orders-failed",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders?fixture=error",
+      "expectedStatus": 500,
+      "errorCode": "LIST_ORDERS_FAILED",
+      "errorMessage": "store failed"
+    },
+    {
+      "name": "order-details",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/order-1",
+      "expectedStatus": 200,
+      "data": {
+        "checkedAt": "fixture-time",
+        "order": {
+          "accountId": "ACC-1",
+          "brokerId": "futu",
+          "brokerOrderId": "broker-1",
+          "brokerOrderIdEx": null,
+          "clientOrderId": null,
+          "createdAt": "2026-08-15T20:00:00Z",
+          "fees": null,
+          "filledAveragePrice": null,
+          "filledQuantity": 2,
+          "internalOrderId": "order-1",
+          "lastError": null,
+          "lastErrorCode": null,
+          "lastErrorSource": null,
+          "market": "US",
+          "orderKind": "",
+          "orderType": "LIMIT",
+          "payout": null,
+          "previewId": null,
+          "productClass": "",
+          "quantityMode": "",
+          "rawBrokerStatus": "SUBMITTED",
+          "remark": null,
+          "requestedAmount": null,
+          "requestedPrice": 100.5,
+          "requestedQuantity": 10,
+          "side": "BUY",
+          "source": "fixture",
+          "sourceDetail": "reference",
+          "status": "BROKER_ACCEPTED",
+          "submittedAt": null,
+          "symbol": "US.AAPL",
+          "tradingEnvironment": "SIMULATE",
+          "updatedAt": "2026-08-15T20:01:00Z"
+        },
+        "recentEvents": [
+          {
+            "createdAt": "2026-08-15T20:01:00Z",
+            "eventType": "BROKER_PUSH_ORDER",
+            "id": "event-1",
+            "internalOrderId": "order-1",
+            "nextStatus": "BROKER_ACCEPTED",
+            "payloadJson": "{\"status\":\"SUBMITTED\"}",
+            "previousStatus": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "order-missing",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/missing",
+      "expectedStatus": 404,
+      "errorCode": "ORDER_NOT_FOUND",
+      "errorMessage": "execution order not found"
+    },
+    {
+      "name": "order-details-failed",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/order-1?fixture=error",
+      "expectedStatus": 500,
+      "errorCode": "GET_ORDER_FAILED",
+      "errorMessage": "store failed"
+    },
+    {
+      "name": "order-events",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/order-1/events",
+      "expectedStatus": 200,
+      "data": {
+        "events": [
+          {
+            "createdAt": "2026-08-15T20:01:00Z",
+            "eventType": "BROKER_PUSH_ORDER",
+            "id": "event-1",
+            "internalOrderId": "order-1",
+            "nextStatus": "BROKER_ACCEPTED",
+            "payloadJson": "{\"status\":\"SUBMITTED\"}",
+            "previousStatus": null
+          }
+        ],
+        "internalOrderId": "order-1"
+      }
+    },
+    {
+      "name": "order-events-unknown",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/unknown/events",
+      "expectedStatus": 200,
+      "data": {
+        "events": [],
+        "internalOrderId": "unknown"
+      }
+    },
+    {
+      "name": "order-events-failed",
+      "method": "GET",
+      "requestPath": "/api/v1/execution/orders/order-1/events?fixture=error",
+      "expectedStatus": 500,
+      "errorCode": "GET_ORDER_EVENTS_FAILED",
+      "errorMessage": "events failed"
+    }
+  ]
+}

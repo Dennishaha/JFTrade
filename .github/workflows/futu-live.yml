@@ -41,13 +41,14 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
-      - name: Run real OpenD contract checks
+      - name: Run Rust provider runtime live qualification
         env:
           JFTRADE_FUTU_LIVE_TEST: "1"
-        run: go test ./pkg/futu -run '^TestLiveOpenD' -count=1 -timeout=300s -v
+        run: >-
+          cargo test --locked -p jftrade-integration-futu
+          --test live_opend_provider_runtime
+          live_opend_provider_runtime_reads_generation_fenced_hk_quote
+          -- --ignored --exact --nocapture

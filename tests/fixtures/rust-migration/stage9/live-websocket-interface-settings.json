@@ -1,0 +1,53 @@
+{
+  "version": "stage9.live-websocket-interface-settings.v1",
+  "cases": [
+    {
+      "name": "missing-interfaces-uses-default",
+      "document": {},
+      "expectedLimit": 20,
+      "expectedError": false
+    },
+    {
+      "name": "zero-limit-uses-default",
+      "document": {
+        "interfaces": {
+          "liveWebSocketConnectionLimit": 0
+        }
+      },
+      "expectedLimit": 20,
+      "expectedError": false
+    },
+    {
+      "name": "negative-limit-uses-default",
+      "document": {
+        "interfaces": {
+          "liveWebSocketConnectionLimit": -2
+        }
+      },
+      "expectedLimit": 20,
+      "expectedError": false
+    },
+    {
+      "name": "positive-limit-is-preserved",
+      "document": {
+        "interfaces": {
+          "apiBind": "127.0.0.1:3000",
+          "guiBind": "127.0.0.1:3003",
+          "liveWebSocketConnectionLimit": 7
+        }
+      },
+      "expectedLimit": 7,
+      "expectedError": false
+    },
+    {
+      "name": "wrong-limit-type-fails",
+      "document": {
+        "interfaces": {
+          "liveWebSocketConnectionLimit": "many"
+        }
+      },
+      "expectedLimit": 0,
+      "expectedError": true
+    }
+  ]
+}

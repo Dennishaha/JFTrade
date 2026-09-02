@@ -1,0 +1,4319 @@
+{
+  "version": "stage9.system-write.v1",
+  "cases": [
+    {
+      "name": "manual-retry-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/futu-opend/manual-retry"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "accepted": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [
+          "manual-retry"
+        ],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "manual-retry-ignores-malformed-and-repeats",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/futu-opend/manual-retry",
+        "/api/v1/system/futu-opend/manual-retry"
+      ],
+      "requestBodies": [
+        "{",
+        "{\"ignored\":true}{\"trailing\":true}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "accepted": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "accepted": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [
+          "manual-retry",
+          "manual-retry"
+        ],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "manual-retry-canceled-still-accepted",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/futu-opend/manual-retry"
+      ],
+      "requestBodies": [
+        "not-json"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "accepted": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [
+          "manual-retry"
+        ],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-success-unknown-field",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "{\"brokerId\":\" Futu \",\"tradingEnvironment\":\" real \",\"accountId\":\" ACC-1 \",\"market\":\"us\",\"symbol\":\" aapl \",\"hardStopScope\":\"symbol\",\"operatorId\":\" operator \",\"reason\":\" incident \",\"unknownField\":true}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [
+              {
+                "accountId": "ACC-1",
+                "activatedAt": "2026-08-23T10:00:00Z",
+                "brokerId": "futu",
+                "hardStopScope": "SYMBOL",
+                "id": "hard-stop-fixture",
+                "market": "US",
+                "operatorId": "fixture-operator",
+                "reason": "fixture incident",
+                "symbol": "AAPL",
+                "tradingEnvironment": "REAL",
+                "updatedAt": "2026-08-23T10:00:00Z"
+              }
+            ],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-stop-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": true,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": " ACC-1 ",
+              "brokerId": " Futu ",
+              "hardStopScope": "symbol",
+              "market": "us",
+              "operatorId": " operator ",
+              "reason": " incident ",
+              "symbol": " aapl ",
+              "tradingEnvironment": " real "
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-null-and-trailing",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops",
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "null",
+        "{\"accountId\":\"ACC-1\"}{\"accountId\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [
+              {
+                "accountId": "ACC-1",
+                "activatedAt": "2026-08-23T10:00:00Z",
+                "brokerId": "futu",
+                "hardStopScope": "SYMBOL",
+                "id": "hard-stop-fixture",
+                "market": "US",
+                "operatorId": "fixture-operator",
+                "reason": "fixture incident",
+                "symbol": "AAPL",
+                "tradingEnvironment": "REAL",
+                "updatedAt": "2026-08-23T10:00:00Z"
+              }
+            ],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-stop-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": true,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [
+              {
+                "accountId": "ACC-1",
+                "activatedAt": "2026-08-23T10:00:00Z",
+                "brokerId": "futu",
+                "hardStopScope": "SYMBOL",
+                "id": "hard-stop-fixture",
+                "market": "US",
+                "operatorId": "fixture-operator",
+                "reason": "fixture incident",
+                "symbol": "AAPL",
+                "tradingEnvironment": "REAL",
+                "updatedAt": "2026-08-23T10:00:00Z"
+              }
+            ],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-stop-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": true,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "accountId": "ACC-1",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-required-body-errors",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops",
+        "/api/v1/system/real-trade-hard-stops",
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "",
+        "{",
+        "[]"
+      ],
+      "expectedStatuses": [
+        400,
+        400,
+        400
+      ],
+      "portCalls": [
+        false,
+        false,
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade hard stop payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade hard stop payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade hard stop payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-control-failure",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "real-trade control persistence unavailable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-canceled",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-deadline",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-activate-repeated",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops",
+        "/api/v1/system/real-trade-hard-stops"
+      ],
+      "requestBodies": [
+        "{\"accountId\":\"ACC-1\"}",
+        "{\"accountId\":\"ACC-1\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [
+              {
+                "accountId": "ACC-1",
+                "activatedAt": "2026-08-23T10:00:00Z",
+                "brokerId": "futu",
+                "hardStopScope": "SYMBOL",
+                "id": "hard-stop-fixture",
+                "market": "US",
+                "operatorId": "fixture-operator",
+                "reason": "fixture incident",
+                "symbol": "AAPL",
+                "tradingEnvironment": "REAL",
+                "updatedAt": "2026-08-23T10:00:00Z"
+              }
+            ],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-stop-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": true,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [
+              {
+                "accountId": "ACC-1",
+                "activatedAt": "2026-08-23T10:00:00Z",
+                "brokerId": "futu",
+                "hardStopScope": "SYMBOL",
+                "id": "hard-stop-fixture",
+                "market": "US",
+                "operatorId": "fixture-operator",
+                "reason": "fixture incident",
+                "symbol": "AAPL",
+                "tradingEnvironment": "REAL",
+                "updatedAt": "2026-08-23T10:00:00Z"
+              }
+            ],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-stop-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": true,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [
+          {
+            "command": {
+              "accountId": "ACC-1",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "accountId": "ACC-1",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-success-trimmed-path",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/%20hs-1%20/release"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_RELEASE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-null-and-trailing",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release",
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "null",
+        "{\"operatorId\":\"operator\"}{\"reason\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_RELEASE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_RELEASE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          },
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "operator",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-blank-id",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/%20/release"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "hard stop id is required"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-malformed-before-port",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade hard stop release payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-control-failure",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "real-trade hard stop not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-canceled",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-deadline",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "hard-stop-release-repeated",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-hard-stops/hs-1/release",
+        "/api/v1/system/real-trade-hard-stops/hs-1/release"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_RELEASE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [
+              {
+                "accountId": null,
+                "action": "HARD_STOP_RELEASE",
+                "activatedAt": null,
+                "brokerId": "futu",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "hard-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          },
+          {
+            "command": {
+              "accountId": "",
+              "brokerId": "",
+              "hardStopScope": "",
+              "market": "",
+              "operatorId": "",
+              "reason": "",
+              "symbol": "",
+              "tradingEnvironment": ""
+            },
+            "hardStopId": "hs-1"
+          }
+        ],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-success-unknown-field",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "{\"tradingEnvironment\":\"REAL\",\"operatorId\":\"operator\",\"reason\":\"incident\",\"unknownField\":true}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": true,
+            "killSwitchEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "kill-switch-control-plane",
+              "operatorId": "fixture-operator",
+              "reason": "fixture incident",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": "RUNTIME",
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": true,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "operator",
+              "reason": "incident",
+              "tradingEnvironment": "REAL"
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-null-and-trailing",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate",
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "null",
+        "{\"reason\":\"incident\"}{\"reason\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": true,
+            "killSwitchEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "kill-switch-control-plane",
+              "operatorId": "fixture-operator",
+              "reason": "fixture incident",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": "RUNTIME",
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": true,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": true,
+            "killSwitchEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "kill-switch-control-plane",
+              "operatorId": "fixture-operator",
+              "reason": "fixture incident",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": "RUNTIME",
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": true,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "incident",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-required-body-errors",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate",
+        "/api/v1/system/real-trade-kill-switch/activate",
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "",
+        "{",
+        "[]"
+      ],
+      "expectedStatuses": [
+        400,
+        400,
+        400
+      ],
+      "portCalls": [
+        false,
+        false,
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade kill switch payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade kill switch payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade kill switch payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-control-failure",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "kill switch persistence unavailable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-canceled",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-deadline",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-activate-repeated",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/activate",
+        "/api/v1/system/real-trade-kill-switch/activate"
+      ],
+      "requestBodies": [
+        "{}",
+        "{}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": true,
+            "killSwitchEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "kill-switch-control-plane",
+              "operatorId": "fixture-operator",
+              "reason": "fixture incident",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": "RUNTIME",
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": true,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": true,
+            "killSwitchEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "kill-switch-control-plane",
+              "operatorId": "fixture-operator",
+              "reason": "fixture incident",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_ACTIVATE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "activated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": "RUNTIME",
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": true,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-empty-and-null",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release",
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "",
+        "null"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_RELEASE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_RELEASE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-trailing",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "{\"operatorId\":\"operator\"}{\"reason\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_RELEASE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "operator",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-malformed-before-port",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade kill switch release payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-control-failure",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "kill switch is not active"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-canceled",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-deadline",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "kill-release-repeated",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/system/real-trade-kill-switch/release",
+        "/api/v1/system/real-trade-kill-switch/release"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_RELEASE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [
+              {
+                "accountId": null,
+                "action": "KILL_SWITCH_RELEASE",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "released",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "kill-release-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "operatorId": "",
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-update-success-unknown-field",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"tradingEnvironment\":\"REAL\",\"realTradingEnabled\":true,\"maxOrderQuantity\":12.5,\"operatorId\":\"operator\",\"reason\":\"session open\",\"unknownField\":true}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": 12.5,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": true,
+            "riskEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "runtime-risk-config",
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "fixture-operator",
+              "realTradingEnabled": true,
+              "reason": "fixture update",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_UPDATED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "updated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": 12.5,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "operator",
+              "realTradingEnabled": true,
+              "reason": "session open",
+              "tradingEnvironment": "REAL"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-update-null-and-trailing",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "null",
+        "{\"realTradingEnabled\":true,\"maxOrderNotional\":2500}{\"reason\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": 12.5,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": true,
+            "riskEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "runtime-risk-config",
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "fixture-operator",
+              "realTradingEnabled": true,
+              "reason": "fixture update",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_UPDATED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "updated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": 12.5,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": 12.5,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": true,
+            "riskEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "runtime-risk-config",
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "fixture-operator",
+              "realTradingEnabled": true,
+              "reason": "fixture update",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_UPDATED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "updated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": 12.5,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "maxOrderNotional": 2500,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": true,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-update-required-body-errors",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "",
+        "{",
+        "[]"
+      ],
+      "expectedStatuses": [
+        400,
+        400,
+        400
+      ],
+      "portCalls": [
+        false,
+        false,
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade runtime risk payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade runtime risk payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade runtime risk payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-update-validation-errors",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"maxOrderQuantity\":0}",
+        "{\"maxOrderNotional\":-1}",
+        "{\"realTradingEnabled\":true}"
+      ],
+      "expectedStatuses": [
+        400,
+        400,
+        400
+      ],
+      "portCalls": [
+        false,
+        false,
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "maxOrderQuantity must be positive when provided"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "maxOrderNotional must be positive when provided"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "at least one positive runtime risk limit is required before enabling real trading"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-update-control-failure",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"maxOrderQuantity\":1}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "risk configuration persistence unavailable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 1,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-update-canceled",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"maxOrderQuantity\":1}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 1,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-update-deadline",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"maxOrderQuantity\":1}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 1,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-update-repeated",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"maxOrderQuantity\":1}",
+        "{\"maxOrderQuantity\":1}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": 12.5,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": true,
+            "riskEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "runtime-risk-config",
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "fixture-operator",
+              "realTradingEnabled": true,
+              "reason": "fixture update",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_UPDATED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "updated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": 12.5,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": 12.5,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": true,
+            "riskEnabled": true,
+            "riskEntry": {
+              "activatedAt": "2026-08-23T10:00:00Z",
+              "id": "runtime-risk-config",
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 12.5,
+              "operatorId": "fixture-operator",
+              "realTradingEnabled": true,
+              "reason": "fixture update",
+              "tradingEnvironment": "REAL",
+              "updatedAt": "2026-08-23T10:00:00Z"
+            },
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_UPDATED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "updated",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": 12.5,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": true
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 1,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": 1,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-disable-empty-and-null",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "",
+        "null"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": false,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_DISABLED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "disabled",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-disable-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": false,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_DISABLED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "disabled",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-disable-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-trailing",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{\"operatorId\":\"operator\"}{\"reason\":\"ignored\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": false,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_DISABLED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "disabled",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-disable-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "operator",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-malformed-before-port",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "portCalls": [
+        false
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid real-trade runtime risk disable payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-control-failure",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "risk configuration is not active"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-canceled",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "canceled",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context canceled"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-deadline",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "{}"
+      ],
+      "contextError": "deadline",
+      "expectedStatuses": [
+        409
+      ],
+      "portCalls": [
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "REAL_TRADE_CONTROL_FAILED",
+            "message": "context deadline exceeded"
+          },
+          "ok": false,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    },
+    {
+      "name": "risk-disable-repeated",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/system/real-trade-risk-limits",
+        "/api/v1/system/real-trade-risk-limits"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "portCalls": [
+        true,
+        true
+      ],
+      "responseHeaders": [
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        {
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      ],
+      "responses": [
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": false,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_DISABLED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "disabled",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-disable-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        },
+        {
+          "data": {
+            "allowsCancel": true,
+            "blockedOperations": [
+              "PLACE",
+              "MODIFY"
+            ],
+            "controlPlaneAvailable": true,
+            "controlPlaneError": null,
+            "effectiveMaxOrderNotional": null,
+            "effectiveMaxOrderQuantity": null,
+            "hardStopEntries": [],
+            "hardStopEvents": [],
+            "hardStopsActive": false,
+            "killSwitchActive": false,
+            "killSwitchEntry": null,
+            "killSwitchEvents": [],
+            "killSwitchSource": null,
+            "realTradingEnabled": false,
+            "riskEnabled": false,
+            "riskEntry": null,
+            "riskEvents": [
+              {
+                "accountId": null,
+                "action": "RISK_CONFIG_DISABLED",
+                "activatedAt": null,
+                "brokerId": "*",
+                "configuredMaxOrderNotional": null,
+                "configuredMaxOrderQuantity": null,
+                "createdAt": "2026-08-23T10:00:00Z",
+                "errorCode": null,
+                "eventType": "disabled",
+                "hardStopId": null,
+                "hardStopScope": null,
+                "id": "risk-disable-event",
+                "killSwitchSource": null,
+                "market": null,
+                "operation": null,
+                "operatorId": null,
+                "orderId": null,
+                "price": null,
+                "quantity": null,
+                "realTradingEnabled": null,
+                "reason": null,
+                "symbol": null,
+                "tradingEnvironment": "REAL"
+              }
+            ],
+            "runtimeConfiguredMaxOrderNotional": null,
+            "runtimeConfiguredMaxOrderQuantity": null,
+            "runtimeKillSwitchActive": false,
+            "runtimeRiskConfigured": false
+          },
+          "ok": true,
+          "timestamp": "2026-08-23T10:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "hardActivateCalls": [],
+        "hardReleaseCalls": [],
+        "killActivateCalls": [],
+        "killReleaseCalls": [],
+        "resetCalls": [],
+        "riskDisableCalls": [
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          },
+          {
+            "command": {
+              "maxOrderNotional": null,
+              "maxOrderQuantity": null,
+              "operatorId": "",
+              "realTradingEnabled": false,
+              "reason": "",
+              "tradingEnvironment": ""
+            }
+          }
+        ],
+        "riskUpdateCalls": []
+      }
+    }
+  ]
+}

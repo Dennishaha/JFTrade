@@ -1,0 +1,101 @@
+{
+  "version": "stage9.market-data-catalog-read.v1",
+  "cases": [
+    {
+      "name": "markets-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/markets",
+      "expectedStatus": 200,
+      "data": {
+        "defaultMarket": "US",
+        "markets": [
+          {
+            "market": "US",
+            "name": "United States",
+            "timezone": "America/New_York"
+          },
+          {
+            "market": "HK",
+            "name": "Hong Kong",
+            "timezone": "Asia/Hong_Kong"
+          }
+        ]
+      }
+    },
+    {
+      "name": "markets-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/markets?fixture=markets-error",
+      "expectedStatus": 500,
+      "errorStatus": 500,
+      "errorCode": "MARKET_DATA_FAILED",
+      "errorMessage": "market catalog unavailable"
+    },
+    {
+      "name": "markets-descriptor-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/markets?fixture=descriptor-error",
+      "expectedStatus": 500,
+      "errorStatus": 500,
+      "errorCode": "MARKET_DATA_FAILED",
+      "errorMessage": "provider descriptor unavailable"
+    },
+    {
+      "name": "instruments-ready",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/instruments?query=AAPL\u0026market=US\u0026limit=2",
+      "expectedStatus": 200,
+      "data": {
+        "query": "AAPL",
+        "requestedMarket": "US",
+        "resolutionStatus": "resolved",
+        "totalReturned": 1,
+        "entries": [
+          {
+            "market": "US",
+            "resolvedMarket": "US",
+            "instrumentId": "US.AAPL",
+            "code": "AAPL",
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "securityType": "stock",
+            "supportedPeriods": [
+              "1d"
+            ],
+            "lotSize": 1,
+            "source": "fixture",
+            "selectable": true
+          }
+        ],
+        "failures": []
+      }
+    },
+    {
+      "name": "instruments-invalid-query",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/instruments?market=US",
+      "expectedStatus": 400,
+      "errorStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "query is required"
+    },
+    {
+      "name": "instruments-invalid-limit",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/instruments?query=AAPL\u0026limit=101",
+      "expectedStatus": 400,
+      "errorStatus": 400,
+      "errorCode": "MARKET_INSTRUMENT_INVALID",
+      "errorMessage": "limit must be between 1 and 100"
+    },
+    {
+      "name": "instruments-provider-failure",
+      "method": "GET",
+      "requestPath": "/api/v1/market-data/instruments?query=FAIL",
+      "expectedStatus": 502,
+      "errorStatus": 502,
+      "errorCode": "MARKET_INSTRUMENT_SEARCH_FAILED",
+      "errorMessage": "instrument search unavailable"
+    }
+  ]
+}

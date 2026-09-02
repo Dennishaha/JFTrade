@@ -25,6 +25,6 @@
 
 ## 实现锚点
 
-- [../../pkg/futu/codec](../../pkg/futu/codec)
-- [../../pkg/futu/opend](../../pkg/futu/opend)
-- [../../pkg/futu/exchange.go](../../pkg/futu/exchange.go)
+- [../../crates/jftrade-integration-futu](../../crates/jftrade-integration-futu)
+- [../../crates/jftrade-marketdata](../../crates/jftrade-marketdata)
+- [../../proto/futu](../../proto/futu)

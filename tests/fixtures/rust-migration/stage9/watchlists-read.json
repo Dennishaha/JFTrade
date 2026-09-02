@@ -1,0 +1,12 @@
+{
+  "response": {
+    "error": {
+      "code": "BROKER_CAPABILITY_UNAVAILABLE",
+      "message": "broker feature capability is unavailable: no broker can serve \"watchlist.remote.list\": "
+    },
+    "ok": false,
+    "timestamp": "fixture-time"
+  },
+  "status": 409,
+  "version": "stage9.watchlists-read.v1"
+}

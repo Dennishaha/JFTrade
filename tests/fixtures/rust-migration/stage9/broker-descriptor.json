@@ -1,0 +1,56 @@
+{
+  "id": "futu",
+  "displayName": "Futu",
+  "environments": ["SIMULATE", "REAL"],
+  "capabilities": [
+    {
+      "market": "HK",
+      "supportsQuote": true,
+      "supportsTrade": true,
+      "readFeatures": {
+        "cashFlows": {
+          "supportedEnvironments": ["REAL"],
+          "requiresClearingDate": true
+        },
+        "fills": {
+          "supportedEnvironments": ["SIMULATE", "REAL"],
+          "supportsHistory": true
+        },
+        "funds": {
+          "supportedEnvironments": ["SIMULATE", "REAL"]
+        },
+        "marginRatios": {
+          "supportedEnvironments": ["REAL"],
+          "requiresSymbols": true
+        },
+        "maxTradeQuantity": {
+          "supportedEnvironments": ["SIMULATE", "REAL"],
+          "requiresPrice": true
+        },
+        "orderBook": {
+          "supportedEnvironments": ["SIMULATE", "REAL"],
+          "defaultNum": 10,
+          "minNum": 1,
+          "maxNum": 50,
+          "numPresets": [5, 10, 20, 50],
+          "supportsRealTimePush": true
+        },
+        "orderFees": {
+          "supportedEnvironments": ["REAL"],
+          "requiresOrderIdEx": true
+        },
+        "orders": {
+          "supportedEnvironments": ["SIMULATE", "REAL"],
+          "supportsHistory": true
+        },
+        "positions": {
+          "supportedEnvironments": ["SIMULATE", "REAL"]
+        }
+      }
+    }
+  ],
+  "notes": [
+    "Market data is exposed to the frontend through the bbgo exchange boundary.",
+    "OpenD WebSocket settings are retained for compatibility and diagnostics; the current hot path uses the native API port."
+  ]
+}

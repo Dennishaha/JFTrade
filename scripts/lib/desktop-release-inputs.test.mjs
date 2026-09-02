@@ -9,6 +9,8 @@ import {
   desktopReleaseInputPaths,
   desktopReleaseInputPathsForCurrentPlatform,
   usesPreparedDesktopReleaseInputs,
+  verifyDesktopReleaseInputManifest,
+  writeDesktopReleaseInputManifest,
 } from "./desktop-release-inputs.mjs";
 
 assert.equal(usesPreparedDesktopReleaseInputs({}), false);
@@ -23,13 +25,13 @@ assert.equal(
     platform: "darwin",
     architecture: "arm64",
   }),
-  "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64",
+  "runtime-assets/marketdata/marketdata-sidecar-darwin-arm64",
 );
 assert.equal(
   currentMarketDataSidecarAssetPath({
     environment: { GOOS: "windows", GOARCH: "amd64" },
   }),
-  "internal/marketdataassets/assets/bin/marketdata-sidecar-windows-amd64",
+  "runtime-assets/marketdata/marketdata-sidecar-windows-amd64",
 );
 assert.throws(
   () =>
@@ -53,7 +55,7 @@ try {
   for (const relativePath of currentPlatformInputs) {
     const inputPath = path.join(rootDir, relativePath);
     fs.mkdirSync(path.dirname(inputPath), { recursive: true });
-    if (relativePath.startsWith("internal/marketdataassets/assets/bin/")) {
+    if (relativePath.startsWith("runtime-assets/marketdata/")) {
       fs.mkdirSync(inputPath, { recursive: true });
       const binaryBase = path.basename(relativePath);
       const extension = binaryBase.includes("-windows-") ? ".exe" : "";
@@ -63,6 +65,17 @@ try {
     }
   }
   assert.doesNotThrow(() => assertPreparedDesktopReleaseInputs(rootDir));
+
+  const manifest = writeDesktopReleaseInputManifest(rootDir);
+  assert.equal(manifest.schemaVersion, "jftrade.desktop-release-inputs.v1");
+  assert.doesNotThrow(() => verifyDesktopReleaseInputManifest(rootDir));
+
+  fs.appendFileSync(path.join(rootDir, desktopReleaseInputPaths[1]), "tampered", "utf8");
+  assert.throws(
+    () => verifyDesktopReleaseInputManifest(rootDir),
+    /stale or mismatched/,
+  );
+  fs.writeFileSync(path.join(rootDir, desktopReleaseInputPaths[1]), "prepared\n", "utf8");
 
   const emptyInput = path.join(rootDir, desktopReleaseInputPaths[0]);
   fs.writeFileSync(emptyInput, "", "utf8");

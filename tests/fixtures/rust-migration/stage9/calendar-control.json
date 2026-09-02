@@ -1,0 +1,55 @@
+{
+  "version": "stage9.calendar-control.v1",
+  "refreshAll": {
+    "accepted": true,
+    "failures": 0,
+    "market": "",
+    "requestedAt": "2026-06-19T12:00:00Z",
+    "updated": 1,
+    "warmupMarkets": [
+      "US"
+    ]
+  },
+  "refreshUnknown": {
+    "accepted": true,
+    "failures": 0,
+    "market": "MARS",
+    "requestedAt": "2026-06-19T12:00:00Z",
+    "updated": 0,
+    "warmupMarkets": [
+      "MARS"
+    ]
+  },
+  "probeUS": {
+    "accepted": true,
+    "checkedAt": "2026-06-19T12:00:00Z",
+    "failures": 0,
+    "healthy": 1,
+    "market": "US",
+    "probeScope": [
+      "US"
+    ],
+    "results": [
+      {
+        "checksum": "fixture-checksum-1",
+        "fetchedAt": "2026-01-02T03:00:00Z",
+        "market": "US",
+        "schedulesParsed": 3,
+        "sourceId": "fixture_source",
+        "status": "healthy",
+        "validUntil": "2026-01-09T03:00:00Z"
+      }
+    ]
+  },
+  "probeUnknown": {
+    "accepted": true,
+    "checkedAt": "2026-06-19T12:00:00Z",
+    "failures": 0,
+    "healthy": 0,
+    "market": "MARS",
+    "probeScope": [
+      "MARS"
+    ],
+    "results": []
+  }
+}

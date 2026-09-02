@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-19T11:45:08.992Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple A18 Pro",
+    "logicalCpus": 6,
+    "totalMemoryBytes": 8589934592
+  },
+  "buildProfile": {
+    "go": "go test -c -trimpath (production Wails desktop behavior harness)",
+    "rust": "cargo build --release (Tauri facade projection; no native WebView)"
+  },
+  "workload": {
+    "fixture": "desktop-shell-corpus.json",
+    "fixtureSha256": "4399d72e1b9c94b78a18759b0481e3d562e564e4db4d44e4f3838ad4b6a53a95",
+    "expectedSha256": "346ac6cf64ab02d71f98b7b5a55491090f41430f02802708f47a2a53a3ba6f36",
+    "platforms": 3,
+    "links": 6,
+    "commands": 10,
+    "events": 4
+  },
+  "go": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 16.716,
+      "p95": 18.247,
+      "p99": 18.69
+    },
+    "cpuMillisP50": 10,
+    "peakRssBytes": 42631168,
+    "binaryBytes": 87321682
+  },
+  "rust": {
+    "iterations": 20,
+    "warmups": 3,
+    "elapsedMillis": {
+      "p50": 4.335,
+      "p95": 6.658,
+      "p99": 7.671
+    },
+    "cpuMillisP50": 0,
+    "peakRssBytes": 8765440,
+    "binaryBytes": 711616
+  },
+  "gates": {
+    "rustToGoP95": 0.365,
+    "rustToGoPeakRss": 0.206,
+    "p95RegressionGatePassed": true,
+    "rssRegressionGatePassed": true
+  },
+  "limitations": [
+    "The Go sample executes production Wails desktop policy tests; the Rust sample projects the Tauri facade and supervised lifecycle plan without opening a native WebView.",
+    "This benchmark does not qualify UI rendering, signing, installers, actual subprocesses, upgrade compatibility, or orphan detection.",
+    "The local Darwin result does not replace native macOS ARM64, Linux x64, Windows x64, and Windows ARM64 package smoke."
+  ]
+}

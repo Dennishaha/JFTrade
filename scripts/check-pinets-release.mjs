@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { checkPinetsPackageAndLicense } from "./lib/pinets-package.mjs";
 import { spawnChecked } from "./lib/spawn.mjs";
 
@@ -16,7 +16,9 @@ for (const arg of process.argv.slice(2)) {
 }
 
 const runLog = process.env.JFTRADE_PINETS_RELEASE_RUN_LOG || "";
-const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/trading-engine";
+const releaseOut = process.env.JFTRADE_PINETS_RELEASE_OUT || "dist/jftrade-api-rust";
+const rustReleaseArtifact = process.env.JFTRADE_PINETS_RELEASE_RUST_ARTIFACT
+  || join(process.env.CARGO_TARGET_DIR || "target", "release", "jftrade-api-rust");
 const dryRun = process.env.JFTRADE_PINETS_RELEASE_DRY_RUN === "1";
 
 let blocked = false;
@@ -24,29 +26,24 @@ if (!checkPinetsPackageAndLicense({ dryRun, verifyWorkspaceVisible: true })) {
   blocked = true;
 }
 
-run("go", ["test", "./internal/app/apiserver/servercore", "-run", "TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker", "-v"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestPineTSHardCutDoesNotExposeGoPineRuntime", "-v"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-run", "Test", "-cover"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-bench", "BenchmarkCheckPerformanceGate", "-run", "^$", "-benchmem"]);
+run("cargo", ["test", "-p", "jftrade-integration-pine", "--all-targets"]);
+run("cargo", ["test", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract"]);
 run("pnpm", ["run", "test:pineworker"]);
 run("pnpm", ["run", "typecheck:pineworker"]);
 run("pnpm", ["run", "check:pinets-compliance"]);
 run("pnpm", ["run", "test:web"]);
 run("pnpm", ["run", "typecheck:web"]);
 run("pnpm", ["run", "build:frontend-assets"]);
-run("go", ["test", "-tags", "release_assets", "./internal/frontendassets", "-run", "TestFileSystem"]);
 run("git", ["diff", "--check"]);
 
 if (!blocked) {
-  run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestWorkerManagerRealPineTSProcessSmoke", "-v"], {
-    JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE: "1",
-  });
   run("pnpm", ["run", "build:pineworker"]);
-  run("go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-run", "Test"]);
+  run("pnpm", ["run", "smoke:pinets-backtest"]);
   run("pnpm", ["run", "build:marketdata-sidecar"]);
-  run("go", ["test", "-tags", "release_assets", "./internal/marketdataassets", "-run", "Test"]);
+  run("pnpm", ["run", "smoke:marketdata-sidecar"]);
   prepareReleaseArtifactPath();
-  run("go", ["build", "-tags", "release_assets", "-o", releaseOut, "./cmd/jftrade-api"]);
+  run("cargo", ["build", "--release", "-p", "jftrade-engine", "--bin", "jftrade-api-rust"]);
+  copyRustReleaseArtifact();
   verifyReleaseArtifact();
 } else {
   console.log("==> Skipping real PineTS process smoke and release asset build until pinets is installed");
@@ -82,6 +79,20 @@ function prepareReleaseArtifactPath() {
   rmSync(releaseOut, { force: true });
 }
 
+function copyRustReleaseArtifact() {
+  if (dryRun) {
+    return;
+  }
+  if (!existsSync(rustReleaseArtifact)) {
+    console.error(`Rust API release artifact is missing: ${rustReleaseArtifact}`);
+    process.exit(1);
+  }
+  copyFileSync(rustReleaseArtifact, releaseOut);
+  if (process.platform !== "win32") {
+    chmodSync(releaseOut, 0o755);
+  }
+}
+
 function verifyReleaseArtifact() {
   if (!existsSync(releaseOut) || statSync(releaseOut).size === 0) {
     console.error(`release artifact is missing or empty: ${releaseOut}`);
@@ -94,20 +105,15 @@ function verifyReleaseArtifact() {
 }
 
 function maybeWriteDryRunArtifact(command, args) {
-  if (command !== "go" || args[0] !== "build") {
+  if (command !== "cargo" || args[0] !== "build" || !args.includes("--release")) {
     return;
   }
   if (process.env.JFTRADE_PINETS_RELEASE_STUB_SKIP_ARTIFACT === "1") {
     return;
   }
-  const outFlag = args.indexOf("-o");
-  if (outFlag < 0 || !args[outFlag + 1]) {
-    return;
-  }
-  const outPath = args[outFlag + 1];
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, "#!/bin/sh\nexit 0\n");
-  chmodSync(outPath, 0o755);
+  mkdirSync(dirname(releaseOut), { recursive: true });
+  writeFileSync(releaseOut, "#!/bin/sh\nexit 0\n");
+  chmodSync(releaseOut, 0o755);
 }
 
 function formatCommand(command, args, extraEnv) {

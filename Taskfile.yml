@@ -4,10 +4,10 @@ vars:
   APP_NAME: "JFTrade"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: "pnpm"
-  VITE_PORT: '{{.WAILS_VITE_PORT | default "3003"}}'
-  GOOS: '{{.GOOS | default OS}}'
-  PINEWORKER_BUNDLE: '{{.JFTRADE_PINEWORKER_BUNDLE | default "var/pineworker/worker.mjs"}}'
 
+# Keep the historical platform-qualified task names available as thin Tauri
+# aliases.  They are still useful to local scripts and external contributors,
+# while the actual build/dev implementation lives in the package scripts.
 includes:
   common: ./build/Taskfile.yml
   windows: ./build/windows/Taskfile.yml
@@ -16,29 +16,29 @@ includes:
 
 tasks:
   build:
-    desc: Builds the application for the current platform
+    desc: Builds the Tauri desktop application for the current platform
     cmds:
-      - task: "{{.GOOS}}:build"
+      - pnpm run build:desktop
 
   package:
-    desc: Packages a production build of the application
+    desc: Builds the Tauri desktop bundles for the current platform
     cmds:
-      - task: "{{.GOOS}}:package"
+      - pnpm run build:desktop
 
   run:
-    desc: Runs the application
+    desc: Runs the Tauri desktop application
     cmds:
-      - task: "{{.GOOS}}:run"
+      - pnpm run dev:desktop
 
   dev:
-    desc: Runs the application in Wails development mode
+    desc: Runs the application in Tauri development mode
     cmds:
-      - go tool wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+      - pnpm run dev:desktop
 
   prepare:release:
-    desc: Explicitly prepares frontend, bindings, Pine and market-data release inputs
+    desc: Explicitly prepares Tauri frontend, Pine and market-data release inputs
     cmds:
-      - pnpm run prepare:desktop-release
+      - pnpm run prepare:tauri-release
 
   prepare:dev:
     desc: Explicitly builds the external PineTS worker used by desktop development
@@ -46,6 +46,7 @@ tasks:
       - pnpm run build:pineworker:dev
 
   doctor:
-    desc: Verifies the pinned Wails CLI and host desktop prerequisites
+    desc: Verifies the Tauri CLI and host desktop prerequisites
+    dir: apps/desktop/src-tauri
     cmds:
-      - go tool wails3 doctor
+      - pnpm exec tauri info

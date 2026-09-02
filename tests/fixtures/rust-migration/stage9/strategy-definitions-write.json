@@ -1,0 +1,1221 @@
+{
+  "version": "stage9.strategy-definitions-write.v1",
+  "cases": [
+    {
+      "name": "create-success-client-id-ignored",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions"
+      ],
+      "requestBodies": [
+        "{\"description\":\"created\",\"id\":\"client-id\",\"interval\":\" 5m \",\"name\":\"Created\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\",\"symbol\":\" us.aapl \"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "created",
+            "id": "\u003cgenerated-definition-id\u003e",
+            "interval": "5m",
+            "name": "Created",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "symbol": "US.AAPL",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.0"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "created",
+            "id": "",
+            "interval": " 5m ",
+            "name": "Created",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": " us.aapl ",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "create-malformed-body",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid definition payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "create-invalid-script-400",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions"
+      ],
+      "requestBodies": [
+        "{\"name\":\"Invalid\",\"script\":\"strategy(\"}"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "pine line 1: pine script requires //@version=6"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "",
+            "id": "",
+            "interval": "",
+            "name": "Invalid",
+            "runtime": "",
+            "script": "strategy(",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "create-malformed-body-before-unavailable",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid definition payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "update-version-and-duplicate",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-current",
+        "/api/v1/strategy-definitions/fixture-current"
+      ],
+      "requestBodies": [
+        "{\"description\":\"second\",\"id\":\"body-id\",\"interval\":\"1m\",\"name\":\"Updated\",\"script\":\"//@version=6\\nstrategy(\\\"Updated\\\")\\nslow = ta.sma(close, 20)\",\"symbol\":\"US.MSFT\"}",
+        "{\"description\":\"second\",\"id\":\"body-id\",\"interval\":\"1m\",\"name\":\"Updated\",\"script\":\"//@version=6\\nstrategy(\\\"Updated\\\")\\nslow = ta.sma(close, 20)\",\"symbol\":\"US.MSFT\"}"
+      ],
+      "expectedStatuses": [
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "second",
+            "id": "fixture-current",
+            "interval": "1m",
+            "name": "Updated",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Updated\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "symbol": "US.MSFT",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "second",
+            "id": "fixture-current",
+            "interval": "1m",
+            "name": "Updated",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Updated\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "symbol": "US.MSFT",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "second",
+            "id": "fixture-current",
+            "interval": "1m",
+            "name": "Updated",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Updated\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "US.MSFT",
+            "version": ""
+          },
+          {
+            "description": "second",
+            "id": "fixture-current",
+            "interval": "1m",
+            "name": "Updated",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Updated\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "US.MSFT",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "update-missing-upserts",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/missing-upsert"
+      ],
+      "requestBodies": [
+        "{\"id\":\"body-id\",\"name\":\"Upserted\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "",
+            "id": "missing-upsert",
+            "name": "Upserted",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.0"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "",
+            "id": "missing-upsert",
+            "interval": "",
+            "name": "Upserted",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "update-malformed-body",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-current"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid definition payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "update-rollback-on-snapshot-failure",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-rollback"
+      ],
+      "requestBodies": [
+        "{\"description\":\"must rollback\",\"name\":\"Changed\",\"script\":\"//@version=6\\nstrategy(\\\"Rollback\\\")\\nslow = ta.sma(close, 20)\"}"
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to save strategy definition"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "must rollback",
+            "id": "fixture-rollback",
+            "interval": "",
+            "name": "Changed",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Rollback\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "delete-linked-guard-then-soft-delete",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-delete",
+        "/api/v1/strategy-definitions/fixture-delete"
+      ],
+      "requestBodies": [
+        "",
+        ""
+      ],
+      "expectedStatuses": [
+        400,
+        200
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "当前有 inst-1 个实例仍关联该策略，请先删除对应实例再删除。实例: inst-1"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "soft delete",
+            "id": "fixture-delete",
+            "interval": "5m",
+            "name": "Delete",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Delete\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "symbol": "US.AAPL",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.0"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": [
+          "fixture-delete"
+        ],
+        "definitionReads": null,
+        "definitionSaves": [],
+        "linkedReads": [
+          "fixture-delete",
+          "fixture-delete"
+        ]
+      }
+    },
+    {
+      "name": "delete-missing-404",
+      "method": "DELETE",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/missing"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "strategy resource not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": [
+          "missing"
+        ],
+        "definitionReads": null,
+        "definitionSaves": [],
+        "linkedReads": [
+          "missing"
+        ]
+      }
+    },
+    {
+      "name": "apply-linked-success-lifecycle",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-apply/apply-linked-instances"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "alreadyLatest": [
+              "already-latest"
+            ],
+            "applied": [
+              "stale-stopped"
+            ],
+            "definitionId": "fixture-apply",
+            "latestVersion": "0.1.1",
+            "skippedBusy": [
+              "busy-running"
+            ],
+            "totalLinked": 3
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [
+          {
+            "definitionId": "fixture-apply",
+            "version": "0.1.1"
+          }
+        ],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-apply"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "apply-definition-read-unavailable-400",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-apply/apply-linked-instances"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "definition store unavailable"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-apply"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "apply-linked-busy-maps-400",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-apply/apply-linked-instances"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "strategy instance must be stopped before modification"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [
+          {
+            "definitionId": "fixture-apply",
+            "version": ""
+          }
+        ],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-apply"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "apply-linked-store-failure-500",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-apply/apply-linked-instances"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to apply linked instances"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [
+          {
+            "definitionId": "fixture-apply",
+            "version": ""
+          }
+        ],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-apply"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "instantiate-empty-body-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-instantiate/instantiate"
+      ],
+      "requestBodies": [
+        ""
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "live",
+              "instruments": [
+                {
+                  "code": "AAPL",
+                  "market": "US"
+                }
+              ],
+              "interval": "5m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "off",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T06:00:00Z",
+            "definition": {
+              "name": "Instantiate",
+              "strategyId": "fixture-instantiate",
+              "version": "0.1.0"
+            },
+            "definitionSync": {
+              "appliedVersion": "0.1.0",
+              "canApplyLatest": false,
+              "definitionId": "fixture-instantiate",
+              "isLatest": true,
+              "latestVersion": "0.1.0"
+            },
+            "id": "\u003cgenerated-instance-id\u003e",
+            "logs": [],
+            "params": {
+              "chartType": "standard",
+              "compiledAt": "2026-08-22T06:00:00Z",
+              "compiledHooks": [
+                "on_kline_close"
+              ],
+              "compiledRequirements": {
+                "indicators": [
+                  {
+                    "alias": "",
+                    "key": "ma:SMA:20",
+                    "kind": "ma"
+                  }
+                ],
+                "requiresPosition": false,
+                "requiresTotalAccountValue": false
+              },
+              "definitionId": "fixture-instantiate",
+              "executionMode": "live",
+              "instruments": [
+                {
+                  "code": "AAPL",
+                  "market": "US"
+                }
+              ],
+              "interval": "5m",
+              "runtime": "pine-pinets",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "dailyMaxOrders": null,
+                "maxOrderNotional": null,
+                "maxOrderQuantity": null,
+                "mode": "off",
+                "pauseOnReject": false
+              },
+              "script": "//@version=6\nstrategy(\"Instantiate\")\nslow = ta.sma(close, 20)",
+              "sourceFormat": "pine-v6",
+              "symbol": "US.AAPL",
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "pluginId": "pine-pinets",
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [
+          {
+            "definitionId": "fixture-instantiate",
+            "executionMode": "",
+            "interval": "",
+            "symbols": null
+          }
+        ],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-instantiate"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "instantiate-custom-binding-success",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-instantiate/instantiate"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"us:aapl\",\"US:AAPL\"],\"interval\":\" 1m \",\"executionMode\":\"notify_only\"}"
+      ],
+      "expectedStatuses": [
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "binding": {
+              "chartType": "standard",
+              "executionMode": "notify_only",
+              "instruments": [
+                {
+                  "code": "AAPL",
+                  "market": "US"
+                }
+              ],
+              "interval": "1m",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "mode": "off",
+                "pauseOnReject": false
+              },
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "createdAt": "2026-08-22T06:00:00Z",
+            "definition": {
+              "name": "Instantiate",
+              "strategyId": "fixture-instantiate",
+              "version": "0.1.0"
+            },
+            "definitionSync": {
+              "appliedVersion": "0.1.0",
+              "canApplyLatest": false,
+              "definitionId": "fixture-instantiate",
+              "isLatest": true,
+              "latestVersion": "0.1.0"
+            },
+            "id": "\u003cgenerated-instance-id\u003e",
+            "logs": [],
+            "params": {
+              "chartType": "standard",
+              "compiledAt": "2026-08-22T06:00:00Z",
+              "compiledHooks": [
+                "on_kline_close"
+              ],
+              "compiledRequirements": {
+                "indicators": [
+                  {
+                    "alias": "",
+                    "key": "ma:SMA:20",
+                    "kind": "ma"
+                  }
+                ],
+                "requiresPosition": false,
+                "requiresTotalAccountValue": false
+              },
+              "definitionId": "fixture-instantiate",
+              "executionMode": "notify_only",
+              "instruments": [
+                {
+                  "code": "AAPL",
+                  "market": "US"
+                }
+              ],
+              "interval": "1m",
+              "runtime": "pine-pinets",
+              "runtimeRisk": {
+                "closeOnly": false,
+                "dailyMaxOrders": null,
+                "maxOrderNotional": null,
+                "maxOrderQuantity": null,
+                "mode": "off",
+                "pauseOnReject": false
+              },
+              "script": "//@version=6\nstrategy(\"Instantiate\")\nslow = ta.sma(close, 20)",
+              "sourceFormat": "pine-v6",
+              "symbol": "US.AAPL",
+              "symbols": [
+                "US.AAPL"
+              ]
+            },
+            "pluginId": "pine-pinets",
+            "runtime": "pine-pinets",
+            "sourceFormat": "pine-v6",
+            "startable": true,
+            "status": "STOPPED"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [
+          {
+            "definitionId": "fixture-instantiate",
+            "executionMode": "notify_only",
+            "interval": " 1m ",
+            "symbols": [
+              "us:aapl",
+              "US:AAPL"
+            ]
+          }
+        ],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-instantiate"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "instantiate-definition-missing-precedes-malformed-body",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/missing/instantiate"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        404
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "resource not found"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "missing"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "instantiate-malformed-body-400",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-instantiate/instantiate"
+      ],
+      "requestBodies": [
+        "{"
+      ],
+      "expectedStatuses": [
+        400
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "BAD_REQUEST",
+            "message": "invalid strategy instance payload"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-instantiate"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "instantiate-catalog-failure-500",
+      "method": "POST",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-instantiate/instantiate"
+      ],
+      "requestBodies": [
+        "{\"symbols\":[\"US.AAPL\"]}"
+      ],
+      "expectedStatuses": [
+        500
+      ],
+      "responses": [
+        {
+          "error": {
+            "code": "STRATEGY_FAILED",
+            "message": "failed to instantiate strategy"
+          },
+          "ok": false,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [
+          {
+            "definitionId": "fixture-instantiate",
+            "executionMode": "",
+            "interval": "",
+            "symbols": [
+              "US.AAPL"
+            ]
+          }
+        ],
+        "definitionDeletes": null,
+        "definitionReads": [
+          "fixture-instantiate"
+        ],
+        "definitionSaves": [],
+        "linkedReads": null
+      }
+    },
+    {
+      "name": "concurrent-update-no-lost-version",
+      "method": "PUT",
+      "requestPaths": [
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent",
+        "/api/v1/strategy-definitions/fixture-concurrent"
+      ],
+      "requestBodies": [
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}",
+        "{\"description\":\"same update\",\"name\":\"Concurrent\",\"script\":\"//@version=6\\nstrategy(\\\"Fixture\\\")\\nslow = ta.sma(close, 20)\"}"
+      ],
+      "concurrent": true,
+      "repeat": 8,
+      "expectedStatuses": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "responses": [
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        },
+        {
+          "data": {
+            "createdAt": "2026-08-22T06:00:00Z",
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "name": "Concurrent",
+            "runtime": "pine-pinets",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "pine-v6",
+            "updatedAt": "2026-08-22T06:00:00Z",
+            "version": "0.1.1"
+          },
+          "ok": true,
+          "timestamp": "2026-08-22T06:00:00Z"
+        }
+      ],
+      "expectedObservation": {
+        "applies": [],
+        "creates": [],
+        "definitionDeletes": null,
+        "definitionReads": null,
+        "definitionSaves": [
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          },
+          {
+            "description": "same update",
+            "id": "fixture-concurrent",
+            "interval": "",
+            "name": "Concurrent",
+            "runtime": "",
+            "script": "//@version=6\nstrategy(\"Fixture\")\nslow = ta.sma(close, 20)",
+            "sourceFormat": "",
+            "symbol": "",
+            "version": ""
+          }
+        ],
+        "linkedReads": null
+      }
+    }
+  ]
+}

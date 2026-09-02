@@ -6,11 +6,11 @@
 
 | 项目 | 适合参考的点 | 在 JFTrade 中的落点 |
 | --- | --- | --- |
-| QuantConnect LEAN | 回测/实盘统一订单生命周期、明确撮合模型版本 | `pkg/backtest` execution model、result metadata |
-| NautilusTrader | 事件驱动交易内核、订单/成交状态机 | `pkg/backtest/conservative_bar_executor.go`、`internal/trading` |
-| vn.py | gateway 接入、券商适配分层、事件总线思路 | `pkg/broker`、`internal/trading`、Futu adapter |
-| StockSharp | broker capability 与 connector conformance | `pkg/broker` capability catalog/router、后续 conformance tests |
-| OpenBB | provider registry、数据源可发现、typed data contracts | `internal/marketdata` provider descriptor；出现第二个真实 provider 后再评估 registry |
+| QuantConnect LEAN | 回测/实盘统一订单生命周期、明确撮合模型版本 | `crates/jftrade-backtest` execution model、result metadata |
+| NautilusTrader | 事件驱动交易内核、订单/成交状态机 | `crates/jftrade-backtest`、`crates/jftrade-trading` |
+| vn.py | gateway 接入、券商适配分层、事件总线思路 | `crates/jftrade-broker`、`crates/jftrade-trading`、Futu integration |
+| StockSharp | broker capability 与 connector conformance | `crates/jftrade-broker` capability catalog/router、conformance tests |
+| OpenBB | provider registry、数据源可发现、typed data contracts | `crates/jftrade-marketdata` provider descriptor/router |
 | Qlib | 研究/ML 数据集和实验管理 | 后续 ADK research workflow，不进入首批交易执行内核 |
 
 ## 当前取舍

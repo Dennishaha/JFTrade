@@ -26,18 +26,13 @@ const dom = new JSDOM(indexHTML, {
   url: "http://127.0.0.1:6699/",
 });
 const { window } = dom;
-const pendingWailsCall = new Promise(() => {});
 const fetchMock = async (input) => {
-  const url = String(input instanceof URL ? input.href : input);
-  if (url.includes("/wails/runtime")) {
-    return pendingWailsCall;
-  }
   return {
-    ok: false,
-    status: 404,
-    headers: { get: () => "" },
-    json: async () => ({}),
-    text: async () => "",
+    ok: true,
+    status: 200,
+    headers: { get: () => "application/json" },
+    json: async () => ({ ok: true, data: {} }),
+    text: async () => JSON.stringify({ ok: true, data: {} }),
   };
 };
 
@@ -45,7 +40,15 @@ window.__JFTRADE_RUNTIME_CONFIG__ = {
   authRequired: false,
   desktopMode: true,
 };
-window.wails = { invoke: () => undefined };
+window.__TAURI_INTERNALS__ = {
+  invoke: () =>
+    Promise.resolve({
+      apiBaseUrl: "http://127.0.0.1:6699",
+      authRequired: false,
+      desktopMode: true,
+      desktopApiToken: "a".repeat(64),
+    }),
+};
 window.CSS = { escape: (value) => String(value) };
 window.matchMedia = () => ({
   addEventListener: () => {},
@@ -65,7 +68,12 @@ window.IntersectionObserver = class {
   observe() {}
   unobserve() {}
 };
-window.WebSocket = class {};
+window.WebSocket = class {
+  addEventListener() {}
+  removeEventListener() {}
+  close() {}
+  send() {}
+};
 
 const globals = {
   CSS: window.CSS,
@@ -124,7 +132,7 @@ try {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     if (/reading ['"]Call['"]/.test(message)) {
       throw new Error(
-        `production frontend bundle still has the Wails runtime chunk cycle: ${message}`,
+        `production frontend bundle still has a desktop runtime chunk cycle: ${message}`,
         { cause: error },
       );
     }
@@ -164,3 +172,5 @@ try {
   }
   dom.window.close();
 }
+
+process.exit(0);

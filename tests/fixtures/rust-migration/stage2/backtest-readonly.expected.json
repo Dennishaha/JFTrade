@@ -1,0 +1,66 @@
+{
+  "componentId": "backtest",
+  "version": 3,
+  "pragmas": {
+    "foreignKeys": 1,
+    "queryOnly": 1,
+    "busyTimeout": 10000,
+    "journalMode": "delete"
+  },
+  "tables": [
+    {
+      "name": "jftrade_schema_meta",
+      "withoutRowid": false,
+      "columns": [
+        { "cid": 0, "name": "component_id", "type": "TEXT", "notNull": 0, "primaryKey": 1, "hidden": 0 },
+        { "cid": 1, "name": "version", "type": "INTEGER", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 2, "name": "created_at", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 }
+      ]
+    },
+    {
+      "name": "local_klines__futu__us_aapl__1m__forward__r__a1b2c3d4",
+      "withoutRowid": true,
+      "columns": [
+        { "cid": 0, "name": "end_time", "type": "INTEGER", "notNull": 1, "primaryKey": 1, "hidden": 0 },
+        { "cid": 1, "name": "start_time", "type": "INTEGER", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 2, "name": "open", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 3, "name": "high", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 4, "name": "low", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 5, "name": "close", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 },
+        { "cid": 6, "name": "volume", "type": "TEXT", "notNull": 1, "primaryKey": 0, "hidden": 0 }
+      ]
+    }
+  ],
+  "klines": [
+    {
+      "table": "local_klines__futu__us_aapl__1m__forward__r__a1b2c3d4",
+      "endTime": 1767294300000,
+      "startTime": 1767294240000,
+      "open": "99.875",
+      "high": "100.25",
+      "low": "99.75",
+      "close": "100.25",
+      "volume": "1000"
+    },
+    {
+      "table": "local_klines__futu__us_aapl__1m__forward__r__a1b2c3d4",
+      "endTime": 1767294360000,
+      "startTime": 1767294300000,
+      "open": "100.25",
+      "high": "100.50000001",
+      "low": "100",
+      "close": "100.125",
+      "volume": "1200.5"
+    },
+    {
+      "table": "local_klines__futu__us_aapl__1m__forward__r__a1b2c3d4",
+      "endTime": 1767294420000,
+      "startTime": 1767294360000,
+      "open": "100.125",
+      "high": "101",
+      "low": "100.00000001",
+      "close": "100.75",
+      "volume": "980.125"
+    }
+  ]
+}

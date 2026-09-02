@@ -12,7 +12,7 @@
 | OpenD API port | `11110` | Go 原生 TCP/protobuf 客户端使用 |
 | OpenD WebSocket port | `11111` | FTWebSocket / JavaScript API 使用 |
 
-[../../pkg/futu/opend/client.go](../../pkg/futu/opend/client.go) 当前明确使用的是原生 TCP API。不要把 Go 侧连接写成 11111。
+[../../crates/jftrade-integration-futu](../../crates/jftrade-integration-futu) 当前明确使用的是原生 TCP API。不要把 Rust 侧连接写成 11111。
 
 ## 设置写入链路
 
@@ -24,7 +24,7 @@ Settings UI
   -> FUTU_OPEND_ADDR / JFTRADE_FUTU_API_PORT / JFTRADE_FUTU_WEBSOCKET_PORT
 ```
 
-[../../internal/app/apiserver/runtime/integration_env.go](../../internal/app/apiserver/runtime/integration_env.go) 会把当前保存的配置注入运行时环境，设置保存后的运行时重置由 [../../internal/app/apiserver/servercore/server.go](../../internal/app/apiserver/servercore/server.go) 装配。
+`jftrade-engine` 将保存的配置注入 OpenD runtime；设置保存后的运行时重置和 Provider readiness 由 production composition 装配。
 
 ## 快速验证
 

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jftrade.local/schemas/post-release-smoke.v1.json",
+  "title": "JFTrade post-release Tauri smoke evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "valid",
+    "releaseQualified",
+    "releaseQualification",
+    "releaseBinding",
+    "platforms",
+    "missingPlatforms",
+    "errors"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "jftrade.post-release-smoke.v1" },
+    "status": { "enum": ["inputs_verified", "incomplete_inputs"] },
+    "valid": { "type": "boolean" },
+    "releaseQualified": { "const": false },
+    "releaseQualification": {
+      "const": "external_post_release_observation_required"
+    },
+    "releaseBinding": {
+      "$ref": "./post-release-binding.schema.json"
+    },
+    "artifactDigests": {
+      "type": "array",
+      "items": { "$ref": "./post-release-binding.schema.json#/$defs/artifact" }
+    },
+    "platforms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/platform" }
+    },
+    "missingPlatforms": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "target",
+        "valid",
+        "readiness",
+        "shutdown",
+        "orphanCheck",
+        "releaseBinding"
+      ],
+      "properties": {
+        "path": { "type": ["string", "null"] },
+        "platform": { "type": "string" },
+        "target": { "type": "object" },
+        "valid": { "type": "boolean" },
+        "readiness": { "type": ["object", "null"] },
+        "shutdown": { "type": ["object", "null"] },
+        "orphanCheck": { "type": "string" },
+        "releaseBinding": {
+          "$ref": "./post-release-binding.schema.json"
+        }
+      }
+    }
+  }
+}

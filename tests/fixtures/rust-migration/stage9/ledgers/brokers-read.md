@@ -1,0 +1,17 @@
+# Brokers Read Group Ledger
+
+> Historical/rehearsal evidence notice (pre-2026-08-31): owner labels, route counts, and Go/retained statuses in this ledger describe the qualification snapshot at capture time, not current production ownership.
+>
+> Current route truth is derived from `node scripts/rust-migration/check-stage9-route-coverage.mjs` and `tests/fixtures/rust-migration/stage9/route-ownership.json`; formal release truth is `node scripts/rust-migration/check-stage9-closeout.mjs --check`. The original evidence below is intentionally retained verbatim.
+
+- Group: `brokers-read`
+- Tier: B: broker-backed balances, orders, fills, quotes and runtime projections depend on the Go broker lifecycle, so Rust is test-cutover-only.
+- Owner: Go remains production owner. Rust accepts a consumer-owned `BrokerReadSnapshotPort` only in `ProductConfig::test_cutover`; it never discovers accounts, connects OpenD, activates a broker, or writes trading state.
+- Fixture: `tests/fixtures/rust-migration/stage9/broker-read.json`
+- Differential: `TestStage9BrokerReadFixtureMatchesCurrentGoOwner` plus parameterized Rust route tests.
+
+The thirteen GET operations preserve the current Go envelopes and degraded/no-provider fallback. `GET /api/v1/brokers/capabilities` preserves the capability catalog; runtime, funds, positions, orders, fills, cash flows, order fees, margin ratios, max trade quantities, quote, K-lines and securities preserve their broker-neutral response projections and query-bearing paths.
+
+Snapshot adapter failures map to `503 BROKER_READ_UNAVAILABLE`; malformed snapshot requests map to `400 BAD_REQUEST`. The Go fixture freezes clock-dependent `checkedAt`, `observedAt`, and `quoteAt` fields to `fixture-time` without changing any other wire field.
+
+All thirteen operations are now `cutover-qualified`, `productionOwner=go`, and `goRemovalStatus=retained`, based on the authenticated wire/error/timeout/crash/restart rehearsal. It uses the capability catalog and missing-broker projections with Futu explicitly disabled on loopback ports `1/2`. Broker order POST/DELETE/unlock operations remain separate test-only mutations; Go remains the sole broker lifecycle and trading-state owner.

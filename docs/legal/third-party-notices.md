@@ -24,35 +24,25 @@ When PineTS functionality is exposed to network users, JFTrade distributors and
 operators must provide the corresponding source code, license notice, build
 instructions, and any local modifications required by AGPL-3.0.
 
-## BBGO
+## BBGO documentation snapshot
 
-- Component: vendored BBGO runtime components under `pkg/bbgo`
-- Version vendored from: `github.com/c9s/bbgo@v1.64.2`
-- Documentation snapshot: `docs/reference/bbgo-doc`
+- Component: historical documentation snapshot under `docs/reference/bbgo-doc`
+- Snapshot source: `github.com/c9s/bbgo@v1.64.2`
 - Upstream: <https://github.com/c9s/bbgo>
 - License: `AGPL-3.0-only`
 - Copyright: BBGO contributors
 
-The complete GNU Affero General Public License version 3 text governing JFTrade,
-PineTS, and BBGO is provided in the repository root `LICENSE` file and in the
+The snapshot is reference documentation only; JFTrade no longer includes or
+executes the BBGO runtime. The complete GNU Affero General Public License
+version 3 text is provided in the repository root `LICENSE` file and in the
 embedded JFTrade license documentation.
-
-## OpenAI Go SDK
-
-- Module: `github.com/openai/openai-go/v3`
-- Version: `v3.8.1`
-- Upstream: <https://github.com/openai/openai-go>
-- License: `Apache-2.0`
-- Integration: ADK provider support for the OpenAI Responses API.
-
-The complete Apache License 2.0 text is included later in this notice.
 
 ## Market-data helper direct Python dependencies
 
 JFTrade includes the AGPL-3.0-only adapter source under
 `workers/marketdata-sidecar`. Release builds freeze the runtime into a
-platform-specific PyInstaller `onedir` bundle and embed its files in the Go
-binary. Its `pyproject.toml` pins the following direct build, runtime, and test
+platform-specific PyInstaller `onedir` bundle and package its files as Tauri
+release resources. Its `pyproject.toml` pins the following direct build, runtime, and test
 dependencies. Python installers may also resolve transitive dependencies;
 every installed distribution retains its own copyright and license files.
 
@@ -147,76 +137,13 @@ The full Apache License 2.0 text used by `yfinance` and `pytest-asyncio` is
 included later in this notice. The precise license and attribution files for
 all packages remain available in their installed Python distributions.
 
-PyInstaller is used only to produce the platform-native helper embedded in
+PyInstaller is used only to produce the platform-native helper packaged in
 release builds. Its GPL-2.0-or-later bootloader exception permits distributing
 applications produced by PyInstaller under the application's own license;
 the corresponding PyInstaller source and license remain available from the
 upstream project above.
 
-## go-talib-derived functions
-
-- Component: selected functions in `pkg/bbgo/datatype/floats/funcs.go`
-- Upstream: <https://github.com/markcheno/go-talib>
-- License: `MIT`
-- Copyright: Copyright (c) 2016 Mark Chenoweth
-
-```text
-The MIT License (MIT)
-
-Copyright (c) 2016 Mark Chenoweth
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-## Suneido div128
-
-- Component: `pkg/bbgo/fixedpoint/div128.go`
-- Upstream: <https://github.com/apmckinlay/gsuneido>
-- License: `MIT`
-- Copyright: Copyright Suneido Software Corp.
-
-```text
-MIT License
-
-Copyright Suneido Software Corp.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-
-+## Apache License 2.0
+## Apache License 2.0
 
 The complete license text applies to the Apache-2.0 components listed above.
 
@@ -438,9 +365,7 @@ JFTrade source tree for the exact build. It includes, among other files:
 - `scripts/build-pineworker-assets.mjs`
 - `scripts/build-pineworker-dev.mjs`
 - `scripts/check-pinets-release.mjs`
-- `pkg/strategy/pineengine`
-- `pkg/strategy/pineworker`
-- `pkg/bbgo`
+- `crates/jftrade-integration-pine`
 - this notice file
 - the root `LICENSE` and package dependency metadata
 

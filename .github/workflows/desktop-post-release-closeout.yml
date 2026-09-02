@@ -1,0 +1,135 @@
+name: Desktop Post-Release Closeout
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published Tauri release tag whose native smoke was observed
+        required: true
+        type: string
+      release_ref:
+        description: Exact published tag ref bound to the observed release
+        required: true
+        type: string
+      commit_sha:
+        description: Commit SHA used by the published release
+        required: true
+        type: string
+      release_run_id:
+        description: Qualification workflow run id bound to the release artifacts
+        required: true
+        type: string
+      release_run_attempt:
+        description: Qualification workflow run attempt bound to the release artifacts
+        required: true
+        type: string
+      release_workflow:
+        description: Qualification workflow name recorded in the release binding
+        required: true
+        default: desktop-release-qualification.yml
+        type: string
+      evidence_ref:
+        description: Branch or commit containing the post-release reports and updated closeout manifest
+        required: true
+        type: string
+      closeout_manifest:
+        description: Path to the updated Stage 9 closeout manifest on evidence_ref
+        required: false
+        default: tests/fixtures/rust-migration/stage9/closeout-evidence.json
+        type: string
+      post_release_reports:
+        description: Comma-separated paths to the four platform post-release smoke reports on evidence_ref
+        required: true
+        type: string
+      artifact_digests:
+        description: Path to the release binding/digest manifest on evidence_ref
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  closeout:
+    name: Verify Post-Release Evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout independent evidence ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.evidence_ref }}
+          fetch-depth: 0
+
+      - name: Ensure evidence ref is not the published tag checkout
+        env:
+          EVIDENCE_REF: ${{ inputs.evidence_ref }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "release_tag must be a vX.Y.Z tag" >&2
+            exit 1
+          }
+          [[ "$RELEASE_REF" == "refs/tags/$RELEASE_TAG" ]] || {
+            echo "release_ref must be refs/tags/$RELEASE_TAG" >&2
+            exit 1
+          }
+          [[ "$EVIDENCE_REF" != "$RELEASE_TAG" && "$EVIDENCE_REF" != "$RELEASE_REF" ]] || {
+            echo "Post-release closeout cannot use the published tag as evidence_ref." >&2
+            exit 1
+          }
+          evidence_commit="$(git rev-parse HEAD)"
+          tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}" 2>/dev/null || true)"
+          if [[ -n "$tag_commit" && "$evidence_commit" == "$tag_commit" ]]; then
+            echo "Post-release closeout requires a distinct evidence ref with updated reports and manifest." >&2
+            exit 1
+          fi
+
+      - name: Verify four-platform post-release smoke reports
+        env:
+          REPORTS: ${{ inputs.post_release_reports }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
+          RELEASE_WORKFLOW: ${{ inputs.release_workflow }}
+          ARTIFACT_DIGESTS: ${{ inputs.artifact_digests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$REPORTS" ]] || { echo "post_release_reports is required" >&2; exit 1; }
+          [[ "$COMMIT_SHA" =~ ^[a-f0-9]{40}$|^[a-f0-9]{64}$ ]] || { echo "commit_sha must be a lowercase commit SHA" >&2; exit 1; }
+          [[ "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "release_run_id must be a positive integer" >&2; exit 1; }
+          [[ "$RELEASE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo "release_run_attempt must be a positive integer" >&2; exit 1; }
+          [[ "$RELEASE_WORKFLOW" =~ ^[A-Za-z0-9._/-]+\.yml$ ]] || { echo "release_workflow must be a workflow filename" >&2; exit 1; }
+          [[ "$ARTIFACT_DIGESTS" != /* && "$ARTIFACT_DIGESTS" != *".."* && -n "$ARTIFACT_DIGESTS" ]] || {
+            echo "artifact_digests must be a relative path without traversal" >&2
+            exit 1
+          }
+          test -f "$ARTIFACT_DIGESTS"
+          args=()
+          IFS=',' read -ra report_paths <<< "$REPORTS"
+          for report in "${report_paths[@]}"; do
+            report="${report#"${report%%[![:space:]]*}"}"
+            report="${report%"${report##*[![:space:]]}"}"
+            [[ -n "$report" ]] || { echo "post_release_reports contains an empty path" >&2; exit 1; }
+            args+=(--report "$report")
+          done
+          node scripts/rust-migration/check-post-release-smoke.mjs "${args[@]}" \
+            --expected-tag "$RELEASE_TAG" \
+            --expected-ref "$RELEASE_REF" \
+            --expected-commit "$COMMIT_SHA" \
+            --expected-run-id "$RELEASE_RUN_ID" \
+            --expected-attempt "$RELEASE_RUN_ATTEMPT" \
+            --expected-workflow "$RELEASE_WORKFLOW" \
+            --expected-artifact-digests "$ARTIFACT_DIGESTS"
+
+      - name: Verify updated Stage 9 closeout on evidence ref
+        env:
+          CLOSEOUT_MANIFEST: ${{ inputs.closeout_manifest }}
+        run: node scripts/rust-migration/check-stage9-closeout.mjs --check --manifest "$CLOSEOUT_MANIFEST"

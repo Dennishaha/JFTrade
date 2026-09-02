@@ -1,0 +1,153 @@
+{
+  "version": "stage9.calendar-sources.v1",
+  "zeroStatus": {
+    "enabled": true,
+    "sourceId": "nyse_official"
+  },
+  "recoveredStatus": {
+    "consecutiveFailures": 2,
+    "enabled": true,
+    "healthFingerprint": "fingerprint-1",
+    "healthState": "healthy",
+    "lastAlertFingerprint": "alert-1",
+    "lastAlertStatus": "recovered",
+    "lastError": "recovered",
+    "lastProbeMarket": "US",
+    "lastProbeSchedules": 8,
+    "lastProbeStatus": "recovered",
+    "lastSuccessAt": "2026-06-23T09:30:00Z",
+    "sourceId": "unknown_source"
+  },
+  "defaultSources": [
+    {
+      "authority": "builtin",
+      "availabilityNote": "Offline fallback rules bundled with the application. They remain available even when all external sources fail.",
+      "consecutiveFailures": 0,
+      "enabled": true,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "builtin_rules",
+      "kind": "builtin_rules",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "US",
+        "HK",
+        "CN",
+        "SH",
+        "SZ"
+      ]
+    },
+    {
+      "authority": "GovHK 1823",
+      "availabilityNote": "Official Hong Kong holiday iCal. It publishes a rolling multi-year window, so future-year coverage may appear later than the current anchor year.",
+      "consecutiveFailures": 0,
+      "enabled": false,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "hk_gov_1823_ical",
+      "kind": "official_ical",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "HK"
+      ]
+    },
+    {
+      "authority": "Shanghai Stock Exchange",
+      "availabilityNote": "Current adapter targets the SSE English Trading Schedule page. Default policy keeps it disabled until verified current-year mainland schedules are available.",
+      "consecutiveFailures": 0,
+      "enabled": false,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "mainland_official_notice",
+      "kind": "official_html",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "CN",
+        "SH",
+        "SZ"
+      ]
+    },
+    {
+      "authority": "settings",
+      "availabilityNote": "Operator-defined overrides always take precedence over remote and builtin calendars.",
+      "consecutiveFailures": 0,
+      "enabled": true,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "manual_override",
+      "kind": "manual_override",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "US",
+        "HK",
+        "CN",
+        "SH",
+        "SZ"
+      ]
+    },
+    {
+      "authority": "Nasdaq",
+      "availabilityNote": "Secondary US verifier. Nasdaq currently serves automated requests unreliably in some environments, so it stays available as an opt-in cross-check instead of a default source.",
+      "consecutiveFailures": 0,
+      "enabled": false,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "nasdaq_verifier",
+      "kind": "official_html",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "US"
+      ]
+    },
+    {
+      "authority": "NYSE",
+      "availabilityNote": "Primary US source. The NYSE multi-year holiday table is parsed directly and Nasdaq remains a secondary verifier.",
+      "consecutiveFailures": 0,
+      "enabled": false,
+      "healthFingerprint": "",
+      "healthState": "",
+      "id": "nyse_official",
+      "kind": "official_html",
+      "lastAlertFingerprint": "",
+      "lastAlertStatus": "",
+      "lastError": "",
+      "lastProbeError": "",
+      "lastProbeMarket": "",
+      "lastProbeSchedules": 0,
+      "lastProbeStatus": "",
+      "markets": [
+        "US"
+      ]
+    }
+  ]
+}

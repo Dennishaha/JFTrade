@@ -1,0 +1,510 @@
+{
+  "version": "stage5.v1",
+  "plannedAt": "2026-08-19T08:00:00Z",
+  "riskConfig": {
+    "realTradingEnabled": true,
+    "killSwitchActive": false,
+    "maxOrderQuantity": "10",
+    "maxOrderNotional": "1000",
+    "hardStops": [
+      {
+        "brokerId": "futu",
+        "accountId": "acc-blocked",
+        "market": "US",
+        "symbol": null
+      }
+    ]
+  },
+  "statusCases": [
+    "Unsubmitted",
+    "WAITING_SUBMIT",
+    "NEW",
+    "Filled_Part",
+    "FILLED_ALL",
+    "CANCELLING_ALL",
+    "CANCELED",
+    "SubmitFailed",
+    "Deleted",
+    "TimeOut"
+  ],
+  "transitions": [
+    { "current": "BROKER_ACCEPTED", "incoming": "PARTIALLY_FILLED" },
+    { "current": "PARTIALLY_FILLED", "incoming": "BROKER_ACCEPTED" },
+    { "current": "CANCEL_REQUESTED", "incoming": "FILLED" },
+    { "current": "FILLED", "incoming": "BROKER_ACCEPTED" },
+    { "current": "UNKNOWN", "incoming": "BROKER_ACCEPTED" },
+    { "current": "BROKER_ACCEPTED", "incoming": "UNKNOWN" },
+    { "current": "SUBMISSION_UNKNOWN", "incoming": "FILLED" }
+  ],
+  "commands": [
+    {
+      "idempotencyKey": "simulate-large",
+      "traceId": "trace-command-1",
+      "brokerId": "futu",
+      "accountId": "acc-paper",
+      "environment": "SIMULATE",
+      "market": "US",
+      "symbol": "AAPL",
+      "side": "BUY",
+      "quantity": "20",
+      "price": "100",
+      "clientOrderId": "client-1"
+    },
+    {
+      "idempotencyKey": "real-quantity-limit",
+      "traceId": "trace-command-2",
+      "brokerId": "futu",
+      "accountId": "acc-live",
+      "environment": "REAL",
+      "market": "US",
+      "symbol": "AAPL",
+      "side": "BUY",
+      "quantity": "11",
+      "price": "50",
+      "clientOrderId": "client-2"
+    },
+    {
+      "idempotencyKey": "real-price-missing",
+      "traceId": "trace-command-3",
+      "brokerId": "futu",
+      "accountId": "acc-live",
+      "environment": "REAL",
+      "market": "US",
+      "symbol": "MSFT",
+      "side": "BUY",
+      "quantity": "2",
+      "price": null,
+      "clientOrderId": "client-3"
+    },
+    {
+      "idempotencyKey": "real-hard-stop",
+      "traceId": "trace-command-4",
+      "brokerId": "futu",
+      "accountId": "acc-blocked",
+      "environment": "REAL",
+      "market": "US",
+      "symbol": "NVDA",
+      "side": "SELL",
+      "quantity": "1",
+      "price": "10",
+      "clientOrderId": "client-4"
+    },
+    {
+      "idempotencyKey": "real-accepted",
+      "traceId": "trace-command-5",
+      "brokerId": "futu",
+      "accountId": "acc-live",
+      "environment": "REAL",
+      "market": "US",
+      "symbol": "TSLA",
+      "side": "BUY",
+      "quantity": "2",
+      "price": "100",
+      "clientOrderId": "client-5"
+    },
+    {
+      "idempotencyKey": "real-accepted",
+      "traceId": "trace-command-5",
+      "brokerId": "futu",
+      "accountId": "acc-live",
+      "environment": "REAL",
+      "market": "US",
+      "symbol": "TSLA",
+      "side": "BUY",
+      "quantity": "2",
+      "price": "100",
+      "clientOrderId": "client-5"
+    }
+  ],
+  "events": [
+    {
+      "eventId": "event-1",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 1,
+      "status": "NEW",
+      "fillId": null,
+      "fillQuantity": null,
+      "occurredAt": "2026-08-19T08:00:01Z"
+    },
+    {
+      "eventId": "event-2",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 3,
+      "status": "FILLED_PART",
+      "fillId": "fill-1",
+      "fillQuantity": "1",
+      "occurredAt": "2026-08-19T08:00:03Z"
+    },
+    {
+      "eventId": "event-2",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 3,
+      "status": "FILLED_PART",
+      "fillId": "fill-1",
+      "fillQuantity": "1",
+      "occurredAt": "2026-08-19T08:00:03Z"
+    },
+    {
+      "eventId": "event-3",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 2,
+      "status": "NEW",
+      "fillId": null,
+      "fillQuantity": null,
+      "occurredAt": "2026-08-19T08:00:02Z"
+    },
+    {
+      "eventId": "event-4",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 4,
+      "status": "CANCEL_REQUESTED",
+      "fillId": null,
+      "fillQuantity": null,
+      "occurredAt": "2026-08-19T08:00:04Z"
+    },
+    {
+      "eventId": "event-5",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 5,
+      "status": "FILLED_ALL",
+      "fillId": "fill-2",
+      "fillQuantity": "1",
+      "occurredAt": "2026-08-19T08:00:05Z"
+    },
+    {
+      "eventId": "event-6",
+      "traceId": "trace-event",
+      "brokerOrderId": "broker-1",
+      "sequence": 6,
+      "status": "NEW",
+      "fillId": null,
+      "fillQuantity": null,
+      "occurredAt": "2026-08-19T08:00:06Z"
+    }
+  ],
+  "positionRefreshes": [
+    {
+      "refreshId": "positions-1",
+      "traceId": "trace-positions-1",
+      "accountId": "acc-live",
+      "generation": 0,
+      "sequence": 1,
+      "observedAt": "2026-08-19T08:00:10Z",
+      "positions": [
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "AAPL",
+          "quantity": "10",
+          "sellableQuantity": "8",
+          "lastPrice": "100"
+        },
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "MSFT",
+          "quantity": "2",
+          "sellableQuantity": "2",
+          "lastPrice": "200"
+        }
+      ]
+    },
+    {
+      "refreshId": "positions-1",
+      "traceId": "trace-positions-1",
+      "accountId": "acc-live",
+      "generation": 0,
+      "sequence": 1,
+      "observedAt": "2026-08-19T08:00:10Z",
+      "positions": [
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "AAPL",
+          "quantity": "10",
+          "sellableQuantity": "8",
+          "lastPrice": "100"
+        },
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "MSFT",
+          "quantity": "2",
+          "sellableQuantity": "2",
+          "lastPrice": "200"
+        }
+      ]
+    },
+    {
+      "refreshId": "positions-stale",
+      "traceId": "trace-positions-stale",
+      "accountId": "acc-live",
+      "generation": 0,
+      "sequence": 0,
+      "observedAt": "2026-08-19T08:00:09Z",
+      "positions": []
+    },
+    {
+      "refreshId": "positions-2",
+      "traceId": "trace-positions-2",
+      "accountId": "acc-live",
+      "generation": 1,
+      "sequence": 1,
+      "observedAt": "2026-08-19T08:00:11Z",
+      "positions": [
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "AAPL",
+          "quantity": "5",
+          "sellableQuantity": "5",
+          "lastPrice": "101"
+        },
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "TSLA",
+          "quantity": "-1",
+          "sellableQuantity": "0",
+          "lastPrice": "250"
+        }
+      ]
+    },
+    {
+      "refreshId": "positions-invalid",
+      "traceId": "trace-positions-invalid",
+      "accountId": "acc-live",
+      "generation": 1,
+      "sequence": 2,
+      "observedAt": "2026-08-19T08:00:12Z",
+      "positions": [
+        {
+          "accountId": "acc-live",
+          "market": "US",
+          "symbol": "NVDA",
+          "quantity": "1",
+          "sellableQuantity": "1",
+          "lastPrice": "120"
+        },
+        {
+          "accountId": "wrong-account",
+          "market": "US",
+          "symbol": "META",
+          "quantity": "1",
+          "sellableQuantity": "1",
+          "lastPrice": "300"
+        }
+      ]
+    }
+  ],
+  "sessionOperations": [
+    { "op": "connect" },
+    { "op": "authenticate", "quoteLogin": true, "tradeLogin": false, "unlocked": false },
+    {
+      "op": "refresh_accounts",
+      "snapshot": {
+        "accountIds": ["acc-paper"],
+        "generation": 0,
+        "refreshedAt": "2026-08-19T08:00:20Z"
+      }
+    },
+    { "op": "disconnect" },
+    {
+      "op": "refresh_accounts",
+      "snapshot": {
+        "accountIds": ["stale"],
+        "generation": 0,
+        "refreshedAt": "2026-08-19T08:00:21Z"
+      }
+    },
+    { "op": "authenticate", "quoteLogin": true, "tradeLogin": true, "unlocked": true },
+    {
+      "op": "refresh_accounts",
+      "snapshot": {
+        "accountIds": ["acc-live"],
+        "generation": 1,
+        "refreshedAt": "2026-08-19T08:00:22Z"
+      }
+    },
+    { "op": "begin_close" },
+    { "op": "begin_close" },
+    { "op": "finish_close" },
+    { "op": "finish_close" }
+  ],
+  "protocols": [
+    "get_account_list",
+    "get_position_list",
+    "get_order_list",
+    "update_order",
+    "update_order_fill",
+    "place_order",
+    "modify_order",
+    "unlock_trade"
+  ],
+  "strategyScenarios": [
+    {
+      "name": "notify-only-dedup",
+      "mode": "notify_only",
+      "operations": [
+        { "op": "start" },
+        { "op": "ready" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-notify",
+            "traceId": "trace-notify",
+            "instanceId": "instance-notify",
+            "brokerId": "futu",
+            "accountId": "acc-paper",
+            "market": "US",
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": "1",
+            "price": "101.25",
+            "observedAt": "2026-08-19T08:01:00Z"
+          }
+        },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-notify",
+            "traceId": "trace-notify",
+            "instanceId": "instance-notify",
+            "brokerId": "futu",
+            "accountId": "acc-paper",
+            "market": "US",
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": "1",
+            "price": "101.25",
+            "observedAt": "2026-08-19T08:01:00Z"
+          }
+        },
+        { "op": "stop" },
+        { "op": "stopped" }
+      ]
+    },
+    {
+      "name": "paper-recovery",
+      "mode": "paper",
+      "operations": [
+        { "op": "start" },
+        { "op": "ready" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-paper-1",
+            "traceId": "trace-paper-1",
+            "instanceId": "instance-paper",
+            "brokerId": "futu",
+            "accountId": "acc-paper",
+            "market": "US",
+            "symbol": "MSFT",
+            "side": "SELL",
+            "quantity": "2",
+            "price": "200",
+            "observedAt": "2026-08-19T08:02:00Z"
+          }
+        },
+        { "op": "disconnect" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-paper-blocked",
+            "traceId": "trace-paper-blocked",
+            "instanceId": "instance-paper",
+            "brokerId": "futu",
+            "accountId": "acc-paper",
+            "market": "US",
+            "symbol": "MSFT",
+            "side": "BUY",
+            "quantity": "1",
+            "price": "200",
+            "observedAt": "2026-08-19T08:02:01Z"
+          }
+        },
+        { "op": "ready" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-paper-2",
+            "traceId": "trace-paper-2",
+            "instanceId": "instance-paper",
+            "brokerId": "futu",
+            "accountId": "acc-paper",
+            "market": "US",
+            "symbol": "MSFT",
+            "side": "BUY",
+            "quantity": "1",
+            "price": "200",
+            "observedAt": "2026-08-19T08:02:02Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "live-risk-and-pause",
+      "mode": "live",
+      "operations": [
+        { "op": "start" },
+        { "op": "ready" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-live-rejected",
+            "traceId": "trace-live-rejected",
+            "instanceId": "instance-live",
+            "brokerId": "futu",
+            "accountId": "acc-live",
+            "market": "US",
+            "symbol": "NVDA",
+            "side": "BUY",
+            "quantity": "20",
+            "price": "10",
+            "observedAt": "2026-08-19T08:03:00Z"
+          }
+        },
+        { "op": "pause" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-live-paused",
+            "traceId": "trace-live-paused",
+            "instanceId": "instance-live",
+            "brokerId": "futu",
+            "accountId": "acc-live",
+            "market": "US",
+            "symbol": "NVDA",
+            "side": "SELL",
+            "quantity": "1",
+            "price": "10",
+            "observedAt": "2026-08-19T08:03:01Z"
+          }
+        },
+        { "op": "resume" },
+        {
+          "op": "signal",
+          "signal": {
+            "signalId": "signal-live-accepted",
+            "traceId": "trace-live-accepted",
+            "instanceId": "instance-live",
+            "brokerId": "futu",
+            "accountId": "acc-live",
+            "market": "US",
+            "symbol": "NVDA",
+            "side": "SELL",
+            "quantity": "1",
+            "price": "10",
+            "observedAt": "2026-08-19T08:03:02Z"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+[workspace]
+members = [
+  "apps/desktop/src-tauri",
+  "crates/jftrade-api",
+  "crates/jftrade-assistant",
+  "crates/jftrade-backtest",
+  "crates/jftrade-broker",
+  "crates/jftrade-calendar",
+  "crates/jftrade-datamanagement",
+  "crates/jftrade-engine",
+  "crates/jftrade-integration-futu",
+  "crates/jftrade-integration-marketdata-helper",
+  "crates/jftrade-integration-pine",
+  "crates/jftrade-kernel",
+  "crates/jftrade-marketdata",
+  "crates/jftrade-owner-lock",
+  "crates/jftrade-research",
+  "crates/jftrade-settings",
+  "crates/jftrade-store-settings-file",
+  "crates/jftrade-store-sqlite",
+  "crates/jftrade-strategy",
+  "crates/jftrade-trading",
+  "crates/jftrade-watchlist",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-only"
+repository = "https://github.com/jftrade/jftrade-main"
+rust-version = "1.97.1"
+
+[workspace.dependencies]
+argon2 = { version = "=0.5.3", default-features = false, features = ["alloc", "password-hash"] }
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "matched-path", "original-uri", "query", "tokio", "ws"] }
+base64 = { version = "=0.23.1", default-features = false, features = ["alloc"] }
+getrandom = "=0.4.3"
+http-body-util = "=0.1.5"
+jftrade-api = { path = "crates/jftrade-api", version = "=0.1.0" }
+jftrade-assistant = { path = "crates/jftrade-assistant", version = "=0.1.0" }
+jftrade-backtest = { path = "crates/jftrade-backtest", version = "=0.1.0" }
+jftrade-broker = { path = "crates/jftrade-broker", version = "=0.1.0" }
+jftrade-calendar = { path = "crates/jftrade-calendar", version = "=0.1.0" }
+jftrade-datamanagement = { path = "crates/jftrade-datamanagement", version = "=0.1.0" }
+jftrade-engine = { path = "crates/jftrade-engine", version = "=0.1.0" }
+jftrade-integration-futu = { path = "crates/jftrade-integration-futu", version = "=0.1.0" }
+jftrade-integration-marketdata-helper = { path = "crates/jftrade-integration-marketdata-helper", version = "=0.1.0" }
+jftrade-integration-pine = { path = "crates/jftrade-integration-pine", version = "=0.1.0" }
+jftrade-kernel = { path = "crates/jftrade-kernel", version = "=0.1.0" }
+jftrade-marketdata = { path = "crates/jftrade-marketdata", version = "=0.1.0" }
+jftrade-owner-lock = { path = "crates/jftrade-owner-lock", version = "=0.1.0" }
+jftrade-research = { path = "crates/jftrade-research", version = "=0.1.0" }
+jftrade-settings = { path = "crates/jftrade-settings", version = "=0.1.0" }
+jftrade-store-settings-file = { path = "crates/jftrade-store-settings-file", version = "=0.1.0" }
+jftrade-store-sqlite = { path = "crates/jftrade-store-sqlite", version = "=0.1.0" }
+jftrade-strategy = { path = "crates/jftrade-strategy", version = "=0.1.0" }
+jftrade-trading = { path = "crates/jftrade-trading", version = "=0.1.0" }
+jftrade-watchlist = { path = "crates/jftrade-watchlist", version = "=0.1.0" }
+jiff = { version = "=0.2.35", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
+percent-encoding = "=2.3.2"
+reqwest = { version = "=0.13.4", default-features = false, features = ["json"] }
+zip = { version = "=4.6.1", default-features = false, features = ["deflate"] }
+rig-core = { version = "=0.42.0", default-features = false }
+prost = "=0.14.4"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
+rustls = { version = "=0.23.43", default-features = false, features = ["ring", "std"] }
+sha1 = { version = "=0.11.0", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
+thiserror = "=2.0.20"
+time = { version = "=0.3.55", default-features = false, features = ["formatting", "parsing", "serde", "std"] }
+tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-stream = { version = "=0.1.19", features = ["net"] }
+tonic = "=0.14.6"
+tonic-health = "=0.14.6"
+tonic-prost = "=0.14.6"
+tonic-prost-build = "=0.14.6"
+tower = { version = "=0.5.3", default-features = false, features = ["util"] }
+tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
+tauri = { version = "=2.11.5", default-features = false }
+tauri-build = "=2.6.3"
+tauri-plugin-opener = "=2.5.4"
+tauri-plugin-notification = "=2.3.3"
+tauri-plugin-single-instance = "=2.4.3"
+tauri-plugin-updater = { version = "=2.10.1", default-features = false, features = ["rustls-tls", "zip"] }
+tempfile = "=3.27.0"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
+
+[workspace.lints.clippy]
+all = "deny"
+dbg_macro = "deny"
+todo = "deny"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = "symbols"

@@ -1,0 +1,269 @@
+{
+  "version": "stage8.v1",
+  "tauriVersion": "2.11.5",
+  "engineContract": {
+    "protocolVersion": "migration.v1",
+    "healthService": "jftrade.migration.v1.Engine"
+  },
+  "profiles": [
+    {
+      "platform": "darwin",
+      "development": {
+        "channel": "dev",
+        "applicationName": "JFTrade Dev",
+        "productIdentifier": "com.jftrade.desktop.dev",
+        "singleInstanceId": "com.jftrade.desktop.dev",
+        "apiBind": "127.0.0.1:3008",
+        "updateChecksEnabled": false,
+        "settingsPath": "var/jftrade-api/settings.json",
+        "backtestDbPath": "var/jftrade-api/backtest.db",
+        "windowStatePath": null
+      },
+      "release": {
+        "channel": "release",
+        "applicationName": "JFTrade",
+        "productIdentifier": "com.jftrade.desktop",
+        "singleInstanceId": "com.jftrade.desktop",
+        "apiBind": "127.0.0.1:6699",
+        "updateChecksEnabled": true,
+        "settingsPath": "/Users/alice/Library/Application Support/JFTrade/settings.json",
+        "backtestDbPath": "/Users/alice/Library/Application Support/JFTrade/backtest.db",
+        "windowStatePath": "/Users/alice/Library/Application Support/JFTrade/desktop-state.json"
+      }
+    },
+    {
+      "platform": "linux",
+      "development": {
+        "channel": "dev",
+        "applicationName": "JFTrade Dev",
+        "productIdentifier": "com.jftrade.desktop.dev",
+        "singleInstanceId": "com.jftrade.desktop.dev",
+        "apiBind": "127.0.0.1:3008",
+        "updateChecksEnabled": false,
+        "settingsPath": "var/jftrade-api/settings.json",
+        "backtestDbPath": "var/jftrade-api/backtest.db",
+        "windowStatePath": null
+      },
+      "release": {
+        "channel": "release",
+        "applicationName": "JFTrade",
+        "productIdentifier": "com.jftrade.desktop",
+        "singleInstanceId": "com.jftrade.desktop",
+        "apiBind": "127.0.0.1:6699",
+        "updateChecksEnabled": true,
+        "settingsPath": "/home/alice/.local/share/jftrade/settings.json",
+        "backtestDbPath": "/home/alice/.local/share/jftrade/backtest.db",
+        "windowStatePath": "/home/alice/.local/share/jftrade/desktop-state.json"
+      }
+    },
+    {
+      "platform": "windows",
+      "development": {
+        "channel": "dev",
+        "applicationName": "JFTrade Dev",
+        "productIdentifier": "com.jftrade.desktop.dev",
+        "singleInstanceId": "com.jftrade.desktop.dev",
+        "apiBind": "127.0.0.1:3008",
+        "updateChecksEnabled": false,
+        "settingsPath": "var/jftrade-api/settings.json",
+        "backtestDbPath": "var/jftrade-api/backtest.db",
+        "windowStatePath": null
+      },
+      "release": {
+        "channel": "release",
+        "applicationName": "JFTrade",
+        "productIdentifier": "com.jftrade.desktop",
+        "singleInstanceId": "com.jftrade.desktop",
+        "apiBind": "127.0.0.1:6699",
+        "updateChecksEnabled": true,
+        "settingsPath": "C:/Users/alice/AppData/Local/JFTrade/settings.json",
+        "backtestDbPath": "C:/Users/alice/AppData/Local/JFTrade/backtest.db",
+        "windowStatePath": "C:/Users/alice/AppData/Local/JFTrade/desktop-state.json"
+      }
+    }
+  ],
+  "links": [
+    {
+      "input": "/docs",
+      "accepted": true,
+      "target": {
+        "kind": "docs",
+        "url": "/docs/"
+      },
+      "error": null
+    },
+    {
+      "input": "docs/reference/index.html#orders",
+      "accepted": true,
+      "target": {
+        "kind": "docs",
+        "url": "/docs/reference/#orders"
+      },
+      "error": null
+    },
+    {
+      "input": "https://github.com/Dennishaha/jftrade/releases",
+      "accepted": true,
+      "target": {
+        "kind": "external",
+        "url": "https://github.com/Dennishaha/jftrade/releases"
+      },
+      "error": null
+    },
+    {
+      "input": "javascript:alert(1)",
+      "accepted": false,
+      "target": null,
+      "error": "unsupported link scheme \"javascript\""
+    },
+    {
+      "input": "/docs/%2e%2e/settings",
+      "accepted": false,
+      "target": null,
+      "error": "docs link must not contain parent traversal"
+    },
+    {
+      "input": "/settings",
+      "accepted": false,
+      "target": null,
+      "error": "docs link must start with /docs/"
+    }
+  ],
+  "runtimePlan": {
+    "assets": [
+      {
+        "role": "engine",
+        "relativePath": "bin/jftrade-engine",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "executable": true
+      },
+      {
+        "role": "pine-worker",
+        "relativePath": "bin/pineworker/worker.mjs",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "executable": true
+      },
+      {
+        "role": "marketdata-sidecar",
+        "relativePath": "bin/marketdata-sidecar/marketdata-sidecar",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "executable": true
+      }
+    ],
+    "startOrder": [
+      "engine",
+      "pine-worker",
+      "marketdata-sidecar"
+    ],
+    "shutdownOrder": [
+      "marketdata-sidecar",
+      "pine-worker",
+      "engine"
+    ],
+    "shutdownTimeoutMillis": 5000
+  },
+  "successfulStart": {
+    "ready": true,
+    "failureRole": null,
+    "events": [
+      {
+        "role": "engine",
+        "action": "start"
+      },
+      {
+        "role": "engine",
+        "action": "ready"
+      },
+      {
+        "role": "pine-worker",
+        "action": "start"
+      },
+      {
+        "role": "pine-worker",
+        "action": "ready"
+      },
+      {
+        "role": "marketdata-sidecar",
+        "action": "start"
+      },
+      {
+        "role": "marketdata-sidecar",
+        "action": "ready"
+      }
+    ]
+  },
+  "successfulShutdown": [
+    {
+      "role": "marketdata-sidecar",
+      "action": "shutdown"
+    },
+    {
+      "role": "pine-worker",
+      "action": "shutdown"
+    },
+    {
+      "role": "engine",
+      "action": "shutdown"
+    }
+  ],
+  "failedStart": {
+    "ready": false,
+    "failureRole": "marketdata-sidecar",
+    "events": [
+      {
+        "role": "engine",
+        "action": "start"
+      },
+      {
+        "role": "engine",
+        "action": "ready"
+      },
+      {
+        "role": "pine-worker",
+        "action": "start"
+      },
+      {
+        "role": "pine-worker",
+        "action": "ready"
+      },
+      {
+        "role": "marketdata-sidecar",
+        "action": "start"
+      },
+      {
+        "role": "marketdata-sidecar",
+        "action": "start-failed"
+      },
+      {
+        "role": "marketdata-sidecar",
+        "action": "shutdown"
+      },
+      {
+        "role": "pine-worker",
+        "action": "shutdown"
+      },
+      {
+        "role": "engine",
+        "action": "shutdown"
+      }
+    ]
+  },
+  "commands": [
+    "desktop_startup_snapshot",
+    "desktop_startup_quit",
+    "desktop_open_link",
+    "desktop_log_list_days",
+    "desktop_log_read_page",
+    "desktop_log_open_folder",
+    "desktop_update_check",
+    "desktop_window_show_main",
+    "desktop_window_hide_main",
+    "desktop_window_open_logs"
+  ],
+  "events": [
+    "jftrade:desktop-log:append",
+    "jftrade:desktop-update:available",
+    "jftrade:desktop-second-instance",
+    "jftrade:desktop-menu:settings"
+  ]
+}

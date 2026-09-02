@@ -1,0 +1,147 @@
+{
+  "version": "stage9.auth-session.v1",
+  "cases": [
+    {
+      "name": "unauthenticated",
+      "method": "GET",
+      "requestPath": "/api/v1/auth/session",
+      "requestContext": {
+        "desktopTrusted": false,
+        "browserAuthenticated": false,
+        "originProvided": false,
+        "originAllowed": true
+      },
+      "expectedStatus": 200,
+      "responseHeaders": {
+        "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+        "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "access-control-expose-headers": "X-Request-ID",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "fixture-auth-session-id"
+      },
+      "absentHeaders": [
+        "access-control-allow-credentials",
+        "access-control-allow-origin",
+        "vary"
+      ],
+      "data": {
+        "authenticated": false
+      }
+    },
+    {
+      "name": "browser-session",
+      "method": "GET",
+      "requestPath": "/api/v1/auth/session",
+      "requestContext": {
+        "desktopTrusted": false,
+        "browserAuthenticated": true,
+        "originProvided": false,
+        "originAllowed": true
+      },
+      "expectedStatus": 200,
+      "responseHeaders": {
+        "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+        "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "access-control-expose-headers": "X-Request-ID",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "fixture-auth-session-id"
+      },
+      "absentHeaders": [
+        "access-control-allow-credentials",
+        "access-control-allow-origin",
+        "vary"
+      ],
+      "data": {
+        "authenticated": true,
+        "csrfToken": "fixture-csrf-token",
+        "expiresAt": "fixture-time"
+      }
+    },
+    {
+      "name": "browser-session-allowed-origin",
+      "method": "GET",
+      "requestPath": "/api/v1/auth/session",
+      "requestContext": {
+        "desktopTrusted": false,
+        "browserAuthenticated": true,
+        "originProvided": true,
+        "originAllowed": true
+      },
+      "expectedStatus": 200,
+      "responseHeaders": {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+        "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "access-control-allow-origin": "https://fixture.jftrade.local",
+        "access-control-expose-headers": "X-Request-ID",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "vary": "Origin",
+        "x-request-id": "fixture-auth-session-id"
+      },
+      "absentHeaders": [],
+      "data": {
+        "authenticated": true,
+        "csrfToken": "fixture-csrf-token",
+        "expiresAt": "fixture-time"
+      }
+    },
+    {
+      "name": "desktop-trusted",
+      "method": "GET",
+      "requestPath": "/api/v1/auth/session",
+      "requestContext": {
+        "desktopTrusted": true,
+        "browserAuthenticated": false,
+        "originProvided": false,
+        "originAllowed": true
+      },
+      "expectedStatus": 200,
+      "responseHeaders": {
+        "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+        "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "access-control-expose-headers": "X-Request-ID",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "fixture-auth-session-id"
+      },
+      "absentHeaders": [
+        "access-control-allow-credentials",
+        "access-control-allow-origin",
+        "vary"
+      ],
+      "data": {
+        "authenticated": true
+      }
+    },
+    {
+      "name": "origin-forbidden",
+      "method": "GET",
+      "requestPath": "/api/v1/auth/session",
+      "requestContext": {
+        "desktopTrusted": false,
+        "browserAuthenticated": false,
+        "originProvided": true,
+        "originAllowed": false
+      },
+      "expectedStatus": 403,
+      "responseHeaders": {
+        "access-control-allow-headers": "Origin, Content-Type, Authorization, X-CSRF-Token, X-Request-ID",
+        "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "access-control-expose-headers": "X-Request-ID",
+        "cache-control": "no-store",
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "fixture-auth-session-id"
+      },
+      "absentHeaders": [
+        "access-control-allow-credentials",
+        "access-control-allow-origin",
+        "vary"
+      ],
+      "errorCode": "ORIGIN_FORBIDDEN",
+      "errorMessage": "request origin is not allowed"
+    }
+  ]
+}

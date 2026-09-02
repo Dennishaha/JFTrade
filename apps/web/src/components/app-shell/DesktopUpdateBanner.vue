@@ -1,14 +1,31 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import {
+  desktopFacade,
+  type DesktopUpdateResult,
+} from "@/composables/shared/desktopFacade";
 import { openExternalUrl } from "@/composables/shared/externalLink";
 import { resolveDesktopMode } from "@/runtimeConfig";
-import type { DesktopUpdateResult } from "@/wails/github.com/jftrade/jftrade-main/cmd/jftrade-desktop/models";
 
 const update = ref<DesktopUpdateResult | null>(null);
+const installing = ref(false);
+const installError = ref("");
+const nativeInstaller = computed(() => desktopFacade.backend() === "tauri");
 let cancelListener: (() => void) | null = null;
 
-function openRelease(): void {
+async function handleUpdate(): Promise<void> {
+  if (nativeInstaller.value) {
+    installing.value = true;
+    installError.value = "";
+    try {
+      await desktopFacade.updates.install();
+    } catch (error) {
+      installing.value = false;
+      installError.value = error instanceof Error ? error.message : "更新安装失败";
+    }
+    return;
+  }
   const url = update.value?.releaseUrl?.trim() ?? "";
   if (url) void openExternalUrl(url);
 }
@@ -16,23 +33,30 @@ function openRelease(): void {
 onMounted(async () => {
   if (!resolveDesktopMode()) return;
   try {
-    const { Events } = await import("@wailsio/runtime");
-    cancelListener = Events.On("jftrade:desktop-update:available", (event) => {
-      const result = event.data as DesktopUpdateResult;
+    const cancel = await desktopFacade.updates.onAvailable((result) => {
       if (result?.available) update.value = result;
     });
+    if (cancelListener === stoppedListener) cancel();
+    else cancelListener = cancel;
   } catch {
     cancelListener = null;
   }
 });
 
-onUnmounted(() => cancelListener?.());
+const stoppedListener = () => undefined;
+onUnmounted(() => {
+  cancelListener?.();
+  cancelListener = stoppedListener;
+});
 </script>
 
 <template>
   <aside v-if="update" class="desktop-update-banner" role="status">
     <span>JFTrade {{ update.latestVersion }} 已发布。</span>
-    <button type="button" @click="openRelease">查看版本</button>
+    <button type="button" :disabled="installing" @click="handleUpdate">
+      {{ nativeInstaller ? (installing ? "正在下载安装…" : "下载并安装") : "查看版本" }}
+    </button>
+    <span v-if="installError" role="alert">{{ installError }}</span>
     <button type="button" aria-label="关闭更新提示" @click="update = null">
       ×
     </button>

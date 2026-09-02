@@ -43,7 +43,7 @@ try {
   assert(devAPI.stdout.includes("DRY RUN JFTRADE_PINEWORKER_BUNDLE="), "dev api dry run did not configure worker bundle");
   assert(devAPI.stdout.includes(`JFTRADE_PINEWORKER_RUNTIME=${process.execPath}`), "dev api dry run did not configure Node runtime");
   assert(devAPI.stdout.includes("JFTRADE_PINEWORKER_WORKERS=1"), "dev api dry run did not default to one worker");
-  assert(devAPI.stdout.includes("go run ./cmd/jftrade-api"), "dev api dry run did not show Go API command");
+  assert(devAPI.stdout.includes("cargo run -p jftrade-engine --bin jftrade-api-rust"), "dev api dry run did not show Rust API command");
 
   const devAPIWorkersOverride = runDevAPI({
     JFTRADE_PINEWORKER_DEV_OUT_DIR: outDir,

@@ -1,0 +1,279 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import {
+  PAYLOAD_BINDING_SCHEMA,
+  RELEASE_EVIDENCE_WORKFLOW,
+  bindReleaseEvidence,
+} from "./bind-release-evidence.mjs";
+import { TRUSTED_SOURCE_WORKFLOWS, TRUSTED_PAYLOAD_WORKFLOWS, validateExternalEvidenceManifest } from "./check-release-evidence-inputs.mjs";
+
+const releaseRef = "refs/heads/release/1.2.3-candidate";
+const releaseCommit = "a".repeat(40);
+const payloadArtifact = {
+  name: "platform-evidence-payload",
+  id: 7711,
+  digest: `sha256:${"b".repeat(64)}`,
+};
+const sourceArtifact = {
+  name: "raw-external-evidence",
+  id: 7701,
+  digest: `sha256:${"d".repeat(64)}`,
+};
+const producerArtifact = {
+  name: "desktop-release-evidence-payload",
+  id: 8802,
+  digest: `sha256:${"c".repeat(64)}`,
+};
+const payloadRun = {
+  id: 6601,
+  attempt: 3,
+  workflow: TRUSTED_PAYLOAD_WORKFLOWS[0],
+  ref: "refs/heads/release-evidence/v1.2.3",
+  commitSha: releaseCommit,
+};
+
+const reports = {
+  "signed-updater-inputs": {
+    schemaVersion: "jftrade.release.signed-updater.v2",
+    status: "verified",
+    feed: { entryCount: 4 },
+    artifacts: [{ archive: "JFTrade-v1.2.3.zip", archiveSha256: "1".repeat(64), signatureSha256: "2".repeat(64) }],
+    publicKeyConfigured: true,
+    publicKeySha256: "3".repeat(64),
+    endpoint: "https://updates.example.test/feed.json",
+  },
+  "sbom-provenance-inputs": {
+    schemaVersion: "jftrade.release.sbom-provenance.v2",
+    status: "verified",
+    subjects: [
+      { platform: "macos-arm64", sha256: "a".repeat(64) },
+      { platform: "linux-x64", sha256: "b".repeat(64) },
+      { platform: "linux-x64", sha256: "c".repeat(64) },
+      { platform: "linux-x64", sha256: "d".repeat(64) },
+      { platform: "windows-x64", sha256: "e".repeat(64) },
+      { platform: "windows-arm64", sha256: "f".repeat(64) },
+    ],
+  },
+  "rollback-artifact-pair": {
+    schemaVersion: "jftrade.release.rollback-artifact.v2",
+    status: "verified",
+    current: { version: "1.2.3", platforms: { "macos-arm64": {} }, updaterMetadata: {} },
+    previous: { version: "1.2.2", platforms: { "macos-arm64": {} }, updaterMetadata: {} },
+    rollbackInstructions: "rollback from 1.2.3 to 1.2.2",
+  },
+  "backup-restore-drill": {
+    schemaVersion: "jftrade.release.backup-restore.v2",
+    status: "verified",
+    priorVersion: "1.2.2",
+    nativeDrill: { status: "verified" },
+  },
+  "security-review-inputs": {
+    schemaVersion: "jftrade.release.security-review.v2",
+    status: "independent_review_signed_off",
+    independentReview: {
+      independent: true,
+      status: "signed_off",
+      reviewer: "independent-reviewer",
+      approvedAt: "2026-08-31T00:00:00Z",
+    },
+  },
+};
+
+function sha256(filePath) {
+  return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function fixture() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-bind-evidence-"));
+  fs.mkdirSync(path.join(root, "reports"), { recursive: true });
+  const binding = {
+    repository: "example/jftrade",
+    releaseRef,
+    ref: payloadRun.ref,
+    commitSha: releaseCommit,
+    workflow: TRUSTED_SOURCE_WORKFLOWS[0],
+    runId: payloadRun.id,
+    attempt: payloadRun.attempt,
+    artifact: sourceArtifact,
+  };
+  for (const [id, report] of Object.entries(reports)) {
+    fs.writeFileSync(
+      path.join(root, "reports", `${id}.json`),
+      `${JSON.stringify({ ...report, binding }, null, 2)}\n`,
+    );
+  }
+  const metadata = {
+    $schema: "./release-evidence-payload-binding.schema.json",
+    schemaVersion: PAYLOAD_BINDING_SCHEMA,
+    repository: "example/jftrade",
+    sourceRepository: "external-org/release-evidence",
+    releaseRef,
+    evidenceRef: payloadRun.ref,
+    payloadRun,
+    artifact: payloadArtifact,
+    sourceBinding: binding,
+  };
+  const metadataPath = path.join(root, "payload-artifact-metadata.json");
+  fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+  return { root, metadataPath, binding };
+}
+
+function bind(value) {
+  return bindWith(value);
+}
+
+function bindWith(value, overrides = {}) {
+  return bindReleaseEvidence({
+    payloadRoot: value.root,
+    outputRoot: path.join(value.root, "bound"),
+    payloadMetadataPath: value.metadataPath,
+    repository: "example/jftrade",
+    releaseRef,
+    releaseCommit,
+    producerRunId: overrides.producerRunId ?? 8801,
+    producerAttempt: overrides.producerAttempt ?? 1,
+    producerArtifact: overrides.producerArtifact ?? producerArtifact,
+  });
+}
+
+test("binds real payload reports without self-referencing output artifact", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const result = bind(value);
+  assert.equal(result.manifest.workflow, RELEASE_EVIDENCE_WORKFLOW);
+  assert.deepEqual(result.manifest.artifact, producerArtifact);
+  assert.deepEqual(result.manifest.sourceBinding, value.binding);
+  assert.equal(result.manifest.runId, 8801);
+  assert.equal(result.manifest.evidence["signed-updater-inputs"].status, "passed");
+  const outputReport = JSON.parse(fs.readFileSync(path.join(value.root, "bound/evidence/signed-updater-inputs/signed-updater-inputs.json"), "utf8"));
+  assert.deepEqual(outputReport.binding, value.binding);
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(value.root, "reports/signed-updater-inputs.json")),
+    fs.readFileSync(path.join(value.root, "bound/evidence/signed-updater-inputs/signed-updater-inputs.json")),
+  ), 0);
+  const checked = validateExternalEvidenceManifest(result.manifest, {
+    baseDirectory: result.outputRoot,
+    expected: {
+      repository: "example/jftrade",
+      releaseRef,
+      ref: releaseRef,
+      commitSha: releaseCommit,
+      workflow: RELEASE_EVIDENCE_WORKFLOW,
+      runId: 8801,
+      attempt: 1,
+      artifact: producerArtifact,
+      sourceBinding: value.binding,
+    },
+    expectedArtifactMetadata: producerArtifact,
+  });
+  assert.equal(checked.valid, true, checked.errors.join("; "));
+});
+
+test("rejects unsafe producer workflow and artifact identifiers", (context) => {
+  const invalidValues = ["0", "-1", "1.5", "9007199254740992"];
+  for (const invalid of invalidValues) {
+    const runIdValue = fixture();
+    context.after(() => fs.rmSync(runIdValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(runIdValue, { producerRunId: invalid }),
+      /producerRunId must be a positive integer/,
+    );
+
+    const attemptValue = fixture();
+    context.after(() => fs.rmSync(attemptValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(attemptValue, { producerAttempt: invalid }),
+      /producerAttempt must be a positive integer/,
+    );
+
+    const artifactValue = fixture();
+    context.after(() => fs.rmSync(artifactValue.root, { recursive: true, force: true }));
+    assert.throws(
+      () => bindWith(artifactValue, { producerArtifact: { ...producerArtifact, id: invalid } }),
+      /producerArtifact\.id must be a positive integer/,
+    );
+  }
+});
+
+test("rejects an unbound or placeholder payload report", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const reportPath = path.join(value.root, "reports/security-review-inputs.json");
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  delete report.binding;
+  report.status = "external_release_runner_evidence_required";
+  fs.writeFileSync(reportPath, `${JSON.stringify(report)}\n`);
+  assert.throws(() => bind(value), /binding is required/);
+});
+
+test("rejects payload metadata whose ref is not trusted", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const metadata = JSON.parse(fs.readFileSync(value.metadataPath, "utf8"));
+  metadata.payloadRun.ref = "refs/heads/foreign-evidence";
+  fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
+  assert.throws(() => bind(value), /payload run ref must equal evidence_ref/);
+});
+
+test("rejects shallow synthetic reports even when a payload binding is present", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const reportPath = path.join(value.root, "reports/security-review-inputs.json");
+  fs.writeFileSync(reportPath, JSON.stringify({
+    schemaVersion: "jftrade.release.security-review.v2",
+    status: "independent_review_signed_off",
+    binding: value.binding,
+  }));
+  assert.throws(() => bind(value), /independent security review sign-off/);
+});
+
+test("rejects payload metadata from a different commit", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const metadata = JSON.parse(fs.readFileSync(value.metadataPath, "utf8"));
+  metadata.payloadRun.commitSha = "c".repeat(40);
+  fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
+  assert.throws(() => bind(value), /payload run commit does not match release commit/);
+});
+
+test("rejects symlink traversal in downloaded payload", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const target = path.join(value.root, "reports/signed-updater-inputs.json");
+  const copy = path.join(value.root, "reports/signed-updater-copy.json");
+  fs.renameSync(target, copy);
+  fs.symlinkSync(copy, target);
+  assert.throws(() => bind(value), /must not traverse a symlink/);
+});
+
+test("rejects symlinked payload metadata", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const target = path.join(value.root, "payload-metadata-copy.json");
+  fs.renameSync(value.metadataPath, target);
+  fs.symlinkSync(target, value.metadataPath);
+  assert.throws(() => bind(value), /metadata must be a non-empty regular file/);
+});
+
+test("rejects payload metadata with unknown fields", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const metadata = JSON.parse(fs.readFileSync(value.metadataPath, "utf8"));
+  metadata.untrusted = true;
+  fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
+  assert.throws(() => bind(value), /unsupported field/);
+});
+
+test("rejects a source binding that is not in the repository trust allowlist", (context) => {
+  const value = fixture();
+  context.after(() => fs.rmSync(value.root, { recursive: true, force: true }));
+  const metadata = JSON.parse(fs.readFileSync(value.metadataPath, "utf8"));
+  metadata.sourceBinding.workflow = "external-release-evidence.yml";
+  fs.writeFileSync(value.metadataPath, `${JSON.stringify(metadata)}\n`);
+  assert.throws(() => bind(value), /source workflow is not trusted/);
+});

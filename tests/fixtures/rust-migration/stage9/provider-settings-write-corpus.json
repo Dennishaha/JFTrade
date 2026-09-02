@@ -1,0 +1,9 @@
+{
+  "version": "stage9.provider-settings-write.v1",
+  "seedDocument": {
+    "activeMarketDataProvider": "yfinance",
+    "backtestMarketDataProvider": "akshare"
+  },
+  "activeInputs": [" FUTU ", "invalid", " YFINANCE "],
+  "backtestInputs": [" YFINANCE ", "invalid", " futu "]
+}

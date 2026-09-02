@@ -1,0 +1,753 @@
+{
+  "version": "stage5.v1",
+  "statuses": [
+    {
+      "raw": "Unsubmitted",
+      "status": "SUBMITTING"
+    },
+    {
+      "raw": "WAITING_SUBMIT",
+      "status": "SUBMITTING"
+    },
+    {
+      "raw": "NEW",
+      "status": "BROKER_ACCEPTED"
+    },
+    {
+      "raw": "Filled_Part",
+      "status": "PARTIALLY_FILLED"
+    },
+    {
+      "raw": "FILLED_ALL",
+      "status": "FILLED"
+    },
+    {
+      "raw": "CANCELLING_ALL",
+      "status": "CANCEL_REQUESTED"
+    },
+    {
+      "raw": "CANCELED",
+      "status": "CANCELLED"
+    },
+    {
+      "raw": "SubmitFailed",
+      "status": "REJECTED"
+    },
+    {
+      "raw": "Deleted",
+      "status": "CANCELLED"
+    },
+    {
+      "raw": "TimeOut",
+      "status": "UNKNOWN"
+    }
+  ],
+  "transitions": [
+    {
+      "accepted": true,
+      "current": "BROKER_ACCEPTED",
+      "incoming": "PARTIALLY_FILLED",
+      "status": "PARTIALLY_FILLED"
+    },
+    {
+      "accepted": false,
+      "current": "PARTIALLY_FILLED",
+      "incoming": "BROKER_ACCEPTED",
+      "status": "PARTIALLY_FILLED"
+    },
+    {
+      "accepted": true,
+      "current": "CANCEL_REQUESTED",
+      "incoming": "FILLED",
+      "status": "FILLED"
+    },
+    {
+      "accepted": false,
+      "current": "FILLED",
+      "incoming": "BROKER_ACCEPTED",
+      "status": "FILLED"
+    },
+    {
+      "accepted": true,
+      "current": "UNKNOWN",
+      "incoming": "BROKER_ACCEPTED",
+      "status": "BROKER_ACCEPTED"
+    },
+    {
+      "accepted": false,
+      "current": "BROKER_ACCEPTED",
+      "incoming": "UNKNOWN",
+      "status": "BROKER_ACCEPTED"
+    },
+    {
+      "accepted": true,
+      "current": "SUBMISSION_UNKNOWN",
+      "incoming": "FILLED",
+      "status": "FILLED"
+    }
+  ],
+  "commands": [
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": true,
+        "dispatch": false,
+        "idempotencyKey": "simulate-large",
+        "normalizedRequest": "futu|acc-paper|SIMULATE|US|AAPL|BUY|20|100|client-1",
+        "reasonCode": null,
+        "replayed": false,
+        "traceId": "trace-command-1"
+      }
+    },
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": false,
+        "dispatch": false,
+        "idempotencyKey": "real-quantity-limit",
+        "normalizedRequest": "futu|acc-live|REAL|US|AAPL|BUY|11|50|client-2",
+        "reasonCode": "MAX_ORDER_QUANTITY_EXCEEDED",
+        "replayed": false,
+        "traceId": "trace-command-2"
+      }
+    },
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": false,
+        "dispatch": false,
+        "idempotencyKey": "real-price-missing",
+        "normalizedRequest": "futu|acc-live|REAL|US|MSFT|BUY|2|market|client-3",
+        "reasonCode": "RISK_PRICE_UNAVAILABLE",
+        "replayed": false,
+        "traceId": "trace-command-3"
+      }
+    },
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": false,
+        "dispatch": false,
+        "idempotencyKey": "real-hard-stop",
+        "normalizedRequest": "futu|acc-blocked|REAL|US|NVDA|SELL|1|10|client-4",
+        "reasonCode": "REAL_TRADE_HARD_STOP_ACTIVE",
+        "replayed": false,
+        "traceId": "trace-command-4"
+      }
+    },
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": true,
+        "dispatch": false,
+        "idempotencyKey": "real-accepted",
+        "normalizedRequest": "futu|acc-live|REAL|US|TSLA|BUY|2|100|client-5",
+        "reasonCode": null,
+        "replayed": false,
+        "traceId": "trace-command-5"
+      }
+    },
+    {
+      "ok": true,
+      "op": "plan_order",
+      "value": {
+        "accepted": true,
+        "dispatch": false,
+        "idempotencyKey": "real-accepted",
+        "normalizedRequest": "futu|acc-live|REAL|US|TSLA|BUY|2|100|client-5",
+        "reasonCode": null,
+        "replayed": true,
+        "traceId": "trace-command-5"
+      }
+    }
+  ],
+  "events": [
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "applied"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "applied"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "duplicate"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "stale"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "applied"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "applied"
+    },
+    {
+      "ok": true,
+      "op": "order_event",
+      "value": "stale"
+    }
+  ],
+  "orders": [
+    {
+      "acceptedEvents": 4,
+      "brokerOrderId": "broker-1",
+      "duplicateEvents": 1,
+      "filledQuantity": 2.00000000,
+      "lastSequence": 5,
+      "staleEvents": 2,
+      "status": "FILLED"
+    }
+  ],
+  "positionRefreshes": [
+    {
+      "ok": true,
+      "op": "position_refresh",
+      "value": "applied"
+    },
+    {
+      "ok": true,
+      "op": "position_refresh",
+      "value": "duplicate"
+    },
+    {
+      "ok": true,
+      "op": "position_refresh",
+      "value": "stale"
+    },
+    {
+      "ok": true,
+      "op": "position_refresh",
+      "value": "applied"
+    },
+    {
+      "error": "account portfolio is invalid: position account does not match refresh account",
+      "ok": false,
+      "op": "position_refresh"
+    }
+  ],
+  "positions": [
+    {
+      "accountId": "acc-live",
+      "lastPrice": 101.00000000,
+      "market": "US",
+      "quantity": 5.00000000,
+      "sellableQuantity": 5.00000000,
+      "symbol": "AAPL"
+    },
+    {
+      "accountId": "acc-live",
+      "lastPrice": 250.00000000,
+      "market": "US",
+      "quantity": -1.00000000,
+      "sellableQuantity": 0.00000000,
+      "symbol": "TSLA"
+    }
+  ],
+  "audit": [
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "no-dispatch",
+      "outcome": "SHADOW_ACCEPTED",
+      "sequence": 1,
+      "traceId": "trace-command-1"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "MAX_ORDER_QUANTITY_EXCEEDED",
+      "outcome": "RISK_REJECTED",
+      "sequence": 2,
+      "traceId": "trace-command-2"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "RISK_PRICE_UNAVAILABLE",
+      "outcome": "RISK_REJECTED",
+      "sequence": 3,
+      "traceId": "trace-command-3"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "REAL_TRADE_HARD_STOP_ACTIVE",
+      "outcome": "RISK_REJECTED",
+      "sequence": 4,
+      "traceId": "trace-command-4"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "no-dispatch",
+      "outcome": "SHADOW_ACCEPTED",
+      "sequence": 5,
+      "traceId": "trace-command-5"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "real-accepted",
+      "outcome": "IDEMPOTENT_REPLAY",
+      "sequence": 6,
+      "traceId": "trace-command-5"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:01Z",
+      "detail": "event-1",
+      "outcome": "APPLIED",
+      "sequence": 7,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:03Z",
+      "detail": "event-2",
+      "outcome": "APPLIED",
+      "sequence": 8,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:03Z",
+      "detail": "event-2",
+      "outcome": "DUPLICATE",
+      "sequence": 9,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:02Z",
+      "detail": "event-3",
+      "outcome": "STALE",
+      "sequence": 10,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:04Z",
+      "detail": "event-4",
+      "outcome": "APPLIED",
+      "sequence": 11,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:05Z",
+      "detail": "event-5",
+      "outcome": "APPLIED",
+      "sequence": 12,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_EVENT",
+      "at": "2026-08-19T08:00:06Z",
+      "detail": "event-6",
+      "outcome": "STALE",
+      "sequence": 13,
+      "traceId": "trace-event"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "no-dispatch",
+      "outcome": "SHADOW_ACCEPTED",
+      "sequence": 14,
+      "traceId": "trace-paper-1"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "no-dispatch",
+      "outcome": "SHADOW_ACCEPTED",
+      "sequence": 15,
+      "traceId": "trace-paper-2"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "MAX_ORDER_QUANTITY_EXCEEDED",
+      "outcome": "RISK_REJECTED",
+      "sequence": 16,
+      "traceId": "trace-live-rejected"
+    },
+    {
+      "action": "ORDER_PLAN",
+      "at": "2026-08-19T08:00:00Z",
+      "detail": "no-dispatch",
+      "outcome": "SHADOW_ACCEPTED",
+      "sequence": 17,
+      "traceId": "trace-live-accepted"
+    }
+  ],
+  "session": [
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": true,
+      "generation": 0,
+      "op": "connect",
+      "state": "connecting"
+    },
+    {
+      "canRead": true,
+      "canTrade": false,
+      "changed": true,
+      "generation": 0,
+      "op": "authenticate",
+      "state": "read_only_ready"
+    },
+    {
+      "canRead": true,
+      "canTrade": false,
+      "changed": true,
+      "generation": 0,
+      "op": "refresh_accounts",
+      "state": "read_only_ready"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": true,
+      "generation": 1,
+      "op": "disconnect",
+      "state": "reconnecting"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": false,
+      "generation": 1,
+      "op": "refresh_accounts",
+      "state": "reconnecting"
+    },
+    {
+      "canRead": true,
+      "canTrade": true,
+      "changed": true,
+      "generation": 1,
+      "op": "authenticate",
+      "state": "trade_ready"
+    },
+    {
+      "canRead": true,
+      "canTrade": true,
+      "changed": true,
+      "generation": 1,
+      "op": "refresh_accounts",
+      "state": "trade_ready"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": true,
+      "generation": 1,
+      "op": "begin_close",
+      "state": "closing"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": false,
+      "generation": 1,
+      "op": "begin_close",
+      "state": "closing"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": true,
+      "generation": 1,
+      "op": "finish_close",
+      "state": "closed"
+    },
+    {
+      "canRead": false,
+      "canTrade": false,
+      "changed": false,
+      "generation": 1,
+      "op": "finish_close",
+      "state": "closed"
+    }
+  ],
+  "protocols": [
+    {
+      "ok": true,
+      "op": "protocol",
+      "value": {
+        "dispatch": false,
+        "protocol": "get_account_list",
+        "protocolId": 2001,
+        "readOnly": true
+      }
+    },
+    {
+      "ok": true,
+      "op": "protocol",
+      "value": {
+        "dispatch": false,
+        "protocol": "get_position_list",
+        "protocolId": 2102,
+        "readOnly": true
+      }
+    },
+    {
+      "ok": true,
+      "op": "protocol",
+      "value": {
+        "dispatch": false,
+        "protocol": "get_order_list",
+        "protocolId": 2201,
+        "readOnly": true
+      }
+    },
+    {
+      "ok": true,
+      "op": "protocol",
+      "value": {
+        "dispatch": false,
+        "protocol": "update_order",
+        "protocolId": 2208,
+        "readOnly": true
+      }
+    },
+    {
+      "ok": true,
+      "op": "protocol",
+      "value": {
+        "dispatch": false,
+        "protocol": "update_order_fill",
+        "protocolId": 2218,
+        "readOnly": true
+      }
+    },
+    {
+      "error": "OpenD trade write protocol 2202 is forbidden in Stage 5 shadow mode",
+      "ok": false,
+      "op": "protocol"
+    },
+    {
+      "error": "OpenD trade write protocol 2205 is forbidden in Stage 5 shadow mode",
+      "ok": false,
+      "op": "protocol"
+    },
+    {
+      "error": "OpenD trade write protocol 2005 is forbidden in Stage 5 shadow mode",
+      "ok": false,
+      "op": "protocol"
+    }
+  ],
+  "strategies": [
+    {
+      "generation": 0,
+      "mode": "notify_only",
+      "name": "notify-only-dedup",
+      "operations": [
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "start",
+          "state": "starting"
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "ready",
+          "state": "running"
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": false,
+            "mode": "notify_only",
+            "notification": {
+              "category": "strategy.order.signal",
+              "dispatch": false,
+              "message": "BUY 1 AAPL at 101.25",
+              "sourceEventId": "signal-notify",
+              "traceId": "trace-notify"
+            },
+            "signalId": "signal-notify",
+            "tradePlan": null
+          }
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": true,
+            "mode": "notify_only",
+            "notification": null,
+            "signalId": "signal-notify",
+            "tradePlan": null
+          }
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "stop",
+          "state": "stopping"
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "stopped",
+          "state": "stopped"
+        }
+      ],
+      "state": "stopped"
+    },
+    {
+      "generation": 1,
+      "mode": "paper",
+      "name": "paper-recovery",
+      "operations": [
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "start",
+          "state": "starting"
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "ready",
+          "state": "running"
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": false,
+            "mode": "paper",
+            "notification": null,
+            "signalId": "signal-paper-1",
+            "tradePlan": {
+              "accepted": true,
+              "dispatch": false,
+              "reasonCode": null
+            }
+          }
+        },
+        {
+          "changed": true,
+          "generation": 1,
+          "op": "disconnect",
+          "state": "recovering"
+        },
+        {
+          "error": "strategy runtime is not running",
+          "ok": false,
+          "op": "signal"
+        },
+        {
+          "changed": true,
+          "generation": 1,
+          "op": "ready",
+          "state": "running"
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": false,
+            "mode": "paper",
+            "notification": null,
+            "signalId": "signal-paper-2",
+            "tradePlan": {
+              "accepted": true,
+              "dispatch": false,
+              "reasonCode": null
+            }
+          }
+        }
+      ],
+      "state": "running"
+    },
+    {
+      "generation": 0,
+      "mode": "live",
+      "name": "live-risk-and-pause",
+      "operations": [
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "start",
+          "state": "starting"
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "ready",
+          "state": "running"
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": false,
+            "mode": "live",
+            "notification": null,
+            "signalId": "signal-live-rejected",
+            "tradePlan": {
+              "accepted": false,
+              "dispatch": false,
+              "reasonCode": "MAX_ORDER_QUANTITY_EXCEEDED"
+            }
+          }
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "pause",
+          "state": "paused"
+        },
+        {
+          "error": "strategy runtime is not running",
+          "ok": false,
+          "op": "signal"
+        },
+        {
+          "changed": true,
+          "generation": 0,
+          "op": "resume",
+          "state": "running"
+        },
+        {
+          "ok": true,
+          "op": "signal",
+          "value": {
+            "duplicate": false,
+            "mode": "live",
+            "notification": null,
+            "signalId": "signal-live-accepted",
+            "tradePlan": {
+              "accepted": true,
+              "dispatch": false,
+              "reasonCode": null
+            }
+          }
+        }
+      ],
+      "state": "running"
+    }
+  ]
+}

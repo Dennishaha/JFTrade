@@ -1,0 +1,297 @@
+#![forbid(unsafe_code)]
+
+//! Futu OpenD protocol and subscription adapter boundaries.
+
+mod basic_quote_query;
+mod basic_quote_tick;
+mod corporate_actions_query;
+mod customization;
+mod frame;
+mod future_info_query;
+mod health;
+mod history;
+mod managed_session;
+mod market_microstructure_query;
+mod news_query;
+mod option_chain_query;
+mod option_contract_rank_query;
+mod option_earnings_screener_query;
+mod option_event_query;
+mod option_exercise_probability_query;
+mod option_expiration_query;
+mod option_market_statistic_query;
+mod option_quote_query;
+mod option_screen_query;
+mod option_seller_screener_query;
+mod option_strategy_analysis_query;
+mod option_strategy_query;
+mod option_strategy_spread_query;
+mod option_underlying_his_statistic_query;
+mod option_underlying_his_volatility_query;
+mod option_underlying_overview_query;
+mod option_underlying_rank_query;
+mod option_volatility_query;
+mod option_zero_dte_contract_query;
+mod option_zero_dte_screener_query;
+mod prediction;
+mod probe;
+mod provider;
+mod provider_runtime;
+mod quote_push;
+mod research_institutions_query;
+mod research_short_interest_query;
+mod runtime_task;
+mod security_snapshot_query;
+mod session_coordinator;
+mod session_event_pump;
+mod subscription_executor;
+mod subscriptions;
+mod technical_indicator_query;
+mod valuation_detail_query;
+// The generated module is crate-internal; generated messages must not leak to
+// engine consumers.  Generated code is intentionally exempt from local lint
+// rules because its field/enum names are dictated by the OpenD schema.
+#[allow(dead_code, clippy::all)]
+mod trade_proto;
+mod trade_proto_fee_validation;
+mod trade_proto_fill_validation;
+mod trade_proto_margin_ratio_validation;
+mod trade_proto_max_qty_validation;
+mod trade_proto_order_validation;
+mod trade_proto_validation;
+mod trade_session;
+mod trade_snapshots;
+mod trading;
+mod transport;
+
+pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
+pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
+pub use corporate_actions_query::{
+    CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
+    FutuCorporateActionsQueryError, FutuCorporateActionsReadPort, FutuCorporateActionsResult,
+    OpenDCorporateActionsReader,
+};
+pub use customization::{
+    AlertCustomizationReadPort, AlertCustomizationWritePort, FutuAlertQuery, FutuAlertWrite,
+    FutuRemoteWatchlistReader, RemoteWatchlistReadPort, RemoteWatchlistWritePort,
+};
+pub use frame::{Frame, FrameError, Header, decode_frame, encode_frame};
+pub use future_info_query::{
+    FutureInfo, FutureInfoQuery, FutureInfoQueryError, FutureInfoReadPort, FutureInfoSecurity,
+    FutureInfoSecurityQuery, FutureTradeTime, OpenDFutureInfoReader,
+};
+pub use health::{
+    OpenDInitializedSession, OpenDTcpProbe, OpenDTcpProbeConfig, OpenDTcpProbeError,
+    market_data_health_from_probe,
+};
+pub use history::{
+    HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
+    HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
+};
+pub use managed_session::{
+    OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,
+};
+pub use market_microstructure_query::{
+    MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
+    OpenDMarketMicrostructureReader,
+};
+pub use news_query::{
+    FutuNewsEntry, FutuNewsQuery, FutuNewsQueryError, FutuNewsReadPort, FutuNewsResult,
+    OpenDNewsReader,
+};
+pub use option_chain_query::{
+    OpenDOptionChainReader, OptionChainDataFilter, OptionChainDate, OptionChainItem,
+    OptionChainQuery, OptionChainQueryError, OptionChainReadPort, OptionContract,
+    OptionContractBasic, OptionContractExData, OptionSecurity,
+};
+pub use option_contract_rank_query::{
+    OpenDOptionContractRankReader, OptionContractRankItem, OptionContractRankQuery,
+    OptionContractRankQueryError, OptionContractRankReadPort, OptionContractRankSecurity,
+    OptionContractRankSnapshot,
+};
+pub use option_earnings_screener_query::{
+    OpenDOptionEarningsScreenerReader, OptionEarningsScreenerItem, OptionEarningsScreenerPage,
+    OptionEarningsScreenerQuery, OptionEarningsScreenerQueryError, OptionEarningsScreenerReadPort,
+};
+pub use option_event_query::{
+    EventIndicator, EventIndicatorValue, EventSort, OpenDOptionEventReader, OptionEvent,
+    OptionEventCorporateAction, OptionEventPage, OptionEventQuery, OptionEventQueryError,
+    OptionEventReadPort, OptionEventSecurity,
+};
+pub use option_exercise_probability_query::{
+    OpenDOptionExerciseProbabilityReader, OptionExerciseProbabilityItem,
+    OptionExerciseProbabilityQuery, OptionExerciseProbabilityQueryError,
+    OptionExerciseProbabilityReadPort, OptionExerciseProbabilitySecurity,
+    OptionExerciseProbabilitySnapshot,
+};
+pub use option_expiration_query::{
+    OpenDOptionExpirationReader, OptionExpirationDate, OptionExpirationQuery,
+    OptionExpirationQueryError, OptionExpirationReadPort,
+};
+pub use option_market_statistic_query::{
+    OpenDOptionMarketStatisticReader, OptionMarketStatisticItem, OptionMarketStatisticQuery,
+    OptionMarketStatisticQueryError, OptionMarketStatisticReadPort, OptionMarketStatisticSnapshot,
+    decode_next_page_key as decode_option_market_statistic_cursor,
+    encode_next_page_key as encode_option_market_statistic_cursor,
+};
+pub use option_quote_query::{
+    OpenDOptionQuoteReader, OptionQuote, OptionQuoteQuery, OptionQuoteQueryError,
+    OptionQuoteReadPort, OptionQuoteSecurity,
+};
+pub use option_screen_query::{
+    OpenDOptionScreenReader, OptionScreenItem, OptionScreenPage, OptionScreenQuery,
+    OptionScreenQueryError, OptionScreenReadPort, OptionScreenSecurity,
+};
+pub use option_seller_screener_query::{
+    OpenDOptionSellerScreenerReader, OptionSellerScreenerItem, OptionSellerScreenerQuery,
+    OptionSellerScreenerQueryError, OptionSellerScreenerReadPort,
+};
+pub use option_strategy_analysis_query::{
+    OpenDOptionStrategyAnalysisReader, OptionStrategyAnalysisQuery,
+    OptionStrategyAnalysisQueryError, OptionStrategyAnalysisReadPort,
+    OptionStrategyAnalysisSnapshot,
+};
+pub use option_strategy_query::{
+    OpenDOptionStrategyReader, OptionStrategyItem, OptionStrategyLeg, OptionStrategyQuery,
+    OptionStrategyQueryError, OptionStrategyReadPort, OptionStrategySecurity,
+    OptionStrategySnapshot,
+};
+pub use option_strategy_spread_query::{
+    OpenDOptionStrategySpreadReader, OptionStrategySpreadItem, OptionStrategySpreadQuery,
+    OptionStrategySpreadQueryError, OptionStrategySpreadReadPort, OptionStrategySpreadSnapshot,
+};
+pub use option_underlying_his_statistic_query::{
+    OpenDOptionUnderlyingHisStatisticReader, OptionUnderlyingHisStatisticItem,
+    OptionUnderlyingHisStatisticQuery, OptionUnderlyingHisStatisticQueryError,
+    OptionUnderlyingHisStatisticReadPort, OptionUnderlyingHisStatisticSecurity,
+    OptionUnderlyingHisStatisticSnapshot,
+    decode_next_page_key as decode_option_underlying_his_statistic_cursor,
+    encode_next_page_key as encode_option_underlying_his_statistic_cursor,
+};
+pub use option_underlying_his_volatility_query::{
+    OpenDOptionUnderlyingHisVolatilityReader, OptionUnderlyingHisVolatilityItem,
+    OptionUnderlyingHisVolatilityQuery, OptionUnderlyingHisVolatilityQueryError,
+    OptionUnderlyingHisVolatilityReadPort, OptionUnderlyingHisVolatilitySecurity,
+    OptionUnderlyingHisVolatilitySnapshot, decode_next_page_key, encode_next_page_key,
+};
+pub use option_underlying_overview_query::{
+    OpenDOptionUnderlyingOverviewReader, OptionUnderlyingHvItem, OptionUnderlyingOverviewItem,
+    OptionUnderlyingOverviewQuery, OptionUnderlyingOverviewQueryError,
+    OptionUnderlyingOverviewReadPort, OptionUnderlyingOverviewSecurity,
+    OptionUnderlyingOverviewSnapshot,
+};
+pub use option_underlying_rank_query::{
+    OpenDOptionUnderlyingRankReader, OptionUnderlyingRankItem, OptionUnderlyingRankQuery,
+    OptionUnderlyingRankQueryError, OptionUnderlyingRankReadPort, OptionUnderlyingRankSecurity,
+    OptionUnderlyingRankSnapshot,
+};
+pub use option_volatility_query::{
+    OpenDOptionVolatilityReader, OptionVolatilityItem, OptionVolatilityQuery,
+    OptionVolatilityQueryError, OptionVolatilityReadPort, OptionVolatilitySecurity,
+    OptionVolatilitySnapshot,
+};
+pub use option_zero_dte_contract_query::{
+    OpenDOptionZeroDteContractReader, OptionZeroDteContractItem, OptionZeroDteContractQuery,
+    OptionZeroDteContractQueryError, OptionZeroDteContractReadPort,
+};
+pub use option_zero_dte_screener_query::{
+    OpenDOptionZeroDteScreenerReader, OptionZeroDteChainInfo, OptionZeroDteScreenerItem,
+    OptionZeroDteScreenerPage, OptionZeroDteScreenerQuery, OptionZeroDteScreenerQueryError,
+    OptionZeroDteScreenerReadPort,
+};
+pub use prediction::{
+    OpenDPredictionMarketReader, PredictionComboQuotePort, PredictionMarketReadError,
+    PredictionMarketReadPort, PredictionMarketSubscriptionPort,
+};
+pub use probe::{MarketState, OpenDProbe, WireGlobalState};
+pub use provider::{broker_descriptor, provider_descriptor};
+pub use provider_runtime::{
+    OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDProviderRuntimeError,
+};
+pub use quote_push::{
+    BasicQuote, BasicQuotePush, Kline, KlinePush, OrderBookDetail, OrderBookLevel, OrderBookPush,
+    PreAfterMarketData, QuotePush, QuotePushDecodeError, Security, decode_quote_push,
+};
+pub use research_institutions_query::{
+    FutuInstitutionEntry, FutuInstitutionOperation, FutuInstitutionQuery,
+    FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
+    FutuInstitutionSecurity, FutuInstitutionSecurityQuery, FutuInstitutionSummary,
+    OpenDInstitutionReader,
+};
+pub use research_short_interest_query::{
+    FutuShortInterestItem, FutuShortInterestQuery, FutuShortInterestQueryError,
+    FutuShortInterestReadPort, FutuShortInterestResult, FutuShortInterestSecurity,
+    OpenDShortInterestReader, ShortInterestItem, ShortInterestOperation, ShortInterestQuery,
+    ShortInterestQueryError, ShortInterestReadPort, ShortInterestResult, ShortInterestSecurity,
+};
+pub use runtime_task::{
+    OpenDSessionEventListener, OpenDSessionRuntime, OpenDSessionRuntimeConfig,
+    OpenDSessionRuntimeError, OpenDSessionRuntimeStatus,
+};
+pub use security_snapshot_query::{
+    OpenDSecuritySnapshotReader, SecuritySnapshotQueryError, SecuritySnapshotReadPort,
+};
+pub use session_coordinator::{
+    OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
+};
+pub use session_event_pump::{
+    OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
+};
+pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
+pub use subscriptions::{
+    OpenDSubscriptionLifecycle, PhysicalSubscription, ReconcileAction, SubscriptionKind,
+    SubscriptionPlan, SubscriptionReconciler, desired_subscriptions, retry_delay_ms,
+};
+pub use technical_indicator_query::{
+    FutuIndicatorCalculation, FutuIndicatorInput, FutuIndicatorInputParameter, FutuIndicatorList,
+    FutuIndicatorListQuery, FutuIndicatorOutputParameter, FutuIndicatorQueryError,
+    FutuIndicatorReadPort, FutuTechnicalIndicatorReader, IndicatorCalcQuery, IndicatorKline,
+    IndicatorListQuery, TechnicalIndicatorCalculation, TechnicalIndicatorInfo,
+    TechnicalIndicatorList, TechnicalIndicatorQuery, TechnicalIndicatorReadPort,
+    TechnicalIndicatorResult,
+};
+pub use trade_proto::ResponseError;
+pub use trade_session::{
+    OpenDTradeReadClient, TradeModifyOrderRequest, TradePlaceComboOrderRequest,
+    TradePlaceComboOrderResult, TradePlaceOrderRequest, TradePlaceOrderResult, TradeReadPort,
+    TradeSessionError, TradeSubscribeAccountsRequest, TradeUnlockRequest, TradeWritePort,
+    trade_header,
+};
+pub use trade_snapshots::{
+    TradeAccountSnapshot, TradeCashFlowSnapshot, TradeCashInfo, TradeComboLeg,
+    TradeComboMaxTradeQuantityRequest, TradeComboMaxTradeQuantitySnapshot, TradeFillSnapshot,
+    TradeFilter, TradeFunds, TradeFundsSnapshot, TradeHeader, TradeMarginRatioSnapshot,
+    TradeMarketInfo, TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot,
+    TradeOrderFeeItemSnapshot, TradeOrderFeeSnapshot, TradeOrderSnapshot, TradePositionSnapshot,
+    TradeSecurity,
+};
+pub use trading::{
+    RawOrderUpdate, TradeProtocol, TradeProtocolError, TradeProtocolPlan, map_order_update,
+    plan_shadow_protocol,
+};
+pub use transport::{
+    OpenDClient, OpenDFrameReader, OpenDTcpTransport, OpenDTransport, TcpTransportError,
+    TransportError,
+};
+pub use valuation_detail_query::{
+    OpenDValuationDetailReader, ValuationDetailHistoricalItem, ValuationDetailMarketDistribution,
+    ValuationDetailPlateDistribution, ValuationDetailPlateStockItem, ValuationDetailProfitGrowth,
+    ValuationDetailProfitGrowthItem, ValuationDetailQuery, ValuationDetailQueryError,
+    ValuationDetailReadPort, ValuationDetailSecurity, ValuationDetailSnapshot,
+    ValuationDetailTrend,
+};
+
+pub const PROTO_INIT_CONNECT: u32 = 1001;
+pub const PROTO_GET_GLOBAL_STATE: u32 = 1002;
+pub const PROTO_KEEP_ALIVE: u32 = 1004;
+pub const PROTO_QOT_SUB: u32 = 3001;
+pub const PROTO_GET_SUB_INFO: u32 = 3003;
+pub const PROTO_GET_BASIC_QOT: u32 = 3004;
+pub const PROTO_GET_SECURITY_SNAPSHOT: u32 = 3203;
+pub const PROTO_UPDATE_BASIC_QOT: u32 = 3005;
+pub const PROTO_GET_KL: u32 = 3006;
+pub const PROTO_UPDATE_KL: u32 = 3007;
+pub const PROTO_GET_ORDER_BOOK: u32 = 3012;
+pub const PROTO_UPDATE_ORDER_BOOK: u32 = 3013;
+pub const PROTO_REQUEST_HISTORY_KL: u32 = 3103;
+pub const MINIMUM_OPEND_VERSION: &str = "10.9.6908";
