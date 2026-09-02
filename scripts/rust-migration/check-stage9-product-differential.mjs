@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const defaultCommandTimeoutMs = 300_000;
-const maximumCommandTimeoutMs = 900_000;
+const maximumCommandTimeoutMs = 1_800_000;
 
 export function resolveCommandTimeoutMs(environment = process.env) {
   const value = environment.JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS;

@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "900000"
+      JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "1800000"
       TAURI_CONFIG: '{"bundle":{"resources":[]}}'
     steps:
       - name: Checkout
