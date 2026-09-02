@@ -6,7 +6,23 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
-const commandTimeoutMs = 300_000;
+const defaultCommandTimeoutMs = 300_000;
+const maximumCommandTimeoutMs = 900_000;
+
+export function resolveCommandTimeoutMs(environment = process.env) {
+  const value = environment.JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS;
+  if (value === undefined || value === "") return defaultCommandTimeoutMs;
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    throw new Error("JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS must be a positive integer");
+  }
+  const timeoutMs = Number(value);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs > maximumCommandTimeoutMs) {
+    throw new Error(
+      `JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS must not exceed ${maximumCommandTimeoutMs}`,
+    );
+  }
+  return timeoutMs;
+}
 
 export function listEngineIntegrationTargets(root = repositoryRoot) {
   return readdirSync(path.join(root, "crates/jftrade-engine/tests"), { withFileTypes: true })
@@ -38,9 +54,10 @@ export async function runStage9ProductDifferential(options = {}) {
   const {
     root = repositoryRoot,
     runner = runCommand,
+    timeoutMs = resolveCommandTimeoutMs(),
   } = options;
   for (const specification of stage9ProductCommands(listEngineIntegrationTargets(root))) {
-    await runner(specification, { root, timeoutMs: commandTimeoutMs });
+    await runner(specification, { root, timeoutMs });
   }
 }
 

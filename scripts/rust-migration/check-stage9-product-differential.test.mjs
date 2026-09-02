@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
+  resolveCommandTimeoutMs,
+  runStage9ProductDifferential,
   stage9ProductCommands,
 } from "./check-stage9-product-differential.mjs";
 
@@ -18,4 +21,26 @@ test("Stage 9 product compatibility replay batches compiler work into three Rust
   ]);
   assert.equal(commands.some(({ executable }) => executable === "node"), false);
   assert.equal(commands.some(({ executable }) => executable === "go"), false);
+});
+
+test("Stage 9 product replay accepts a bounded cold-runner timeout without disabling watchdogs", async () => {
+  assert.equal(resolveCommandTimeoutMs({}), 300_000);
+  assert.equal(
+    resolveCommandTimeoutMs({ JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "900000" }),
+    900_000,
+  );
+  for (const value of ["0", "-1", "1.5", "900001", "unbounded"]) {
+    assert.throws(
+      () => resolveCommandTimeoutMs({ JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: value }),
+      /JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS/,
+    );
+  }
+
+  const observedTimeouts = [];
+  await runStage9ProductDifferential({
+    root: fileURLToPath(new URL("../..", import.meta.url)),
+    timeoutMs: 900_000,
+    runner: async (_specification, { timeoutMs }) => observedTimeouts.push(timeoutMs),
+  });
+  assert.deepEqual(observedTimeouts, [900_000, 900_000, 900_000]);
 });
