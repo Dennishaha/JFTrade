@@ -1,5 +1,5 @@
 name: Setup Rust
-description: Install the pinned Rust toolchain and cache workspace dependencies
+description: Install the pinned Rust and protoc toolchains and cache workspace dependencies
 
 inputs:
   cache:
@@ -18,6 +18,68 @@ runs:
         rustup default 1.97.1
         rustc --version --verbose
         cargo --version
+
+    - name: Install pinned protoc toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="34.1"
+        case "${RUNNER_OS}-${RUNNER_ARCH}" in
+          Linux-X64)
+            archive_name="protoc-${version}-linux-x86_64.zip"
+            expected_sha256="af27ea66cd26938fe48587804ca7d4817457a08350021a1c6e23a27ccc8c6904"
+            executable_name="protoc"
+            ;;
+          Linux-ARM64)
+            archive_name="protoc-${version}-linux-aarch_64.zip"
+            expected_sha256="31c5e9e3c7bf013cf41fb97765ee255c140024a6b175b6cc9b64beddd7c23ba7"
+            executable_name="protoc"
+            ;;
+          macOS-X64)
+            archive_name="protoc-${version}-osx-x86_64.zip"
+            expected_sha256="ab124429c1f49951f03b6c0c0e911fec04e2c7c20de5c935e0cde7353bbd016c"
+            executable_name="protoc"
+            ;;
+          macOS-ARM64)
+            archive_name="protoc-${version}-osx-aarch_64.zip"
+            expected_sha256="2c7e92b8b578916937df132b3032e2e8e6c170862ecf7a8333094a6f3d03650c"
+            executable_name="protoc"
+            ;;
+          Windows-X64|Windows-ARM64)
+            archive_name="protoc-${version}-win64.zip"
+            expected_sha256="6d7ebdc75e9c1f0026d4fb28f17ef1d0aae77d36744d83a9e052d79ba493724f"
+            executable_name="protoc.exe"
+            ;;
+          *)
+            echo "Unsupported protoc runner: ${RUNNER_OS}-${RUNNER_ARCH}" >&2
+            exit 1
+            ;;
+        esac
+
+        install_dir="${RUNNER_TEMP:?}/jftrade-protoc-${version}"
+        archive_path="${RUNNER_TEMP:?}/${archive_name}"
+        download_url="https://github.com/protocolbuffers/protobuf/releases/download/v${version}/${archive_name}"
+        rm -rf "$install_dir"
+        mkdir -p "$install_dir"
+        curl --fail --location --silent --show-error "$download_url" --output "$archive_path"
+        if command -v sha256sum >/dev/null 2>&1; then
+          actual_sha256="$(sha256sum "$archive_path" | awk '{print $1}')"
+        else
+          actual_sha256="$(shasum -a 256 "$archive_path" | awk '{print $1}')"
+        fi
+        if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+          echo "protoc archive checksum mismatch: expected $expected_sha256, got $actual_sha256" >&2
+          exit 1
+        fi
+        unzip -q "$archive_path" -d "$install_dir"
+        chmod +x "$install_dir/bin/$executable_name"
+        "$install_dir/bin/$executable_name" --version | grep -Fx "libprotoc ${version}"
+        echo "$install_dir/bin" >> "$GITHUB_PATH"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "PROTOC=$(cygpath -w "$install_dir/bin/$executable_name")" >> "$GITHUB_ENV"
+        else
+          echo "PROTOC=$install_dir/bin/$executable_name" >> "$GITHUB_ENV"
+        fi
 
     - name: Cache Cargo dependencies
       if: ${{ inputs.cache == 'true' }}
