@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   changedFiles,
-  goAffectedTestCommands,
   planAffected,
   resolveAffectedModules,
   resolveBase,
@@ -13,60 +12,23 @@ import {
   webAffectedTestCommands,
 } from "./test-affected.mjs";
 
-const goPackageFixture = [
-  {
-    Dir: "/repo/internal/productfeatures",
-    ImportPath: "github.com/jftrade/jftrade-main/internal/productfeatures",
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-  {
-    Dir: "/repo/internal/research",
-    ImportPath: "github.com/jftrade/jftrade-main/internal/research",
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-  {
-    Dir: "/repo/internal/integration/akshare",
-    ImportPath: "github.com/jftrade/jftrade-main/internal/integration/akshare",
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-  {
-    Dir: "/repo/pkg/bbgo/types",
-    ImportPath: "github.com/jftrade/jftrade-main/pkg/bbgo/types",
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-  {
-    Dir: "/repo/internal/api/productfeatures",
-    ImportPath: "github.com/jftrade/jftrade-main/internal/api/productfeatures",
-    Deps: ["github.com/jftrade/jftrade-main/internal/productfeatures"],
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-  {
-    Dir: "/repo/internal/research",
-    ImportPath: "github.com/jftrade/jftrade-main/internal/research [github.com/jftrade/jftrade-main/internal/research.test]",
-    ForTest: "github.com/jftrade/jftrade-main/internal/research",
-    Deps: ["github.com/jftrade/jftrade-main/internal/productfeatures"],
-    Module: { Main: true, Path: "github.com/jftrade/jftrade-main" },
-  },
-];
-
 test("maps changed files to the narrowest declared modules", () => {
   const modules = resolveAffectedModules([
-    "internal/marketdata/service.go",
+    "crates/jftrade-marketdata/src/lib.rs",
     "apps/web/src/composables/backtest/useBacktestPage.ts",
   ]);
-  assert.deepEqual(modules.map((module) => module.id), ["marketdata", "strategy-backtest", "web"]);
+  assert.deepEqual(modules.map((module) => module.id), ["rust-foundation", "web"]);
 });
 
 test("classifies language and generated fallback checks", () => {
   assert.deepEqual(
     [...resolveFallbackChecks([
-      "go.mod",
       "crates/jftrade-engine/src/lib.rs",
       "apps/web/src/generated/openapi.ts",
       "scripts/test-affected.mjs",
       ".github/workflows/ci.yml",
     ])].sort(),
-    ["generated", "go", "rust", "scripts", "web", "workflows"],
+    ["generated", "rust", "scripts", "web", "workflows"],
   );
 });
 
@@ -214,65 +176,6 @@ test("rejects an unknown affected-test profile", () => {
     () => planAffected(["crates/jftrade-engine/src/lib.rs"], { profile: "slow" }),
     /unknown affected-test profile/,
   );
-});
-
-test("selects changed Go packages and their production and test dependents", () => {
-  assert.deepEqual(goAffectedTestCommands(["internal/productfeatures/service.go"], {
-    root: "/repo",
-    packages: goPackageFixture,
-    fileExists: () => true,
-  }), [
-    "go test -p=4 github.com/jftrade/jftrade-main/internal/api/productfeatures github.com/jftrade/jftrade-main/internal/productfeatures github.com/jftrade/jftrade-main/internal/research -count=1 -timeout 300s",
-  ]);
-});
-
-test("always selects real tests for previously unclassified Go source families", () => {
-  for (const file of [
-    "internal/productfeatures/service.go",
-    "internal/research/presets.go",
-    "internal/integration/akshare/client.go",
-    "pkg/bbgo/types/order.go",
-  ]) {
-    const commands = goAffectedTestCommands([file], {
-      root: "/repo",
-      packages: goPackageFixture,
-      fileExists: () => true,
-    });
-    assert.equal(commands.length, 1, file);
-    assert.match(commands[0], /^go test /, file);
-    assert.notEqual(commands[0], "go test ./... -count=1 -timeout 300s", file);
-  }
-});
-
-test("limits test-only Go changes to their owning package", () => {
-  assert.deepEqual(goAffectedTestCommands(["internal/productfeatures/service_test.go"], {
-    root: "/repo",
-    packages: goPackageFixture,
-    fileExists: () => true,
-  }), [
-    "go test -p=4 github.com/jftrade/jftrade-main/internal/productfeatures -count=1 -timeout 300s",
-  ]);
-});
-
-test("falls back to the full Go suite for deleted, unresolved, module, and broad changes", () => {
-  const full = ["go test ./... -count=1 -timeout 300s"];
-  assert.deepEqual(goAffectedTestCommands(["internal/productfeatures/deleted.go"], {
-    root: "/repo",
-    packages: goPackageFixture,
-    fileExists: () => false,
-  }), full);
-  assert.deepEqual(goAffectedTestCommands(["internal/missing/source.go"], {
-    root: "/repo",
-    packages: goPackageFixture,
-    fileExists: () => true,
-  }), full);
-  assert.deepEqual(goAffectedTestCommands(["go.mod"]), full);
-  assert.deepEqual(goAffectedTestCommands(["internal/productfeatures/service.go"], {
-    root: "/repo",
-    packages: goPackageFixture,
-    fileExists: () => true,
-    maxAffectedPackages: 3,
-  }), full);
 });
 
 test("uses the Vitest dependency graph for changed Web sources", () => {

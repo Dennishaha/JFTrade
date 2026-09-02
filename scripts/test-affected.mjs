@@ -15,9 +15,6 @@ export function resolveAffectedModules(files, map = moduleMap) {
 
 export function resolveFallbackChecks(files) {
   const checks = new Set();
-  if (files.some((file) => /(^|\/)(go\.mod|go\.sum)$|\.go$/.test(file))) {
-    checks.add("go");
-  }
   if (files.some((file) => /(^|\/)(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|deny\.toml)$|\.rs$/.test(file))) {
     checks.add("rust");
   }
@@ -60,118 +57,6 @@ export function resolveBase(root = repoRoot, { env = process.env, gitCommand = g
 
 function git(root, args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-}
-
-function parseJsonObjects(source) {
-  const values = [];
-  let depth = 0;
-  let start = -1;
-  let inString = false;
-  let escaped = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') inString = false;
-      continue;
-    }
-    if (character === '"') {
-      inString = true;
-    } else if (character === "{") {
-      if (depth === 0) start = index;
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0 && start >= 0) {
-        values.push(JSON.parse(source.slice(start, index + 1)));
-        start = -1;
-      }
-    }
-  }
-  if (depth !== 0 || inString) throw new Error("go list returned incomplete JSON");
-  return values;
-}
-
-export function listGoPackages(root = repoRoot) {
-  const output = execFileSync("go", ["list", "-json", "-test", "./..."], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 128 * 1024 * 1024,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  return parseJsonObjects(output);
-}
-
-function normalizeGoImportPath(importPath = "") {
-  return importPath.replace(/ \[[^\]]+\.test\]$/, "");
-}
-
-function ownerPackage(record) {
-  if (record.ForTest) return record.ForTest;
-  const importPath = normalizeGoImportPath(record.ImportPath);
-  return importPath.endsWith(".test") ? importPath.slice(0, -5) : importPath;
-}
-
-function fullGoTestCommand() {
-  return "go test ./... -count=1 -timeout 300s";
-}
-
-export function goAffectedTestCommands(files, {
-  root = repoRoot,
-  packages,
-  fileExists = fs.existsSync,
-  loadPackages = listGoPackages,
-  maxAffectedPackages = 40,
-} = {}) {
-  const goFiles = files.filter((file) => file.endsWith(".go"));
-  if (goFiles.length === 0 && !files.some((file) => /(^|\/)go\.(?:mod|sum)$/.test(file))) return [];
-  if (files.some((file) => /(^|\/)go\.(?:mod|sum)$/.test(file))) return [fullGoTestCommand()];
-  if (goFiles.some((file) => !fileExists(path.join(root, file)))) return [fullGoTestCommand()];
-
-  let packageRecords;
-  try {
-    packageRecords = packages ?? loadPackages(root);
-  } catch {
-    return [fullGoTestCommand()];
-  }
-  const ordinaryPackages = packageRecords.filter((record) => (
-    record.Module?.Main
-    && !record.ForTest
-    && !record.ImportPath.includes(" [")
-    && !record.ImportPath.endsWith(".test")
-  ));
-  const ordinaryPaths = new Set(ordinaryPackages.map((record) => record.ImportPath));
-  const changedPackages = new Set();
-  const productionChanges = new Set();
-  for (const file of goFiles) {
-    const directory = path.dirname(path.join(root, file));
-    const record = ordinaryPackages.find((candidate) => path.resolve(candidate.Dir) === path.resolve(directory));
-    if (!record) return [fullGoTestCommand()];
-    changedPackages.add(record.ImportPath);
-    if (!file.endsWith("_test.go")) productionChanges.add(record.ImportPath);
-  }
-
-  const affectedPackages = new Set(changedPackages);
-  if (productionChanges.size > 0) {
-    for (const record of packageRecords) {
-      const owner = ownerPackage(record);
-      if (!ordinaryPaths.has(owner)) continue;
-      const dependencies = [
-        ...(record.Deps ?? []),
-        ...(record.Imports ?? []),
-        ...(record.TestImports ?? []),
-        ...(record.XTestImports ?? []),
-      ].map(normalizeGoImportPath);
-      if (dependencies.some((dependency) => productionChanges.has(dependency))) {
-        affectedPackages.add(owner);
-      }
-    }
-  }
-  if (affectedPackages.size === 0 || affectedPackages.size >= maxAffectedPackages) {
-    return [fullGoTestCommand()];
-  }
-  return [`go test -p=4 ${[...affectedPackages].sort().join(" ")} -count=1 -timeout 300s`];
 }
 
 function run(command) {
@@ -369,7 +254,7 @@ function migrationAffectedCommands(files, profile) {
   return commands;
 }
 
-function buildCommands(files, modules, withChecks, goOptions, profile) {
+function buildCommands(files, modules, withChecks, profile) {
   const commands = [];
   const moduleCommands = modules.flatMap((module) => (
     profile === "quick" ? module.quickTests ?? module.affectedTests ?? [] : module.affectedTests ?? []
@@ -378,7 +263,6 @@ function buildCommands(files, modules, withChecks, goOptions, profile) {
   commands.push(...migrationAffectedCommands(files, profile));
   commands.push(...webAffectedTestCommands(files));
   const fallback = resolveFallbackChecks(files);
-  if (fallback.has("go")) commands.push(...goAffectedTestCommands(files, goOptions));
   if (fallback.has("rust")) {
     commands.push("pnpm run check:rust:target-health");
     const rustCommands = rustAffectedTestCommands(files);
@@ -388,12 +272,6 @@ function buildCommands(files, modules, withChecks, goOptions, profile) {
     commands.unshift("pnpm run check:go-retirement");
     commands.unshift("pnpm run check:ai-context");
     commands.unshift("pnpm run check:diff");
-    if (fallback.has("go") || modules.some((module) => module.id === "apiserver" || module.id === "assistant")) {
-      commands.push("pnpm run check:go-file-length");
-      const vetTargets = [...new Set(modules.flatMap((module) => module.vetPackages ?? []))];
-      commands.push(vetTargets.length > 0 ? `go vet ${vetTargets.join(" ")}` : "go vet ./...");
-      commands.push("pnpm run check:arch-deps");
-    }
     if (fallback.has("rust")) {
       commands.push("pnpm run format:rust:check");
       commands.push(...rustAffectedClippyCommands(files));
@@ -434,7 +312,7 @@ export function planAffected(files, {
   return {
     files,
     modules,
-    commands: buildCommands(files, modules, withChecks, goOptions, profile),
+    commands: buildCommands(files, modules, withChecks, profile),
     deferredCommands,
   };
 }

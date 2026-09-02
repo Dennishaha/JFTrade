@@ -34,7 +34,7 @@ if (targetGOOS !== hostGOOS || targetGOARCH !== hostGOARCH) {
 const outDir = resolve(
   process.env.JFTRADE_MARKETDATA_ASSET_OUT_DIR?.trim() ||
     process.env.JFTRADE_YFINANCE_ASSET_OUT_DIR?.trim() ||
-    join(rootDir, "internal/marketdataassets/assets/bin"),
+    join(rootDir, "runtime-assets/marketdata"),
 );
 const virtualenvPython =
   process.platform === "win32"

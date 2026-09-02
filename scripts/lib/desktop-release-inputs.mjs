@@ -4,8 +4,8 @@ import path from "node:path";
 
 export const desktopReleaseInputPaths = [
   "contracts/openapi/openapi.json",
-  "internal/frontendassets/dist.zip",
-  "internal/pineworkerassets/assets/bin/worker.mjs",
+  "runtime-assets/web/manifest.json",
+  "runtime-assets/pine/worker.mjs",
 ];
 
 export const desktopReleaseInputManifestPath = "artifacts/desktop-release-inputs.json";
@@ -36,7 +36,7 @@ export function currentMarketDataSidecarAssetPath({
       `Unsupported desktop market-data asset target: ${environment.GOOS || platform}/${environment.GOARCH || architecture}`,
     );
   }
-  return `internal/marketdataassets/assets/bin/marketdata-sidecar-${goos}-${goarch}`;
+  return `runtime-assets/marketdata/marketdata-sidecar-${goos}-${goarch}`;
 }
 
 export function desktopReleaseInputPathsForCurrentPlatform(options = {}) {
@@ -66,7 +66,7 @@ export function assertPreparedDesktopReleaseInputs(rootDir, options = {}) {
       }
       throw error;
     }
-    if (relativePath.startsWith("internal/marketdataassets/assets/bin/")) {
+    if (relativePath.startsWith("runtime-assets/marketdata/")) {
       if (!stat.isDirectory()) {
         throw new Error(`Prepared desktop release input is empty or invalid: ${relativePath}`);
       }

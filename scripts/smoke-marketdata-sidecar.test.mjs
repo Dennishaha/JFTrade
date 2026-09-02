@@ -32,7 +32,7 @@ test("resolves macOS, Linux, and Windows onedir executables", () => {
       architecture,
     });
     assert.equal(basename(executable), expected);
-    assert.match(executable, /internal[/\\]marketdataassets[/\\]assets[/\\]bin/);
+    assert.match(executable, /runtime-assets[/\\]marketdata/);
   }
 });
 

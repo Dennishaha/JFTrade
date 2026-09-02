@@ -90,7 +90,7 @@ export function releaseRuntimeInputs({
     nodeVersion,
     pineBundle: path.join(
       repositoryRoot,
-      "internal/pineworkerassets/assets/bin/worker.mjs",
+      "runtime-assets/pine/worker.mjs",
     ),
     platform: targetPlatform,
     protoDirectory: path.join(repositoryRoot, "proto/pineworker"),

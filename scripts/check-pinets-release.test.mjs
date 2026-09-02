@@ -29,7 +29,7 @@ try {
   assert(blocked.status === 0, `blocked release check failed: ${blocked.stderr}`);
   const blockedLog = readFileSync(runLog, "utf8");
   assert(!blockedLog.includes("pnpm run build:pineworker"), "blocked release check should skip release asset build");
-  assert(blockedLog.includes("go test ./pkg/strategy/pineworker -run Test -cover"), "blocked release check did not run focused Pine worker coverage gate");
+  assert(blockedLog.includes("cargo test -p jftrade-integration-pine --all-targets"), "blocked release check did not run the Rust Pine integration gate");
   assert(blockedLog.includes("pnpm run check:pinets-compliance"), "blocked release check did not run PineTS compliance gate");
   assert(blockedLog.includes("pnpm run test:web"), "blocked release check did not run frontend test gate");
   assert(blockedLog.includes("pnpm run typecheck:web"), "blocked release check did not run frontend typecheck gate");
@@ -46,10 +46,10 @@ try {
   assert(pass.status === 0, `unblocked release check failed: ${pass.stderr || pass.stdout}`);
   assert(pass.stdout.includes("pinets package license: AGPL-3.0-only"), "unblocked release check did not report pinets package license");
   const passLog = readFileSync(runLog, "utf8");
-  assert(passLog.includes("JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE=1 go test ./pkg/strategy/pineworker -run TestWorkerManagerRealPineTSProcessSmoke -v"), "unblocked release check did not run real PineTS process smoke");
+  assert(passLog.includes("pnpm run smoke:pinets-backtest"), "unblocked release check did not run real PineTS process smoke");
   assert(passLog.includes("pnpm run build:pineworker"), "unblocked release check did not build worker assets");
   assert(passLog.includes("pnpm run build:marketdata-sidecar"), "unblocked release check did not build the native market-data helper");
-  assert(passLog.includes("go test -tags release_assets ./internal/marketdataassets -run Test"), "unblocked release check did not verify embedded market-data assets");
+  assert(passLog.includes("pnpm run smoke:marketdata-sidecar"), "unblocked release check did not verify market-data assets");
   assert(passLog.includes("cargo build --release -p jftrade-engine --bin jftrade-api-rust"), "unblocked release check did not build the Rust API release binary");
   assert(existsSync(releaseOut), "unblocked release check did not leave an artifact");
 

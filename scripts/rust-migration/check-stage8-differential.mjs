@@ -51,9 +51,9 @@ export function assertStage8Configuration(config, facadeSource, expected) {
   assert.equal(config.app.windows[0].visible, false, "native window must remain hidden until the runtime is ready");
   for (const resource of [
     "../../../var/tauri-runtime/",
-    "../../../internal/pineworkerassets/assets/bin/worker.mjs",
+    "../../../runtime-assets/pine/worker.mjs",
     "../../../proto/pineworker/",
-    "../../../internal/marketdataassets/assets/bin/",
+    "../../../runtime-assets/marketdata/",
   ]) {
     assert.ok(config.bundle.resources[resource], `Stage 9 release resource is missing: ${resource}`);
   }

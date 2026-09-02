@@ -43,9 +43,9 @@
     "copyright": "Copyright (C) 2026 JFTrade Contributors",
     "resources": {
       "../../../var/tauri-runtime/": "runtime/node",
-      "../../../internal/pineworkerassets/assets/bin/worker.mjs": "runtime/pineworker/worker.mjs",
+      "../../../runtime-assets/pine/worker.mjs": "runtime/pineworker/worker.mjs",
       "../../../proto/pineworker/": "runtime/pineworker/proto",
-      "../../../internal/marketdataassets/assets/bin/": "runtime/marketdata"
+      "../../../runtime-assets/marketdata/": "runtime/marketdata"
     },
     "icon": [
       "../../../build/desktop/appicon.png",

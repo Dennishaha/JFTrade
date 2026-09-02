@@ -1,4 +1,0 @@
-severity = "error"
-
-[rule.file-length-limit]
-arguments = [{ max = 800, skip-comments = false, skip-blank-lines = false }]

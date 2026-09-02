@@ -25,7 +25,7 @@ test("preflight checks generated docs before running the shared checks", () => {
     { mode: "parallel", commands: parallelPreflightChecks },
     { mode: "sequential", commands: sequentialPreflightChecks },
   ]);
-  assert.equal(parallelPreflightChecks.length, 13);
+  assert.equal(parallelPreflightChecks.length, 10);
 });
 
 test("main is the complete non-recursive gate and runs actionlint", () => {
@@ -35,9 +35,8 @@ test("main is the complete non-recursive gate and runs actionlint", () => {
   assert.equal(countPnpmScript(commands, "check:rust:workspace"), 1);
   assert.equal(countPnpmScript(commands, "check:rust:differential"), 1);
   assert.equal(countPnpmScript(commands, "check:rust"), 0);
-  assert.deepEqual(commands.slice(-4), [
+  assert.deepEqual(commands.slice(-3), [
     checkActionlint,
-    ["pnpm", ["run", "test:go"]],
     ["pnpm", ["run", "test:desktop"]],
     ["pnpm", ["run", "smoke:pinets-backtest"]],
   ]);
@@ -105,10 +104,7 @@ test("ci-local checks the working projection before running shared checks inline
     "pnpm",
     ["run", "smoke:marketdata-sidecar"],
   ]);
-  assert.deepEqual(commands[marketDataBuildIndex + 2], [
-    "go",
-    ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"],
-  ]);
+  assert.equal(commands[marketDataBuildIndex + 2], undefined);
 });
 
 function countPnpmScript(commands, script) {

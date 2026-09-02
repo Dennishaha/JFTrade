@@ -230,9 +230,6 @@ jobs:
           JFTRADE_TAURI_UPDATER_ENDPOINT: ${{ secrets.JFTRADE_TAURI_UPDATER_ENDPOINT }}
         run: node scripts/check-desktop-release-policy.mjs --publish --signing-only
 
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
         with:
@@ -279,25 +276,23 @@ jobs:
 
       - name: Verify built PineTS worker with a real backtest
         env:
-          JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/internal/pineworkerassets/assets/bin/worker.mjs
+          JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/runtime-assets/pine/worker.mjs
         run: pnpm run smoke:pinets-backtest
 
       - name: Verify shared desktop source
         run: pnpm run test:scripts -- desktop
-
-      - name: Verify embedded release inputs
-        run: go test -tags release_assets ./internal/frontendassets ./internal/pineworkerassets -count=1
 
       - name: Upload prepared release inputs
         uses: actions/upload-artifact@v7
         with:
           name: desktop-build-inputs-${{ github.run_id }}
           path: |
-            docs/swagger/docs.go
-            docs/swagger/swagger.json
-            docs/swagger/swagger.yaml
-            internal/frontendassets/dist.zip
-            internal/pineworkerassets/assets/bin/worker.mjs
+            contracts/openapi/openapi.json
+            apps/web/src/generated/openapi.ts
+            docs/reference/generated
+            apps/web/dist
+            runtime-assets/web/manifest.json
+            runtime-assets/pine/worker.mjs
             artifacts/desktop-release-inputs.json
           if-no-files-found: error
           retention-days: 1
@@ -318,11 +313,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
-
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-        with:
-          cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -385,7 +375,7 @@ jobs:
       - name: Sign native market-data helper before embedding
         run: |
           set -euo pipefail
-          helper_dir="internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64"
+          helper_dir="runtime-assets/marketdata/marketdata-sidecar-darwin-arm64"
           helper="$helper_dir/marketdata-sidecar-darwin-arm64"
           test -d "$helper_dir"
           test -s "$helper"
@@ -504,11 +494,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
-
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-        with:
-          cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
@@ -679,11 +664,6 @@ jobs:
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
 
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-        with:
-          cache: false
-
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm
 
@@ -699,7 +679,8 @@ jobs:
       - name: Verify ARM64 runner
         shell: pwsh
         run: |
-          if ((go env GOARCH) -ne "arm64") { throw "Windows ARM64 runner is required" }
+          $hostTriple = (rustc -vV | Select-String '^host:').Line
+          if ($hostTriple -notmatch 'aarch64') { throw "Windows ARM64 runner is required" }
 
       - name: Install packaging tools
         shell: pwsh
@@ -857,11 +838,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.JFTRADE_DESKTOP_BUILD_REF }}
-
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-        with:
-          cache: false
 
       - name: Setup Node and pnpm
         uses: ./.github/actions/setup-pnpm

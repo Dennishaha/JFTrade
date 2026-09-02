@@ -19,16 +19,16 @@ function fixture() {
   };
   const nodeExecutable = write("node-source/node", "managed-node");
   const nodeLicense = write("node-source/LICENSE", "node-license");
-  write("internal/pineworkerassets/assets/bin/worker.mjs", "worker");
+  write("runtime-assets/pine/worker.mjs", "worker");
   for (const name of ["pineworker.proto", "pineworker_common.proto", "pineworker_types.proto"]) {
     write(`proto/pineworker/${name}`, name);
   }
   write(
-    "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64/marketdata-sidecar-darwin-arm64",
+    "runtime-assets/marketdata/marketdata-sidecar-darwin-arm64/marketdata-sidecar-darwin-arm64",
     "helper",
   );
   write(
-    "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64/_internal/runtime",
+    "runtime-assets/marketdata/marketdata-sidecar-darwin-arm64/_internal/runtime",
     "runtime",
   );
   return {

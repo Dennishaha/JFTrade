@@ -1,301 +1,62 @@
 {
-  "version": 2,
-  "sourceRoots": [
-    "cmd",
-    "internal",
-    "pkg",
-    "apps",
-    "workers",
-    "crates"
-  ],
-  "sourceExtensions": [
-    ".go",
-    ".js",
-    ".mjs",
-    ".py",
-    ".rs",
-    ".ts",
-    ".tsx",
-    ".vue"
-  ],
+  "version": 3,
+  "sourceRoots": ["apps", "workers", "crates"],
+  "sourceExtensions": [".js", ".mjs", ".py", ".rs", ".ts", ".tsx", ".vue"],
   "ignoredSourcePaths": [],
   "modules": [
     {
       "id": "rust-foundation",
-      "paths": [
-        "Cargo.toml",
-        "Cargo.lock",
-        "deny.toml",
-        "rust-toolchain.toml",
-        "apps/desktop/src-tauri",
-        "crates",
-        "scripts/dev-tauri-frontend.mjs",
-        "scripts/lib/tauri-runtime.mjs",
-        "scripts/prepare-tauri-release-runtime.mjs",
-        "scripts/run-tauri.mjs",
-        "scripts/rust-migration",
-        "scripts/smoke-tauri-release.mjs",
-        "tests/fixtures/rust-migration"
-      ],
-      "entrypoints": [
-        "crates/jftrade-engine",
-        "crates/jftrade-owner-lock",
-        "crates/jftrade-backtest/src/bin/jftrade-backtest-shadow.rs",
-        "crates/jftrade-engine/src/bin/jftrade-stage4-shadow.rs",
-        "crates/jftrade-engine/src/bin/jftrade-stage5-shadow.rs",
-        "crates/jftrade-engine/src/bin/jftrade-stage6-shadow.rs",
-        "crates/jftrade-engine/src/bin/jftrade-stage7-shadow.rs",
-        "crates/jftrade-engine/src/bin/jftrade-api-rust.rs",
-        "apps/desktop/src-tauri/src/bin/jftrade-stage8-shadow.rs",
-        "scripts/rust-migration/run-backtest-owner.mjs"
-      ],
+      "paths": ["Cargo.toml", "Cargo.lock", "deny.toml", "rust-toolchain.toml", "crates", "scripts/rust-migration", "tests/fixtures/rust-migration"],
+      "entrypoints": ["crates/jftrade-engine/src/bin/jftrade-api-rust.rs"],
       "affectedTests": [
         "pnpm run check:rust:layout",
         "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
         "pnpm run test:rust:stage9:route-coverage"
       ],
-      "quickTests": [
-        "pnpm run check:rust:layout"
-      ],
-      "vetPackages": []
+      "quickTests": ["pnpm run check:rust:layout"]
     },
     {
-      "id": "apiserver",
+      "id": "desktop",
       "paths": [
-        "cmd/jftrade-api",
-        "internal/app/apiserver",
-        "internal/api"
+        "apps/desktop/src-tauri",
+        "runtime-assets",
+        "scripts/dev-tauri-frontend.mjs",
+        "scripts/lib/desktop-release-inputs.mjs",
+        "scripts/lib/tauri-runtime.mjs",
+        "scripts/prepare-tauri-release-runtime.mjs",
+        "scripts/run-tauri.mjs",
+        "scripts/smoke-tauri-release.mjs"
       ],
-      "entrypoints": [
-        "cmd/jftrade-api"
-      ],
-      "affectedTests": [],
-      "generatedPaths": [
-        "docs/swagger",
-        "apps/web/src/generated/openapi.ts",
-        "contracts/openapi/openapi.json",
-        "docs/reference/generated"
-      ],
-      "vetPackages": [
-        "./internal/app/apiserver/...",
-        "./internal/api/..."
-      ]
+      "entrypoints": ["apps/desktop/src-tauri/src/main.rs"],
+      "affectedTests": ["pnpm run test:tauri-release-runtime"]
     },
     {
-      "id": "assistant",
-      "paths": [
-        "internal/assistant"
-      ],
-      "entrypoints": [
-        "/api/v1/adk/*",
-        "apps/web/src/pages/ADKPage.vue"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/assistant/...",
-        "./internal/api/assistant"
-      ]
-    },
-    {
-      "id": "marketdata",
-      "paths": [
-        "internal/integration",
-        "internal/live",
-        "internal/marketdata",
-        "pkg/market"
-      ],
-      "entrypoints": [
-        "/api/v1/stream/live",
-        "/api/v1/marketdata/*"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/integration/...",
-        "./internal/live/...",
-        "./internal/marketdata/...",
-        "./internal/api/live",
-        "./internal/api/marketdata",
-        "./pkg/market/..."
-      ]
-    },
-    {
-      "id": "trading",
-      "paths": [
-        "internal/trading",
-        "internal/store/trading",
-        "pkg/futu"
-      ],
-      "entrypoints": [
-        "/api/v1/trading/*"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/trading/...",
-        "./internal/api/trading",
-        "./pkg/futu/..."
-      ]
-    },
-    {
-      "id": "strategy-backtest",
-      "paths": [
-        "internal/backtest",
-        "internal/strategy",
-        "pkg/backtest",
-        "pkg/strategy",
-        "apps/web/src/features/strategy-builder",
-        "apps/web/src/composables/backtest"
-      ],
-      "entrypoints": [
-        "/api/v1/strategy/*",
-        "/api/v1/backtests/*",
-        "/api/v1/settings/backtest-market-data-provider"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/backtest/...",
-        "./internal/strategy/...",
-        "./pkg/backtest/...",
-        "./pkg/strategy/..."
-      ]
-    },
-    {
-      "id": "product-features",
-      "paths": [
-        "internal/productfeatures",
-        "internal/research",
-        "internal/store/research",
-        "pkg/researchscreen"
-      ],
-      "entrypoints": [
-        "/api/v1/research/*",
-        "/api/v1/market/*",
-        "/api/v1/prediction/*"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/productfeatures/...",
-        "./internal/research/...",
-        "./internal/api/productfeatures",
-        "./internal/api/research",
-        "./pkg/researchscreen/..."
-      ]
-    },
-    {
-      "id": "broker-core",
-      "paths": [
-        "pkg/bbgo",
-        "pkg/broker"
-      ],
-      "entrypoints": [],
-      "affectedTests": [],
-      "vetPackages": [
-        "./pkg/bbgo/...",
-        "./pkg/broker/..."
-      ]
-    },
-    {
-      "id": "platform",
-      "paths": [
-        "internal/buildinfo",
-        "internal/datamanagement",
-        "internal/exchangecalendar",
-        "internal/jftsettings",
-        "internal/retry",
-        "internal/security",
-        "internal/settings",
-        "internal/store",
-        "internal/system",
-        "internal/watchlist",
-        "pkg/besteffort",
-        "pkg/chart",
-        "pkg/observability"
-      ],
-      "entrypoints": [
-        "/api/v1/system/*",
-        "/api/v1/settings/*",
-        "/api/v1/watchlist/*"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/datamanagement/...",
-        "./internal/exchangecalendar/...",
-        "./internal/settings/...",
-        "./internal/store/...",
-        "./internal/system/...",
-        "./internal/watchlist/..."
-      ]
-    },
-    {
-      "id": "desktop-assets",
-      "paths": [
-        "internal/desktop",
-        "internal/frontendassets",
-        "internal/marketdataassets",
-        "internal/pineworkerassets"
-      ],
-      "entrypoints": [
-        "apps/desktop/src-tauri"
-      ],
-      "affectedTests": [],
-      "vetPackages": [
-        "./internal/desktop/..."
-      ]
-    },
-    {
-      "id": "go-tooling",
-      "paths": [
-        "cmd/check-go-coverage",
-        "cmd/generate-futu-proto",
-        "cmd/generate-pine-spec-docs",
-        "cmd/generate-pineworker-proto",
-        "cmd/internal"
-      ],
-      "entrypoints": [],
-      "affectedTests": [],
-      "vetPackages": [
-        "./cmd/..."
-      ]
+      "id": "contracts",
+      "paths": ["contracts", "proto"],
+      "entrypoints": ["contracts/openapi/openapi.json"],
+      "affectedTests": ["pnpm run check:generated"],
+      "generatedPaths": ["apps/web/src/generated/openapi.ts", "docs/reference/generated"]
     },
     {
       "id": "web",
-      "paths": [
-        "apps/web"
-      ],
-      "entrypoints": [
-        "apps/web/src/pages"
-      ],
-      "affectedTests": [],
-      "vetPackages": []
+      "paths": ["apps/web"],
+      "entrypoints": ["apps/web/src/pages"],
+      "affectedTests": []
     },
     {
       "id": "pineworker",
-      "paths": [
-        "workers/pineworker",
-        "pkg/strategy/pineworker"
-      ],
-      "entrypoints": [
-        "workers/pineworker/src/main.ts"
-      ],
+      "paths": ["workers/pineworker"],
+      "entrypoints": ["workers/pineworker/src/main.ts"],
       "affectedTests": [
         "pnpm --filter @jftrade/pineworker run test",
         "pnpm --filter @jftrade/pineworker run typecheck"
-      ],
-      "vetPackages": [
-        "./pkg/strategy/pineworker"
       ]
     },
     {
       "id": "marketdata-sidecar",
-      "paths": [
-        "workers/marketdata-sidecar"
-      ],
-      "entrypoints": [
-        "workers/marketdata-sidecar/src/marketdata_sidecar/main.py"
-      ],
-      "affectedTests": [
-        "workers/marketdata-sidecar/.venv/bin/python -m pytest workers/marketdata-sidecar/tests"
-      ],
-      "vetPackages": []
+      "paths": ["workers/marketdata-sidecar"],
+      "entrypoints": ["workers/marketdata-sidecar/src/marketdata_sidecar/main.py"],
+      "affectedTests": ["workers/marketdata-sidecar/.venv/bin/python -m pytest workers/marketdata-sidecar/tests"]
     }
   ],
   "requiredInstructionFiles": [
@@ -303,14 +64,7 @@
     "CLAUDE.md",
     "docs/architecture/rust-migration-execution-playbook.md",
     "apps/web/AGENTS.md",
-    "internal/app/apiserver/AGENTS.md",
-    "internal/assistant/AGENTS.md",
-    "pkg/futu/AGENTS.md",
     "workers/AGENTS.md"
   ],
-  "legacyPaths": [
-    "pkg/jftradeapi",
-    "pkg/adk",
-    "pkg/jftsettings"
-  ]
+  "legacyPaths": ["pkg/jftradeapi", "pkg/adk", "pkg/jftsettings"]
 }

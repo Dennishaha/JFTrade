@@ -25,13 +25,13 @@ assert.equal(
     platform: "darwin",
     architecture: "arm64",
   }),
-  "internal/marketdataassets/assets/bin/marketdata-sidecar-darwin-arm64",
+  "runtime-assets/marketdata/marketdata-sidecar-darwin-arm64",
 );
 assert.equal(
   currentMarketDataSidecarAssetPath({
     environment: { GOOS: "windows", GOARCH: "amd64" },
   }),
-  "internal/marketdataassets/assets/bin/marketdata-sidecar-windows-amd64",
+  "runtime-assets/marketdata/marketdata-sidecar-windows-amd64",
 );
 assert.throws(
   () =>
@@ -55,7 +55,7 @@ try {
   for (const relativePath of currentPlatformInputs) {
     const inputPath = path.join(rootDir, relativePath);
     fs.mkdirSync(path.dirname(inputPath), { recursive: true });
-    if (relativePath.startsWith("internal/marketdataassets/assets/bin/")) {
+    if (relativePath.startsWith("runtime-assets/marketdata/")) {
       fs.mkdirSync(inputPath, { recursive: true });
       const binaryBase = path.basename(relativePath);
       const extension = binaryBase.includes("-windows-") ? ".exe" : "";

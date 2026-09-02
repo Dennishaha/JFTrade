@@ -43,9 +43,9 @@ test("Stage 8 configuration requires a CSP and every facade contract", () => {
       active: true,
       resources: {
         "../../../var/tauri-runtime/": "runtime/node",
-        "../../../internal/pineworkerassets/assets/bin/worker.mjs": "runtime/pineworker/worker.mjs",
+        "../../../runtime-assets/pine/worker.mjs": "runtime/pineworker/worker.mjs",
         "../../../proto/pineworker/": "runtime/pineworker/proto",
-        "../../../internal/marketdataassets/assets/bin/": "runtime/marketdata",
+        "../../../runtime-assets/marketdata/": "runtime/marketdata",
       },
     },
     app: {

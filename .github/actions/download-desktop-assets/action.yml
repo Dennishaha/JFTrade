@@ -27,10 +27,10 @@ runs:
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.frontend_artifact }}
-        path: internal/frontendassets
+        path: ${{ github.workspace }}
 
     - name: Download PineTS worker build input
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.pine_artifact }}
-        path: internal/pineworkerassets/assets/bin
+        path: runtime-assets/pine

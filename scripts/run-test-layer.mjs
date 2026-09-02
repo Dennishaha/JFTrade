@@ -8,10 +8,6 @@ import { spawnChecked } from "./lib/spawn.mjs";
 export const preflightChecks = [
   ["pnpm", ["run", "test:test-policy"]],
   ["pnpm", ["run", "check:test-names"]],
-  ["pnpm", ["run", "check:test-quality"]],
-  ["pnpm", ["run", "check:servercore-budget"]],
-  ["pnpm", ["run", "check:assistant-budget"]],
-  ["pnpm", ["run", "check:go-file-length"]],
   ["pnpm", ["run", "check:openapi-quality"]],
   ["pnpm", ["run", "check:web-api-boundary"]],
   ["pnpm", ["run", "check:web-contract-index"]],
@@ -20,17 +16,13 @@ export const preflightChecks = [
   ["pnpm", ["run", "check:web-component-budget"]],
   ["pnpm", ["run", "check:web-file-length"]],
   ["pnpm", ["run", "test:pine-structure-corpus"]],
-  ["pnpm", ["run", "lint:go"]],
-  ["pnpm", ["run", "lint:go:errorlint"]],
-  ["pnpm", ["run", "vet:go"]],
   ["pnpm", ["run", "check:rust:workspace"]],
   ["pnpm", ["run", "test:coverage"]],
   ["pnpm", ["run", "typecheck"]],
-  ["pnpm", ["run", "check:arch-deps"]],
 ];
 
-export const parallelPreflightChecks = preflightChecks.slice(0, 13);
-export const sequentialPreflightChecks = preflightChecks.slice(13);
+export const parallelPreflightChecks = preflightChecks.slice(0, 10);
+export const sequentialPreflightChecks = preflightChecks.slice(10);
 
 const checkGenerated = ["pnpm", ["run", "check:generated"]];
 const checkDiff = ["pnpm", ["run", "check:diff"]];
@@ -44,8 +36,6 @@ const ciLocalBeforePreflight = [
 ];
 const ciLocalAfterPreflight = [
   ["pnpm", ["run", "check:rust:differential"]],
-  ["go", ["build", "./..."]],
-  ["go", ["test", "./cmd/...", "-count=1", "-timeout=300s"]],
   // A clean checkout has no prepared runtime (var/ is ignored).  The strict
   // manifest check is exercised by the Tauri build after preparation; this
   // layer runs the fixture-backed contracts before release assets exist.
@@ -53,9 +43,7 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "test:scripts", "--", "desktop"]],
   ["pnpm", ["run", "build:frontend-assets:generated"]],
   ["node", ["scripts/report-web-bundle.mjs"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/frontendassets", "-run", "TestFileSystem"]],
   ["pnpm", ["run", "build:pineworker"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-count=1"]],
   ["pnpm", ["run", "test:pinets-release-check"]],
   ["pnpm", ["run", "check:pinets-compliance"]],
   ["pnpm", ["run", "test:pinets-shadow-corpus"]],
@@ -63,7 +51,6 @@ const ciLocalAfterPreflight = [
   ["pnpm", ["run", "test:marketdata-sidecar-asset-build"]],
   ["pnpm", ["run", "build:marketdata-sidecar"]],
   ["pnpm", ["run", "smoke:marketdata-sidecar"]],
-  ["go", ["test", "-tags", "release_assets", "./internal/marketdataassets", "-count=1"]],
 ];
 
 const sequentialStage = (...commands) => ({ mode: "sequential", commands });
@@ -76,7 +63,6 @@ const ciLocalStages = [
 ];
 const mainAfterCiLocal = [
   checkActionlint,
-  ["pnpm", ["run", "test:go"]],
   ["pnpm", ["run", "test:desktop"]],
   ["pnpm", ["run", "smoke:pinets-backtest"]],
 ];

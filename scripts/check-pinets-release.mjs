@@ -26,27 +26,21 @@ if (!checkPinetsPackageAndLicense({ dryRun, verifyWorkspaceVisible: true })) {
   blocked = true;
 }
 
-run("go", ["test", "./internal/app/apiserver/servercore", "-run", "TestResolvePineWorkerRuntimeConfigDefaultsToRealPineTSWorker", "-v"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestPineTSHardCutDoesNotExposeGoPineRuntime", "-v"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-run", "Test", "-cover"]);
-run("go", ["test", "./pkg/strategy/pineworker", "-bench", "BenchmarkCheckPerformanceGate", "-run", "^$", "-benchmem"]);
+run("cargo", ["test", "-p", "jftrade-integration-pine", "--all-targets"]);
+run("cargo", ["test", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract"]);
 run("pnpm", ["run", "test:pineworker"]);
 run("pnpm", ["run", "typecheck:pineworker"]);
 run("pnpm", ["run", "check:pinets-compliance"]);
 run("pnpm", ["run", "test:web"]);
 run("pnpm", ["run", "typecheck:web"]);
 run("pnpm", ["run", "build:frontend-assets"]);
-run("go", ["test", "-tags", "release_assets", "./internal/frontendassets", "-run", "TestFileSystem"]);
 run("git", ["diff", "--check"]);
 
 if (!blocked) {
-  run("go", ["test", "./pkg/strategy/pineworker", "-run", "TestWorkerManagerRealPineTSProcessSmoke", "-v"], {
-    JFTRADE_PINEWORKER_REAL_PROCESS_SMOKE: "1",
-  });
   run("pnpm", ["run", "build:pineworker"]);
-  run("go", ["test", "-tags", "release_assets", "./internal/pineworkerassets", "-run", "Test"]);
+  run("pnpm", ["run", "smoke:pinets-backtest"]);
   run("pnpm", ["run", "build:marketdata-sidecar"]);
-  run("go", ["test", "-tags", "release_assets", "./internal/marketdataassets", "-run", "Test"]);
+  run("pnpm", ["run", "smoke:marketdata-sidecar"]);
   prepareReleaseArtifactPath();
   run("cargo", ["build", "--release", "-p", "jftrade-engine", "--bin", "jftrade-api-rust"]);
   copyRustReleaseArtifact();
