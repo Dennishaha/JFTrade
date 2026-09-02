@@ -45,6 +45,11 @@ test("Rust bootstrap installs checksum-pinned protoc on every supported runner",
     assert.ok(source.includes(`expected_sha256="${digest}"`), `missing digest for ${archive}`);
   }
   assert.match(source, /actual_sha256.*expected_sha256/);
+  assert.match(
+    source,
+    /actual_sha256="\$\{actual_sha256#\\\\\}"/,
+    "Windows checksum parsing must strip the GNU escaped-filename marker",
+  );
   assert.match(source, /libprotoc \$\{version\}/);
   assert.match(source, /GITHUB_PATH/);
   assert.match(source, /GITHUB_ENV/);
@@ -86,6 +91,24 @@ test("Rust CI provisions native headers and detaches compile-only checks from pa
   assert.ok(
     rustPlatform.includes(compileOnlyConfig),
     "native compile checks must not require ignored release-package resources",
+  );
+  const platformDependencyStep = rustPlatform.indexOf(
+    "run: bash scripts/install-linux-desktop-dependencies.sh",
+  );
+  const platformCompile = rustPlatform.indexOf(
+    "run: cargo check --workspace --all-targets --locked --target",
+  );
+  assert.ok(
+    platformDependencyStep >= 0,
+    "Linux native compile checks must install Tauri system headers",
+  );
+  assert.ok(
+    rustPlatform.includes("if: ${{ runner.os == 'Linux' }}"),
+    "native header installation must remain Linux-only",
+  );
+  assert.ok(
+    platformCompile > platformDependencyStep,
+    "native headers must be installed before the Linux target check",
   );
   for (const [name, job] of [
     ["PR desktop smoke", desktopLinuxSmoke],
