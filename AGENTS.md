@@ -6,7 +6,7 @@
 
 JFTrade 当前产品是 Rust 引擎与 API 服务、Vue 3 控制台、Tauri 2 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。全量 278 条 API 路由和生产桌面壳均由 Rust/Tauri 持有；仓库不再包含 Go 源码、模块、生成器、构建入口或运行产物。当前质量与发布事实源见 [`docs/architecture/quality-gates.md`](docs/architecture/quality-gates.md) 和 [`docs/architecture/release-qualification.md`](docs/architecture/release-qualification.md)，入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
 
-配置要求：Node `>=22.13`、pnpm `11.21.0`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`。
+配置要求：Node `>=22.13`、pnpm `11.21.0`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`，测试入口自动下载并校验固定的 cargo-nextest `0.9.143`。
 
 ## 日常入口
 

@@ -5,6 +5,7 @@ import test from "node:test";
 const setupRustPath = new URL("../.github/actions/setup-rust/action.yml", import.meta.url);
 const ciWorkflowPath = new URL("../.github/workflows/ci.yml", import.meta.url);
 const packageJsonPath = new URL("../package.json", import.meta.url);
+const nextestWrapperPath = new URL("./quality/cargo-nextest.mjs", import.meta.url);
 
 test("Rust bootstrap installs checksum-pinned protoc on every supported runner", async () => {
   const source = await readFile(setupRustPath, "utf8");
@@ -56,18 +57,18 @@ test("Rust bootstrap installs checksum-pinned protoc on every supported runner",
   assert.match(source, /GITHUB_ENV/);
 });
 
-test("Rust CI separates static unit integration compatibility and native builds", async () => {
+test("Rust CI builds once then partitions all tests with nextest", async () => {
   const source = await readFile(ciWorkflowPath, "utf8");
   const rustStatic = source.slice(
     source.indexOf("\n  rust-static:\n"),
-    source.indexOf("\n  rust-unit-tests:\n"),
+    source.indexOf("\n  rust-test-build:\n"),
   );
-  const rustUnit = source.slice(
-    source.indexOf("\n  rust-unit-tests:\n"),
-    source.indexOf("\n  rust-integration-tests:\n"),
+  const rustTestBuild = source.slice(
+    source.indexOf("\n  rust-test-build:\n"),
+    source.indexOf("\n  rust-tests:\n"),
   );
-  const rustIntegration = source.slice(
-    source.indexOf("\n  rust-integration-tests:\n"),
+  const rustTests = source.slice(
+    source.indexOf("\n  rust-tests:\n"),
     source.indexOf("\n  compatibility:\n"),
   );
   const compatibility = source.slice(
@@ -97,16 +98,26 @@ test("Rust CI separates static unit integration compatibility and native builds"
   assert.ok(dependencyStep >= 0, "Rust static checks must install Tauri Linux headers");
   assert.ok(staticGate > dependencyStep, "headers must be installed before static checks");
   assert.ok(rustStatic.includes(compileOnlyConfig));
-  assert.ok(rustUnit.includes(compileOnlyConfig));
-  assert.ok(rustIntegration.includes(compileOnlyConfig));
+  assert.ok(rustTestBuild.includes(compileOnlyConfig));
+  assert.ok(rustTests.includes(compileOnlyConfig));
   assert.ok(compatibility.includes(compileOnlyConfig));
-  assert.match(rustUnit, /pnpm run test:rust:unit/);
-  assert.match(rustIntegration, /pnpm run test:rust:integration/);
+  assert.match(rustTestBuild, /Build one immutable nextest archive/);
+  assert.match(rustTestBuild, /pnpm run test:rust:archive -- --archive-file/);
+  assert.match(rustTestBuild, /actions\/upload-artifact@v7/);
+  assert.match(rustTestBuild, /compression-level: 0/);
+  assert.match(rustTests, /name: Rust Tests \(\$\{\{ matrix\.shard \}\}\/4\)/);
+  assert.match(rustTests, /needs: \[gate-plan, rust-test-build\]/);
+  assert.match(rustTests, /fail-fast: false/);
+  assert.match(rustTests, /shard: \[1, 2, 3, 4\]/);
+  assert.match(rustTests, /actions\/download-artifact@v8/);
+  assert.match(rustTests, /--partition "slice:\$\{\{ matrix\.shard \}\}\/4"/);
+  assert.doesNotMatch(rustTests, /--partition count:/);
+  assert.doesNotMatch(rustTests, /cargo (?:test|nextest archive)/);
   assert.match(compatibility, /Replay affected compatibility capabilities in parallel/);
   assert.match(compatibility, /Prebuild compatibility replay binaries without Cargo lock contention/);
   assert.match(compatibility, /cargo build --locked -p jftrade-engine --bins/);
   assert.match(compatibility, /JFTRADE_COMPATIBILITY_BIN_DIR: target\/debug/);
-  for (const job of [rustStatic, rustUnit, rustIntegration, compatibility]) {
+  for (const job of [rustStatic, rustTestBuild, compatibility]) {
     assert.match(job, /sccache: "true"/);
     assert.match(job, /fast-linker: "true"/);
     assert.match(job, /cache: true/);
@@ -119,14 +130,17 @@ test("Rust CI separates static unit integration compatibility and native builds"
   }
   assert.match(windowsArm, /cargo check --workspace --all-targets --locked --target aarch64-pc-windows-msvc/);
   assert.doesNotMatch(windowsArm, /sccache: "true"/);
-  for (const jobName of ["rust-unit-tests", "rust-integration-tests", "compatibility"]) {
+  assert.match(rustTests, /pnpm install --frozen-lockfile/);
+  assert.doesNotMatch(rustTests, /sccache: "true"/);
+  assert.doesNotMatch(rustTests, /fast-linker: "true"/);
+  for (const jobName of ["rust-test-build", "rust-tests", "compatibility"]) {
     assert.ok(buildAndTest.includes(`- ${jobName}`), `aggregator must depend on ${jobName}`);
   }
-  assert.match(buildAndTest, /RUST_UNIT_STATUS:.*needs\.rust-unit-tests\.result/);
-  assert.match(buildAndTest, /RUST_INTEGRATION_STATUS:.*needs\.rust-integration-tests\.result/);
+  assert.match(buildAndTest, /RUST_TEST_BUILD_STATUS:.*needs\.rust-test-build\.result/);
+  assert.match(buildAndTest, /RUST_TEST_STATUS:.*needs\.rust-tests\.result/);
   assert.match(buildAndTest, /COMPATIBILITY_STATUS:.*needs\.compatibility\.result/);
-  assert.match(buildAndTest, /require_lane "\$RUST_TESTS_PLANNED" "\$RUST_UNIT_STATUS" RustUnitTests/);
-  assert.match(buildAndTest, /require_lane "\$RUST_TESTS_PLANNED" "\$RUST_INTEGRATION_STATUS" RustIntegrationTests/);
+  assert.match(buildAndTest, /require_lane "\$RUST_TESTS_PLANNED" "\$RUST_TEST_BUILD_STATUS" RustTestBuild/);
+  assert.match(buildAndTest, /require_lane "\$RUST_TESTS_PLANNED" "\$RUST_TEST_STATUS" RustTests/);
   assert.match(buildAndTest, /require_lane "\$COMPATIBILITY_PLANNED" "\$COMPATIBILITY_STATUS" Compatibility/);
   for (const [name, job] of [
     ["PR desktop smoke", desktopLinuxSmoke],
@@ -188,20 +202,24 @@ test("Rust target caches are isolated while compiler objects are shared", async 
   assert.match(source, /key: cargo-deny-0\.20\.2-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
 });
 
-test("Rust unit and integration shards preserve all-target coverage without overlap", async () => {
+test("local and CI nextest entrypoints preserve all-target coverage", async () => {
   const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+  const wrapper = await readFile(nextestWrapperPath, "utf8");
   assert.equal(
     packageJson.scripts["test:rust"],
-    "cargo test --workspace --all-targets --locked",
+    "node scripts/quality/cargo-nextest.mjs run --workspace --all-targets --locked",
   );
   assert.equal(
-    packageJson.scripts["test:rust:unit"],
-    "cargo test --workspace --lib --bins --examples --benches --locked -- --test-threads=16",
+    packageJson.scripts["test:rust:archive"],
+    "node scripts/quality/cargo-nextest.mjs archive --workspace --all-targets --locked",
   );
   assert.equal(
-    packageJson.scripts["test:rust:integration"],
-    "cargo test --workspace --test '*' --locked",
+    packageJson.scripts["test:rust:archive-shard"],
+    "node scripts/quality/cargo-nextest.mjs run",
   );
+  assert.match(wrapper, /nextestVersion = "0\.9\.143"/);
+  assert.match(wrapper, /archive checksum mismatch/);
+  assert.doesNotMatch(JSON.stringify(packageJson.scripts), /run-rust-engine-unit-shard/);
 });
 
 test("baseline-aware CI jobs fetch merge-base history", async () => {

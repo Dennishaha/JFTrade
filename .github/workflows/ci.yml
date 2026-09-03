@@ -115,8 +115,8 @@ jobs:
       - name: Format Clippy architecture and dependency policy
         run: pnpm run check:rust:static
 
-  rust-unit-tests:
-    name: Rust Unit Tests
+  rust-test-build:
+    name: Rust Test Build
     if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
     needs: gate-plan
     runs-on: ubuntu-24.04
@@ -132,18 +132,29 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: ./.github/actions/setup-rust
         with:
-          cache-job: unit-tests
+          cache-job: test-build
           sccache: "true"
           fast-linker: "true"
-      - name: Run Rust unit and target tests
-        run: pnpm run test:rust:unit
+      - name: Build one immutable nextest archive
+        run: pnpm run test:rust:archive -- --archive-file "$RUNNER_TEMP/jftrade-nextest-archive.tar.zst"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ci-nextest-archive-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/jftrade-nextest-archive.tar.zst
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
 
-  rust-integration-tests:
-    name: Rust Integration Tests
+  rust-tests:
+    name: Rust Tests (${{ matrix.shard }}/4)
     if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
-    needs: gate-plan
+    needs: [gate-plan, rust-test-build]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       TAURI_CONFIG: '{"bundle":{"resources":[]}}'
     steps:
@@ -153,13 +164,12 @@ jobs:
         with:
           cache: true
       - run: pnpm install --frozen-lockfile
-      - uses: ./.github/actions/setup-rust
+      - uses: actions/download-artifact@v8
         with:
-          cache-job: integration-tests
-          sccache: "true"
-          fast-linker: "true"
-      - name: Run Rust integration tests
-        run: pnpm run test:rust:integration
+          name: ci-nextest-archive-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/jftrade-nextest
+      - name: Run one nextest slice from the shared archive
+        run: pnpm run test:rust:archive-shard -- --archive-file "$RUNNER_TEMP/jftrade-nextest/jftrade-nextest-archive.tar.zst" --partition "slice:${{ matrix.shard }}/4"
 
   compatibility:
     name: Compatibility
@@ -379,8 +389,8 @@ jobs:
       - policy
       - contracts
       - rust-static
-      - rust-unit-tests
-      - rust-integration-tests
+      - rust-test-build
+      - rust-tests
       - compatibility
       - web
       - pine
@@ -402,8 +412,8 @@ jobs:
           RUST_STATIC_STATUS: ${{ needs.rust-static.result }}
           RUST_TESTS_PLANNED: ${{ needs.gate-plan.outputs.rust_tests }}
           COMPATIBILITY_PLANNED: ${{ needs.gate-plan.outputs.compatibility }}
-          RUST_UNIT_STATUS: ${{ needs.rust-unit-tests.result }}
-          RUST_INTEGRATION_STATUS: ${{ needs.rust-integration-tests.result }}
+          RUST_TEST_BUILD_STATUS: ${{ needs.rust-test-build.result }}
+          RUST_TEST_STATUS: ${{ needs.rust-tests.result }}
           COMPATIBILITY_STATUS: ${{ needs.compatibility.result }}
           WEB_PLANNED: ${{ needs.gate-plan.outputs.web }}
           WEB_STATUS: ${{ needs.web.result }}
@@ -430,8 +440,8 @@ jobs:
           [[ "$POLICY_STATUS" == "success" ]]
           require_lane "$CONTRACTS_PLANNED" "$CONTRACTS_STATUS" Contracts
           require_lane "$RUST_STATIC_PLANNED" "$RUST_STATIC_STATUS" RustStatic
-          require_lane "$RUST_TESTS_PLANNED" "$RUST_UNIT_STATUS" RustUnitTests
-          require_lane "$RUST_TESTS_PLANNED" "$RUST_INTEGRATION_STATUS" RustIntegrationTests
+          require_lane "$RUST_TESTS_PLANNED" "$RUST_TEST_BUILD_STATUS" RustTestBuild
+          require_lane "$RUST_TESTS_PLANNED" "$RUST_TEST_STATUS" RustTests
           require_lane "$COMPATIBILITY_PLANNED" "$COMPATIBILITY_STATUS" Compatibility
           if [[ "$WEB_PLANNED" == "true" || "$DESKTOP_PLANNED" == "true" ]]; then web_lane=true; else web_lane=false; fi
           require_lane "$web_lane" "$WEB_STATUS" Web
