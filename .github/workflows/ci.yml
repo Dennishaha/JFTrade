@@ -14,209 +14,156 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  contracts:
-    name: Contracts & Docs
+  gate-plan:
+    name: Gate Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.plan.outputs.full }}
+      reason: ${{ steps.plan.outputs.reason }}
+      contracts: ${{ steps.plan.outputs.contracts }}
+      rust_static: ${{ steps.plan.outputs.rust_static }}
+      rust_tests: ${{ steps.plan.outputs.rust_tests }}
+      compatibility: ${{ steps.plan.outputs.compatibility }}
+      compatibility_capabilities: ${{ steps.plan.outputs.compatibility_capabilities }}
+      web: ${{ steps.plan.outputs.web }}
+      pine: ${{ steps.plan.outputs.pine }}
+      python: ${{ steps.plan.outputs.python }}
+      desktop: ${{ steps.plan.outputs.desktop }}
+    steps:
+      - name: Checkout with merge-base history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Plan fail-closed product gates
+        id: plan
+        env:
+          JFTRADE_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/test-affected.mjs --github-output
+
+      - name: Summarize gate plan
+        env:
+          PLAN_REASON: ${{ steps.plan.outputs.reason }}
+          PLAN_FULL: ${{ steps.plan.outputs.full }}
+          PLAN_CAPABILITIES: ${{ steps.plan.outputs.compatibility_capabilities }}
+        run: |
+          {
+            echo "## Product gate plan"
+            echo "- Full: $PLAN_FULL"
+            echo "- Reason: $PLAN_REASON"
+            echo "- Compatibility: $PLAN_CAPABILITIES"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  policy:
+    name: Policy
+    needs: gate-plan
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-pnpm
         with:
           cache: true
+      - run: pnpm install --frozen-lockfile
+      - name: Enforce permanent product policy
+        run: pnpm run check:policy
 
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Enforce Go retirement
-        run: |
-          pnpm run check:go-retirement
-          pnpm run check:zero-go
-
-      - name: Generate and verify contracts
-        run: |
-          pnpm run generate:docs
-          pnpm run check:generated
-          pnpm run check:openapi-quality
-          pnpm run check:web-contract-audit
-          pnpm run check:web-component-budget
-
-      - name: Verify workflow syntax
-        run: pnpm run check:actionlint
-
-      - name: Upload generated contracts
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-contracts-${{ github.run_id }}
-          path: |
-            contracts/openapi/openapi.json
-            apps/web/src/generated/openapi.ts
-            docs/reference/generated
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 1
-
-  rust-quality:
-    name: Rust Quality
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    env:
-      JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "1800000"
-      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
-
-      - name: Install Linux desktop dependencies
-        run: bash scripts/install-linux-desktop-dependencies.sh
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Verify locked Rust workspace
-        run: cargo metadata --locked --format-version 1 --no-deps >/dev/null
-
-      - name: Format, lint, test, and replay compatibility fixtures
-        run: pnpm run check:rust
-
-      - name: Install pinned cargo-deny
-        run: cargo install cargo-deny --version 0.20.2 --locked
-
-      - name: Enforce Rust dependency policy
-        run: pnpm run check:rust:policy
-
-  rust-platform:
-    name: Rust Compile (${{ matrix.label }})
-    if: ${{ github.event_name == 'push' }}
-    needs: rust-quality
-    env:
-      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: Linux x64
-            runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-          - label: macOS ARM64
-            runner: macos-15
-            target: aarch64-apple-darwin
-          - label: Windows x64
-            runner: windows-latest
-            target: x86_64-pc-windows-msvc
-          - label: Windows ARM64
-            runner: windows-11-arm
-            target: aarch64-pc-windows-msvc
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install Linux desktop dependencies
-        if: ${{ runner.os == 'Linux' }}
-        run: bash scripts/install-linux-desktop-dependencies.sh
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Check native target
-        run: cargo check --workspace --all-targets --locked --target ${{ matrix.target }}
-
-  web-quality:
-    name: Web Quality
+  contracts:
+    name: Contracts
+    if: ${{ needs.gate-plan.outputs.contracts == 'true' }}
+    needs: gate-plan
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      JFTRADE_DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
         with:
           cache: true
+      - run: pnpm install --frozen-lockfile
+      - name: Verify generated and registered contracts
+        run: pnpm run check:contracts
 
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+  rust-static:
+    name: Rust Static
+    if: ${{ needs.gate-plan.outputs.rust_static == 'true' }}
+    needs: gate-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: static
+          install-cargo-deny: "true"
+      - name: Format Clippy architecture and dependency policy
+        run: pnpm run check:rust:static
 
-      - name: Audit dependencies and licenses
-        run: |
-          pnpm run audit:dependencies
-          pnpm run check:oss-license
-
-      - name: Frontend test and coverage gate
+  rust-tests:
+    name: Rust Tests & Compatibility
+    if: ${{ needs.gate-plan.outputs.rust_tests == 'true' || needs.gate-plan.outputs.compatibility == 'true' }}
+    needs: gate-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: tests
+      - name: Run the Rust workspace test suite once
+        if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
+        run: pnpm run test:rust
+      - name: Replay affected compatibility capabilities in parallel
+        if: ${{ needs.gate-plan.outputs.compatibility == 'true' }}
+        env:
+          CAPABILITIES_JSON: ${{ needs.gate-plan.outputs.compatibility_capabilities }}
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/coverage
-          pnpm run test:coverage:web 2>&1 | tee artifacts/coverage/web.txt
+          mapfile -t capabilities < <(jq -r '.[]' <<< "$CAPABILITIES_JSON")
+          pids=()
+          for capability in "${capabilities[@]}"; do
+            pnpm run "check:compatibility:$capability" > "compatibility-$capability.log" 2>&1 &
+            pids+=("$!")
+          done
+          failed=0
+          for index in "${!pids[@]}"; do
+            if ! wait "${pids[$index]}"; then failed=1; fi
+            cat "compatibility-${capabilities[$index]}.log"
+          done
+          exit "$failed"
 
-      - name: Summarize Web coverage
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          {
-            echo "## Web coverage"
-            if [[ -f artifacts/coverage/web.txt ]]; then
-              grep -E 'All files|Web diff coverage:|Statements|Branches|Functions|Lines' artifacts/coverage/web.txt || true
-            else
-              echo "Coverage command did not produce a report."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload Web coverage report
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-web-coverage-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            artifacts/coverage/web.txt
-            apps/web/coverage
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Frontend typecheck
-        run: pnpm run typecheck:web
-
-      - name: Desktop release script tests
-        run: pnpm run test:scripts -- desktop
-
-  web-assets:
-    name: Web Assets
-    needs: contracts
+  web:
+    name: Web
+    if: ${{ needs.gate-plan.outputs.web == 'true' || needs.gate-plan.outputs.desktop == 'true' }}
+    needs: gate-plan
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Download generated contracts
-        uses: ./.github/actions/download-contracts
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
         with:
           cache: true
-
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend assets from generated contracts
+      - run: pnpm install --frozen-lockfile
+      - name: Test and typecheck Web
+        if: ${{ needs.gate-plan.outputs.web == 'true' }}
+        run: pnpm run check:web
+      - name: Build desktop Web assets
         run: pnpm run build:frontend-assets:generated
-
-      - name: Upload frontend build input
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -225,337 +172,204 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  marketdata-sidecar:
-    name: Market Data Sidecar (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.11", "3.14"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Python
-        uses: ./.github/actions/setup-python
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
-
-      - name: Sync locked sidecar dependencies
-        run: uv sync --locked --project workers/marketdata-sidecar --extra runtime --extra test --extra build
-
-      - name: Test sidecar without external market-data access
-        run: uv run --locked --project workers/marketdata-sidecar --extra runtime --extra test pytest workers/marketdata-sidecar/tests
-
-      - name: Test native helper build script
-        if: ${{ matrix.python == '3.14' }}
-        run: pnpm run test:marketdata-sidecar-asset-build
-
-      - name: Build Linux native market-data helper
-        if: ${{ matrix.python == '3.14' }}
-        run: pnpm run build:marketdata-sidecar
-
-      - name: Smoke Linux native market-data helper
-        if: ${{ matrix.python == '3.14' }}
-        run: pnpm run smoke:marketdata-sidecar
-
   pine:
-    name: Pine & Workers
+    name: Pine
+    if: ${{ needs.gate-plan.outputs.pine == 'true' || needs.gate-plan.outputs.desktop == 'true' }}
+    needs: gate-plan
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
         with:
           cache: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: PineTS worker test and coverage
-        run: pnpm run test:coverage:worker
-
-      - name: PineTS worker typecheck
-        run: pnpm run typecheck:pineworker
-
-      - name: PineTS release and license checks
-        run: |
-          pnpm run test:pinets-release-check
-          pnpm run check:pinets-compliance
-
-      - name: Rust and Node compatibility corpus replay
-        env:
-          JFTRADE_PINETS_SHADOW_REPORT_PATH: ${{ github.workspace }}/artifacts/pinets-shadow/report.json
-        run: |
-          mkdir -p artifacts/pinets-shadow
-          pnpm run test:pinets-shadow-corpus
-          pnpm run test:pine-structure-corpus
-
-      - name: Upload PineTS shadow corpus report
-        if: ${{ always() && hashFiles('artifacts/pinets-shadow/report.json') != '' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: pinets-shadow-corpus-${{ github.run_id }}
-          path: artifacts/pinets-shadow/report.json
-          if-no-files-found: warn
-
-      - name: Build PineTS worker input
+      - run: pnpm install --frozen-lockfile
+      - name: Test and typecheck Pine worker
+        if: ${{ needs.gate-plan.outputs.pine == 'true' }}
+        run: pnpm run check:pine
+      - name: Build Pine worker asset
         run: |
           pnpm run test:pineworker-asset-build
           pnpm run build:pineworker
-
-      - name: Real PineTS backtest smoke
-        if: ${{ github.event_name == 'push' }}
-        env:
-          JFTRADE_PINEWORKER_BUNDLE: ${{ github.workspace }}/runtime-assets/pine/worker.mjs
-        run: pnpm run smoke:pinets-backtest
-
-      - name: Upload PineTS worker build input
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
           path: runtime-assets/pine/worker.mjs
           if-no-files-found: error
           retention-days: 1
 
+  python:
+    name: Python Market Data
+    if: ${{ needs.gate-plan.outputs.python == 'true' }}
+    needs: gate-plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-python
+        with:
+          python-version: "3.14"
+      - name: Test locked sidecar without external access
+        run: pnpm run check:python
+
   desktop-linux-smoke:
-    name: Desktop Linux Smoke (PR)
-    if: ${{ github.event_name == 'pull_request' }}
-    needs: [contracts, rust-quality, web-quality, web-assets, marketdata-sidecar, pine]
+    name: Desktop Linux Smoke
+    if: ${{ always() && github.event_name == 'pull_request' && needs.gate-plan.outputs.desktop == 'true' && needs.contracts.result == 'success' && needs.web.result == 'success' && needs.pine.result == 'success' }}
+    needs: [gate-plan, contracts, web, pine]
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
       JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Setup Python
-        uses: ./.github/actions/setup-python
-
-      - name: Build and smoke market data sidecar
-        uses: ./.github/actions/build-marketdata-sidecar
-
-      - name: Download desktop build inputs
-        uses: ./.github/actions/download-desktop-assets
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: desktop-pr
+      - uses: ./.github/actions/setup-python
+      - uses: ./.github/actions/build-marketdata-sidecar
+      - uses: ./.github/actions/download-desktop-assets
         with:
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
-
-      - name: Install Linux desktop dependencies
-        run: bash scripts/install-linux-desktop-dependencies.sh
-
-      - name: Test desktop release profile
+      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - name: Test and build Linux desktop
         run: |
           node scripts/write-desktop-release-input-manifest.mjs
           pnpm run prepare:tauri-release
           pnpm run test:tauri-release-runtime
-          cargo test -p jftrade-desktop
-
-      - name: Build Linux desktop application
-        run: pnpm run build:desktop:tauri
-
-      - name: Upload Linux desktop smoke artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ci-desktop-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: target/release/jftrade-desktop
-          if-no-files-found: error
-          retention-days: 1
+          pnpm run build:desktop:tauri
 
   desktop-build:
     name: Desktop Build (${{ matrix.label }})
-    if: ${{ github.event_name == 'push' }}
-    needs: [contracts, rust-quality, web-quality, web-assets, marketdata-sidecar, pine]
+    if: ${{ always() && github.event_name == 'push' && needs.gate-plan.outputs.desktop == 'true' && needs.contracts.result == 'success' && needs.web.result == 'success' && needs.pine.result == 'success' }}
+    needs: [gate-plan, contracts, web, pine]
     strategy:
       fail-fast: false
       matrix:
         include:
-          - label: Linux x64
-            runner: ubuntu-24.04
-            platform: linux
-            build_command: pnpm run build:desktop:tauri
-            artifact_id: linux-x64
-            artifact_path: target/release/jftrade-desktop
-          - label: macOS ARM64
-            runner: macos-15
-            platform: macos
-            build_command: pnpm run build:desktop:tauri
-            artifact_id: macos-arm64
-            artifact_path: target/release/jftrade-desktop
-          - label: Windows x64
-            runner: windows-latest
-            platform: windows
-            build_command: pnpm run build:desktop:tauri
-            artifact_id: windows-x64
-            artifact_path: target/release/jftrade-desktop.exe
+          - { label: Linux x64, runner: ubuntu-24.04, platform: linux, target: x86_64-unknown-linux-gnu }
+          - { label: macOS ARM64, runner: macos-15, platform: macos, target: aarch64-apple-darwin }
+          - { label: Windows x64, runner: windows-latest, platform: windows, target: x86_64-pc-windows-msvc }
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       JFTRADE_DESKTOP_PREPARED: "1"
       JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node and pnpm
-        uses: ./.github/actions/setup-pnpm
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Setup Python
-        uses: ./.github/actions/setup-python
-
-      - name: Build and smoke market data sidecar
-        uses: ./.github/actions/build-marketdata-sidecar
-
-      - name: Download desktop build inputs
-        uses: ./.github/actions/download-desktop-assets
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: desktop-main
+          target: ${{ matrix.target }}
+      - uses: ./.github/actions/setup-python
+      - uses: ./.github/actions/build-marketdata-sidecar
+      - uses: ./.github/actions/download-desktop-assets
         with:
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
-
-      - name: Install Linux desktop dependencies
-        if: ${{ matrix.platform == 'linux' }}
+      - if: ${{ matrix.platform == 'linux' }}
         run: bash scripts/install-linux-desktop-dependencies.sh
-
-      - name: Verify macOS ARM64 runner
-        if: ${{ matrix.platform == 'macos' }}
-        run: test "$(uname -m)" = "arm64"
-
-      - name: Verify Windows x64 runner
-        if: ${{ matrix.platform == 'windows' }}
-        shell: pwsh
-        run: |
-          if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64") {
-            throw "Windows x64 runner is required"
-          }
-
-      - name: Test desktop release profile
+      - name: Test release profile and build desktop
         run: |
           node scripts/write-desktop-release-input-manifest.mjs
           pnpm run prepare:tauri-release
           pnpm run test:tauri-release-runtime
-          cargo test -p jftrade-desktop
+          pnpm run build:desktop:tauri
 
-      - name: Build desktop application
-        run: ${{ matrix.build_command }}
-
-      - name: Verify Linux desktop binary
-        if: ${{ matrix.platform == 'linux' }}
-        run: |
-          binary="target/release/jftrade-desktop"
-          test -x "$binary"
-          file "$binary" | grep -q 'ELF 64-bit'
-
-      - name: Verify macOS desktop application
-        if: ${{ matrix.platform == 'macos' }}
-        run: |
-          binary="target/release/jftrade-desktop"
-          test -x "$binary"
-          file "$binary" | grep -q 'Mach-O 64-bit executable arm64'
-          test "$(lipo -archs "$binary")" = "arm64"
-
-      - name: Verify Windows desktop executable
-        if: ${{ matrix.platform == 'windows' }}
-        shell: pwsh
-        run: |
-          $artifact = (Resolve-Path "target/release/jftrade-desktop.exe").Path
-          if ((Get-Item $artifact).Length -le 0) {
-            throw "Windows desktop executable is empty"
-          }
-          $stream = [System.IO.File]::OpenRead($artifact)
-          $reader = [System.IO.BinaryReader]::new($stream)
-          try {
-            if ($reader.ReadUInt16() -ne 0x5A4D) { throw "Missing MZ header" }
-            $stream.Position = 0x3C
-            $peOffset = $reader.ReadInt32()
-            $stream.Position = $peOffset
-            if ($reader.ReadUInt32() -ne 0x00004550) { throw "Missing PE header" }
-            if ($reader.ReadUInt16() -ne 0x8664) { throw "Windows binary is not x64" }
-          } finally {
-            $reader.Dispose()
-            $stream.Dispose()
-          }
-
-      - name: Upload desktop build artifact
-        uses: actions/upload-artifact@v7
+  windows-arm64-compile:
+    name: Windows ARM64 Native Compile
+    if: ${{ github.event_name == 'push' }}
+    needs: gate-plan
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
         with:
-          name: ci-desktop-${{ matrix.artifact_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ matrix.artifact_path }}
-          if-no-files-found: error
-          retention-days: 1
+          cache-job: native-compile
+          target: aarch64-pc-windows-msvc
+      - run: cargo check --workspace --all-targets --locked --target aarch64-pc-windows-msvc
 
   build-and-test:
     name: Build & Test
     if: ${{ always() }}
-    needs: [contracts, rust-quality, rust-platform, web-quality, web-assets, marketdata-sidecar, pine, desktop-linux-smoke, desktop-build]
+    needs:
+      - gate-plan
+      - policy
+      - contracts
+      - rust-static
+      - rust-tests
+      - web
+      - pine
+      - python
+      - desktop-linux-smoke
+      - desktop-build
+      - windows-arm64-compile
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require all CI lanes
+      - name: Require every planned lane
         env:
           EVENT_NAME: ${{ github.event_name }}
-          CONTRACTS_RESULT: ${{ needs.contracts.result }}
-          RUST_QUALITY_RESULT: ${{ needs.rust-quality.result }}
-          RUST_PLATFORM_RESULT: ${{ needs.rust-platform.result }}
-          WEB_QUALITY_RESULT: ${{ needs.web-quality.result }}
-          WEB_ASSETS_RESULT: ${{ needs.web-assets.result }}
-          MARKETDATA_SIDECAR_RESULT: ${{ needs.marketdata-sidecar.result }}
-          PINE_RESULT: ${{ needs.pine.result }}
-          DESKTOP_LINUX_SMOKE_RESULT: ${{ needs.desktop-linux-smoke.result }}
-          DESKTOP_BUILD_RESULT: ${{ needs.desktop-build.result }}
+          PLAN_STATUS: ${{ needs.gate-plan.result }}
+          POLICY_STATUS: ${{ needs.policy.result }}
+          CONTRACTS_PLANNED: ${{ needs.gate-plan.outputs.contracts }}
+          CONTRACTS_STATUS: ${{ needs.contracts.result }}
+          RUST_STATIC_PLANNED: ${{ needs.gate-plan.outputs.rust_static }}
+          RUST_STATIC_STATUS: ${{ needs.rust-static.result }}
+          RUST_TESTS_PLANNED: ${{ needs.gate-plan.outputs.rust_tests }}
+          COMPATIBILITY_PLANNED: ${{ needs.gate-plan.outputs.compatibility }}
+          RUST_TESTS_STATUS: ${{ needs.rust-tests.result }}
+          WEB_PLANNED: ${{ needs.gate-plan.outputs.web }}
+          WEB_STATUS: ${{ needs.web.result }}
+          PINE_PLANNED: ${{ needs.gate-plan.outputs.pine }}
+          PINE_STATUS: ${{ needs.pine.result }}
+          PYTHON_PLANNED: ${{ needs.gate-plan.outputs.python }}
+          PYTHON_STATUS: ${{ needs.python.result }}
+          DESKTOP_PLANNED: ${{ needs.gate-plan.outputs.desktop }}
+          DESKTOP_PR_STATUS: ${{ needs.desktop-linux-smoke.result }}
+          DESKTOP_MAIN_STATUS: ${{ needs.desktop-build.result }}
+          WINDOWS_ARM_STATUS: ${{ needs.windows-arm64-compile.result }}
         shell: bash
         run: |
           set -euo pipefail
-          failed=0
-          for result in \
-            "$CONTRACTS_RESULT" \
-            "$RUST_QUALITY_RESULT" \
-            "$WEB_QUALITY_RESULT" \
-            "$WEB_ASSETS_RESULT" \
-            "$MARKETDATA_SIDECAR_RESULT" \
-            "$PINE_RESULT"; do
-            [[ "$result" == "success" ]] || failed=1
-          done
-
+          require_lane() {
+            local planned="$1" status="$2" name="$3"
+            if [[ "$planned" == "true" ]]; then
+              [[ "$status" == "success" ]] || { echo "$name was planned but ended $status"; return 1; }
+            else
+              [[ "$status" == "skipped" || "$status" == "success" ]] || { echo "$name unexpectedly ended $status"; return 1; }
+            fi
+          }
+          [[ "$PLAN_STATUS" == "success" ]]
+          [[ "$POLICY_STATUS" == "success" ]]
+          require_lane "$CONTRACTS_PLANNED" "$CONTRACTS_STATUS" Contracts
+          require_lane "$RUST_STATIC_PLANNED" "$RUST_STATIC_STATUS" RustStatic
+          if [[ "$RUST_TESTS_PLANNED" == "true" || "$COMPATIBILITY_PLANNED" == "true" ]]; then rust_lane=true; else rust_lane=false; fi
+          require_lane "$rust_lane" "$RUST_TESTS_STATUS" RustTests
+          if [[ "$WEB_PLANNED" == "true" || "$DESKTOP_PLANNED" == "true" ]]; then web_lane=true; else web_lane=false; fi
+          require_lane "$web_lane" "$WEB_STATUS" Web
+          if [[ "$PINE_PLANNED" == "true" || "$DESKTOP_PLANNED" == "true" ]]; then pine_lane=true; else pine_lane=false; fi
+          require_lane "$pine_lane" "$PINE_STATUS" Pine
+          require_lane "$PYTHON_PLANNED" "$PYTHON_STATUS" Python
           if [[ "$EVENT_NAME" == "push" ]]; then
-            [[ "$RUST_PLATFORM_RESULT" == "success" ]] || failed=1
-            [[ "$DESKTOP_BUILD_RESULT" == "success" ]] || failed=1
-            [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "skipped" ]] || failed=1
+            require_lane "$DESKTOP_PLANNED" "$DESKTOP_MAIN_STATUS" DesktopMain
+            [[ "$DESKTOP_PR_STATUS" == "skipped" ]]
+            [[ "$WINDOWS_ARM_STATUS" == "success" ]]
           else
-            [[ "$RUST_PLATFORM_RESULT" == "skipped" ]] || failed=1
-            [[ "$DESKTOP_BUILD_RESULT" == "skipped" ]] || failed=1
-            [[ "$DESKTOP_LINUX_SMOKE_RESULT" == "success" ]] || failed=1
-          fi
-
-          if [[ "$failed" -ne 0 ]]; then
-            echo "Contracts & Docs: $CONTRACTS_RESULT"
-            echo "Rust Quality: $RUST_QUALITY_RESULT"
-            echo "Rust Compile Matrix: $RUST_PLATFORM_RESULT"
-            echo "Web Quality: $WEB_QUALITY_RESULT"
-            echo "Web Assets: $WEB_ASSETS_RESULT"
-            echo "Market Data Sidecar: $MARKETDATA_SIDECAR_RESULT"
-            echo "Pine & Workers: $PINE_RESULT"
-            echo "Desktop Linux Smoke: $DESKTOP_LINUX_SMOKE_RESULT"
-            echo "Desktop Build Matrix: $DESKTOP_BUILD_RESULT"
-            exit 1
+            require_lane "$DESKTOP_PLANNED" "$DESKTOP_PR_STATUS" DesktopPR
+            [[ "$DESKTOP_MAIN_STATUS" == "skipped" ]]
+            [[ "$WINDOWS_ARM_STATUS" == "skipped" ]]
           fi

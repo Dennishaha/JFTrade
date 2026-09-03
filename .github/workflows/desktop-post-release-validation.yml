@@ -1,4 +1,4 @@
-name: Desktop Post-Release Closeout
+name: Desktop Post-Release Validation
 
 on:
   workflow_dispatch:
@@ -29,13 +29,8 @@ on:
         default: desktop-release-qualification.yml
         type: string
       evidence_ref:
-        description: Branch or commit containing the post-release reports and updated closeout manifest
+        description: Branch or commit containing the independent post-release reports
         required: true
-        type: string
-      closeout_manifest:
-        description: Path to the updated Stage 9 closeout manifest on evidence_ref
-        required: false
-        default: tests/fixtures/rust-migration/stage9/closeout-evidence.json
         type: string
       post_release_reports:
         description: Comma-separated paths to the four platform post-release smoke reports on evidence_ref
@@ -49,7 +44,7 @@ on:
 permissions: {}
 
 jobs:
-  closeout:
+  validate:
     name: Verify Post-Release Evidence
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -79,13 +74,13 @@ jobs:
             exit 1
           }
           [[ "$EVIDENCE_REF" != "$RELEASE_TAG" && "$EVIDENCE_REF" != "$RELEASE_REF" ]] || {
-            echo "Post-release closeout cannot use the published tag as evidence_ref." >&2
+            echo "Post-release validation cannot use the published tag as evidence_ref." >&2
             exit 1
           }
           evidence_commit="$(git rev-parse HEAD)"
           tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}" 2>/dev/null || true)"
           if [[ -n "$tag_commit" && "$evidence_commit" == "$tag_commit" ]]; then
-            echo "Post-release closeout requires a distinct evidence ref with updated reports and manifest." >&2
+            echo "Post-release validation requires a distinct evidence ref with retained reports." >&2
             exit 1
           fi
 
@@ -120,16 +115,20 @@ jobs:
             [[ -n "$report" ]] || { echo "post_release_reports contains an empty path" >&2; exit 1; }
             args+=(--report "$report")
           done
-          node scripts/rust-migration/check-post-release-smoke.mjs "${args[@]}" \
+          node scripts/release/check-post-release-smoke.mjs "${args[@]}" \
             --expected-tag "$RELEASE_TAG" \
             --expected-ref "$RELEASE_REF" \
             --expected-commit "$COMMIT_SHA" \
             --expected-run-id "$RELEASE_RUN_ID" \
             --expected-attempt "$RELEASE_RUN_ATTEMPT" \
             --expected-workflow "$RELEASE_WORKFLOW" \
-            --expected-artifact-digests "$ARTIFACT_DIGESTS"
+            --expected-artifact-digests "$ARTIFACT_DIGESTS" \
+            --output post-release-validation.json
 
-      - name: Verify updated Stage 9 closeout on evidence ref
-        env:
-          CLOSEOUT_MANIFEST: ${{ inputs.closeout_manifest }}
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --check --manifest "$CLOSEOUT_MANIFEST"
+      - name: Archive post-release validation receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: post-release-validation-${{ inputs.release_tag }}-${{ inputs.commit_sha }}
+          path: post-release-validation.json
+          if-no-files-found: error
+          retention-days: 90
