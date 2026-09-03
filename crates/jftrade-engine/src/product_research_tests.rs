@@ -72,7 +72,7 @@ impl ResearchReadSnapshotPort for FailingResearchReadPort {
 
 fn research_read_fixture() -> ResearchReadFixture {
     let fixture: ResearchReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/research-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/research-read.json"
     ))
     .expect("research read fixture");
     assert_eq!(fixture.version, "stage9.research-read.v1");

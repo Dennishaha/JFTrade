@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn broker_descriptor_matches_current_go_wire_fixture() {
         let expected: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/broker-descriptor.json"
+            "../../../tests/fixtures/compatibility/api-transport/broker-descriptor.json"
         ))
         .expect("broker descriptor fixture");
         assert_eq!(

@@ -27,7 +27,7 @@ test("source inventory rejects Go files, module files, commands, and Wails entry
 });
 
 test("historical docs and fixtures may preserve Go provenance", () => {
-  const files = ["docs/history.md", "tests/fixtures/rust-migration/stage2/manifest.json"];
+  const files = ["docs/history.md", "tests/fixtures/compatibility/storage/manifest.json"];
   const errors = validateSourceInventory(files, () => "go test ./historical");
   assert.deepEqual(errors, []);
 });

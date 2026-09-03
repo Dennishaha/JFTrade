@@ -96,7 +96,7 @@ impl BacktestReadSnapshotPort for FailingBacktestReadPort {
 
 fn backtests_read_fixture() -> BacktestsReadFixture {
     let fixture: BacktestsReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/backtests-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/backtests-read.json"
     ))
     .expect("backtests read fixture");
     assert_eq!(fixture.version, "stage9.backtests-read.v1");

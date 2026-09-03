@@ -22,13 +22,13 @@ use lifecycle::{
 use links::{LinkTarget, classify_link};
 use profile::{DesktopChannel, DesktopProfile, PlatformPaths, ProfileError};
 
-pub const STAGE8_CONTRACT_VERSION: &str = "stage8.v1";
+pub const DESKTOP_RUNTIME_COMPATIBILITY_VERSION: &str = "stage8.v1";
 pub const TAURI_CRATE_VERSION: &str = "2.11.5";
 pub const TAURI_UPDATER_CRATE_VERSION: &str = "2.10.1";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Stage8Input {
+pub struct DesktopRuntimeInput {
     pub version: String,
     pub platforms: Vec<PlatformPaths>,
     pub links: Vec<String>,
@@ -38,7 +38,7 @@ pub struct Stage8Input {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Stage8Output {
+pub struct DesktopRuntimeOutput {
     pub version: String,
     pub tauri_version: &'static str,
     pub engine_contract: EngineContract,
@@ -77,8 +77,8 @@ pub struct LinkProjection {
 }
 
 #[derive(Debug, Error)]
-pub enum Stage8Error {
-    #[error("unsupported Stage 8 contract version {0:?}")]
+pub enum DesktopRuntimeError {
+    #[error("unsupported desktop runtime compatibility version {0:?}")]
     UnsupportedVersion(String),
     #[error(transparent)]
     Profile(#[from] ProfileError),
@@ -86,9 +86,11 @@ pub enum Stage8Error {
     Lifecycle(#[from] LifecycleError),
 }
 
-pub fn evaluate_stage8(input: Stage8Input) -> Result<Stage8Output, Stage8Error> {
-    if input.version != STAGE8_CONTRACT_VERSION {
-        return Err(Stage8Error::UnsupportedVersion(input.version));
+pub fn evaluate_desktop_runtime(
+    input: DesktopRuntimeInput,
+) -> Result<DesktopRuntimeOutput, DesktopRuntimeError> {
+    if input.version != DESKTOP_RUNTIME_COMPATIBILITY_VERSION {
+        return Err(DesktopRuntimeError::UnsupportedVersion(input.version));
     }
     let profiles = input
         .platforms
@@ -127,8 +129,8 @@ pub fn evaluate_stage8(input: Stage8Input) -> Result<Stage8Output, Stage8Error> 
         fail_ready: Some(input.failure_role),
     };
     let failed_start = runtime_plan.start(&mut failing)?;
-    Ok(Stage8Output {
-        version: STAGE8_CONTRACT_VERSION.to_owned(),
+    Ok(DesktopRuntimeOutput {
+        version: DESKTOP_RUNTIME_COMPATIBILITY_VERSION.to_owned(),
         tauri_version: TAURI_CRATE_VERSION,
         engine_contract: EngineContract {
             protocol_version: jftrade_engine::PROTOCOL_VERSION,

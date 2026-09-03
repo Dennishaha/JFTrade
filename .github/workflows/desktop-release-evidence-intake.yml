@@ -173,7 +173,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/rust-migration/verify-release-evidence-source.mjs \
+          node scripts/release/verify-release-evidence-source.mjs \
             --root incoming \
             --output incoming/source-binding.json \
             --repository "$GITHUB_REPOSITORY" \
@@ -287,13 +287,13 @@ jobs:
       - name: Bind source artifact and validate independent rehearsal contract
         run: |
           set -euo pipefail
-          node scripts/rust-migration/bind-release-candidate-rehearsal.mjs \
+          node scripts/release/bind-release-candidate-rehearsal.mjs \
             --source incoming/rehearsal-source.json \
             --output incoming/release-candidate-rehearsal.json \
             --artifact-name "${{ inputs.source_artifact }}" \
             --artifact-id "${{ inputs.source_artifact_id }}" \
             --artifact-digest "${{ inputs.source_artifact_digest }}"
-          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+          node scripts/release/check-release-candidate-rehearsal.mjs \
             --check --input incoming/release-candidate-rehearsal.json \
             --expected-ref "${{ inputs.source_ref }}" \
             --expected-tag "${{ inputs.planned_release_tag }}" \

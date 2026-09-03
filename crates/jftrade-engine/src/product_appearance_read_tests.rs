@@ -27,7 +27,7 @@ struct SettingsUiReadCase {
 
 fn settings_ui_read_fixture() -> SettingsUiReadFixture {
     let fixture: SettingsUiReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/settings-ui-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/settings-ui-read.json"
     ))
     .expect("settings UI read fixture");
     assert_eq!(fixture.version, "stage9.settings-ui-read.v1");

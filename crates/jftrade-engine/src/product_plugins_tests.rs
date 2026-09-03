@@ -88,7 +88,7 @@ impl PluginSnapshotPort for FailingPluginSnapshotPort {
 
 fn plugins_read_fixture() -> PluginsReadFixture {
     let fixture: PluginsReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/plugins-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/plugins-read.json"
     ))
     .expect("plugins read fixture");
     assert_eq!(fixture.version, "stage9.plugins-read.v1");

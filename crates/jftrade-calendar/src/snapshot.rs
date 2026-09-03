@@ -351,7 +351,7 @@ mod tests {
 
     fn fixture() -> FormatFixture {
         serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/calendar-snapshot-format.json"
+            "../../../tests/fixtures/compatibility/api-transport/calendar-snapshot-format.json"
         ))
         .expect("decode Go-owned calendar snapshot fixture")
     }

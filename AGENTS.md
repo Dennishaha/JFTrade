@@ -4,9 +4,9 @@
 
 ## 项目边界
 
-JFTrade 当前产品是 Rust 引擎与 API 服务、Vue 3 控制台、Tauri 2 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。全量 278 条 API 路由和生产桌面壳均由 Rust/Tauri 持有（`productionOwner=rust`, `goRemovalStatus=removed`）；仓库不再包含 Go 源码、模块、生成器、构建入口或运行产物。迁移与发布收口事实源见 [`docs/architecture/go-to-rust-migration.md`](docs/architecture/go-to-rust-migration.md)，入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
+JFTrade 当前产品是 Rust 引擎与 API 服务、Vue 3 控制台、Tauri 2 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。全量 278 条 API 路由和生产桌面壳均由 Rust/Tauri 持有；仓库不再包含 Go 源码、模块、生成器、构建入口或运行产物。当前质量与发布事实源见 [`docs/architecture/quality-gates.md`](docs/architecture/quality-gates.md) 和 [`docs/architecture/release-qualification.md`](docs/architecture/release-qualification.md)，入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
 
-配置要求：Node `>=22.13`、pnpm `11.21.0`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`。
+配置要求：Node `>=22.13`、pnpm `11.21.0`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`，测试入口自动下载并校验固定的 cargo-nextest `0.9.143`。
 
 ## 日常入口
 
@@ -20,6 +20,7 @@ pnpm run check:quick      # 变更范围快速检查，不能修改工作树
 pnpm run test:affected    # 只跑受影响测试
 pnpm run check:generated  # 临时目录生成并比较契约，不能修改工作树
 pnpm run check:zero-go    # 检查源码、构建链和传入发布产物中没有 Go/Wails
+pnpm run check:compatibility # 七类冻结产品语料 replay
 pnpm run check:rust       # Rust fmt、Clippy 与 workspace 测试
 pnpm run check:all        # 完整本地门禁
 ```
@@ -48,7 +49,7 @@ pnpm run check:all        # 完整本地门禁
 
 ## AI 工作流
 
-1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件；零 Go、历史兼容 corpus 或 `0.29.0` 发布收口任务必须先读 `docs/architecture/rust-migration-execution-playbook.md`，再读迁移事实源并输出本轮目标。
+1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件；质量门禁任务先读 `docs/architecture/quality-gates.md`，候选或发布任务先读 `docs/architecture/release-qualification.md`。
 2. 先定位调用方、所有权和测试，再编辑；不要因文件名相似跨域复制实现。
 3. 变更后先跑最窄的 affected test，再跑 `check:quick`；Rust 变更至少跑 `pnpm run check:rust`，契约变化额外跑 `check:generated`。
 4. 若边界发生变化，同步 `docs/architecture*`、`docs/README.md` 和模块表。

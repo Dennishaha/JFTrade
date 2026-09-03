@@ -417,7 +417,7 @@ async fn system_status_matches_go_stable_fields_without_claiming_migration_owner
         })
     );
     let broker: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/broker-descriptor.json"
+        "../../../tests/fixtures/compatibility/api-transport/broker-descriptor.json"
     ))
     .expect("broker descriptor fixture");
     assert_eq!(data["broker"], broker);

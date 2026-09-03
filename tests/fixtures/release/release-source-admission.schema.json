@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "jftrade.release-source-admission.schema.json",
+  "title": "JFTrade release source admission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "status",
+    "releaseQualified",
+    "sourceRef",
+    "plannedReleaseTag",
+    "commitSha",
+    "requiredCheck",
+    "checks",
+    "errors",
+    "limitations"
+  ],
+  "properties": {
+    "$schema": { "const": "./release-source-admission.schema.json" },
+    "schemaVersion": { "const": "jftrade.release-source-admission.v1" },
+    "status": { "enum": ["admitted", "repository_checks_passed", "blocked"] },
+    "releaseQualified": { "const": false },
+    "sourceRef": { "type": ["string", "null"] },
+    "plannedReleaseTag": { "type": ["string", "null"] },
+    "commitSha": { "type": ["string", "null"] },
+    "requiredCheck": { "type": "object" },
+    "checks": { "type": "object" },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "limitations": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -157,8 +157,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p baseline
-          url="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .url' tests/fixtures/rust-migration/stage9/last-go-release-baseline.json)"
-          expected="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .sha256' tests/fixtures/rust-migration/stage9/last-go-release-baseline.json)"
+          url="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .url' tests/fixtures/release/upgrade-baselines.json)"
+          expected="$(jq -r --arg platform "$PLATFORM" '.packages[] | select(.platform == $platform) | select(.kind == "dmg" or .kind == "appimage" or .kind == "nsis") | .sha256' tests/fixtures/release/upgrade-baselines.json)"
           name="$(basename "$url")"
           [[ -n "$url" && "$expected" =~ ^[a-f0-9]{64}$ ]] || { echo "published baseline entry missing for $PLATFORM" >&2; exit 1; }
           curl --fail --location --retry 3 --output "baseline/$name" "$url"

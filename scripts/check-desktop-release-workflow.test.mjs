@@ -4,7 +4,7 @@ import test from "node:test";
 
 const workflow = fs.readFileSync(".github/workflows/desktop-release.yml", "utf8");
 const postReleaseWorkflow = fs.readFileSync(
-  ".github/workflows/desktop-post-release-closeout.yml",
+  ".github/workflows/desktop-post-release-validation.yml",
   "utf8",
 );
 const qualificationWorkflow = fs.readFileSync(
@@ -22,8 +22,8 @@ test("desktop workflow separates rehearsal, candidate, and manual publish operat
   assert.match(workflow, /operation:/);
   assert.match(workflow, /- rehearsal\s+- candidate\s+- publish/);
   assert.doesNotMatch(workflow, /push:\s*\n\s*tags:/);
-  assert.match(workflow, /Verify Stage 9 static release-candidate admission/);
-  assert.match(workflow, /check-stage9-closeout\.mjs --candidate-static/);
+  assert.match(workflow, /Verify release source admission/);
+  assert.match(workflow, /check-release-source-admission\.mjs/);
   assert.match(workflow, /check-release-candidate\.mjs/);
   assert.match(workflow, /candidate_evidence_config/);
   assert.match(workflow, /run_path/);
@@ -55,21 +55,20 @@ test("desktop workflow separates rehearsal, candidate, and manual publish operat
   assert.match(workflow, /-name '\*\.sig'/);
 });
 
-test("desktop workflow separates candidate admission from post-release full closeout", () => {
+test("desktop workflow separates source admission from post-release validation", () => {
   const publishIndex = workflow.indexOf("\n  publish:");
   assert.ok(publishIndex > 0);
   const prePublish = workflow.slice(0, publishIndex);
-  assert.doesNotMatch(prePublish, /check-stage9-closeout\.mjs --check/);
-  assert.match(prePublish, /check-stage9-closeout\.mjs --candidate-static/);
+  assert.match(prePublish, /check-release-source-admission\.mjs/);
   const sumsIndex = workflow.indexOf("Materialize sealed release files");
-  const candidateIndex = workflow.indexOf("Verify artifact-bound Stage 9 release candidate evidence");
+  const candidateIndex = workflow.indexOf("Verify artifact-bound release candidate evidence");
   assert.ok(sumsIndex > publishIndex);
   assert.ok(candidateIndex > sumsIndex);
   assert.ok(candidateIndex < workflow.indexOf("Upload assets and publish GitHub release"));
   assert.doesNotMatch(workflow, /post-release-closeout:/);
 });
 
-test("post-release closeout is an independent evidence-ref workflow", () => {
+test("post-release validation is an independent evidence-ref workflow", () => {
   assert.match(postReleaseWorkflow, /workflow_dispatch:/);
   assert.match(postReleaseWorkflow, /evidence_ref:/);
   assert.match(postReleaseWorkflow, /release_tag:/);
@@ -92,7 +91,8 @@ test("post-release closeout is an independent evidence-ref workflow", () => {
   assert.match(postReleaseWorkflow, /--expected-attempt/);
   assert.match(postReleaseWorkflow, /--expected-workflow/);
   assert.match(postReleaseWorkflow, /EVIDENCE_REF.*RELEASE_TAG/);
-  assert.match(postReleaseWorkflow, /check-stage9-closeout\.mjs --check/);
+  assert.match(postReleaseWorkflow, /--output post-release-validation\.json/);
+  assert.match(postReleaseWorkflow, /Archive post-release validation receipt/);
   assert.doesNotMatch(postReleaseWorkflow, /needs:\s*publish/);
   assert.doesNotMatch(postReleaseWorkflow, /needs\.publish/);
 });
@@ -118,7 +118,8 @@ test("qualification workflow produces an artifact-bound candidate config from on
     qualificationWorkflow,
     /^\s*repository:\s*\$\{\{\s*github\.repository\s*\}\}\s*$/m,
   );
-  assert.match(qualificationWorkflow, /check-stage9-closeout\.mjs --candidate-static/);
+  assert.match(qualificationWorkflow, /check-release-source-admission\.mjs/);
+  assert.match(qualificationWorkflow, /jftrade\.release-source-admission\.v1/);
   assert.match(qualificationWorkflow, /check-release-candidate\.mjs/);
   assert.match(qualificationWorkflow, /candidate-evidence-config\.json/);
   assert.match(qualificationWorkflow, /upload-artifact@v7/);
@@ -157,7 +158,7 @@ test("controlled evidence source performs a four-platform unsigned rehearsal", (
   for (const runner of ["macos-15", "ubuntu-24.04", "windows-2025", "windows-11-arm"]) {
     assert.match(evidenceSourceWorkflow, new RegExp(`runner: ${runner}`));
   }
-  assert.match(evidenceSourceWorkflow, /last-go-release-baseline\.json/);
+  assert.match(evidenceSourceWorkflow, /upgrade-baselines\.json/);
   assert.match(evidenceSourceWorkflow, /candidate_artifacts_json/);
   assert.match(evidenceSourceWorkflow, /actions\/artifacts\/\$REHEARSAL_ARTIFACT_ID\/zip/);
   assert.match(evidenceSourceWorkflow, /candidate artifact digest drift/);

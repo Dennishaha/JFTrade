@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 const FIXTURE: &str = include_str!(
-    "../../../tests/fixtures/rust-migration/stage9/research-definition-normalization.json"
+    "../../../tests/fixtures/compatibility/api-transport/research-definition-normalization.json"
 );
 const FIXTURE_VERSION: &str = "stage9.research-definition-normalization.v1";
 

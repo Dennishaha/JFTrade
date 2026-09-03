@@ -1,84 +1,58 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
+function discoverTests(directory = path.join(repositoryRoot, "scripts")) {
+  return fs.readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".test.mjs"))
+    .map((entry) => path.relative(repositoryRoot, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"))
+    .sort();
+}
+
+const allTests = discoverTests();
+const rootPolicyNames = new Set([
+  "check-ai-context.test.mjs",
+  "check-diff.test.mjs",
+  "check-openapi-quality.test.mjs",
+  "check-rust-target-health.test.mjs",
+  "check-rust-toolchain-bootstrap.test.mjs",
+  "check-test-names.test.mjs",
+  "check-web-api-boundary.test.mjs",
+  "check-web-component-budget.test.mjs",
+  "check-web-contract-audit.test.mjs",
+  "check-web-contract-index.test.mjs",
+  "check-web-diff-thresholds.test.mjs",
+  "check-web-file-length-budget.test.mjs",
+  "check-web-openapi-imports.test.mjs",
+  "check-zero-go.test.mjs",
+  "generate-api-types.test.mjs",
+  "generate-contracts.test.mjs",
+  "run-compatibility-checks.test.mjs",
+  "run-rust-checks.test.mjs",
+  "run-test-layer.test.mjs",
+  "test-affected.test.mjs",
+  "test-scripts.test.mjs",
+]);
+
+function matchingTests(predicate) {
+  return Object.freeze(allTests.filter(predicate));
+}
+
 export const scriptTestSuites = Object.freeze({
-  policy: Object.freeze([
-    "scripts/check-go-retirement.test.mjs",
-    "scripts/check-zero-go.test.mjs",
-    "scripts/check-ai-context.test.mjs",
-    "scripts/check-embedded-provider-capability-matrix.test.mjs",
-    "scripts/test-affected.test.mjs",
-    "scripts/generate-contracts.test.mjs",
-    "scripts/check-diff.test.mjs",
-    "scripts/check-test-names.test.mjs",
-    "scripts/check-openapi-quality.test.mjs",
-    "scripts/generate-api-types.test.mjs",
-    "scripts/check-web-api-boundary.test.mjs",
-    "scripts/check-web-contract-index.test.mjs",
-    "scripts/check-web-contract-audit.test.mjs",
-    "scripts/check-web-openapi-imports.test.mjs",
-    "scripts/check-web-component-budget.test.mjs",
-    "scripts/check-web-file-length-budget.test.mjs",
-    "scripts/check-web-diff-thresholds.test.mjs",
-    "scripts/rust-migration/check-layout.test.mjs",
-    "scripts/rust-migration/check-production-route-policy.test.mjs",
-    "scripts/rust-migration/check-differential.test.mjs",
-    "scripts/rust-migration/check-backtest-differential.test.mjs",
-    "scripts/rust-migration/run-backtest-owner.test.mjs",
-    "scripts/rust-migration/check-stage4-differential.test.mjs",
-    "scripts/rust-migration/check-stage5-differential.test.mjs",
-    "scripts/rust-migration/check-stage6-differential.test.mjs",
-    "scripts/rust-migration/check-stage7-differential.test.mjs",
-    "scripts/rust-migration/check-stage8-differential.test.mjs",
-    "scripts/rust-migration/check-stage9-closeout.test.mjs",
-    "scripts/rust-migration/check-stage9-pine-mcp.test.mjs",
-    "scripts/rust-migration/check-stage9-mcp-schemas.test.mjs",
-    "scripts/rust-migration/check-release-candidate.test.mjs",
-    "scripts/rust-migration/check-release-candidate-rehearsal.test.mjs",
-    "scripts/rust-migration/bind-release-candidate-rehearsal.test.mjs",
-    "scripts/rust-migration/check-release-evidence-inputs.test.mjs",
-    "scripts/rust-migration/check-release-candidate-bundle.test.mjs",
-    "scripts/rust-migration/check-release-evidence-producer.test.mjs",
-    "scripts/rust-migration/check-release-evidence-source.test.mjs",
-    "scripts/rust-migration/bind-release-evidence.test.mjs",
-    "scripts/rust-migration/check-backup-restore-drill.test.mjs",
-    "scripts/rust-migration/check-security-review-inputs.test.mjs",
-    "scripts/rust-migration/check-sbom-provenance.test.mjs",
-    "scripts/rust-migration/check-post-release-smoke.test.mjs",
+  policy: matchingTests((file) => file.startsWith("scripts/quality/") || rootPolicyNames.has(path.basename(file))),
+  compatibility: matchingTests((file) => file.startsWith("scripts/compatibility/")),
+  release: matchingTests((file) => file.startsWith("scripts/release/") || [
     "scripts/check-desktop-release-policy.test.mjs",
     "scripts/check-desktop-release-workflow.test.mjs",
-    "scripts/check-rust-toolchain-bootstrap.test.mjs",
-    "scripts/rust-migration/check-stage9-product-differential.test.mjs",
-    "scripts/rust-migration/stage9-route-ownership.test.mjs",
-    "scripts/check-rust-target-health.test.mjs",
-    "scripts/run-rust-checks.test.mjs",
-    "scripts/run-test-layer.test.mjs",
-    "scripts/test-scripts.test.mjs",
-  ]),
-  desktop: Object.freeze([
-    "scripts/lib/desktop-release-metadata.test.mjs",
-    "scripts/lib/desktop-release-artifacts.test.mjs",
-    "scripts/manage-linux-release-artifacts.test.mjs",
-    "scripts/lib/desktop-release-inputs.test.mjs",
-    "scripts/prepare-linux-package-config.test.mjs",
-    "scripts/build-marketdata-sidecar.test.mjs",
-    "scripts/smoke-marketdata-sidecar.test.mjs",
-    "scripts/lib/materialize-directory-symlinks.test.mjs",
-    "scripts/lib/tauri-runtime.test.mjs",
-    "scripts/prepare-tauri-release-runtime.test.mjs",
-    "scripts/smoke-tauri-release.test.mjs",
-    "scripts/verify-tauri-release-artifacts.test.mjs",
-    "scripts/rust-migration/check-signed-updater-artifact.test.mjs",
-    "scripts/rust-migration/check-rollback-artifact.test.mjs",
-  ]),
+  ].includes(file)),
+  desktop: matchingTests((file) => /(?:desktop|tauri|linux-package|marketdata-sidecar|materialize-directory-symlinks)/.test(file)),
   "api-release": Object.freeze(["scripts/api-release-scripts.test.mjs"]),
   "pinets-release": Object.freeze(["scripts/check-pinets-release.test.mjs"]),
-  "pineworker-assets": Object.freeze([
-    "scripts/build-pineworker-assets.test.mjs",
-  ]),
+  "pineworker-assets": Object.freeze(["scripts/build-pineworker-assets.test.mjs"]),
   "pineworker-dev": Object.freeze(["scripts/build-pineworker-dev.test.mjs"]),
   "marketdata-assets": Object.freeze([
     "scripts/build-marketdata-sidecar.test.mjs",
@@ -92,16 +66,10 @@ export const scriptTestSuites = Object.freeze({
 
 export function resolveScriptTestFiles(requestedSuites = []) {
   const suites = requestedSuites.length === 0 ? ["all"] : requestedSuites;
-  const unknown = suites.filter(
-    (name) => name !== "all" && !(name in scriptTestSuites),
-  );
-  if (unknown.length > 0) {
-    throw new Error(`unknown script test suite: ${unknown.join(", ")}`);
-  }
-  const names = suites.includes("all")
-    ? Object.keys(scriptTestSuites)
-    : suites;
-  return [...new Set(names.flatMap((name) => scriptTestSuites[name]))];
+  const unknown = suites.filter((name) => name !== "all" && !(name in scriptTestSuites));
+  if (unknown.length > 0) throw new Error(`unknown script test suite: ${unknown.join(", ")}`);
+  if (suites.includes("all")) return [...allTests];
+  return [...new Set(suites.flatMap((name) => scriptTestSuites[name]))];
 }
 
 export function runScriptTests(requestedSuites = [], options = {}) {
@@ -111,9 +79,7 @@ export function runScriptTests(requestedSuites = [], options = {}) {
     env: options.env ?? process.env,
     stdio: options.stdio ?? "inherit",
   });
-  if (result.error) {
-    throw result.error;
-  }
+  if (result.error) throw result.error;
   return result.status ?? 1;
 }
 
@@ -145,9 +111,5 @@ function main(args) {
   }
 }
 
-const invokedPath = process.argv[1]
-  ? pathToFileURL(process.argv[1]).href
-  : "";
-if (invokedPath === import.meta.url) {
-  process.exitCode = main(process.argv.slice(2));
-}
+const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (invokedPath === import.meta.url) process.exitCode = main(process.argv.slice(2));

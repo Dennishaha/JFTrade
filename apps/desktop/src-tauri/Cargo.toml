@@ -32,8 +32,8 @@ name = "jftrade-desktop"
 path = "src/main.rs"
 
 [[bin]]
-name = "jftrade-stage8-shadow"
-path = "src/bin/jftrade-stage8-shadow.rs"
+name = "jftrade-desktop-runtime-replay"
+path = "src/bin/jftrade-desktop-runtime-replay.rs"
 
 [lints]
 workspace = true

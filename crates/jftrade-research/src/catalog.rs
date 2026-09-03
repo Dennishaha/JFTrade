@@ -5,8 +5,9 @@ use serde::Deserialize;
 use serde_json::Value;
 use thiserror::Error;
 
-const CATALOG_FIXTURE: &str =
-    include_str!("../../../tests/fixtures/rust-migration/stage9/research-screen-catalogs.json");
+const CATALOG_FIXTURE: &str = include_str!(
+    "../../../tests/fixtures/compatibility/api-transport/research-screen-catalogs.json"
+);
 const CATALOG_FIXTURE_VERSION: &str = "stage9.research-screen-catalogs.v1";
 
 #[derive(Debug, Deserialize)]

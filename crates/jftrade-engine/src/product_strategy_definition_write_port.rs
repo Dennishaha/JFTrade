@@ -1,9 +1,8 @@
-//! Stage 9 test-cutover leaf for strategy-definition mutation routes.
+//! Product boundary for strategy-definition mutation routes.
 //!
-//! The Go strategy definition store and catalog remain the only production
-//! owners. This module deliberately has no SQLite, PineTS, runtime, or
-//! provider dependency. The integration branch may inject a consumer-owned
-//! mutation port from an explicit test-cutover profile later.
+//! This module deliberately has no SQLite, PineTS, runtime, or provider
+//! dependency. Product composition injects the Rust-owned strategy definition
+//! store and catalog through its mutation port.
 
 use std::collections::BTreeMap;
 

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jftrade.upgrade-baselines.v1",
+  "status": "published",
+  "version": "0.27.0",
+  "tag": "v0.27.0",
+  "commit": "452dea115ca75c51361e8876c2aefd7c009839b8",
+  "publishedAt": "2026-08-18T23:49:14Z",
+  "releaseUrl": "https://github.com/Dennishaha/JFTrade/releases/tag/v0.27.0",
+  "checksumManifest": {
+    "name": "SHA256SUMS",
+    "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/SHA256SUMS",
+    "sha256": "af2791fb672e8853f8b268b2156fa6ffc2abacb62b9f15a3085e6e4d22210e55"
+  },
+  "signature": {
+    "tagType": "lightweight",
+    "tagSigned": false,
+    "detachedReleaseSignaturePublished": false,
+    "note": "No tag signature or detached release signature was published. The macOS and Windows package names explicitly identify unsigned artifacts; this gap is recorded and must not be replaced by a rebuilt baseline."
+  },
+  "packages": [
+    {
+      "platform": "linux-x64",
+      "kind": "appimage",
+      "name": "JFTrade-0.27.0-linux-x64.AppImage",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-linux-x64.AppImage",
+      "sha256": "1755d65485e11c1ccc3955e90caa4154d4575bc688c0f305fcb51b03632dc009"
+    },
+    {
+      "platform": "linux-x64",
+      "kind": "deb",
+      "name": "JFTrade-0.27.0-linux-x64.deb",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-linux-x64.deb",
+      "sha256": "e587673ed0424e30c8ee032b7218107f829436b6a6221fb9d1caa4789ac4aa65"
+    },
+    {
+      "platform": "linux-x64",
+      "kind": "rpm",
+      "name": "JFTrade-0.27.0-linux-x64.rpm",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-linux-x64.rpm",
+      "sha256": "5ca3a6de3d76edca5244d8132aadfcd6ecac84c69206f78af315cd05adf031a5"
+    },
+    {
+      "platform": "macos-arm64",
+      "kind": "dmg",
+      "name": "JFTrade-0.27.0-macos-arm64-unsigned.dmg",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-macos-arm64-unsigned.dmg",
+      "sha256": "89bfbfa0e44f36fe502bfe6010989ad4bd79404dfd527992ae59b97c39853e32"
+    },
+    {
+      "platform": "windows-x64",
+      "kind": "nsis",
+      "name": "JFTrade-0.27.0-windows-x64-unsigned-setup.exe",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-windows-x64-unsigned-setup.exe",
+      "sha256": "8b5884c08d6e5a316bd90eab49de2bd973efa5f62ad6b987d0928baa83fae462"
+    },
+    {
+      "platform": "windows-arm64",
+      "kind": "nsis",
+      "name": "JFTrade-0.27.0-windows-arm64-unsigned-setup.exe",
+      "url": "https://github.com/Dennishaha/JFTrade/releases/download/v0.27.0/JFTrade-0.27.0-windows-arm64-unsigned-setup.exe",
+      "sha256": "8de3197d0bd0d2d6b8ba5b22ebbcf82d4d26f762229a87b0fe9c918f480bb0e6"
+    }
+  ],
+  "policy": {
+    "rebuildAllowed": false,
+    "regenerateCorpusAllowed": false,
+    "upgradeTarget": "0.29.0",
+    "use": "Install and upgrade from these published bytes only. Compatibility fixtures remain immutable regression inputs and are replayed by the current Rust product."
+  }
+}

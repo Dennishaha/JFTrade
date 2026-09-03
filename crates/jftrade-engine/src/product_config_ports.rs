@@ -51,7 +51,7 @@ impl ProductConfig {
         self.strategy_runtime_write_port = None;
         self.auth_session_snapshot_port = None;
         self.auth_session_write_port = None;
-        self.stage9_write_ports = ProductStage9WritePorts::default();
+        self.write_ports = ProductWritePorts::default();
     }
 
     pub(crate) fn with_production_runtime_statuses(
@@ -162,7 +162,7 @@ impl ProductConfig {
 
     #[cfg(test)]
     fn with_execution_write_port(mut self, port: Arc<dyn ExecutionWritePort>) -> Self {
-        self.stage9_write_ports.execution = Some(port);
+        self.write_ports.execution = Some(port);
         self
     }
 
@@ -171,13 +171,13 @@ impl ProductConfig {
         mut self,
         port: Arc<dyn MarketDataSubscriptionMutationPort>,
     ) -> Self {
-        self.stage9_write_ports.market_data_subscription_mutation = Some(port);
+        self.write_ports.market_data_subscription_mutation = Some(port);
         self
     }
 
     #[cfg(test)]
     fn with_brokers_write_port(mut self, port: Arc<dyn BrokersWritePort>) -> Self {
-        self.stage9_write_ports.brokers = Some(port);
+        self.write_ports.brokers = Some(port);
         self
     }
 
@@ -186,7 +186,7 @@ impl ProductConfig {
         mut self,
         port: Arc<dyn ResearchScreenWritePort>,
     ) -> Self {
-        self.stage9_write_ports.research_screen = Some(port);
+        self.write_ports.research_screen = Some(port);
         self
     }
 
@@ -498,7 +498,7 @@ impl ProductConfig {
 
     #[cfg(test)]
     fn with_system_write_port(mut self, port: Arc<dyn SystemWritePort>) -> Self {
-        self.stage9_write_ports.system = Some(port);
+        self.write_ports.system = Some(port);
         self
     }
 }

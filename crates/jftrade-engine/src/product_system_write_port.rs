@@ -1,10 +1,8 @@
-//! Stage 9 test-cutover leaf for system control mutations.
+//! Product boundary for system control mutations.
 //!
-//! Go remains the only owner of the OpenD runtime, real-trade control plane,
-//! persistence, broker commands, and user-visible side effects.  This leaf
-//! only preserves the HTTP boundary and delegates each mutation to an
-//! explicitly injected test port.  It is intentionally not wired into the
-//! default product profile.
+//! This leaf preserves the HTTP boundary and delegates the OpenD runtime,
+//! real-trade control plane, persistence, broker commands, and user-visible
+//! side effects to the Rust-owned port installed by product composition.
 
 use std::collections::BTreeMap;
 

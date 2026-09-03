@@ -65,7 +65,7 @@ impl PortfolioSnapshotPort for FailingPortfolioSnapshotPort {
 
 fn portfolio_read_fixture() -> PortfolioReadFixture {
     let fixture: PortfolioReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/portfolio-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/portfolio-read.json"
     ))
     .expect("portfolio read fixture");
     assert_eq!(fixture.version, "stage9.portfolio-read.v1");

@@ -5,8 +5,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { spawnChecked } from "./lib/spawn.mjs";
-import { buildStage7Corpus } from "./rust-migration/generate-stage7-corpus.mjs";
-import { validateRouteOwnership } from "./rust-migration/stage9-route-ownership.mjs";
+import { buildApiTransportCorpus } from "./compatibility/generate-api-transport-corpus.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 export const trackedOutputs = Object.freeze([
@@ -46,24 +45,15 @@ export async function assertGeneratedRouteSourcesMatch(
     path.join(outputRoot, "contracts/openapi/openapi.json"),
     "generated OpenAPI",
   );
-  const generatedCorpus = buildStage7Corpus(generatedOpenAPI);
+  const generatedCorpus = buildApiTransportCorpus(generatedOpenAPI);
   const trackedCorpus = await readJson(
-    path.join(expectedRoot, "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json"),
-    "tracked Stage 7 corpus",
+    path.join(expectedRoot, "tests/fixtures/compatibility/api-transport/api-control-plane-corpus.json"),
+    "tracked API transport corpus",
   );
   if (JSON.stringify(generatedCorpus) !== JSON.stringify(trackedCorpus)) {
     throw new Error(
-      "Generated Stage 7 corpus differs from tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",
+      "Generated API transport corpus differs from tests/fixtures/compatibility/api-transport/api-control-plane-corpus.json",
     );
-  }
-
-  const ownership = await readJson(
-    path.join(expectedRoot, "tests/fixtures/rust-migration/stage9/route-ownership.json"),
-    "Stage 9 route ownership ledger",
-  );
-  const ownershipErrors = validateRouteOwnership(generatedCorpus, ownership);
-  if (ownershipErrors.length > 0) {
-    throw new Error(`Generated OpenAPI and route ownership differ:\n${ownershipErrors.join("\n")}`);
   }
 
   const manifest = await readJson(

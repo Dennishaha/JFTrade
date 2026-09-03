@@ -220,7 +220,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           import path from "node:path";
-          import { TRUSTED_BINDING_WORKFLOWS } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
+          import { TRUSTED_BINDING_WORKFLOWS } from "./scripts/release/check-release-evidence-inputs.mjs";
 
           const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
           const parseSafePositiveInteger = (value) => {
@@ -424,7 +424,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf bound-evidence
-          node scripts/rust-migration/bind-release-evidence.mjs \
+          node scripts/release/bind-release-evidence.mjs \
             --payload-root payload \
             --output-root bound-evidence \
             --payload-metadata payload-artifact-metadata.json \
@@ -506,7 +506,7 @@ jobs:
           [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$PAYLOAD_ARTIFACT_DIGEST" ]] || { echo "rehearsal payload artifact digest drift" >&2; exit 1; }
           unzip -q "$archive" -d payload
           [[ -f payload/release-candidate-rehearsal.json && -z "$(find payload -type l -print -quit)" ]] || { echo "rehearsal payload is invalid" >&2; exit 1; }
-          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+          node scripts/release/check-release-candidate-rehearsal.mjs \
             --check --input payload/release-candidate-rehearsal.json \
             --expected-ref refs/heads/release/0.29.0-candidate \
             --expected-tag v0.29.0 \

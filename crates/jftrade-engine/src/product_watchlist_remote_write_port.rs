@@ -1,10 +1,8 @@
-//! Stage 9 test-cutover leaf for the remote watchlist mutation route.
+//! Product boundary for the remote watchlist mutation route.
 //!
-//! Go remains the only production owner of broker resolution, OpenD, remote
-//! watchlist state, and the external mutation. This leaf only binds the
-//! existing HTTP-shaped request, maps the consumer-owned port result to the
-//! Go response envelope, and is intentionally not registered by any default
-//! product profile.
+//! This leaf binds the HTTP-shaped request and delegates broker resolution,
+//! OpenD, remote watchlist state, and the external mutation to the Rust-owned
+//! port installed by product composition.
 
 use std::collections::BTreeMap;
 

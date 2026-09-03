@@ -134,7 +134,7 @@ impl StrategyDefinitionSnapshotPort for FixtureStrategyDefinitionSnapshotPort {
 
 fn strategy_definition_fixture() -> StrategyDefinitionFixture {
     let fixture: StrategyDefinitionFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/strategy-definitions.json"
+        "../../../tests/fixtures/compatibility/api-transport/strategy-definitions.json"
     ))
     .expect("strategy definition fixture");
     assert_eq!(fixture.version, "stage9.strategy-definitions.v1");

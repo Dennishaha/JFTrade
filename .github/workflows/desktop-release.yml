@@ -135,6 +135,7 @@ jobs:
             exit 1
           fi
           echo "Verified required CI run: $ci_url"
+          echo "JFTRADE_SOURCE_CI_URL=$ci_url" >> "$GITHUB_ENV"
 
       - name: Resolve artifact-bound candidate qualification run
         id: resolve_candidate
@@ -261,9 +262,17 @@ jobs:
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: pnpm run check:zero-go
 
-      - name: Verify Stage 9 static release-candidate admission
+      - name: Verify release source admission
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
-        run: node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static
+        run: |
+          source_ref="$JFTRADE_DESKTOP_BUILD_REF"
+          [[ "$source_ref" == refs/heads/* ]] || source_ref="refs/heads/$source_ref"
+          node scripts/release/check-release-source-admission.mjs \
+            --source-ref "$source_ref" \
+            --commit-sha "$(git rev-parse HEAD)" \
+            --planned-release-tag "$JFTRADE_DESKTOP_RELEASE_TAG" \
+            --ci-status success \
+            --ci-url "$JFTRADE_SOURCE_CI_URL"
 
       - name: Audit locked pnpm dependencies
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
@@ -282,8 +291,8 @@ jobs:
       - name: Verify signed updater source contracts
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
         run: |
-          node scripts/rust-migration/check-signed-updater-artifact.mjs --config-only
-          node scripts/rust-migration/check-signed-updater-lifecycle.mjs
+          node scripts/release/check-signed-updater-artifact.mjs --config-only
+          node scripts/release/check-signed-updater-lifecycle.mjs
 
       - name: Build release inputs
         if: env.JFTRADE_DESKTOP_PUBLISH != 'true'
@@ -1114,7 +1123,7 @@ jobs:
           }
           NODE
 
-      - name: Verify artifact-bound Stage 9 release candidate evidence
+      - name: Verify artifact-bound release candidate evidence
         env:
           CANDIDATE_EVIDENCE_CONFIG: ${{ needs.release-inputs.outputs.candidate_config }}
           CANDIDATE_RUN_ID: ${{ needs.release-inputs.outputs.candidate_run_id }}
@@ -1146,7 +1155,7 @@ jobs:
           test -f "$sealed_manifest"
           test -d "$candidate_root"
           mkdir -p artifacts
-          node scripts/rust-migration/check-release-candidate.mjs \
+          node scripts/release/check-release-candidate.mjs \
             --expected-ref "$RELEASE_REF" \
             --expected-tag "$RELEASE_TAG" \
             --expected-commit "$COMMIT_SHA" \
@@ -1156,7 +1165,7 @@ jobs:
             --check \
             --input "$canonical_path" \
             --base-dir "$candidate_root"
-          node scripts/rust-migration/check-release-candidate-bundle.mjs \
+          node scripts/release/check-release-candidate-bundle.mjs \
             --sealed-manifest "$sealed_manifest" \
             --evidence "$canonical_path" \
             --candidate-root "$candidate_root" \

@@ -96,7 +96,7 @@ pub use product_strategy_runtime_status::{
 };
 include!("product_adk_read_port.rs");
 include!("product_market_data_prediction_read_routes.rs");
-include!("product_stage9_write_ports.rs");
+include!("product_write_ports.rs");
 include!("product_auth_session_port.rs");
 #[path = "product_auth_session_write_port.rs"]
 mod product_auth_session_write_port;
@@ -400,7 +400,7 @@ pub struct ProductConfig {
     strategy_runtime_write_port: Option<Arc<dyn StrategyRuntimeWritePort>>,
     auth_session_snapshot_port: Option<Arc<dyn AuthSessionSnapshotPort>>,
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
-    stage9_write_ports: ProductStage9WritePorts,
+    write_ports: ProductWritePorts,
     capabilities: ProductCapabilities,
     production: bool,
     provider_runtime_status: ProductionRuntimeStatus,
@@ -507,7 +507,7 @@ impl ProductConfig {
             strategy_runtime_write_port: None,
             auth_session_snapshot_port: None,
             auth_session_write_port: None,
-            stage9_write_ports: ProductStage9WritePorts::default(),
+            write_ports: ProductWritePorts::default(),
             capabilities: ProductCapabilities::default(),
             production: false,
             provider_runtime_status: ProductionRuntimeStatus::Unavailable,
@@ -578,9 +578,9 @@ include!("product_api_watchlist.rs");
 include!("product_api_portfolio.rs");
 include!("product_api_research.rs");
 include!("product_api_execution.rs");
-include!("product_api_stage9_writes.rs");
+include!("product_api_writes.rs");
 include!("product_api_brokers_write.rs");
-include!("product_api_stage9_helpers.rs");
+include!("product_api_helpers.rs");
 include!("product_api_market_data_provider_read.rs");
 include!("product_api_market_data_catalog_read.rs");
 include!("product_api_market_data_derivative_read.rs");
@@ -606,7 +606,7 @@ include!("product_api_plugins_write.rs");
 include!("product_api_strategy_research_writes.rs");
 include!("product_wire.rs");
 include!("product_wire_strategy_definitions.rs");
-include!("product_wire_stage9.rs");
+include!("product_wire_routes.rs");
 include!("product_wire_helpers.rs");
 include!("product_provider_wire.rs");
 include!("product_wire_watchlist.rs");

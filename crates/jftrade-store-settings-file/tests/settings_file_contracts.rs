@@ -176,13 +176,13 @@ fn settings_writer_lease_conflicts_but_read_only_shadow_stays_available() {
 }
 
 #[test]
-fn stage9_product_corpus_matches_go_and_preserves_unowned_fields() {
+fn product_corpus_replays_frozen_compatibility_and_preserves_unknown_fields() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/rust-migration/stage9/product-slice-corpus.json");
+        .join("../../tests/fixtures/compatibility/api-transport/product-slice-corpus.json");
     let corpus: ProductSliceCorpus = serde_json::from_slice(
         &fs::read(&fixture).unwrap_or_else(|error| panic!("read {}: {error}", fixture.display())),
     )
-    .expect("decode Stage 9 product corpus");
+    .expect("decode frozen product compatibility corpus");
     assert_eq!(corpus.version, "stage9.product-slice.v10");
     assert!(corpus.appearance_cases.len() >= 4);
     for test_case in corpus.appearance_cases {
@@ -699,7 +699,7 @@ impl McpServerRuntimePort for FailingMcpRuntime {
 }
 
 #[test]
-fn stage9_mcp_settings_writes_match_current_go_owner() {
+fn mcp_settings_writes_match_frozen_compatibility_expectations() {
     let directory = tempdir().expect("temporary MCP directory");
     let path = directory.path().join("settings.json");
     fs::write(
@@ -806,13 +806,6 @@ fn stage9_mcp_settings_writes_match_current_go_owner() {
         "runtimeFailureRolledBack": true,
     });
     assert_eq!(actual, expected);
-    if let Ok(reference_path) = std::env::var("JFTRADE_STAGE9_MCP_SETTINGS_WRITE_REFERENCE") {
-        let reference: Value = serde_json::from_slice(
-            &fs::read(reference_path).expect("read Go MCP settings reference"),
-        )
-        .expect("decode Go MCP settings reference");
-        assert_eq!(actual, reference);
-    }
 }
 
 #[derive(Default)]
@@ -834,7 +827,7 @@ impl SecurityRuntimePort for FailingSecurityRuntime {
 }
 
 #[test]
-fn stage9_security_settings_writes_match_current_go_owner() {
+fn security_settings_writes_match_frozen_compatibility_expectations() {
     let directory = tempdir().expect("temporary security directory");
     let path = directory.path().join("settings.json");
     fs::write(
@@ -953,11 +946,4 @@ fn stage9_security_settings_writes_match_current_go_owner() {
         "runtimeFailureRolledBack": true,
     });
     assert_eq!(actual, expected);
-    if let Ok(reference_path) = std::env::var("JFTRADE_STAGE9_SECURITY_SETTINGS_WRITE_REFERENCE") {
-        let reference: Value = serde_json::from_slice(
-            &fs::read(reference_path).expect("read Go security settings reference"),
-        )
-        .expect("decode Go security settings reference");
-        assert_eq!(actual, reference);
-    }
 }

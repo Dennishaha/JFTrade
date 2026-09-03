@@ -24,10 +24,10 @@ JFTrade 当前是 **Futu-first 的本地量化策略研发与半自动执行工�
 - Pine 主路径：`sourceFormat=pine-v6` + `runtime=pine-pinets`。
 - PineTS worker：Node ESM `worker.mjs`，Rust product runtime 通过 localhost gRPC 管理 worker pool 生命周期。
 - 回测和实盘权威边界：PineTS 产出信号、图形输出和 order intents；Rust engine 负责撮合、成交、资金曲线、风控、账户刷新和券商下单调度。
-- 零 Go 主线：278 条 `/api/v1/*` production route 均登记为 `cutover-qualified`、`productionOwner=rust`、`goRemovalStatus=removed`；Go/Wails 源码、模块、生成器、CI/构建入口和运行产物已删除，Tauri 是唯一桌面壳。
-- `0.29.0` 是计划中的首个零 Go 版本；线上最后一个正式 Go 基线是原样发布的 `v0.27.0`，其 tag、commit、安装包地址和官方 checksum 记录在 `last-go-release-baseline.json`，不重建、不补发、不生成新的最终 Go corpus。
-- 当前 closeout 尚未关闭：Stage 9 closeout 仍为 `in_progress`；四平台 package/install/upgrade/uninstall/rollback/runtime smoke、签名 updater、security review、SBOM、rollback artifact、backup/restore 和 post-release smoke 门禁未全部闭合。请用 `pnpm run report:rust:stage9:closeout` 查看当前证据，不要把 release/closeout 写成已完成。
-- 发布资格采用 candidate-ready → tag/publish → post-release closeout 两段式治理。四平台 unsigned rehearsal 使用独立 `rehearsal_passed` receipt 且始终 `releaseQualified=false`；它不读取签名 secret、不创建 tag/Release/updater feed，也不关闭八个正式 gate。
+- 零 Go 主线：278 条 `/api/v1/*` production route 全部由 Rust 注册；Go/Wails 源码、模块、生成器、CI/构建入口和运行产物已删除，Tauri 是唯一桌面壳。
+- `0.29.0` 是计划中的首个零 Go 版本；滚动升级基线记录在 `tests/fixtures/release/upgrade-baselines.json`，当前上一正式版本为线上原样发布的 `v0.27.0`，不重建、不补发。
+- 当前质量门禁按产品能力组织；发布资格由 source admission、candidate evidence、publish 与独立 post-release validation receipt 分层证明。
+- 四平台 unsigned rehearsal 使用独立 `rehearsal_passed` receipt 且始终 `releaseQualified=false`；它不读取签名 secret、不创建 tag/Release/updater feed。
 - 生产 SQLite 由 Rust engine 统一初始化并以唯一 `WriterLease` 声明写属主；数据库损坏、schema drift 或租约冲突会 fail-closed。data-management cleanup/backup/compact/rebuild 走生产 fencing 流程。
 - Rust calendar manager 在生产 composition 中提供持久化、settings reload、source health/backoff、snapshot/cache、start/close/cancel 与控制操作；外部 calendar source 不可用时按各自契约 fail-closed。
 - 许可证注意：`workers/pineworker` 精确依赖 `pinets@0.9.31`，当前 npm license 为 `AGPL-3.0-only`。
@@ -41,10 +41,10 @@ pnpm run test:pineworker
 pnpm run typecheck:pineworker
 pnpm run check:quick              # 当前工作树快速反馈
 pnpm run check:affected           # merge-base affected 集成门禁
-pnpm run check:rust:workspace     # Rust workspace 质量与测试
-pnpm run check:rust:differential  # Stage 2-9 完整 differential
+pnpm run check:rust:static        # fmt、Clippy、架构与依赖策略
+pnpm run test:rust                # 唯一完整 Rust workspace 测试
+pnpm run check:compatibility      # 七类冻结语料 replay
 pnpm run check:rust
-pnpm run check:go-retirement     # 单调递减历史账本，禁止 Go/Wails 回流
 pnpm run check:zero-go           # 当前源码、构建链与传入发布产物的零 Go 不变量
 pnpm run check:rust:target-health # 检测中断编译遗留对象
 pnpm run clean:rust:artifacts     # 确认无 Cargo 进程后显式清理 target
@@ -63,10 +63,10 @@ pnpm run check:tauri-release-runtime
 - [architecture-mermaid.md](architecture-mermaid.md)：项目架构、主要运行链路和开发/发布链路的 Mermaid 图。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
 - [architecture/goroutine-lifecycle-audit.md](architecture/goroutine-lifecycle-audit.md)：历史异步生命周期审计；仅作迁移来源资料，不参与当前状态计算。
-- [architecture/sqlite-query-plan-audit.md](architecture/sqlite-query-plan-audit.md)：9 个 SQLite 数据库的生产查询计划、索引决策与迁移阻断项。
+- [history/go-to-rust/sqlite-query-plan-audit.md](history/go-to-rust/sqlite-query-plan-audit.md)：迁移前 9 个 SQLite 数据库的历史查询计划与索引审计，不参与当前门禁。
 - [architecture/public-package-policy.md](architecture/public-package-policy.md)：历史公开包治理记录；仓库当前没有 Go `pkg/*` 生产 API。
-- [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)：已完成迁移事实、线上兼容基线和 `0.29.0` 放行边界。
-- [architecture/rust-migration-execution-playbook.md](architecture/rust-migration-execution-playbook.md)：零 Go closeout、fixture replay 和发布资格的执行协议。
+- [architecture/quality-gates.md](architecture/quality-gates.md)：永久产品门禁、affected planner 与 CI 并行图。
+- [architecture/release-qualification.md](architecture/release-qualification.md)：候选、发布与发布后证据边界。
 - [testing-strategy.md](testing-strategy.md)：覆盖率分层、PR/main 门禁和真实外部依赖的运行边界。
 - [roadmap.md](roadmap.md)：唯一活动计划入口，只记录尚未完成的高价值事项与验收标准。
 
@@ -111,8 +111,8 @@ pnpm run check:tauri-release-runtime
 - 改自选分组、星标、券商导入或自选快照：先看 [watchlist.md](watchlist.md)
 - 改 PineTS worker、worker pool、embedded asset、发布验收：先看 [pinets-contract-audit.md](pinets-contract-audit.md) 和 [troubleshooting/pinets-worker-release.md](troubleshooting/pinets-worker-release.md)
 - 改回测撮合、订单成交语义或 executionModel：先看 [backtest-execution-model.md](backtest-execution-model.md)
-- 改 Rust workspace、历史兼容 fixture、零 Go owner 或候选依赖：先看 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md)
-- 让 AI/harness 处理零 Go、fixture replay 或 `0.29.0` closeout：先看 [architecture/rust-migration-execution-playbook.md](architecture/rust-migration-execution-playbook.md)，再看 [architecture/go-to-rust-migration.md](architecture/go-to-rust-migration.md) 和对应局部 AGENTS.md
+- 改 Rust workspace、兼容 fixture 或质量门禁：先看 [architecture/quality-gates.md](architecture/quality-gates.md)
+- 改候选、签名、升级回滚或发布后验证：先看 [architecture/release-qualification.md](architecture/release-qualification.md)
 - 改 broker capability、默认选择或新增 adapter：先看 [new-broker-integration-guide.md](new-broker-integration-guide.md) 和 [roadmap.md](roadmap.md)
 - 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 - 查 HTTP、OpenD、ADK、回测或 PineTS 跨链路问题：先看 [operations/observability-troubleshooting.md](operations/observability-troubleshooting.md)

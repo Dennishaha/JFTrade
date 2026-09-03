@@ -1,9 +1,8 @@
-//! Stage 9 test-cutover leaf for Assistant mutation and control routes.
+//! Product boundary for Assistant mutation and control routes.
 //!
-//! Go remains the only owner of Assistant runtime, provider, session/task
-//! stores, approvals, notifications and workflow execution.  This module only
-//! parses the public route boundary and delegates a structured request to an
-//! explicitly injected test port.
+//! This module parses the public route boundary and delegates runtime,
+//! provider, session/task stores, approvals, notifications, and workflow
+//! execution to the Rust-owned port installed by product composition.
 
 use std::collections::BTreeMap;
 

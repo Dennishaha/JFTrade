@@ -3107,10 +3107,9 @@ mod product_production_assembly_tests {
         let handle = start_product(config).await.expect("start product");
         let address = handle.startup_record().address;
         let token = "a".repeat(32);
-        let ledger: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/route-ownership.json"
-        ))
-        .expect("canonical route ledger");
+        let ledger: serde_json::Value =
+            serde_json::from_str(include_str!("product_production_route_manifest.json"))
+                .expect("canonical production route manifest");
 
         for operation in ledger["operations"].as_array().expect("operations") {
             let method = operation["method"].as_str().expect("method");

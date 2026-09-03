@@ -7,7 +7,7 @@ impl ProductApi {
                 body: (!request.body.is_empty()).then(|| request.body.clone()),
                 context: ExecutionWriteContext::Normal,
             },
-            self.stage9_write_ports.execution.as_deref(),
+            self.write_ports.execution.as_deref(),
             &SystemClock.now_rfc3339(),
         );
         execution_write_output(response)
@@ -39,6 +39,6 @@ fn execution_write_output(
 
 fn is_execution_write_path(method: &str, path: &str) -> bool {
     execution_write_routes().iter().any(|(route_method, route)| {
-        *route_method == method && stage9_write_route_matches(path, route)
+        *route_method == method && write_route_matches(path, route)
     })
 }

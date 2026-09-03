@@ -1,4 +1,4 @@
-//! Private Stage 9 boundary for strategy-pine analysis and MCP shadow execution.
+//! Private product boundary for strategy-pine analysis and MCP evaluation.
 //!
 //! This leaf owns HTTP-shaped input validation and the complete opaque wire
 //! projection only. Production composition supplies a verified PineTS gRPC

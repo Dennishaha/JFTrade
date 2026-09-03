@@ -142,7 +142,7 @@ struct ProductHttpResponse {
 
 fn strategy_pine_fixture() -> StrategyPineFixture {
     let fixture: StrategyPineFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/strategy-pine.json"
+        "../../../tests/fixtures/compatibility/api-transport/strategy-pine.json"
     ))
     .expect("strategy-pine product fixture");
     assert_eq!(fixture.version, "stage9.strategy-pine.v1");

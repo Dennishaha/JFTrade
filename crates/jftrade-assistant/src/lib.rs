@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! Provider-neutral Assistant domain shadow for the Go-to-Rust migration.
+//! Provider-neutral Assistant domain and runtime contracts.
 //!
 //! JFTrade owns every exported model and port in this crate. Rig is confined to
 //! [`rig_adapter`], so provider SDK types cannot become persisted business state.

@@ -59,7 +59,7 @@ Integration 不拥有全局 Provider 选择、业务缓存、策略状态或用�
 - `proto/` 是 Futu/Pine 中立 protobuf 源。
 - Web API 类型、reference 和 Rust protobuf 输出是生成物，不手工修改。
 - 公开契约变化运行 `pnpm run generate:docs` 和 `pnpm run check:generated`。
-- 历史 Stage 2–9 fixture 是只读兼容输入；不得生成新的 Go oracle 或在 consumer 侧归一化掉真实差异。
+- 冻结 compatibility fixture 是只读输入；不得从历史实现重新生成，或在 consumer 侧归一化掉真实差异。
 
 ## 最小验证
 
@@ -74,8 +74,8 @@ pnpm run check:rust
 契约变化额外运行 `pnpm run check:generated`。所有变更都必须保持：
 
 ```bash
-pnpm run check:go-retirement
 pnpm run check:zero-go
+pnpm run check:compatibility
 ```
 
 本地门禁不能替代真实平台安装、签名、升级/回滚、SBOM、安全审查或 post-release smoke。

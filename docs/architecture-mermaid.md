@@ -96,31 +96,32 @@ flowchart TB
     OpenAPI --> RouteGate[278 route set gate]
     Proto[proto/futu + proto/pineworker] --> RustProto[Rust private generated types]
     Proto --> NodeProto[Node runtime loader]
-    Fixtures[Stage 2-9 historical fixtures] --> Replay[Rust compatibility replay]
-    Baseline[v0.27.0 published bytes] --> Upgrade[0.29.0 upgrade/rollback drill]
-    RouteGate --> Local[check:rust + check:generated + check:zero-go]
+    Fixtures[Frozen product fixtures] --> Replay[Rust compatibility replay]
+    Baseline[Previous official release bytes] --> Upgrade[Upgrade/rollback drill]
+    RouteGate --> Local[check:rust + check:contracts + check:zero-go]
     Replay --> Local
     Local --> Bundle[Tauri platform bundles]
     Bundle --> ArtifactGate[zero-Go + SBOM/provenance + signing]
     Upgrade --> Candidate[release candidate evidence]
     ArtifactGate --> Candidate
-    Candidate --> Post[post-release smoke + formal closeout]
+    Candidate --> Publish[Manual publish of sealed candidate]
+    Publish --> Post[Independent post-release validation]
 ```
 
 ## 状态边界
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SourceRemoved: 278 Rust owners + zero-Go tree
-    SourceRemoved --> Candidate: platform/signing/upgrade evidence complete
-    Candidate --> Published: release workflow publishes 0.29.0
-    Published --> Closed: four-platform post-release smoke passes
+    [*] --> SourceAdmitted: exact SHA passes Build & Test
+    SourceAdmitted --> Rehearsed: unsigned four-platform rehearsal
+    SourceAdmitted --> CandidateReady: signing, upgrade and security evidence complete
+    CandidateReady --> Published: manual workflow consumes the sealed candidate
+    Published --> Validated: independent post-release validation passes
 
-    note right of SourceRemoved
-      当前状态
-      ownerDeletion passed
-      hardCutReadiness open
+    note right of Rehearsed
+      releaseQualified=false
+      rehearsal artifacts cannot publish
     end note
 ```
 
-历史文档和 fixture 可以记录 Go 来源，但不连接到当前产品图，也不参与 route owner 或 release status 计算。
+历史文档和 fixture 可以记录来源，但不连接到当前产品图，也不参与路由或发布状态计算。

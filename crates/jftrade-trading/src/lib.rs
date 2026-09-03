@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-//! Side-effect-free trading plans and projections used during the Stage 5 shadow.
+//! Side-effect-free trading plans and projections used by the product and compatibility replay.
 
 mod ledger;
 mod model;

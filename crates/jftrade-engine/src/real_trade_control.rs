@@ -56,7 +56,7 @@ pub fn derive_real_trade_control_path(settings_path: &Path) -> PathBuf {
 mod tests {
     use std::fs;
 
-    use serde_json::{Value, json};
+    use serde_json::json;
     use tempfile::tempdir;
 
     use super::{RealTradeControlReader, derive_real_trade_control_path};
@@ -111,9 +111,9 @@ mod tests {
     }
 
     #[test]
-    fn stage9_real_trade_reads_match_current_go_owner() {
+    fn real_trade_reads_replay_frozen_compatibility_cases() {
         let corpus: RealTradeCorpus = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/real-trade-control-corpus.json"
+            "../../../tests/fixtures/compatibility/api-transport/real-trade-control-corpus.json"
         ))
         .expect("real-trade corpus");
         assert_eq!(corpus.version, "stage9.real-trade-read.v1");
@@ -162,29 +162,6 @@ mod tests {
             }));
         }
 
-        let Some(reference_path) = std::env::var_os("JFTRADE_STAGE9_REAL_TRADE_REFERENCE") else {
-            return;
-        };
-        let mut expected: Value = serde_json::from_slice(
-            &fs::read(reference_path).expect("read Go real-trade reference output"),
-        )
-        .expect("decode Go real-trade reference output");
-        let mut actual = json!({"version": corpus.version, "results": results});
-        normalize_json_numbers(&mut expected);
-        normalize_json_numbers(&mut actual);
-        assert_eq!(actual, expected);
-    }
-
-    fn normalize_json_numbers(value: &mut Value) {
-        match value {
-            Value::Number(number) => {
-                if let Some(number) = number.as_f64().and_then(serde_json::Number::from_f64) {
-                    *value = Value::Number(number);
-                }
-            }
-            Value::Array(items) => items.iter_mut().for_each(normalize_json_numbers),
-            Value::Object(fields) => fields.values_mut().for_each(normalize_json_numbers),
-            Value::Null | Value::Bool(_) | Value::String(_) => {}
-        }
+        assert_eq!(results.len(), corpus.cases.len());
     }
 }

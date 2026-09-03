@@ -381,7 +381,7 @@ mod tests {
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
-    struct Stage9Corpus {
+    struct RuntimeCompatibilityCorpus {
         version: String,
         node_version_cases: Vec<NodeVersionCase>,
     }
@@ -450,14 +450,14 @@ mod tests {
     }
 
     #[test]
-    fn stage9_node_version_corpus_matches_go() {
+    fn node_version_corpus_matches_frozen_compatibility_cases() {
         let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/rust-migration/stage9/product-slice-corpus.json");
-        let corpus: Stage9Corpus = serde_json::from_slice(
+            .join("../../tests/fixtures/compatibility/api-transport/product-slice-corpus.json");
+        let corpus: RuntimeCompatibilityCorpus = serde_json::from_slice(
             &std::fs::read(&fixture)
                 .unwrap_or_else(|error| panic!("read {}: {error}", fixture.display())),
         )
-        .expect("decode Stage 9 product corpus");
+        .expect("decode frozen product compatibility corpus");
         assert_eq!(corpus.version, "stage9.product-slice.v10");
         assert!(corpus.node_version_cases.len() >= 4);
         for test_case in corpus.node_version_cases {

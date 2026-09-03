@@ -1,11 +1,8 @@
-//! Stage 9 test-cutover leaf for the seven execution mutation routes.
+//! Product boundary for the seven execution mutation routes.
 //!
-//! Go remains the only owner of broker sessions, pre-trade risk, the execution
-//! ledger, order-update workers, preview/RFQ state, and every command side
-//! effect.  This file only preserves the HTTP-shaped input boundary and lets a
-//! consumer-owned test port replay the Go result.  It is deliberately not
-//! included from `product.rs`; the integration branch may add the smallest
-//! authenticated test-cutover hook after this worker is reviewed.
+//! This file preserves the HTTP-shaped input boundary and delegates broker
+//! sessions, pre-trade risk, the execution ledger, order-update workers,
+//! preview/RFQ state, and command side effects to the Rust-owned product port.
 
 use std::collections::BTreeMap;
 

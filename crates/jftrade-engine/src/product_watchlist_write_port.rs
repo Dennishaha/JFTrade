@@ -47,7 +47,7 @@ pub struct WatchlistWriteResponse {
 /// The integration branch may inject a Go-owned rehearsal adapter here.
 /// Nothing in this port opens SQLite, starts a quote worker, connects OpenD,
 /// or changes the production owner. The only call site is the explicit test
-/// leaf used by the Stage 9 fixture replay.
+/// leaf used by the frozen compatibility replay.
 pub trait WatchlistWritePort: Send + Sync {
     fn mutate(&self, mutation: &WatchlistWriteMutation) -> Result<Value, WatchlistWritePortError>;
 }

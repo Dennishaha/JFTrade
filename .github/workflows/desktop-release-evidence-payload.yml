@@ -149,13 +149,13 @@ jobs:
           release_version="${PLANNED_TAG#v}"
           updater_endpoint="$(jq -r '.endpoint // empty' incoming/updater-config.json)"
           updater_public_key="$(jq -r '.publicKey // empty' incoming/updater-config.json)"
-          node scripts/rust-migration/check-signed-updater-artifact.mjs \
+          node scripts/release/check-signed-updater-artifact.mjs \
             --artifacts incoming/updater-artifacts \
             --feed incoming/updater-feed.json \
             --endpoint "$updater_endpoint" \
             --public-key "$updater_public_key" \
             --expected-version "$release_version"
-          node scripts/rust-migration/check-sbom-provenance.mjs \
+          node scripts/release/check-sbom-provenance.mjs \
             --manifest incoming/sbom-provenance.json \
             --base-dir incoming \
             --require-targets
@@ -199,7 +199,7 @@ jobs:
           SOURCE_ARTIFACT="$(jq -r '.binding.artifact.name // empty' incoming/source-binding.json)"
           SOURCE_ARTIFACT_ID="$(jq -r '.binding.artifact.id // empty' incoming/source-binding.json)"
           SOURCE_ARTIFACT_DIGEST="$(jq -r '.binding.artifact.digest // empty' incoming/source-binding.json)"
-          node scripts/rust-migration/verify-release-evidence-payload.mjs \
+          node scripts/release/verify-release-evidence-payload.mjs \
             --root incoming \
             --repository "$GITHUB_REPOSITORY" \
             --release-ref "$CANDIDATE_REF" \
@@ -354,7 +354,7 @@ jobs:
           [[ "sha256:$(sha256sum "$archive" | awk '{print $1}')" == "$SOURCE_ARTIFACT_DIGEST" ]] || { echo "rehearsal intake artifact digest drift" >&2; exit 1; }
           unzip -q "$archive" -d incoming
           [[ -f incoming/release-candidate-rehearsal.json && -z "$(find incoming -type l -print -quit)" ]] || { echo "rehearsal intake payload is invalid" >&2; exit 1; }
-          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+          node scripts/release/check-release-candidate-rehearsal.mjs \
             --check --input incoming/release-candidate-rehearsal.json \
             --expected-ref refs/heads/release/0.29.0-candidate \
             --expected-tag v0.29.0 \

@@ -556,12 +556,16 @@ jobs:
           copy_one docs/legal/third-party-notices.md THIRD-PARTY-NOTICES.md
 
           node scripts/check-zero-go.mjs --artifact candidate-inputs
-          node scripts/rust-migration/check-stage9-closeout.mjs --candidate-static > candidate-inputs/evidence/candidate-admission.json
+          node scripts/release/check-release-source-admission.mjs \
+            --source-ref "$CANDIDATE_REF" \
+            --commit-sha "$COMMIT_SHA" \
+            --planned-release-tag "$RELEASE_REF" \
+            --ci-status success > candidate-inputs/evidence/candidate-admission.json
           node --input-type=module <<'NODE'
           import { createHash } from "node:crypto";
           import fs from "node:fs";
           import path from "node:path";
-          import { validateExternalEvidenceManifest } from "./scripts/rust-migration/check-release-evidence-inputs.mjs";
+          import { validateExternalEvidenceManifest } from "./scripts/release/check-release-evidence-inputs.mjs";
           const root = "candidate-inputs";
           const tag = process.env.RELEASE_REF;
           const candidateRef = process.env.CANDIDATE_REF;
@@ -626,7 +630,7 @@ jobs:
             if (fs.lstatSync(manifestCursor).isSymbolicLink()) throw new Error("evidence_manifest must not traverse a symlink");
           }
           const manifest = JSON.parse(fs.readFileSync(evidenceManifestPath, "utf8"));
-          const schemaPath = "tests/fixtures/rust-migration/stage9/release-evidence-inputs.schema.json";
+          const schemaPath = "tests/fixtures/release/release-evidence-inputs.schema.json";
           const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
           if (schema.$id !== "https://jftrade.local/schemas/release-evidence-inputs.v2.json"
             || schema.properties?.schemaVersion?.const !== "jftrade.release-evidence-inputs.v2"
@@ -762,7 +766,7 @@ jobs:
           const prerequisites = [
             {
               id: "candidate-admission",
-              kind: "stage9-closeout-admission",
+              kind: "release-source-admission",
               status: "passed",
               releaseRef: sourceRun.ref,
               commitSha,
@@ -770,8 +774,8 @@ jobs:
               sourceWorkflowRun: sourceRun,
               evidence: [{
                 path: "evidence/candidate-admission.json",
-                kind: "stage9-closeout-admission",
-                schemaVersion: "jftrade.stage9-closeout-admission.v1",
+                kind: "release-source-admission",
+                schemaVersion: "jftrade.release-source-admission.v1",
               }],
             },
             ...Object.entries(expectedKinds).map(([id, kind]) => {
@@ -843,7 +847,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p candidate-output
-          node scripts/rust-migration/check-release-candidate.mjs \
+          node scripts/release/check-release-candidate.mjs \
             --build \
             --config candidate-evidence-config.json \
             --base-dir candidate-inputs \
@@ -966,12 +970,12 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync(path.join(root, "sealed-release-bundle.json"), "utf8"));
           for (const entry of manifest.files) fs.copyFileSync(path.join(root, entry.path), path.join(target, entry.path));
           NODE
-          node scripts/rust-migration/check-release-candidate-bundle.mjs \
+          node scripts/release/check-release-candidate-bundle.mjs \
             --sealed-manifest candidate-inputs/sealed-release-bundle.json \
             --evidence candidate-inputs/release-candidate-evidence.json \
             --candidate-root candidate-inputs \
             --release-root sealed-release-check
-          node scripts/rust-migration/check-release-candidate.mjs \
+          node scripts/release/check-release-candidate.mjs \
             --check \
             --input candidate-output/release-candidate-evidence.json \
             --base-dir candidate-inputs \
@@ -1054,7 +1058,7 @@ jobs:
           unzip -q "$archive" -d rehearsal-input
           mapfile -t receipts < <(find rehearsal-input -type f -name release-candidate-rehearsal.json -print)
           [[ "${#receipts[@]}" == 1 && -z "$(find rehearsal-input -type l -print -quit)" ]] || { echo "rehearsal evidence must contain exactly one regular receipt" >&2; exit 1; }
-          node scripts/rust-migration/check-release-candidate-rehearsal.mjs \
+          node scripts/release/check-release-candidate-rehearsal.mjs \
             --check --input "${receipts[0]}" \
             --expected-ref "$CANDIDATE_REF" \
             --expected-tag "$PLANNED_TAG" \

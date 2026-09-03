@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "jftrade.compatibility-manifest.v1",
+  "version": 1,
+  "capability": "desktop-runtime",
+  "sourceRelease": "v0.27.0",
+  "files": [
+    {
+      "path": "desktop-shell-corpus.json",
+      "sha256": "4399d72e1b9c94b78a18759b0481e3d562e564e4db4d44e4f3838ad4b6a53a95"
+    },
+    {
+      "path": "desktop-shell-corpus.expected.json",
+      "sha256": "346ac6cf64ab02d71f98b7b5a55491090f41430f02802708f47a2a53a3ba6f36"
+    },
+    {
+      "path": "resource-baseline.darwin-arm64.json",
+      "sha256": "d9fb43f464cfcb57c2c0cea1b4f5ed50304c1ef041cfb0329c1bae11b27567bf"
+    }
+  ]
+}

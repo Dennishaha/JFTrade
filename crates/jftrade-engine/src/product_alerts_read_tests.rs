@@ -73,7 +73,7 @@ impl AlertSnapshotPort for UnavailableAlertReadPort {
 
 fn alerts_read_fixture() -> AlertsReadFixture {
     let fixture: AlertsReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/alerts-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/alerts-read.json"
     ))
     .expect("alerts read fixture");
     assert_eq!(fixture.version, "stage9.alerts-read.v1");

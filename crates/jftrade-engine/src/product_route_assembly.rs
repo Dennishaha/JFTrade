@@ -335,12 +335,12 @@ fn configured_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         research_read: config.research_read_snapshot_port.is_some(),
         research_preset_read: config.research_preset_read_snapshot_port.is_some(),
         execution_read: config.execution_read_snapshot_port.is_some(),
-        execution_write: config.stage9_write_ports.execution.is_some(),
+        execution_write: config.write_ports.execution.is_some(),
         market_data_provider_read: config
             .market_data_provider_read_snapshot_port
             .is_some(),
         market_data_subscription_mutation: config
-            .stage9_write_ports
+            .write_ports
             .market_data_subscription_mutation
             .is_some(),
         market_data_catalog_read: config
@@ -365,9 +365,9 @@ fn configured_route_ports(config: &ProductConfig) -> ProductRoutePorts {
             .market_data_prediction_read_snapshot_port
             .is_some(),
         broker_read: config.broker_read_snapshot_port.is_some(),
-        brokers_write: config.stage9_write_ports.brokers.is_some(),
+        brokers_write: config.write_ports.brokers.is_some(),
         system_read: config.system_read_snapshot_port.is_some(),
-        system_write: config.stage9_write_ports.system.is_some(),
+        system_write: config.write_ports.system.is_some(),
         backtest_read: config.backtest_read_snapshot_port.is_some(),
         backtest_sync_read: config.backtest_sync_read_snapshot_port.is_some(),
         backtests_write: config.backtests_write_port.is_some(),
@@ -386,7 +386,7 @@ fn configured_route_ports(config: &ProductConfig) -> ProductRoutePorts {
         plugin_uninstall_guidance: config.plugin_uninstall_guidance_snapshot_port.is_some(),
         plugins: config.plugin_snapshot_port.is_some(),
         plugins_write: config.plugin_write_port.is_some(),
-        research_screen_write: config.stage9_write_ports.research_screen.is_some(),
+        research_screen_write: config.write_ports.research_screen.is_some(),
         research_preset_write: config.research_preset_write_port.is_some(),
         strategy_definition_write: config.strategy_definition_write_port.is_some(),
         market_data_provider_actions: config
@@ -487,7 +487,7 @@ include!("product_routes_calendar.rs");
 include!("product_routes_data_management.rs");
 include!("product_routes_backtests.rs");
 include!("product_routes_execution.rs");
-include!("product_routes_stage9_writes.rs");
+include!("product_routes_writes.rs");
 include!("product_routes_market_data_provider_read.rs");
 include!("product_routes_market_data_catalog_read.rs");
 include!("product_routes_market_data_derivative_read.rs");

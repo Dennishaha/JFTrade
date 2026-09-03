@@ -62,7 +62,7 @@ struct ProductApi {
     auth_session_write_port: Option<Arc<dyn AuthSessionWritePort>>,
     auth_session_invalidation_port:
         Option<Arc<dyn product_auth_session_manager::AuthSessionInvalidationPort>>,
-    stage9_write_ports: ProductStage9WritePorts,
+    write_ports: ProductWritePorts,
     notification_sequence: AtomicU64,
 }
 impl ProductApi {
@@ -75,7 +75,7 @@ impl ProductApi {
         real_trade_control: RealTradeControlReader,
         optional_ports: ProductOptionalPorts,
     ) -> Self {
-        let research_screen_write_port = optional_ports.stage9_write_ports.research_screen.clone();
+        let research_screen_write_port = optional_ports.write_ports.research_screen.clone();
         let market_data_subscription_mutation =
             new_market_data_subscription_mutation_api(&optional_ports);
         Self {
@@ -142,7 +142,7 @@ impl ProductApi {
             auth_session_snapshot_port: optional_ports.auth_session_snapshot,
             auth_session_write_port: optional_ports.auth_session_write,
             auth_session_invalidation_port: optional_ports.auth_session_invalidation,
-            stage9_write_ports: optional_ports.stage9_write_ports,
+            write_ports: optional_ports.write_ports,
             notification_sequence: AtomicU64::new(0),
         }
     }

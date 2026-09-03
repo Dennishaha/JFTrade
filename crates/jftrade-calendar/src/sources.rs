@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn calendar_source_projection_matches_go_reference_fixture() {
         let fixture: CalendarSourcesFixture = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/calendar-sources.json"
+            "../../../tests/fixtures/compatibility/api-transport/calendar-sources.json"
         ))
         .expect("calendar source fixture");
         assert_eq!(fixture.version, "stage9.calendar-sources.v1");

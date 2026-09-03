@@ -14,15 +14,15 @@ use tonic::{Request, Status};
 use tonic_health::ServingStatus;
 use tonic_health::server::health_reporter;
 
+pub mod api_transport_compatibility;
+pub mod assistant_runtime_compatibility;
 pub mod product;
 mod product_data_management;
 pub mod product_runtime;
+pub mod provider_runtime_compatibility;
 mod real_trade_control;
 mod runtime_dependencies;
-pub mod stage4;
-pub mod stage5;
-pub mod stage6;
-pub mod stage7;
+pub mod trading_strategy_compatibility;
 
 /// Environment variable containing the per-process bridge bearer token.
 pub const AUTH_TOKEN_ENV: &str = "JFTRADE_RUST_ENGINE_TOKEN";
@@ -30,20 +30,20 @@ pub const AUTH_TOKEN_ENV: &str = "JFTRADE_RUST_ENGINE_TOKEN";
 pub const BIND_ADDRESS_ENV: &str = "JFTRADE_RUST_ENGINE_BIND";
 /// Versioned service name used by the standard gRPC health protocol.
 pub const HEALTH_SERVICE_NAME: &str = "jftrade.migration.v1.Engine";
-/// Version of the private Go/Rust migration bridge contract.
+/// Version of the private engine supervision contract.
 pub const PROTOCOL_VERSION: &str = "migration.v1";
 
 const DEFAULT_BIND_ADDRESS: &str = "127.0.0.1:0";
 const MINIMUM_TOKEN_LENGTH: usize = 32;
 
-/// Validated startup configuration for the private migration engine.
+/// Validated startup configuration for the private engine process.
 pub struct EngineConfig {
     bind_address: SocketAddr,
     auth_token: String,
 }
 
 impl EngineConfig {
-    /// Creates a configuration and enforces the Stage 1 loopback/auth boundary.
+    /// Creates a configuration and enforces the loopback/auth boundary.
     pub fn new(
         bind_address: SocketAddr,
         auth_token: impl Into<String>,
@@ -82,7 +82,7 @@ pub struct StartupRecord {
     pub health_service: &'static str,
 }
 
-/// Running migration engine plus its explicit shutdown owner.
+/// Running engine process plus its explicit shutdown owner.
 pub struct EngineHandle {
     startup_record: StartupRecord,
     shutdown_tx: Option<oneshot::Sender<()>>,
@@ -115,7 +115,7 @@ impl Drop for EngineHandle {
     }
 }
 
-/// Errors that prevent the private Stage 1 bridge from starting or stopping cleanly.
+/// Errors that prevent the private engine process from starting or stopping cleanly.
 #[derive(Debug, Error)]
 pub enum EngineError {
     /// The mandatory per-process bearer token is absent.
@@ -127,7 +127,7 @@ pub enum EngineError {
     /// The bind address is not parseable.
     #[error("invalid engine bind address")]
     InvalidBindAddress(#[source] std::net::AddrParseError),
-    /// Stage 1 never permits a non-loopback listener.
+    /// The private engine never permits a non-loopback listener.
     #[error("the migration engine may only bind to a loopback address")]
     NonLoopbackBind,
     /// The listener could not be opened.

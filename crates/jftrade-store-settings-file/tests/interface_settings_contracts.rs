@@ -28,7 +28,7 @@ struct InterfaceSettingsCase {
 #[test]
 fn live_websocket_limit_reads_go_settings_without_mutating_the_shadow_file() {
     let corpus: InterfaceSettingsCorpus = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/live-websocket-interface-settings.json"
+        "../../../tests/fixtures/compatibility/api-transport/live-websocket-interface-settings.json"
     ))
     .expect("interface settings corpus");
     assert_eq!(

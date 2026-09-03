@@ -694,7 +694,7 @@ fn reviewed_mcp_descriptors_expose_strict_per_tool_schemas() {
 #[test]
 fn pine_mcp_schemas_match_canonical_go_fixture() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/pine-mcp/cases.json"
+        "../../../tests/fixtures/compatibility/trading-strategy/pine-mcp-cases.json"
     ))
     .expect("Pine MCP schema fixture");
     let descriptors = tool_descriptors(&catalog());
@@ -716,7 +716,7 @@ fn pine_mcp_schemas_match_canonical_go_fixture() {
 #[test]
 fn reviewed_mcp_schemas_match_canonical_go_fixture_deeply() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/mcp-tool-schemas.json"
+        "../../../tests/fixtures/compatibility/api-transport/mcp-tool-schemas.json"
     ))
     .expect("MCP tool schema fixture");
     assert_eq!(fixture["version"], "stage9.mcp-tool-schemas.v1");
@@ -760,7 +760,7 @@ fn reviewed_mcp_schemas_match_canonical_go_fixture_deeply() {
 #[test]
 fn pine_mcp_payloads_match_canonical_go_fixture_in_off_mode() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/pine-mcp/cases.json"
+        "../../../tests/fixtures/compatibility/trading-strategy/pine-mcp-cases.json"
     ))
     .expect("Pine MCP payload fixture");
     let (_directory, ports) = production_bundle();
@@ -774,14 +774,14 @@ fn pine_mcp_payloads_match_canonical_go_fixture_in_off_mode() {
             .strategy_pine_mcp_with_mode(tool, arguments, "off")
             .unwrap_or_else(|error| panic!("{name}: execute {tool}: {error:?}"));
         assert_eq!(
-            project_stage9_pine_mcp_payload(tool, &actual),
+            project_pine_mcp_compatibility_payload(tool, &actual),
             *expected,
             "Rust payload drifted from Go fixture: {name}"
         );
     }
 }
 
-fn project_stage9_pine_mcp_payload(tool: &str, payload: &Value) -> Value {
+fn project_pine_mcp_compatibility_payload(tool: &str, payload: &Value) -> Value {
     let object = payload
         .as_object()
         .expect("Pine MCP payload must be an object");
@@ -825,7 +825,7 @@ fn project_stage9_pine_mcp_payload(tool: &str, payload: &Value) -> Value {
             }
             projected.insert(
                 "externalEngine".to_owned(),
-                project_stage9_pine_external_engine(
+                project_pine_external_engine_compatibility(
                     object.get("externalEngine"),
                     &[
                         "engine",
@@ -881,7 +881,7 @@ fn project_stage9_pine_mcp_payload(tool: &str, payload: &Value) -> Value {
             );
             projected.insert(
                 "externalEngine".to_owned(),
-                project_stage9_pine_external_engine(
+                project_pine_external_engine_compatibility(
                     object.get("externalEngine"),
                     &[
                         "engine",
@@ -899,7 +899,7 @@ fn project_stage9_pine_mcp_payload(tool: &str, payload: &Value) -> Value {
     }
 }
 
-fn project_stage9_pine_external_engine(value: Option<&Value>, keys: &[&str]) -> Value {
+fn project_pine_external_engine_compatibility(value: Option<&Value>, keys: &[&str]) -> Value {
     let Some(object) = value.and_then(Value::as_object) else {
         return Value::Object(Map::new());
     };

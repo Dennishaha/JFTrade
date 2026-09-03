@@ -1,9 +1,8 @@
-//! Stage 9 test-cutover leaf for strategy instance runtime mutations.
+//! Product boundary for strategy instance runtime mutations.
 //!
-//! Go remains the only production owner of the strategy catalog, runtime
-//! manager, activity state, PineTS lifecycle, subscriptions, notifications,
-//! and SQLite writes. This boundary only binds the existing HTTP-shaped
-//! request and delegates the mutation to a consumer-owned test port.
+//! This boundary binds the HTTP-shaped request and delegates the strategy
+//! catalog, runtime manager, activity state, PineTS lifecycle, subscriptions,
+//! notifications, and SQLite writes to the Rust-owned product port.
 
 use std::collections::BTreeMap;
 

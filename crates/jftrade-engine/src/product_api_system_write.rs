@@ -6,7 +6,7 @@ impl ProductApi {
                 path: request_path_with_query(&request.path, &request.query),
                 body: request.body.clone(),
             },
-            self.stage9_write_ports.system.as_deref(),
+            self.write_ports.system.as_deref(),
             &SystemClock.now_rfc3339(),
         );
         system_write_output(response)
@@ -36,11 +36,11 @@ fn system_write_output(response: SystemWriteResponse) -> Result<ApiOutput, ApiFa
 
 fn is_system_write_path(method: &str, path: &str) -> bool {
     system_write_routes().iter().any(|(route_method, route)| {
-        *route_method == method && stage9_write_route_matches(path, route)
+        *route_method == method && write_route_matches(path, route)
     })
 }
 
-fn stage9_write_route_matches(path: &str, template: &str) -> bool {
+fn write_route_matches(path: &str, template: &str) -> bool {
     let actual = path
         .split('?')
         .next()

@@ -1,9 +1,8 @@
-//! Stage 9 test-cutover leaf for browser authentication session mutations.
+//! Product boundary for browser authentication session mutations.
 //!
-//! Go remains the only owner of password verification, browser-session
-//! storage, CSRF values, expiry, and cookie invalidation. This leaf only
-//! parses the two public route shapes and delegates the stateful operation to
-//! an explicitly injected port.
+//! This leaf parses the two public route shapes and delegates password
+//! verification, browser-session storage, CSRF values, expiry, and cookie
+//! invalidation to the Rust-owned state port installed by product composition.
 
 use std::collections::BTreeMap;
 
@@ -20,7 +19,7 @@ pub const AUTH_SESSION_WRITE_ROUTES: [(&str, &str); 2] =
 /// Transport-only request metadata used by the production auth owner.
 ///
 /// It intentionally lives outside `AuthSessionWriteRequest`: the latter is
-/// the frozen Stage 9 route fixture shape.  Runtime callers can supply the
+/// the frozen compatibility route fixture shape. Runtime callers can supply the
 /// peer/client key and whether the request arrived through a trusted TLS
 /// proxy without changing the public HTTP or fixture contract.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

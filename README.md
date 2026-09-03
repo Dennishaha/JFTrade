@@ -91,8 +91,8 @@ pnpm run test:affected -- --print
 pnpm run check:quick
 pnpm run check:rust
 pnpm run check:generated
-pnpm run check:go-retirement
 pnpm run check:zero-go
+pnpm run check:compatibility
 pnpm run check:all
 ```
 
@@ -113,8 +113,8 @@ pnpm run generate:docs
 - `generate:docs` 在契约生成后刷新参考文档
 - `check:generated` 在临时目录生成全部契约，并逐字节比较需要提交的契约产物，不修改工作树
 - `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
-- `check:go-retirement` 保留单调递减账本，拒绝恢复已删除的 Go/Wails 范围
 - `check:zero-go` 拒绝 Go 源码/模块/命令、Wails 入口，以及传入发布扫描器的 Go/Wails 产物
+- `check:compatibility` 并行回放七类冻结产品语料，不重新生成 golden
 
 `apps/web/src/generated/openapi.ts` 和 `docs/reference/generated/*` 是生成产物，不要手工改；公开契约变化应先修改并审阅 `contracts/openapi/openapi.json`，再运行生成命令。
 
@@ -174,7 +174,7 @@ workers/marketdata-sidecar/ Python market-data helper
 contracts/openapi/         语言无关 OpenAPI 规范源
 proto/                     Futu 与 Pine worker 中立 protobuf 契约
 runtime-assets/            Web、Pine、market-data 发布资产暂存目录
-tests/fixtures/rust-migration/ 历史兼容 corpus 与 Rust replay 输入
+tests/fixtures/compatibility/ 产品能力兼容 corpus 与 Rust replay 输入
 docs/                      用户文档、维护者导航与参考资料
 scripts/                   文档生成、打包和辅助脚本
 ```

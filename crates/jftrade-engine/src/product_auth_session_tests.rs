@@ -145,7 +145,7 @@ impl AuthSessionSnapshotPort for RecordingAuthSessionSnapshotPort {
 
 fn auth_session_fixture() -> AuthSessionFixture {
     let fixture: AuthSessionFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/auth-session.json"
+        "../../../tests/fixtures/compatibility/api-transport/auth-session.json"
     ))
     .expect("auth-session fixture");
     assert_eq!(fixture.version, "stage9.auth-session.v1");

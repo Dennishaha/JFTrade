@@ -8,42 +8,28 @@ import { runExecutionStages } from "./run-test-layer.mjs";
 const pnpmRun = (script) => ["pnpm", ["run", script]];
 const sequentialStage = (...commands) => ({ mode: "sequential", commands });
 const parallelStage = (...commands) => ({ mode: "parallel", commands });
-const healthStage = sequentialStage(pnpmRun("check:rust:target-health"));
-
-const workspaceCoreStages = Object.freeze([
+const staticStages = Object.freeze([
+  sequentialStage(pnpmRun("check:rust:target-health")),
   parallelStage(
-    pnpmRun("check:rust:layout"),
+    pnpmRun("check:rust:architecture"),
     pnpmRun("check:rust:production-policy"),
-    pnpmRun("test:rust:stage9:route-coverage"),
     pnpmRun("format:rust:check"),
   ),
-  sequentialStage(
-    pnpmRun("lint:rust"),
-    pnpmRun("test:rust"),
-  ),
+  sequentialStage(pnpmRun("lint:rust"), pnpmRun("check:rust:policy")),
 ]);
 
-const differentialCoreStages = Object.freeze([
-  parallelStage(
-    pnpmRun("test:rust:differential"),
-    pnpmRun("test:rust:backtest:differential"),
-  ),
-  parallelStage(
-    pnpmRun("test:rust:stage4:differential"),
-    pnpmRun("test:rust:stage5:differential"),
-  ),
-  parallelStage(
-    pnpmRun("test:rust:stage6:differential"),
-    pnpmRun("test:rust:stage7:differential"),
-  ),
-  sequentialStage(pnpmRun("test:rust:stage8:differential")),
-  sequentialStage(pnpmRun("test:rust:stage9:product-differential")),
+const workspaceStages = Object.freeze([
+  sequentialStage(pnpmRun("check:rust:target-health"), pnpmRun("test:rust")),
+  sequentialStage(pnpmRun("check:compatibility")),
 ]);
 
 const rustGateStages = Object.freeze({
-  workspace: Object.freeze([healthStage, ...workspaceCoreStages]),
-  differential: Object.freeze([healthStage, ...differentialCoreStages]),
-  full: Object.freeze([healthStage, ...workspaceCoreStages, ...differentialCoreStages]),
+  static: staticStages,
+  workspace: workspaceStages,
+  full: Object.freeze([
+    ...staticStages,
+    sequentialStage(pnpmRun("test:rust"), pnpmRun("check:compatibility")),
+  ]),
 });
 
 export function executionStagesForRustGate(gate) {
@@ -56,7 +42,7 @@ export function executionStagesForRustGate(gate) {
 async function main() {
   const gate = process.argv[2];
   if (process.argv.length !== 3 || !Object.hasOwn(rustGateStages, gate)) {
-    console.error("Usage: node scripts/run-rust-checks.mjs <workspace|differential|full>");
+    console.error("Usage: node scripts/run-rust-checks.mjs <static|workspace|full>");
     process.exitCode = 2;
     return;
   }

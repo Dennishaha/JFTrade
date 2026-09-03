@@ -10,7 +10,7 @@ import {
   assertTrackedOutputsMatch,
   trackedOutputs,
 } from "./generate-contracts.mjs";
-import { buildStage7Corpus } from "./rust-migration/generate-stage7-corpus.mjs";
+import { buildApiTransportCorpus } from "./compatibility/generate-api-transport-corpus.mjs";
 
 test("compares only language-neutral generated outputs", () => {
   assert.deepEqual(trackedOutputs, [
@@ -47,7 +47,7 @@ test("reports drift using injected roots without requiring ignored local artifac
   );
 });
 
-test("compares freshly generated OpenAPI with corpus, ownership, and Rust manifest", async (t) => {
+test("compares freshly generated OpenAPI with the compatibility corpus and Rust manifest", async (t) => {
   const expectedRoot = await makeRoot();
   const generatedRoot = await makeRoot();
   t.after(() => Promise.all([
@@ -56,28 +56,18 @@ test("compares freshly generated OpenAPI with corpus, ownership, and Rust manife
   ]));
 
   const openapi = { paths: { "/api/v1/system/status": { get: {} } } };
-  const corpus = buildStage7Corpus(openapi);
+  const corpus = buildApiTransportCorpus(openapi);
   const operation = {
     method: "GET",
     path: "/api/v1/system/status",
     capability: "system",
-    implementationStatus: "cutover-qualified",
-    productionOwner: "rust",
-    goRemovalStatus: "removed",
-    dependencies: ["production-adapter"],
-    evidence: ["route-differential"],
   };
   await writeJson(generatedRoot, "contracts/openapi/openapi.json", openapi);
   await writeJson(
     expectedRoot,
-    "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",
+    "tests/fixtures/compatibility/api-transport/api-control-plane-corpus.json",
     corpus,
   );
-  await writeJson(expectedRoot, "tests/fixtures/rust-migration/stage9/route-ownership.json", {
-    version: "stage9.route-ownership.v2",
-    baselineVersion: "stage7.v1",
-    operations: [operation],
-  });
   await writeJson(
     expectedRoot,
     "crates/jftrade-engine/src/product_production_route_manifest.json",
@@ -88,27 +78,27 @@ test("compares freshly generated OpenAPI with corpus, ownership, and Rust manife
 
   await writeJson(
     expectedRoot,
-    "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",
+    "tests/fixtures/compatibility/api-transport/api-control-plane-corpus.json",
     { ...corpus, routes: [] },
   );
   await assert.rejects(
     assertGeneratedRouteSourcesMatch(generatedRoot, { expectedRoot }),
-    /Generated Stage 7 corpus differs/,
+    /Generated API transport corpus differs/,
   );
 
   await writeJson(
     expectedRoot,
-    "tests/fixtures/rust-migration/stage7/api-control-plane-corpus.json",
+    "tests/fixtures/compatibility/api-transport/api-control-plane-corpus.json",
     corpus,
   );
-  await writeJson(expectedRoot, "tests/fixtures/rust-migration/stage9/route-ownership.json", {
-    version: "stage9.route-ownership.v2",
-    baselineVersion: "stage7.v1",
-    operations: [],
-  });
+  await writeJson(
+    expectedRoot,
+    "crates/jftrade-engine/src/product_production_route_manifest.json",
+    { version: "production.v1", operations: [] },
+  );
   await assert.rejects(
     assertGeneratedRouteSourcesMatch(generatedRoot, { expectedRoot }),
-    /Generated OpenAPI and route ownership differ/,
+    /Generated OpenAPI and Rust production route manifest differ/,
   );
 });
 

@@ -61,7 +61,7 @@ impl SystemReadSnapshotPort for FailingSystemReadPort {
 
 fn system_read_fixture() -> SystemReadFixture {
     let fixture: SystemReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/system-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/system-read.json"
     ))
     .expect("system read fixture");
     assert_eq!(fixture.version, "stage9.system-read.v1");

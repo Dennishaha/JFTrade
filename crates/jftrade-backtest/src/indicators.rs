@@ -73,7 +73,7 @@ fn exponential_moving_average(
 /// Calculates an EMA with the initialization semantics used by the PineTS
 /// shadow reference.
 ///
-/// Unlike the stage 3 wire indicator above, this variant emits `NaN` until it
+/// Unlike the fixed-point wire indicator above, this variant emits `NaN` until it
 /// has seen `period` non-`NaN` inputs and seeds the EMA from their arithmetic
 /// mean. `NaN` inputs are skipped and leave the corresponding output as
 /// `NaN`; they do not reset an already initialized EMA.

@@ -41,7 +41,7 @@ struct AvailabilityCase {
 
 fn corpus() -> Corpus {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/rust-migration/stage2/foundation.json");
+        .join("../../tests/fixtures/compatibility/storage/foundation.json");
     serde_json::from_slice(&fs::read(path).expect("read foundation corpus"))
         .expect("decode foundation corpus")
 }

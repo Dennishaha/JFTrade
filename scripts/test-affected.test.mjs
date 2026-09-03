@@ -3,51 +3,54 @@ import test from "node:test";
 
 import {
   changedFiles,
+  fullGatePlan,
+  githubOutputs,
   planAffected,
+  planGateLanes,
   resolveAffectedModules,
   resolveBase,
   resolveFallbackChecks,
   rustAffectedClippyCommands,
+  rustAffectedPackages,
   rustAffectedTestCommands,
   webAffectedTestCommands,
 } from "./test-affected.mjs";
 
-test("maps changed files to the narrowest declared modules", () => {
+const rustWorkspace = [
+  { name: "jftrade-kernel", manifest: "crates/jftrade-kernel/Cargo.toml", dependencies: [] },
+  { name: "jftrade-marketdata", manifest: "crates/jftrade-marketdata/Cargo.toml", dependencies: ["jftrade-kernel"] },
+  { name: "jftrade-engine", manifest: "crates/jftrade-engine/Cargo.toml", dependencies: ["jftrade-marketdata"] },
+  { name: "jftrade-desktop", manifest: "apps/desktop/src-tauri/Cargo.toml", dependencies: ["jftrade-engine"] },
+];
+const rustOptions = { workspace: rustWorkspace, fileExists: () => true, maxAffectedPackages: 8 };
+
+test("maps changed files to declared product modules", () => {
   const modules = resolveAffectedModules([
     "crates/jftrade-marketdata/src/lib.rs",
     "apps/web/src/composables/backtest/useBacktestPage.ts",
   ]);
-  assert.deepEqual(modules.map((module) => module.id), ["rust-foundation", "web"]);
+  assert.deepEqual(modules.map((module) => module.id), ["rust", "web"]);
 });
 
 test("classifies language and generated fallback checks", () => {
-  assert.deepEqual(
-    [...resolveFallbackChecks([
-      "crates/jftrade-engine/src/lib.rs",
-      "apps/web/src/generated/openapi.ts",
-      "scripts/test-affected.mjs",
-      ".github/workflows/ci.yml",
-    ])].sort(),
-    ["generated", "rust", "scripts", "web", "workflows"],
-  );
+  assert.deepEqual([...resolveFallbackChecks([
+    "crates/jftrade-engine/src/lib.rs",
+    "apps/web/src/generated/openapi.ts",
+    "scripts/test-affected.mjs",
+    ".github/workflows/ci.yml",
+  ])].sort(), ["generated", "rust", "scripts", "web", "workflows"]);
 });
 
 test("uses the merge-base for a diverged branch", () => {
   const calls = [];
   const fakeGit = (_root, args) => {
     calls.push(args);
-    if (args[0] === "rev-parse") {
-      return "feature-base";
-    }
-    if (args[0] === "merge-base") {
-      return "merge-base-commit";
-    }
+    if (args[0] === "rev-parse") return "feature-base";
+    if (args[0] === "merge-base") return "merge-base-commit";
     return "";
   };
-
   assert.equal(resolveBase("/tmp/repo", {
-    env: { JFTRADE_DIFF_BASE: "feature-base" },
-    gitCommand: fakeGit,
+    env: { JFTRADE_DIFF_BASE: "feature-base" }, gitCommand: fakeGit,
   }), "merge-base-commit");
   assert.deepEqual(calls, [
     ["rev-parse", "--verify", "feature-base"],
@@ -55,156 +58,143 @@ test("uses the merge-base for a diverged branch", () => {
   ]);
 });
 
-test("returns no files for a clean checkout without probing a fixture repository", () => {
-  const calls = [];
-  const fakeGit = (_root, args) => {
-    calls.push(args);
-    if (args[0] === "rev-parse") return "origin-main";
-    if (args[0] === "merge-base") return "merge-base";
-    return "";
-  };
-
-  assert.deepEqual(changedFiles("/tmp/repo", undefined, { env: {}, gitCommand: fakeGit }), []);
-  assert.deepEqual(calls, [
-    ["rev-parse", "--verify", "origin/main"],
-    ["merge-base", "HEAD", "origin/main"],
-    ["diff", "--name-only", "--diff-filter=ACMRD", "merge-base"],
-    ["ls-files", "--others", "--exclude-standard", "-z"],
-  ]);
+test("fails when no merge base can be resolved", () => {
+  assert.throws(() => resolveBase("/tmp/repo", {
+    env: {}, gitCommand: () => { throw new Error("missing"); },
+  }), /unable to resolve/);
 });
 
-test("uses HEAD as the explicit worktree comparison base", () => {
-  const calls = [];
-  const fakeGit = (_root, args) => {
-    calls.push(args);
-    return "";
-  };
-
-  assert.deepEqual(changedFiles("/tmp/repo", "HEAD", { gitCommand: fakeGit }), []);
-  assert.deepEqual(calls, [
-    ["diff", "--name-only", "--diff-filter=ACMRD", "HEAD"],
-    ["ls-files", "--others", "--exclude-standard", "-z"],
-  ]);
+test("returns changed and untracked files deterministically", () => {
+  const fakeGit = (_root, args) => args[0] === "diff" ? "b\na" : "c\0a\0";
+  assert.deepEqual(changedFiles("/tmp/repo", "HEAD", { gitCommand: fakeGit }), ["a", "b", "c"]);
 });
 
-test("builds a deterministic affected test plan", () => {
-  const plan = planAffected(["workers/pineworker/src/pinetsExecutor.ts"]);
-  assert.equal(plan.modules[0].id, "pineworker");
+test("main always selects every product lane", () => {
+  const plan = planGateLanes(["docs/README.md"], { main: true });
+  assert.equal(plan.full, true);
+  assert.ok(Object.values(plan.lanes).every(Boolean));
+  assert.equal(plan.compatibilityCapabilities.length, 7);
+});
+
+test("workflow Cargo toolchain and gate changes force a full plan", () => {
+  for (const file of [
+    ".github/workflows/ci.yml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "scripts/quality/check-contracts.mjs",
+    "scripts/module-map.json",
+  ]) {
+    const plan = planGateLanes([file]);
+    assert.equal(plan.full, true, file);
+    assert.ok(Object.values(plan.lanes).every(Boolean), file);
+  }
+});
+
+test("unknown product paths fail closed to the full plan", () => {
+  const plan = planGateLanes(["crates-new/jftrade-surprise/src/lib.rs"]);
+  assert.equal(plan.full, true);
+  assert.match(plan.reason, /unknown path/);
+});
+
+test("test-only Rust changes stay in their crate while production changes include reverse dependencies", () => {
+  assert.deepEqual(rustAffectedPackages([
+    "crates/jftrade-kernel/tests/value_contracts.rs",
+  ], rustOptions), ["jftrade-kernel"]);
+  assert.deepEqual(rustAffectedPackages([
+    "crates/jftrade-kernel/src/lib.rs",
+  ], rustOptions), ["jftrade-desktop", "jftrade-engine", "jftrade-kernel", "jftrade-marketdata"]);
+});
+
+test("Rust manifests and metadata failures fall back to the workspace", () => {
+  assert.deepEqual(rustAffectedTestCommands(["Cargo.lock"]), ["pnpm run test:rust"]);
+  assert.deepEqual(rustAffectedClippyCommands(["rust-toolchain.toml"]), ["pnpm run lint:rust"]);
+  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-kernel/src/lib.rs"], {
+    loadWorkspace: () => { throw new Error("metadata failed"); },
+  }), ["pnpm run test:rust"]);
+});
+
+test("maps compatibility fixture changes to exactly one capability", () => {
+  const plan = planGateLanes([
+    "tests/fixtures/compatibility/assistant-runtime/assistant-rig-corpus.json",
+  ]);
+  assert.equal(plan.full, false);
+  assert.equal(plan.lanes.compatibility, true);
+  assert.deepEqual(plan.compatibilityCapabilities, ["assistant-runtime"]);
+});
+
+test("engine production changes select Rust contracts Pine and every compatibility replay", () => {
+  const plan = planGateLanes(["crates/jftrade-engine/src/product.rs"]);
+  assert.equal(plan.full, false);
+  assert.equal(plan.lanes.rust_static, true);
+  assert.equal(plan.lanes.rust_tests, true);
+  assert.equal(plan.lanes.contracts, true);
+  assert.equal(plan.lanes.pine, true);
+  assert.equal(plan.lanes.desktop, true);
+  assert.equal(plan.compatibilityCapabilities.length, 7);
+});
+
+test("production runtime inputs select desktop smoke while test-only changes stay in their lane", () => {
+  for (const file of [
+    "crates/jftrade-kernel/src/lib.rs",
+    "apps/web/src/App.vue",
+    "workers/pineworker/src/main.ts",
+    "workers/marketdata-sidecar/src/marketdata_sidecar/main.py",
+  ]) {
+    const plan = planGateLanes([file]);
+    assert.equal(plan.lanes.desktop, true, file);
+    assert.equal(plan.lanes.contracts, true, `${file} must validate the desktop contract input`);
+  }
+  for (const file of [
+    "crates/jftrade-kernel/tests/value_contracts.rs",
+    "apps/web/src/App.test.ts",
+    "workers/pineworker/tests/runtime.test.ts",
+    "workers/marketdata-sidecar/tests/test_runtime.py",
+  ]) {
+    assert.equal(planGateLanes([file]).lanes.desktop, false, file);
+  }
+});
+
+test("quick local Rust plan is targeted and defers the complete Rust gate", () => {
+  const plan = planAffected(["crates/jftrade-kernel/src/lib.rs"], {
+    withChecks: true, profile: "quick", rustOptions,
+  });
   assert.deepEqual(plan.commands, [
-    "pnpm --filter @jftrade/pineworker run test",
-    "pnpm --filter @jftrade/pineworker run typecheck",
-  ]);
-});
-
-test("runs Rust tests and quality gates for migration engine changes", () => {
-  const plan = planAffected(["crates/jftrade-engine/src/lib.rs"], { withChecks: true });
-  assert.deepEqual(plan.modules.map((module) => module.id), ["rust-foundation"]);
-  assert.deepEqual(plan.commands, [
-    "pnpm run check:diff",
-    "pnpm run check:ai-context",
-    "pnpm run check:go-retirement",
-    "pnpm run check:zero-go",
-    "pnpm run check:rust:layout",
-    "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
-    "pnpm run test:rust:stage9:route-coverage",
+    "pnpm run check:policy",
+    "pnpm run check:contracts",
     "pnpm run check:rust:target-health",
-    "cargo test -p jftrade-desktop -p jftrade-engine --all-targets",
+    "cargo test -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --locked",
     "pnpm run format:rust:check",
-    "cargo clippy -p jftrade-desktop -p jftrade-engine --all-targets --all-features -- -D warnings",
+    "cargo clippy -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --all-features -- -D warnings",
+    "pnpm run check:desktop",
   ]);
+  assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);
 });
 
-test("quick Rust plan selects the changed package and defers the full integration gate", () => {
-  const plan = planAffected(["crates/jftrade-engine/src/lib.rs"], {
+test("quick fail-closed plans run the parallel core preflight and defer complete product validation", () => {
+  const plan = planAffected([".github/workflows/ci.yml"], {
     withChecks: true,
     profile: "quick",
   });
-  assert.deepEqual(plan.commands, [
-    "pnpm run check:diff",
-    "pnpm run check:ai-context",
-    "pnpm run check:go-retirement",
-    "pnpm run check:zero-go",
-    "pnpm run check:rust:layout",
-    "pnpm run check:rust:target-health",
-    "cargo test -p jftrade-desktop -p jftrade-engine --all-targets",
-    "pnpm run format:rust:check",
-    "cargo clippy -p jftrade-desktop -p jftrade-engine --all-targets --all-features -- -D warnings",
-  ]);
-  assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);
+  assert.equal(plan.full, true);
+  assert.deepEqual(plan.commands, ["pnpm run test:preflight"]);
+  assert.deepEqual(plan.deferredCommands, ["pnpm run check:all"]);
 });
 
-test("quick Stage 9 ledger plan runs ownership gates without the product differential", () => {
-  const plan = planAffected([
-    "tests/fixtures/rust-migration/stage9/ledgers/research-preset-read.md",
-  ], { profile: "quick" });
-  assert.deepEqual(plan.commands, [
-    "pnpm run check:rust:layout",
-    "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
-    "pnpm run test:rust:stage9:route-coverage",
-  ]);
-  assert.equal(plan.commands.includes("pnpm run test:rust:stage9:product-differential"), false);
-  assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);
-});
-
-test("full Stage 9 product changes replace overlapping group differentials", () => {
-  const plan = planAffected([
-    "scripts/rust-migration/check-stage9-product-differential.mjs",
-    "scripts/rust-migration/check-stage9-watchlist-write.mjs",
-  ], { profile: "full" });
-  assert.equal(
-    plan.commands.filter((command) => command === "pnpm run test:rust:stage9:product-differential").length,
-    1,
-  );
-  assert.equal(plan.commands.includes("node scripts/rust-migration/check-stage9-watchlist-write.mjs"), false);
-  assert.equal(plan.commands.includes("pnpm run check:rust:target-health"), true);
-});
-
-test("Rust affected commands fall back to the workspace for shared manifests", () => {
-  assert.deepEqual(rustAffectedTestCommands(["Cargo.lock"]), ["pnpm run test:rust"]);
-  assert.deepEqual(rustAffectedClippyCommands(["rust-toolchain.toml"]), ["pnpm run lint:rust"]);
-  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-calendar/src/lib.rs"]), [
-    "cargo test -p jftrade-calendar -p jftrade-desktop -p jftrade-engine --all-targets",
-  ]);
-  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-engine/tests/stage9_alerts.rs"]), [
-    "cargo test -p jftrade-engine --all-targets",
-  ]);
-  assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-kernel/src/lib.rs"]), [
-    "pnpm run test:rust",
-  ]);
-});
-
-test("rejects an unknown affected-test profile", () => {
-  assert.throws(
-    () => planAffected(["crates/jftrade-engine/src/lib.rs"], { profile: "slow" }),
-    /unknown affected-test profile/,
-  );
-});
-
-test("uses the Vitest dependency graph for changed Web sources", () => {
+test("web planner targets direct tests and related sources", () => {
   assert.deepEqual(webAffectedTestCommands([
-    "apps/web/src/features/strategy.ts",
-    "apps/web/tests/pages/StrategyPage.test.ts",
-    "docs/strategy.md",
-  ], { fileExists: () => true }), [
-    "pnpm --filter @jftrade/web exec vitest run 'tests/pages/StrategyPage.test.ts'",
-    "pnpm --filter @jftrade/web exec vitest related --run 'src/features/strategy.ts'",
+    "apps/web/src/foo.test.ts",
+    "apps/web/src/bar.ts",
+    "apps/web/src/deleted.ts",
+  ], { fileExists: (file) => !file.endsWith("deleted.ts"), webRoot: "/repo/apps/web" }), [
+    "pnpm --filter @jftrade/web exec vitest run 'src/foo.test.ts'",
+    "pnpm --filter @jftrade/web exec vitest related --run 'src/bar.ts'",
   ]);
 });
 
-test("classifies deleted Web tests but does not execute their missing path", () => {
-  assert.deepEqual(
-    webAffectedTestCommands(["apps/web/tests/pages/DeletedPage.test.ts"], {
-      fileExists: () => false,
-    }),
-    [],
-  );
-  assert.equal(resolveAffectedModules(["apps/web/tests/pages/DeletedPage.test.ts"])[0].id, "web");
-});
-
-test("runs actionlint only for changed GitHub workflow files", () => {
-  const scriptPlan = planAffected(["scripts/check-diff.mjs"], { withChecks: true });
-  assert.equal(scriptPlan.commands.includes("pnpm run check:actionlint"), false);
-
-  const workflowPlan = planAffected([".github/workflows/ci.yml"], { withChecks: true });
-  assert.equal(workflowPlan.commands.includes("pnpm run check:actionlint"), true);
+test("GitHub outputs expose every lane and capability matrix", () => {
+  const output = githubOutputs(fullGatePlan("fallback"));
+  assert.match(output, /^full=true$/m);
+  assert.match(output, /^rust_tests=true$/m);
+  assert.match(output, /^desktop=true$/m);
+  assert.match(output, /compatibility_capabilities=\["storage"/);
 });

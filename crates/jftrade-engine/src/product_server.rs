@@ -616,24 +616,24 @@ pub(crate) async fn prepare_product_with_runtime_state(
             auth_session_invalidation: production_ports
                 .as_ref()
                 .map(|ports| ports.auth_session_invalidation.clone()),
-            stage9_write_ports: ProductStage9WritePorts {
-                execution: config.stage9_write_ports.execution.clone().or_else(|| {
+            write_ports: ProductWritePorts {
+                execution: config.write_ports.execution.clone().or_else(|| {
                     production_ports
                         .as_ref()
                         .map(|ports| ports.execution_write.clone())
                 }),
-                brokers: config.stage9_write_ports.brokers.clone().or_else(|| {
+                brokers: config.write_ports.brokers.clone().or_else(|| {
                     production_ports
                         .as_ref()
                         .map(|ports| ports.brokers_write.clone())
                 }),
-                system: config.stage9_write_ports.system.clone().or_else(|| {
+                system: config.write_ports.system.clone().or_else(|| {
                     production_ports
                         .as_ref()
                         .map(|ports| ports.system_write.clone())
                 }),
                 market_data_subscription_mutation: config
-                    .stage9_write_ports
+                    .write_ports
                     .market_data_subscription_mutation
                     .clone()
                     .or_else(|| {
@@ -642,7 +642,7 @@ pub(crate) async fn prepare_product_with_runtime_state(
                             .map(|ports| ports.market_data_subscription_mutation.clone())
                     }),
                 research_screen: config
-                    .stage9_write_ports
+                    .write_ports
                     .research_screen
                     .clone()
                     .or_else(|| {

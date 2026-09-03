@@ -97,7 +97,7 @@ impl MarketDataNewsSearchReadSnapshotPort for FailingMarketDataNewsSearchReadPor
 
 fn market_data_news_search_read_fixture() -> MarketDataNewsSearchReadFixture {
     let fixture: MarketDataNewsSearchReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/market-data-news-search-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/market-data-news-search-read.json"
     ))
     .expect("market-data news search fixture");
     assert_eq!(fixture.version, "stage9.market-data-news-search-read.v1");
