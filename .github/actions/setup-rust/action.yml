@@ -6,6 +6,10 @@ inputs:
     description: Whether to cache Cargo registry and build outputs
     required: false
     default: "true"
+  cache-target:
+    description: Whether to cache the target build directory in addition to cargo registry and git
+    required: false
+    default: "true"
   cache-job:
     description: Stable cache namespace for the CI job
     required: false
@@ -53,6 +57,7 @@ runs:
         echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
         echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
         echo "SCCACHE_GHA_VERSION=jftrade-rust-1.97.1-v1" >> "$GITHUB_ENV"
+        echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
         sccache --version
 
     - name: Enable mold on Linux x64
@@ -114,7 +119,11 @@ runs:
         archive_path="$cache_dir/$archive_name"
         download_url="https://github.com/protocolbuffers/protobuf/releases/download/v${version}/${archive_name}"
         mkdir -p "$cache_dir"
-        echo "cache_dir=$cache_dir" >> "$GITHUB_OUTPUT"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "cache_dir=$(cygpath -m "$cache_dir")" >> "$GITHUB_OUTPUT"
+        else
+          echo "cache_dir=$cache_dir" >> "$GITHUB_OUTPUT"
+        fi
         echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
         echo "expected_sha256=$expected_sha256" >> "$GITHUB_OUTPUT"
         echo "executable_name=$executable_name" >> "$GITHUB_OUTPUT"
@@ -188,7 +197,7 @@ runs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
+          ${{ inputs.cache-target == 'true' && 'target' || '' }}
         key: rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-sccache-${{ inputs.sccache }}-linker-${{ inputs.fast-linker }}-1.97.1-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
         restore-keys: |
           rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-sccache-${{ inputs.sccache }}-linker-${{ inputs.fast-linker }}-1.97.1-${{ hashFiles('Cargo.lock') }}-
