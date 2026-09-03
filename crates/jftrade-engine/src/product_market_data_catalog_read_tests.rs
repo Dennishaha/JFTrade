@@ -94,7 +94,7 @@ impl MarketDataCatalogReadSnapshotPort for FailingMarketDataCatalogReadPort {
 
 fn market_data_catalog_read_fixture() -> MarketDataCatalogReadFixture {
     let fixture: MarketDataCatalogReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/market-data-catalog-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/market-data-catalog-read.json"
     ))
     .expect("market-data catalog read fixture");
     assert_eq!(fixture.version, "stage9.market-data-catalog-read.v1");

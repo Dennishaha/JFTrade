@@ -19,7 +19,7 @@ fn unique_database(name: &str) -> PathBuf {
 
 fn fixture_sql() -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/rust-migration/stage2/backtest-readonly.sql");
+        .join("../../tests/fixtures/compatibility/storage/backtest-readonly.sql");
     fs::read_to_string(path).expect("read backtest SQLite fixture")
 }
 

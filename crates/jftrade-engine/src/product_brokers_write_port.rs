@@ -1,10 +1,8 @@
-//! Stage 9 test-cutover leaf for the three broker mutation routes.
+//! Product boundary for the three broker mutation routes.
 //!
-//! Go remains the only owner of broker sessions, OpenD, pre-trade risk, order
-//! state, SQLite, and every trading side effect. This leaf only reproduces the
-//! current HTTP boundary and delegates the already-owned result to an
-//! explicitly injected test port. It is intentionally not included from
-//! `product.rs`; the integration branch owns authenticated test-cutover wiring.
+//! This leaf preserves the HTTP contract and delegates broker sessions, OpenD,
+//! pre-trade risk, order state, SQLite, and trading side effects to the
+//! Rust-owned port installed by product composition.
 
 use std::collections::BTreeMap;
 

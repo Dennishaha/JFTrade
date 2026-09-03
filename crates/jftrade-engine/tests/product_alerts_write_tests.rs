@@ -14,7 +14,7 @@ const FIXTURE_TIMESTAMP: &str = "2026-08-22T04:00:00Z";
 #[test]
 fn alerts_write_routes_match_go_fixture_in_cutover_only() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/alerts-write.json"
+        "../../../tests/fixtures/compatibility/api-transport/alerts-write.json"
     ))
     .expect("alerts-write fixture");
     assert_eq!(fixture["version"], "stage9.alerts-write.v1");

@@ -7,8 +7,9 @@ pub struct AuthSessionSnapshotRequest {
     pub origin_allowed: bool,
 }
 
-/// Consumer-owned session projection. Go remains the only owner of browser
-/// cookies, session expiry, CSRF values, password verification, and invalidation.
+/// Session projection boundary owned by the Rust product composition.
+/// Cookies, expiry, CSRF values, password verification, and invalidation stay
+/// behind this port rather than leaking into the HTTP transport.
 pub trait AuthSessionSnapshotPort: Send + Sync + std::fmt::Debug {
     fn session(
         &self,

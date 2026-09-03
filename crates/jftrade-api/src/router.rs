@@ -35,7 +35,7 @@ use crate::{
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 /// Transport-only metadata for request-scoped auth behavior. It stays outside
-/// the frozen API request DTO so HTTP/OpenAPI and Stage 9 fixtures remain
+/// the frozen API request DTO so HTTP/OpenAPI and compatibility fixtures remain
 /// unchanged.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct RequestContext {

@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn market_data_runtime_projection_matches_go_status_corpus() {
         let corpus: Corpus = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/market-data-runtime-status.json"
+            "../../../tests/fixtures/compatibility/api-transport/market-data-runtime-status.json"
         ))
         .expect("market-data runtime corpus");
         assert_eq!(corpus.version, "stage9.market-data-runtime-status.v1");

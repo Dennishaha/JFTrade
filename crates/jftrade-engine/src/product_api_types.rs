@@ -1,5 +1,5 @@
 #[derive(Clone, Default)]
-struct ProductStage9WritePorts {
+struct ProductWritePorts {
     execution: Option<Arc<dyn ExecutionWritePort>>,
     system: Option<Arc<dyn SystemWritePort>>,
     market_data_subscription_mutation: Option<Arc<dyn MarketDataSubscriptionMutationPort>>,
@@ -65,7 +65,7 @@ struct ProductOptionalPorts {
     auth_session_write: Option<Arc<dyn AuthSessionWritePort>>,
     auth_session_invalidation:
         Option<Arc<dyn product_auth_session_manager::AuthSessionInvalidationPort>>,
-    stage9_write_ports: ProductStage9WritePorts,
+    write_ports: ProductWritePorts,
 }
 
 struct ProductSettingsServices {

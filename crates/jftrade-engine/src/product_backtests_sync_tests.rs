@@ -67,7 +67,7 @@ impl BacktestSyncReadSnapshotPort for FailingBacktestSyncReadPort {
 
 fn backtests_sync_read_fixture() -> BacktestsSyncReadFixture {
     let fixture: BacktestsSyncReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/backtests-sync-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/backtests-sync-read.json"
     ))
     .expect("backtests sync read fixture");
     assert_eq!(fixture.version, "stage9.backtests-sync-read.v1");

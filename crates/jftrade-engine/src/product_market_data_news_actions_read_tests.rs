@@ -97,7 +97,7 @@ impl MarketDataNewsActionsReadSnapshotPort for FailingMarketDataNewsActionsReadP
 
 fn market_data_news_actions_read_fixture() -> MarketDataNewsActionsReadFixture {
     let fixture: MarketDataNewsActionsReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/market-data-news-actions-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/market-data-news-actions-read.json"
     ))
     .expect("market-data news/actions fixture");
     assert_eq!(fixture.version, "stage9.market-data-news-actions-read.v1");

@@ -7,7 +7,7 @@ impl ProductApi {
                 body: (!request.body.is_empty()).then(|| request.body.clone()),
                 context: BrokersWriteContext::Normal,
             },
-            self.stage9_write_ports.brokers.as_deref(),
+            self.write_ports.brokers.as_deref(),
             &SystemClock.now_rfc3339(),
         );
         brokers_write_output(response)
@@ -37,6 +37,6 @@ fn brokers_write_output(response: BrokersWriteResponse) -> Result<ApiOutput, Api
 
 fn is_brokers_write_path(method: &str, path: &str) -> bool {
     brokers_write_routes().iter().any(|(route_method, route)| {
-        *route_method == method && stage9_write_route_matches(path, route)
+        *route_method == method && write_route_matches(path, route)
     })
 }

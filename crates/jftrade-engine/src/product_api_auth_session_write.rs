@@ -10,9 +10,8 @@ impl ProductApi {
             .unwrap_or_default();
         // Production auth state is projected from the persisted security
         // record and the listener runtime. A missing/unhealthy runtime must
-        // fail closed; rehearsal ports retain their historical fixture
-        // behavior so Stage 9 transport tests remain isolated from a real
-        // listener.
+        // fail closed; compatibility ports retain frozen fixture behavior so
+        // transport replay remains isolated from a real listener.
         let (web_access_enabled, web_auth_available) = self
             .settings
             .security

@@ -72,7 +72,7 @@ impl BrokerReadSnapshotPort for FailingBrokerReadPort {
 
 fn broker_read_fixture() -> BrokerReadFixture {
     let fixture: BrokerReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/broker-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/broker-read.json"
     ))
     .expect("broker read fixture");
     assert_eq!(fixture.version, "stage9.broker-read.v1");

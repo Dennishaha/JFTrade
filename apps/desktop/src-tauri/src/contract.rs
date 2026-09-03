@@ -23,7 +23,7 @@ pub const DESKTOP_COMMANDS: [&str; 10] = [
     "desktop_window_open_logs",
 ];
 
-pub const STAGE9_DESKTOP_COMMANDS: [&str; 1] = ["desktop_update_install"];
+pub const DESKTOP_UPDATE_COMMANDS: [&str; 1] = ["desktop_update_install"];
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

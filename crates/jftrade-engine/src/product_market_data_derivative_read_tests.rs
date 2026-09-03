@@ -87,7 +87,7 @@ impl MarketDataDerivativeReadSnapshotPort for FailingMarketDataDerivativesReadPo
 
 fn market_data_derivatives_read_fixture() -> MarketDataDerivativesReadFixture {
     let fixture: MarketDataDerivativesReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/market-data-derivatives-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/market-data-derivatives-read.json"
     ))
     .expect("market-data derivatives fixture");
     assert_eq!(fixture.version, "stage9.market-data-derivatives-read.v1");

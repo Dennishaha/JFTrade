@@ -112,7 +112,7 @@ struct SubResponse {
 
 fn fixture_path(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/rust-migration/stage9")
+        .join("../../tests/fixtures/compatibility/api-transport")
         .join(name)
 }
 

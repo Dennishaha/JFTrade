@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "jftrade.compatibility-manifest.v1",
+  "version": 1,
+  "capability": "trading-strategy",
+  "sourceRelease": "v0.27.0",
+  "files": [
+    {
+      "path": "trading-strategy-corpus.json",
+      "sha256": "d8dd01b492cde8480cf583d65de877323e2d59f5a10389f73457a1d9a77df287"
+    },
+    {
+      "path": "trading-strategy-corpus.expected.json",
+      "sha256": "9a66100ae3f0e6bdfda3f5ff8a517d929f003181d82654ef4820f1a7b0e49439"
+    },
+    {
+      "path": "resource-baseline.darwin-arm64.json",
+      "sha256": "5c9ac67cc9014c7093ef11dc6a925619595219bd45156e3483ce7622a07f7e5a"
+    }
+  ]
+}

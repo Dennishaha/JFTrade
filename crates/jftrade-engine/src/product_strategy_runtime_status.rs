@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn strategy_runtime_projection_matches_go_status_corpus() {
         let corpus: Corpus = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/strategy-runtime-status.json"
+            "../../../tests/fixtures/compatibility/api-transport/strategy-runtime-status.json"
         ))
         .expect("strategy runtime corpus");
         assert_eq!(corpus.version, "stage9.strategy-runtime-status.v1");

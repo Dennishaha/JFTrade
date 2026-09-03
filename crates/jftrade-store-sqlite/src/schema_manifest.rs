@@ -6,7 +6,7 @@ use serde::Deserialize;
 use thiserror::Error;
 
 const SCHEMA_DEFINITIONS: &str =
-    include_str!("../../../tests/fixtures/rust-migration/stage9/sqlite-schema-definitions.json");
+    include_str!("../../../tests/fixtures/compatibility/storage/sqlite-schema-definitions.json");
 const SCHEMA_VERSION: &str = "stage9.sqlite-schema-definitions.v1";
 const METADATA_TABLE: &str = "jftrade_schema_meta";
 // Internal compatibility tables are owned by a production adapter but are
@@ -677,7 +677,7 @@ mod tests {
             )
             .expect("validate exact schema");
             connection
-                .execute_batch("CREATE TABLE rogue_stage9_table (id TEXT PRIMARY KEY)")
+                .execute_batch("CREATE TABLE rogue_compatibility_table (id TEXT PRIMARY KEY)")
                 .expect("create rogue table");
             assert!(matches!(
                 validate_current(

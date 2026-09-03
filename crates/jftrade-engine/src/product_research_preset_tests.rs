@@ -77,7 +77,7 @@ impl ResearchPresetReadSnapshotPort for FailingResearchPresetReadPort {
 
 fn research_preset_read_fixture() -> ResearchPresetReadFixture {
     let fixture: ResearchPresetReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/research-preset-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/research-preset-read.json"
     ))
     .expect("research preset read fixture");
     assert_eq!(fixture.version, "stage9.research-preset-read.v1");

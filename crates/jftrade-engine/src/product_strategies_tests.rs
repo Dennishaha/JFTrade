@@ -77,7 +77,7 @@ impl StrategyReadSnapshotPort for FailingStrategyReadPort {
 
 fn strategy_read_fixture() -> StrategyReadFixture {
     let fixture: StrategyReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/strategy-instance-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/strategy-instance-read.json"
     ))
     .expect("strategy instance read fixture");
     assert_eq!(fixture.version, "stage9.strategy-instance-read.v1");

@@ -187,7 +187,7 @@ impl AdkReadSnapshotPort for FixtureAdkReadSsePort {
 
 fn adk_read_fixture() -> AdkReadFixture {
     let fixture: AdkReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/adk-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/adk-read.json"
     ))
     .expect("ADK read fixture");
     assert_eq!(fixture.version, "stage9.adk-read.v1");
@@ -196,7 +196,7 @@ fn adk_read_fixture() -> AdkReadFixture {
 
 fn adk_read_sse_fixture() -> AdkReadSseFixture {
     let fixture: AdkReadSseFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/adk-read-sse.json"
+        "../../../tests/fixtures/compatibility/api-transport/adk-read-sse.json"
     ))
     .expect("ADK read SSE fixture");
     assert_eq!(fixture.version, "stage9.adk-read-sse.v1");

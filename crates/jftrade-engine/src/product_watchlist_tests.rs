@@ -110,7 +110,7 @@ impl WatchlistReadSnapshotPort for FailingWatchlistReadPort {
 
 fn watchlist_read_fixture() -> WatchlistReadFixture {
     let fixture: WatchlistReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/watchlist-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/watchlist-read.json"
     ))
     .expect("watchlist read fixture");
     assert_eq!(fixture.version, "stage9.watchlist-read.v1");

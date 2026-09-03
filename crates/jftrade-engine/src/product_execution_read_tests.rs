@@ -79,7 +79,7 @@ impl ExecutionReadSnapshotPort for FailingExecutionReadPort {
 
 fn execution_read_fixture() -> ExecutionReadFixture {
     let fixture: ExecutionReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/execution-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/execution-read.json"
     ))
     .expect("execution read fixture");
     assert_eq!(fixture.version, "stage9.execution-read.v1");

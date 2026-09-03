@@ -19,8 +19,6 @@ const activeRoots = [
   "workers",
 ];
 const selfExclusions = new Set([
-  "scripts/check-go-retirement.mjs",
-  "scripts/check-go-retirement.test.mjs",
   "scripts/check-zero-go.mjs",
   "scripts/check-zero-go.test.mjs",
 ]);

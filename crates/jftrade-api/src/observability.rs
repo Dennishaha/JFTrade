@@ -404,9 +404,9 @@ mod tests {
     }
 
     #[test]
-    fn request_observability_matches_stage9_go_corpus() {
+    fn request_observability_matches_frozen_compatibility_corpus() {
         let fixture: ParityFixture = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/request-observability.json"
+            "../../../tests/fixtures/compatibility/api-transport/request-observability.json"
         ))
         .expect("request observability fixture");
         let metrics = TransportMetrics::new(

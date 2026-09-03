@@ -188,7 +188,7 @@ requireText(desktopMetadata, COPYRIGHT_NOTICE, "desktop metadata");
 
 const releaseWorkflow = read(".github/workflows/desktop-release.yml");
 const releaseBundleChecker = read(
-  "scripts/rust-migration/check-release-candidate-bundle.mjs",
+  "scripts/release/check-release-candidate-bundle.mjs",
 );
 requireText(
   releaseWorkflow,

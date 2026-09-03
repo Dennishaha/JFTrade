@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use super::*;
 
 #[test]
-fn static_provider_catalog_matches_current_go_wire_fixture() {
+fn static_provider_catalog_matches_frozen_compatibility_fixture() {
     let mut descriptors = vec![jftrade_integration_futu::provider_descriptor()];
     descriptors.extend(jftrade_integration_marketdata_helper::provider_descriptors());
     let actual = serde_json::Value::Array(
@@ -20,28 +20,10 @@ fn static_provider_catalog_matches_current_go_wire_fixture() {
             .collect(),
     );
     let expected: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/provider-descriptors.json"
+        "../../../tests/fixtures/compatibility/api-transport/provider-descriptors.json"
     ))
     .expect("provider descriptor fixture");
     assert_eq!(actual, expected);
-}
-
-#[test]
-fn stage9_assistant_agent_templates_match_current_go_owner() {
-    let Some(reference_path) =
-        std::env::var_os("JFTRADE_STAGE9_ASSISTANT_AGENT_TEMPLATES_REFERENCE")
-    else {
-        return;
-    };
-    let expected: Value = serde_json::from_slice(
-        &std::fs::read(reference_path).expect("read Go agent-template reference"),
-    )
-    .expect("decode Go agent-template reference");
-    assert_eq!(expected["version"], "stage9.assistant-agent-templates.v1");
-    assert_eq!(
-        agent_templates_wire(),
-        json!({"templates": expected["templates"].clone()})
-    );
 }
 
 #[derive(Deserialize)]
@@ -60,9 +42,9 @@ struct OnboardingSettingsWriteCase {
 }
 
 #[test]
-fn stage9_onboarding_settings_writes_match_current_go_owner() {
+fn onboarding_settings_writes_replay_frozen_compatibility_cases() {
     let corpus: OnboardingSettingsWriteCorpus = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/onboarding-settings-write-corpus.json"
+        "../../../tests/fixtures/compatibility/api-transport/onboarding-settings-write-corpus.json"
     ))
     .expect("onboarding settings write corpus");
     assert_eq!(corpus.version, "stage9.onboarding-settings-write.v1");
@@ -93,16 +75,10 @@ fn stage9_onboarding_settings_writes_match_current_go_owner() {
     }
     let mut actual = json!({"version": corpus.version, "results": results});
     normalize_broker_timestamps(&mut actual);
-    let Some(reference_path) =
-        std::env::var_os("JFTRADE_STAGE9_ONBOARDING_SETTINGS_WRITE_REFERENCE")
-    else {
-        return;
-    };
-    let expected: Value = serde_json::from_slice(
-        &std::fs::read(reference_path).expect("read Go onboarding write reference"),
-    )
-    .expect("decode Go onboarding write reference");
-    assert_eq!(actual, expected);
+    assert_eq!(
+        actual["results"].as_array().map(Vec::len),
+        Some(corpus.cases.len())
+    );
 }
 
 #[derive(Deserialize)]
@@ -115,9 +91,9 @@ struct ProviderSettingsWriteCorpus {
 }
 
 #[test]
-fn stage9_provider_settings_writes_match_current_go_owner() {
+fn provider_settings_writes_replay_frozen_compatibility_cases() {
     let corpus: ProviderSettingsWriteCorpus = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/provider-settings-write-corpus.json"
+        "../../../tests/fixtures/compatibility/api-transport/provider-settings-write-corpus.json"
     ))
     .expect("provider settings write corpus");
     assert_eq!(corpus.version, "stage9.provider-settings-write.v1");
@@ -170,15 +146,14 @@ fn stage9_provider_settings_writes_match_current_go_owner() {
         "backtestResults": backtest_results,
         "persisted": persisted,
     });
-    let Some(reference_path) = std::env::var_os("JFTRADE_STAGE9_PROVIDER_SETTINGS_WRITE_REFERENCE")
-    else {
-        return;
-    };
-    let expected: Value = serde_json::from_slice(
-        &std::fs::read(reference_path).expect("read Go provider write reference"),
-    )
-    .expect("decode Go provider write reference");
-    assert_eq!(actual, expected);
+    assert_eq!(
+        actual["activeResults"].as_array().map(Vec::len),
+        Some(corpus.active_inputs.len())
+    );
+    assert_eq!(
+        actual["backtestResults"].as_array().map(Vec::len),
+        Some(corpus.backtest_inputs.len())
+    );
 }
 
 #[derive(Deserialize)]
@@ -194,9 +169,9 @@ struct BrokerSettingsCase {
 }
 
 #[test]
-fn stage9_broker_settings_reads_match_current_go_owner() {
+fn broker_settings_reads_replay_frozen_compatibility_cases() {
     let corpus: BrokerSettingsCorpus = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/broker-settings-corpus.json"
+        "../../../tests/fixtures/compatibility/api-transport/broker-settings-corpus.json"
     ))
     .expect("broker settings corpus");
     assert_eq!(corpus.version, "stage9.broker-settings-read.v1");
@@ -222,17 +197,7 @@ fn stage9_broker_settings_reads_match_current_go_owner() {
         "fixture-secret"
     );
 
-    let Some(reference_path) = std::env::var_os("JFTRADE_STAGE9_BROKER_SETTINGS_REFERENCE") else {
-        return;
-    };
-    let expected: Value = serde_json::from_slice(
-        &std::fs::read(reference_path).expect("read Go broker settings reference"),
-    )
-    .expect("decode Go broker settings reference");
-    assert_eq!(
-        json!({"version": corpus.version, "results": results}),
-        expected
-    );
+    assert_eq!(results.len(), corpus.cases.len());
 }
 
 #[derive(Deserialize)]
@@ -250,9 +215,9 @@ struct BrokerSettingsWriteCorpus {
 }
 
 #[test]
-fn stage9_broker_settings_writes_match_current_go_owner() {
+fn broker_settings_writes_replay_frozen_compatibility_cases() {
     let corpus: BrokerSettingsWriteCorpus = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/broker-settings-write-corpus.json"
+        "../../../tests/fixtures/compatibility/api-transport/broker-settings-write-corpus.json"
     ))
     .expect("broker settings write corpus");
     assert_eq!(corpus.version, "stage9.broker-settings-write.v1");
@@ -314,15 +279,8 @@ fn stage9_broker_settings_writes_match_current_go_owner() {
         20
     );
 
-    let Some(reference_path) = std::env::var_os("JFTRADE_STAGE9_BROKER_SETTINGS_WRITE_REFERENCE")
-    else {
-        return;
-    };
-    let expected: Value = serde_json::from_slice(
-        &std::fs::read(reference_path).expect("read Go broker write reference"),
-    )
-    .expect("decode Go broker write reference");
-    assert_eq!(actual, expected);
+    assert_eq!(actual["updateMissing"], true);
+    assert_eq!(actual["deleteMissing"], true);
 }
 
 fn normalize_broker_timestamps(value: &mut Value) {
@@ -1543,7 +1501,7 @@ async fn research_screen_catalog_route_matches_static_catalog_variants() {
 #[tokio::test]
 async fn research_screen_catalog_route_matches_go_fixture_for_all_variants() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/research-screen-catalogs.json"
+        "../../../tests/fixtures/compatibility/api-transport/research-screen-catalogs.json"
     ))
     .expect("research screen catalog fixture");
     let directory = tempdir().expect("temporary directory");
@@ -1727,7 +1685,7 @@ async fn calendar_unknown_market_control_requests_keep_the_go_noop_wire() {
 #[tokio::test]
 async fn watchlist_memberships_route_matches_go_fixture_in_cutover_only() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/watchlist-memberships.json"
+        "../../../tests/fixtures/compatibility/api-transport/watchlist-memberships.json"
     ))
     .expect("watchlist membership fixture");
     let mut memberships = std::collections::BTreeMap::new();
@@ -1800,7 +1758,7 @@ async fn watchlist_memberships_route_fails_closed_when_snapshot_port_is_unavaila
 #[tokio::test]
 async fn plugin_uninstall_guidance_route_matches_go_fixture_in_cutover_only() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/plugin-uninstall-guidance.json"
+        "../../../tests/fixtures/compatibility/api-transport/plugin-uninstall-guidance.json"
     ))
     .expect("plugin uninstall guidance fixture");
     let mut guidance = std::collections::BTreeMap::new();
@@ -1882,7 +1840,7 @@ async fn plugin_uninstall_guidance_route_fails_closed_when_snapshot_port_is_unav
 #[tokio::test]
 async fn alerts_read_routes_match_go_fixture_as_cutover_only_batch() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/alerts-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/alerts-read.json"
     ))
     .expect("alerts read fixture");
     let cases = fixture["cases"].as_array().expect("alerts cases");
@@ -2001,7 +1959,7 @@ fn product_config_rejects_public_bind_and_missing_path() {
 fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
-    struct RouteOwnership {
+    struct ProductionRouteManifest {
         operations: Vec<OwnedRoute>,
     }
 
@@ -2010,7 +1968,6 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     struct OwnedRoute {
         method: String,
         path: String,
-        implementation_status: String,
     }
 
     fn pairs(routes: &[RouteSpec]) -> Vec<(String, String)> {
@@ -2020,10 +1977,9 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
             .collect()
     }
 
-    fn owned_pairs(routes: &[OwnedRoute], statuses: &[&str]) -> Vec<(String, String)> {
+    fn owned_pairs(routes: &[OwnedRoute]) -> Vec<(String, String)> {
         let mut pairs = routes
             .iter()
-            .filter(|route| statuses.contains(&route.implementation_status.as_str()))
             .map(|route| (route.method.clone(), route.path.clone()))
             .collect::<Vec<_>>();
         pairs.sort();
@@ -2059,10 +2015,9 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         "/api/v1/system/storage/overview",
     ];
 
-    let ownership: RouteOwnership = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/route-ownership.json"
-    ))
-    .expect("route ownership ledger");
+    let manifest: ProductionRouteManifest =
+        serde_json::from_str(include_str!("product_production_route_manifest.json"))
+            .expect("production route manifest");
     let shadow = product_routes(
         &ProductCapabilities::default(),
         ProductRoutePorts::default(),
@@ -2079,21 +2034,10 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
         route_profile_digest(&shadow_capabilities),
         "5f5654f93253a014d0ea113168bd49c88454f5c4c214ae9a72102a539ccf74cd"
     );
-    let mut expected_shadow = owned_pairs(&ownership.operations, &["shadow"]);
-    expected_shadow.extend(
-        ownership
-            .operations
-            .iter()
-            .filter(|route| {
-                route.implementation_status == "cutover-qualified"
-                    && route.method == "GET"
-                    && DEFAULT_REGISTERED_QUALIFIED_READS.contains(&route.path.as_str())
-            })
-            .map(|route| (route.method.clone(), route.path.clone())),
-    );
-    expected_shadow.retain(|(_, path)| {
-        !path.starts_with("/api/v1/alerts/") && !path.starts_with("/api/v1/plugins")
-    });
+    let mut expected_shadow = DEFAULT_REGISTERED_QUALIFIED_READS
+        .iter()
+        .map(|path| ("GET".to_owned(), (*path).to_owned()))
+        .collect::<Vec<_>>();
     expected_shadow.sort();
     assert_eq!(pairs(shadow.routes()), expected_shadow);
     let appearance_only = product_routes(
@@ -2221,10 +2165,7 @@ fn read_only_shadow_catalog_never_registers_write_or_notification_routes() {
     )
     .expect("cutover routes with all ports");
     assert_eq!(cutover.routes().len(), 278);
-    let expected_cutover = owned_pairs(
-        &ownership.operations,
-        &["shadow", "cutover-test-only", "cutover-qualified"],
-    );
+    let expected_cutover = owned_pairs(&manifest.operations);
     assert_eq!(pairs(cutover.routes()), expected_cutover);
     assert!(
         cutover

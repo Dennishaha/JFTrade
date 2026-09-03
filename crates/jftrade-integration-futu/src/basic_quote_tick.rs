@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn non_finite_price_corpus_matches_go_failure_boundary_and_rust_rejection() {
         let corpus: NonFinitePriceCorpus = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/rust-migration/stage9/basic-quote-nonfinite.json"
+            "../../../tests/fixtures/compatibility/api-transport/basic-quote-nonfinite.json"
         ))
         .expect("non-finite price corpus");
         assert_eq!(corpus.version, "stage9.basic-quote-nonfinite.v1");

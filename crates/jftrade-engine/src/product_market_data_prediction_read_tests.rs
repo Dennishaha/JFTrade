@@ -97,7 +97,7 @@ impl MarketDataPredictionReadSnapshotPort for FailingMarketDataPredictionReadPor
 
 fn market_data_prediction_read_fixture() -> MarketDataPredictionReadFixture {
     let fixture: MarketDataPredictionReadFixture = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/market-data-prediction-read.json"
+        "../../../tests/fixtures/compatibility/api-transport/market-data-prediction-read.json"
     ))
     .expect("market-data prediction fixture");
     assert_eq!(fixture.version, "stage9.market-data-prediction-read.v1");

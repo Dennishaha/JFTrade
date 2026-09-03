@@ -138,7 +138,7 @@ impl ApiPort for ProductApi {
                 ("GET", "/api/v1/system/worker/broker-order-updates") => {
                     self.system_read("/api/v1/system/worker/broker-order-updates")
                 }
-                (method, path) if is_system_write_path(method, path) && self.stage9_write_ports.system.is_some() => self.system_write(&request),
+                (method, path) if is_system_write_path(method, path) && self.write_ports.system.is_some() => self.system_write(&request),
                 ("GET", "/api/v1/adk/agent-templates") => {
                     Ok(ApiOutput::Json(agent_templates_wire()))
                 }
@@ -250,14 +250,14 @@ impl ApiPort for ProductApi {
                 ("GET", path) if is_research_preset_read_path(path) => {
                     self.research_preset_read(path, &request.query)
                 }
-                (method, path) if self.is_stage9_write_path(method, path) => self.dispatch_stage9_write(&request),
+                (method, path) if self.is_registered_write_path(method, path) => self.dispatch_registered_write(&request),
                 (method, path) if is_product_write_path(method, path) => {
                     self.product_write_mutation(&request)
                 }
                 ("GET", path) if is_execution_read_path(path) => {
                     self.execution_read(path, &request.query)
                 }
-                (method, path) if is_execution_write_path(method, path) && self.stage9_write_ports.execution.is_some() => self.execution_write(&request),
+                (method, path) if is_execution_write_path(method, path) && self.write_ports.execution.is_some() => self.execution_write(&request),
                 ("GET", path) if is_market_data_provider_read_path(path) => {
                     self.market_data_provider_read(path, &request.query)
                 }

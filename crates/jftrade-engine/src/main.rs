@@ -22,9 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         output.flush()?;
     }
 
-    info!(address = %handle.startup_record().address, "migration engine is ready");
+    info!(address = %handle.startup_record().address, "engine is ready");
     tokio::signal::ctrl_c().await?;
-    info!("migration engine shutdown requested");
+    info!("engine shutdown requested");
     handle.shutdown().await?;
     Ok(())
 }

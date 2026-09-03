@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "jftrade.compatibility-manifest.v1",
+  "version": 1,
+  "capability": "api-transport",
+  "sourceRelease": "v0.27.0",
+  "files": [
+    {
+      "path": "api-control-plane-corpus.json",
+      "sha256": "d3dc24420ecd5c67f6c6354310747fb797f0b110c816059bb836890ddb79fd58"
+    },
+    {
+      "path": "api-control-plane-corpus.expected.json",
+      "sha256": "0c636a82334f977d532f653fa3f59cd12029d1d7f0af1388e93941605daa513a"
+    },
+    {
+      "path": "resource-baseline.darwin-arm64.json",
+      "sha256": "38e3d32e5a907ac98ae7ed99442cac74e418e72e850ca4f699626d4b57abefb9"
+    }
+  ]
+}

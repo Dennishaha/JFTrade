@@ -7,38 +7,39 @@ const commandNames = (gate) => executionStagesForRustGate(gate)
   .flatMap(({ commands }) => commands)
   .map(([, args]) => args.at(-1));
 
-test("workspace Rust gate keeps compile-heavy checks sequential", () => {
+test("workspace Rust gate runs the test suite once before compatibility replay", () => {
   const stages = executionStagesForRustGate("workspace");
-  assert.deepEqual(stages.map(({ mode }) => mode), ["sequential", "parallel", "sequential"]);
+  assert.deepEqual(stages.map(({ mode }) => mode), ["sequential", "sequential"]);
   assert.deepEqual(commandNames("workspace"), [
     "check:rust:target-health",
-    "check:rust:layout",
-    "check:rust:production-policy",
-    "test:rust:stage9:route-coverage",
-    "format:rust:check",
-    "lint:rust",
     "test:rust",
+    "check:compatibility",
   ]);
 });
 
-test("differential Rust gate batches independent stages before Stage 9", () => {
-  const stages = executionStagesForRustGate("differential");
+test("static Rust gate separates independent policy checks from compile-heavy lint", () => {
+  const stages = executionStagesForRustGate("static");
   assert.deepEqual(stages.map(({ mode }) => mode), [
     "sequential",
     "parallel",
-    "parallel",
-    "parallel",
-    "sequential",
     "sequential",
   ]);
-  assert.equal(commandNames("differential").at(-1), "test:rust:stage9:product-differential");
-  assert.equal(new Set(commandNames("differential")).size, 9);
+  assert.deepEqual(commandNames("static"), [
+    "check:rust:target-health",
+    "check:rust:architecture",
+    "check:rust:production-policy",
+    "format:rust:check",
+    "lint:rust",
+    "check:rust:policy",
+  ]);
 });
 
-test("full Rust gate composes workspace and differential checks once", () => {
-  const expected = [...commandNames("workspace"), ...commandNames("differential")];
-  expected.splice(commandNames("workspace").length, 1);
-  assert.deepEqual(commandNames("full"), expected);
+test("full Rust gate composes static, one workspace test, and compatibility once", () => {
+  assert.deepEqual(commandNames("full"), [
+    ...commandNames("static"),
+    "test:rust",
+    "check:compatibility",
+  ]);
   assert.equal(commandNames("full").filter((name) => name === "check:rust:target-health").length, 1);
   assert.throws(() => executionStagesForRustGate("unknown"), /unknown Rust gate/);
 });

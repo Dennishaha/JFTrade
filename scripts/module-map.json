@@ -1,80 +1,72 @@
 {
-  "version": 3,
+  "version": 4,
   "sourceRoots": ["apps", "workers", "crates"],
   "sourceExtensions": [".js", ".mjs", ".py", ".rs", ".ts", ".tsx", ".vue"],
   "ignoredSourcePaths": [],
   "modules": [
     {
-      "id": "rust-foundation",
-      "paths": ["Cargo.toml", "Cargo.lock", "deny.toml", "rust-toolchain.toml", "crates", "scripts/rust-migration", "tests/fixtures/rust-migration"],
-      "entrypoints": ["crates/jftrade-engine/src/bin/jftrade-api-rust.rs"],
-      "affectedTests": [
-        "pnpm run check:rust:layout",
-        "node --test scripts/rust-migration/check-stage9-closeout.test.mjs scripts/rust-migration/stage9-route-ownership.test.mjs",
-        "pnpm run test:rust:stage9:route-coverage"
+      "id": "rust",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "deny.toml",
+        "rust-toolchain.toml",
+        "crates",
+        "tests/fixtures/compatibility"
       ],
-      "quickTests": ["pnpm run check:rust:layout"]
+      "entrypoints": ["crates/jftrade-engine/src/bin/jftrade-api-rust.rs"],
+      "affectedTests": ["pnpm run check:rust"],
+      "quickTests": ["pnpm run check:rust:architecture"]
     },
     {
       "id": "desktop",
       "paths": [
         "apps/desktop/src-tauri",
+        "runtime-assets",
+        "scripts/release",
+        "tests/fixtures/release",
         ".github/workflows/desktop-release.yml",
         ".github/workflows/desktop-release-evidence-source.yml",
         ".github/workflows/desktop-release-evidence-intake.yml",
         ".github/workflows/desktop-release-evidence-payload.yml",
         ".github/workflows/desktop-release-evidence.yml",
         ".github/workflows/desktop-release-qualification.yml",
-        "runtime-assets",
-        "scripts/dev-tauri-frontend.mjs",
-        "scripts/lib/desktop-release-inputs.mjs",
-        "scripts/lib/tauri-runtime.mjs",
-        "scripts/prepare-tauri-release-runtime.mjs",
-        "scripts/run-tauri.mjs",
-        "scripts/run-desktop-release-rehearsal-unix.sh",
-        "scripts/run-desktop-release-rehearsal-windows.ps1",
-        "scripts/smoke-tauri-release.mjs"
+        ".github/workflows/desktop-post-release-validation.yml"
       ],
       "entrypoints": ["apps/desktop/src-tauri/src/main.rs"],
-      "affectedTests": [
-        "pnpm run test:tauri-release-runtime",
-        "pnpm run check:actionlint",
-        "node --test scripts/check-desktop-release-workflow.test.mjs scripts/rust-migration/check-release-evidence-producer.test.mjs"
-      ]
+      "affectedTests": ["pnpm run check:desktop"]
     },
     {
       "id": "contracts",
       "paths": ["contracts", "proto"],
       "entrypoints": ["contracts/openapi/openapi.json"],
-      "affectedTests": ["pnpm run check:generated"],
+      "affectedTests": ["pnpm run check:contracts"],
       "generatedPaths": ["apps/web/src/generated/openapi.ts", "docs/reference/generated"]
     },
     {
       "id": "web",
       "paths": ["apps/web"],
       "entrypoints": ["apps/web/src/pages"],
-      "affectedTests": []
+      "affectedTests": ["pnpm run check:web"]
     },
     {
       "id": "pineworker",
       "paths": ["workers/pineworker"],
       "entrypoints": ["workers/pineworker/src/main.ts"],
-      "affectedTests": [
-        "pnpm --filter @jftrade/pineworker run test",
-        "pnpm --filter @jftrade/pineworker run typecheck"
-      ]
+      "affectedTests": ["pnpm run check:pine"]
     },
     {
       "id": "marketdata-sidecar",
       "paths": ["workers/marketdata-sidecar"],
       "entrypoints": ["workers/marketdata-sidecar/src/marketdata_sidecar/main.py"],
-      "affectedTests": ["workers/marketdata-sidecar/.venv/bin/python -m pytest workers/marketdata-sidecar/tests"]
+      "affectedTests": ["pnpm run check:python"]
     }
   ],
   "requiredInstructionFiles": [
     "AGENTS.md",
     "CLAUDE.md",
-    "docs/architecture/rust-migration-execution-playbook.md",
+    "docs/architecture/quality-gates.md",
+    "docs/architecture/release-qualification.md",
     "apps/web/AGENTS.md",
     "workers/AGENTS.md"
   ],

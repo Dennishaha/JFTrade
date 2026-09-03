@@ -55,80 +55,80 @@ test("Rust bootstrap installs checksum-pinned protoc on every supported runner",
   assert.match(source, /GITHUB_ENV/);
 });
 
-test("Rust CI provisions native headers and detaches compile-only checks from package resources", async () => {
+test("Rust CI separates static tests and native builds while sharing pinned toolchains", async () => {
   const source = await readFile(ciWorkflowPath, "utf8");
-  const rustQuality = source.slice(
-    source.indexOf("  rust-quality:"),
-    source.indexOf("  rust-platform:"),
+  const rustStatic = source.slice(
+    source.indexOf("\n  rust-static:\n"),
+    source.indexOf("\n  rust-tests:\n"),
   );
-  const rustPlatform = source.slice(
-    source.indexOf("  rust-platform:"),
-    source.indexOf("  web-quality:"),
+  const rustTests = source.slice(
+    source.indexOf("\n  rust-tests:\n"),
+    source.indexOf("\n  web:\n"),
   );
   const desktopLinuxSmoke = source.slice(
-    source.indexOf("  desktop-linux-smoke:"),
-    source.indexOf("  desktop-build:"),
+    source.indexOf("\n  desktop-linux-smoke:\n"),
+    source.indexOf("\n  desktop-build:\n"),
   );
   const desktopBuild = source.slice(
-    source.indexOf("  desktop-build:"),
-    source.indexOf("  build-and-test:"),
+    source.indexOf("\n  desktop-build:\n"),
+    source.indexOf("\n  windows-arm64-compile:\n"),
   );
-  const dependencyStep = rustQuality.indexOf(
+  const windowsArm = source.slice(
+    source.indexOf("\n  windows-arm64-compile:\n"),
+    source.indexOf("\n  build-and-test:\n"),
+  );
+  const dependencyStep = rustStatic.indexOf(
     "run: bash scripts/install-linux-desktop-dependencies.sh",
   );
-  const workspaceGate = rustQuality.indexOf("run: pnpm run check:rust");
+  const staticGate = rustStatic.indexOf("run: pnpm run check:rust:static");
   const compileOnlyConfig = `TAURI_CONFIG: '{"bundle":{"resources":[]}}'`;
   const plannedReleaseTag = `JFTRADE_DESKTOP_RELEASE_TAG: "v0.29.0"`;
 
-  assert.match(rustQuality, /timeout-minutes: 90/);
-  assert.match(rustQuality, /JFTRADE_STAGE9_PRODUCT_TIMEOUT_MS: "1800000"/);
-  assert.ok(dependencyStep >= 0, "Rust quality must install Tauri Linux system headers");
-  assert.ok(workspaceGate > dependencyStep, "system headers must be installed before check:rust");
-  assert.ok(
-    rustQuality.includes(compileOnlyConfig),
-    "Rust quality must not require ignored release-package resources",
-  );
-  assert.ok(
-    rustPlatform.includes(compileOnlyConfig),
-    "native compile checks must not require ignored release-package resources",
-  );
-  const platformDependencyStep = rustPlatform.indexOf(
-    "run: bash scripts/install-linux-desktop-dependencies.sh",
-  );
-  const platformCompile = rustPlatform.indexOf(
-    "run: cargo check --workspace --all-targets --locked --target",
-  );
-  assert.ok(
-    platformDependencyStep >= 0,
-    "Linux native compile checks must install Tauri system headers",
-  );
-  assert.ok(
-    rustPlatform.includes("if: ${{ runner.os == 'Linux' }}"),
-    "native header installation must remain Linux-only",
-  );
-  assert.ok(
-    platformCompile > platformDependencyStep,
-    "native headers must be installed before the Linux target check",
-  );
+  assert.ok(dependencyStep >= 0, "Rust static checks must install Tauri Linux headers");
+  assert.ok(staticGate > dependencyStep, "headers must be installed before static checks");
+  assert.ok(rustStatic.includes(compileOnlyConfig));
+  assert.ok(rustTests.includes(compileOnlyConfig));
+  assert.match(rustTests, /Run the Rust workspace test suite once/);
+  assert.match(rustTests, /Replay affected compatibility capabilities in parallel/);
+  assert.doesNotMatch(rustStatic, /needs:.*rust-tests/);
+  assert.doesNotMatch(rustTests, /needs:.*rust-static/);
+  assert.match(windowsArm, /cargo check --workspace --all-targets --locked --target aarch64-pc-windows-msvc/);
   for (const [name, job] of [
     ["PR desktop smoke", desktopLinuxSmoke],
     ["push desktop build", desktopBuild],
   ]) {
+    assert.match(
+      job,
+      /needs: \[gate-plan, contracts, web, pine\]/,
+      `${name} must wait for every desktop build input`,
+    );
+    assert.match(
+      job,
+      /needs\.contracts\.result == 'success'/,
+      `${name} must require contract validation`,
+    );
+    assert.match(job, /pnpm install --frozen-lockfile/, `${name} must install the pinned desktop toolchain`);
     const bindInputs = job.indexOf("node scripts/write-desktop-release-input-manifest.mjs");
     const prepareRuntime = job.indexOf("pnpm run prepare:tauri-release");
-    const testDesktop = job.indexOf("cargo test -p jftrade-desktop");
     assert.ok(bindInputs >= 0, `${name} must bind its downloaded desktop inputs`);
     assert.ok(prepareRuntime > bindInputs, `${name} must bind inputs before preparing resources`);
     assert.ok(prepareRuntime >= 0, `${name} must prepare the Tauri runtime resources`);
-    assert.ok(testDesktop > prepareRuntime, `${name} must prepare resources before desktop tests`);
     assert.ok(
       job.includes(plannedReleaseTag),
       `${name} must bind its unsigned build to the planned release version`,
     );
-    assert.ok(job.includes("target/release/"), `${name} must consume the Cargo workspace target`);
     assert.ok(
       !job.includes("apps/desktop/src-tauri/target"),
       `${name} must not look for workspace artifacts below the Tauri crate`,
     );
   }
+});
+
+test("Rust caches are isolated by job target toolchain lockfile and commit", async () => {
+  const source = await readFile(setupRustPath, "utf8");
+  assert.match(source, /inputs\.target/);
+  assert.match(source, /inputs\.cache-job/);
+  assert.match(source, /1\.97\.1-\$\{\{ hashFiles\('Cargo\.lock'\) \}\}-\$\{\{ github\.sha \}\}/);
+  assert.match(source, /key: protoc-34\.1-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
+  assert.match(source, /key: cargo-deny-0\.20\.2-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
 });

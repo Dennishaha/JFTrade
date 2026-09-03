@@ -595,7 +595,7 @@ fn unknown_market_probe_and_refresh_are_accepted_noops() {
 #[test]
 fn calendar_control_wire_matches_the_current_go_owner_fixture() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/calendar-control.json"
+        "../../../tests/fixtures/compatibility/api-transport/calendar-control.json"
     ))
     .expect("calendar control fixture");
     let events = Arc::new(Mutex::new(Vec::new()));
@@ -656,7 +656,7 @@ fn calendar_control_wire_matches_the_current_go_owner_fixture() {
         fixture["refreshAll"]
     );
     let status_fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../tests/fixtures/rust-migration/stage9/calendar-status.json"
+        "../../../tests/fixtures/compatibility/api-transport/calendar-status.json"
     ))
     .expect("calendar status fixture");
     assert_eq!(

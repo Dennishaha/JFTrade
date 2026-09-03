@@ -37,7 +37,7 @@ test("suite selection is ordered and deduplicated", () => {
 test("CLI lists suites and rejects unknown suites", () => {
   const listed = run("--list");
   assert.equal(listed.status, 0, listed.stderr);
-  assert.match(listed.stdout, /^all\npolicy\ndesktop\n/m);
+  assert.match(listed.stdout, /^all\npolicy\ncompatibility\nrelease\ndesktop\n/m);
 
   const unknown = run("missing");
   assert.equal(unknown.status, 1);
@@ -49,7 +49,7 @@ test("CLI lists suites and rejects unknown suites", () => {
 test("CLI accepts pnpm's explicit argument separator", () => {
   const listed = run("--", "--list");
   assert.equal(listed.status, 0, listed.stderr);
-  assert.match(listed.stdout, /^all\npolicy\ndesktop\n/m);
+  assert.match(listed.stdout, /^all\npolicy\ncompatibility\nrelease\ndesktop\n/m);
 });
 
 function discoverTests(directory) {

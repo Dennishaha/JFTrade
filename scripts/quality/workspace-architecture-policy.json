@@ -1,0 +1,215 @@
+{
+  "version": 2,
+  "bannedCrateSegments": [
+    "common",
+    "shared",
+    "utils",
+    "helpers",
+    "misc",
+    "legacy",
+    "new",
+    "v2"
+  ],
+  "packages": [
+    {
+      "name": "jftrade-desktop",
+      "path": "apps/desktop/src-tauri",
+      "status": "active",
+      "layer": "shell",
+      "allowedWorkspaceDependencies": [
+        "jftrade-engine"
+      ]
+    },
+    {
+      "name": "jftrade-api",
+      "path": "crates/jftrade-api",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-calendar",
+      "path": "crates/jftrade-calendar",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-datamanagement",
+      "path": "crates/jftrade-datamanagement",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-research",
+      "path": "crates/jftrade-research",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-settings",
+      "path": "crates/jftrade-settings",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-watchlist",
+      "path": "crates/jftrade-watchlist",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-assistant",
+      "path": "crates/jftrade-assistant",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-backtest",
+      "path": "crates/jftrade-backtest",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-strategy",
+      "path": "crates/jftrade-strategy",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-trading",
+      "path": "crates/jftrade-trading",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-broker",
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-marketdata",
+      "path": "crates/jftrade-marketdata",
+      "status": "active",
+      "layer": "capability",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-integration-marketdata-helper",
+      "path": "crates/jftrade-integration-marketdata-helper",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-marketdata"
+      ]
+    },
+    {
+      "name": "jftrade-integration-pine",
+      "path": "crates/jftrade-integration-pine",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-backtest"
+      ]
+    },
+    {
+      "name": "jftrade-integration-futu",
+      "path": "crates/jftrade-integration-futu",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-broker",
+        "jftrade-kernel",
+        "jftrade-marketdata",
+        "jftrade-trading"
+      ]
+    },
+    {
+      "name": "jftrade-engine",
+      "path": "crates/jftrade-engine",
+      "status": "active",
+      "layer": "composition",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel",
+        "jftrade-api",
+        "jftrade-assistant",
+        "jftrade-calendar",
+        "jftrade-datamanagement",
+        "jftrade-integration-futu",
+        "jftrade-integration-marketdata-helper",
+        "jftrade-integration-pine",
+        "jftrade-marketdata",
+        "jftrade-owner-lock",
+        "jftrade-research",
+        "jftrade-settings",
+        "jftrade-store-settings-file",
+        "jftrade-store-sqlite",
+        "jftrade-strategy",
+        "jftrade-trading",
+        "jftrade-watchlist"
+      ]
+    },
+    {
+      "name": "jftrade-kernel",
+      "path": "crates/jftrade-kernel",
+      "status": "active",
+      "layer": "foundation",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-broker",
+      "path": "crates/jftrade-broker",
+      "status": "active",
+      "layer": "foundation",
+      "allowedWorkspaceDependencies": [
+        "jftrade-kernel"
+      ]
+    },
+    {
+      "name": "jftrade-owner-lock",
+      "path": "crates/jftrade-owner-lock",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": []
+    },
+    {
+      "name": "jftrade-store-settings-file",
+      "path": "crates/jftrade-store-settings-file",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-owner-lock",
+        "jftrade-settings"
+      ]
+    },
+    {
+      "name": "jftrade-store-sqlite",
+      "path": "crates/jftrade-store-sqlite",
+      "status": "active",
+      "layer": "adapter",
+      "allowedWorkspaceDependencies": [
+        "jftrade-datamanagement",
+        "jftrade-kernel",
+        "jftrade-owner-lock"
+      ]
+    }
+  ]
+}
