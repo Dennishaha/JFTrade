@@ -13,10 +13,10 @@
 
 当前状态只由以下机器可读事实派生：
 
-- `tests/fixtures/rust-migration/stage9/route-ownership.json`
+- `tests/fixtures/compatibility/api-transport/route-ownership.json`
 - `crates/jftrade-engine/src/product_production_route_manifest.json`
-- `tests/fixtures/rust-migration/stage9/closeout-evidence.json`
-- `scripts/rust-migration/layout-policy.json`
+- `tests/fixtures/compatibility/api-transport/closeout-evidence.json`
+- `scripts/quality/workspace-architecture-policy.json`
 - `scripts/module-map.json`
 
 历史 ledger、旧阶段说明、fixture 中的 owner 字样和 Git 提交信息只记录迁移过程，不参与当前路由、owner、删除或发布状态计算。
@@ -25,7 +25,7 @@
 
 线上最后一个正式 Go 版本是 `v0.27.0`，发布 commit 为 `452dea115ca75c51361e8876c2aefd7c009839b8`。完整 release URL、发布时间、安装包 URL、官方 SHA-256 和签名缺口记录在：
 
-- `tests/fixtures/rust-migration/stage9/last-go-release-baseline.json`
+- `tests/fixtures/release/upgrade-baselines.json`
 
 该 tag 是 lightweight tag，没有发布 tag signature 或 detached release signature；macOS 与 Windows 文件名明确标记为 unsigned。这是历史发布事实，不能通过重建或补签改变。资格测试必须：
 

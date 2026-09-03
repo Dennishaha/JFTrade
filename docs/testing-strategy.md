@@ -12,7 +12,7 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 
 关键 Rust 域包括交易和订单、实盘行情、Futu/OpenD、回测和策略执行、安全认证、SQLite schema/migration。关键 Web 的静态 95/90 门槛当前覆盖下单确认、风控、订单状态和实时行情；`BacktestPage` 与 `useBacktestRuns` 仍按关键改动代码门槛检查，但在补足业务场景前不追溯施加静态 95/90 分支门槛。目录归类和实际阈值以 Rust gate、覆盖检查器及 Vitest 配置为准。
 
-`JFTRADE_DIFF_BASE` 指向 PR base SHA（main push 使用前一提交）时，Web 额外检查新增/修改的可执行语句。Rust 变更由 affected crate、反向依赖、Clippy、workspace tests 和 differential replay 覆盖。没有可执行 Web 改动时报告为 `n/a`，不会以空报告伪造覆盖率。
+`JFTRADE_DIFF_BASE` 指向 PR base SHA（main push 使用前一提交）时，Web 额外检查新增/修改的可执行语句。Rust 变更由 affected crate、反向依赖、Clippy、workspace tests 和 compatibility replay 覆盖。没有可执行 Web 改动时报告为 `n/a`，不会以空报告伪造覆盖率。
 
 下列有限契约面要求“完整”，这里的完整是枚举和行为完整，而不是给复杂实现堆到 100% 行覆盖：
 
@@ -33,11 +33,11 @@ JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发�
 | L3 系统回归 | release assets、嵌入 market-data helper 的启动/双 Provider 健康/清理、并发重复；PR 构建 Linux desktop，main 额外执行完整 Rust replay、真实 PineTS backtest smoke 和桌面矩阵 | PR / main |
 | L4 手动重型验证 | race、性能基线与真实 OpenD | manual |
 
-本地开发再按提交范围分为三个入口：`check:quick` 只读取相对 `HEAD` 的当前工作树，运行受影响 crate/package、Rust 反向依赖和迁移静态账本，并列出 deferred integration checks；`check:affected` 按 merge-base 运行完整 affected 集合，但不重复完整 Rust integration gate；`check:rust` 保留全部 Rust workspace 与 Stage 2–9 differential。`check:rust:workspace` 只执行 target health、layout、route coverage、fmt、Clippy 和 workspace tests，`check:rust:differential` 执行全部历史 fixture/corpus 的 Rust replay。target health 对每个 profile 最多扫描 50,000 个中间 `.rcgu.o` 后 fail-fast；该阈值高于一次完整冷门禁的正常产物，并在历史异常目录增长到数十万对象前阻断。独立 Stage 2–8 differential 最多两路并行，Stage 9 product differential 最后串行，避免 Cargo 启动风暴和共享 test-cutover 状态被并发放大。任何 Rust affected 输出中的 `check:rust` deferred 项仍须由集成分支完成。
+本地开发再按提交范围分为三个入口：`check:quick` 只读取相对 `HEAD` 的当前工作树，运行受影响 crate/package、Rust 反向依赖和产品策略检查，并列出 deferred integration checks；`check:affected` 按 merge-base 运行完整 affected 集合；`check:rust` 依次执行 Rust static、唯一一次 workspace tests 和七类 compatibility replay。`check:rust:static` 与 `check:rust:workspace` 供 CI 使用独立 runner 并行执行；workspace tests 结束后，storage、backtest、provider-runtime、trading-strategy、assistant-runtime、api-transport 和 desktop-runtime replay 并行复用已编译 target。target health 对每个 profile 最多扫描 50,000 个中间 `.rcgu.o` 后 fail-fast；该阈值高于一次完整冷门禁的正常产物，并在历史异常目录增长到数十万对象前阻断。任何 Rust affected 输出中的 `check:rust` deferred 项仍须由集成分支完成。
 
-`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。合同和参考文档由独立 job 统一生成并检查一次，再通过 workflow artifact 交给 Rust、Web 资产和 desktop 消费；不依赖合同的 Web 质量、Pine、proto 和 market-data sidecar job 可立即并行。Python lane 运行禁止外部行情网络的 pytest，并由发布矩阵构建、验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main/release matrix 验证 Linux x64、macOS ARM64、Windows x64 和 Windows ARM64 的 helper 资产与对应桌面产物。桌面 job 只有在对应基础门禁全部通过后才启动，最终仍由稳定的 required check 汇总。
+`.github/workflows/ci.yml` 是 PR 与 main 的主门禁。`gate-plan` 对 PR 使用 merge-base affected 计划，遇到未知路径、共享工具链或 planner 错误时 fail closed 为全量；main 始终执行完整核心门禁。Policy 固定运行，Contracts、Rust Static、Rust Tests + Compatibility、Web、Pine、Python 和 Desktop 按依赖图并行。Python lane 运行禁止外部行情网络的 pytest，并由发布矩阵构建、验证 PyInstaller helper。PR 的 desktop lane 只做 Linux 原生 smoke build；main 同时启动 Linux x64、macOS ARM64、Windows x64 构建，Windows ARM64 单独原生编译。桌面 job 只等待 contracts、Web、Pine 和 sidecar 构建输入，不等待 Rust tests，最终仍由稳定的 `Build & Test` required check 汇总。
 
-覆盖 lane 会把命令输出及 Web/worker coverage 报告保存为 CI artifact，并在对应 job summary 摘出总量和增量结果；Rust lane 保存 workspace/replay 输出和发布证据，便于定位失败而不依赖本地复现。
+覆盖 lane 会把命令输出及 Web/worker coverage 报告保存为 CI artifact，并在对应 job summary 摘出总量和增量结果；Rust tests 与 compatibility 在同一 job 中复用 target，便于定位失败且不重复编译。
 
 真实 Futu/OpenD 不属于普通 PR 或 main CI：只能通过 `futu-live.yml` 手动触发，并调度到带 `self-hosted`、`futu`、`opend` 标签的 runner。该 workflow 显式设置 `JFTRADE_FUTU_LIVE_TEST=1`，执行默认 ignored 的 Rust live contract，覆盖 health probe、ProviderRouter activation、managed demand、generation-fenced HK quote cache 与 shutdown release；未连通 OpenD、行情权限不足或没有显式确认时必须失败，绝不把 ignored/跳过当作通过。性能基准保留手动触发；比较 ref 必须显式或由 workflow 固定，不能把单次样本写成发布结论。
 
@@ -62,10 +62,11 @@ pnpm run check:all
 # test:main 是 check:all 的兼容入口
 pnpm run test:main
 
-# Rust workspace 与迁移 differential 的分层入口；check:rust 组合两者
+# Rust static、workspace tests 与产品兼容 replay；check:rust 组合三者
 pnpm run check:rust:target-health
+pnpm run check:rust:static
 pnpm run check:rust:workspace
-pnpm run check:rust:differential
+pnpm run check:compatibility
 pnpm run check:rust
 
 # target health 报告大量中断编译遗留对象时，确认没有 Cargo 进程后显式清理

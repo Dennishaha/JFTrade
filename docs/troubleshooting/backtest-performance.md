@@ -11,7 +11,7 @@
 
 ```bash
 cargo test -p jftrade-backtest -p jftrade-integration-pine --all-targets
-cargo test -p jftrade-engine --test stage9_backtests_write
+cargo test -p jftrade-engine --test backtests_write_compatibility
 pnpm run smoke:pinets-backtest
 ```
 

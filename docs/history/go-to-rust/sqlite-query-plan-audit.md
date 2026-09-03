@@ -1,7 +1,6 @@
 # SQLite 查询计划与索引审计
 
-> 历史审计：本文保留迁移前 Go store 的查询计划、路径和候选索引证据。
-> 当前 SQLite owner 与 schema gate 以 Rust store、迁移事实源和 closeout manifest 为准；本文不参与当前状态计算。
+> 历史审计：本文原样保留迁移前 Go store 的查询计划、路径和候选索引证据，不参与当前架构、SQLite owner 或质量门禁计算。
 
 更新时间：2026-07-29。
 

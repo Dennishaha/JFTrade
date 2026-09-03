@@ -1,6 +1,6 @@
 # Go 公开包治理
 
-> 历史资料：本文记录零 Go 删除前的公开包决策。当前仓库不包含这些 Go 包；本文不参与当前架构、owner、API 或发布状态计算。当前边界以 [architecture.md](../architecture.md) 和 [go-to-rust-migration.md](go-to-rust-migration.md) 为准。
+> 历史资料：本文记录零 Go 删除前的公开包决策。当前仓库不包含这些 Go 包；本文不参与当前架构、owner、API 或发布状态计算。当前边界以 [architecture.md](../architecture.md) 为准，迁移记录见 [history/go-to-rust](../history/go-to-rust/README.md)。
 
 `pkg/*` 表示可被其他 Go module 导入的稳定能力，不是“仓库内多处使用”的同义词。新代码默认放在 `internal/*`；只有稳定的外部复用意图，或者已被其他公开包的 API 暴露，才足以保留在 `pkg/*`。
 

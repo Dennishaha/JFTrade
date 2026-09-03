@@ -54,4 +54,4 @@ workflow 中取得证据后才能关闭 release gate。不要把本地 `cargo` �
 
 ## 零 Go 发布边界
 
-OpenAPI 从 `contracts/openapi/openapi.json` 生成，历史 Stage 2–9 fixture 只由 Rust replay 消费。`start.sh`、`build-release.*`、Tauri 开发和生产入口都执行零 Go 约束；bundle、candidate inputs 和 SBOM/provenance 还会扫描 Go build-info 与 Wails 组件。
+OpenAPI 从 `contracts/openapi/openapi.json` 生成，冻结 compatibility fixture 只由 Rust replay 消费。`start.sh`、`build-release.*`、Tauri 开发和生产入口都执行零 Go 约束；bundle、candidate inputs 和 SBOM/provenance 还会扫描 Go build-info 与 Wails 组件。

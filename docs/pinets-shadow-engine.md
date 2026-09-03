@@ -32,5 +32,5 @@ pnpm run smoke:pinets-backtest
 执行原生 PineTS `RunScript`，检查 metadata/plots，并在结束时停止子进程。普通回归使用固定
 fixture，不读取操作者数据库，也不连接真实行情或交易账户。
 
-历史 Stage 2–9 fixture 中的 shadow/Go 来源描述只用于兼容 replay；不得用旧实现更新 fixture，
+冻结 fixture 中的历史 shadow/来源描述只用于兼容 replay；不得用旧实现更新 fixture，
 也不得把诊断引擎结果解释为生产撮合或实盘授权。

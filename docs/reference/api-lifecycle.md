@@ -22,7 +22,7 @@
 
 以下检查在 CI 中强制执行，不依赖本表：
 
-- `pnpm run test:rust:stage9:route-coverage`：278 条 baseline 路由必须逐条出现在 ownership ledger，并由 Rust production manifest 持有。
+- `pnpm run check:route-contracts`：从 OpenAPI 与 Rust 实际注册目录构造集合，逐条核对 278 条路由的 path、method 与认证策略。
 - `pnpm run check:openapi-quality`：写请求、schema、operationId 和公开错误面满足中立 OpenAPI 规则。
 - `pnpm run check:generated`：`contracts/openapi/openapi.json`、Web 类型和 reference 文档在临时目录生成并逐字节比较。
 - `pnpm run check:rust:production-policy`：生产 route assembly 不允许 forced registration、fallback 或 synthetic success。

@@ -9,7 +9,7 @@
 - `apps/desktop/src-tauri`：Tauri 2 桌面壳、桌面专属服务和受管 API 生命周期
 - `crates/jftrade-engine` + `crates/jftrade-api`：提供前端默认使用的 `/api/v1/*`
 - `crates/jftrade-*`：领域、存储、Futu/Pine/helper integration 与完整 Rust production runtime
-- `tests/fixtures/rust-migration`：历史兼容输入，只由 Rust replay 消费，不是运行时 fallback
+- `tests/fixtures/compatibility`：按产品能力组织的冻结兼容输入，只由 Rust replay 消费，不是运行时 fallback
 
 排查时先分层，不要一上来假设所有问题都在 bbgo 或前端。
 
@@ -23,7 +23,7 @@
 | sidecar              | `crates/jftrade-engine` 装配、`crates/jftrade-api` 提供 transport 的前端适配与控制平面 |
 | `/api/v1/*`          | JFTrade 自有 API 契约                                                               |
 | `/api/*`             | bbgo 原生路由，不是当前控制台接口                                                   |
-| OpenD API port       | 默认 `11110`，Go 原生 TCP/protobuf 使用                                             |
+| OpenD API port       | 默认 `11110`，Rust Futu integration 通过 TCP/protobuf 使用                          |
 | OpenD WebSocket port | 默认 `11111`，FTWebSocket / JavaScript API 使用                                     |
 | observedAt           | 前端实时分桶统一使用的时间参考                                                      |
 
@@ -32,7 +32,7 @@
 1. 进程是不是还活着
 2. 目标端口是不是在监听
 3. 前端连的是哪条路由
-4. 运行时配置是否真的写回到 Go 后端
+4. 运行时配置是否真的写回到 Rust API
 5. OpenD 是没启动、端口填错，还是 accept 路径卡住
 
 ## 快速决策树

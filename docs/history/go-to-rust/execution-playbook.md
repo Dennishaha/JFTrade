@@ -16,7 +16,7 @@
    ```bash
    git status --short --branch
    git diff --cached --name-only
-   node scripts/rust-migration/check-stage9-route-coverage.mjs
+   node scripts/quality/check-contracts.mjs
    pnpm run check:go-retirement
    pnpm run check:zero-go
    ```
