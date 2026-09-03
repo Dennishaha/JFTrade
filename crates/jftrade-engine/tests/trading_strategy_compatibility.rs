@@ -2,13 +2,19 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn fixture_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    Path::new(&manifest_dir)
         .join("../..")
         .join("tests/fixtures/compatibility/trading-strategy")
 }
 
 fn run(input: &Path) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_jftrade-trading-strategy-replay"))
+    let replay = std::env::var_os("NEXTEST_BIN_EXE_jftrade_trading_strategy_replay")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_BIN_EXE_jftrade-trading-strategy-replay")));
+    Command::new(replay)
         .args(["--input", input.to_str().expect("UTF-8 fixture path")])
         .output()
         .expect("trading-strategy replay starts")

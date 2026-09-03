@@ -6,6 +6,24 @@ const setupRustPath = new URL("../.github/actions/setup-rust/action.yml", import
 const ciWorkflowPath = new URL("../.github/workflows/ci.yml", import.meta.url);
 const packageJsonPath = new URL("../package.json", import.meta.url);
 const nextestWrapperPath = new URL("./quality/cargo-nextest.mjs", import.meta.url);
+const archivedReplayTests = new Map([
+  [
+    new URL("../crates/jftrade-engine/tests/api_transport_compatibility.rs", import.meta.url),
+    "NEXTEST_BIN_EXE_jftrade_api_transport_replay",
+  ],
+  [
+    new URL("../crates/jftrade-engine/tests/assistant_runtime_compatibility.rs", import.meta.url),
+    "NEXTEST_BIN_EXE_jftrade_assistant_runtime_replay",
+  ],
+  [
+    new URL("../crates/jftrade-engine/tests/provider_runtime_compatibility.rs", import.meta.url),
+    "NEXTEST_BIN_EXE_jftrade_provider_runtime_replay",
+  ],
+  [
+    new URL("../crates/jftrade-engine/tests/trading_strategy_compatibility.rs", import.meta.url),
+    "NEXTEST_BIN_EXE_jftrade_trading_strategy_replay",
+  ],
+]);
 
 test("Rust bootstrap installs checksum-pinned protoc on every supported runner", async () => {
   const source = await readFile(setupRustPath, "utf8");
@@ -220,6 +238,18 @@ test("local and CI nextest entrypoints preserve all-target coverage", async () =
   assert.match(wrapper, /nextestVersion = "0\.9\.143"/);
   assert.match(wrapper, /archive checksum mismatch/);
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /run-rust-engine-unit-shard/);
+});
+
+test("archived replay tests resolve relocatable nextest runtime paths", async () => {
+  for (const [path, runtimeBinaryVariable] of archivedReplayTests) {
+    const source = await readFile(path, "utf8");
+    assert.ok(
+      source.includes(`std::env::var_os("${runtimeBinaryVariable}")`),
+      `${path.pathname} must resolve its replay binary after archive extraction`,
+    );
+    assert.match(source, /std::env::var_os\("CARGO_MANIFEST_DIR"\)/);
+    assert.doesNotMatch(source, /Command::new\(env!\("CARGO_BIN_EXE_/);
+  }
 });
 
 test("baseline-aware CI jobs fetch merge-base history", async () => {
