@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { rustCompileEnvironment } from "./lib/tauri-runtime.mjs";
+
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const moduleMap = JSON.parse(fs.readFileSync(path.join(repoRoot, "scripts/module-map.json"), "utf8"));
 
@@ -163,9 +165,9 @@ export function rustAffectedTestCommands(files, options = {}) {
 
 export function rustAffectedClippyCommands(files, options = {}) {
   const packages = rustAffectedPackages(files, options);
-  if (packages === null) return ["pnpm run lint:rust"];
+  if (packages === null) return ["pnpm run check:clippy"];
   if (packages.length === 0) return [];
-  return [`cargo clippy ${packages.map((name) => `-p ${name}`).join(" ")} --all-targets --all-features -- -D warnings`];
+  return [`pnpm run check:clippy -- ${packages.map((name) => `-p ${name}`).join(" ")}`];
 }
 
 function emptyLanes() {
@@ -337,10 +339,17 @@ export function planAffected(files, {
   };
 }
 
+export function commandRequiresRustCompileEnvironment(command) {
+  return /^\s*cargo\s+(?:test|check|build|clippy|run)\b/.test(command);
+}
+
 function run(command) {
   console.log(`\n> ${command}`);
+  const env = commandRequiresRustCompileEnvironment(command)
+    ? rustCompileEnvironment(process.env)
+    : process.env;
   return new Promise((complete) => {
-    const child = spawn(command, { cwd: repoRoot, shell: true, stdio: "inherit" });
+    const child = spawn(command, { cwd: repoRoot, shell: true, stdio: "inherit", env });
     child.once("error", () => complete(1));
     child.once("close", (status) => complete(status ?? 1));
   });

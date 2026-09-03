@@ -97,6 +97,10 @@ rust_2018_idioms = { level = "deny", priority = -1 }
 all = "deny"
 dbg_macro = "deny"
 todo = "deny"
+unimplemented = "deny"
+manual_assert = "deny"
+mut_mut = "deny"
+fallible_impl_from = "deny"
 
 [profile.release]
 codegen-units = 1

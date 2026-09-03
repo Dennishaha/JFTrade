@@ -15,7 +15,7 @@ const staticStages = Object.freeze([
     pnpmRun("check:rust:production-policy"),
     pnpmRun("format:rust:check"),
   ),
-  sequentialStage(pnpmRun("lint:rust"), pnpmRun("check:rust:policy")),
+  sequentialStage(pnpmRun("check:clippy"), pnpmRun("check:rust:policy")),
 ]);
 
 const workspaceStages = Object.freeze([

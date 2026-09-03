@@ -41,6 +41,7 @@ pnpm run test:pineworker
 pnpm run typecheck:pineworker
 pnpm run check:quick              # 当前工作树快速反馈
 pnpm run check:affected           # merge-base affected 集成门禁
+pnpm run check:clippy             # 独立只读 Clippy 门禁（--all-targets --all-features --locked -D warnings）
 pnpm run check:rust:static        # fmt、Clippy、架构与依赖策略
 pnpm run test:rust                # 唯一完整 Rust workspace 测试
 pnpm run check:compatibility      # 七类冻结语料 replay

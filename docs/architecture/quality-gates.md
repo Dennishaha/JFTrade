@@ -8,7 +8,8 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 
 - `check:policy`：零 Go、workspace 架构、生产路由策略、测试命名、AI 上下文和 workflow policy。
 - `check:contracts`：OpenAPI、生成物、278 条 Rust 路由与认证策略。
-- `check:rust:static`：target health、fmt、Clippy、workspace architecture、production policy 和 `cargo deny`。
+- `check:clippy`：独立只读 Clippy 门禁，始终固定 `--all-targets --all-features --locked -- -D warnings` 并由统一 runner 注入非打包 Rust 编译环境；`check:rust:clippy` 与 `lint:rust` 为兼容别名。
+- `check:rust:static`：target health、fmt、`check:clippy`、workspace architecture、production policy 和 `cargo deny`。
 - `test:rust`：本地使用固定版本的 cargo-nextest 运行 `--workspace --all-targets --locked`。仓库包装器按平台下载 `0.9.143` 预编译包并验证 SHA-256，因此开发机与 CI 使用同一 runner；Cargo 的 `--all-targets` 本身不包含 doctest，替换 runner 不减少既有测试集合。
 - CI 只构建一次完整 nextest archive，再由四个 matrix runner 对同一 immutable archive 执行 `slice:m/4`。分区发生在完整测试发现之后，unit、integration、bin 和当前 workspace 的全部 target 自动进入且只进入一个分片；不维护 crate、模块或测试名清单。
 - `check:compatibility`：按 storage、backtest、provider-runtime、trading-strategy、assistant-runtime、api-transport、desktop-runtime 七类回放冻结语料。

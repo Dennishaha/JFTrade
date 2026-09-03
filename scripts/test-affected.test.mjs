@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   changedFiles,
+  commandRequiresRustCompileEnvironment,
   fullGatePlan,
   githubOutputs,
   planAffected,
@@ -107,10 +108,18 @@ test("test-only Rust changes stay in their crate while production changes includ
 
 test("Rust manifests and metadata failures fall back to the workspace", () => {
   assert.deepEqual(rustAffectedTestCommands(["Cargo.lock"]), ["pnpm run test:rust"]);
-  assert.deepEqual(rustAffectedClippyCommands(["rust-toolchain.toml"]), ["pnpm run lint:rust"]);
+  assert.deepEqual(rustAffectedClippyCommands(["rust-toolchain.toml"]), ["pnpm run check:clippy"]);
   assert.deepEqual(rustAffectedTestCommands(["crates/jftrade-kernel/src/lib.rs"], {
     loadWorkspace: () => { throw new Error("metadata failed"); },
   }), ["pnpm run test:rust"]);
+});
+
+test("Rust compile environment predicate identifies cargo compile commands only", () => {
+  assert.equal(commandRequiresRustCompileEnvironment("cargo test -p jftrade-desktop --all-targets --locked"), true);
+  assert.equal(commandRequiresRustCompileEnvironment("cargo check --all-targets"), true);
+  assert.equal(commandRequiresRustCompileEnvironment("pnpm run check:desktop"), false);
+  assert.equal(commandRequiresRustCompileEnvironment("pnpm run check:all"), false);
+  assert.equal(commandRequiresRustCompileEnvironment("pnpm run test:web"), false);
 });
 
 test("maps compatibility fixture changes to exactly one capability", () => {
@@ -164,7 +173,7 @@ test("quick local Rust plan is targeted and defers the complete Rust gate", () =
     "pnpm run check:rust:target-health",
     "cargo test -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --locked",
     "pnpm run format:rust:check",
-    "cargo clippy -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --all-features -- -D warnings",
+    "pnpm run check:clippy -- -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata",
     "pnpm run check:desktop",
   ]);
   assert.deepEqual(plan.deferredCommands, ["pnpm run check:rust"]);

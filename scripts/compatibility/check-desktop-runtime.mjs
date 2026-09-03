@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustCompileEnvironment } from "../lib/tauri-runtime.mjs";
 import { rustReplayInvocation } from "./rust-replay-process.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -18,7 +19,7 @@ export function runDesktopRuntimeProcess(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd ?? repositoryRoot,
     encoding: "utf8",
-    env: { ...process.env, ...options.env },
+    env: rustCompileEnvironment({ ...process.env, ...options.env }),
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 16 * 1024 * 1024,
     timeout: timeoutMs,
