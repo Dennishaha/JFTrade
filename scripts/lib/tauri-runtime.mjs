@@ -64,11 +64,12 @@ export function tauriReleaseBuild(sourceEnvironment, now = new Date()) {
 }
 
 export function tauriCommandOptions(command, userOptions, releaseBuild = null) {
+  const sanitized = userOptions.filter((arg) => arg !== "--");
   if (command === "dev") {
-    return ["--config", "tauri.dev.conf.json", ...userOptions];
+    return ["--config", "tauri.dev.conf.json", ...sanitized];
   }
   if (command === "build" && releaseBuild !== null) {
-    return [...userOptions, ...releaseBuild.finalOptions];
+    return [...sanitized, ...releaseBuild.finalOptions];
   }
-  return [...userOptions];
+  return [...sanitized];
 }
