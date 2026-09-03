@@ -3,6 +3,8 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  compileOnlyTauriConfig,
+  rustCompileEnvironment,
   tauriCommandOptions,
   tauriDevelopmentEnvironment,
   tauriPreparation,
@@ -123,4 +125,13 @@ test("tauri release rejects development and zero versions before preparation", (
     () => tauriReleaseBuild({ JFTRADE_DESKTOP_RELEASE_TAG: "v0.0.0" }),
     /v0\.0\.0/,
   );
+});
+
+test("rust compile environment defaults to compile-only Tauri config and preserves explicit overrides", () => {
+  const defaultEnv = rustCompileEnvironment({ FOO: "bar" });
+  assert.equal(defaultEnv.FOO, "bar");
+  assert.equal(defaultEnv.TAURI_CONFIG, compileOnlyTauriConfig);
+
+  const overridden = rustCompileEnvironment({ TAURI_CONFIG: '{"custom":true}' });
+  assert.equal(overridden.TAURI_CONFIG, '{"custom":true}');
 });

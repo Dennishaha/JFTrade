@@ -73,3 +73,12 @@ export function tauriCommandOptions(command, userOptions, releaseBuild = null) {
   }
   return [...sanitized];
 }
+
+export const compileOnlyTauriConfig = '{"bundle":{"resources":[]}}';
+
+export function rustCompileEnvironment(sourceEnvironment = process.env) {
+  return {
+    ...sourceEnvironment,
+    TAURI_CONFIG: sourceEnvironment.TAURI_CONFIG ?? compileOnlyTauriConfig,
+  };
+}

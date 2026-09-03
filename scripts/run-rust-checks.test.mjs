@@ -29,7 +29,7 @@ test("static Rust gate separates independent policy checks from compile-heavy li
     "check:rust:architecture",
     "check:rust:production-policy",
     "format:rust:check",
-    "lint:rust",
+    "check:clippy",
     "check:rust:policy",
   ]);
 });

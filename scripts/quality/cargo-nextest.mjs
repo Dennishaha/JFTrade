@@ -6,6 +6,8 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { rustCompileEnvironment } from "../lib/tauri-runtime.mjs";
+
 export const nextestVersion = "0.9.143";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -60,7 +62,7 @@ function run(command, args, options = {}) {
   return new Promise((complete, reject) => {
     const child = spawn(command, args, {
       cwd: repositoryRoot,
-      env: process.env,
+      env: rustCompileEnvironment(process.env),
       stdio: options.capture ? ["ignore", "pipe", "inherit"] : "inherit",
     });
     let stdout = "";

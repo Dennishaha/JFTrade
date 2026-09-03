@@ -17,6 +17,7 @@ pnpm run build:desktop    # 构建发布版 Tauri 桌面应用
 cargo run -p jftrade-engine --bin jftrade-api-rust  # 独立 Rust API，默认 127.0.0.1:3000
 pnpm run dev:web          # 浏览器前端，默认 127.0.0.1:3003
 pnpm run check:quick      # 变更范围快速检查，不能修改工作树
+pnpm run check:clippy     # 独立只读 Clippy 门禁（--all-targets --all-features --locked -D warnings）
 pnpm run test:affected    # 只跑受影响测试
 pnpm run check:generated  # 临时目录生成并比较契约，不能修改工作树
 pnpm run check:zero-go    # 检查源码、构建链和传入发布产物中没有 Go/Wails
