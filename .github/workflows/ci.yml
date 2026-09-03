@@ -239,6 +239,7 @@ jobs:
       - uses: ./.github/actions/build-marketdata-sidecar
       - uses: ./.github/actions/download-desktop-assets
         with:
+          contracts_artifact: ""
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
       - run: bash scripts/install-linux-desktop-dependencies.sh
@@ -279,6 +280,7 @@ jobs:
       - uses: ./.github/actions/build-marketdata-sidecar
       - uses: ./.github/actions/download-desktop-assets
         with:
+          contracts_artifact: ""
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
       - if: ${{ matrix.platform == 'linux' }}

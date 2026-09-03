@@ -107,6 +107,11 @@ test("Rust CI separates static tests and native builds while sharing pinned tool
       /needs\.contracts\.result == 'success'/,
       `${name} must require contract validation`,
     );
+    assert.match(
+      job,
+      /contracts_artifact: ""/,
+      `${name} must not download a contract artifact after validating committed contracts`,
+    );
     assert.match(job, /pnpm install --frozen-lockfile/, `${name} must install the pinned desktop toolchain`);
     const bindInputs = job.indexOf("node scripts/write-desktop-release-input-manifest.mjs");
     const prepareRuntime = job.indexOf("pnpm run prepare:tauri-release");
