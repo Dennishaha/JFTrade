@@ -106,6 +106,12 @@ test("Rust CI separates static unit integration compatibility and native builds"
   for (const job of [rustStatic, rustUnit, rustIntegration, compatibility]) {
     assert.match(job, /sccache: "true"/);
     assert.match(job, /fast-linker: "true"/);
+    assert.match(job, /cache: true/);
+    assert.match(job, /pnpm install --frozen-lockfile/);
+    assert.ok(
+      job.indexOf("pnpm install --frozen-lockfile") < job.indexOf("uses: ./.github/actions/setup-rust"),
+      "Rust lanes must finish one deterministic pnpm install before concurrent commands start",
+    );
     assert.doesNotMatch(job, /needs:.*rust-(?:static|unit-tests|integration-tests)/);
   }
   assert.match(windowsArm, /cargo check --workspace --all-targets --locked --target aarch64-pc-windows-msvc/);
