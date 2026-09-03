@@ -196,7 +196,7 @@ test("Rust unit and integration shards preserve all-target coverage without over
   );
   assert.equal(
     packageJson.scripts["test:rust:unit"],
-    "cargo test --workspace --lib --bins --examples --benches --locked",
+    "cargo test --workspace --lib --bins --examples --benches --locked -- --test-threads=16",
   );
   assert.equal(
     packageJson.scripts["test:rust:integration"],

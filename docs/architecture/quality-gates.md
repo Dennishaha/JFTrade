@@ -10,7 +10,7 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 - `check:contracts`：OpenAPI、生成物、278 条 Rust 路由与认证策略。
 - `check:rust:static`：target health、fmt、Clippy、workspace architecture、production policy 和 `cargo deny`。
 - `test:rust`：完整本地 Rust 测试命令，固定为 `cargo test --workspace --all-targets --locked`。
-- `test:rust:unit` 与 `test:rust:integration`：CI 并行 shard。unit 覆盖 lib、bin、example、bench target，integration 只选择独立 `test` target；两者合并保持 `--all-targets` 的当前覆盖范围。
+- `test:rust:unit` 与 `test:rust:integration`：CI 并行 shard。unit 覆盖 lib、bin、example、bench target，integration 只选择独立 `test` target；两者合并保持 `--all-targets` 的当前覆盖范围。unit shard 显式使用 16 个 libtest worker，使含固定超时与本地 runtime 生命周期的 engine tests 在 GitHub runner 上并发执行；这不改变测试集合、断言或失败语义。
 - `check:compatibility`：按 storage、backtest、provider-runtime、trading-strategy、assistant-runtime、api-transport、desktop-runtime 七类回放冻结语料。
 - `check:web`、`check:pine`、`check:python`、`check:desktop`：各运行时独立验证。
 - `check:quick`、`check:affected`、`check:all`：工作树快速反馈、merge-base affected 和完整本地入口。

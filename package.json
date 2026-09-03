@@ -81,7 +81,7 @@
     "lint:rust": "cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "format:rust:check": "cargo fmt --all -- --check",
     "test:rust": "cargo test --workspace --all-targets --locked",
-    "test:rust:unit": "cargo test --workspace --lib --bins --examples --benches --locked",
+    "test:rust:unit": "cargo test --workspace --lib --bins --examples --benches --locked -- --test-threads=16",
     "test:rust:integration": "cargo test --workspace --test '*' --locked",
     "check:release-source": "node scripts/release/check-release-source-admission.mjs",
     "check:desktop:release-policy": "node scripts/check-desktop-release-policy.mjs --operation candidate",
