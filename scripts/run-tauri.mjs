@@ -9,6 +9,7 @@ import {
   tauriPreparation,
   tauriReleaseBuild,
 } from "./lib/tauri-runtime.mjs";
+import { spawnChecked } from "./lib/spawn.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const projectRoot = path.join(repositoryRoot, "apps/desktop/src-tauri");
@@ -29,13 +30,12 @@ try {
 }
 const preparation = tauriPreparation(command);
 if (preparation !== null) {
-  const prepared = spawnSync(preparation[0], preparation[1], {
+  const preparedStatus = spawnChecked(preparation[0], preparation[1], {
     cwd: repositoryRoot,
     env: process.env,
     stdio: "inherit",
   });
-  if (prepared.error) throw prepared.error;
-  if (prepared.status !== 0) process.exit(prepared.status ?? 1);
+  if (preparedStatus !== 0) process.exit(preparedStatus);
 }
 const environment =
   command === "dev"

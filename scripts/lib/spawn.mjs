@@ -12,10 +12,14 @@ export function spawnChecked(command, args, options = {}) {
   return result.status ?? 0;
 }
 
-function resolveCommand(command, args) {
-  if (process.platform === "win32" && windowsCommandExtensions.has(command)) {
+export function resolveCommand(
+  command,
+  args,
+  { platform = process.platform, environment = process.env } = {},
+) {
+  if (platform === "win32" && windowsCommandExtensions.has(command)) {
     return {
-      command: process.env.ComSpec || "cmd.exe",
+      command: environment.ComSpec || "cmd.exe",
       args: ["/d", "/s", "/c", [command, ...args].map(windowsQuote).join(" ")],
     };
   }
