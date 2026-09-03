@@ -107,12 +107,14 @@ jobs:
         with:
           cache-job: static
           install-cargo-deny: "true"
+          sccache: "true"
+          fast-linker: "true"
       - name: Format Clippy architecture and dependency policy
         run: pnpm run check:rust:static
 
-  rust-tests:
-    name: Rust Tests & Compatibility
-    if: ${{ needs.gate-plan.outputs.rust_tests == 'true' || needs.gate-plan.outputs.compatibility == 'true' }}
+  rust-unit-tests:
+    name: Rust Unit Tests
+    if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
     needs: gate-plan
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -124,12 +126,50 @@ jobs:
       - uses: ./.github/actions/setup-pnpm
       - uses: ./.github/actions/setup-rust
         with:
-          cache-job: tests
-      - name: Run the Rust workspace test suite once
-        if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
-        run: pnpm run test:rust
+          cache-job: unit-tests
+          sccache: "true"
+          fast-linker: "true"
+      - name: Run Rust unit and target tests
+        run: pnpm run test:rust:unit
+
+  rust-integration-tests:
+    name: Rust Integration Tests
+    if: ${{ needs.gate-plan.outputs.rust_tests == 'true' }}
+    needs: gate-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: integration-tests
+          sccache: "true"
+          fast-linker: "true"
+      - name: Run Rust integration tests
+        run: pnpm run test:rust:integration
+
+  compatibility:
+    name: Compatibility
+    if: ${{ needs.gate-plan.outputs.compatibility == 'true' }}
+    needs: gate-plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TAURI_CONFIG: '{"bundle":{"resources":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - uses: ./.github/actions/setup-pnpm
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-job: compatibility
+          sccache: "true"
+          fast-linker: "true"
       - name: Replay affected compatibility capabilities in parallel
-        if: ${{ needs.gate-plan.outputs.compatibility == 'true' }}
         env:
           CAPABILITIES_JSON: ${{ needs.gate-plan.outputs.compatibility_capabilities }}
         shell: bash
@@ -232,9 +272,12 @@ jobs:
         with:
           cache: true
       - run: pnpm install --frozen-lockfile
+      - run: bash scripts/install-linux-desktop-dependencies.sh
       - uses: ./.github/actions/setup-rust
         with:
           cache-job: desktop-pr
+          sccache: "true"
+          fast-linker: "true"
       - uses: ./.github/actions/setup-python
       - uses: ./.github/actions/build-marketdata-sidecar
       - uses: ./.github/actions/download-desktop-assets
@@ -242,7 +285,6 @@ jobs:
           contracts_artifact: ""
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
-      - run: bash scripts/install-linux-desktop-dependencies.sh
       - name: Test and build Linux desktop
         run: |
           node scripts/write-desktop-release-input-manifest.mjs
@@ -272,10 +314,14 @@ jobs:
         with:
           cache: true
       - run: pnpm install --frozen-lockfile
+      - if: ${{ matrix.platform == 'linux' }}
+        run: bash scripts/install-linux-desktop-dependencies.sh
       - uses: ./.github/actions/setup-rust
         with:
           cache-job: desktop-main
           target: ${{ matrix.target }}
+          sccache: "true"
+          fast-linker: ${{ matrix.platform == 'linux' && 'true' || 'false' }}
       - uses: ./.github/actions/setup-python
       - uses: ./.github/actions/build-marketdata-sidecar
       - uses: ./.github/actions/download-desktop-assets
@@ -283,8 +329,6 @@ jobs:
           contracts_artifact: ""
           frontend_artifact: ci-web-assets-${{ github.run_id }}-${{ github.run_attempt }}
           pine_artifact: ci-pine-assets-${{ github.run_id }}-${{ github.run_attempt }}
-      - if: ${{ matrix.platform == 'linux' }}
-        run: bash scripts/install-linux-desktop-dependencies.sh
       - name: Test release profile and build desktop
         run: |
           node scripts/write-desktop-release-input-manifest.mjs
@@ -316,7 +360,9 @@ jobs:
       - policy
       - contracts
       - rust-static
-      - rust-tests
+      - rust-unit-tests
+      - rust-integration-tests
+      - compatibility
       - web
       - pine
       - python
@@ -337,7 +383,9 @@ jobs:
           RUST_STATIC_STATUS: ${{ needs.rust-static.result }}
           RUST_TESTS_PLANNED: ${{ needs.gate-plan.outputs.rust_tests }}
           COMPATIBILITY_PLANNED: ${{ needs.gate-plan.outputs.compatibility }}
-          RUST_TESTS_STATUS: ${{ needs.rust-tests.result }}
+          RUST_UNIT_STATUS: ${{ needs.rust-unit-tests.result }}
+          RUST_INTEGRATION_STATUS: ${{ needs.rust-integration-tests.result }}
+          COMPATIBILITY_STATUS: ${{ needs.compatibility.result }}
           WEB_PLANNED: ${{ needs.gate-plan.outputs.web }}
           WEB_STATUS: ${{ needs.web.result }}
           PINE_PLANNED: ${{ needs.gate-plan.outputs.pine }}
@@ -363,8 +411,9 @@ jobs:
           [[ "$POLICY_STATUS" == "success" ]]
           require_lane "$CONTRACTS_PLANNED" "$CONTRACTS_STATUS" Contracts
           require_lane "$RUST_STATIC_PLANNED" "$RUST_STATIC_STATUS" RustStatic
-          if [[ "$RUST_TESTS_PLANNED" == "true" || "$COMPATIBILITY_PLANNED" == "true" ]]; then rust_lane=true; else rust_lane=false; fi
-          require_lane "$rust_lane" "$RUST_TESTS_STATUS" RustTests
+          require_lane "$RUST_TESTS_PLANNED" "$RUST_UNIT_STATUS" RustUnitTests
+          require_lane "$RUST_TESTS_PLANNED" "$RUST_INTEGRATION_STATUS" RustIntegrationTests
+          require_lane "$COMPATIBILITY_PLANNED" "$COMPATIBILITY_STATUS" Compatibility
           if [[ "$WEB_PLANNED" == "true" || "$DESKTOP_PLANNED" == "true" ]]; then web_lane=true; else web_lane=false; fi
           require_lane "$web_lane" "$WEB_STATUS" Web
           if [[ "$PINE_PLANNED" == "true" || "$DESKTOP_PLANNED" == "true" ]]; then pine_lane=true; else pine_lane=false; fi

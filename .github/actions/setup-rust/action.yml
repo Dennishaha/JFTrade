@@ -18,6 +18,14 @@ inputs:
     description: Install the pinned cargo-deny binary
     required: false
     default: "false"
+  sccache:
+    description: Enable the shared GitHub Actions compiler cache
+    required: false
+    default: "false"
+  fast-linker:
+    description: Use mold for Linux x64 linking; mold and clang must already be installed
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -30,6 +38,38 @@ runs:
         rustup default 1.97.1
         rustc --version --verbose
         cargo --version
+
+    - name: Install pinned sccache
+      if: ${{ inputs.sccache == 'true' }}
+      uses: mozilla-actions/sccache-action@v0.0.11
+      with:
+        version: "v0.16.0"
+
+    - name: Enable the shared compiler cache
+      if: ${{ inputs.sccache == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+        echo "SCCACHE_GHA_VERSION=jftrade-rust-1.97.1-v1" >> "$GITHUB_ENV"
+        sccache --version
+
+    - name: Enable mold on Linux x64
+      if: ${{ inputs.fast-linker == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        [[ "${RUNNER_OS:?}" == "Linux" && "${RUNNER_ARCH:?}" == "X64" ]] || {
+          echo "mold is only configured for Linux x64 CI runners" >&2
+          exit 1
+        }
+        command -v clang
+        command -v mold
+        clang --version
+        mold --version
+        echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang" >> "$GITHUB_ENV"
+        echo "RUSTFLAGS=-C link-arg=-fuse-ld=mold" >> "$GITHUB_ENV"
 
     - name: Install pinned protoc toolchain
       id: protoc-config
@@ -149,7 +189,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-1.97.1-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+        key: rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-sccache-${{ inputs.sccache }}-linker-${{ inputs.fast-linker }}-1.97.1-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
         restore-keys: |
-          rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-1.97.1-${{ hashFiles('Cargo.lock') }}-
-          rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-1.97.1-
+          rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-sccache-${{ inputs.sccache }}-linker-${{ inputs.fast-linker }}-1.97.1-${{ hashFiles('Cargo.lock') }}-
+          rust-${{ runner.os }}-${{ runner.arch }}-${{ inputs.target }}-${{ inputs.cache-job }}-sccache-${{ inputs.sccache }}-linker-${{ inputs.fast-linker }}-1.97.1-
