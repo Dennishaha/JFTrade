@@ -4,6 +4,17 @@ set -euo pipefail
 # Tauri release packaging needs both GTK/WebKit development headers.  Xvfb
 # provides a deterministic display for the packaged runtime smoke on CI.
 sudo apt-get update
+
+if [[ "${1:-}" == "--runtime-only" ]]; then
+  sudo apt-get install -y --no-install-recommends \
+    file \
+    libwebkit2gtk-4.1-0 \
+    libgtk-3-0 \
+    libayatana-appindicator3-1 \
+    xvfb
+  exit 0
+fi
+
 sudo apt-get install -y \
   clang \
   file \
@@ -15,3 +26,4 @@ sudo apt-get install -y \
   mold \
   patchelf \
   pkg-config
+

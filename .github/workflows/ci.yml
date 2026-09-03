@@ -133,6 +133,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
         with:
           cache-job: test-build
+          cache-target: "false"
           sccache: "true"
           fast-linker: "true"
       - name: Build one immutable nextest archive
@@ -159,7 +160,7 @@ jobs:
       TAURI_CONFIG: '{"bundle":{"resources":[]}}'
     steps:
       - uses: actions/checkout@v7
-      - run: bash scripts/install-linux-desktop-dependencies.sh
+      - run: bash scripts/install-linux-desktop-dependencies.sh --runtime-only
       - uses: ./.github/actions/setup-pnpm
         with:
           cache: true
@@ -319,7 +320,7 @@ jobs:
           node scripts/write-desktop-release-input-manifest.mjs
           pnpm run prepare:tauri-release
           pnpm run test:tauri-release-runtime
-          pnpm run build:desktop:tauri
+          pnpm run build:desktop:tauri --no-bundle
 
   desktop-build:
     name: Desktop Build (${{ matrix.label }})

@@ -75,6 +75,14 @@ test("tauri release injects one validated version into Rust and bundle metadata"
       JSON.stringify({ version: "1.2.3", bundle: { createUpdaterArtifacts: true } }),
     ],
   );
+  assert.deepEqual(
+    tauriCommandOptions("build", ["--", "--no-bundle"], release),
+    [
+      "--no-bundle",
+      "--config",
+      JSON.stringify({ version: "1.2.3", bundle: { createUpdaterArtifacts: true } }),
+    ],
+  );
 });
 
 test("tauri release disables updater artifact generation for non-publish builds", () => {
