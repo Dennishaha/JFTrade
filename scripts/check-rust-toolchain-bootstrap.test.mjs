@@ -132,3 +132,19 @@ test("Rust caches are isolated by job target toolchain lockfile and commit", asy
   assert.match(source, /key: protoc-34\.1-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
   assert.match(source, /key: cargo-deny-0\.20\.2-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
 });
+
+test("baseline-aware CI jobs fetch merge-base history", async () => {
+  const source = await readFile(ciWorkflowPath, "utf8");
+  const contracts = source.slice(
+    source.indexOf("\n  contracts:\n"),
+    source.indexOf("\n  rust-static:\n"),
+  );
+  const web = source.slice(source.indexOf("\n  web:\n"), source.indexOf("\n  pine:\n"));
+
+  for (const [name, job] of [
+    ["Contracts", contracts],
+    ["Web", web],
+  ]) {
+    assert.match(job, /uses: actions\/checkout@v7\s+with:\s+fetch-depth: 0/, `${name} must fetch its comparison baseline`);
+  }
+});
