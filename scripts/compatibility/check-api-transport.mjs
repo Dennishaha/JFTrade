@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { buildApiTransportCorpus } from "./generate-api-transport-corpus.mjs";
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -45,10 +46,17 @@ export function assertApiTransportEquivalent(actual, expected) {
 }
 
 export function runApiTransportReference(root = repositoryRoot) {
-  const stdout = runApiTransportProcess("cargo", [
-    "run", "--quiet", "-p", "jftrade-engine", "--bin", "jftrade-api-transport-replay", "--",
-    "--input", path.join(apiTransportFixtureRoot(root), "api-control-plane-corpus.json"),
-  ], { cwd: root, timeoutMs: 300_000 });
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-engine",
+    binaryName: "jftrade-api-transport-replay",
+    args: ["--input", path.join(apiTransportFixtureRoot(root), "api-control-plane-corpus.json")],
+  });
+  const stdout = runApiTransportProcess(
+    invocation.command,
+    invocation.args,
+    { cwd: root, timeoutMs: 300_000 },
+  );
   return JSON.parse(stdout);
 }
 

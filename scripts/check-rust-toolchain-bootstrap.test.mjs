@@ -103,6 +103,9 @@ test("Rust CI separates static unit integration compatibility and native builds"
   assert.match(rustUnit, /pnpm run test:rust:unit/);
   assert.match(rustIntegration, /pnpm run test:rust:integration/);
   assert.match(compatibility, /Replay affected compatibility capabilities in parallel/);
+  assert.match(compatibility, /Prebuild compatibility replay binaries without Cargo lock contention/);
+  assert.match(compatibility, /cargo build --locked -p jftrade-engine --bins/);
+  assert.match(compatibility, /JFTRADE_COMPATIBILITY_BIN_DIR: target\/debug/);
   for (const job of [rustStatic, rustUnit, rustIntegration, compatibility]) {
     assert.match(job, /sccache: "true"/);
     assert.match(job, /fast-linker: "true"/);

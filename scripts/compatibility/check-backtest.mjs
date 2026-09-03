@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 export function backtestFixtureRoot(root = repositoryRoot) {
   return path.join(root, "tests/fixtures/compatibility/backtest");
@@ -43,17 +45,16 @@ export function loadBacktestExpected(root = repositoryRoot) {
 }
 
 export function runRustReference(root = repositoryRoot) {
-  return JSON.parse(runProcess("cargo", [
-    "run",
-    "--quiet",
-    "-p",
-    "jftrade-backtest",
-    "--bin",
-    "jftrade-backtest-replay",
-    "--",
-    "--input",
-    path.join(backtestFixtureRoot(root), "backtest-corpus.json"),
-  ], { cwd: root, timeoutMs: 120_000 }));
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-backtest",
+    binaryName: "jftrade-backtest-replay",
+    args: [
+      "--input",
+      path.join(backtestFixtureRoot(root), "backtest-corpus.json"),
+    ],
+  });
+  return JSON.parse(runProcess(invocation.command, invocation.args, { cwd: root, timeoutMs: 120_000 }));
 }
 
 export function runBacktestReplay(root = repositoryRoot) {

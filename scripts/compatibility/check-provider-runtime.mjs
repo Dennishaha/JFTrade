@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export function providerRuntimeFixtureRoot(root = repositoryRoot) {
@@ -41,17 +43,20 @@ export function assertProviderRuntimeEquivalent(rustOutput, expected) {
 }
 
 export function runProviderRuntimeReference(root = repositoryRoot) {
-  const stdout = runProviderRuntimeProcess("cargo", [
-    "run",
-    "--quiet",
-    "-p",
-    "jftrade-engine",
-    "--bin",
-    "jftrade-provider-runtime-replay",
-    "--",
-    "--input",
-    path.join(providerRuntimeFixtureRoot(root), "provider-lifecycle-corpus.json"),
-  ], { cwd: root, timeoutMs: 120_000 });
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-engine",
+    binaryName: "jftrade-provider-runtime-replay",
+    args: [
+      "--input",
+      path.join(providerRuntimeFixtureRoot(root), "provider-lifecycle-corpus.json"),
+    ],
+  });
+  const stdout = runProviderRuntimeProcess(
+    invocation.command,
+    invocation.args,
+    { cwd: root, timeoutMs: 120_000 },
+  );
   return JSON.parse(stdout);
 }
 

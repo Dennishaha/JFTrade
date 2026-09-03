@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export function tradingStrategyFixtureRoot(root = repositoryRoot) {
@@ -42,17 +44,20 @@ export function assertTradingStrategyEquivalent(rustOutput, expected) {
 }
 
 export function runTradingStrategyReference(root = repositoryRoot) {
-  const stdout = runTradingStrategyProcess("cargo", [
-    "run",
-    "--quiet",
-    "-p",
-    "jftrade-engine",
-    "--bin",
-    "jftrade-trading-strategy-replay",
-    "--",
-    "--input",
-    path.join(tradingStrategyFixtureRoot(root), "trading-strategy-corpus.json"),
-  ], { cwd: root, timeoutMs: 120_000 });
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-engine",
+    binaryName: "jftrade-trading-strategy-replay",
+    args: [
+      "--input",
+      path.join(tradingStrategyFixtureRoot(root), "trading-strategy-corpus.json"),
+    ],
+  });
+  const stdout = runTradingStrategyProcess(
+    invocation.command,
+    invocation.args,
+    { cwd: root, timeoutMs: 120_000 },
+  );
   return JSON.parse(stdout);
 }
 

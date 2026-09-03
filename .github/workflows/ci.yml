@@ -181,9 +181,16 @@ jobs:
           cache-job: compatibility
           sccache: "true"
           fast-linker: "true"
+      - name: Prebuild compatibility replay binaries without Cargo lock contention
+        run: |
+          cargo build --locked -p jftrade-engine --bins
+          cargo build --locked -p jftrade-backtest --bin jftrade-backtest-replay
+          cargo build --locked -p jftrade-store-sqlite --bin jftrade-sqlite-inspect
+          cargo build --locked -p jftrade-desktop --bin jftrade-desktop-runtime-replay
       - name: Replay affected compatibility capabilities in parallel
         env:
           CAPABILITIES_JSON: ${{ needs.gate-plan.outputs.compatibility_capabilities }}
+          JFTRADE_COMPATIBILITY_BIN_DIR: target/debug
         shell: bash
         run: |
           set -euo pipefail

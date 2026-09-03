@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export function desktopRuntimeFixtureRoot(root = repositoryRoot) {
@@ -65,10 +67,13 @@ export function assertDesktopRuntimeConfiguration(config, facadeSource, expected
 }
 
 export function runDesktopRuntimeReference(root = repositoryRoot) {
-  const stdout = runDesktopRuntimeProcess("cargo", [
-    "run", "--quiet", "-p", "jftrade-desktop", "--bin", "jftrade-desktop-runtime-replay", "--",
-    "--input", path.join(desktopRuntimeFixtureRoot(root), "desktop-shell-corpus.json"),
-  ], { cwd: root });
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-desktop",
+    binaryName: "jftrade-desktop-runtime-replay",
+    args: ["--input", path.join(desktopRuntimeFixtureRoot(root), "desktop-shell-corpus.json")],
+  });
+  const stdout = runDesktopRuntimeProcess(invocation.command, invocation.args, { cwd: root });
   return JSON.parse(stdout);
 }
 

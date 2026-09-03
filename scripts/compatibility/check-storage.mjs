@@ -6,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const fixtureRoot = path.join(repositoryRoot, "tests/fixtures/compatibility/storage");
 
@@ -34,23 +36,25 @@ export function runStorageReplay(root = repositoryRoot) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "jftrade-storage-replay-"));
   const databasePath = path.join(temporaryRoot, "backtest.db");
   try {
-    const seededOutput = run("cargo", [
-      "run", "--quiet", "-p", "jftrade-store-sqlite", "--bin", "jftrade-sqlite-inspect", "--",
-      "--seed-sql",
-      path.join(fixtureRoot, "backtest-readonly.sql"),
-      databasePath,
-    ], root);
+    const seededInvocation = rustReplayInvocation({
+      root,
+      packageName: "jftrade-store-sqlite",
+      binaryName: "jftrade-sqlite-inspect",
+      args: [
+        "--seed-sql",
+        path.join(fixtureRoot, "backtest-readonly.sql"),
+        databasePath,
+      ],
+    });
+    const seededOutput = run(seededInvocation.command, seededInvocation.args, root);
     const before = fs.readFileSync(databasePath);
-    const rustOutput = run("cargo", [
-      "run",
-      "--quiet",
-      "-p",
-      "jftrade-store-sqlite",
-      "--bin",
-      "jftrade-sqlite-inspect",
-      "--",
-      databasePath,
-    ], root);
+    const inspectInvocation = rustReplayInvocation({
+      root,
+      packageName: "jftrade-store-sqlite",
+      binaryName: "jftrade-sqlite-inspect",
+      args: [databasePath],
+    });
+    const rustOutput = run(inspectInvocation.command, inspectInvocation.args, root);
     const after = fs.readFileSync(databasePath);
     const expected = JSON.parse(fs.readFileSync(
       path.join(fixtureRoot, "backtest-readonly.expected.json"),

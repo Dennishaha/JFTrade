@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { rustReplayInvocation } from "./rust-replay-process.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export function assistantRuntimeFixtureRoot(root = repositoryRoot) {
@@ -46,17 +48,20 @@ export function assertAssistantRuntimeEquivalent(rustOutput, expected) {
 }
 
 export function runAssistantRuntimeReference(root = repositoryRoot) {
-  const stdout = runAssistantRuntimeProcess("cargo", [
-    "run",
-    "--quiet",
-    "-p",
-    "jftrade-engine",
-    "--bin",
-    "jftrade-assistant-runtime-replay",
-    "--",
-    "--input",
-    path.join(assistantRuntimeFixtureRoot(root), "assistant-rig-corpus.json"),
-  ], { cwd: root, timeoutMs: 180_000 });
+  const invocation = rustReplayInvocation({
+    root,
+    packageName: "jftrade-engine",
+    binaryName: "jftrade-assistant-runtime-replay",
+    args: [
+      "--input",
+      path.join(assistantRuntimeFixtureRoot(root), "assistant-rig-corpus.json"),
+    ],
+  });
+  const stdout = runAssistantRuntimeProcess(
+    invocation.command,
+    invocation.args,
+    { cwd: root, timeoutMs: 180_000 },
+  );
   return JSON.parse(stdout);
 }
 

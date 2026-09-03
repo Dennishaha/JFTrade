@@ -19,7 +19,7 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 
 PR 的 `gate-plan` 从 merge-base 计算受影响 lane。未知产品路径、Cargo/lockfile/toolchain、workflow、门禁脚本或 module map 变化会 fail closed 为全量；生产 crate 变化包含 workspace 反向依赖。planner 失败同样输出全量计划。
 
-`main` 无条件执行完整核心门禁。Policy、Contracts、Rust Static、Rust Unit Tests、Rust Integration Tests、Compatibility、Web、Pine 和 Python 并行；Compatibility 内部再并行执行七类 replay。Desktop 只依赖自己的 Web、Pine、sidecar 和 contracts 构建输入，不等待 Rust Static 或 Rust Tests。
+`main` 无条件执行完整核心门禁。Policy、Contracts、Rust Static、Rust Unit Tests、Rust Integration Tests、Compatibility、Web、Pine 和 Python 并行；Compatibility 先以单个 Cargo 构建序列预编译所需 replay binaries，再直接并行执行七类 replay，避免多个 `cargo run` 争用同一 target lock。Desktop 只依赖自己的 Web、Pine、sidecar 和 contracts 构建输入，不等待 Rust Static 或 Rust Tests。
 
 Rust CI 使用固定版本的 sccache 通过 GitHub Actions cache 共享编译对象，同时保留按 OS、架构、target、job、Rust 版本、`Cargo.lock` 和 commit 隔离的 `target` 缓存。Linux x64 的 Rust 与 Tauri lane 使用 clang 驱动 mold；macOS 和 Windows 保持各自原生链接器。Windows ARM64 native compile 暂不启用 sccache，避免把未验证的 ARM64 compiler-cache 二进制引入必需门禁。
 
