@@ -80,7 +80,11 @@ impl BacktestReadSnapshotPort for FixtureBacktestReadPort {
             ));
         }
         if request.run_id == "fixture-run" {
-            let res = self.data.get("result-existing").cloned().unwrap_or(Value::Null);
+            let res = self
+                .data
+                .get("result-existing")
+                .cloned()
+                .unwrap_or(Value::Null);
             return Ok(Some(BacktestResultViewSnapshot { data: res }));
         }
         Ok(None)

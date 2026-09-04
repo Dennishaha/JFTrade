@@ -71,9 +71,10 @@ pub(crate) fn derive_effective_since_time(
         _ => 60_000,
     };
 
-    let start_ms = if let Ok(dt) =
-        time::OffsetDateTime::parse(start_time_str, &time::format_description::well_known::Rfc3339)
-    {
+    let start_ms = if let Ok(dt) = time::OffsetDateTime::parse(
+        start_time_str,
+        &time::format_description::well_known::Rfc3339,
+    ) {
         (dt.unix_timestamp_nanos() / 1_000_000) as i64
     } else {
         start_time_str.parse::<i64>().unwrap_or(1_704_067_200_000)
@@ -90,7 +91,10 @@ pub(crate) fn derive_effective_since_time(
 
     time::OffsetDateTime::from_unix_timestamp_nanos((since_ms as i128) * 1_000_000)
         .ok()
-        .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok())
+        .and_then(|dt| {
+            dt.format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        })
         .unwrap_or_else(|| start_time_str.to_owned())
 }
 
@@ -138,7 +142,10 @@ pub(crate) fn ensure_script_data(
         for task in active_tasks {
             let st = task.get("status").and_then(Value::as_str).unwrap_or("");
             let sym = task.get("symbol").and_then(Value::as_str).unwrap_or("");
-            let prov = task.get("marketDataProvider").and_then(Value::as_str).unwrap_or("");
+            let prov = task
+                .get("marketDataProvider")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             if (st == "queued" || st == "running")
                 && (sym == symbol || sym.ends_with(symbol) || symbol.ends_with(sym))
                 && (prov.is_empty() || prov == provider)
@@ -149,11 +156,9 @@ pub(crate) fn ensure_script_data(
     }
 
     // 2. Probe backtest start
-    let start_result = ports
-        .backtests_write
-        .mutate(&BacktestsWriteInput::Start {
-            payload: start_payload.clone(),
-        });
+    let start_result = ports.backtests_write.mutate(&BacktestsWriteInput::Start {
+        payload: start_payload.clone(),
+    });
 
     match start_result {
         Ok(BacktestsWritePortResult::Data(data)) => {
@@ -388,7 +393,12 @@ pub(crate) fn execute_research_backtest(
     let validation = validate_research_script(script)?;
     let start_payload = prepare_start_payload(arguments, script);
 
-    let (run_id, initial_status) = match ensure_script_data(ports, arguments, &validation, &start_payload)? {
+    let (run_id, initial_status) = match ensure_script_data(
+        ports,
+        arguments,
+        &validation,
+        &start_payload,
+    )? {
         EnsureDataOutcome::Started(id, status) => (id, status),
         EnsureDataOutcome::Syncing(sync_data) => {
             let task_id = sync_data

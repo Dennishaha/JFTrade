@@ -293,5 +293,8 @@ fn warmup_entry_and_formal_exit_inherits_position_and_pnl_in_matcher() {
     assert_eq!(case["basePosition"], "0");
     assert_eq!(case["totalTrades"], 1);
     let realized_pnl: f64 = case["realizedPnl"].as_str().unwrap().parse().unwrap();
-    assert!(realized_pnl > 90.0, "realized pnl should reflect 10 shares from 100 to 110 minus fees");
+    assert!(
+        realized_pnl > 90.0,
+        "realized pnl should reflect 10 shares from 100 to 110 minus fees"
+    );
 }

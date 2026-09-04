@@ -14,8 +14,8 @@ use super::product_mcp_protocol::{
     model_search_text, optional_bool, optional_integer, optional_string, provider_model,
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
-use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 use super::strategy_pine_mcp::{PINE_SPEC_TOOL, VALIDATE_PINE_TOOL, dispatch_strategy_pine_mcp};
+use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 use jftrade_store_sqlite::AdkStore;
 
 #[path = "product_mcp_production_executor_derivatives.rs"]
@@ -525,11 +525,19 @@ impl ProductionMcpToolExecutor {
             include: arguments
                 .get("include")
                 .and_then(Value::as_array)
-                .map(|arr| arr.iter().filter_map(Value::as_str).map(str::to_owned).collect()),
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                }),
             start_time: optional_string(arguments, "startTime"),
             end_time: optional_string(arguments, "endTime"),
             cursor: optional_string(arguments, "cursor"),
-            limit: arguments.get("limit").and_then(Value::as_u64).map(|v| v as usize),
+            limit: arguments
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map(|v| v as usize),
             resolution: optional_string(arguments, "resolution"),
         };
         match self.ports()?.backtest_read.result_view(&view_req) {

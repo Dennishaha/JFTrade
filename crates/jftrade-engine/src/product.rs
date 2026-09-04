@@ -185,10 +185,10 @@ mod product_mcp_protocol;
 pub(crate) mod product_mcp_server;
 #[path = "product_portfolio_projection.rs"]
 pub(crate) mod product_portfolio_projection;
-#[path = "product_research_backtest_projection.rs"]
-pub(crate) mod product_research_backtest_projection;
 #[path = "product_research_backtest_execution.rs"]
 pub(crate) mod product_research_backtest_execution;
+#[path = "product_research_backtest_projection.rs"]
+pub(crate) mod product_research_backtest_projection;
 #[path = "strategy_pine_mcp.rs"]
 mod strategy_pine_mcp;
 use product_adk_mutation_port::{

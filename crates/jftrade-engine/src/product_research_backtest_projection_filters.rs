@@ -107,9 +107,8 @@ pub(crate) fn validate_result_view_request(
 }
 
 pub(crate) fn validate_rfc3339_timestamp(s: &str) -> Result<i128, BacktestResultViewError> {
-    parse_rfc3339_nanos(s).ok_or_else(|| {
-        BacktestResultViewError::Invalid(format!("invalid RFC3339 timestamp '{s}'"))
-    })
+    parse_rfc3339_nanos(s)
+        .ok_or_else(|| BacktestResultViewError::Invalid(format!("invalid RFC3339 timestamp '{s}'")))
 }
 
 pub(crate) fn parse_resolution_ms(res: &str) -> Option<i64> {
@@ -136,7 +135,11 @@ pub(crate) fn parse_resolution_ms(res: &str) -> Option<i64> {
     }
 }
 
-pub(crate) fn slice_items(items: &[Value], offset: usize, limit: usize) -> (Vec<Value>, Option<String>) {
+pub(crate) fn slice_items(
+    items: &[Value],
+    offset: usize,
+    limit: usize,
+) -> (Vec<Value>, Option<String>) {
     if offset >= items.len() {
         return (Vec::new(), None);
     }
@@ -250,7 +253,10 @@ pub(crate) fn downsample_candles(candles: &[Value], resolution_ms: i64) -> Vec<V
             }
             let rfc = time::OffsetDateTime::from_unix_timestamp_nanos((b_ms as i128) * 1_000_000)
                 .ok()
-                .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok());
+                .and_then(|dt| {
+                    dt.format(&time::format_description::well_known::Rfc3339)
+                        .ok()
+                });
             json!({
                 "time": rfc.unwrap_or_else(|| b_ms.to_string()),
                 "start": b_ms,
@@ -281,7 +287,10 @@ pub(crate) fn downsample_curve(points: &[Value], val_key: &str, resolution_ms: i
         .map(|(b_ms, p)| {
             let rfc = time::OffsetDateTime::from_unix_timestamp_nanos((b_ms as i128) * 1_000_000)
                 .ok()
-                .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok());
+                .and_then(|dt| {
+                    dt.format(&time::format_description::well_known::Rfc3339)
+                        .ok()
+                });
             let val = parse_f64_helper(p.get(val_key));
             json!({
                 "time": rfc.unwrap_or_else(|| b_ms.to_string()),

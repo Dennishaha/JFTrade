@@ -92,9 +92,8 @@ fn annotate_and_trim_warmup(
     }
     for trade in trades {
         if let Some(obj) = trade.as_object_mut() {
-            let is_warmup = formal_start_nanos.is_some_and(|fs| {
-                parse_timestamp_nanos(obj.get("time")).is_some_and(|t| t < fs)
-            });
+            let is_warmup = formal_start_nanos
+                .is_some_and(|fs| parse_timestamp_nanos(obj.get("time")).is_some_and(|t| t < fs));
             obj.insert("warmup".to_owned(), json!(is_warmup));
         }
     }
@@ -155,9 +154,8 @@ fn map_order_to_orderbook(
         .unwrap_or_default();
     let sub = order.get("submittedAt").or_else(|| order.get("time"));
     let fil = order.get("filledAt");
-    let is_warmup = formal_start_nanos.is_some_and(|fs| {
-        parse_timestamp_nanos(sub.or(fil)).is_some_and(|t| t < fs)
-    });
+    let is_warmup = formal_start_nanos
+        .is_some_and(|fs| parse_timestamp_nanos(sub.or(fil)).is_some_and(|t| t < fs));
     let fee = fees_by_order.get(order_id).copied().unwrap_or(0.0);
     let order_type = order
         .get("orderType")
@@ -205,8 +203,16 @@ fn extract_corpus_case_backtest(
         .and_then(|r| r.get("symbol"))
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let raw_orders = c.get("orders").and_then(Value::as_array).cloned().unwrap_or_default();
-    let raw_fills = c.get("fills").and_then(Value::as_array).cloned().unwrap_or_default();
+    let raw_orders = c
+        .get("orders")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let raw_fills = c
+        .get("fills")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
 
     let mut fees_by_order: HashMap<String, f64> = HashMap::new();
     for fill in &raw_fills {
@@ -240,7 +246,11 @@ fn extract_corpus_case_backtest(
         .into_iter()
         .map(|p| map_curve_point(&p, "drawdown"))
         .collect();
-    let warnings = c.get("warnings").and_then(Value::as_array).cloned().unwrap_or_default();
+    let warnings = c
+        .get("warnings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
 
     let mut candles = if let Some(seed) = seed_candles {
         seed.to_vec()
@@ -264,7 +274,11 @@ fn extract_corpus_case_backtest(
     let runtime_errors = result_val
         .get("runtimeErrors")
         .or_else(|| result_val.get("errors"))
-        .or_else(|| result_val.get("result").and_then(|r| r.get("runtimeErrors")))
+        .or_else(|| {
+            result_val
+                .get("result")
+                .and_then(|r| r.get("runtimeErrors"))
+        })
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -295,7 +309,10 @@ fn extract_corpus_case_backtest(
         errors: runtime_errors.len(),
     };
     let mut summary = extract_case_summary(c, &lengths);
-    if let Some(existing) = result_val.get("result").and_then(|r| r.get("summary")).and_then(Value::as_object)
+    if let Some(existing) = result_val
+        .get("result")
+        .and_then(|r| r.get("summary"))
+        .and_then(Value::as_object)
         && let Some(s_obj) = summary.as_object_mut()
     {
         for (k, v) in existing {
@@ -656,7 +673,12 @@ pub(crate) fn project_result_view(result_val: &Value, options: Option<&Value>) -
         include: options
             .and_then(|o| o.get("include"))
             .and_then(Value::as_array)
-            .map(|arr| arr.iter().filter_map(Value::as_str).map(str::to_owned).collect()),
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            }),
         start_time: options
             .and_then(|o| o.get("startTime"))
             .and_then(Value::as_str)
