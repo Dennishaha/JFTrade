@@ -116,6 +116,7 @@ test("Rust manifests and metadata failures fall back to the workspace", () => {
 
 test("Rust compile environment predicate identifies cargo compile commands only", () => {
   assert.equal(commandRequiresRustCompileEnvironment("cargo test -p jftrade-desktop --all-targets --locked"), true);
+  assert.equal(commandRequiresRustCompileEnvironment("node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop --all-targets --locked"), true);
   assert.equal(commandRequiresRustCompileEnvironment("cargo check --all-targets"), true);
   assert.equal(commandRequiresRustCompileEnvironment("pnpm run check:desktop"), false);
   assert.equal(commandRequiresRustCompileEnvironment("pnpm run check:all"), false);
@@ -171,7 +172,7 @@ test("quick local Rust plan is targeted and defers the complete Rust gate", () =
     "pnpm run check:policy",
     "pnpm run check:contracts",
     "pnpm run check:rust:target-health",
-    "cargo test -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --locked",
+    "node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata --all-targets --locked",
     "pnpm run format:rust:check",
     "pnpm run check:clippy -- -p jftrade-desktop -p jftrade-engine -p jftrade-kernel -p jftrade-marketdata",
     "pnpm run check:desktop",

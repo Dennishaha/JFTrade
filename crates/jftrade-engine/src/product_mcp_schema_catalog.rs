@@ -16,6 +16,10 @@ pub(crate) fn schema_for(name: &str) -> Value {
         .unwrap_or_else(|| panic!("unmapped reviewed MCP tool schema: {name}"))
 }
 
+pub(crate) fn try_schema_for(name: &str) -> Option<Value> {
+    product_schema_for(name).or_else(|| core_schema_for(name))
+}
+
 include!("product_mcp_schema_catalog_dispatch.rs");
 include!("product_mcp_schema_catalog_product.rs");
 include!("product_mcp_schema_catalog_core.rs");

@@ -77,7 +77,7 @@
     "test:marketdata-sidecar-asset-build": "node scripts/build-marketdata-sidecar.test.mjs",
     "test:yfinance-sidecar-asset-build": "pnpm run test:marketdata-sidecar-asset-build",
     "test:marketdata-sidecar-smoke": "node --test scripts/smoke-marketdata-sidecar.test.mjs",
-    "test:pinets-shadow-corpus": "cargo test -p jftrade-engine --test strategy_pine_mcp_contract",
+    "test:pinets-shadow-corpus": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --test strategy_pine_mcp_contract",
     "test:pine-structure-corpus": "pnpm --filter @jftrade/web run test pineSharedStructureCorpus",
     "smoke:pinets-backtest": "node scripts/smoke-pinets-backtest.mjs",
     "lint:rust": "pnpm run check:clippy",

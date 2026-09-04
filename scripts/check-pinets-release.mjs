@@ -26,8 +26,8 @@ if (!checkPinetsPackageAndLicense({ dryRun, verifyWorkspaceVisible: true })) {
   blocked = true;
 }
 
-run("cargo", ["test", "-p", "jftrade-integration-pine", "--all-targets"]);
-run("cargo", ["test", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract"]);
+run("node", ["scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-integration-pine", "--all-targets"]);
+run("node", ["scripts/quality/cargo-nextest.mjs", "run", "-p", "jftrade-engine", "--test", "strategy_pine_mcp_contract"]);
 run("pnpm", ["run", "test:pineworker"]);
 run("pnpm", ["run", "typecheck:pineworker"]);
 run("pnpm", ["run", "check:pinets-compliance"]);
