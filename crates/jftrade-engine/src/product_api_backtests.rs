@@ -40,6 +40,18 @@ pub enum BacktestResultViewError {
     Failed(String),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BacktestDataCoverageRequest {
+    pub provider: String,
+    pub symbol: String,
+    pub interval: String,
+    pub rehab_type: String,
+    pub session_scope: String,
+    pub start_time_ms: i64,
+    pub end_time_ms: i64,
+    pub warmup_bars: usize,
+}
+
 /// Persisted projection for the mutable backtest sync-task state. The
 /// production implementation uses the backtest-runs WriterLease; a worker is
 /// still required before new sync requests can be accepted.
@@ -49,6 +61,12 @@ pub trait BacktestSyncReadSnapshotPort: Send + Sync + std::fmt::Debug {
         task_id: &str,
     ) -> Result<Option<serde_json::Value>, BacktestSyncReadSnapshotError>;
     fn active_tasks(&self) -> Result<Vec<serde_json::Value>, BacktestSyncReadSnapshotError>;
+    fn check_coverage(
+        &self,
+        _request: &BacktestDataCoverageRequest,
+    ) -> Result<bool, BacktestSyncReadSnapshotError> {
+        Ok(false)
+    }
 }
 
 #[derive(Clone, Debug, Error)]

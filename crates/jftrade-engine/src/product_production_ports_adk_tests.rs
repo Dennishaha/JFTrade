@@ -1666,9 +1666,17 @@ async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
         .expect("missing data triggers sync");
     assert_eq!(sync_res["ok"], true);
     assert_eq!(sync_res["status"], "syncing_data");
-    assert_eq!(sync_res["nextTool"], "backtest.kline_sync_status");
+    assert_eq!(sync_res["nextAction"], "wait_kline_sync");
+    assert_eq!(sync_res["nextTool"]["name"], "backtest.kline_sync_status");
+    assert_eq!(sync_res["nextTool"]["input"]["waitForCompletionMs"], 25000);
     let task_id = sync_res["dataSync"]["taskId"].as_str().expect("task id");
     assert!(!task_id.is_empty());
+    assert_eq!(sync_res["nextTool"]["input"]["taskId"], task_id);
+    assert_eq!(sync_res["dataSync"]["symbol"], "HK.00001");
+    assert_eq!(sync_res["dataSync"]["sessionScope"], "regular");
+    assert_eq!(sync_res["dataSync"]["rehabType"], "forward");
+    assert!(sync_res["dataSync"].get("since").is_some());
+    assert!(sync_res["dataSync"].get("until").is_some());
 
     // 3. Reuses active sync task without redundant sync trigger
     let reuse_res = executor
@@ -1686,6 +1694,8 @@ async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
         .expect("reuse active task");
     assert_eq!(reuse_res["ok"], true);
     assert_eq!(reuse_res["status"], "syncing_data");
+    assert_eq!(reuse_res["nextAction"], "wait_kline_sync");
+    assert_eq!(reuse_res["nextTool"]["name"], "backtest.kline_sync_status");
     assert_eq!(reuse_res["dataSync"]["taskId"], task_id);
 
     // 4. Execution model failure maps to error
@@ -1708,6 +1718,43 @@ async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
     let base = "2026-06-01T00:00:00Z";
     assert_eq!(derive_effective_since_time(base, "1d", 0), base);
     assert!(derive_effective_since_time(base, "1d", 10).as_str() < base);
+
+    // 6. Terminal state tracking prevents infinite retries
+    use crate::product::product_research_backtest_readiness::{build_sync_key, SyncStateTracker};
+    let tracker = SyncStateTracker::global();
+    let provider = sync_res["dataSync"]["marketDataProvider"]
+        .as_str()
+        .unwrap_or("futu");
+    let since_str = derive_effective_since_time("2026-01-01T00:00:00Z", "1m", 0);
+    let sync_key = build_sync_key(
+        provider,
+        "HK.00001",
+        "1m",
+        &since_str,
+        "2026-01-02T00:00:00Z",
+        "forward",
+        "regular",
+    );
+    tracker.set_terminal(
+        sync_key,
+        "sync-failed-123".to_owned(),
+        "failed".to_owned(),
+        "network timeout".to_owned(),
+    );
+    let terminal_res = executor.execute(
+        "strategy.research_backtest",
+        &json!({
+            "script": "//@version=6\nstrategy(\"Missing\", overlay=true)\nplot(close)\n",
+            "market": "HK",
+            "symbol": "HK.00001",
+            "startTime": "2026-01-01T00:00:00Z",
+            "endTime": "2026-01-02T00:00:00Z",
+            "waitForCompletionMs": 0,
+        }),
+    );
+    assert!(terminal_res.is_err());
+    let err_msg = terminal_res.unwrap_err().to_string();
+    assert!(err_msg.contains("terminated with failed: network timeout"));
 }
 
 #[tokio::test]

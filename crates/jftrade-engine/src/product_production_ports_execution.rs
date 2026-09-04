@@ -460,6 +460,70 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
             .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?;
         tasks.iter().map(sync_task_projection).collect()
     }
+
+    fn check_coverage(
+        &self,
+        request: &crate::product::BacktestDataCoverageRequest,
+    ) -> Result<bool, BacktestSyncReadSnapshotError> {
+        let formal = self
+            ._market_data_store
+            .read_candles(
+                &request.provider,
+                &request.symbol,
+                &request.interval,
+                &request.rehab_type,
+                &request.session_scope,
+                request.start_time_ms,
+                request.end_time_ms,
+            )
+            .map_err(|e| BacktestSyncReadSnapshotError::Unavailable(e.to_string()))?;
+        if formal.is_empty() {
+            return Ok(false);
+        }
+
+        if request.warmup_bars > 0 {
+            let interval_ms: i64 = match request.interval.trim().to_ascii_lowercase().as_str() {
+                "1m" | "1min" => 60_000,
+                "5m" | "5min" => 300_000,
+                "15m" | "15min" => 900_000,
+                "30m" | "30min" => 1_800_000,
+                "60m" | "60min" | "1h" => 3_600_000,
+                "1d" | "d" => 86_400_000,
+                "1w" | "w" | "week" => 7 * 86_400_000,
+                "1mo" | "1mon" | "1month" | "mo" | "month" => 30 * 86_400_000,
+                _ => 60_000,
+            };
+            let mut found = false;
+            for &m in &[3, 7, 14, 30, 60] {
+                let bounded_start = request.start_time_ms.saturating_sub(
+                    interval_ms.saturating_mul((request.warmup_bars as i64).saturating_mul(m)),
+                );
+                if self
+                    ._market_data_store
+                    .query_candles(
+                        &request.provider,
+                        &request.symbol,
+                        &request.interval,
+                        &request.rehab_type,
+                        &request.session_scope,
+                        bounded_start,
+                        request.start_time_ms,
+                        "DESC",
+                        request.warmup_bars,
+                    )
+                    .map(|w| w.len() >= request.warmup_bars)
+                    .unwrap_or(false)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
 }
 
 impl BacktestsWritePort for ProductionBacktestPort {
