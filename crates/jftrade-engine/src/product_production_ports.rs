@@ -210,11 +210,14 @@ pub(crate) fn production_ports(
                 ))
             })?,
     );
-    let notification_projector = Arc::new(crate::product::ExecutionNotificationProjector::new(
-        execution_store.clone(),
-        config.notification_port.clone(),
-        config.live_hub.clone(),
-    ));
+    let notification_projector = Arc::new(
+        crate::product::ExecutionNotificationProjector::new(
+            execution_store.clone(),
+            config.notification_port.clone(),
+            config.live_hub.clone(),
+        )
+        .with_settings_store(market_data_settings.clone()),
+    );
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
         active_provider_state: Arc::clone(&active_provider_state),

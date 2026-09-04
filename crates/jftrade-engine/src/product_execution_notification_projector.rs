@@ -5,8 +5,10 @@
 //! - `projector_desktop_notification`: delivers desktop notifications for execution events.
 //! - `projector_livehub`: broadcasts execution events to LiveHub clients.
 
-use std::sync::Arc;
+use std::collections::BTreeSet;
+use std::sync::{Arc, Mutex};
 
+use jftrade_settings::SystemNotificationSettingsStorePort;
 use jftrade_store_sqlite::{ExecutionOrderStore, ExecutionOrderStoreError};
 use serde_json::{Value, json};
 
@@ -15,11 +17,24 @@ use crate::product::{ProductNotificationPort, ProductNotificationRequest};
 pub const CURSOR_DESKTOP_NOTIFICATION: &str = "projector_desktop_notification";
 pub const CURSOR_LIVEHUB: &str = "projector_livehub";
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct ExecutionNotificationProjector {
     store: Arc<ExecutionOrderStore>,
     notification: Option<Arc<dyn ProductNotificationPort>>,
     live_hub: Option<Arc<jftrade_api::LiveHub>>,
+    settings_store: Option<Arc<dyn SystemNotificationSettingsStorePort>>,
+    delivered_events: Arc<Mutex<BTreeSet<String>>>,
+}
+
+impl std::fmt::Debug for ExecutionNotificationProjector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExecutionNotificationProjector")
+            .field("store", &self.store)
+            .field("notification", &self.notification.is_some())
+            .field("live_hub", &self.live_hub.is_some())
+            .field("settings_store", &self.settings_store.is_some())
+            .finish()
+    }
 }
 
 impl ExecutionNotificationProjector {
@@ -32,7 +47,17 @@ impl ExecutionNotificationProjector {
             store,
             notification,
             live_hub,
+            settings_store: None,
+            delivered_events: Arc::new(Mutex::new(BTreeSet::new())),
         }
+    }
+
+    pub(crate) fn with_settings_store(
+        mut self,
+        settings_store: Arc<dyn SystemNotificationSettingsStorePort>,
+    ) -> Self {
+        self.settings_store = Some(settings_store);
+        self
     }
 
     /// Projects unhandled execution events using durable cursor tracking in
@@ -59,16 +84,72 @@ impl ExecutionNotificationProjector {
         let mut advanced = false;
         for (row_id, event) in events {
             let presentation = map_order_event_presentation(&event);
-            let delivered = if let Some(ref notifier) = self.notification {
-                let request = ProductNotificationRequest {
-                    title: presentation.title,
-                    body: presentation.message,
-                    sound_enabled: true,
-                };
-                notifier.deliver(request).delivered
+            let (should_forward, sound_enabled) = if let Some(ref store) = self.settings_store {
+                match store.load_system_notifications() {
+                    Ok(Some(settings)) => {
+                        let normalized =
+                            jftrade_settings::normalize_system_notification_settings(&settings);
+                        let forward = jftrade_settings::should_forward_system_notification(
+                            &normalized,
+                            &presentation.level,
+                            &presentation.category,
+                        );
+                        (forward, normalized.sound_enabled)
+                    }
+                    Ok(None) => {
+                        let default_settings =
+                            jftrade_settings::SystemNotificationSettings::default();
+                        let forward = jftrade_settings::should_forward_system_notification(
+                            &default_settings,
+                            &presentation.level,
+                            &presentation.category,
+                        );
+                        (forward, default_settings.sound_enabled)
+                    }
+                    Err(_) => {
+                        // Fail closed if settings cannot be loaded: do not deliver notification
+                        (false, false)
+                    }
+                }
             } else {
+                (true, true)
+            };
+
+            let delivered = if should_forward {
+                let event_key = format!("{}|{}", event.internal_order_id, event.id);
+                let already_delivered = {
+                    let set = self
+                        .delivered_events
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    set.contains(&event_key)
+                };
+
+                if already_delivered {
+                    true
+                } else if let Some(ref notifier) = self.notification {
+                    let request = ProductNotificationRequest {
+                        title: presentation.title,
+                        body: presentation.message,
+                        sound_enabled,
+                    };
+                    let ok = notifier.deliver(request).delivered;
+                    if ok {
+                        let mut set = self
+                            .delivered_events
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
+                        set.insert(event_key);
+                    }
+                    ok
+                } else {
+                    true
+                }
+            } else {
+                // If filtered: advance cursor without delivering native alert
                 true
             };
+
             if delivered {
                 self.store
                     .set_sequence(CURSOR_DESKTOP_NOTIFICATION, row_id)?;
@@ -503,5 +584,148 @@ mod tests {
         assert_eq!(notified, 0);
         assert!(*failing_notifier.attempts.lock().unwrap() <= 2);
         assert_eq!(store.get_sequence(CURSOR_DESKTOP_NOTIFICATION).unwrap(), 0);
+    }
+
+    #[derive(Clone)]
+    struct MockSettingsStore {
+        settings: Arc<
+            Mutex<
+                Result<
+                    Option<jftrade_settings::SystemNotificationSettings>,
+                    jftrade_settings::SettingsStoreError,
+                >,
+            >,
+        >,
+    }
+
+    impl Default for MockSettingsStore {
+        fn default() -> Self {
+            Self {
+                settings: Arc::new(Mutex::new(Ok(None))),
+            }
+        }
+    }
+
+    impl jftrade_settings::SystemNotificationSettingsStorePort for MockSettingsStore {
+        fn load_system_notifications(
+            &self,
+        ) -> Result<Option<jftrade_settings::SystemNotificationSettings>, jftrade_settings::SettingsStoreError>
+        {
+            self.settings.lock().unwrap().clone()
+        }
+
+        fn save_system_notifications(
+            &self,
+            _settings: &jftrade_settings::SystemNotificationSettings,
+        ) -> Result<(), jftrade_settings::SettingsStoreError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_notification_projector_settings_filter_and_fail_closed() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("execution-orders.db");
+        let conn = rusqlite::Connection::open(&path).expect("open sqlite");
+        jftrade_store_sqlite::initialize_current(&conn, "execution-orders").expect("init schema");
+        drop(conn);
+
+        let store = Arc::new(ExecutionOrderStore::open(&path).expect("open store"));
+        let order = StoredExecutionOrder {
+            internal_order_id: "ord-filt-1".to_owned(),
+            broker_id: "futu".to_owned(),
+            broker_order_id: None,
+            broker_order_id_ex: None,
+            source: "api".to_owned(),
+            source_detail: "test".to_owned(),
+            trading_environment: "SIMULATE".to_owned(),
+            account_id: "1".to_owned(),
+            market: "US".to_owned(),
+            symbol: Some("US.AAPL".to_owned()),
+            side: Some("BUY".to_owned()),
+            order_type: Some("LIMIT".to_owned()),
+            status: "SUBMITTED".to_owned(),
+            raw_broker_status: None,
+            requested_quantity: Some(10.0),
+            requested_price: Some(150.0),
+            filled_quantity: None,
+            filled_average_price: None,
+            remark: None,
+            last_error: None,
+            last_error_code: None,
+            last_error_source: None,
+            submitted_at: Some("2026-08-30T10:00:00Z".to_owned()),
+            updated_at: "2026-08-30T10:00:00Z".to_owned(),
+            created_at: "2026-08-30T10:00:00Z".to_owned(),
+            order_kind: "single".to_owned(),
+            product_class: "equity".to_owned(),
+            quantity_mode: "quantity".to_owned(),
+            client_order_id: None,
+            preview_id: None,
+            normalized_request: "{}".to_owned(),
+            requested_amount: None,
+            payout: None,
+            fees: None,
+        };
+        let event = StoredExecutionOrderEvent {
+            id: "evt-filt-1",
+            internal_order_id: "ord-filt-1",
+            event_type: "PLACE",
+            previous_status: None,
+            next_status: "SUBMITTED",
+            payload_json: "{}",
+            created_at: "2026-08-30T10:00:00Z",
+        };
+        store
+            .save_order_and_event(order.clone(), "2026-08-30T10:00:00Z", &event)
+            .expect("save order and event");
+
+        let notifier = Arc::new(MockNotificationPort::default());
+        let settings_store = Arc::new(MockSettingsStore::default());
+
+        *settings_store.settings.lock().unwrap() =
+            Ok(Some(jftrade_settings::SystemNotificationSettings {
+                enabled: false,
+                mode: "custom".to_owned(),
+                levels: vec![],
+                categories: vec![],
+                sound_enabled: false,
+            }));
+
+        let projector = ExecutionNotificationProjector::new(
+            store.clone(),
+            Some(notifier.clone()),
+            None,
+        )
+        .with_settings_store(settings_store.clone());
+
+        let (notified, _) = projector.project_pending().expect("project pending");
+        assert_eq!(notified, 1);
+        assert_eq!(notifier.delivered.lock().unwrap().len(), 0);
+        assert!(store.get_sequence(CURSOR_DESKTOP_NOTIFICATION).unwrap() >= 1);
+
+        // Test fail-closed on settings store error
+        *settings_store.settings.lock().unwrap() =
+            Err(jftrade_settings::SettingsStoreError::new("store failure"));
+        let event2 = StoredExecutionOrderEvent {
+            id: "evt-filt-2",
+            internal_order_id: "ord-filt-1",
+            event_type: "CANCEL",
+            previous_status: Some("SUBMITTED"),
+            next_status: "CANCELLED",
+            payload_json: "{}",
+            created_at: "2026-08-30T10:05:00Z",
+        };
+        let mut order2 = order.clone();
+        order2.status = "CANCELLED".to_owned();
+        order2.updated_at = "2026-08-30T10:05:00Z".to_owned();
+        store
+            .save_order_and_event(order2, "2026-08-30T10:05:00Z", &event2)
+            .expect("save event2");
+
+        let (notified2, _) = projector.project_pending().expect("project pending 2");
+        assert_eq!(notified2, 1);
+        // Fail-closed: still 0 delivered notifications
+        assert_eq!(notifier.delivered.lock().unwrap().len(), 0);
     }
 }
