@@ -29,8 +29,9 @@ pub use real_trade::{
     RealTradeRiskSnapshot, RealTradeRuntimeRiskEntry,
 };
 pub use risk::{
-    HardStop, RUNTIME_RISK_MODE_ENFORCE, RUNTIME_RISK_MODE_MONITOR, RUNTIME_RISK_MODE_OFF,
-    RiskConfig, RiskDecision, RiskEngine, RuntimeRiskContext, RuntimeRiskDecision,
-    RuntimeRiskOrder, RuntimeRiskSettings, evaluate_runtime_risk,
+    HardStop, PreTradeRiskComboLeg, PreTradeRiskDecision, PreTradeRiskOrder, PreTradeRiskPolicy,
+    RUNTIME_RISK_MODE_ENFORCE, RUNTIME_RISK_MODE_MONITOR, RUNTIME_RISK_MODE_OFF, RiskConfig,
+    RiskDecision, RiskEngine, RuntimeRiskContext, RuntimeRiskDecision, RuntimeRiskOrder,
+    RuntimeRiskSettings, evaluate_pre_trade_risk, evaluate_runtime_risk,
 };
 pub use session::{AccountSnapshot, BrokerSession, SessionState};

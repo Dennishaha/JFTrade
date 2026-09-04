@@ -272,9 +272,150 @@ pub(super) fn binding_params(binding: &Value) -> BTreeMap<String, String> {
         .collect()
 }
 
+pub(super) fn normalize_symbol_string(value: &str) -> String {
+    let trimmed = value.trim();
+    if let Some((market, code)) = trimmed.split_once(':') {
+        format!("{}.{}", market.trim().to_ascii_uppercase(), code.trim().to_ascii_uppercase())
+    } else if let Some((market, code)) = trimmed.split_once('.') {
+        format!("{}.{}", market.trim().to_ascii_uppercase(), code.trim().to_ascii_uppercase())
+    } else {
+        trimmed.to_ascii_uppercase()
+    }
+}
+
 pub(super) fn split_strategy_symbol(value: &str, default_market: &str) -> (String, String) {
     value
         .split_once('.')
+        .or_else(|| value.split_once(':'))
         .map(|(market, symbol)| (market.trim().to_owned(), symbol.trim().to_owned()))
         .unwrap_or_else(|| (default_market.to_owned(), value.trim().to_owned()))
+}
+
+pub(super) fn normalize_strategy_binding(
+    binding: &mut Value,
+) -> Result<(), StrategyRuntimeWritePortError> {
+    let object = binding
+        .as_object_mut()
+        .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+            status: 400,
+            code: "BAD_REQUEST".to_owned(),
+            message: "strategy binding must be an object".to_owned(),
+        })?;
+
+    let raw_mode = object.get("executionMode").and_then(Value::as_str).map(str::trim);
+    let raw_exec = object.get("executeOrders").and_then(Value::as_bool);
+
+    let (final_mode, final_exec) = match (raw_mode, raw_exec) {
+        (None, None) | (Some(""), None) => ("live", true),
+        (None, Some(true)) | (Some(""), Some(true)) => ("live", true),
+        (None, Some(false)) | (Some(""), Some(false)) => ("notify_only", false),
+        (Some("live"), None) => ("live", true),
+        (Some("notify_only"), None) => ("notify_only", false),
+        (Some("live"), Some(true)) => ("live", true),
+        (Some("notify_only"), Some(false)) => ("notify_only", false),
+        (Some("live"), Some(false)) => {
+            return Err(StrategyRuntimeWritePortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "conflicting executionMode 'live' and executeOrders false".to_owned(),
+            });
+        }
+        (Some("notify_only"), Some(true)) => {
+            return Err(StrategyRuntimeWritePortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "conflicting executionMode 'notify_only' and executeOrders true".to_owned(),
+            });
+        }
+        (Some(other), _) => {
+            return Err(StrategyRuntimeWritePortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: format!("unsupported executionMode {other:?}"),
+            });
+        }
+    };
+    object.insert("executionMode".to_owned(), Value::String(final_mode.to_owned()));
+    object.insert("executeOrders".to_owned(), Value::Bool(final_exec));
+
+    let interval = object
+        .get("interval")
+        .or_else(|| object.get("timeframe"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("5m")
+        .to_owned();
+    object.insert("interval".to_owned(), Value::String(interval.clone()));
+    object.insert("timeframe".to_owned(), Value::String(interval));
+
+    let chart_type = object
+        .get("chartType")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("standard")
+        .to_owned();
+    object.insert("chartType".to_owned(), Value::String(chart_type));
+
+    let default_market = object
+        .get("market")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("US")
+        .to_owned();
+
+    let mut extracted_symbols: Vec<String> = Vec::new();
+    if let Some(symbols_arr) = object
+        .get("symbols")
+        .or_else(|| object.get("activeSymbols"))
+        .and_then(Value::as_array)
+    {
+        for s in symbols_arr.iter().filter_map(Value::as_str) {
+            let normalized = normalize_symbol_string(s);
+            if !normalized.is_empty() && !extracted_symbols.contains(&normalized) {
+                extracted_symbols.push(normalized);
+            }
+        }
+    } else if let Some(instruments_arr) = object.get("instruments").and_then(Value::as_array) {
+        for item in instruments_arr {
+            if let Some(s) = item.as_str() {
+                let normalized = normalize_symbol_string(s);
+                if !normalized.is_empty() && !extracted_symbols.contains(&normalized) {
+                    extracted_symbols.push(normalized);
+                }
+            } else if let Some(obj) = item.as_object() {
+                let market = obj.get("market").and_then(Value::as_str).unwrap_or(&default_market);
+                if let Some(code) = obj.get("code").and_then(Value::as_str) {
+                    let normalized = normalize_symbol_string(&format!("{market}.{code}"));
+                    if !normalized.is_empty() && !extracted_symbols.contains(&normalized) {
+                        extracted_symbols.push(normalized);
+                    }
+                }
+            }
+        }
+    } else if let Some(s) = object.get("symbol").and_then(Value::as_str) {
+        let normalized = normalize_symbol_string(s);
+        if !normalized.is_empty() {
+            extracted_symbols.push(normalized);
+        }
+    }
+
+    if !extracted_symbols.is_empty() {
+        object.insert("symbols".to_owned(), json!(extracted_symbols));
+        let instruments_json: Vec<Value> = extracted_symbols
+            .iter()
+            .map(|sym| {
+                let (market, code) = split_strategy_symbol(sym, &default_market);
+                json!({
+                    "market": market,
+                    "code": code,
+                })
+            })
+            .collect();
+        object.insert("instruments".to_owned(), Value::Array(instruments_json));
+    }
+
+    Ok(())
 }

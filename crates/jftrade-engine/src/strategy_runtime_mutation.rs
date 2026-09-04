@@ -28,7 +28,8 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
             })?;
         let result = match input.operation {
             StrategyRuntimeWriteOperation::Start => {
-                if current.runtime_active || current.status.eq_ignore_ascii_case("RUNNING") {
+                let status_upper = current.status.to_ascii_uppercase();
+                if current.runtime_active || status_upper == "RUNNING" {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 409,
                         code: "CONFLICT".to_owned(),
@@ -38,47 +39,78 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 if let Some(error) = self.manager.dependency_error() {
                     return Err(error);
                 }
+
+                if status_upper == "PAUSED" && self.manager.is_task_alive(&input.instance_id) {
+                    let instance = self
+                        .store
+                        .update_status_cas(&input.instance_id, &["PAUSED"], "RUNNING", &timestamp)
+                        .map_err(|e| StrategyRuntimeWritePortError::Failed {
+                            status: 409,
+                            code: "CONFLICT".to_owned(),
+                            message: format!("resume paused strategy failed: {e}"),
+                        })?;
+                    self.manager.wake(&input.instance_id);
+                    return Ok(json!({
+                        "id": instance.id,
+                        "status": instance.status,
+                        "binding": instance.binding,
+                        "runtimeRisk": instance.runtime_risk,
+                        "runtimeRiskRevision": instance.runtime_risk_revision,
+                        "definitionRevision": instance.definition_revision,
+                        "runtimeActive": instance.runtime_active,
+                        "deleted": instance.deleted,
+                        "updatedAt": instance.updated_at,
+                        "createdAt": instance.created_at,
+                    }));
+                }
+
                 let runtime_binding = self.effective_binding(&current)?;
                 self.manager
                     .acquire_demand(&input.instance_id, &runtime_binding)?;
-                match self
+
+                let starting_instance = self
                     .store
-                    .update_status(&input.instance_id, "RUNNING", &timestamp)
-                {
-                    Ok(instance) => {
-                        if let Err(error) = self.manager.spawn_task(
-                            input.instance_id.clone(),
-                            runtime_binding,
-                            Arc::clone(&self.store),
-                        ) {
-                            let _ =
-                                self.store
-                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
-                            self.manager.release_demand(&input.instance_id);
-                            Err(error)
-                        } else {
-                            Ok(instance)
+                    .update_status_cas(
+                        &input.instance_id,
+                        &["STOPPED", "FAILED", "PAUSED"],
+                        "STARTING",
+                        &timestamp,
+                    )
+                    .map_err(|e| {
+                        self.manager.release_demand(&input.instance_id);
+                        StrategyRuntimeWritePortError::Failed {
+                            status: 409,
+                            code: "CONFLICT".to_owned(),
+                            message: format!("transition to STARTING failed: {e}"),
                         }
+                    })?;
+
+                match self.manager.spawn_task(
+                    input.instance_id.clone(),
+                    runtime_binding,
+                    Arc::clone(&self.store),
+                ) {
+                    Ok(()) => {
+                        let running_instance = self
+                            .store
+                            .update_status_cas(&input.instance_id, &["STARTING"], "RUNNING", &timestamp)
+                            .unwrap_or(starting_instance);
+                        Ok(running_instance)
                     }
                     Err(error) => {
+                        let _ = self.store.update_status_cas(
+                            &input.instance_id,
+                            &["STARTING"],
+                            "FAILED",
+                            &timestamp,
+                        );
                         self.manager.release_demand(&input.instance_id);
-                        Err(error.into())
+                        Err(error)
                     }
                 }
             }
-            StrategyRuntimeWriteOperation::Stop | StrategyRuntimeWriteOperation::Pause => {
-                if input.operation == StrategyRuntimeWriteOperation::Pause
-                    && !current.status.eq_ignore_ascii_case("RUNNING")
-                {
-                    return Err(StrategyRuntimeWritePortError::Failed {
-                        status: 409,
-                        code: "CONFLICT".to_owned(),
-                        message: "strategy instance is not running".to_owned(),
-                    });
-                }
-                if input.operation == StrategyRuntimeWriteOperation::Stop
-                    && current.status.eq_ignore_ascii_case("STOPPED")
-                {
+            StrategyRuntimeWriteOperation::Stop => {
+                if current.status.eq_ignore_ascii_case("STOPPED") {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 409,
                         code: "CONFLICT".to_owned(),
@@ -87,21 +119,34 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 }
                 self.manager.cancel(&input.instance_id);
                 self.manager.release_demand(&input.instance_id);
-                let status = if input.operation == StrategyRuntimeWriteOperation::Pause {
-                    "PAUSED"
-                } else {
-                    "STOPPED"
-                };
                 self.store
-                    .update_status(&input.instance_id, status, &timestamp)
+                    .update_status_cas(
+                        &input.instance_id,
+                        &["RUNNING", "PAUSED", "STARTING", "FAILED"],
+                        "STOPPED",
+                        &timestamp,
+                    )
+                    .map_err(Into::into)
+            }
+            StrategyRuntimeWriteOperation::Pause => {
+                if !current.status.eq_ignore_ascii_case("RUNNING") {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "CONFLICT".to_owned(),
+                        message: "strategy instance is not running".to_owned(),
+                    });
+                }
+                self.store
+                    .update_status_cas(&input.instance_id, &["RUNNING"], "PAUSED", &timestamp)
                     .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::Delete => {
-                if current.runtime_active || current.status.eq_ignore_ascii_case("RUNNING") {
+                let status_upper = current.status.to_ascii_uppercase();
+                if status_upper != "STOPPED" && status_upper != "FAILED" {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,
                         code: "BAD_REQUEST".to_owned(),
-                        message: "strategy instance is busy".to_owned(),
+                        message: "only STOPPED or FAILED strategy instances can be deleted".to_owned(),
                     });
                 }
                 self.manager.cancel(&input.instance_id);
@@ -111,79 +156,25 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                     .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::Update => {
-                let binding =
-                    input
-                        .binding
-                        .clone()
-                        .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
-                            status: 400,
-                            code: "BAD_REQUEST".to_owned(),
-                            message: "strategy binding is required".to_owned(),
-                        })?;
-                let was_running =
-                    current.runtime_active || current.status.eq_ignore_ascii_case("RUNNING");
-                if was_running {
-                    self.manager.cancel(&input.instance_id);
-                    self.manager.release_demand(&input.instance_id);
+                let mut binding = input
+                    .binding
+                    .clone()
+                    .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "strategy binding is required".to_owned(),
+                    })?;
+                if current.runtime_active || !current.status.eq_ignore_ascii_case("STOPPED") {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "strategy instance must be stopped before modification".to_owned(),
+                    });
                 }
-                let updated =
-                    match self
-                        .store
-                        .update_binding(&input.instance_id, binding.clone(), &timestamp)
-                    {
-                        Ok(updated) => updated,
-                        Err(error) => {
-                            if was_running {
-                                let _ = self.store.update_status(
-                                    &input.instance_id,
-                                    "STOPPED",
-                                    &timestamp,
-                                );
-                            }
-                            return Err(error.into());
-                        }
-                    };
-                if was_running {
-                    if let Some(error) = self.manager.dependency_error() {
-                        let _ = self
-                            .store
-                            .update_status(&input.instance_id, "STOPPED", &timestamp);
-                        return Err(error);
-                    }
-                    if let Err(error) = self.manager.acquire_demand(&input.instance_id, &binding) {
-                        let _ = self
-                            .store
-                            .update_status(&input.instance_id, "STOPPED", &timestamp);
-                        return Err(error);
-                    }
-                    let running =
-                        match self
-                            .store
-                            .update_status(&input.instance_id, "RUNNING", &timestamp)
-                        {
-                            Ok(running) => running,
-                            Err(error) => {
-                                self.manager.release_demand(&input.instance_id);
-                                return Err(error.into());
-                            }
-                        };
-                    match self.manager.spawn_task(
-                        input.instance_id.clone(),
-                        binding,
-                        Arc::clone(&self.store),
-                    ) {
-                        Ok(()) => Ok(running),
-                        Err(error) => {
-                            let _ =
-                                self.store
-                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
-                            self.manager.release_demand(&input.instance_id);
-                            Err(error)
-                        }
-                    }
-                } else {
-                    Ok(updated)
-                }
+                normalize_strategy_binding(&mut binding)?;
+                self.store
+                    .update_binding(&input.instance_id, binding, &timestamp)
+                    .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::UpdateRuntimeRisk => {
                 let risk = input.runtime_risk.clone().ok_or_else(|| {
@@ -280,11 +271,130 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 "status": inst.status,
                 "binding": inst.binding,
                 "runtimeRisk": inst.runtime_risk,
+                "runtimeRiskRevision": inst.runtime_risk_revision,
                 "definitionRevision": inst.definition_revision,
                 "runtimeActive": inst.runtime_active,
                 "deleted": inst.deleted,
             })),
             Err(error) => Err(error),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use std::sync::Arc;
+    use jftrade_store_sqlite::{
+        STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
+    };
+
+    fn seed_strategy_test_db(path: &std::path::Path) {
+        let conn = Connection::open(path).expect("open test db");
+        jftrade_store_sqlite::initialize_current(&conn, "strategy")
+            .expect("initialize strategy schema");
+    }
+
+    #[test]
+    fn test_running_strategy_update_rejected_with_bad_request() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("strategy.db");
+        seed_strategy_test_db(&path);
+
+        let def_store = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("open definition store"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&def_store));
+        store
+            .seed_instance("running-inst", "RUNNING", "2026-08-30T00:00:00Z")
+            .expect("seed running instance");
+
+        let active_provider = Arc::new(
+            crate::product::product_active_provider_state::ActiveProviderState::default(),
+        );
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            active_provider,
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store,
+            definitions: def_store,
+            manager,
+        };
+
+        let update_input = StrategyRuntimeWriteInput {
+            operation: StrategyRuntimeWriteOperation::Update,
+            instance_id: "running-inst".to_owned(),
+            binding: Some(json!({"symbols": ["US.AAPL"], "interval": "5m"})),
+            runtime_risk: None,
+        };
+
+        let err = port
+            .mutate(&update_input)
+            .expect_err("must reject update when running");
+        match err {
+            StrategyRuntimeWritePortError::Failed {
+                status,
+                code,
+                message,
+            } => {
+                assert_eq!(status, 400);
+                assert_eq!(code, "BAD_REQUEST");
+                assert_eq!(
+                    message,
+                    "strategy instance must be stopped before modification"
+                );
+            }
+            other => panic!("expected 400 BAD_REQUEST, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_stopped_strategy_update_succeeds_with_normalization() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("strategy.db");
+        seed_strategy_test_db(&path);
+
+        let def_store = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("open definition store"),
+        );
+        let store = Arc::new(StrategyRuntimeStore::from_definition_store(&def_store));
+        store
+            .seed_instance("stopped-inst", "STOPPED", "2026-08-30T00:00:00Z")
+            .expect("seed stopped instance");
+
+        let active_provider = Arc::new(
+            crate::product::product_active_provider_state::ActiveProviderState::default(),
+        );
+        let manager = Arc::new(StrategyRuntimeManager::new(
+            None,
+            None,
+            None,
+            None,
+            active_provider,
+        ));
+        let port = ProductionStrategyRuntimePort {
+            store,
+            definitions: def_store,
+            manager,
+        };
+
+        let update_input = StrategyRuntimeWriteInput {
+            operation: StrategyRuntimeWriteOperation::Update,
+            instance_id: "stopped-inst".to_owned(),
+            binding: Some(json!({"symbols": ["US:AAPL"]})), // Colon delimiter, missing interval
+            runtime_risk: None,
+        };
+
+        let result = port.mutate(&update_input).expect("update stopped instance");
+        assert_eq!(result["status"], "STOPPED");
+        assert_eq!(result["binding"]["symbols"], json!(["US.AAPL"])); // Normalized to dot
+        assert_eq!(result["binding"]["interval"], "5m"); // Defaulted interval
     }
 }

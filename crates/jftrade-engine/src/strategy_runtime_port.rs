@@ -150,6 +150,7 @@ impl ProductionStrategyRuntimePort {
                     object.insert("interval".to_owned(), Value::String(definition.interval));
                 }
         }
+        normalize_strategy_binding(&mut binding)?;
         Ok(binding)
     }
 
@@ -166,6 +167,10 @@ impl ProductionStrategyRuntimePort {
         object.insert("status".to_owned(), Value::String(instance.status.clone()));
         object.insert("binding".to_owned(), instance.binding.clone());
         object.insert("runtimeRisk".to_owned(), instance.runtime_risk.clone());
+        object.insert(
+            "runtimeRiskRevision".to_owned(),
+            Value::from(instance.runtime_risk_revision),
+        );
         object.insert(
             "definitionRevision".to_owned(),
             Value::from(instance.definition_revision),

@@ -176,6 +176,7 @@ fn projection_from_instance(inst: &StoredRuntimeInstance) -> Value {
         "status": inst.status,
         "binding": inst.binding,
         "runtimeRisk": inst.runtime_risk,
+        "runtimeRiskRevision": inst.runtime_risk_revision,
         "definitionRevision": inst.definition_revision,
         "runtimeActive": inst.runtime_active,
         "deleted": inst.deleted,
