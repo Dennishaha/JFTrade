@@ -205,12 +205,24 @@ fn map_order_to_orderbook(
         .or_else(|| order.get("type"))
         .and_then(Value::as_str)
         .unwrap_or("MARKET");
-    let status = order.get("status").and_then(Value::as_str).unwrap_or("FILLED");
-    let side = order.get("side").and_then(Value::as_str).unwrap_or_default();
+    let status = order
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("FILLED");
+    let side = order
+        .get("side")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let quantity_str = format_decimal_str(order.get("quantity"));
-    let order_price_str = format_decimal_str(order.get("orderPrice").or_else(|| order.get("price")));
-    let filled_price_str = format_decimal_str(order.get("filledPrice").or_else(|| order.get("price")));
-    let filled_quantity_str = format_decimal_str(order.get("filledQuantity").or_else(|| order.get("quantity")));
+    let order_price_str =
+        format_decimal_str(order.get("orderPrice").or_else(|| order.get("price")));
+    let filled_price_str =
+        format_decimal_str(order.get("filledPrice").or_else(|| order.get("price")));
+    let filled_quantity_str = format_decimal_str(
+        order
+            .get("filledQuantity")
+            .or_else(|| order.get("quantity")),
+    );
     let sub_str = sub.and_then(Value::as_str).unwrap_or_default();
     let fil_str = fil.and_then(Value::as_str).unwrap_or_default();
     let fee_currency = order
@@ -502,7 +514,9 @@ fn extract_legacy_backtest(
             "maxDrawdown",
             "profitFactor",
         ] {
-            if !s_obj.contains_key(k) && let Some(v) = result_node.get(k) {
+            if !s_obj.contains_key(k)
+                && let Some(v) = result_node.get(k)
+            {
                 s_obj.insert(k.to_owned(), v.clone());
             }
         }
@@ -638,10 +652,7 @@ fn enrich_summary_payload(
             obj.insert("latestWarning".to_owned(), last.clone());
         }
         if let Some(last) = data.runtime_errors.last() {
-            obj.insert(
-                "latestRuntimeError".to_owned(),
-                last.clone(),
-            );
+            obj.insert("latestRuntimeError".to_owned(), last.clone());
         }
     }
     summary

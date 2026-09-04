@@ -232,7 +232,10 @@ pub(crate) fn result_view_candles(
     if target_duration <= native_duration || filtered.is_empty() {
         return Ok((label, filtered));
     }
-    Ok((label, aggregate_result_view_candles(&filtered, target_duration)))
+    Ok((
+        label,
+        aggregate_result_view_candles(&filtered, target_duration),
+    ))
 }
 
 pub(crate) fn aggregate_result_view_candles(candles: &[Value], resolution: Duration) -> Vec<Value> {
@@ -248,7 +251,10 @@ pub(crate) fn aggregate_result_view_candles(candles: &[Value], resolution: Durat
     let mut volume_sum = 0.0f64;
 
     for candle in candles {
-        let time_str = candle.get("time").and_then(Value::as_str).unwrap_or_default();
+        let time_str = candle
+            .get("time")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let Some(nanos) = parse_rfc3339_nanos(time_str) else {
             continue;
         };

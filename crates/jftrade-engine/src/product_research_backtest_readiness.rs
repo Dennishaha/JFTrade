@@ -10,12 +10,12 @@ use std::time::Instant;
 
 use serde_json::{Value, json};
 
+use crate::product::BacktestDataCoverageRequest;
 use crate::product::product_backtests_write_port::{BacktestsWriteInput, BacktestsWritePortResult};
 use crate::product::product_production_ports::ProductionPortBundle;
 use crate::product::product_research_backtest_execution::{
     extract_run_metadata, research_script_hash,
 };
-use crate::product::BacktestDataCoverageRequest;
 
 #[derive(Clone, Debug)]
 pub(crate) enum SyncTaskState {
@@ -539,8 +539,7 @@ pub(crate) fn ensure_research_data_readiness(
         return Ok(EnsureDataOutcome::Ready);
     }
 
-    let since_str =
-        derive_effective_since_time(ctx.start_time_str, ctx.interval, ctx.warmup_bars);
+    let since_str = derive_effective_since_time(ctx.start_time_str, ctx.interval, ctx.warmup_bars);
     let sync_key = build_sync_key(
         &ctx.provider,
         ctx.symbol,
@@ -594,24 +593,12 @@ pub(crate) fn ensure_research_data_readiness(
     }
 
     if let Some(outcome) = find_reusable_active_sync_task(
-        ports,
-        tracker,
-        &sync_key,
-        &ctx,
-        &since_str,
-        validation,
-        arguments,
+        ports, tracker, &sync_key, &ctx, &since_str, validation, arguments,
     ) {
         return Ok(outcome);
     }
 
     trigger_new_kline_sync(
-        ports,
-        tracker,
-        &sync_key,
-        &ctx,
-        &since_str,
-        validation,
-        arguments,
+        ports, tracker, &sync_key, &ctx, &since_str, validation, arguments,
     )
 }
