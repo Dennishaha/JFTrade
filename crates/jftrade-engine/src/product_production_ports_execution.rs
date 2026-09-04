@@ -364,25 +364,21 @@ impl ProductionBacktestPort {
         let rehab = raw_req
             .get("rehabType")
             .and_then(Value::as_str)
-            .unwrap_or("none");
+            .unwrap_or("forward");
         let session = raw_req
             .get("sessionScope")
             .and_then(Value::as_str)
-            .unwrap_or("standard");
+            .unwrap_or("regular");
         let start_ms = raw_req
             .get("startTimeMs")
             .and_then(Value::as_i64)
             .or_else(|| {
                 raw_req
                     .get("startTime")
+                    .or_else(|| raw_req.get("startDate"))
                     .and_then(Value::as_str)
                     .and_then(|s| {
-                        time::OffsetDateTime::parse(
-                            s,
-                            &time::format_description::well_known::Rfc3339,
-                        )
-                        .ok()
-                        .map(|dt| (dt.unix_timestamp_nanos() / 1_000_000) as i64)
+                        product_production_ports_backtest_parse::parse_start_timestamp(s).ok()
                     })
             })?;
         let end_ms = raw_req
@@ -391,14 +387,10 @@ impl ProductionBacktestPort {
             .or_else(|| {
                 raw_req
                     .get("endTime")
+                    .or_else(|| raw_req.get("endDate"))
                     .and_then(Value::as_str)
                     .and_then(|s| {
-                        time::OffsetDateTime::parse(
-                            s,
-                            &time::format_description::well_known::Rfc3339,
-                        )
-                        .ok()
-                        .map(|dt| (dt.unix_timestamp_nanos() / 1_000_000) as i64)
+                        product_production_ports_backtest_parse::parse_end_timestamp(s).ok()
                     })
             })?;
         let stored = self
@@ -406,6 +398,10 @@ impl ProductionBacktestPort {
             .read_candles(
                 provider, symbol, interval, rehab, session, start_ms, end_ms,
             )
+            .map_err(|e| {
+                tracing::warn!(error = ?e, "failed to read stored candles for result view");
+                e
+            })
             .ok()?;
         if stored.is_empty() {
             return None;
@@ -415,21 +411,19 @@ impl ProductionBacktestPort {
                 .into_iter()
                 .map(|c| {
                     let rfc = time::OffsetDateTime::from_unix_timestamp_nanos(
-                        (c.start_time as i128) * 1_000_000,
+                        (c.end_time as i128) * 1_000_000,
                     )
                     .ok()
                     .and_then(|dt| {
-                        dt.format(&time::format_description::well_known::Rfc3339)
-                            .ok()
+                        dt.format(&time::format_description::well_known::Rfc3339).ok()
                     });
                     json!({
-                        "time": rfc.unwrap_or_else(|| c.start_time.to_string()),
-                        "start": c.start_time,
-                        "open": c.open.parse::<f64>().unwrap_or(0.0),
-                        "high": c.high.parse::<f64>().unwrap_or(0.0),
-                        "low": c.low.parse::<f64>().unwrap_or(0.0),
-                        "close": c.close.parse::<f64>().unwrap_or(0.0),
-                        "volume": c.volume.parse::<f64>().unwrap_or(0.0),
+                        "time": rfc.unwrap_or_else(|| c.end_time.to_string()),
+                        "open": c.open,
+                        "high": c.high,
+                        "low": c.low,
+                        "close": c.close,
+                        "volume": c.volume,
                     })
                 })
                 .collect(),

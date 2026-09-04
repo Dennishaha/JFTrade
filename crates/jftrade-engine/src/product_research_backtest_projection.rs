@@ -14,16 +14,16 @@ pub(crate) use filters::*;
 pub(crate) use crate::product::product_research_backtest_execution::execute_research_backtest;
 use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 
-struct NormalizedBacktestData {
-    summary: Value,
-    candles: Vec<Value>,
-    trades: Vec<Value>,
-    pnl_curve: Vec<Value>,
-    drawdown_curve: Vec<Value>,
-    orders: Vec<Value>,
-    logs: Vec<Value>,
-    warnings: Vec<Value>,
-    runtime_errors: Vec<Value>,
+pub(crate) struct NormalizedBacktestData {
+    pub(crate) summary: Value,
+    pub(crate) candles: Vec<Value>,
+    pub(crate) trades: Vec<Value>,
+    pub(crate) pnl_curve: Vec<Value>,
+    pub(crate) drawdown_curve: Vec<Value>,
+    pub(crate) orders: Vec<Value>,
+    pub(crate) logs: Vec<Value>,
+    pub(crate) warnings: Vec<Value>,
+    pub(crate) runtime_errors: Vec<Value>,
 }
 
 fn parse_f64_val(v: Option<&Value>) -> f64 {
@@ -108,7 +108,27 @@ fn annotate_and_trim_warmup(
     }
 }
 
-fn map_fill_to_trade(fill: &Value, symbol: &str, formal_start_nanos: Option<i128>) -> Value {
+#[derive(Clone, Copy, Default)]
+struct OrderFeeTotals {
+    broker_fee: f64,
+    market_fee: f64,
+    total_fee: f64,
+}
+
+fn format_decimal_str(val: Option<&Value>) -> String {
+    match val {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => String::new(),
+    }
+}
+
+fn map_fill_to_trade(
+    fill: &Value,
+    symbol: &str,
+    formal_start_nanos: Option<i128>,
+    quote_currency: &str,
+) -> Value {
     let trade_id = fill
         .get("tradeId")
         .or_else(|| fill.get("id"))
@@ -121,31 +141,54 @@ fn map_fill_to_trade(fill: &Value, symbol: &str, formal_start_nanos: Option<i128
     let time_val = fill.get("time").cloned().unwrap_or(Value::Null);
     let is_warmup = formal_start_nanos
         .is_some_and(|fs| parse_timestamp_nanos(Some(&time_val)).is_some_and(|t| t < fs));
-    let fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
+    let time_str = time_val.as_str().unwrap_or_default().to_owned();
+
+    let price_str = format_decimal_str(fill.get("price"));
+    let qty_str = format_decimal_str(fill.get("qty").or_else(|| fill.get("quantity")));
+    let side = fill
+        .get("side")
+        .or_else(|| fill.get("action"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let pnl = parse_f64_val(fill.get("pnl").or_else(|| fill.get("realizedPnl")));
+    let broker_fee = parse_f64_val(fill.get("brokerFee"));
+    let market_fee = parse_f64_val(fill.get("marketFee"));
+    let mut total_fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
+    if total_fee == 0.0 && (broker_fee > 0.0 || market_fee > 0.0) {
+        total_fee = broker_fee + market_fee;
+    }
+    let fee_currency = fill
+        .get("feeCurrency")
+        .and_then(Value::as_str)
+        .unwrap_or(quote_currency);
+
     json!({
+        "time": time_str,
+        "side": side,
+        "price": price_str,
+        "qty": qty_str,
+        "warmup": is_warmup,
+        "pnl": pnl,
+        "brokerFee": broker_fee,
+        "marketFee": market_fee,
+        "totalFee": total_fee,
+        "feeCurrency": fee_currency,
         "id": trade_id,
         "tradeId": trade_id,
         "orderId": order_id,
         "clientOrderId": fill.get("clientOrderId").cloned().unwrap_or(Value::Null),
         "symbol": fill.get("symbol").and_then(Value::as_str).unwrap_or(symbol),
-        "side": fill.get("side").or_else(|| fill.get("action")).and_then(Value::as_str).unwrap_or_default(),
-        "action": fill.get("side").or_else(|| fill.get("action")).and_then(Value::as_str).unwrap_or_default(),
-        "price": parse_f64_val(fill.get("price")),
-        "quantity": parse_f64_val(fill.get("quantity")),
-        "quoteQuantity": parse_f64_val(fill.get("quoteQuantity")),
-        "time": time_val,
-        "fee": fee,
-        "totalFee": fee,
-        "realizedPnl": parse_f64_val(fill.get("realizedPnl")),
-        "warmup": is_warmup,
+        "quantity": qty_str,
+        "realizedPnl": pnl,
     })
 }
 
 fn map_order_to_orderbook(
     order: &Value,
     symbol: &str,
-    fees_by_order: &HashMap<String, f64>,
+    fees_by_order: &HashMap<String, OrderFeeTotals>,
     formal_start_nanos: Option<i128>,
+    quote_currency: &str,
 ) -> Value {
     let order_id = order
         .get("orderId")
@@ -156,30 +199,48 @@ fn map_order_to_orderbook(
     let fil = order.get("filledAt");
     let is_warmup = formal_start_nanos
         .is_some_and(|fs| parse_timestamp_nanos(sub.or(fil)).is_some_and(|t| t < fs));
-    let fee = fees_by_order.get(order_id).copied().unwrap_or(0.0);
+    let fees = fees_by_order.get(order_id).copied().unwrap_or_default();
     let order_type = order
         .get("orderType")
         .or_else(|| order.get("type"))
         .and_then(Value::as_str)
         .unwrap_or("MARKET");
+    let status = order.get("status").and_then(Value::as_str).unwrap_or("FILLED");
+    let side = order.get("side").and_then(Value::as_str).unwrap_or_default();
+    let quantity_str = format_decimal_str(order.get("quantity"));
+    let order_price_str = format_decimal_str(order.get("orderPrice").or_else(|| order.get("price")));
+    let filled_price_str = format_decimal_str(order.get("filledPrice").or_else(|| order.get("price")));
+    let filled_quantity_str = format_decimal_str(order.get("filledQuantity").or_else(|| order.get("quantity")));
+    let sub_str = sub.and_then(Value::as_str).unwrap_or_default();
+    let fil_str = fil.and_then(Value::as_str).unwrap_or_default();
+    let fee_currency = order
+        .get("feeCurrency")
+        .and_then(Value::as_str)
+        .unwrap_or(quote_currency);
+
     json!({
-        "id": order_id,
         "orderId": order_id,
         "clientOrderId": order.get("clientOrderId").cloned().unwrap_or(Value::Null),
         "symbol": order.get("symbol").and_then(Value::as_str).unwrap_or(symbol),
-        "side": order.get("side").and_then(Value::as_str).unwrap_or_default(),
+        "side": side,
+        "quantity": quantity_str,
         "orderType": order_type,
-        "type": order_type,
-        "quantity": parse_f64_val(order.get("quantity")),
-        "status": order.get("status").and_then(Value::as_str).unwrap_or("FILLED"),
-        "filledQuantity": parse_f64_val(order.get("filledQuantity")),
-        "filledPrice": parse_f64_val(order.get("filledPrice")),
-        "submittedAt": sub.cloned().unwrap_or(Value::Null),
-        "filledAt": fil.cloned().unwrap_or(Value::Null),
-        "time": sub.cloned().unwrap_or(Value::Null),
-        "totalFees": fee,
-        "fee": fee,
+        "orderPrice": order_price_str,
+        "submittedAt": sub_str,
+        "status": status,
+        "filledQuantity": filled_quantity_str,
+        "filledPrice": filled_price_str,
+        "filledAt": fil_str,
         "warmup": is_warmup,
+        "brokerFee": fees.broker_fee,
+        "marketFee": fees.market_fee,
+        "totalFee": fees.total_fee,
+        "feeCurrency": fee_currency,
+        "id": order_id,
+        "type": order_type,
+        "time": sub.cloned().unwrap_or(Value::Null),
+        "totalFees": fees.total_fee,
+        "fee": fees.total_fee,
     })
 }
 
@@ -203,6 +264,23 @@ fn extract_corpus_case_backtest(
         .and_then(|r| r.get("symbol"))
         .and_then(Value::as_str)
         .unwrap_or_default();
+    let quote_currency = result_val
+        .get("request")
+        .and_then(|r| r.get("quoteCurrency"))
+        .or_else(|| result_val.get("quoteCurrency"))
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| {
+            if symbol.starts_with("US.") {
+                "USD"
+            } else if symbol.starts_with("SH.")
+                || symbol.starts_with("SZ.")
+                || symbol.starts_with("CN.")
+            {
+                "CNY"
+            } else {
+                "HKD"
+            }
+        });
     let raw_orders = c
         .get("orders")
         .and_then(Value::as_array)
@@ -214,21 +292,37 @@ fn extract_corpus_case_backtest(
         .cloned()
         .unwrap_or_default();
 
-    let mut fees_by_order: HashMap<String, f64> = HashMap::new();
+    let mut fees_by_order: HashMap<String, OrderFeeTotals> = HashMap::new();
     for fill in &raw_fills {
         if let Some(order_id) = fill.get("orderId").and_then(Value::as_str) {
-            let fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
-            *fees_by_order.entry(order_id.to_owned()).or_default() += fee;
+            let broker_fee = parse_f64_val(fill.get("brokerFee"));
+            let market_fee = parse_f64_val(fill.get("marketFee"));
+            let mut total_fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
+            if total_fee == 0.0 && (broker_fee > 0.0 || market_fee > 0.0) {
+                total_fee = broker_fee + market_fee;
+            }
+            let entry = fees_by_order.entry(order_id.to_owned()).or_default();
+            entry.broker_fee += broker_fee;
+            entry.market_fee += market_fee;
+            entry.total_fee += total_fee;
         }
     }
 
     let mut trades: Vec<Value> = raw_fills
         .into_iter()
-        .map(|fill| map_fill_to_trade(&fill, symbol, formal_start_nanos))
+        .map(|fill| map_fill_to_trade(&fill, symbol, formal_start_nanos, quote_currency))
         .collect();
     let mut orders: Vec<Value> = raw_orders
         .into_iter()
-        .map(|ord| map_order_to_orderbook(&ord, symbol, &fees_by_order, formal_start_nanos))
+        .map(|ord| {
+            map_order_to_orderbook(
+                &ord,
+                symbol,
+                &fees_by_order,
+                formal_start_nanos,
+                quote_currency,
+            )
+        })
         .collect();
     let mut pnl_curve: Vec<Value> = c
         .get("equityCurve")
@@ -395,10 +489,24 @@ fn extract_legacy_backtest(
         .and_then(Value::as_array)
         .unwrap_or(&empty_vec)
         .clone();
-    let summary = result_node
+    let mut summary = result_node
         .get("summary")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    if let Some(s_obj) = summary.as_object_mut() {
+        for k in [
+            "pnl",
+            "totalTrades",
+            "winRate",
+            "sharpeRatio",
+            "maxDrawdown",
+            "profitFactor",
+        ] {
+            if !s_obj.contains_key(k) && let Some(v) = result_node.get(k) {
+                s_obj.insert(k.to_owned(), v.clone());
+            }
+        }
+    }
 
     annotate_and_trim_warmup(
         formal_start_nanos,
@@ -449,138 +557,94 @@ fn extract_normalized_backtest(
     }
 }
 
-fn project_chart_series(
+fn result_view_run_payload(run_val: &Value) -> Value {
+    let empty_map = serde_json::Map::new();
+    let req = run_val
+        .get("request")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty_map);
+    let provider = run_val
+        .get("marketDataProvider")
+        .or_else(|| run_val.get("market_data_provider"))
+        .or_else(|| req.get("marketDataProviderOverride"))
+        .or_else(|| req.get("marketDataProvider"))
+        .and_then(Value::as_str)
+        .unwrap_or("futu");
+
+    let val = |k: &str| req.get(k).cloned().unwrap_or(Value::Null);
+
+    json!({
+        "id": run_val.get("id").unwrap_or(&Value::Null),
+        "status": run_val.get("status").unwrap_or(&Value::Null),
+        "definitionId": val("definitionId"),
+        "definitionVersion": val("definitionVersion"),
+        "market": val("market"),
+        "code": val("code"),
+        "symbol": val("symbol"),
+        "instrumentType": val("instrumentType"),
+        "marketDataProvider": provider,
+        "interval": val("interval"),
+        "startDate": val("startDate"),
+        "endDate": val("endDate"),
+        "startTime": val("startTime"),
+        "endTime": val("endTime"),
+        "marketTimezone": val("marketTimezone"),
+        "initialBalance": val("initialBalance"),
+        "rehabType": val("rehabType"),
+        "chartType": val("chartType"),
+        "executionModel": val("executionModel"),
+        "useExtendedHours": val("useExtendedHours"),
+        "tradingCosts": val("tradingCosts"),
+        "createdAt": run_val.get("createdAt").unwrap_or(&Value::Null),
+        "updatedAt": run_val.get("updatedAt").unwrap_or(&Value::Null),
+        "request": Value::Object(req.clone()),
+    })
+}
+
+fn enrich_summary_payload(
+    mut summary: Value,
+    run_val: &Value,
     data: &NormalizedBacktestData,
-    include_set: &[&str],
-    args: &ChartWindowArgs<'_>,
-    series: &mut serde_json::Map<String, Value>,
-    returned: &mut serde_json::Map<String, Value>,
-    window: &mut serde_json::Map<String, Value>,
-) {
-    let chart_keys: [(&str, &str, &[Value]); 4] = [
-        ("candles", "time", &data.candles),
-        ("trades", "time", &data.trades),
-        ("pnlCurve", "time", &data.pnl_curve),
-        ("drawdownCurve", "time", &data.drawdown_curve),
-    ];
-    for (key, time_field, items) in chart_keys {
-        if !include_set.contains(&key) {
-            continue;
-        }
-        let filtered = filter_timed_items(items, time_field, args.start_time, args.end_time);
-        let (sliced, next) = slice_items(&filtered, args.offset, args.limit);
-        returned.insert(key.to_owned(), json!(sliced.len()));
-        series.insert(key.to_owned(), Value::Array(sliced));
-        if let Some(next_cursor) = next {
-            window.insert("truncated".to_owned(), json!(true));
-            if window
-                .get("nextCursor")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .is_empty()
-            {
-                window.insert("nextCursor".to_owned(), Value::String(next_cursor));
+) -> Value {
+    let req = run_val.get("request").unwrap_or(&Value::Null);
+    let initial_balance = parse_f64_val(req.get("initialBalance"));
+    let pnl = parse_f64_val(summary.get("pnl"));
+    let quote_currency = run_val
+        .get("quoteCurrency")
+        .or_else(|| req.get("quoteCurrency"))
+        .or_else(|| summary.get("quoteCurrency"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| {
+            let sym = req.get("symbol").and_then(Value::as_str).unwrap_or("");
+            if sym.starts_with("US.") {
+                "USD".to_owned()
+            } else if sym.starts_with("SH.") || sym.starts_with("SZ.") || sym.starts_with("CN.") {
+                "CNY".to_owned()
+            } else {
+                "HKD".to_owned()
             }
+        });
+
+    if let Some(obj) = summary.as_object_mut() {
+        obj.insert("quoteCurrency".to_owned(), json!(quote_currency));
+        if initial_balance > 0.0 {
+            obj.insert("totalReturn".to_owned(), json!(pnl / initial_balance));
+        }
+        if let Some(last) = data.logs.last() {
+            obj.insert("latestLog".to_owned(), last.clone());
+        }
+        if let Some(last) = data.warnings.last() {
+            obj.insert("latestWarning".to_owned(), last.clone());
+        }
+        if let Some(last) = data.runtime_errors.last() {
+            obj.insert(
+                "latestRuntimeError".to_owned(),
+                last.clone(),
+            );
         }
     }
-}
-
-fn project_orders_view(
-    orders: &[Value],
-    args: &ChartWindowArgs<'_>,
-    series: &mut serde_json::Map<String, Value>,
-    returned: &mut serde_json::Map<String, Value>,
-    window: &mut serde_json::Map<String, Value>,
-) {
-    let filtered: Vec<Value> = orders
-        .iter()
-        .filter(|item| {
-            let sub = item.get("submittedAt");
-            let fil = item.get("filledAt");
-            item_in_time_window(sub, args.start_time, args.end_time)
-                || item_in_time_window(fil, args.start_time, args.end_time)
-        })
-        .cloned()
-        .collect();
-    let (sliced, next) = slice_items(&filtered, args.offset, args.limit);
-    returned.insert("orderBook".to_owned(), json!(sliced.len()));
-    series.insert("orderBook".to_owned(), Value::Array(sliced));
-    if let Some(next_cursor) = next {
-        window.insert("truncated".to_owned(), json!(true));
-        window.insert("nextCursor".to_owned(), Value::String(next_cursor));
-    }
-}
-
-fn project_text_series_view(
-    items: &[Value],
-    key: &str,
-    args: &ChartWindowArgs<'_>,
-    series: &mut serde_json::Map<String, Value>,
-    returned: &mut serde_json::Map<String, Value>,
-    window: &mut serde_json::Map<String, Value>,
-) {
-    let filtered: Vec<Value> =
-        if key == "logs" && (args.start_time.is_some() || args.end_time.is_some()) {
-            items
-                .iter()
-                .filter(|item| {
-                    let t = item
-                        .get("timestamp")
-                        .or_else(|| item.get("time"))
-                        .or_else(|| item.get("at"));
-                    item_in_time_window(t, args.start_time, args.end_time)
-                })
-                .cloned()
-                .collect()
-        } else {
-            items.to_vec()
-        };
-    let (sliced, next) = slice_items(&filtered, args.offset, args.limit);
-    returned.insert(key.to_owned(), json!(sliced.len()));
-    series.insert(key.to_owned(), Value::Array(sliced));
-    if let Some(next_cursor) = next {
-        window.insert("truncated".to_owned(), json!(true));
-        window.insert("nextCursor".to_owned(), Value::String(next_cursor));
-    }
-}
-
-fn dispatch_view_projection(
-    view: &str,
-    data: &NormalizedBacktestData,
-    options: Option<&Value>,
-    args: &ChartWindowArgs<'_>,
-    series: &mut serde_json::Map<String, Value>,
-    returned: &mut serde_json::Map<String, Value>,
-    window: &mut serde_json::Map<String, Value>,
-) {
-    match view {
-        "chart" => {
-            let default_includes = ["candles", "trades", "pnlCurve", "drawdownCurve"];
-            let requested_includes = options
-                .and_then(|o| o.get("include"))
-                .and_then(Value::as_array)
-                .map(|arr| arr.iter().filter_map(Value::as_str).collect::<Vec<&str>>());
-            let include_refs = requested_includes
-                .as_deref()
-                .filter(|v| !v.is_empty())
-                .unwrap_or(&default_includes);
-            project_chart_series(data, include_refs, args, series, returned, window);
-        }
-        "orders" => project_orders_view(&data.orders, args, series, returned, window),
-        "logs" => project_text_series_view(&data.logs, "logs", args, series, returned, window),
-        "warnings" => {
-            project_text_series_view(&data.warnings, "warnings", args, series, returned, window)
-        }
-        "errors" => project_text_series_view(
-            &data.runtime_errors,
-            "runtimeErrors",
-            args,
-            series,
-            returned,
-            window,
-        ),
-        _ => {}
-    }
+    summary
 }
 
 pub(crate) fn project_authoritative_result_view(
@@ -591,6 +655,13 @@ pub(crate) fn project_authoritative_result_view(
     let params = validate_result_view_request(request)?;
     let mut data = extract_normalized_backtest(run_val, seed_candles);
 
+    let native_interval = run_val
+        .get("request")
+        .and_then(|r| r.get("interval"))
+        .and_then(Value::as_str)
+        .unwrap_or("1m");
+
+    let mut resolution_label = None;
     if params.view == "chart" {
         let default_includes = ["candles", "trades", "pnlCurve", "drawdownCurve"];
         let requested_includes: Vec<&str> = request
@@ -600,23 +671,29 @@ pub(crate) fn project_authoritative_result_view(
             .filter(|arr: &Vec<&str>| !arr.is_empty())
             .unwrap_or_else(|| default_includes.to_vec());
 
-        if let Some(res_ms) = params.resolution_ms {
-            if requested_includes.contains(&"candles") {
-                data.candles = downsample_candles(&data.candles, res_ms);
-            }
-            if requested_includes.contains(&"pnlCurve") {
-                data.pnl_curve = downsample_curve(&data.pnl_curve, "equity", res_ms);
-            }
-            if requested_includes.contains(&"drawdownCurve") {
-                data.drawdown_curve = downsample_curve(&data.drawdown_curve, "drawdown", res_ms);
-            }
+        if requested_includes.contains(&"candles") {
+            let (label, candles) = result_view_candles(
+                &data.candles,
+                native_interval,
+                params.resolution.as_deref(),
+                request.start_time.as_deref(),
+                request.end_time.as_deref(),
+                params.limit,
+            )?;
+            resolution_label = Some(label);
+            data.candles = candles;
         }
     }
 
     let mut window = serde_json::Map::new();
     window.insert("startTime".to_owned(), json!(request.start_time));
     window.insert("endTime".to_owned(), json!(request.end_time));
+    window.insert("nativeInterval".to_owned(), json!(native_interval));
+    if let Some(res) = resolution_label {
+        window.insert("resolution".to_owned(), json!(res));
+    }
     window.insert("limit".to_owned(), json!(params.limit));
+    window.insert("cursor".to_owned(), json!(request.cursor));
     window.insert("offset".to_owned(), json!(params.offset));
     window.insert("truncated".to_owned(), json!(false));
     window.insert("nextCursor".to_owned(), json!(""));
@@ -642,17 +719,13 @@ pub(crate) fn project_authoritative_result_view(
     );
     window.insert("returned".to_owned(), Value::Object(returned));
 
-    let run_payload = json!({
-        "id": run_val.get("id").unwrap_or(&Value::Null),
-        "status": run_val.get("status").unwrap_or(&Value::Null),
-        "request": run_val.get("request").unwrap_or(&Value::Null),
-        "marketDataProvider": run_val.get("marketDataProvider").unwrap_or(&Value::Null),
-    });
+    let run_payload = result_view_run_payload(run_val);
+    let summary_payload = enrich_summary_payload(data.summary.clone(), run_val, &data);
 
     Ok(json!({
         "view": params.view,
         "run": run_payload,
-        "summary": data.summary,
+        "summary": summary_payload,
         "window": window,
         "series": series,
     }))

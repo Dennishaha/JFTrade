@@ -550,10 +550,11 @@ fn test_result_view_order_fee_aggregation_and_numeric_types() {
     let order = &orders[0];
     assert_eq!(order["orderId"], "order-split");
     // Aggregated total fee = 12.5 + 13.5 = 26.0 (number type!)
+    assert_eq!(order["totalFee"], 26.0);
     assert_eq!(order["totalFees"], 26.0);
-    assert_eq!(order["quantity"], 200.0);
-    assert_eq!(order["filledQuantity"], 200.0);
-    assert_eq!(order["filledPrice"], 150.5);
+    assert_eq!(order["quantity"], "200.0");
+    assert_eq!(order["filledQuantity"], "200.0");
+    assert_eq!(order["filledPrice"], "150.5");
 
     let chart_req = BacktestResultViewRequest {
         run_id: "run-fee-test".to_owned(),
@@ -564,9 +565,9 @@ fn test_result_view_order_fee_aggregation_and_numeric_types() {
     let chart_res = project_authoritative_result_view(&payload, None, &chart_req).unwrap();
     let trades = chart_res["series"]["trades"].as_array().unwrap();
     assert_eq!(trades.len(), 2);
-    assert_eq!(trades[0]["price"], 150.0);
-    assert_eq!(trades[0]["quantity"], 100.0);
-    assert_eq!(trades[0]["quoteQuantity"], 15000.0);
+    assert_eq!(trades[0]["price"], "150.0");
+    assert_eq!(trades[0]["qty"], "100.0");
+    assert_eq!(trades[0]["quantity"], "100.0");
     assert_eq!(trades[0]["totalFee"], 12.5);
 }
 
@@ -611,9 +612,9 @@ fn test_result_view_resolution_downsampling() {
     assert_eq!(candles[0]["volume"], 30.0);
 
     let pnl = res["series"]["pnlCurve"].as_array().unwrap();
-    assert_eq!(pnl.len(), 2, "equity points downsampled by resolution");
-    assert_eq!(pnl[0]["equity"], 1050.0, "last equity point in first 5m bucket");
-    assert_eq!(pnl[1]["equity"], 1120.0, "last equity point in second 5m bucket");
+    assert_eq!(pnl.len(), 4, "curves are not downsampled under Go contract");
+    assert_eq!(pnl[0]["equity"], 1000.0);
+    assert_eq!(pnl[3]["equity"], 1120.0);
 }
 
 #[test]
@@ -643,6 +644,7 @@ fn test_result_view_seed_preservation_and_metadata_stripping() {
 #[test]
 fn test_mcp_result_view_and_research_result_view_identity() {
     use crate::product::product_research_backtest_execution::build_result_view_request_from_options;
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
     use crate::product::BacktestResultViewRequest;
 
     let options = json!({
@@ -672,4 +674,110 @@ fn test_mcp_result_view_and_research_result_view_identity() {
         research_req, mcp_req,
         "both execution pathways must construct identical view requests"
     );
+
+    let payload = json!({
+        "id": run_id,
+        "status": "completed",
+        "request": {
+            "symbol": "HK.00700",
+            "interval": "1m",
+            "initialBalance": 100000.0
+        },
+        "result": {
+            "candles": [
+                {"time": "2026-01-01T10:00:00Z", "open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 10.0}
+            ],
+            "trades": []
+        }
+    });
+    let research_view = project_authoritative_result_view(&payload, None, &research_req).unwrap();
+    let mcp_view = project_authoritative_result_view(&payload, None, &mcp_req).unwrap();
+    assert_eq!(
+        research_view, mcp_view,
+        "both execution pathways must produce identical result view JSON"
+    );
+}
+
+#[test]
+fn test_result_view_contract_alignment_and_edge_cases() {
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+    use crate::product::BacktestResultViewRequest;
+
+    let payload = json!({
+        "id": "run-contract-align",
+        "status": "completed",
+        "request": {
+            "definitionId": "def-1",
+            "definitionVersion": "v1",
+            "market": "HK",
+            "code": "00700",
+            "symbol": "HK.00700",
+            "instrumentType": "stock",
+            "marketDataProvider": "futu",
+            "interval": "5m",
+            "startDate": "2026-01-01",
+            "endDate": "2026-01-02",
+            "startTime": "2026-01-01T09:30:00Z",
+            "endTime": "2026-01-02T16:00:00Z",
+            "marketTimezone": "Asia/Hong_Kong",
+            "initialBalance": 100000.0,
+            "rehabType": "forward",
+            "chartType": "candlestick",
+            "executionModel": "bar_close",
+            "useExtendedHours": false,
+            "tradingCosts": {"commissionRate": 0.0003}
+        },
+        "result": {
+            "candles": [
+                {"time": "2026-01-01T10:00:00Z", "open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 10.0},
+                {"time": "2026-01-01T10:05:00Z", "open": 102.0, "high": 108.0, "low": 101.0, "close": 107.0, "volume": 20.0}
+            ],
+            "pnl": 5000.0,
+            "logs": [{"time": "2026-01-01T10:00:00Z", "message": "log 1"}],
+            "warnings": [{"time": "2026-01-01T10:05:00Z", "message": "warning 1"}],
+            "runtimeErrors": [{"time": "2026-01-01T10:06:00Z", "message": "error 1"}]
+        }
+    });
+
+    // 1. Explicit resolution="auto" is supported
+    let req_auto = BacktestResultViewRequest {
+        run_id: "run-contract-align".to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["candles".to_owned()]),
+        resolution: Some("auto".to_owned()),
+        ..Default::default()
+    };
+    let res_auto = project_authoritative_result_view(&payload, None, &req_auto).unwrap();
+    assert_eq!(res_auto["window"]["nativeInterval"], "5m");
+    assert!(res_auto["window"].get("resolution").is_some());
+
+    // 2. Reject finer resolution than native interval
+    let req_finer = BacktestResultViewRequest {
+        run_id: "run-contract-align".to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["candles".to_owned()]),
+        resolution: Some("1m".to_owned()),
+        ..Default::default()
+    };
+    let err = project_authoritative_result_view(&payload, None, &req_finer).unwrap_err();
+    assert!(err.to_string().contains("is finer than native interval"));
+
+    // 3. Enriched summary and 22 run payload fields
+    let req_summary = BacktestResultViewRequest {
+        run_id: "run-contract-align".to_owned(),
+        view: Some("summary".to_owned()),
+        ..Default::default()
+    };
+    let res_summary = project_authoritative_result_view(&payload, None, &req_summary).unwrap();
+    assert_eq!(res_summary["summary"]["quoteCurrency"], "HKD");
+    assert_eq!(res_summary["summary"]["totalReturn"], 0.05);
+    assert!(res_summary["summary"].get("latestLog").is_some());
+    assert!(res_summary["summary"].get("latestWarning").is_some());
+    assert!(res_summary["summary"].get("latestRuntimeError").is_some());
+
+    let run_meta = &res_summary["run"];
+    assert_eq!(run_meta["definitionId"], "def-1");
+    assert_eq!(run_meta["symbol"], "HK.00700");
+    assert_eq!(run_meta["executionModel"], "bar_close");
+    assert_eq!(run_meta["chartType"], "candlestick");
 }

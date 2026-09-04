@@ -239,12 +239,28 @@ impl ProductionBacktestPort {
                 "backtest K-line data is not ready".to_owned(),
             ));
         }
+        let quote_currency = payload
+            .get("quoteCurrency")
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| {
+                if request.symbol.starts_with("US.") {
+                    "USD"
+                } else if request.symbol.starts_with("SH.")
+                    || request.symbol.starts_with("SZ.")
+                    || request.symbol.starts_with("CN.")
+                {
+                    "CNY"
+                } else {
+                    "HKD"
+                }
+            });
         let result_view_seed = build_result_view_seed(
             &formal_candles,
             request.start_time_ms,
             actual_warmup_count,
             &request.symbol,
             &request.interval,
+            quote_currency,
         );
         let mut persisted_with_seed = persisted_payload.clone();
         if let Some(obj) = persisted_with_seed.as_object_mut() {
@@ -432,21 +448,23 @@ fn build_result_view_seed(
     warmup_bars: usize,
     symbol: &str,
     interval: &str,
+    quote_currency: &str,
 ) -> Value {
     let seed_candles: Vec<Value> = formal_candles
         .iter()
         .map(|c| {
-            let rfc = time::OffsetDateTime::from_unix_timestamp_nanos((c.start_time as i128) * 1_000_000)
+            let rfc = time::OffsetDateTime::from_unix_timestamp_nanos((c.end_time as i128) * 1_000_000)
                 .ok()
-                .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok());
+                .and_then(|dt| {
+                    dt.format(&time::format_description::well_known::Rfc3339).ok()
+                });
             json!({
-                "time": rfc.unwrap_or_else(|| c.start_time.to_string()),
-                "start": c.start_time,
-                "open": c.open.parse::<f64>().unwrap_or(0.0),
-                "high": c.high.parse::<f64>().unwrap_or(0.0),
-                "low": c.low.parse::<f64>().unwrap_or(0.0),
-                "close": c.close.parse::<f64>().unwrap_or(0.0),
-                "volume": c.volume.parse::<f64>().unwrap_or(0.0),
+                "time": rfc.unwrap_or_else(|| c.end_time.to_string()),
+                "open": c.open,
+                "high": c.high,
+                "low": c.low,
+                "close": c.close,
+                "volume": c.volume,
             })
         })
         .collect();
@@ -456,5 +474,6 @@ fn build_result_view_seed(
         "warmupBars": warmup_bars,
         "symbol": symbol,
         "nativeInterval": interval,
+        "quoteCurrency": quote_currency,
     })
 }
