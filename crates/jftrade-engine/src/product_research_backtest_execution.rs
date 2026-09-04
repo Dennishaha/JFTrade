@@ -1,7 +1,8 @@
 //! Research backtest execution orchestration for ADK tools.
 //!
-//! Handles temporary strategy execution, polling completion, and delegating
-//! ResultView projection to the central `BacktestReadSnapshotPort::result_view`.
+//! Handles temporary strategy execution, polling completion, data readiness
+//! checks with sync-task reuse, and delegating ResultView projection to
+//! `BacktestReadSnapshotPort::result_view`.
 
 use std::time::Duration;
 
@@ -11,6 +12,11 @@ use sha2::{Digest, Sha256};
 use super::product_backtests_write_port::{BacktestsWriteInput, BacktestsWritePortResult};
 use crate::product::BacktestResultViewRequest;
 use crate::product::product_production_ports::ProductionPortBundle;
+
+pub(crate) enum EnsureDataOutcome {
+    Started(String, String),
+    Syncing(Value),
+}
 
 pub(crate) fn research_script_hash(script: &str) -> String {
     let mut hasher = Sha256::new();
@@ -49,17 +55,108 @@ pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
     start_payload
 }
 
-pub(crate) fn start_research_backtest(
+pub(crate) fn derive_effective_since_time(
+    start_time_str: &str,
+    interval_str: &str,
+    warmup_bars: usize,
+) -> String {
+    let interval_ms: i64 = match interval_str.trim().to_ascii_lowercase().as_str() {
+        "1m" | "1min" => 60_000,
+        "5m" | "5min" => 300_000,
+        "15m" | "15min" => 900_000,
+        "30m" | "30min" => 1_800_000,
+        "60m" | "60min" | "1h" => 3_600_000,
+        "1d" | "d" => 86_400_000,
+        "1w" | "w" => 7 * 86_400_000,
+        _ => 60_000,
+    };
+
+    let start_ms = if let Ok(dt) =
+        time::OffsetDateTime::parse(start_time_str, &time::format_description::well_known::Rfc3339)
+    {
+        (dt.unix_timestamp_nanos() / 1_000_000) as i64
+    } else {
+        start_time_str.parse::<i64>().unwrap_or(1_704_067_200_000)
+    };
+
+    if warmup_bars == 0 {
+        return start_time_str.to_owned();
+    }
+
+    let buffer_ms = (warmup_bars as i64)
+        .saturating_mul(interval_ms)
+        .saturating_mul(7);
+    let since_ms = start_ms.saturating_sub(buffer_ms);
+
+    time::OffsetDateTime::from_unix_timestamp_nanos((since_ms as i128) * 1_000_000)
+        .ok()
+        .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok())
+        .unwrap_or_else(|| start_time_str.to_owned())
+}
+
+pub(crate) fn ensure_script_data(
     ports: &ProductionPortBundle,
-    payload: Value,
-) -> Result<(String, String), String> {
+    arguments: &Value,
+    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    start_payload: &Value,
+) -> Result<EnsureDataOutcome, String> {
+    let symbol = start_payload
+        .get("symbol")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let interval = start_payload
+        .get("interval")
+        .or_else(|| start_payload.get("period"))
+        .and_then(Value::as_str)
+        .unwrap_or("1m");
+    let market = start_payload
+        .get("market")
+        .and_then(Value::as_str)
+        .unwrap_or("HK");
+    let session_scope = match start_payload
+        .get("sessionScope")
+        .and_then(Value::as_str)
+        .unwrap_or("regular")
+    {
+        "extended" => "extended",
+        _ => "regular",
+    };
+    let rehab_type = match start_payload
+        .get("rehabType")
+        .and_then(Value::as_str)
+        .unwrap_or("forward")
+    {
+        "backward" => "backward",
+        "none" => "none",
+        _ => "forward",
+    };
+    let use_extended_hours = session_scope == "extended";
+    let provider = extract_run_metadata(None, arguments).0;
+
+    // 1. Re-use existing active sync task if present
+    if let Ok(active_tasks) = ports.backtest_sync.active_tasks() {
+        for task in active_tasks {
+            let st = task.get("status").and_then(Value::as_str).unwrap_or("");
+            let sym = task.get("symbol").and_then(Value::as_str).unwrap_or("");
+            let prov = task.get("marketDataProvider").and_then(Value::as_str).unwrap_or("");
+            if (st == "queued" || st == "running")
+                && (sym == symbol || sym.ends_with(symbol) || symbol.ends_with(sym))
+                && (prov.is_empty() || prov == provider)
+            {
+                return Ok(EnsureDataOutcome::Syncing(task));
+            }
+        }
+    }
+
+    // 2. Probe backtest start
     let start_result = ports
         .backtests_write
-        .mutate(&BacktestsWriteInput::Start { payload })
-        .map_err(|e| format!("failed to start research backtest: {e:?}"))?;
+        .mutate(&BacktestsWriteInput::Start {
+            payload: start_payload.clone(),
+        });
 
     match start_result {
-        BacktestsWritePortResult::Data(data) => {
+        Ok(BacktestsWritePortResult::Data(data)) => {
             let id = data
                 .get("runId")
                 .or_else(|| data.get("id"))
@@ -71,9 +168,66 @@ pub(crate) fn start_research_backtest(
                 .and_then(Value::as_str)
                 .unwrap_or("queued")
                 .to_owned();
-            Ok((id, status))
+            Ok(EnsureDataOutcome::Started(id, status))
         }
-        other => Err(format!("unexpected backtest start result: {other:?}")),
+        Err(super::product_backtests_write_port::BacktestsWritePortError::Unavailable(msg))
+            if msg.contains("K-line data is not ready")
+                || msg.contains("insufficient warmup candles")
+                || msg.contains("warmup candle query failed") =>
+        {
+            let derived_warmup = validation
+                .requirements
+                .as_ref()
+                .map(|r| r.derived_warmup_bars_with_session(symbol, interval, use_extended_hours))
+                .unwrap_or(0);
+            let explicit_warmup = arguments
+                .get("warmupBars")
+                .or_else(|| arguments.get("warmup_bars"))
+                .and_then(Value::as_u64)
+                .map(|v| v as usize)
+                .unwrap_or(0);
+            let warmup_bars = explicit_warmup.max(derived_warmup);
+
+            let start_time_str = start_payload
+                .get("startTime")
+                .or_else(|| start_payload.get("startDate"))
+                .and_then(Value::as_str)
+                .unwrap_or("2026-01-01T00:00:00Z");
+            let end_time_str = start_payload
+                .get("endTime")
+                .or_else(|| start_payload.get("endDate"))
+                .and_then(Value::as_str)
+                .unwrap_or("2026-01-02T00:00:00Z");
+
+            let since_str = derive_effective_since_time(start_time_str, interval, warmup_bars);
+
+            let sync_payload = json!({
+                "market": market,
+                "symbol": symbol,
+                "intervals": [interval],
+                "since": since_str,
+                "until": end_time_str,
+                "sessionScope": session_scope,
+                "rehabType": rehab_type,
+                "marketDataProvider": provider,
+            });
+
+            let sync_result = ports
+                .backtests_write
+                .mutate(&BacktestsWriteInput::Sync {
+                    payload: sync_payload,
+                })
+                .map_err(|e| format!("failed to start K-line data sync: {e:?}"))?;
+
+            match sync_result {
+                BacktestsWritePortResult::Data(sync_data) => {
+                    Ok(EnsureDataOutcome::Syncing(sync_data))
+                }
+                other => Err(format!("unexpected sync task start result: {other:?}")),
+            }
+        }
+        Err(err) => Err(format!("failed to start research backtest: {err:?}")),
+        Ok(other) => Err(format!("unexpected backtest start result: {other:?}")),
     }
 }
 
@@ -233,7 +387,69 @@ pub(crate) fn execute_research_backtest(
 
     let validation = validate_research_script(script)?;
     let start_payload = prepare_start_payload(arguments, script);
-    let (run_id, initial_status) = start_research_backtest(ports, start_payload)?;
+
+    let (run_id, initial_status) = match ensure_script_data(ports, arguments, &validation, &start_payload)? {
+        EnsureDataOutcome::Started(id, status) => (id, status),
+        EnsureDataOutcome::Syncing(sync_data) => {
+            let task_id = sync_data
+                .get("taskId")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_owned();
+            let status = sync_data
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("queued")
+                .to_owned();
+            let total_intervals = sync_data
+                .get("totalIntervals")
+                .and_then(Value::as_i64)
+                .unwrap_or(1);
+            let completed_intervals = sync_data
+                .get("completedIntervals")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let progress = if total_intervals > 0 {
+                (completed_intervals as f64 / total_intervals as f64 * 100.0).round()
+            } else {
+                0.0
+            };
+            let (provider, chart_type, inst_type, extended, exec_model, fees) =
+                extract_run_metadata(None, arguments);
+
+            return Ok(json!({
+                "ok": true,
+                "status": "syncing_data",
+                "dataSync": {
+                    "taskId": task_id,
+                    "status": status,
+                    "progress": progress,
+                    "symbol": arguments.get("symbol").unwrap_or(&Value::Null),
+                    "intervals": sync_data.get("intervals").cloned().unwrap_or(json!([])),
+                    "marketDataProvider": provider,
+                },
+                "nextTool": "backtest.kline_sync_status",
+                "suggestedArguments": {
+                    "taskId": task_id,
+                },
+                "message": format!(
+                    "K-line data is being synchronized (task {task_id}). Please check status via backtest.kline_sync_status before executing research backtest."
+                ),
+                "chartType": chart_type,
+                "instrumentType": inst_type,
+                "useExtendedHours": extended,
+                "executionModel": exec_model,
+                "tradingCosts": fees,
+                "scriptHash": research_script_hash(script),
+                "validation": {
+                    "metadata": validation.metadata,
+                    "hooks": validation.hooks,
+                    "warnings": validation.warnings,
+                },
+                "saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
+            }));
+        }
+    };
 
     let wait_ms = arguments
         .get("waitForCompletionMs")

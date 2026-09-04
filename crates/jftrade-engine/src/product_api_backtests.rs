@@ -48,6 +48,7 @@ pub trait BacktestSyncReadSnapshotPort: Send + Sync + std::fmt::Debug {
         &self,
         task_id: &str,
     ) -> Result<Option<serde_json::Value>, BacktestSyncReadSnapshotError>;
+    fn active_tasks(&self) -> Result<Vec<serde_json::Value>, BacktestSyncReadSnapshotError>;
 }
 
 #[derive(Clone, Debug, Error)]

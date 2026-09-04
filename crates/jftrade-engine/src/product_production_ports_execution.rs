@@ -457,6 +457,15 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
             .map(|task| sync_task_projection(&task))
             .transpose()
     }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, BacktestSyncReadSnapshotError> {
+        self.sync_workers.reap_finished();
+        let tasks = self
+            .sync_tasks
+            .list_active()
+            .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?;
+        tasks.iter().map(sync_task_projection).collect()
+    }
 }
 
 impl BacktestsWritePort for ProductionBacktestPort {

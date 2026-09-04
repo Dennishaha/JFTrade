@@ -1457,6 +1457,26 @@ impl crate::product::BacktestExecutionPort for AdkTestBacktestExecution {
     }
 }
 
+#[derive(Debug)]
+struct AdkTestHistoricalKlinePort;
+
+impl jftrade_integration_futu::HistoricalKlineReadPort for AdkTestHistoricalKlinePort {
+    fn query(
+        &self,
+        query: &jftrade_integration_futu::HistoricalKlineQuery,
+    ) -> Result<jftrade_integration_futu::HistoricalKlineResult, jftrade_integration_futu::HistoricalKlineError> {
+        Ok(jftrade_integration_futu::HistoricalKlineResult {
+            security: jftrade_integration_futu::HistoricalSecurity {
+                market: query.market,
+                code: query.symbol.clone(),
+            },
+            name: Some("Test security".to_owned()),
+            klines: vec![],
+            next_req_key: vec![],
+        })
+    }
+}
+
 fn setup_test_bundle_and_executor(
 ) -> (
     Arc<crate::product::product_production_ports::ProductionPortBundle>,
@@ -1506,6 +1526,7 @@ fn setup_test_bundle_and_executor(
     let runtime = Arc::new(
         crate::product::product_production_ports::SharedTradeReadRuntime::default(),
     );
+    runtime.set_historical_klines(Some(Arc::new(AdkTestHistoricalKlinePort)));
     let mut config = crate::product::ProductConfig::new(
         "127.0.0.1:0".parse().expect("bind address"),
         &settings_path,
@@ -1603,6 +1624,90 @@ async fn test_portfolio_and_research_backtest_execution_dispatch() {
     assert!(!backtest_res["runId"].as_str().unwrap().is_empty());
     assert_eq!(backtest_res["scriptHash"].as_str().unwrap().len(), 16);
     assert!(backtest_res.get("saveRecommendation").is_some());
+}
+
+#[tokio::test]
+async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor;
+
+    let (ports, executor, _dir) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+
+    // 1. Data sufficient: starts immediately
+    let ok_res = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Ready\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00700",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("data ready must start immediately");
+    assert_eq!(ok_res["ok"], true);
+    assert!(ok_res.get("runId").is_some());
+
+    // 2. Data missing: triggers sync task
+    let sync_res = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Missing\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00001",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("missing data triggers sync");
+    assert_eq!(sync_res["ok"], true);
+    assert_eq!(sync_res["status"], "syncing_data");
+    assert_eq!(sync_res["nextTool"], "backtest.kline_sync_status");
+    let task_id = sync_res["dataSync"]["taskId"].as_str().expect("task id");
+    assert!(!task_id.is_empty());
+
+    // 3. Reuses active sync task without redundant sync trigger
+    let reuse_res = executor
+        .execute(
+            "strategy.research_backtest",
+            &json!({
+                "script": "//@version=6\nstrategy(\"Missing\", overlay=true)\nplot(close)\n",
+                "market": "HK",
+                "symbol": "HK.00001",
+                "startTime": "2026-01-01T00:00:00Z",
+                "endTime": "2026-01-02T00:00:00Z",
+                "waitForCompletionMs": 0,
+            }),
+        )
+        .expect("reuse active task");
+    assert_eq!(reuse_res["ok"], true);
+    assert_eq!(reuse_res["status"], "syncing_data");
+    assert_eq!(reuse_res["dataSync"]["taskId"], task_id);
+
+    // 4. Execution model failure maps to error
+    let fail_res = executor.execute(
+        "strategy.research_backtest",
+        &json!({
+            "script": "//@version=6\nstrategy(\"InvalidModel\", overlay=true)\nplot(close)\n",
+            "market": "HK",
+            "symbol": "HK.00700",
+            "executionModel": "unsupported-model-xyz",
+            "startTime": "2026-01-01T00:00:00Z",
+            "endTime": "2026-01-02T00:00:00Z",
+            "waitForCompletionMs": 0,
+        }),
+    );
+    assert!(fail_res.is_err());
+
+    // 5. Warmup span expands since boundary
+    use crate::product::product_research_backtest_execution::derive_effective_since_time;
+    let base = "2026-06-01T00:00:00Z";
+    assert_eq!(derive_effective_since_time(base, "1d", 0), base);
+    assert!(derive_effective_since_time(base, "1d", 10).as_str() < base);
 }
 
 use crate::product::product_adk_mutation_port::{
