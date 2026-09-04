@@ -1,11 +1,5 @@
-/// Only these concrete adapters have an explicitly reviewed replay contract.
-/// A catalog entry or a future executor implementation is not enough to
-/// expose a tool to the provider or to run it after a crash recovery.
-pub(crate) const REPLAY_SAFE_TOOL_ALLOWLIST: &[&str] = &["tools.search", "models.list"];
+include!("product_adk_tool_allowlist.rs");
 
-pub(crate) fn replay_safe_tool(name: &str) -> bool {
-    REPLAY_SAFE_TOOL_ALLOWLIST.contains(&name)
-}
 
 impl AdkChatStreamPort for ProductionAdkChatRuntime {
     fn dispatch(
@@ -18,6 +12,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
+        let tool_executor = Arc::clone(&self.tool_executor);
         let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
         let input = input.clone();
         if route == AdkChatRoute::Stream {
@@ -27,6 +22,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             let stream_session_store = Arc::clone(&session_store);
             let stream_secrets_path = secrets_path.clone();
             let stream_input = input.clone();
+            let stream_tool_executor = Arc::clone(&tool_executor);
             // Multiple clients may attach to one durable RUNNING request. Each
             // transport observer is supervised independently; the run lease,
             // not this stream task key, fences the single executor.
@@ -38,17 +34,13 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
             continuation_supervisor
                 .clone()
                 .spawn(&stream_key, move |supervisor_cancel| {
-                    let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
-                        Arc::clone(&tool_catalog),
-                        Arc::clone(&stream_store),
-                    ));
                     let runtime = ProductionAdkChatRuntime {
                         store: stream_store,
                         session_store: stream_session_store,
                         secrets_path: stream_secrets_path,
                         cancellation_registry: Arc::clone(&cancellation_registry),
                         tool_catalog: Arc::clone(&tool_catalog),
-                        tool_executor,
+                        tool_executor: stream_tool_executor,
                         continuation_supervisor: Arc::clone(&continuation_supervisor),
                         recovery_supervisor: None,
                     };
@@ -67,10 +59,6 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
         std::thread::Builder::new()
             .name("jftrade-adk-model".to_owned())
             .spawn(move || {
-                let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
-                    Arc::clone(&tool_catalog),
-                    Arc::clone(&store),
-                ));
                 let runtime = ProductionAdkChatRuntime {
                     store,
                     session_store,

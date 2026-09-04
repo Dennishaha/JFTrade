@@ -485,6 +485,13 @@ fn executable_tool_calls(payload: &Value) -> Vec<Value> {
     calls
         .iter()
         .filter(|call| {
+            let is_interaction = call
+                .get("name")
+                .and_then(Value::as_str)
+                .is_some_and(|n| n == "interaction.request_user");
+            if is_interaction {
+                return false;
+            }
             let running = call
                 .get("status")
                 .and_then(Value::as_str)
@@ -538,6 +545,15 @@ fn tool_context_from_payload(object: &serde_json::Map<String, Value>) -> Vec<Val
         }) {
             let output = result.get("output").cloned().unwrap_or(Value::Null);
             let output = serde_json::to_string(&output).unwrap_or_else(|_| "null".to_owned());
+            context.push(json!({
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": output,
+            }));
+        } else if name == "interaction.request_user"
+            && let Some(input_response) = object.get("inputResponse")
+        {
+            let output = serde_json::to_string(input_response).unwrap_or_else(|_| "null".to_owned());
             context.push(json!({
                 "type": "function_call_output",
                 "call_id": call_id,

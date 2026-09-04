@@ -171,6 +171,8 @@ use product_strategy_definition_write_port::{
 #[path = "product_adk_chat_stream_port.rs"]
 mod product_adk_chat_stream_port;
 use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
+#[path = "product_adk_input_canonical.rs"]
+pub(crate) mod product_adk_input_canonical;
 #[path = "product_adk_model_runtime.rs"]
 pub(crate) mod product_adk_model_runtime;
 #[path = "product_adk_mutation_port.rs"]
@@ -181,6 +183,10 @@ mod product_mcp_production_executor;
 mod product_mcp_protocol;
 #[path = "product_mcp_server.rs"]
 pub(crate) mod product_mcp_server;
+#[path = "product_portfolio_projection.rs"]
+pub(crate) mod product_portfolio_projection;
+#[path = "product_research_backtest_projection.rs"]
+pub(crate) mod product_research_backtest_projection;
 #[path = "strategy_pine_mcp.rs"]
 mod strategy_pine_mcp;
 use product_adk_mutation_port::{

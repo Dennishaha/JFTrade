@@ -183,7 +183,10 @@ impl ProductionAdkChatRuntime {
                 schema
                     .get("name")
                     .and_then(Value::as_str)
-                    .is_some_and(|name| replay_safe_tool(name) && self.tool_executor.supports(name))
+                    .is_some_and(|name| {
+                        name == "interaction.request_user"
+                            || (replay_safe_tool(name) && self.tool_executor.supports(name))
+                    })
             })
             .collect();
         let tool_context = durable_context_items(
@@ -274,14 +277,49 @@ impl ProductionAdkChatRuntime {
         if run.status.eq_ignore_ascii_case("CANCELLED") {
             return Ok(());
         }
-        if !run.status.eq_ignore_ascii_case("RUNNING") {
+        let payload: Value =
+            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let resume_state = payload
+            .get("resumeState")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let is_running = run.status.eq_ignore_ascii_case("RUNNING");
+        let is_resumable_input = run.status.eq_ignore_ascii_case("PENDING_INPUT")
+            && resume_state.eq_ignore_ascii_case("input_resume_pending");
+        if !is_running && !is_resumable_input {
             return Err(unavailable(format!(
                 "assistant chat run is already {}",
                 run.status
             )));
         }
-        let payload: Value =
-            serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
+        let payload = if is_resumable_input {
+            let mut updated_payload = payload;
+            if let Some(obj) = updated_payload.as_object_mut() {
+                obj.insert("status".to_owned(), Value::String("RUNNING".to_owned()));
+                obj.insert(
+                    "resumeState".to_owned(),
+                    Value::String("input_resuming".to_owned()),
+                );
+            }
+            let updated = self
+                .store
+                .update_run_state_if_status_and_revision(
+                    run_id,
+                    "PENDING_INPUT",
+                    &run.updated_at,
+                    "RUNNING",
+                    &updated_payload.to_string(),
+                )
+                .map_err(storage_unavailable)?;
+            if !updated {
+                return Err(unavailable(format!(
+                    "assistant chat run {run_id} transition from PENDING_INPUT to RUNNING was superseded by concurrent state modification"
+                )));
+            }
+            updated_payload
+        } else {
+            payload
+        };
         if !runtime_recovery::retry_is_due(&payload) {
             // A caller reconnecting or resolving an approval must not bypass
             // a persisted provider backoff (including a non-retryable
@@ -388,7 +426,10 @@ impl ProductionAdkChatRuntime {
                 schema
                     .get("name")
                     .and_then(Value::as_str)
-                    .is_some_and(|name| replay_safe_tool(name) && self.tool_executor.supports(name))
+                    .is_some_and(|name| {
+                        name == "interaction.request_user"
+                            || (replay_safe_tool(name) && self.tool_executor.supports(name))
+                    })
             })
             .collect();
         let chat = ChatExecution {
@@ -418,6 +459,7 @@ impl ProductionAdkChatRuntime {
         let secrets_path = self.secrets_path.clone();
         let cancellation_registry = Arc::clone(&self.cancellation_registry);
         let tool_catalog = Arc::clone(&self.tool_catalog);
+        let tool_executor = Arc::clone(&self.tool_executor);
         let continuation_supervisor = Arc::clone(&self.continuation_supervisor);
         let continuation_run_id = chat.run_id.clone();
         let supervisor_for_task = Arc::clone(&continuation_supervisor);
@@ -425,10 +467,6 @@ impl ProductionAdkChatRuntime {
             &continuation_run_id,
             move |continuation_cancel| {
                 let continuation_supervisor = supervisor_for_task;
-                let tool_executor = Arc::new(ProductionAdkToolExecutor::new(
-                    Arc::clone(&tool_catalog),
-                    Arc::clone(&store),
-                ));
                 let runtime = ProductionAdkChatRuntime {
                     store,
                     session_store,
@@ -542,6 +580,13 @@ impl ProductionAdkChatRuntime {
                 code: "ADK_STORAGE_CORRUPT".to_owned(),
                 message: "stored ADK run payload must be a JSON object".to_owned(),
             });
+        }
+        if let Some(input_call) = response
+            .tool_calls
+            .iter()
+            .find(|call| call.name == "interaction.request_user")
+        {
+            return self.persist_pending_input_call(chat, input_call, &run, payload, run_lease);
         }
         let known = response
             .tool_calls
@@ -713,4 +758,10 @@ impl ProductionAdkChatRuntime {
             "timeline": [],
         })))
     }
+
+    pub(crate) fn attach_ports(&self, ports: Arc<crate::product::product_production_ports::ProductionPortBundle>) {
+        self.tool_executor.attach_ports(ports);
+    }
 }
+
+include!("product_adk_model_runtime_input_call.rs");

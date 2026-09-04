@@ -43,7 +43,7 @@ mod product_production_adapter_bindings;
 #[path = "product_production_database_leases.rs"]
 mod product_production_database_leases;
 #[path = "product_production_ports_adk.rs"]
-mod product_production_ports_adk;
+pub(crate) mod product_production_ports_adk;
 #[path = "product_production_ports_execution.rs"]
 mod product_production_ports_execution;
 #[path = "product_production_ports_market_data.rs"]
@@ -59,7 +59,7 @@ mod product_production_ports_system;
 #[path = "product_production_ports_storage.rs"]
 mod product_production_ports_storage;
 #[path = "product_production_ports_trade.rs"]
-mod product_production_ports_trade;
+pub(crate) mod product_production_ports_trade;
 #[path = "product_production_ports_types.rs"]
 mod product_production_ports_types;
 #[path = "product_production_ports_unavailable.rs"]
@@ -521,6 +521,18 @@ pub(crate) fn production_ports(
             "technical_indicators",
             research_tool_binding(&provider_snapshot, config, "technical_indicators"),
         ),
+        (
+            "analyst",
+            research_tool_binding(&provider_snapshot, config, "analyst"),
+        ),
+        (
+            "ownership",
+            research_tool_binding(&provider_snapshot, config, "ownership"),
+        ),
+        (
+            "corporate_actions",
+            research_tool_binding(&provider_snapshot, config, "corporate_actions"),
+        ),
     ]);
     let tool_catalog = Arc::new(
         ProductionToolCatalog::from_bindings_with_research(
@@ -554,7 +566,7 @@ pub(crate) fn production_ports(
         artifact_store: adk_artifact_store,
         tool_catalog: Arc::clone(&tool_catalog),
         settings_path: config.settings_path().to_owned(),
-        chat_runtime: Some(adk_chat_runtime),
+        chat_runtime: Some(Arc::clone(&adk_chat_runtime) as Arc<dyn crate::product::AdkChatStreamPort>),
     });
     let alert_port = Arc::new(ProductionAlertPort {
         active_provider_state: Arc::clone(&active_provider_state),
@@ -718,7 +730,7 @@ pub(crate) fn production_ports(
         execution_write: execution_port,
         adk_read: adk_port.clone(),
         adk_mutation: adk_port.clone(),
-        adk_chat_stream: adk_port,
+        adk_chat_stream: adk_port.clone(),
         alert_snapshot: alert_port.clone(),
         alert_write: alert_port,
         system_read: Arc::new(ProductionSystemPort {
@@ -770,5 +782,18 @@ pub(crate) fn production_ports(
         mcp_store: Arc::clone(&adk_store),
     };
     bundle.installed_adapters = bundle.derive_installed_adapters();
+    let mut adk_ports_bundle = bundle.clone();
+    let detached_adk_port = Arc::new(ProductionAdkPort {
+        store: Arc::clone(&adk_port.store),
+        session_store: Arc::clone(&adk_port.session_store),
+        artifact_store: Arc::clone(&adk_port.artifact_store),
+        tool_catalog: Arc::clone(&adk_port.tool_catalog),
+        settings_path: adk_port.settings_path.clone(),
+        chat_runtime: None,
+    });
+    adk_ports_bundle.adk_read = detached_adk_port.clone();
+    adk_ports_bundle.adk_mutation = detached_adk_port.clone();
+    adk_ports_bundle.adk_chat_stream = detached_adk_port;
+    adk_chat_runtime.attach_ports(Arc::new(adk_ports_bundle));
     Ok(bundle)
 }

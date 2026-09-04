@@ -260,7 +260,9 @@ impl ProductionAdkChatRuntime {
             }
         };
         for run in runs {
-            if !run.status.eq_ignore_ascii_case("RUNNING") {
+            let is_running = run.status.eq_ignore_ascii_case("RUNNING");
+            let is_pending_input = run.status.eq_ignore_ascii_case("PENDING_INPUT");
+            if !is_running && !is_pending_input {
                 continue;
             }
             let payload = match serde_json::from_str::<Value>(&run.payload_json) {
@@ -462,6 +464,7 @@ fn recoverable_state(payload: &Value) -> bool {
             | "provider_executing"
             | "approval_resuming"
             | "input_resuming"
+            | "input_resume_pending"
             | "tool_executing"
             | "tool_result_persisted"
     ) || payload

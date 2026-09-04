@@ -623,4 +623,4 @@ include!("product_adk_model_runtime_retry.rs");
 
 #[path = "product_adk_tool_executor.rs"]
 mod tool_executor;
-use tool_executor::{AdkToolExecutor, ProductionAdkToolExecutor};
+pub(crate) use tool_executor::{AdkToolExecutor, ProductionAdkToolExecutor};

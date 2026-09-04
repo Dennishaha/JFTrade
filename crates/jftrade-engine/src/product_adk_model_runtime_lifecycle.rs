@@ -4,10 +4,15 @@ impl ProductionAdkChatRuntime {
             return;
         };
         for run in runs {
-            if !run.status.eq_ignore_ascii_case("RUNNING") {
+            let is_running = run.status.eq_ignore_ascii_case("RUNNING");
+            let is_pending_input = run.status.eq_ignore_ascii_case("PENDING_INPUT");
+            if !is_running && !is_pending_input {
                 continue;
             }
             let Ok(payload) = serde_json::from_str::<Value>(&run.payload_json) else {
+                if !is_running {
+                    continue;
+                }
                 let message = "stored ADK run payload is invalid JSON";
                 let failed_payload = json!({
                     "status": "FAILED",
@@ -58,6 +63,7 @@ impl ProductionAdkChatRuntime {
                 .is_some_and(|state| {
                     state.eq_ignore_ascii_case("approval_resuming")
                         || state.eq_ignore_ascii_case("input_resuming")
+                        || state.eq_ignore_ascii_case("input_resume_pending")
                         || state.eq_ignore_ascii_case("tool_executing")
                         || state.eq_ignore_ascii_case("tool_result_persisted")
                         || state.eq_ignore_ascii_case("provider_executing")
@@ -88,6 +94,7 @@ impl ProductionAdkChatRuntime {
         }
         self.cancellation_registry.cancel_all();
         self.continuation_supervisor.shutdown();
+        self.tool_executor.detach_ports();
     }
 
     fn persist_cancelled(
