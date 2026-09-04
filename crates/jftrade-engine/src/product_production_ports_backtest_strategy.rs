@@ -269,9 +269,15 @@ pub(super) fn parse_start_request(
             .map(str::trim)
             .filter(|value| !value.is_empty())
     };
-    if payload.get("corpus").is_none() && text("definitionId").is_none() {
+    let has_source = text("strategyScript")
+        .or_else(|| text("script"))
+        .or_else(|| text("strategySource"))
+        .or_else(|| text("strategy_source"))
+        .or_else(|| text("source"))
+        .is_some();
+    if payload.get("corpus").is_none() && text("definitionId").is_none() && !has_source {
         return Err(BacktestsWritePortError::BadRequest(
-            "definitionId is required".to_owned(),
+            "definitionId or strategy source is required".to_owned(),
         ));
     }
     let raw_symbol = text("symbol")

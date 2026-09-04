@@ -101,7 +101,115 @@ impl ProductionBacktestPort {
             )
         })?;
         let persisted_payload = with_execution_model(payload, &request.execution_model)?;
-        let candles = self
+
+        let explicit_warmup = payload
+            .get("warmupBars")
+            .or_else(|| payload.get("warmup_bars"))
+            .and_then(Value::as_u64)
+            .map(|v| v as usize);
+        let warmup_bars = explicit_warmup.unwrap_or_else(|| {
+            let script = execution_payload
+                .get("strategyScript")
+                .or_else(|| execution_payload.get("script"))
+                .or_else(|| execution_payload.get("strategySource"))
+                .or_else(|| execution_payload.get("source"))
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
+            validation
+                .requirements
+                .as_ref()
+                .map(|r| r.derived_warmup_bars())
+                .unwrap_or(0)
+        });
+
+        let mut actual_warmup_count = 0;
+        let mut candles = Vec::new();
+        if warmup_bars > 0 {
+            let interval_ms: i64 = match request.interval.trim().to_ascii_lowercase().as_str() {
+                "1m" | "1min" => 60_000,
+                "5m" | "5min" => 300_000,
+                "15m" | "15min" => 900_000,
+                "30m" | "30min" => 1_800_000,
+                "60m" | "60min" | "1h" => 3_600_000,
+                "1d" | "d" => 86_400_000,
+                "1w" | "w" | "week" => 7 * 86_400_000,
+                "1mo" | "1mon" | "1month" | "mo" | "month" => 30 * 86_400_000,
+                _ => 60_000,
+            };
+
+            let multipliers = [3, 7, 14, 30, 60];
+            let mut resolved_warmup_candles = None;
+
+            for &multiplier in &multipliers {
+                let bounded_start = request.start_time_ms.saturating_sub(
+                    interval_ms.saturating_mul((warmup_bars as i64).saturating_mul(multiplier)),
+                );
+                let query_result = self._market_data_store.query_candles(
+                    provider_id,
+                    &request.symbol,
+                    &request.interval,
+                    &request.rehab_type,
+                    &request.session_scope,
+                    bounded_start,
+                    request.start_time_ms,
+                    "DESC",
+                    warmup_bars,
+                );
+
+                match query_result {
+                    Ok(mut warmup_candles) => {
+                        if warmup_candles.len() >= warmup_bars {
+                            warmup_candles.reverse();
+                            resolved_warmup_candles = Some(warmup_candles);
+                            break;
+                        }
+                        if resolved_warmup_candles
+                            .as_ref()
+                            .map(|c: &Vec<_>| c.len())
+                            .unwrap_or(0)
+                            < warmup_candles.len()
+                        {
+                            warmup_candles.reverse();
+                            resolved_warmup_candles = Some(warmup_candles);
+                        }
+                    }
+                    Err(err) => {
+                        return Err(BacktestsWritePortError::Unavailable(format!(
+                            "warmup candle query failed: {err}"
+                        )));
+                    }
+                }
+            }
+
+            let warmup_candles = resolved_warmup_candles.unwrap_or_default();
+            if warmup_candles.len() < warmup_bars {
+                return Err(BacktestsWritePortError::Unavailable(format!(
+                    "insufficient warmup candles: required {warmup_bars}, found {}",
+                    warmup_candles.len()
+                )));
+            }
+
+            for window in warmup_candles.windows(2) {
+                if window[0].start_time >= window[1].start_time {
+                    return Err(BacktestsWritePortError::Unavailable(
+                        "warmup candles are not strictly ascending".to_owned(),
+                    ));
+                }
+            }
+            if let Some(last) = warmup_candles.last()
+                && last.start_time >= request.start_time_ms
+            {
+                return Err(BacktestsWritePortError::Unavailable(
+                    "warmup candle overlaps formal start time".to_owned(),
+                ));
+            }
+
+            actual_warmup_count = warmup_candles.len();
+            candles = warmup_candles;
+        }
+
+        let formal_candles = self
             ._market_data_store
             .read_candles(
                 provider_id,
@@ -117,10 +225,18 @@ impl ProductionBacktestPort {
                     "backtest K-line data is not ready: {error}"
                 ))
             })?;
-        if candles.is_empty() {
+        if formal_candles.is_empty() {
             return Err(BacktestsWritePortError::Unavailable(
                 "backtest K-line data is not ready".to_owned(),
             ));
+        }
+        candles.extend(formal_candles);
+
+        let mut execution_payload = execution_payload;
+        if actual_warmup_count > 0
+            && let Some(obj) = execution_payload.as_object_mut()
+        {
+            obj.insert("warmupBars".to_owned(), json!(actual_warmup_count));
         }
         let runtime = tokio::runtime::Handle::try_current().map_err(|_| {
             BacktestsWritePortError::Unavailable(

@@ -88,7 +88,17 @@ impl BacktestExecutionPort for RunJsonBacktestExecutionPort {
                 .and_then(Value::as_array)
                 .is_none_or(Vec::is_empty)
         {
-            case["candles"] = Value::Array(request.candles.iter().map(candle_wire).collect());
+            let warmup_bars = request
+                .payload
+                .get("warmupBars")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize;
+            let formal_candles = if warmup_bars < request.candles.len() {
+                &request.candles[warmup_bars..]
+            } else {
+                &request.candles[..]
+            };
+            case["candles"] = Value::Array(formal_candles.iter().map(candle_wire).collect());
         }
         let bytes = serde_json::to_vec(&corpus)
             .map_err(|error| BacktestExecutionError::Invalid(error.to_string()))?;
@@ -222,17 +232,32 @@ fn build_corpus(
     )
     .map(|value| value.unwrap_or_else(|| "0".to_owned()))?;
     let market = market_rules(&request.payload, &case)?;
-    let candles = request
-        .candles
+    let warmup_bars = request
+        .payload
+        .get("warmupBars")
+        .and_then(Value::as_u64)
+        .unwrap_or(0) as usize;
+    let formal_candles = if warmup_bars < request.candles.len() {
+        &request.candles[warmup_bars..]
+    } else {
+        &request.candles[..]
+    };
+    let candles = formal_candles
         .iter()
         .enumerate()
         .map(|(index, candle)| candle_wire_checked(candle, index))
         .collect::<Result<Vec<_>, _>>()?;
-    let converted_intents = intents
-        .iter()
-        .enumerate()
-        .map(|(index, intent)| corpus_intent(intent, index, candles.len()))
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut converted_intents = Vec::new();
+    for (ordinal, intent) in intents.iter().enumerate() {
+        let bar_index = intent.bar_index;
+        if bar_index < 0 || (bar_index as usize) < warmup_bars {
+            continue;
+        }
+        let shifted_index = (bar_index as usize) - warmup_bars;
+        let mut shifted_intent = intent.clone();
+        shifted_intent.bar_index = shifted_index as i32;
+        converted_intents.push(corpus_intent(&shifted_intent, ordinal, candles.len())?);
+    }
     let base_currency = optional_text(&request.payload, &["baseCurrency"])?
         .or_else(|| {
             case.get("baseCurrency")
@@ -263,7 +288,14 @@ fn build_corpus(
         "candles": candles,
         "intents": converted_intents,
     });
-    copy_case_field(&case, &mut output_case, "processOrdersOnClose");
+    if let Some(val) = first_value(
+        &request.payload,
+        &["processOrdersOnClose", "process_orders_on_close"],
+    )
+    .or_else(|| case.get("processOrdersOnClose"))
+    {
+        output_case["processOrdersOnClose"] = val.clone();
+    }
     copy_case_field(&case, &mut output_case, "slippageTicks");
     copy_case_field(&case, &mut output_case, "feeRules");
     copy_case_field(&case, &mut output_case, "indicatorPeriods");
@@ -328,17 +360,16 @@ fn corpus_intent(
             intent.kind
         )));
     }
-    if intent.has_quantity_pct || intent.quantity_pct != 0.0 {
-        return Err(BacktestExecutionError::Invalid(format!(
-            "pine intent {} uses quantity percent, which the deterministic matcher cannot represent",
-            intent.id
-        )));
-    }
     let id = required_intent_id(intent, ordinal)?;
     let quantity = if intent.has_quantity || intent.quantity != 0.0 {
         positive_finite(intent.quantity, "quantity", &id)?
     } else if matches!(kind.as_str(), "entry" | "order") {
         1.0
+    } else if intent.has_quantity_pct || intent.quantity_pct != 0.0 {
+        return Err(BacktestExecutionError::Invalid(format!(
+            "pine intent {} uses quantity percent without resolved absolute quantity, which the deterministic matcher cannot represent",
+            intent.id
+        )));
     } else {
         return Err(BacktestExecutionError::Invalid(format!(
             "pine intent {id} requires a quantity"
@@ -677,173 +708,5 @@ fn candle_wire(candle: &BacktestExecutionCandle) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        BacktestExecutionCandle, BacktestExecutionError, BacktestExecutionPort,
-        BacktestExecutionRequest, PineBacktestExecutionAdapter, RunJsonBacktestExecutionPort,
-    };
-    use crate::{
-        PineExecutionError, PineExecutionFuture, PineExecutionPort, PineOrderIntent, PineRunResult,
-    };
-    use serde_json::json;
-    use std::sync::Arc;
-
-    #[derive(Clone, Debug)]
-    struct FakePinePort {
-        result: Result<PineRunResult, PineExecutionError>,
-    }
-
-    impl PineExecutionPort for FakePinePort {
-        fn run<'a>(&'a self, _request: crate::PineRunRequest) -> PineExecutionFuture<'a> {
-            let result = self.result.clone();
-            Box::pin(async move { result })
-        }
-    }
-
-    fn execution_request(payload: serde_json::Value) -> BacktestExecutionRequest {
-        BacktestExecutionRequest {
-            run_id: "run-adapter".to_owned(),
-            payload,
-            market_data_provider: "yfinance".to_owned(),
-            candles: vec![BacktestExecutionCandle {
-                start_time: 1_750_683_600_000,
-                end_time: 1_750_683_659_999,
-                open: "100".to_owned(),
-                high: "101".to_owned(),
-                low: "99".to_owned(),
-                close: "100".to_owned(),
-                volume: "10".to_owned(),
-            }],
-        }
-    }
-
-    fn adapter_result() -> PineRunResult {
-        PineRunResult {
-            order_intents: vec![PineOrderIntent {
-                kind: "entry".to_owned(),
-                id: "entry-1".to_owned(),
-                direction: "long".to_owned(),
-                quantity: 1.0,
-                has_quantity: true,
-                bar_index: 0,
-                ..PineOrderIntent::default()
-            }],
-            ..PineRunResult::default()
-        }
-    }
-
-    #[test]
-    fn pine_adapter_runs_worker_intent_through_deterministic_matcher() {
-        let request = execution_request(json!({
-            "strategyScript": "strategy('fixture')",
-            "definitionId": "fixture",
-            "symbol": "US.AAPL",
-            "interval": "1m",
-            "initialBalance": "1000"
-        }));
-        let adapter = PineBacktestExecutionAdapter::new(Arc::new(FakePinePort {
-            result: Ok(adapter_result()),
-        }));
-        let output = adapter.execute(request).expect("run pine corpus");
-        assert_eq!(output["cases"][0]["processedBars"], 1);
-        assert_eq!(output["cases"][0]["orders"][0]["clientOrderId"], "entry-1");
-    }
-
-    #[test]
-    fn pine_adapter_maps_worker_unavailability_without_fabricating_result() {
-        let request = execution_request(json!({
-            "strategyScript": "strategy('fixture')",
-            "symbol": "US.AAPL",
-            "interval": "1m"
-        }));
-        let adapter = PineBacktestExecutionAdapter::new(Arc::new(FakePinePort {
-            result: Err(PineExecutionError::Unavailable("worker stopped".to_owned())),
-        }));
-        let error = adapter.execute(request).expect_err("worker failure");
-        assert!(
-            matches!(error, BacktestExecutionError::Unavailable(message) if message == "worker stopped")
-        );
-    }
-
-    #[test]
-    fn pine_adapter_rejects_invalid_worker_intent() {
-        let request = execution_request(json!({
-            "strategyScript": "strategy('fixture')",
-            "symbol": "US.AAPL",
-            "interval": "1m"
-        }));
-        let mut result = adapter_result();
-        result.order_intents[0].direction = "sideways".to_owned();
-        let adapter =
-            PineBacktestExecutionAdapter::new(Arc::new(FakePinePort { result: Ok(result) }));
-        let error = adapter.execute(request).expect_err("invalid direction");
-        assert!(
-            matches!(error, BacktestExecutionError::Invalid(message) if message.contains("requires long/short"))
-        );
-    }
-
-    #[test]
-    fn pine_adapter_requires_source_and_history() {
-        let adapter = PineBacktestExecutionAdapter::new(Arc::new(FakePinePort {
-            result: Ok(adapter_result()),
-        }));
-        let missing_source = adapter.execute(execution_request(json!({
-            "symbol": "US.AAPL",
-            "interval": "1m"
-        })));
-        assert!(
-            matches!(missing_source, Err(BacktestExecutionError::Invalid(message)) if message.contains("strategy source"))
-        );
-
-        let mut missing_history = execution_request(json!({
-            "strategyScript": "strategy('fixture')",
-            "symbol": "US.AAPL",
-            "interval": "1m"
-        }));
-        missing_history.candles.clear();
-        let error = adapter
-            .execute(missing_history)
-            .expect_err("missing history");
-        assert!(
-            matches!(error, BacktestExecutionError::Unavailable(message) if message.contains("history"))
-        );
-    }
-
-    #[test]
-    fn run_json_adapter_fills_validated_history_into_empty_corpus_case() {
-        let request = BacktestExecutionRequest {
-            run_id: "run-fixture".to_owned(),
-            payload: json!({
-                "version": 1,
-                "cases": [{
-                    "id": "fixture",
-                    "symbol": "US.AAPL",
-                    "baseCurrency": "AAPL",
-                    "quoteCurrency": "USD",
-                    "initialBalance": "1000",
-                    "market": {
-                        "tickSize": "0.01",
-                        "quantityStep": "1",
-                        "minQuantity": "1"
-                    },
-                    "candles": []
-                }]
-            }),
-            market_data_provider: "yfinance".to_owned(),
-            candles: vec![BacktestExecutionCandle {
-                start_time: 1_750_683_600_000,
-                end_time: 1_750_683_659_999,
-                open: "100".to_owned(),
-                high: "101".to_owned(),
-                low: "99".to_owned(),
-                close: "100".to_owned(),
-                volume: "10".to_owned(),
-            }],
-        };
-
-        let output = RunJsonBacktestExecutionPort
-            .execute(request)
-            .expect("run deterministic corpus");
-        assert_eq!(output["cases"][0]["processedBars"], 1);
-    }
-}
+#[path = "backtest_tests.rs"]
+mod tests;

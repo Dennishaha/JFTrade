@@ -62,17 +62,46 @@ impl StrategyDefinitionSnapshotPort for ProductionStrategyDefinitionPort {
     fn get(
         &self,
         definition_id: &str,
-        _preview: &StrategyDefinitionPreview,
+        preview: &StrategyDefinitionPreview,
     ) -> Result<Option<Value>, StrategyDefinitionSnapshotError> {
         let def = self
             .store
             .get_definition(definition_id, true)
             .map_err(|e| StrategyDefinitionSnapshotError::Unavailable(e.to_string()))?;
-        def.map(|d| {
-            serde_json::to_value(&d)
-                .map_err(|error| StrategyDefinitionSnapshotError::Unavailable(error.to_string()))
-        })
-        .transpose()
+        let Some(mut value) = def
+            .map(|d| {
+                serde_json::to_value(&d)
+                    .map_err(|error| StrategyDefinitionSnapshotError::Unavailable(error.to_string()))
+            })
+            .transpose()?
+        else {
+            return Ok(None);
+        };
+
+        if let Some(obj) = value.as_object_mut() {
+            let script = obj.get("script").and_then(Value::as_str).unwrap_or_default();
+            let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
+            let symbol = preview
+                .symbol
+                .as_deref()
+                .or_else(|| obj.get("symbol").and_then(Value::as_str))
+                .unwrap_or_default();
+            let interval = preview
+                .interval
+                .clone()
+                .or_else(|| obj.get("interval").and_then(Value::as_str).map(str::to_owned))
+                .unwrap_or_else(|| "5m".to_owned());
+            let warmup_bars = validation
+                .requirements
+                .as_ref()
+                .map(|r| {
+                    r.derived_warmup_bars_with_session(symbol, &interval, preview.use_extended_hours)
+                })
+                .unwrap_or(0);
+            obj.insert("derivedWarmupBars".to_owned(), json!(warmup_bars));
+            obj.insert("derivedWarmupInterval".to_owned(), json!(interval));
+        }
+        Ok(Some(value))
     }
 
     fn versions(
@@ -729,43 +758,6 @@ fn map_pine_analysis_error(
     }
 }
 
+#[path = "product_production_ports_strategy_tests.rs"]
 #[cfg(test)]
-mod pine_shadow_tests {
-    use super::*;
-
-    #[test]
-    fn shadow_request_matches_go_sample_candles_and_uses_run_script_analysis_mode() {
-        let request = pine_shadow_request("shadow-job".to_owned(), "plot(close)");
-        assert_eq!(request.job_id, "shadow-job");
-        assert_eq!(request.symbol, "JFTRADE.SAMPLE");
-        assert_eq!(request.timeframe, "1m");
-        assert_eq!(request.mode, "analyze");
-        assert_eq!(request.candles.len(), 80);
-        assert_eq!(request.candles[0].open_time, 1_704_067_200_000);
-        assert_eq!(request.candles[0].close_time, 1_704_067_260_000);
-        assert_eq!(request.candles[0].close, 100.0);
-        let last = &request.candles[79];
-        assert_eq!(last.open_time, 1_704_071_940_000);
-        assert_eq!(last.volume, 1_079.0);
-        assert_eq!(last.close, 179.0 + (79.0_f64 / 3.0).sin());
-    }
-
-    #[test]
-    fn shadow_result_derives_go_compatible_signal_count_from_plot_tails() {
-        let result = jftrade_integration_pine::PineRunResult {
-            plots: vec![jftrade_integration_pine::PinePlot {
-                name: "close".to_owned(),
-                values: vec![100.0, 101.0],
-            }],
-            metadata: jftrade_integration_pine::PineWorkerMetadata {
-                pine_ts_version: "0.9.31".to_owned(),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let payload = pine_shadow_result(result);
-        assert_eq!(payload["engineVersion"], "0.9.31");
-        assert_eq!(payload["plots"]["close"]["data"], json!([100.0, 101.0]));
-        assert_eq!(payload["signals"]["close"], 101.0);
-    }
-}
+mod tests;
