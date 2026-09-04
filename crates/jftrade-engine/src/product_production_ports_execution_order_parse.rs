@@ -38,6 +38,8 @@ pub(super) struct ParsedOrder {
     pub(super) quantity_mode: String,
     pub(super) amount: Option<f64>,
     pub(super) prediction_side: Option<i32>,
+    #[allow(dead_code)]
+    pub(super) reduce_only: Option<bool>,
 }
 
 pub(super) fn requires_locked_preview(order: &ParsedOrder) -> bool {
@@ -130,14 +132,17 @@ impl ParsedCombo {
 }
 
 pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
+    parse_order_with_defaults(payload, None)
+}
+
+pub(super) fn parse_order_with_defaults(
+    payload: &Value,
+    default_environment: Option<&str>,
+) -> Result<ParsedOrder, String> {
     let object = payload
         .as_object()
         .ok_or_else(|| "order payload must be an object".to_owned())?;
-    // The Futu production command DTO has no reduce-only field. Reject an
-    // explicit true value instead of silently ignoring a public request.
-    if object.get("reduceOnly").and_then(Value::as_bool) == Some(true) {
-        return Err("reduceOnly is not supported by the Futu execution adapter".to_owned());
-    }
+    let reduce_only = object.get("reduceOnly").and_then(Value::as_bool);
     let account_id = string_field(object, "accountId")
         .ok_or_else(|| "accountId is required".to_owned())?
         .parse::<u64>()
@@ -310,6 +315,7 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
     }
     let trading_environment = string_field(object, "tradingEnvironment")
         .or_else(|| string_field(object, "env"))
+        .or_else(|| default_environment.map(ToOwned::to_owned))
         .unwrap_or_else(|| "SIMULATE".to_owned());
     let client_order_id = string_field(object, "clientOrderId");
     let remark = string_field(object, "remark").or_else(|| client_order_id.clone());
@@ -365,15 +371,23 @@ pub(super) fn parse_order(payload: &Value) -> Result<ParsedOrder, String> {
         quantity_mode,
         amount,
         prediction_side,
+        reduce_only,
     })
 }
 
 pub(super) fn parse_combo(payload: &Value) -> Result<ParsedCombo, String> {
+    parse_combo_with_defaults(payload, None)
+}
+
+pub(super) fn parse_combo_with_defaults(
+    payload: &Value,
+    default_environment: Option<&str>,
+) -> Result<ParsedCombo, String> {
     let object = payload
         .as_object()
         .ok_or_else(|| "combo payload must be an object".to_owned())?;
     let request_market = string_field(object, "market");
-    let mut order = parse_order(payload)?;
+    let mut order = parse_order_with_defaults(payload, default_environment)?;
     // ComboOrderIntent keeps the caller's market string (unlike a single
     // order's ParseInstrument projection, which resolves SH/SZ to CN).
     if let Some(ref request_market) = request_market {

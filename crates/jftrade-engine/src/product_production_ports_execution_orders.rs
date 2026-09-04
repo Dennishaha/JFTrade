@@ -9,7 +9,8 @@ use jftrade_store_sqlite::{
     StoredExecutionOrderEvent, normalized_request_hash,
 };
 use jftrade_trading::{
-    OrderStatus, canonical_broker_status, canonical_stored_status, reconcile_status,
+    OrderStatus, PreTradeRiskOrder, TradingEnvironment, canonical_broker_status,
+    canonical_stored_status, reconcile_status,
 };
 use serde_json::{Value, json};
 use tokio::sync::{Notify, oneshot};
@@ -29,14 +30,17 @@ mod execution_order_hash;
 mod execution_order_helpers;
 use execution_order_hash::{canonical_execution_request, preview_request_hash};
 use execution_order_helpers::{
-    CancelInFlightGuard, broker_error, broker_failed, execution_error_details, failed,
-    header_from_order, is_terminal_status, map_trade_error, map_transition_store_error,
-    merge_query, order_value, store_error, value_identifier,
+    CancelInFlightGuard, broker_error, broker_failed, build_pre_trade_risk_combo_order,
+    build_pre_trade_risk_order, execution_error_details, failed, header_from_order,
+    is_terminal_status, map_trade_error, map_transition_store_error, merge_query, order_value,
+    store_error, value_identifier,
 };
 
 #[path = "product_production_ports_execution_order_parse.rs"]
 mod execution_order_parse;
-use execution_order_parse::{new_order, parse_combo, parse_order, requires_locked_preview};
+use execution_order_parse::{
+    new_order, parse_combo_with_defaults, parse_order_with_defaults, requires_locked_preview,
+};
 #[path = "product_production_ports_execution_order_previews.rs"]
 mod execution_order_previews;
 #[path = "product_production_ports_execution_reconciliation.rs"]
@@ -50,6 +54,18 @@ pub(crate) struct ProductionExecutionPort {
     pub(crate) trade_write_port: Option<Arc<dyn jftrade_integration_futu::TradeWritePort>>,
     pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
     pub(crate) cancel_inflight: Arc<Mutex<BTreeSet<String>>>,
+    pub(crate) risk_coordinator: Option<Arc<crate::product::ExecutionRiskCoordinator>>,
+    pub(crate) default_trading_environment: Option<Arc<dyn Fn() -> String + Send + Sync>>,
+    pub(crate) notification_projector:
+        Option<Arc<crate::product::ExecutionNotificationProjector>>,
+}
+
+impl ProductionExecutionPort {
+    pub(crate) fn project_notifications(&self) {
+        if let Some(ref projector) = self.notification_projector {
+            let _ = projector.project_pending();
+        }
+    }
 }
 
 impl std::fmt::Debug for ProductionExecutionPort {
@@ -134,7 +150,9 @@ impl ExecutionReconciliationWorker {
                     let Some(port) = port.upgrade() else {
                         break;
                     };
-                    port.reconcile_pending_orders()
+                    let result = port.reconcile_pending_orders();
+                    port.project_notifications();
+                    result
                 };
                 let now = crate::product::product_production_ports::provider_now_rfc3339();
                 let mut next_delay = std::time::Duration::from_secs(15);
@@ -396,7 +414,7 @@ impl ExecutionReadSnapshotPort for ProductionExecutionPort {
 
 impl ExecutionWritePort for ProductionExecutionPort {
     fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
-        match input.operation {
+        let result = match input.operation {
             ExecutionWriteOperation::OrderPlace => self.place_order(&input.payload),
             ExecutionWriteOperation::OrderCancel | ExecutionWriteOperation::ComboCancel => {
                 let id = input
@@ -409,7 +427,9 @@ impl ExecutionWritePort for ProductionExecutionPort {
             ExecutionWriteOperation::BuyingPower => self.buying_power_preview(&input.payload),
             ExecutionWriteOperation::OrderPreview => self.order_preview(&input.payload),
             ExecutionWriteOperation::ComboPreview => self.combo_preview(&input.payload),
-        }
+        };
+        self.project_notifications();
+        result
     }
 }
 

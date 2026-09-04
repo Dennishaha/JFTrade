@@ -340,6 +340,7 @@ pub(crate) fn parse_product_rule_request(
         .and_then(|value| value.get("instrumentId"))
         .and_then(Value::as_str)
         .or_else(|| object.get("instrumentId").and_then(Value::as_str))
+        .or_else(|| object.get("instrument").and_then(Value::as_str))
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned);
@@ -555,5 +556,125 @@ pub(crate) fn map_trade_error(error: TradeSessionError) -> ExecutionWritePortErr
         failed(429, "BROKER_RATE_LIMITED", message)
     } else {
         failed(502, "BROKER_UNAVAILABLE", message)
+    }
+}
+
+pub(crate) fn build_pre_trade_risk_order(
+    parsed: &super::execution_order_parse::ParsedOrder,
+) -> jftrade_trading::PreTradeRiskOrder {
+    jftrade_trading::PreTradeRiskOrder {
+        broker_id: parsed.broker_id.clone(),
+        trading_environment: if parsed.header.trd_env == 1 {
+            jftrade_trading::TradingEnvironment::Real
+        } else {
+            jftrade_trading::TradingEnvironment::Simulate
+        },
+        account_id: parsed.header.acc_id.to_string(),
+        market: parsed.market.clone(),
+        symbol: parsed.symbol.clone(),
+        side: super::execution_order_parse::side_label(parsed.side).to_owned(),
+        order_type: super::execution_order_parse::order_type_label(parsed.order_type).to_owned(),
+        order_kind: parsed.order_kind.clone(),
+        product_class: parsed.product_class.clone(),
+        quantity_mode: parsed.quantity_mode.clone(),
+        quantity: jftrade_kernel::Fixed8::from_f64(parsed.quantity)
+            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+        price: parsed
+            .price
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
+        amount: parsed
+            .amount
+            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        legs: Vec::new(),
+    }
+}
+
+pub(crate) fn build_pre_trade_risk_combo_order(
+    parsed: &super::execution_order_parse::ParsedCombo,
+) -> jftrade_trading::PreTradeRiskOrder {
+    let combo_qty = parsed.combo_quantity();
+    let risk_legs = parsed
+        .legs
+        .iter()
+        .enumerate()
+        .map(|(index, leg)| {
+            let raw = parsed.leg_payloads.get(index).and_then(Value::as_object);
+            let leg_qty = raw
+                .and_then(|obj| obj.get("quantity"))
+                .and_then(Value::as_f64)
+                .or_else(|| leg.qty_ratio.map(|r| combo_qty * r))
+                .unwrap_or(combo_qty);
+            let leg_price = raw
+                .and_then(|obj| obj.get("price"))
+                .and_then(Value::as_f64)
+                .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok());
+            let leg_side = leg
+                .side
+                .map(super::execution_order_parse::side_label)
+                .unwrap_or("UNKNOWN")
+                .to_owned();
+            let leg_market = raw
+                .and_then(|obj| obj.get("market"))
+                .and_then(Value::as_str)
+                .unwrap_or(&parsed.order.market)
+                .to_owned();
+            let leg_product_class = raw
+                .and_then(|obj| obj.get("productClass"))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| parsed.order.product_class.clone());
+            let leg_multiplier = raw
+                .and_then(|obj| obj.get("multiplier"))
+                .and_then(Value::as_f64)
+                .and_then(|m| jftrade_kernel::Fixed8::from_f64(m).ok())
+                .unwrap_or_else(|| {
+                    if leg_product_class.eq_ignore_ascii_case("OPTION") {
+                        jftrade_kernel::Fixed8::from_f64(100.0)
+                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                    } else {
+                        jftrade_kernel::Fixed8::from_f64(1.0)
+                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                    }
+                });
+            jftrade_trading::PreTradeRiskComboLeg {
+                symbol: leg.code.trim().to_owned(),
+                market: leg_market,
+                side: leg_side,
+                quantity: jftrade_kernel::Fixed8::from_f64(leg_qty)
+                    .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+                multiplier: leg_multiplier,
+                price: leg_price,
+                product_class: leg_product_class,
+            }
+        })
+        .collect();
+
+    jftrade_trading::PreTradeRiskOrder {
+        broker_id: parsed.order.broker_id.clone(),
+        trading_environment: if parsed.order.header.trd_env == 1 {
+            jftrade_trading::TradingEnvironment::Real
+        } else {
+            jftrade_trading::TradingEnvironment::Simulate
+        },
+        account_id: parsed.order.header.acc_id.to_string(),
+        market: parsed.order.market.clone(),
+        symbol: parsed.order.symbol.clone(),
+        side: super::execution_order_parse::side_label(parsed.order.side).to_owned(),
+        order_type: super::execution_order_parse::order_type_label(parsed.order.order_type)
+            .to_owned(),
+        order_kind: parsed.order.order_kind.clone(),
+        product_class: parsed.order.product_class.clone(),
+        quantity_mode: parsed.order.quantity_mode.clone(),
+        quantity: jftrade_kernel::Fixed8::from_f64(combo_qty)
+            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+        price: parsed
+            .order
+            .price
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
+        amount: parsed
+            .order
+            .amount
+            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        legs: risk_legs,
     }
 }

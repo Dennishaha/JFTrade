@@ -1,7 +1,5 @@
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
@@ -29,7 +27,7 @@ use crate::product::{
     MarketDataRuntimeStatusPort, ProductionRuntimeStatus, SystemReadSnapshotError,
     SystemReadSnapshotPort,
 };
-use crate::real_trade_control::RealTradeControlReader;
+use crate::product::ExecutionRiskCoordinator;
 pub(crate) struct ProductionSystemPort {
     pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
     pub(crate) live_hub: Option<Arc<jftrade_api::LiveHub>>,
@@ -49,7 +47,7 @@ pub(crate) struct ProductionSystemPort {
     pub(crate) execution_store: Arc<ExecutionOrderStore>,
     pub(crate) adk_store: Arc<AdkStore>,
     pub(crate) strategy_runtime_store: Arc<StrategyRuntimeStore>,
-    pub(crate) real_trade_control: RealTradeControlReader,
+    pub(crate) real_trade_control: Arc<ExecutionRiskCoordinator>,
 }
 
 impl std::fmt::Debug for ProductionSystemPort {
@@ -330,64 +328,58 @@ const REAL_TRADE_EVENT_LIMIT: usize = 200;
 
 #[derive(Debug)]
 pub(crate) struct ProductionSystemWritePort {
-    path: PathBuf,
-    state: Mutex<RealTradeControlState>,
+    coordinator: Arc<ExecutionRiskCoordinator>,
 }
 
 impl ProductionSystemWritePort {
+    #[allow(dead_code)]
     pub(crate) fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
-        let path = path.into();
-        let state = load_state(&path)?;
-        Ok(Self {
-            path,
-            state: Mutex::new(state),
-        })
+        let coordinator = Arc::new(ExecutionRiskCoordinator::new(path));
+        Ok(Self { coordinator })
+    }
+
+    pub(crate) fn with_coordinator(coordinator: Arc<ExecutionRiskCoordinator>) -> Self {
+        Self { coordinator }
     }
 
     fn mutate_state(&self, input: &SystemWriteInput) -> Result<Value, SystemWritePortError> {
-        let mut current = self
-            .state
-            .lock()
-            .map_err(|_| control_failed("real-trade control lock is poisoned"))?;
-        let mut next = current.clone();
         let now = SystemClock.now_rfc3339();
-        match input.operation {
-            SystemWriteOperation::ManualRetry => {
-                return Err(SystemWritePortError::Unavailable(
-                    "OpenD runtime is not configured".to_owned(),
-                ));
+        self.coordinator.mutate_with(|state| {
+            match input.operation {
+                SystemWriteOperation::ManualRetry => {
+                    return Err(SystemWritePortError::Unavailable(
+                        "OpenD runtime is not configured".to_owned(),
+                    ));
+                }
+                SystemWriteOperation::ActivateKillSwitch => {
+                    activate_kill_switch(state, required_kill_switch(input)?, &now);
+                }
+                SystemWriteOperation::ReleaseKillSwitch => {
+                    release_kill_switch(state, required_kill_switch(input)?, &now);
+                }
+                SystemWriteOperation::UpdateRisk => {
+                    update_risk(state, required_risk(input)?, &now);
+                }
+                SystemWriteOperation::DisableRisk => {
+                    disable_risk(state, required_risk(input)?, &now);
+                }
+                SystemWriteOperation::ActivateHardStop => {
+                    activate_hard_stop(state, required_hard_stop(input)?, &now);
+                }
+                SystemWriteOperation::ReleaseHardStop => {
+                    release_hard_stop(
+                        state,
+                        input
+                            .hard_stop_id
+                            .as_deref()
+                            .ok_or_else(|| control_failed("real-trade hard stop id is missing"))?,
+                        required_hard_stop(input)?,
+                        &now,
+                    )?;
+                }
             }
-            SystemWriteOperation::ActivateKillSwitch => {
-                activate_kill_switch(&mut next, required_kill_switch(input)?, &now);
-            }
-            SystemWriteOperation::ReleaseKillSwitch => {
-                release_kill_switch(&mut next, required_kill_switch(input)?, &now);
-            }
-            SystemWriteOperation::UpdateRisk => {
-                update_risk(&mut next, required_risk(input)?, &now);
-            }
-            SystemWriteOperation::DisableRisk => {
-                disable_risk(&mut next, required_risk(input)?, &now);
-            }
-            SystemWriteOperation::ActivateHardStop => {
-                activate_hard_stop(&mut next, required_hard_stop(input)?, &now);
-            }
-            SystemWriteOperation::ReleaseHardStop => {
-                release_hard_stop(
-                    &mut next,
-                    input
-                        .hard_stop_id
-                        .as_deref()
-                        .ok_or_else(|| control_failed("real-trade hard stop id is missing"))?,
-                    required_hard_stop(input)?,
-                    &now,
-                )?;
-            }
-        }
-        persist_state(&self.path, &next).map_err(|error| control_failed(&error))?;
-        let response = snapshot_value(next.clone())?;
-        *current = next;
-        Ok(response)
+            snapshot_value(state.clone())
+        })
     }
 }
 
@@ -615,44 +607,6 @@ fn release_hard_stop(
 fn prepend_event(state: &mut RealTradeControlState, event: RealTradeControlEvent) {
     state.events.insert(0, event);
     state.events.truncate(REAL_TRADE_EVENT_LIMIT);
-}
-
-fn load_state(path: &Path) -> Result<RealTradeControlState, String> {
-    let bytes = match fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(RealTradeControlState::default());
-        }
-        Err(error) => return Err(format!("read real-trade control state: {error}")),
-    };
-    if bytes.iter().all(u8::is_ascii_whitespace) {
-        return Ok(RealTradeControlState::default());
-    }
-    serde_json::from_slice(&bytes)
-        .map_err(|error| format!("decode real-trade control state: {error}"))
-}
-
-fn persist_state(path: &Path, state: &RealTradeControlState) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("create real-trade control dir: {error}"))?;
-    let bytes = serde_json::to_vec_pretty(state)
-        .map_err(|error| format!("encode real-trade control state: {error}"))?;
-    let mut file = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|error| format!("create real-trade control temporary file: {error}"))?;
-    file.write_all(&bytes)
-        .map_err(|error| format!("write real-trade control state: {error}"))?;
-    file.write_all(b"\n")
-        .map_err(|error| format!("write real-trade control newline: {error}"))?;
-    file.as_file()
-        .sync_all()
-        .map_err(|error| format!("sync real-trade control state: {error}"))?;
-    file.persist(path)
-        .map_err(|error| format!("replace real-trade control state: {}", error.error))?;
-    Ok(())
 }
 
 fn snapshot_value(state: RealTradeControlState) -> Result<Value, SystemWritePortError> {

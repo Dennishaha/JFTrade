@@ -5,20 +5,14 @@
 //! without falling back to test cutover or dummy fixtures.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::product::ProductConfig;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_adk_model_runtime::{
     ProductionAdkChatRuntime, RunCancellationRegistry,
 };
-use crate::product::{ProductConfig, product_data_management};
 use jftrade_calendar::{CalendarManager, CalendarSnapshotStore, CalendarSourceRegistry};
-use jftrade_datamanagement::{
-    DATABASE_ADK, DATABASE_ADK_ARTIFACT, DATABASE_ADK_SESSION, DATABASE_BACKTEST,
-    DATABASE_BACKTEST_RUNS, DATABASE_EXECUTION, DATABASE_RESEARCH, DATABASE_STRATEGY,
-    DATABASE_WATCHLIST,
-};
 use jftrade_settings::{
     BacktestMarketDataProviderSettingsStorePort, BrokerSettingsStorePort,
     ExchangeCalendarSettingsStorePort,
@@ -26,15 +20,6 @@ use jftrade_settings::{
     normalize_live_websocket_connection_limit, parse_market_data_provider,
 };
 use jftrade_store_settings_file::SettingsFileStore;
-use jftrade_store_sqlite::{
-    ADK_ARTIFACT_PRODUCTION_PROFILE, ADK_PRODUCTION_PROFILE, ADK_SESSION_PRODUCTION_PROFILE,
-    AdkArtifactStore, AdkSessionStore, AdkStore, BACKTEST_MARKET_DATA_PRODUCTION_PROFILE,
-    BACKTEST_RUNS_PRODUCTION_PROFILE, BacktestMarketDataStore, BacktestRunStore,
-    BacktestSyncTaskStore, EXECUTION_ORDERS_PRODUCTION_PROFILE, ExecutionOrderStore,
-    RESEARCH_PRESET_PRODUCTION_PROFILE, ResearchPresetStore,
-    STRATEGY_DEFINITION_PRODUCTION_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
-    WATCHLIST_PRODUCTION_PROFILE, WatchlistStore,
-};
 
 #[path = "product_backtest_sync_registry.rs"]
 mod product_backtest_sync_registry;
@@ -77,8 +62,10 @@ pub(crate) use product_production_adapter_bindings::{
     ProductionAdapterBinding,
 };
 pub(crate) use product_production_database_leases::{
-    PRODUCTION_DATABASE_IDS, ProductionDatabaseLeaseSnapshot,
+    ProductionDatabaseLeaseSnapshot, open_production_stores,
 };
+#[allow(unused_imports)]
+pub(crate) use product_production_database_leases::PRODUCTION_DATABASE_IDS;
 pub(crate) use product_production_ports_adk::{ProductionAdkPort, ProductionToolCatalog};
 pub(crate) use product_production_ports_execution::{
     BacktestMarketDataProviderState, ExecutionReconciliationWorker, ProductionBacktestPort,
@@ -125,120 +112,19 @@ pub(crate) fn production_ports(
         ));
     }
 
-    let descriptors =
-        product_data_management::managed_database_runtime_descriptors(config.settings_path());
-    let get_path = |key: &str| -> Result<PathBuf, ProductError> {
-        descriptors
-            .iter()
-            .find(|d| d.id == key)
-            .map(|d| PathBuf::from(&d.path))
-            .ok_or_else(|| {
-                ProductError::Storage(format!("missing managed database descriptor for {key}"))
-            })
-    };
-
-    let mut acquired_databases = Vec::with_capacity(PRODUCTION_DATABASE_IDS.len());
-
-    let watchlist_path = get_path(DATABASE_WATCHLIST)?;
-    let watchlist_store = Arc::new(
-        WatchlistStore::open_existing(&watchlist_path, WATCHLIST_PRODUCTION_PROFILE).map_err(
-            |e| ProductError::Storage(format!("failed to open watchlist production store: {e}")),
-        )?,
-    );
-    acquired_databases.push(DATABASE_WATCHLIST.to_owned());
-
-    let strategy_path = get_path(DATABASE_STRATEGY)?;
-    let strategy_def_store = Arc::new(
-        StrategyDefinitionStore::open_existing(
-            &strategy_path,
-            STRATEGY_DEFINITION_PRODUCTION_PROFILE,
-        )
-        .map_err(|e| {
-            ProductError::Storage(format!(
-                "failed to open strategy definitions production store: {e}"
-            ))
-        })?,
-    );
-    let strategy_runtime_store = Arc::new(StrategyRuntimeStore::from_definition_store(
-        &strategy_def_store,
-    ));
-    acquired_databases.push(DATABASE_STRATEGY.to_owned());
-
-    let research_path = get_path(DATABASE_RESEARCH)?;
-    let research_store = Arc::new(
-        ResearchPresetStore::open_existing(&research_path, RESEARCH_PRESET_PRODUCTION_PROFILE)
-            .map_err(|e| {
-                ProductError::Storage(format!(
-                    "failed to open research preset production store: {e}"
-                ))
-            })?,
-    );
-    acquired_databases.push(DATABASE_RESEARCH.to_owned());
-
-    let backtest_path = get_path(DATABASE_BACKTEST_RUNS)?;
-    let backtest_store = Arc::new(
-        BacktestRunStore::open_existing(&backtest_path, BACKTEST_RUNS_PRODUCTION_PROFILE).map_err(
-            |e| {
-                ProductError::Storage(format!(
-                    "failed to open backtest runs production store: {e}"
-                ))
-            },
-        )?,
-    );
-    let backtest_sync_tasks = Arc::new(BacktestSyncTaskStore::new(Arc::clone(&backtest_store)));
-    acquired_databases.push(DATABASE_BACKTEST_RUNS.to_owned());
-
-    let backtest_market_data_path = get_path(DATABASE_BACKTEST)?;
-    let backtest_market_data_store = Arc::new(
-        BacktestMarketDataStore::open_existing(
-            &backtest_market_data_path,
-            BACKTEST_MARKET_DATA_PRODUCTION_PROFILE,
-        )
-        .map_err(|e| {
-            ProductError::Storage(format!(
-                "failed to open backtest market-data production store: {e}"
-            ))
-        })?,
-    );
-    acquired_databases.push(DATABASE_BACKTEST.to_owned());
-
-    let execution_path = get_path(DATABASE_EXECUTION)?;
-    let execution_store = Arc::new(
-        ExecutionOrderStore::open_existing(&execution_path, EXECUTION_ORDERS_PRODUCTION_PROFILE)
-            .map_err(|e| {
-                ProductError::Storage(format!(
-                    "failed to open execution orders production store: {e}"
-                ))
-            })?,
-    );
-    acquired_databases.push(DATABASE_EXECUTION.to_owned());
-
-    let adk_path = get_path(DATABASE_ADK)?;
-    let adk_store = Arc::new(
-        AdkStore::open_existing(&adk_path, ADK_PRODUCTION_PROFILE).map_err(|e| {
-            ProductError::Storage(format!("failed to open ADK production store: {e}"))
-        })?,
-    );
-    acquired_databases.push(DATABASE_ADK.to_owned());
-
-    let adk_session_path = get_path(DATABASE_ADK_SESSION)?;
-    let adk_session_store = Arc::new(
-        AdkSessionStore::open_existing(&adk_session_path, ADK_SESSION_PRODUCTION_PROFILE).map_err(
-            |e| ProductError::Storage(format!("failed to open ADK session production store: {e}")),
-        )?,
-    );
-    acquired_databases.push(DATABASE_ADK_SESSION.to_owned());
-
-    let adk_artifact_path = get_path(DATABASE_ADK_ARTIFACT)?;
-    let adk_artifact_store = Arc::new(
-        AdkArtifactStore::open_existing(&adk_artifact_path, ADK_ARTIFACT_PRODUCTION_PROFILE)
-            .map_err(|e| {
-                ProductError::Storage(format!("failed to open ADK artifact production store: {e}"))
-            })?,
-    );
-    acquired_databases.push(DATABASE_ADK_ARTIFACT.to_owned());
-
-    let database_leases = ProductionDatabaseLeaseSnapshot::new(acquired_databases);
+    let stores = open_production_stores(config)?;
+    let watchlist_store = stores.watchlist_store;
+    let strategy_def_store = stores.strategy_def_store;
+    let strategy_runtime_store = stores.strategy_runtime_store;
+    let research_store = stores.research_store;
+    let backtest_store = stores.backtest_store;
+    let backtest_sync_tasks = stores.backtest_sync_tasks;
+    let backtest_market_data_store = stores.backtest_market_data_store;
+    let execution_store = stores.execution_store;
+    let adk_store = stores.adk_store;
+    let adk_session_store = stores.adk_session_store;
+    let adk_artifact_store = stores.adk_artifact_store;
+    let database_leases = stores.database_leases;
     let database_lease_status = database_leases.status;
 
     let auth_session_mgr = Arc::new(
@@ -306,6 +192,29 @@ pub(crate) fn production_ports(
             .unwrap_or_default();
         Arc::new(BacktestMarketDataProviderState::new(initial_provider))
     };
+    let execution_settings_store = Arc::clone(&market_data_settings);
+    let default_trading_env_getter: Arc<dyn Fn() -> String + Send + Sync> = Arc::new(move || {
+        use jftrade_settings::ExecutionSettingsStorePort;
+        execution_settings_store
+            .load_execution()
+            .ok()
+            .flatten()
+            .map(|s| s.default_trading_environment)
+            .unwrap_or_else(|| "SIMULATE".to_owned())
+    });
+    let risk_coordinator = Arc::new(
+        crate::product::ExecutionRiskCoordinator::open(config.real_trade_control_path())
+            .map_err(|error| {
+                ProductError::Storage(format!(
+                    "failed to open real-trade production control plane: {error}"
+                ))
+            })?,
+    );
+    let notification_projector = Arc::new(crate::product::ExecutionNotificationProjector::new(
+        execution_store.clone(),
+        config.notification_port.clone(),
+        config.live_hub.clone(),
+    ));
     let execution_port = Arc::new(ProductionExecutionPort {
         store: execution_store.clone(),
         active_provider_state: Arc::clone(&active_provider_state),
@@ -314,6 +223,9 @@ pub(crate) fn production_ports(
         trade_logged_in: config.trade_logged_in,
         trade_runtime: config.trade_runtime.clone(),
         cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: Some(Arc::clone(&risk_coordinator)),
+        default_trading_environment: Some(default_trading_env_getter),
+        notification_projector: Some(notification_projector),
     });
     let execution_reconciliation_worker = config.trade_runtime.as_ref().and_then(|runtime| {
         tokio::runtime::Handle::try_current().ok().map(|_| {
@@ -619,13 +531,9 @@ pub(crate) fn production_ports(
         active_provider_state: Arc::clone(&active_provider_state),
         trade_runtime: config.trade_runtime.clone(),
     });
-    let system_write_port = Arc::new(
-        ProductionSystemWritePort::open(config.real_trade_control_path()).map_err(|error| {
-            ProductError::Storage(format!(
-                "failed to open real-trade production control plane: {error}"
-            ))
-        })?,
-    );
+    let system_write_port = Arc::new(ProductionSystemWritePort::with_coordinator(
+        Arc::clone(&risk_coordinator),
+    ));
     let market_data_catalog_port = Arc::new(ProductionMarketDataCatalogPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_helper.clone(),
@@ -656,13 +564,18 @@ pub(crate) fn production_ports(
         .with_trade_runtime(config.trade_runtime.clone())
         .with_calendar(Arc::clone(&calendar_manager)),
     );
-    let strategy_runtime_manager = Arc::new(StrategyRuntimeManager::new(
+    let mut strategy_runtime_manager = StrategyRuntimeManager::new(
         config.market_data_router.clone(),
         config.strategy_pine_worker_port.clone(),
         Some(market_data_quote_port.clone()),
         Some(execution_port.clone()),
         Arc::clone(&active_provider_state),
-    ));
+    );
+    if let Some(ref notification) = config.notification_port {
+        strategy_runtime_manager =
+            strategy_runtime_manager.with_notification(Arc::clone(notification));
+    }
+    let strategy_runtime_manager = Arc::new(strategy_runtime_manager);
     let strategy_runtime_store_for_storage = Arc::clone(&strategy_runtime_store);
     let strategy_runtime_port = Arc::new(ProductionStrategyRuntimePort {
         store: strategy_runtime_store,
@@ -747,9 +660,7 @@ pub(crate) fn production_ports(
             execution_store: Arc::clone(&execution_store),
             adk_store: Arc::clone(&adk_store),
             strategy_runtime_store: strategy_runtime_store_for_storage,
-            real_trade_control: crate::real_trade_control::RealTradeControlReader::new(
-                config.real_trade_control_path(),
-            ),
+            real_trade_control: Arc::clone(&risk_coordinator),
         }),
         system_write: system_write_port,
         portfolio: portfolio_port,

@@ -68,6 +68,12 @@ pub(crate) mod product_backtest_provider;
 pub(crate) mod product_query;
 pub(crate) use product_active_provider_state::ActiveProviderState;
 pub(crate) use product_backtest_provider::BacktestMarketDataProviderState;
+#[path = "product_execution_risk_coordinator.rs"]
+pub(crate) mod product_execution_risk_coordinator;
+pub(crate) use product_execution_risk_coordinator::ExecutionRiskCoordinator;
+#[path = "product_execution_notification_projector.rs"]
+pub(crate) mod product_execution_notification_projector;
+pub(crate) use product_execution_notification_projector::ExecutionNotificationProjector;
 #[path = "product_candle_converter.rs"]
 pub(crate) mod product_candle_converter;
 #[path = "product_research_preset_port.rs"]
