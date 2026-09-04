@@ -13,6 +13,7 @@ use jftrade_integration_pine::PineOrderIntent;
 
 pub(super) struct StrategyExecutionContext<'a> {
     pub execution: Option<&'a dyn ExecutionWritePort>,
+    pub execution_store: Option<&'a jftrade_store_sqlite::ExecutionOrderStore>,
     pub provider: &'a ActiveProviderState,
     pub store: &'a StrategyRuntimeStore,
     pub instance_id: &'a str,
@@ -22,6 +23,8 @@ pub(super) struct StrategyExecutionContext<'a> {
     pub expected_risk_revision: Option<i64>,
     pub fallback_price: Option<f64>,
     pub sellable_quantity: Option<f64>,
+    pub current_position: Option<f64>,
+    pub available_cash: Option<f64>,
 }
 
 pub(super) fn execute_strategy_intents(
@@ -84,8 +87,9 @@ pub(super) fn execute_strategy_intents(
     for (index, intent) in intents.iter().enumerate() {
         let kind = intent.kind.trim().to_ascii_lowercase();
         if kind == "cancel" || kind == "cancel_all" {
-            dispatch_cancel_intent(
+            let cancelled = dispatch_cancel_intent(
                 execution,
+                ctx.execution_store,
                 ctx.store,
                 ctx.instance_id,
                 &broker_id,
@@ -95,19 +99,63 @@ pub(super) fn execute_strategy_intents(
                 ctx.symbol,
                 intent,
             )?;
-            placed = true;
+            if cancelled {
+                placed = true;
+            }
             continue;
         }
 
-        let (quantity, reduce_only) =
-            resolve_strategy_intent_quantity(intent, ctx.binding, ctx.sellable_quantity, index)?;
         let is_close = matches!(kind.as_str(), "close" | "close_all" | "exit");
-        let side = match (is_close, intent.direction.trim().to_ascii_lowercase().as_str()) {
-            (true, "short" | "sell" | "bear" | "bearish" | "cover") => "BUY",
-            (true, "buy" | "long" | "bull" | "bullish" | "flat" | "" | "close") => "SELL",
-            (false, "buy" | "long" | "bull" | "bullish") => "BUY",
-            (false, "sell" | "short" | "bear" | "bearish") => "SELL",
-            _ => return Err(format!("strategy order intent {index} has invalid direction")),
+        let current_pos = ctx.current_position.or(ctx.sellable_quantity);
+
+        if is_close
+            && current_pos.unwrap_or(0.0) == 0.0
+            && (!intent.has_quantity || intent.quantity <= 0.0)
+        {
+            let _ = ctx.store.append_audit_event(
+                ctx.instance_id,
+                "INTENT_SKIPPED",
+                "no open position to close",
+                now_millis(),
+            );
+            continue;
+        }
+
+        let side = if is_close {
+            if let Some(pos) = current_pos.filter(|p| *p != 0.0) {
+                if pos > 0.0 { "SELL" } else { "BUY" }
+            } else {
+                match intent.direction.trim().to_ascii_lowercase().as_str() {
+                    "short" | "sell" | "bear" | "bearish" | "cover" => "BUY",
+                    _ => "SELL",
+                }
+            }
+        } else {
+            match intent.direction.trim().to_ascii_lowercase().as_str() {
+                "buy" | "long" | "bull" | "bullish" => "BUY",
+                "sell" | "short" | "bear" | "bearish" => "SELL",
+                _ => return Err(format!("strategy order intent {index} has invalid direction")),
+            }
+        };
+
+        let resolved_qty = resolve_strategy_intent_quantity(
+            intent,
+            ctx.binding,
+            current_pos,
+            ctx.fallback_price,
+            ctx.available_cash,
+            side,
+            is_close,
+            index,
+        )?;
+        let Some((quantity, reduce_only)) = resolved_qty else {
+            let _ = ctx.store.append_audit_event(
+                ctx.instance_id,
+                "INTENT_SKIPPED",
+                "quantity rounded down to 0",
+                now_millis(),
+            );
+            continue;
         };
 
         let order_price = if intent.has_limit_price {
@@ -190,6 +238,7 @@ pub(super) fn execute_strategy_intents(
 #[allow(clippy::too_many_arguments)]
 fn dispatch_cancel_intent(
     execution: &dyn ExecutionWritePort,
+    execution_store: Option<&jftrade_store_sqlite::ExecutionOrderStore>,
     store: &StrategyRuntimeStore,
     instance_id: &str,
     broker_id: &str,
@@ -198,7 +247,53 @@ fn dispatch_cancel_intent(
     market: &str,
     symbol: &str,
     intent: &PineOrderIntent,
-) -> Result<(), String> {
+) -> Result<bool, String> {
+    let kind = intent.kind.trim().to_ascii_lowercase();
+    if kind == "cancel_all" {
+        let mut cancelled_any = false;
+        if let Some(ord_store) = execution_store {
+            let active = ord_store
+                .list_active_orders_for_instance(instance_id)
+                .map_err(|e| format!("query active orders for cancel: {e}"))?;
+            for order in active {
+                let input = ExecutionWriteInput {
+                    operation: ExecutionWriteOperation::OrderCancel,
+                    internal_order_id: Some(order.internal_order_id.clone()),
+                    payload: json!({
+                        "brokerId": broker_id,
+                        "accountId": account_id,
+                        "tradingEnvironment": trading_environment,
+                        "market": market,
+                        "symbol": symbol,
+                        "code": symbol,
+                        "orderKind": "cancel",
+                        "remark": format!("strategy runtime cancel {instance_id}"),
+                    }),
+                    context:
+                        crate::product::product_execution_write_port::ExecutionWriteContext::Normal,
+                };
+                if let Err(e) = execution.mutate(&input) {
+                    let err_msg = execution_error_message(e);
+                    let _ = store.append_audit_event(
+                        instance_id,
+                        "ORDER_CANCEL_FAILED",
+                        &format!("target order {}: {err_msg}", order.internal_order_id),
+                        now_millis(),
+                    );
+                } else {
+                    cancelled_any = true;
+                    let _ = store.append_audit_event(
+                        instance_id,
+                        "ORDER_CANCELLED",
+                        &format!("target order {}", order.internal_order_id),
+                        now_millis(),
+                    );
+                }
+            }
+        }
+        return Ok(cancelled_any);
+    }
+
     let target_order_id = if !intent.id.trim().is_empty() {
         intent.id.trim()
     } else if !intent.from_entry.trim().is_empty() {
@@ -206,12 +301,32 @@ fn dispatch_cancel_intent(
     } else {
         ""
     };
+
+    let resolved_id = if let Some(ord_store) = execution_store {
+        if !target_order_id.is_empty() {
+            if let Ok(Some(existing)) = ord_store.find_order_by_client_identity(
+                broker_id,
+                trading_environment,
+                account_id,
+                target_order_id,
+            ) {
+                existing.internal_order_id
+            } else {
+                target_order_id.to_owned()
+            }
+        } else {
+            String::new()
+        }
+    } else {
+        target_order_id.to_owned()
+    };
+
     let input = ExecutionWriteInput {
         operation: ExecutionWriteOperation::OrderCancel,
-        internal_order_id: if target_order_id.is_empty() {
+        internal_order_id: if resolved_id.is_empty() {
             None
         } else {
-            Some(target_order_id.to_owned())
+            Some(resolved_id.clone())
         },
         payload: json!({
             "brokerId": broker_id,
@@ -230,17 +345,17 @@ fn dispatch_cancel_intent(
             let _ = store.append_audit_event(
                 instance_id,
                 "ORDER_CANCELLED",
-                &format!("target order {target_order_id}"),
+                &format!("target order {resolved_id}"),
                 now_millis(),
             );
-            Ok(())
+            Ok(true)
         }
         Err(err) => {
             let err_msg = execution_error_message(err);
             let _ = store.append_audit_event(
                 instance_id,
                 "ORDER_CANCEL_FAILED",
-                &format!("target order {target_order_id}: {err_msg}"),
+                &format!("target order {resolved_id}: {err_msg}"),
                 now_millis(),
             );
             Err(err_msg)
@@ -286,6 +401,8 @@ fn dispatch_place_order(
         "remark": format!("strategy runtime {instance_id}"),
         "clientOrderId": client_order_id,
         "reduceOnly": reduce_only,
+        "source": "strategy-runtime",
+        "sourceDetail": instance_id,
     });
     if intent.has_limit_price {
         payload["price"] = json!(intent.limit_price);
@@ -428,43 +545,86 @@ fn value_scalar_string(value: &Value) -> Option<String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_strategy_intent_quantity(
     intent: &PineOrderIntent,
     binding: &Value,
-    sellable_quantity: Option<f64>,
+    current_position: Option<f64>,
+    current_price: Option<f64>,
+    available_cash: Option<f64>,
+    side: &str,
+    is_close: bool,
     index: usize,
-) -> Result<(f64, bool), String> {
+) -> Result<Option<(f64, bool)>, String> {
     let kind = intent.kind.trim().to_ascii_lowercase();
-    let is_close = matches!(kind.as_str(), "close" | "close_all" | "exit");
     let reduce_only = intent.reduce_only || is_close;
 
     let mut qty = if intent.has_quantity && intent.quantity.is_finite() && intent.quantity > 0.0 {
         intent.quantity
     } else if is_close {
-        if intent.quantity.is_finite() && intent.quantity > 0.0 {
-            intent.quantity
-        } else {
-            sellable_quantity.filter(|q| *q > 0.0).unwrap_or(1.0)
+        let pos = current_position.unwrap_or(0.0).abs();
+        if pos <= 0.0 {
+            return Ok(None);
         }
+        pos
     } else if intent.has_quantity_pct {
-        let base_capital = binding_scalar_f64(
-            binding,
-            &["capital", "initialCapital", "orderSize", "defaultOrderSize", "accountSize"],
-        )
-        .or_else(|| {
-            nested_binding_scalar_f64(
-                binding,
-                "brokerAccount",
-                &["capital", "orderSize", "accountSize"],
-            )
-        })
-        .unwrap_or(100.0);
         let pct = if intent.quantity_pct > 0.0 {
             intent.quantity_pct
         } else {
             intent.quantity
         };
-        (base_capital * (pct / 100.0)).floor().max(1.0)
+        if side == "BUY" {
+            let base_capital = available_cash
+                .or_else(|| {
+                    binding_scalar_f64(
+                        binding,
+                        &[
+                            "capital",
+                            "initialCapital",
+                            "orderSize",
+                            "defaultOrderSize",
+                            "accountSize",
+                        ],
+                    )
+                })
+                .or_else(|| {
+                    nested_binding_scalar_f64(
+                        binding,
+                        "brokerAccount",
+                        &["capital", "orderSize", "accountSize"],
+                    )
+                })
+                .unwrap_or(100.0);
+            let notional = base_capital * (pct / 100.0);
+            let price = if intent.has_limit_price && intent.limit_price > 0.0 {
+                Some(intent.limit_price)
+            } else {
+                current_price.filter(|p| *p > 0.0)
+            };
+            if let Some(p) = price {
+                (notional / p).floor()
+            } else {
+                notional.floor()
+            }
+        } else {
+            let pos = current_position.map(|p| p.abs()).unwrap_or(0.0);
+            if pos > 0.0 {
+                (pos * (pct / 100.0)).floor()
+            } else {
+                let base_capital = binding_scalar_f64(
+                    binding,
+                    &[
+                        "capital",
+                        "initialCapital",
+                        "orderSize",
+                        "defaultOrderSize",
+                        "accountSize",
+                    ],
+                )
+                .unwrap_or(100.0);
+                (base_capital * (pct / 100.0)).floor()
+            }
+        }
     } else if matches!(kind.as_str(), "entry" | "order") && intent.quantity <= 0.0 {
         1.0
     } else {
@@ -476,13 +636,14 @@ fn resolve_strategy_intent_quantity(
     if let Some(lot) =
         binding_scalar_f64(binding, &["lotSize", "lot_size"]).filter(|lot| *lot > 0.0)
     {
-        qty = (qty / lot).round() * lot;
-        if qty < lot {
-            qty = lot;
-        }
+        qty = (qty / lot).floor() * lot;
     }
 
-    Ok((qty, reduce_only))
+    if qty <= 0.0 {
+        return Ok(None);
+    }
+
+    Ok(Some((qty, reduce_only)))
 }
 
 fn binding_scalar_f64(binding: &Value, keys: &[&str]) -> Option<f64> {

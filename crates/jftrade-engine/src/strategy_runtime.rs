@@ -15,7 +15,7 @@ use jftrade_integration_pine::{
     GrpcPineExecutionPort, PineExecutionError, PineRunRequest,
 };
 use jftrade_marketdata::{InstrumentRef, ProviderRouter};
-use jftrade_store_sqlite::{StrategyDefinitionStore, StrategyRuntimeStore};
+use jftrade_store_sqlite::{ExecutionOrderStore, StrategyDefinitionStore, StrategyRuntimeStore};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -35,8 +35,9 @@ struct SymbolSessionState {
     submitted_intents: BTreeSet<String>,
 }
 
-/// Rust-owned lifecycle coordinator for live strategy instances.  The HTTP
-/// port remains synchronous, therefore task execution is isolated in a
+/// In-memory worker task supervisor for live strategy instances.
+///
+/// Holds cancellation handles and demand-token tracking. Each task runs on a
 /// dedicated thread with its own Tokio runtime; cancellation and demand
 /// release happen before the persisted state transition.
 #[derive(Debug)]
@@ -46,6 +47,7 @@ pub(crate) struct StrategyRuntimeManager {
     worker: Option<Arc<GrpcPineExecutionPort>>,
     quote: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     execution: Option<Arc<dyn ExecutionWritePort>>,
+    execution_store: Option<Arc<ExecutionOrderStore>>,
     provider: Arc<ActiveProviderState>,
     notification: Option<Arc<dyn ProductNotificationPort>>,
 }
@@ -64,9 +66,18 @@ impl StrategyRuntimeManager {
             worker,
             quote,
             execution,
+            execution_store: None,
             provider,
             notification: None,
         }
+    }
+
+    pub(crate) fn with_execution_store(
+        mut self,
+        execution_store: Arc<ExecutionOrderStore>,
+    ) -> Self {
+        self.execution_store = Some(execution_store);
+        self
     }
 
     pub(crate) fn with_notification(
@@ -239,6 +250,7 @@ impl StrategyRuntimeManager {
             ));
         };
         let execution = self.execution.clone();
+        let execution_store = self.execution_store.clone();
         let notification = self.notification.clone();
         let provider = Arc::clone(&self.provider);
         let router = self.router.clone();
@@ -453,6 +465,7 @@ impl StrategyRuntimeManager {
                                 match execute_strategy_intents(
                                     StrategyExecutionContext {
                                         execution: execution.as_deref(),
+                                        execution_store: execution_store.as_deref(),
                                         provider: &provider,
                                         store: &store,
                                         instance_id: &id_for_thread,
@@ -462,6 +475,8 @@ impl StrategyRuntimeManager {
                                         expected_risk_revision: current_risk_revision,
                                         fallback_price: Some(latest_close),
                                         sellable_quantity: None,
+                                        current_position: None,
+                                        available_cash: None,
                                     },
                                     &current_intents,
                                 ) {

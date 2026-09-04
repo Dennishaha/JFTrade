@@ -40,6 +40,8 @@ pub(super) struct ParsedOrder {
     pub(super) prediction_side: Option<i32>,
     #[allow(dead_code)]
     pub(super) reduce_only: Option<bool>,
+    pub(super) source: Option<String>,
+    pub(super) source_detail: Option<String>,
 }
 
 pub(super) fn requires_locked_preview(order: &ParsedOrder) -> bool {
@@ -372,6 +374,9 @@ pub(super) fn parse_order_with_defaults(
         amount,
         prediction_side,
         reduce_only,
+        source: string_field(object, "source"),
+        source_detail: string_field(object, "sourceDetail")
+            .or_else(|| string_field(object, "source_detail")),
     })
 }
 
@@ -582,8 +587,11 @@ pub(super) fn new_order(id: &str, parsed: &ParsedOrder, timestamp: &str) -> Stor
         broker_id: parsed.broker_id.clone(),
         broker_order_id: None,
         broker_order_id_ex: None,
-        source: "api".to_owned(),
-        source_detail: "rust-production".to_owned(),
+        source: parsed.source.clone().unwrap_or_else(|| "api".to_owned()),
+        source_detail: parsed
+            .source_detail
+            .clone()
+            .unwrap_or_else(|| "rust-production".to_owned()),
         trading_environment: if parsed.header.trd_env == 1 {
             "REAL"
         } else {
