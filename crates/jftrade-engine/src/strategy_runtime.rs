@@ -223,8 +223,7 @@ impl StrategyRuntimeManager {
                 message: "strategy binding requires at least one symbol".to_owned(),
             });
         }
-        let managed =
-            self.provider.snapshot().provider == Some(jftrade_settings::MarketDataProvider::Futu);
+        let managed = true;
         router
             .lock()
             .unwrap_or_else(|e| e.into_inner())

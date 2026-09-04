@@ -128,6 +128,14 @@ pub(super) fn provider_activation(
     let settings_path = settings_path.to_owned();
     let trade_runtime_for_activation = Arc::clone(&trade_runtime);
     Ok(Arc::new(move |provider, previous| {
+        let has_managed_consumers = previous.is_some_and(|prev| prev != provider)
+            && activation_router
+                .as_ref()
+                .and_then(|r| r.lock().ok())
+                .is_some_and(|guard| guard.has_managed_consumers());
+        if has_managed_consumers {
+            return Err("MANAGED_SUBSCRIPTIONS_ACTIVE: cannot switch market data provider while managed strategy subscriptions are active".to_owned());
+        }
         let mut runtime = activation_runtime
             .lock()
             .map_err(|error| format!("failed to lock provider runtime: {error}"))?;
