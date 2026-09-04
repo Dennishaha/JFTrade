@@ -164,96 +164,16 @@ fn non_resumable_running_run_does_not_make_runtime_unready() {
             }"#,
         })
         .expect("persist non-resumable run");
-    let bindings = BTreeMap::from([
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::AdkChat,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::AdkRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::BacktestRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::BacktestStart,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::BacktestSyncRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::ExecutionRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataBatchSnapshotsWrite,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataCandlesRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataIntradayRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataProviderRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataSearchRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataSnapshotsRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::MarketDataSubscriptionRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::PluginsRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::PortfolioRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::ResearchRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::ResearchScreenWrite,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::StrategyDefinitionRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::StrategyPine,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::SystemCore,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::SystemRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-        (
-            crate::product::product_production_route_registry::ProductionRouteAdapter::WatchlistRead,
-            crate::product::product_production_ports::ProductionAdapterBinding::Ready,
-        ),
-    ]);
+    let bindings =
+        crate::product::product_production_ports::product_production_ports_adk::PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|d| {
+            (
+                d.adapter,
+                crate::product::product_production_ports::ProductionAdapterBinding::Ready,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     let catalog =
         crate::product::product_production_ports::ProductionToolCatalog::from_bindings(&bindings)
             .expect("build tool catalog");
