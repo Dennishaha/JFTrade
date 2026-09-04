@@ -194,7 +194,9 @@ impl ExecutionRiskCoordinator {
         if order.trading_environment == jftrade_trading::TradingEnvironment::Real {
             let (existing_error, current_state) = {
                 let guard = self.state.lock().map_err(|_| {
-                    ExecutionWritePortError::Unavailable("risk coordinator lock poisoned".to_owned())
+                    ExecutionWritePortError::Unavailable(
+                        "risk coordinator lock poisoned".to_owned(),
+                    )
                 })?;
                 (guard.control_plane_error.clone(), guard.state.clone())
             };

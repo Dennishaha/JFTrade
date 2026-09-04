@@ -1232,8 +1232,9 @@ fn adk_mcp_tool_executor_bundle_attachment_and_exact_schemas() {
         .expect("strategy.research_backtest must be exposed in openai_tools");
     assert_eq!(
         research_backtest_tool["parameters"]["required"],
-        json!(["script", "market", "startTime", "endTime"])
+        json!(["script", "market"])
     );
+    assert!(research_backtest_tool["parameters"]["anyOf"].is_array());
 
     let portfolio_accounts_tool = openai_tools
         .iter()
@@ -2302,8 +2303,7 @@ fn test_strategy_research_backtest_schema_properties() {
     let required = schema["required"].as_array().expect("required array");
     assert!(required.contains(&json!("script")));
     assert!(required.contains(&json!("market")));
-    assert!(required.contains(&json!("startTime")));
-    assert!(required.contains(&json!("endTime")));
+    assert_eq!(required.len(), 2);
 
     let costs = props.get("tradingCosts").unwrap();
     let cost_props = costs["properties"]

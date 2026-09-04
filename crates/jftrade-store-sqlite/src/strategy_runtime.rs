@@ -390,7 +390,13 @@ impl StrategyRuntimeStore {
         let rows = transaction
             .execute(
                 &query,
-                params![new_status, timestamp, payload.to_string(), instance_id, expected_updated_at],
+                params![
+                    new_status,
+                    timestamp,
+                    payload.to_string(),
+                    instance_id,
+                    expected_updated_at
+                ],
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 
@@ -580,7 +586,12 @@ impl StrategyRuntimeStore {
                 "UPDATE strategy_catalog_operations
                  SET status = 'DELETED', updated_at = ?1, payload_json = ?2
                  WHERE operation_id = ?3 AND updated_at = ?4 AND status IN ('STOPPED', 'FAILED')",
-                params![timestamp, payload.to_string(), instance_id, expected_updated_at],
+                params![
+                    timestamp,
+                    payload.to_string(),
+                    instance_id,
+                    expected_updated_at
+                ],
             )
             .map_err(StrategyRuntimeStoreError::Query)?;
 

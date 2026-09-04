@@ -59,8 +59,8 @@ pub fn load_state(path: &Path) -> Result<RealTradeControlState, String> {
 }
 
 pub fn load_state_strict(path: &Path) -> Result<RealTradeControlState, String> {
-    let bytes = fs::read(path)
-        .map_err(|error| format!("read real-trade control state: {error}"))?;
+    let bytes =
+        fs::read(path).map_err(|error| format!("read real-trade control state: {error}"))?;
     if bytes.iter().all(u8::is_ascii_whitespace) {
         return Err("real-trade control state file is empty".to_owned());
     }

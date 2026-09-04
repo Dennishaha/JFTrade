@@ -48,6 +48,17 @@ pub(crate) fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
             "strategyScript".to_owned(),
             Value::String(script.to_owned()),
         );
+        if !obj.contains_key("symbol")
+            && let Some(code_val) = obj.get("code").and_then(Value::as_str)
+        {
+            let sym = if code_val.contains('.') {
+                code_val.to_owned()
+            } else {
+                let market = obj.get("market").and_then(Value::as_str).unwrap_or("HK");
+                format!("{market}.{code_val}")
+            };
+            obj.insert("symbol".to_owned(), Value::String(sym));
+        }
         if !obj.contains_key("market") {
             obj.insert("market".to_owned(), Value::String("HK".to_owned()));
         }

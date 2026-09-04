@@ -165,6 +165,9 @@ fn preview_port(
         trade_write_port: None,
         trade_runtime: None,
         cancel_inflight: Arc::new(std::sync::Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
     }
 }
 

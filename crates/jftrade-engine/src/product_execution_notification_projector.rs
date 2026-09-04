@@ -609,8 +609,10 @@ mod tests {
     impl jftrade_settings::SystemNotificationSettingsStorePort for MockSettingsStore {
         fn load_system_notifications(
             &self,
-        ) -> Result<Option<jftrade_settings::SystemNotificationSettings>, jftrade_settings::SettingsStoreError>
-        {
+        ) -> Result<
+            Option<jftrade_settings::SystemNotificationSettings>,
+            jftrade_settings::SettingsStoreError,
+        > {
             self.settings.lock().unwrap().clone()
         }
 
@@ -692,12 +694,9 @@ mod tests {
                 sound_enabled: false,
             }));
 
-        let projector = ExecutionNotificationProjector::new(
-            store.clone(),
-            Some(notifier.clone()),
-            None,
-        )
-        .with_settings_store(settings_store.clone());
+        let projector =
+            ExecutionNotificationProjector::new(store.clone(), Some(notifier.clone()), None)
+                .with_settings_store(settings_store.clone());
 
         let (notified, _) = projector.project_pending().expect("project pending");
         assert_eq!(notified, 1);
