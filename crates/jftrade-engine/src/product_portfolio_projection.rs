@@ -243,7 +243,9 @@ fn resolve_portfolio_selection(
     }
 }
 
-fn load_managed_broker_settings(ports: &ProductionPortBundle) -> (Vec<Value>, bool) {
+fn load_managed_broker_settings(
+    ports: &ProductionPortBundle,
+) -> (Vec<Value>, bool, Option<String>) {
     use jftrade_settings::BrokerSettingsStorePort;
     match ports.settings_store.load_broker_settings_inputs() {
         Ok(inputs) => {
@@ -251,15 +253,19 @@ fn load_managed_broker_settings(ports: &ProductionPortBundle) -> (Vec<Value>, bo
                 .saved_integration
                 .as_ref()
                 .map(|i| i.enabled)
-                .unwrap_or(true);
+                .unwrap_or(false);
             let managed = inputs
                 .accounts
                 .into_iter()
                 .filter_map(|acc| serde_json::to_value(acc).ok())
                 .collect();
-            (managed, enabled)
+            (managed, enabled, None)
         }
-        Err(_) => (Vec::new(), true),
+        Err(err) => (
+            Vec::new(),
+            false,
+            Some(format!("failed to load broker settings: {err}")),
+        ),
     }
 }
 
@@ -374,7 +380,7 @@ pub(crate) fn execute_portfolio_accounts(
     arguments: &Value,
 ) -> Result<Value, String> {
     let (env, market, requested_id) = extract_query_params(arguments)?;
-    let (managed, broker_enabled) = load_managed_broker_settings(ports);
+    let (managed, broker_enabled, settings_error) = load_managed_broker_settings(ports);
     let reader = ports
         .trade_read_port
         .as_ref()
@@ -386,14 +392,22 @@ pub(crate) fn execute_portfolio_accounts(
             (s, d)
         }
         Err(e) => {
-            return Ok(discovery_failed_payload(
+            let mut failed = discovery_failed_payload(
                 env,
                 market,
                 requested_id,
                 &e.to_string(),
                 &managed,
                 broker_enabled,
-            ));
+            );
+            if let Some(err) = settings_error {
+                failed["partial"] = json!(true);
+                failed["brokerEnabled"] = json!(false);
+                if let Some(w) = failed.get_mut("warnings").and_then(Value::as_array_mut) {
+                    w.push(json!(err));
+                }
+            }
+            return Ok(failed);
         }
     };
 
@@ -406,10 +420,17 @@ pub(crate) fn execute_portfolio_accounts(
         "connected",
         "",
     );
+    let mut warnings = Vec::new();
     if resolution.status != "resolved" {
-        base.insert("partial".to_owned(), json!(true));
-        base.insert("warnings".to_owned(), json!([resolution.message]));
+        warnings.push(resolution.message);
     }
+    if let Some(err) = settings_error {
+        base.insert("brokerEnabled".to_owned(), json!(false));
+        warnings.push(err);
+    }
+    let is_partial = resolution.status != "resolved" || !warnings.is_empty();
+    base.insert("partial".to_owned(), json!(is_partial));
+    base.insert("warnings".to_owned(), json!(warnings));
     Ok(Value::Object(base))
 }
 
@@ -466,7 +487,7 @@ pub(crate) fn execute_portfolio_overview(
     arguments: &Value,
 ) -> Result<Value, String> {
     let (env, market, requested_id) = extract_query_params(arguments)?;
-    let (managed, broker_enabled) = load_managed_broker_settings(ports);
+    let (managed, broker_enabled, settings_error) = load_managed_broker_settings(ports);
     let reader = ports
         .trade_read_port
         .as_ref()
@@ -487,6 +508,13 @@ pub(crate) fn execute_portfolio_overview(
                 broker_enabled,
             );
             failed["accountOverviews"] = json!([]);
+            if let Some(err) = settings_error {
+                failed["partial"] = json!(true);
+                failed["brokerEnabled"] = json!(false);
+                if let Some(w) = failed.get_mut("warnings").and_then(Value::as_array_mut) {
+                    w.push(json!(err));
+                }
+            }
             return Ok(failed);
         }
     };
@@ -503,7 +531,12 @@ pub(crate) fn execute_portfolio_overview(
     if resolution.status != "resolved" {
         base.insert("accountOverviews".to_owned(), json!([]));
         base.insert("partial".to_owned(), json!(true));
-        base.insert("warnings".to_owned(), json!([resolution.message]));
+        let mut warnings = vec![resolution.message];
+        if let Some(err) = settings_error {
+            base.insert("brokerEnabled".to_owned(), json!(false));
+            warnings.push(err);
+        }
+        base.insert("warnings".to_owned(), json!(warnings));
         return Ok(Value::Object(base));
     }
 
@@ -554,8 +587,13 @@ pub(crate) fn execute_portfolio_overview(
         }
     });
 
+    if let Some(err) = settings_error {
+        base.insert("brokerEnabled".to_owned(), json!(false));
+        warnings.push(err);
+    }
+    let is_partial = any_partial || !warnings.is_empty();
     base.insert("accountOverviews".to_owned(), Value::Array(overviews));
-    base.insert("partial".to_owned(), json!(any_partial));
+    base.insert("partial".to_owned(), json!(is_partial));
     base.insert("warnings".to_owned(), json!(warnings));
     Ok(Value::Object(base))
 }
@@ -613,7 +651,7 @@ pub(crate) fn execute_portfolio_positions(
     arguments: &Value,
 ) -> Result<Value, String> {
     let (env, market, requested_id) = extract_query_params(arguments)?;
-    let (managed, broker_enabled) = load_managed_broker_settings(ports);
+    let (managed, broker_enabled, settings_error) = load_managed_broker_settings(ports);
     let reader = ports
         .trade_read_port
         .as_ref()
@@ -634,6 +672,13 @@ pub(crate) fn execute_portfolio_positions(
                 broker_enabled,
             );
             failed["accountPositions"] = json!([]);
+            if let Some(err) = settings_error {
+                failed["partial"] = json!(true);
+                failed["brokerEnabled"] = json!(false);
+                if let Some(w) = failed.get_mut("warnings").and_then(Value::as_array_mut) {
+                    w.push(json!(err));
+                }
+            }
             return Ok(failed);
         }
     };
@@ -650,7 +695,12 @@ pub(crate) fn execute_portfolio_positions(
     if resolution.status != "resolved" {
         base.insert("accountPositions".to_owned(), json!([]));
         base.insert("partial".to_owned(), json!(true));
-        base.insert("warnings".to_owned(), json!([resolution.message]));
+        let mut warnings = vec![resolution.message];
+        if let Some(err) = settings_error {
+            base.insert("brokerEnabled".to_owned(), json!(false));
+            warnings.push(err);
+        }
+        base.insert("warnings".to_owned(), json!(warnings));
         return Ok(Value::Object(base));
     }
 
@@ -706,11 +756,16 @@ pub(crate) fn execute_portfolio_positions(
         }
     });
 
+    if let Some(err) = settings_error {
+        base.insert("brokerEnabled".to_owned(), json!(false));
+        warnings.push(err);
+    }
+    let is_partial = any_partial || !warnings.is_empty();
     base.insert(
         "accountPositions".to_owned(),
         Value::Array(account_positions),
     );
-    base.insert("partial".to_owned(), json!(any_partial));
+    base.insert("partial".to_owned(), json!(is_partial));
     base.insert("warnings".to_owned(), json!(warnings));
     Ok(Value::Object(base))
 }

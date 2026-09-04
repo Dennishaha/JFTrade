@@ -1710,6 +1710,68 @@ async fn test_research_backtest_data_readiness_and_sync_lifecycle() {
     assert!(derive_effective_since_time(base, "1d", 10).as_str() < base);
 }
 
+#[tokio::test]
+async fn test_portfolio_broker_settings_states_fail_closed() {
+    use crate::product::product_adk_model_runtime::AdkToolExecutor;
+
+    let (ports, executor, bundle_dir) = setup_test_bundle_and_executor();
+    executor.attach_ports(Arc::clone(&ports));
+    let settings_path = bundle_dir.path().join("settings.json");
+
+    // State 1: Unconfigured settings ({}) -> brokerEnabled is false, no errors
+    let unconfigured = executor
+        .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
+        .expect("portfolio.accounts unconfigured");
+    assert_eq!(unconfigured["brokerEnabled"], false);
+    assert_eq!(unconfigured["partial"], false);
+    assert!(unconfigured["warnings"].as_array().unwrap().is_empty());
+
+    // State 2: Normally configured settings -> brokerEnabled is true, accounts populated
+    let valid_settings = json!({
+        "integration": {
+            "enabled": true,
+            "brokerId": "futu",
+            "updatedAt": "2026-08-19T00:00:00Z"
+        },
+        "accounts": [
+            {
+                "accountId": "1001",
+                "name": "Main",
+                "market": "HK",
+                "trdEnv": "REAL",
+                "enabled": true
+            }
+        ]
+    });
+    std::fs::write(&settings_path, serde_json::to_vec(&valid_settings).unwrap())
+        .expect("write valid settings");
+
+    let configured = executor
+        .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
+        .expect("portfolio.accounts configured");
+    assert_eq!(configured["brokerEnabled"], true);
+    assert_eq!(configured["partial"], false);
+    assert!(configured["warnings"].as_array().unwrap().is_empty());
+    assert_eq!(configured["managedAccounts"].as_array().unwrap().len(), 1);
+
+    // State 3: Corrupted settings -> fail closed: brokerEnabled false, partial true, warning present
+    std::fs::write(&settings_path, b"{corrupted_invalid_json: true").expect("write corrupt settings");
+
+    let corrupted = executor
+        .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
+        .expect("portfolio.accounts corrupted");
+    assert_eq!(corrupted["brokerEnabled"], false);
+    assert_eq!(corrupted["partial"], true);
+    let warnings = corrupted["warnings"].as_array().unwrap();
+    assert!(!warnings.is_empty());
+    assert!(
+        warnings[0]
+            .as_str()
+            .unwrap()
+            .contains("failed to load broker settings")
+    );
+}
+
 use crate::product::product_adk_mutation_port::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPort,
 };
