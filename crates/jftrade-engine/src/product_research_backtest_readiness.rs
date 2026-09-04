@@ -272,22 +272,14 @@ impl<'a> ReadinessContext<'a> {
             "none" => "none",
             _ => "forward",
         };
-        let use_extended_hours = session_scope == "extended";
         let provider = extract_run_metadata(None, arguments).0;
-
-        let derived_warmup = match validation.requirements.as_ref() {
-            Some(r) => r
-                .try_derived_warmup_bars_with_session(symbol, interval, use_extended_hours)
-                .map_err(|e| format!("invalid timeframe alignment: {e}"))?,
-            None => 0,
-        };
-        let explicit_warmup = arguments
-            .get("warmupBars")
-            .or_else(|| arguments.get("warmup_bars"))
-            .and_then(Value::as_u64)
-            .map(|v| v as usize)
-            .unwrap_or(0);
-        let warmup_bars = explicit_warmup.max(derived_warmup);
+        let warmup_bars = resolve_warmup_bars(
+            arguments,
+            validation,
+            symbol,
+            interval,
+            session_scope == "extended",
+        )?;
 
         let start_time_str = start_payload
             .get("startTime")
@@ -320,6 +312,210 @@ impl<'a> ReadinessContext<'a> {
     }
 }
 
+fn resolve_warmup_bars(
+    arguments: &Value,
+    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    symbol: &str,
+    interval: &str,
+    use_extended_hours: bool,
+) -> Result<usize, String> {
+    let derived_warmup = match validation.requirements.as_ref() {
+        Some(r) => r
+            .try_derived_warmup_bars_with_session(symbol, interval, use_extended_hours)
+            .map_err(|e| format!("invalid timeframe alignment: {e}"))?,
+        None => 0,
+    };
+    let explicit_warmup = arguments
+        .get("warmupBars")
+        .or_else(|| arguments.get("warmup_bars"))
+        .and_then(Value::as_u64)
+        .map(|v| v as usize)
+        .unwrap_or(0);
+    Ok(explicit_warmup.max(derived_warmup))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn poll_active_sync_task(
+    ports: &ProductionPortBundle,
+    tracker: &SyncStateTracker,
+    sync_key: &str,
+    task_id: &str,
+    coverage_req: &BacktestDataCoverageRequest,
+    ctx: &ReadinessContext<'_>,
+    since_str: &str,
+    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    arguments: &Value,
+) -> Result<Option<EnsureDataOutcome>, String> {
+    let Some(task) = ports.backtest_sync.progress(task_id).ok().flatten() else {
+        return Ok(None);
+    };
+    let st = task.get("status").and_then(Value::as_str).unwrap_or("");
+    if st == "completed" {
+        if let Ok(true) = ports.backtest_sync.check_coverage(coverage_req) {
+            return Ok(Some(EnsureDataOutcome::Ready));
+        }
+        tracker.set_terminal(
+            sync_key.to_owned(),
+            task_id.to_owned(),
+            "failed".to_owned(),
+            "insufficient candles after sync completed".to_owned(),
+        );
+        return Err(format!(
+            "K-line data sync completed but coverage is still insufficient for {}. Cannot proceed.",
+            ctx.symbol
+        ));
+    }
+    if st == "failed" || st == "cancelled" {
+        let err_msg = task
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("sync task terminated")
+            .to_owned();
+        tracker.set_terminal(
+            sync_key.to_owned(),
+            task_id.to_owned(),
+            st.to_owned(),
+            err_msg.clone(),
+        );
+        return Err(format!(
+            "K-line data sync for {} terminated with {st}: {err_msg}",
+            ctx.symbol
+        ));
+    }
+    let total_intervals = task
+        .get("totalIntervals")
+        .and_then(Value::as_i64)
+        .unwrap_or(1);
+    let completed_intervals = task
+        .get("completedIntervals")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let progress = if total_intervals > 0 {
+        (completed_intervals as f64 / total_intervals as f64 * 100.0).round()
+    } else {
+        0.0
+    };
+    Ok(Some(EnsureDataOutcome::Syncing(format_syncing_response(
+        &task,
+        task_id,
+        st,
+        progress,
+        ctx.symbol,
+        ctx.interval,
+        &ctx.provider,
+        since_str,
+        ctx.end_time_str,
+        ctx.session_scope,
+        ctx.rehab_type,
+        ctx.script,
+        validation,
+        arguments,
+    ))))
+}
+
+fn find_reusable_active_sync_task(
+    ports: &ProductionPortBundle,
+    tracker: &SyncStateTracker,
+    sync_key: &str,
+    ctx: &ReadinessContext<'_>,
+    since_str: &str,
+    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    arguments: &Value,
+) -> Option<EnsureDataOutcome> {
+    let active_tasks = ports.backtest_sync.active_tasks().ok()?;
+    for task in active_tasks {
+        let st = task.get("status").and_then(Value::as_str).unwrap_or("");
+        let sym = task.get("symbol").and_then(Value::as_str).unwrap_or("");
+        let prov = task
+            .get("marketDataProvider")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if (st == "queued" || st == "running")
+            && (sym == ctx.symbol || sym.ends_with(ctx.symbol) || ctx.symbol.ends_with(sym))
+            && (prov.is_empty() || prov == ctx.provider)
+        {
+            let task_id = task
+                .get("taskId")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            tracker.set_syncing(sync_key.to_owned(), task_id.clone());
+            return Some(EnsureDataOutcome::Syncing(format_syncing_response(
+                &task,
+                &task_id,
+                st,
+                0.0,
+                ctx.symbol,
+                ctx.interval,
+                &ctx.provider,
+                since_str,
+                ctx.end_time_str,
+                ctx.session_scope,
+                ctx.rehab_type,
+                ctx.script,
+                validation,
+                arguments,
+            )));
+        }
+    }
+    None
+}
+
+fn trigger_new_kline_sync(
+    ports: &ProductionPortBundle,
+    tracker: &SyncStateTracker,
+    sync_key: &str,
+    ctx: &ReadinessContext<'_>,
+    since_str: &str,
+    validation: &jftrade_strategy::pinespec::ValidationPayload,
+    arguments: &Value,
+) -> Result<EnsureDataOutcome, String> {
+    let sync_payload = json!({
+        "market": ctx.market,
+        "symbol": ctx.symbol,
+        "intervals": [ctx.interval],
+        "since": since_str,
+        "until": ctx.end_time_str,
+        "sessionScope": ctx.session_scope,
+        "rehabType": ctx.rehab_type,
+        "marketDataProvider": ctx.provider,
+    });
+    let sync_result = ports
+        .backtests_write
+        .mutate(&BacktestsWriteInput::Sync {
+            payload: sync_payload,
+        })
+        .map_err(|e| format!("failed to start K-line data sync: {e:?}"))?;
+
+    match sync_result {
+        BacktestsWritePortResult::Data(sync_data) => {
+            let task_id = sync_data
+                .get("taskId")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_owned();
+            tracker.set_syncing(sync_key.to_owned(), task_id.clone());
+            Ok(EnsureDataOutcome::Syncing(format_syncing_response(
+                &sync_data,
+                &task_id,
+                "queued",
+                0.0,
+                ctx.symbol,
+                ctx.interval,
+                &ctx.provider,
+                since_str,
+                ctx.end_time_str,
+                ctx.session_scope,
+                ctx.rehab_type,
+                ctx.script,
+                validation,
+                arguments,
+            )))
+        }
+        other => Err(format!("unexpected sync task start result: {other:?}")),
+    }
+}
+
 pub(crate) fn ensure_research_data_readiness(
     ports: &ProductionPortBundle,
     arguments: &Value,
@@ -329,7 +525,6 @@ pub(crate) fn ensure_research_data_readiness(
 ) -> Result<EnsureDataOutcome, String> {
     let ctx = ReadinessContext::from_payload(start_payload, arguments, validation, script)?;
 
-    // 1. Structured coverage check directly on SQLite store
     let coverage_req = BacktestDataCoverageRequest {
         provider: ctx.provider.clone(),
         symbol: ctx.symbol.to_owned(),
@@ -344,7 +539,6 @@ pub(crate) fn ensure_research_data_readiness(
         return Ok(EnsureDataOutcome::Ready);
     }
 
-    // 2. Canonical sync key derivation
     let since_str =
         derive_effective_since_time(ctx.start_time_str, ctx.interval, ctx.warmup_bars);
     let sync_key = build_sync_key(
@@ -357,7 +551,6 @@ pub(crate) fn ensure_research_data_readiness(
         ctx.session_scope,
     );
 
-    // 3. Inspect tracked state to prevent infinite retries
     let tracker = SyncStateTracker::global();
     if let Some(state) = tracker.get(&sync_key) {
         match state {
@@ -378,164 +571,47 @@ pub(crate) fn ensure_research_data_readiness(
                 task_id,
                 started_at,
             } => {
-                let active_task = if started_at.elapsed() < std::time::Duration::from_secs(300) {
-                    ports.backtest_sync.progress(&task_id).ok().flatten()
+                let outcome = if started_at.elapsed() < std::time::Duration::from_secs(300) {
+                    poll_active_sync_task(
+                        ports,
+                        tracker,
+                        &sync_key,
+                        &task_id,
+                        &coverage_req,
+                        &ctx,
+                        &since_str,
+                        validation,
+                        arguments,
+                    )?
                 } else {
                     None
                 };
-                if let Some(task) = active_task {
-                    let st = task.get("status").and_then(Value::as_str).unwrap_or("");
-                    if st == "completed" {
-                        if let Ok(true) = ports.backtest_sync.check_coverage(&coverage_req) {
-                            return Ok(EnsureDataOutcome::Ready);
-                        }
-                        tracker.set_terminal(
-                            sync_key.clone(),
-                            task_id.clone(),
-                            "failed".to_owned(),
-                            "insufficient candles after sync completed".to_owned(),
-                        );
-                        return Err(format!(
-                            "K-line data sync completed but coverage is still insufficient for {}. Cannot proceed.",
-                            ctx.symbol
-                        ));
-                    }
-                    if st == "failed" || st == "cancelled" {
-                        let err_msg = task
-                            .get("error")
-                            .and_then(Value::as_str)
-                            .unwrap_or("sync task terminated")
-                            .to_owned();
-                        tracker.set_terminal(
-                            sync_key.clone(),
-                            task_id.clone(),
-                            st.to_owned(),
-                            err_msg.clone(),
-                        );
-                        return Err(format!(
-                            "K-line data sync for {} terminated with {st}: {err_msg}",
-                            ctx.symbol
-                        ));
-                    }
-                    let total_intervals = task
-                        .get("totalIntervals")
-                        .and_then(Value::as_i64)
-                        .unwrap_or(1);
-                    let completed_intervals = task
-                        .get("completedIntervals")
-                        .and_then(Value::as_i64)
-                        .unwrap_or(0);
-                    let progress = if total_intervals > 0 {
-                        (completed_intervals as f64 / total_intervals as f64 * 100.0).round()
-                    } else {
-                        0.0
-                    };
-                    return Ok(EnsureDataOutcome::Syncing(format_syncing_response(
-                        &task,
-                        &task_id,
-                        st,
-                        progress,
-                        ctx.symbol,
-                        ctx.interval,
-                        &ctx.provider,
-                        &since_str,
-                        ctx.end_time_str,
-                        ctx.session_scope,
-                        ctx.rehab_type,
-                        ctx.script,
-                        validation,
-                        arguments,
-                    )));
+                if let Some(outcome) = outcome {
+                    return Ok(outcome);
                 }
             }
         }
     }
 
-    // 4. Re-use existing active sync task if present
-    if let Ok(active_tasks) = ports.backtest_sync.active_tasks() {
-        for task in active_tasks {
-            let st = task.get("status").and_then(Value::as_str).unwrap_or("");
-            let sym = task.get("symbol").and_then(Value::as_str).unwrap_or("");
-            let prov = task
-                .get("marketDataProvider")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            if (st == "queued" || st == "running")
-                && (sym == ctx.symbol
-                    || sym.ends_with(ctx.symbol)
-                    || ctx.symbol.ends_with(sym))
-                && (prov.is_empty() || prov == ctx.provider)
-            {
-                let task_id = task
-                    .get("taskId")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_owned();
-                tracker.set_syncing(sync_key.clone(), task_id.clone());
-                return Ok(EnsureDataOutcome::Syncing(format_syncing_response(
-                    &task,
-                    &task_id,
-                    st,
-                    0.0,
-                    ctx.symbol,
-                    ctx.interval,
-                    &ctx.provider,
-                    &since_str,
-                    ctx.end_time_str,
-                    ctx.session_scope,
-                    ctx.rehab_type,
-                    ctx.script,
-                    validation,
-                    arguments,
-                )));
-            }
-        }
+    if let Some(outcome) = find_reusable_active_sync_task(
+        ports,
+        tracker,
+        &sync_key,
+        &ctx,
+        &since_str,
+        validation,
+        arguments,
+    ) {
+        return Ok(outcome);
     }
 
-    // 5. Trigger new sync task
-    let sync_payload = json!({
-        "market": ctx.market,
-        "symbol": ctx.symbol,
-        "intervals": [ctx.interval],
-        "since": since_str,
-        "until": ctx.end_time_str,
-        "sessionScope": ctx.session_scope,
-        "rehabType": ctx.rehab_type,
-        "marketDataProvider": ctx.provider,
-    });
-
-    let sync_result = ports
-        .backtests_write
-        .mutate(&BacktestsWriteInput::Sync {
-            payload: sync_payload,
-        })
-        .map_err(|e| format!("failed to start K-line data sync: {e:?}"))?;
-
-    match sync_result {
-        BacktestsWritePortResult::Data(sync_data) => {
-            let task_id = sync_data
-                .get("taskId")
-                .and_then(Value::as_str)
-                .unwrap_or("unknown")
-                .to_owned();
-            tracker.set_syncing(sync_key, task_id.clone());
-            Ok(EnsureDataOutcome::Syncing(format_syncing_response(
-                &sync_data,
-                &task_id,
-                "queued",
-                0.0,
-                ctx.symbol,
-                ctx.interval,
-                &ctx.provider,
-                &since_str,
-                ctx.end_time_str,
-                ctx.session_scope,
-                ctx.rehab_type,
-                ctx.script,
-                validation,
-                arguments,
-            )))
-        }
-        other => Err(format!("unexpected sync task start result: {other:?}")),
-    }
+    trigger_new_kline_sync(
+        ports,
+        tracker,
+        &sync_key,
+        &ctx,
+        &since_str,
+        validation,
+        arguments,
+    )
 }

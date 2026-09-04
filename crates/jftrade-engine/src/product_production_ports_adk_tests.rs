@@ -1801,21 +1801,46 @@ async fn test_portfolio_broker_settings_states_fail_closed() {
     assert!(configured["warnings"].as_array().unwrap().is_empty());
     assert_eq!(configured["managedAccounts"].as_array().unwrap().len(), 1);
 
-    // State 3: Corrupted settings -> fail closed: brokerEnabled false, partial true, warning present
+    // State 3: Corrupted settings -> fail closed across all 3 tools: brokerEnabled false, partial true, warning present
     std::fs::write(&settings_path, b"{corrupted_invalid_json: true").expect("write corrupt settings");
 
-    let corrupted = executor
+    let corrupted_acc = executor
         .execute("portfolio.accounts", &json!({"tradingEnvironment": "REAL"}))
         .expect("portfolio.accounts corrupted");
-    assert_eq!(corrupted["brokerEnabled"], false);
-    assert_eq!(corrupted["partial"], true);
-    let warnings = corrupted["warnings"].as_array().unwrap();
-    assert!(!warnings.is_empty());
+    assert_eq!(corrupted_acc["brokerEnabled"], false);
+    assert_eq!(corrupted_acc["partial"], true);
     assert!(
-        warnings[0]
-            .as_str()
+        corrupted_acc["warnings"]
+            .as_array()
             .unwrap()
-            .contains("failed to load broker settings")
+            .iter()
+            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
+    );
+
+    let corrupted_ovw = executor
+        .execute("portfolio.overview", &json!({"tradingEnvironment": "REAL"}))
+        .expect("portfolio.overview corrupted");
+    assert_eq!(corrupted_ovw["brokerEnabled"], false);
+    assert_eq!(corrupted_ovw["partial"], true);
+    assert!(
+        corrupted_ovw["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
+    );
+
+    let corrupted_pos = executor
+        .execute("portfolio.positions", &json!({"tradingEnvironment": "REAL"}))
+        .expect("portfolio.positions corrupted");
+    assert_eq!(corrupted_pos["brokerEnabled"], false);
+    assert_eq!(corrupted_pos["partial"], true);
+    assert!(
+        corrupted_pos["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|w| w.as_str().unwrap_or("").contains("failed to load broker settings"))
     );
 }
 

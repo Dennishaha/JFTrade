@@ -560,32 +560,7 @@ pub(crate) fn execute_portfolio_overview(
         overviews.push(item);
     }
 
-    overviews.sort_by(|a, b| {
-        let a_has = a
-            .get("hasAssetsOrPositions")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let b_has = b
-            .get("hasAssetsOrPositions")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        match b_has.cmp(&a_has) {
-            std::cmp::Ordering::Equal => {
-                let a_id = a
-                    .get("account")
-                    .and_then(|acc| acc.get("accountId"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                let b_id = b
-                    .get("account")
-                    .and_then(|acc| acc.get("accountId"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                a_id.cmp(b_id)
-            }
-            other => other,
-        }
-    });
+    sort_by_assets_and_account_id(&mut overviews);
 
     if let Some(err) = settings_error {
         base.insert("brokerEnabled".to_owned(), json!(false));
@@ -729,7 +704,24 @@ pub(crate) fn execute_portfolio_positions(
         account_positions.push(item);
     }
 
-    account_positions.sort_by(|a, b| {
+    sort_by_assets_and_account_id(&mut account_positions);
+
+    if let Some(err) = settings_error {
+        base.insert("brokerEnabled".to_owned(), json!(false));
+        warnings.push(err);
+    }
+    let is_partial = any_partial || !warnings.is_empty();
+    base.insert(
+        "accountPositions".to_owned(),
+        Value::Array(account_positions),
+    );
+    base.insert("partial".to_owned(), json!(is_partial));
+    base.insert("warnings".to_owned(), json!(warnings));
+    Ok(Value::Object(base))
+}
+
+fn sort_by_assets_and_account_id(items: &mut [Value]) {
+    items.sort_by(|a, b| {
         let a_has = a
             .get("hasAssetsOrPositions")
             .and_then(Value::as_bool)
@@ -755,17 +747,4 @@ pub(crate) fn execute_portfolio_positions(
             other => other,
         }
     });
-
-    if let Some(err) = settings_error {
-        base.insert("brokerEnabled".to_owned(), json!(false));
-        warnings.push(err);
-    }
-    let is_partial = any_partial || !warnings.is_empty();
-    base.insert(
-        "accountPositions".to_owned(),
-        Value::Array(account_positions),
-    );
-    base.insert("partial".to_owned(), json!(is_partial));
-    base.insert("warnings".to_owned(), json!(warnings));
-    Ok(Value::Object(base))
 }

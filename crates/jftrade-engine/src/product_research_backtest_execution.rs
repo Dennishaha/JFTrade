@@ -197,6 +197,53 @@ pub(crate) fn build_result_view_request_from_options(
     }
 }
 
+fn start_research_backtest_run(
+    ports: &ProductionPortBundle,
+    start_payload: &Value,
+) -> Result<(String, String), String> {
+    let start_result = ports.backtests_write.mutate(&BacktestsWriteInput::Start {
+        payload: start_payload.clone(),
+    });
+    match start_result {
+        Ok(BacktestsWritePortResult::Data(data)) => {
+            let id = data
+                .get("runId")
+                .or_else(|| data.get("id"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| "backtest start response missing runId".to_owned())?
+                .to_owned();
+            let status = data
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("queued")
+                .to_owned();
+            Ok((id, status))
+        }
+        Err(err) => Err(format!("failed to start research backtest: {err:?}")),
+        Ok(other) => Err(format!("unexpected backtest start result: {other:?}")),
+    }
+}
+
+fn attach_result_view(
+    ports: &ProductionPortBundle,
+    response: &mut Value,
+    run_id: &str,
+    view_opts: Option<&Value>,
+) {
+    let view_req = build_result_view_request_from_options(run_id, view_opts);
+    match ports.backtest_read.result_view(&view_req) {
+        Ok(Some(snapshot)) => {
+            response["resultView"] = snapshot.data;
+        }
+        Ok(None) => {
+            response["resultViewError"] = Value::String("backtest run was not found".to_owned());
+        }
+        Err(err) => {
+            response["resultViewError"] = Value::String(err.to_string());
+        }
+    }
+}
+
 pub(crate) fn execute_research_backtest(
     ports: &ProductionPortBundle,
     arguments: &Value,
@@ -219,29 +266,7 @@ pub(crate) fn execute_research_backtest(
         &start_payload,
         script,
     )? {
-        EnsureDataOutcome::Ready => {
-            let start_result = ports.backtests_write.mutate(&BacktestsWriteInput::Start {
-                payload: start_payload.clone(),
-            });
-            match start_result {
-                Ok(BacktestsWritePortResult::Data(data)) => {
-                    let id = data
-                        .get("runId")
-                        .or_else(|| data.get("id"))
-                        .and_then(Value::as_str)
-                        .ok_or_else(|| "backtest start response missing runId".to_owned())?
-                        .to_owned();
-                    let status = data
-                        .get("status")
-                        .and_then(Value::as_str)
-                        .unwrap_or("queued")
-                        .to_owned();
-                    (id, status)
-                }
-                Err(err) => return Err(format!("failed to start research backtest: {err:?}")),
-                Ok(other) => return Err(format!("unexpected backtest start result: {other:?}")),
-            }
-        }
+        EnsureDataOutcome::Ready => start_research_backtest_run(ports, &start_payload)?,
         EnsureDataOutcome::Syncing(syncing_resp) => return Ok(syncing_resp),
     };
 
@@ -282,19 +307,6 @@ pub(crate) fn execute_research_backtest(
         "saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
     });
 
-    let view_opts = arguments.get("resultView");
-    let view_req = build_result_view_request_from_options(&run_id, view_opts);
-    match ports.backtest_read.result_view(&view_req) {
-        Ok(Some(snapshot)) => {
-            response["resultView"] = snapshot.data;
-        }
-        Ok(None) => {
-            response["resultViewError"] = Value::String("backtest run was not found".to_owned());
-        }
-        Err(err) => {
-            response["resultViewError"] = Value::String(err.to_string());
-        }
-    }
-
+    attach_result_view(ports, &mut response, &run_id, arguments.get("resultView"));
     Ok(response)
 }
