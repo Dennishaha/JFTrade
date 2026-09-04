@@ -33,7 +33,7 @@ use execution_order_helpers::{
     CancelInFlightGuard, broker_error, broker_failed, build_pre_trade_risk_combo_order,
     build_pre_trade_risk_order, execution_error_details, failed, header_from_order,
     is_terminal_status, map_trade_error, map_transition_store_error, merge_query, order_value,
-    store_error, value_identifier,
+    prefetch_combo_leg_quotes, store_error, value_identifier,
 };
 
 #[path = "product_production_ports_execution_order_parse.rs"]

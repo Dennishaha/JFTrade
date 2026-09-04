@@ -436,19 +436,20 @@ pub fn evaluate_pre_trade_risk(
                 "order amount must be positive in amount mode",
             );
         }
-    } else if order.quantity.signum() <= 0 {
-        return PreTradeRiskDecision::reject(
-            "INVALID_ORDER_RISK_SHAPE",
-            "order quantity must be positive",
-        );
-    }
-
-    for leg in &order.legs {
-        if leg.quantity.signum() <= 0 {
+    } else {
+        if order.quantity.signum() <= 0 {
             return PreTradeRiskDecision::reject(
                 "INVALID_ORDER_RISK_SHAPE",
-                "combo leg quantity must be positive",
+                "order quantity must be positive",
             );
+        }
+        for leg in &order.legs {
+            if leg.quantity.signum() <= 0 {
+                return PreTradeRiskDecision::reject(
+                    "INVALID_ORDER_RISK_SHAPE",
+                    "combo leg quantity must be positive",
+                );
+            }
         }
     }
 
@@ -521,7 +522,7 @@ pub fn evaluate_pre_trade_risk(
         }
     }
 
-    if let Some(maximum) = policy.effective_max_order_quantity {
+    if !is_amount_mode && let Some(maximum) = policy.effective_max_order_quantity {
         if order.quantity > maximum {
             return PreTradeRiskDecision::reject(
                 "MAX_ORDER_QUANTITY_EXCEEDED",

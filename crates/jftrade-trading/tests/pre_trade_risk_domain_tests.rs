@@ -268,3 +268,51 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
         Some("REAL_TRADE_HARD_STOP_ACTIVE")
     );
 }
+
+#[test]
+fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
+    use jftrade_trading::PreTradeRiskComboLeg;
+
+    let mut policy = valid_policy();
+    policy.effective_max_order_notional = Some(Fixed8::from_str("10000").unwrap());
+    policy.effective_max_order_quantity = Some(Fixed8::from_str("50").unwrap());
+
+    let mut order = test_order(TradingEnvironment::Real);
+    order.order_kind = "combo".to_owned();
+    order.quantity_mode = "amount".to_owned();
+    order.amount = Some(Fixed8::from_str("8000").unwrap());
+    order.price = None;
+    order.legs = vec![
+        PreTradeRiskComboLeg {
+            symbol: "AAPL".to_owned(),
+            market: "US".to_owned(),
+            side: "BUY".to_owned(),
+            quantity: Fixed8::ZERO,
+            multiplier: Fixed8::from_str("100").unwrap(),
+            price: None, // No price required in amount mode
+            product_class: "option".to_owned(),
+        },
+        PreTradeRiskComboLeg {
+            symbol: "NVDA".to_owned(),
+            market: "US".to_owned(),
+            side: "SELL".to_owned(),
+            quantity: Fixed8::ZERO,
+            multiplier: Fixed8::from_str("100").unwrap(),
+            price: None, // No price required in amount mode
+            product_class: "option".to_owned(),
+        },
+    ];
+
+    // Amount $8,000 <= $10,000 limit -> Allowed even with 0 qty and no leg prices
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(decision.allowed);
+
+    // Amount $12,000 > $10,000 limit -> Rejects on notional limit
+    order.amount = Some(Fixed8::from_str("12000").unwrap());
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("MAX_ORDER_NOTIONAL_EXCEEDED")
+    );
+}

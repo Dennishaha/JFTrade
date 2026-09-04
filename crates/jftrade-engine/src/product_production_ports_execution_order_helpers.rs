@@ -678,3 +678,70 @@ pub(crate) fn build_pre_trade_risk_combo_order(
         legs: risk_legs,
     }
 }
+
+pub(crate) fn prefetch_combo_leg_quotes(
+    runtime: Option<&super::SharedTradeReadRuntime>,
+    risk_order: &mut jftrade_trading::PreTradeRiskOrder,
+    payload: &Value,
+    now: &str,
+) -> Result<(), ExecutionWritePortError> {
+    if let Some(quote_expires_at) = payload
+        .get("quoteExpiresAt")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+    {
+        let quote_time = time::OffsetDateTime::parse(
+            quote_expires_at,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .map_err(|error| failed(400, "BAD_REQUEST", format!("quoteExpiresAt is invalid: {error}")))?;
+        let now_time = time::OffsetDateTime::parse(
+            now,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
+        if quote_time <= now_time {
+            return Err(failed(
+                403,
+                "PRE_TRADE_RISK_REJECTED",
+                "execution quote has expired",
+            ));
+        }
+    }
+
+    let Some(runtime) = runtime else {
+        return Err(failed(
+            403,
+            "PRE_TRADE_RISK_REJECTED",
+            "trade runtime unavailable for combo leg quote prefetch",
+        ));
+    };
+
+    for leg in &mut risk_order.legs {
+        if leg.price.is_some() {
+            continue;
+        }
+        let qot_market = super::execution_order_parse::quote_market(&leg.market);
+        let security = jftrade_integration_futu::TradeSecurity {
+            market: qot_market,
+            code: leg.symbol.clone(),
+        };
+        let snapshots = runtime
+            .security_snapshots(&[security])
+            .map_err(|error| failed(403, "PRE_TRADE_RISK_REJECTED", format!("quote prefetch failed: {error}")))?;
+        let price = snapshots
+            .first()
+            .and_then(|s| s.get("lastPrice").or_else(|| s.get("curPrice")))
+            .and_then(Value::as_f64)
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok())
+            .ok_or_else(|| {
+                failed(
+                    403,
+                    "PRE_TRADE_RISK_REJECTED",
+                    format!("market quote unavailable for combo leg {}", leg.symbol),
+                )
+            })?;
+        leg.price = Some(price);
+    }
+    Ok(())
+}

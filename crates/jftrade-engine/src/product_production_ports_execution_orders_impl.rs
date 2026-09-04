@@ -296,7 +296,19 @@ impl ProductionExecutionPort {
         }
         let legs = execution_order_previews::canonical_combo_legs(&parsed);
         let now = crate::product::product_production_ports::provider_now_rfc3339();
-        let risk_order = build_pre_trade_risk_combo_order(&parsed);
+        let mut risk_order = build_pre_trade_risk_combo_order(&parsed);
+        if parsed.order.header.trd_env == 1
+            && !parsed.order.quantity_mode.eq_ignore_ascii_case("amount")
+            && risk_order.price.is_none()
+            && risk_order.legs.iter().any(|l| l.price.is_none())
+        {
+            prefetch_combo_leg_quotes(
+                self.trade_runtime.as_deref(),
+                &mut risk_order,
+                payload,
+                &now,
+            )?;
+        }
         let request_hash = preview_request_hash(payload, &parsed.order, Some(legs.clone()))?;
         if let Some(client_order_id) = parsed.order.client_order_id.as_deref()
             && let Some(existing) = self
