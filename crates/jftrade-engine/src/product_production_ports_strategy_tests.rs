@@ -246,3 +246,97 @@ higher = request.security(syminfo.tickerid, "15m", ta.sma(close, 20))"#;
     assert!(valid_err.is_ok());
     assert_eq!(comp_valid.requirements.derived_warmup_bars_with_session("US.AAPL", "5m", false), 60);
 }
+
+#[test]
+fn test_result_view_warmup_tagging_and_curve_trimming() {
+    use crate::product::product_research_backtest_projection::project_result_view;
+
+    let payload = json!({
+        "id": "run-warmup-view-test",
+        "status": "completed",
+        "request": {
+            "symbol": "US.AAPL",
+            "interval": "1m",
+            "startTime": "2026-01-01T09:30:00Z",
+            "endTime": "2026-01-01T16:00:00Z",
+        },
+        "result": {
+            "cases": [{
+                "id": "case-1",
+                "status": "completed",
+                "processedBars": 4,
+                "cash": "10000.0",
+                "finalEquity": "10100.0",
+                "realizedPnl": "100.0",
+                "orders": [
+                    {
+                        "orderId": "ord-warmup",
+                        "submittedAt": "2026-01-01T09:00:00Z",
+                        "status": "filled"
+                    },
+                    {
+                        "orderId": "ord-formal",
+                        "submittedAt": "2026-01-01T10:00:00Z",
+                        "status": "filled"
+                    }
+                ],
+                "fills": [
+                    {
+                        "tradeId": "trade-warmup",
+                        "orderId": "ord-warmup",
+                        "time": "2026-01-01T09:00:00Z",
+                        "price": "100.0",
+                        "quantity": "10"
+                    },
+                    {
+                        "tradeId": "trade-formal",
+                        "orderId": "ord-formal",
+                        "time": "2026-01-01T10:00:00Z",
+                        "price": "110.0",
+                        "quantity": "10"
+                    }
+                ],
+                "equityCurve": [
+                    {"time": "2026-01-01T09:00:00Z", "equity": "10000.0"},
+                    {"time": "2026-01-01T09:30:00Z", "equity": "10000.0"},
+                    {"time": "2026-01-01T10:00:00Z", "equity": "10100.0"}
+                ],
+                "drawdownCurve": [
+                    {"time": "2026-01-01T09:00:00Z", "drawdown": "0.0"},
+                    {"time": "2026-01-01T09:30:00Z", "drawdown": "0.0"},
+                    {"time": "2026-01-01T10:00:00Z", "drawdown": "0.0"}
+                ],
+                "warnings": []
+            }],
+            "candles": [
+                {"start": "2026-01-01T09:00:00Z", "close": "100.0"},
+                {"start": "2026-01-01T09:30:00Z", "close": "105.0"},
+                {"start": "2026-01-01T10:00:00Z", "close": "110.0"}
+            ]
+        }
+    });
+
+    // 1. Chart view: curves and candles before 09:30:00Z must be hidden
+    let chart_opts = json!({"view": "chart", "include": ["candles", "pnlCurve", "trades"]});
+    let chart_view = project_result_view(&payload, Some(&chart_opts));
+    let candles = chart_view["series"]["candles"].as_array().unwrap();
+    assert_eq!(candles.len(), 2, "warmup candle at 09:00 must be trimmed");
+    assert_eq!(candles[0]["start"], "2026-01-01T09:30:00Z");
+
+    let pnl_curve = chart_view["series"]["pnlCurve"].as_array().unwrap();
+    assert_eq!(pnl_curve.len(), 2, "warmup equity point at 09:00 must be trimmed");
+    assert_eq!(pnl_curve[0]["time"], "2026-01-01T09:30:00Z");
+
+    let trades = chart_view["series"]["trades"].as_array().unwrap();
+    assert_eq!(trades.len(), 2, "both trades must be preserved");
+    assert_eq!(trades[0]["warmup"], true, "trade at 09:00 must be marked warmup=true");
+    assert_eq!(trades[1]["warmup"], false, "trade at 10:00 must be marked warmup=false");
+
+    // 2. Orders view: both orders preserved with correct warmup flags
+    let orders_opts = json!({"view": "orders"});
+    let orders_view = project_result_view(&payload, Some(&orders_opts));
+    let orders = orders_view["series"]["orderBook"].as_array().unwrap();
+    assert_eq!(orders.len(), 2);
+    assert_eq!(orders[0]["warmup"], true);
+    assert_eq!(orders[1]["warmup"], false);
+}

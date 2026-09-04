@@ -229,3 +229,69 @@ fn intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully() {
     assert_eq!(case["status"], "completed");
     assert_eq!(case["basePosition"], "10");
 }
+
+#[test]
+fn warmup_entry_and_formal_exit_inherits_position_and_pnl_in_matcher() {
+    // 2 warmup candles, 2 formal candles
+    let mut candles = Vec::new();
+    for i in 0..4 {
+        let mut c = sample_candle(i, 1_700_000_000_000);
+        if i == 0 {
+            c.open = "100.0".to_owned();
+            c.close = "100.0".to_owned();
+        } else if i == 3 {
+            c.open = "110.0".to_owned();
+            c.high = "115.0".to_owned();
+            c.low = "105.0".to_owned();
+            c.close = "110.0".to_owned();
+        }
+        candles.push(c);
+    }
+
+    let intents = vec![
+        PineOrderIntent {
+            id: "warmup_buy".to_owned(),
+            kind: "entry".to_owned(),
+            direction: "long".to_owned(),
+            has_quantity: true,
+            quantity: 10.0,
+            bar_index: 0,
+            ..Default::default()
+        },
+        PineOrderIntent {
+            id: "formal_exit".to_owned(),
+            kind: "exit".to_owned(),
+            direction: "long".to_owned(),
+            has_quantity: true,
+            quantity: 10.0,
+            bar_index: 3,
+            ..Default::default()
+        },
+    ];
+
+    let adapter = PineBacktestExecutionAdapter::new(Arc::new(StaticMockPinePort { intents }));
+    let request = BacktestExecutionRequest {
+        run_id: "test-warmup-pos-inherit".to_owned(),
+        payload: json!({
+            "strategyScript": "strategy('test')",
+            "symbol": "US.AAPL",
+            "interval": "1m",
+            "warmupBars": 2,
+            "processOrdersOnClose": true,
+            "initialBalance": "10000",
+        }),
+        market_data_provider: "yfinance".to_owned(),
+        candles,
+    };
+
+    let result = adapter
+        .execute(request)
+        .expect("execute backtest with warmup position inheritance");
+    let case = &result["cases"][0];
+    assert_eq!(case["status"], "completed");
+    assert_eq!(case["processedBars"], 4);
+    assert_eq!(case["basePosition"], "0");
+    assert_eq!(case["totalTrades"], 1);
+    let realized_pnl: f64 = case["realizedPnl"].as_str().unwrap().parse().unwrap();
+    assert!(realized_pnl > 90.0, "realized pnl should reflect 10 shares from 100 to 110 minus fees");
+}

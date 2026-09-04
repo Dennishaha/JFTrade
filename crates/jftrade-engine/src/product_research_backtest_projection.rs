@@ -260,32 +260,70 @@ fn extract_case_summary(c: &Value, lengths: &CaseLengths) -> Value {
     })
 }
 
+fn annotate_and_trim_warmup(
+    formal_start_nanos: Option<i128>,
+    candles: &mut Vec<Value>,
+    pnl_curve: &mut Vec<Value>,
+    drawdown_curve: &mut Vec<Value>,
+    trades: &mut [Value],
+    orders: &mut [Value],
+) {
+    if let Some(fs) = formal_start_nanos {
+        candles.retain(|c| {
+            parse_timestamp_nanos(c.get("start").or_else(|| c.get("time"))).is_none_or(|t| t >= fs)
+        });
+        pnl_curve.retain(|p| parse_timestamp_nanos(p.get("time")).is_none_or(|t| t >= fs));
+        drawdown_curve.retain(|p| parse_timestamp_nanos(p.get("time")).is_none_or(|t| t >= fs));
+    }
+    for trade in trades {
+        if let Some(obj) = trade.as_object_mut() {
+            let is_warmup = formal_start_nanos.is_some_and(|fs| {
+                parse_timestamp_nanos(obj.get("time")).is_some_and(|t| t < fs)
+            });
+            obj.insert("warmup".to_owned(), json!(is_warmup));
+        }
+    }
+    for order in orders {
+        if let Some(obj) = order.as_object_mut() {
+            let is_warmup = formal_start_nanos.is_some_and(|fs| {
+                parse_timestamp_nanos(obj.get("submittedAt").or_else(|| obj.get("filledAt"))).is_some_and(|t| t < fs)
+            });
+            obj.insert("warmup".to_owned(), json!(is_warmup));
+        }
+    }
+}
+
 fn extract_normalized_backtest(
     result_val: &Value,
     result_node: &serde_json::Map<String, Value>,
 ) -> NormalizedBacktestData {
+    let formal_start_nanos = result_val
+        .get("request")
+        .and_then(|r| r.get("startTime").or_else(|| r.get("startDate")))
+        .and_then(|v| parse_timestamp_nanos(Some(v)));
+
     if let Some(cases) = result_node
         .get("cases")
         .and_then(Value::as_array)
         .filter(|c| !c.is_empty())
     {
         let c = &cases[0];
-        let orders = c
+        let mut orders = c
             .get("orders")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let trades = c
+        let mut trades = c
             .get("fills")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let pnl_curve = c
+        let mut pnl_curve = c
             .get("equityCurve")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let drawdown_curve = c
+        let mut drawdown_curve = c
             .get("drawdownCurve")
             .and_then(Value::as_array)
             .cloned()
@@ -295,7 +333,7 @@ fn extract_normalized_backtest(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        let candles = result_node
+        let mut candles = result_node
             .get("candles")
             .or_else(|| result_val.get("request").and_then(|r| r.get("candles")))
             .and_then(Value::as_array)
@@ -312,6 +350,15 @@ fn extract_normalized_backtest(
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
+
+        annotate_and_trim_warmup(
+            formal_start_nanos,
+            &mut candles,
+            &mut pnl_curve,
+            &mut drawdown_curve,
+            &mut trades,
+            &mut orders,
+        );
 
         let candles_count = if !candles.is_empty() {
             candles.len()
@@ -352,28 +399,28 @@ fn extract_normalized_backtest(
         }
     } else {
         let empty_vec = Vec::new();
-        let orders = result_node
+        let mut orders = result_node
             .get("orderBook")
             .or_else(|| result_node.get("orders"))
             .and_then(Value::as_array)
             .unwrap_or(&empty_vec)
             .clone();
-        let trades = result_node
+        let mut trades = result_node
             .get("trades")
             .and_then(Value::as_array)
             .unwrap_or(&empty_vec)
             .clone();
-        let candles = result_node
+        let mut candles = result_node
             .get("candles")
             .and_then(Value::as_array)
             .unwrap_or(&empty_vec)
             .clone();
-        let pnl_curve = result_node
+        let mut pnl_curve = result_node
             .get("pnlCurve")
             .and_then(Value::as_array)
             .unwrap_or(&empty_vec)
             .clone();
-        let drawdown_curve = result_node
+        let mut drawdown_curve = result_node
             .get("drawdownCurve")
             .and_then(Value::as_array)
             .unwrap_or(&empty_vec)
@@ -398,6 +445,15 @@ fn extract_normalized_backtest(
             .get("summary")
             .cloned()
             .unwrap_or_else(|| json!({}));
+
+        annotate_and_trim_warmup(
+            formal_start_nanos,
+            &mut candles,
+            &mut pnl_curve,
+            &mut drawdown_curve,
+            &mut trades,
+            &mut orders,
+        );
 
         NormalizedBacktestData {
             summary,

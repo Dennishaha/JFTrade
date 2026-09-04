@@ -88,17 +88,7 @@ impl BacktestExecutionPort for RunJsonBacktestExecutionPort {
                 .and_then(Value::as_array)
                 .is_none_or(Vec::is_empty)
         {
-            let warmup_bars = request
-                .payload
-                .get("warmupBars")
-                .and_then(Value::as_u64)
-                .unwrap_or(0) as usize;
-            let formal_candles = if warmup_bars < request.candles.len() {
-                &request.candles[warmup_bars..]
-            } else {
-                &request.candles[..]
-            };
-            case["candles"] = Value::Array(formal_candles.iter().map(candle_wire).collect());
+            case["candles"] = Value::Array(request.candles.iter().map(candle_wire).collect());
         }
         let bytes = serde_json::to_vec(&corpus)
             .map_err(|error| BacktestExecutionError::Invalid(error.to_string()))?;
@@ -232,17 +222,8 @@ fn build_corpus(
     )
     .map(|value| value.unwrap_or_else(|| "0".to_owned()))?;
     let market = market_rules(&request.payload, &case)?;
-    let warmup_bars = request
-        .payload
-        .get("warmupBars")
-        .and_then(Value::as_u64)
-        .unwrap_or(0) as usize;
-    let formal_candles = if warmup_bars < request.candles.len() {
-        &request.candles[warmup_bars..]
-    } else {
-        &request.candles[..]
-    };
-    let candles = formal_candles
+    let candles = request
+        .candles
         .iter()
         .enumerate()
         .map(|(index, candle)| candle_wire_checked(candle, index))
@@ -250,13 +231,10 @@ fn build_corpus(
     let mut converted_intents = Vec::new();
     for (ordinal, intent) in intents.iter().enumerate() {
         let bar_index = intent.bar_index;
-        if bar_index < 0 || (bar_index as usize) < warmup_bars {
+        if bar_index < 0 || (bar_index as usize) >= candles.len() {
             continue;
         }
-        let shifted_index = (bar_index as usize) - warmup_bars;
-        let mut shifted_intent = intent.clone();
-        shifted_intent.bar_index = shifted_index as i32;
-        converted_intents.push(corpus_intent(&shifted_intent, ordinal, candles.len())?);
+        converted_intents.push(corpus_intent(intent, ordinal, candles.len())?);
     }
     let base_currency = optional_text(&request.payload, &["baseCurrency"])?
         .or_else(|| {

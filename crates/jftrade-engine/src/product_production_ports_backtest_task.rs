@@ -107,21 +107,30 @@ impl ProductionBacktestPort {
             .or_else(|| payload.get("warmup_bars"))
             .and_then(Value::as_u64)
             .map(|v| v as usize);
-        let warmup_bars = explicit_warmup.unwrap_or_else(|| {
-            let script = execution_payload
-                .get("strategyScript")
-                .or_else(|| execution_payload.get("script"))
-                .or_else(|| execution_payload.get("strategySource"))
-                .or_else(|| execution_payload.get("source"))
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
-            validation
-                .requirements
-                .as_ref()
-                .map(|r| r.derived_warmup_bars())
-                .unwrap_or(0)
-        });
+        let script = execution_payload
+            .get("strategyScript")
+            .or_else(|| execution_payload.get("script"))
+            .or_else(|| execution_payload.get("strategySource"))
+            .or_else(|| execution_payload.get("source"))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let use_extended_hours = request.session_scope == "extended";
+        let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
+        let derived_warmup = validation
+            .requirements
+            .as_ref()
+            .map(|r| {
+                r.derived_warmup_bars_with_session(
+                    &request.symbol,
+                    &request.interval,
+                    use_extended_hours,
+                )
+            })
+            .unwrap_or(0);
+        let warmup_bars = match explicit_warmup {
+            Some(explicit) => explicit.max(derived_warmup),
+            None => derived_warmup,
+        };
 
         let mut actual_warmup_count = 0;
         let mut candles = Vec::new();

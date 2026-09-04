@@ -169,7 +169,7 @@ fn run_json_adapter_fills_validated_history_into_empty_corpus_case() {
 }
 
 #[test]
-fn pine_adapter_filters_warmup_intents_and_shifts_evaluation_bar_indices() {
+fn pine_adapter_preserves_warmup_candles_and_intents_for_matcher() {
     let warmup_candle = BacktestExecutionCandle {
         start_time: 1_750_683_540_000,
         end_time: 1_750_683_599_999,
@@ -225,9 +225,9 @@ fn pine_adapter_filters_warmup_intents_and_shifts_evaluation_bar_indices() {
 
     let adapter = PineBacktestExecutionAdapter::new(Arc::new(FakePinePort { result: Ok(result) }));
     let output = adapter.execute(request).expect("execute with warmup");
-    assert_eq!(output["cases"][0]["processedBars"], 1);
+    assert_eq!(output["cases"][0]["processedBars"], 2);
     assert_eq!(
         output["cases"][0]["orders"].as_array().map(Vec::len),
-        Some(1)
+        Some(2)
     );
 }
