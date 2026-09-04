@@ -185,7 +185,7 @@ impl ProductionAdkChatRuntime {
                     .and_then(Value::as_str)
                     .is_some_and(|name| {
                         name == "interaction.request_user"
-                            || (replay_safe_tool(name) && self.tool_executor.supports(name))
+                            || (model_exposed_tool(name) && self.tool_executor.supports(name))
                     })
             })
             .collect();
@@ -428,7 +428,7 @@ impl ProductionAdkChatRuntime {
                     .and_then(Value::as_str)
                     .is_some_and(|name| {
                         name == "interaction.request_user"
-                            || (replay_safe_tool(name) && self.tool_executor.supports(name))
+                            || (model_exposed_tool(name) && self.tool_executor.supports(name))
                     })
             })
             .collect();

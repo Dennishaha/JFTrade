@@ -184,9 +184,22 @@ pub(super) fn optional_string_array(
     let Some(value) = arguments.get(key) else {
         return Ok(None);
     };
+    if let Some(s) = value.as_str() {
+        let text = s.trim();
+        if text.is_empty() {
+            return Ok(None);
+        }
+        let list: Vec<String> = text
+            .split(',')
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(str::to_owned)
+            .collect();
+        return Ok(Some(list));
+    }
     let values = value
         .as_array()
-        .ok_or_else(|| McpToolFailure::invalid(format!("{key} must be an array")))?;
+        .ok_or_else(|| McpToolFailure::invalid(format!("{key} must be a string or array")))?;
     let mut result = Vec::with_capacity(values.len());
     for item in values {
         let text = item

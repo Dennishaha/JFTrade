@@ -1,5 +1,6 @@
 use super::*;
 use crate::product::product_mcp_protocol::{mcp_tool_adapter, mcp_tool_availability};
+use crate::product::product_mcp_server::dispatch::normalize_legacy_mcp_arguments;
 use crate::product::product_production_ports::{
     MarketDataCapabilityMatrix, ProductionAdapterBinding, SharedTradeReadRuntime,
     production_adapter_bindings,
@@ -755,6 +756,27 @@ fn reviewed_mcp_schemas_match_canonical_go_fixture_deeply() {
         mismatches.is_empty(),
         "Rust schemas drifted from Go fixture: {mismatches:?}"
     );
+}
+
+#[test]
+fn normalize_legacy_mcp_arguments_normalizes_aliases() {
+    let mut search_args = json!({"query": "AAPL", "limit": 25});
+    normalize_legacy_mcp_arguments("market.search", &mut search_args);
+    assert_eq!(search_args["pageSize"], 25);
+    assert!(search_args.get("limit").is_none());
+
+    let mut fees_args = json!({"orderIdEx": "ord-123"});
+    normalize_legacy_mcp_arguments("broker.fees", &mut fees_args);
+    assert_eq!(fees_args["orderIdEx"], json!(["ord-123"]));
+
+    let mut snapshot_args = json!({"market": "US", "symbol": "AAPL"});
+    normalize_legacy_mcp_arguments("market.snapshot", &mut snapshot_args);
+    assert_eq!(snapshot_args["instrumentId"], "US.AAPL");
+    assert!(snapshot_args.get("symbol").is_none());
+
+    let mut bp_args = json!({"instrument": "US.AAPL"});
+    normalize_legacy_mcp_arguments("execution.buying_power", &mut bp_args);
+    assert_eq!(bp_args["instrument"]["instrumentId"], "US.AAPL");
 }
 
 #[test]

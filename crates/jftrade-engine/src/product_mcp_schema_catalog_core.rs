@@ -365,7 +365,7 @@ fn backtest_result_view_options_schema() -> Value {
 }
 
 fn strategy_research_backtest_schema() -> Value {
-    strict_object(
+    let mut schema = strict_object(
         object([
             (
                 "script",
@@ -422,8 +422,18 @@ fn strategy_research_backtest_schema() -> Value {
             ),
             ("resultView", backtest_result_view_options_schema()),
         ]),
-        &["script", "market", "startTime", "endTime"],
-    )
+        &["script", "market"],
+    );
+    if let Some(obj) = schema.as_object_mut() {
+        obj.insert(
+            "anyOf".to_owned(),
+            json!([
+                {"required": ["symbol"]},
+                {"required": ["code"]}
+            ]),
+        );
+    }
+    schema
 }
 
 fn default_query_schema() -> Value {

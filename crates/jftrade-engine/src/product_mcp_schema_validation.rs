@@ -30,6 +30,15 @@ fn validate_composition(schema: &Value, value: &Value, path: &str) -> Result<(),
     {
         return Err(format!("{path} does not match any allowed schema"));
     }
+    if let Some(branches) = schema.get("oneOf").and_then(Value::as_array) {
+        let count = branches
+            .iter()
+            .filter(|branch| validate_schema(branch, value, path).is_ok())
+            .count();
+        if count != 1 {
+            return Err(format!("{path} does not match exactly one allowed schema"));
+        }
+    }
     if let Some(branches) = schema.get("allOf").and_then(Value::as_array) {
         for branch in branches {
             validate_schema(branch, value, path)?;

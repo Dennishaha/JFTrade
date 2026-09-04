@@ -403,13 +403,14 @@ fn call_tool(context: &McpRequestContext, params: &Value) -> Result<Value, (i64,
             format!("tool \"{name}\" is unavailable in the Rust MCP runtime"),
         ));
     }
-    let arguments = params
+    let mut arguments = params
         .get("arguments")
         .cloned()
         .unwrap_or_else(|| json!({}));
     if !arguments.is_object() {
         return Err((-32602, "Invalid params".to_owned()));
     }
+    normalize_legacy_mcp_arguments(name, &mut arguments);
     validate_tool_arguments(name, &arguments).map_err(|message| (-32602, message))?;
     match context.executor.execute_enveloped(name, &arguments) {
         Ok(value) => Ok(json!({
@@ -421,6 +422,53 @@ fn call_tool(context: &McpRequestContext, params: &Value) -> Result<Value, (i64,
             "structuredContent": error,
             "isError": true,
         })),
+    }
+}
+
+pub(crate) fn normalize_legacy_mcp_arguments(name: &str, arguments: &mut Value) {
+    let Some(obj) = arguments.as_object_mut() else {
+        return;
+    };
+    match name {
+        "market.search" => {
+            if let Some(limit) = obj.remove("limit") {
+                obj.entry("pageSize".to_owned()).or_insert(limit);
+            }
+        }
+        "broker.fees" => {
+            if let Some(val) = obj.get("orderIdEx").cloned()
+                && val.is_string()
+            {
+                obj.insert("orderIdEx".to_owned(), json!([val]));
+            }
+            if let Some(val) = obj.get("orderIdExList").cloned()
+                && val.is_string()
+            {
+                obj.insert("orderIdExList".to_owned(), json!([val]));
+            }
+        }
+        "market.snapshot" => {
+            if !obj.contains_key("instrumentId")
+                && let (Some(market), Some(symbol)) = (
+                    obj.get("market").and_then(Value::as_str),
+                    obj.get("symbol").and_then(Value::as_str),
+                )
+            {
+                let instrument_id = format!("{market}.{symbol}");
+                obj.insert("instrumentId".to_owned(), Value::String(instrument_id));
+                obj.remove("symbol");
+            }
+        }
+        "execution.buying_power" => {
+            if let Some(instrument) = obj.get("instrument").and_then(Value::as_str) {
+                let instrument_val = instrument.to_owned();
+                obj.insert(
+                    "instrument".to_owned(),
+                    json!({"instrumentId": instrument_val}),
+                );
+            }
+        }
+        _ => {}
     }
 }
 
