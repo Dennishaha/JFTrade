@@ -340,3 +340,336 @@ fn test_result_view_warmup_tagging_and_curve_trimming() {
     assert_eq!(orders[0]["warmup"], true);
     assert_eq!(orders[1]["warmup"], false);
 }
+
+#[test]
+fn test_result_view_all_six_views_and_validation() {
+    use crate::product::product_research_backtest_projection::{
+        project_authoritative_result_view, validate_result_view_request,
+    };
+    use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
+
+    let sample_run = json!({
+        "id": "run-views-test",
+        "status": "completed",
+        "marketDataProvider": "futu",
+        "request": {
+            "symbol": "HK.00700",
+            "interval": "1m",
+            "startTime": "2026-01-01T09:30:00Z",
+            "endTime": "2026-01-01T16:00:00Z"
+        },
+        "result": {
+            "cases": [{
+                "finalEquity": "110000.0",
+                "realizedPnl": "10000.0",
+                "cash": "110000.0",
+                "maxDrawdown": "0.05",
+                "currentDrawdown": "0.01",
+                "totalTrades": 1,
+                "winRate": "1.0",
+                "totalFees": "25.0",
+                "processedBars": 100,
+                "warnings": ["warning 1"],
+                "orders": [{
+                    "orderId": "ord-1",
+                    "side": "BUY",
+                    "quantity": "100",
+                    "status": "FILLED",
+                    "filledQuantity": "100",
+                    "filledPrice": "300.0",
+                    "submittedAt": "2026-01-01T10:00:00Z",
+                    "filledAt": "2026-01-01T10:00:00Z"
+                }],
+                "fills": [{
+                    "tradeId": "trd-1",
+                    "orderId": "ord-1",
+                    "side": "BUY",
+                    "price": "300.0",
+                    "quantity": "100",
+                    "quoteQuantity": "30000.0",
+                    "time": "2026-01-01T10:00:00Z",
+                    "totalFee": "25.0",
+                    "realizedPnl": "0.0"
+                }],
+                "equityCurve": [{"time": "2026-01-01T10:00:00Z", "equity": "110000.0"}],
+                "drawdownCurve": [{"time": "2026-01-01T10:00:00Z", "drawdown": "0.0"}]
+            }],
+            "candles": [{
+                "time": "2026-01-01T10:00:00Z",
+                "open": 300.0,
+                "high": 305.0,
+                "low": 299.0,
+                "close": 302.0,
+                "volume": 1000.0
+            }],
+            "logs": [{"time": "2026-01-01T10:00:00Z", "message": "strategy executed"}],
+            "runtimeErrors": [{"time": "2026-01-01T10:00:00Z", "error": "simulated non-fatal"}]
+        }
+    });
+
+    // 1. Verify all 6 views
+    for (view_name, expected_series_key) in [
+        ("summary", None),
+        ("chart", Some("candles")),
+        ("orders", Some("orderBook")),
+        ("logs", Some("logs")),
+        ("warnings", Some("warnings")),
+        ("errors", Some("runtimeErrors")),
+    ] {
+        let req = BacktestResultViewRequest {
+            run_id: "run-views-test".to_owned(),
+            view: Some(view_name.to_owned()),
+            ..Default::default()
+        };
+        let res = project_authoritative_result_view(&sample_run, None, &req).expect("valid view");
+        assert_eq!(res["view"], view_name);
+        assert_eq!(res["run"]["id"], "run-views-test");
+        assert!(res["summary"].is_object());
+        assert!(res["window"].is_object());
+        if let Some(key) = expected_series_key {
+            assert!(res["series"][key].is_array(), "missing series key {key} for {view_name}");
+        }
+    }
+
+    // 2. Strict validation assertions
+    let bad_view_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        view: Some("invalid_view".to_owned()),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_view_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_include_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        view: Some("orders".to_owned()),
+        include: Some(vec!["candles".to_owned()]),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_include_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_series_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["unsupported".to_owned()]),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_series_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_time_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        start_time: Some("not-rfc3339".to_owned()),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_time_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let time_order_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        start_time: Some("2026-01-01T12:00:00Z".to_owned()),
+        end_time: Some("2026-01-01T10:00:00Z".to_owned()),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&time_order_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_cursor_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        cursor: Some("-5".to_owned()),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_cursor_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_limit_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        limit: Some(3000),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_limit_req), Err(BacktestResultViewError::Invalid(_))));
+
+    let bad_res_req = BacktestResultViewRequest {
+        run_id: "run-1".to_owned(),
+        resolution: Some("invalid_res".to_owned()),
+        ..Default::default()
+    };
+    assert!(matches!(validate_result_view_request(&bad_res_req), Err(BacktestResultViewError::Invalid(_))));
+}
+
+#[test]
+fn test_result_view_order_fee_aggregation_and_numeric_types() {
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+    use crate::product::BacktestResultViewRequest;
+
+    let payload = json!({
+        "id": "run-fee-test",
+        "status": "completed",
+        "result": {
+            "cases": [{
+                "orders": [{
+                    "orderId": "order-split",
+                    "side": "BUY",
+                    "quantity": "200.0",
+                    "status": "FILLED",
+                    "filledQuantity": "200.0",
+                    "filledPrice": "150.5",
+                    "submittedAt": "2026-01-01T10:00:00Z"
+                }],
+                "fills": [
+                    {
+                        "tradeId": "fill-1",
+                        "orderId": "order-split",
+                        "side": "BUY",
+                        "price": "150.0",
+                        "quantity": "100.0",
+                        "quoteQuantity": "15000.0",
+                        "time": "2026-01-01T10:00:01Z",
+                        "totalFee": "12.5",
+                        "realizedPnl": "0.0"
+                    },
+                    {
+                        "tradeId": "fill-2",
+                        "orderId": "order-split",
+                        "side": "BUY",
+                        "price": "151.0",
+                        "quantity": "100.0",
+                        "quoteQuantity": "15100.0",
+                        "time": "2026-01-01T10:00:02Z",
+                        "totalFee": "13.5",
+                        "realizedPnl": "0.0"
+                    }
+                ]
+            }]
+        }
+    });
+
+    let ord_req = BacktestResultViewRequest {
+        run_id: "run-fee-test".to_owned(),
+        view: Some("orders".to_owned()),
+        ..Default::default()
+    };
+    let ord_res = project_authoritative_result_view(&payload, None, &ord_req).unwrap();
+    let orders = ord_res["series"]["orderBook"].as_array().unwrap();
+    assert_eq!(orders.len(), 1);
+    let order = &orders[0];
+    assert_eq!(order["orderId"], "order-split");
+    // Aggregated total fee = 12.5 + 13.5 = 26.0 (number type!)
+    assert_eq!(order["totalFees"], 26.0);
+    assert_eq!(order["quantity"], 200.0);
+    assert_eq!(order["filledQuantity"], 200.0);
+    assert_eq!(order["filledPrice"], 150.5);
+
+    let chart_req = BacktestResultViewRequest {
+        run_id: "run-fee-test".to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["trades".to_owned()]),
+        ..Default::default()
+    };
+    let chart_res = project_authoritative_result_view(&payload, None, &chart_req).unwrap();
+    let trades = chart_res["series"]["trades"].as_array().unwrap();
+    assert_eq!(trades.len(), 2);
+    assert_eq!(trades[0]["price"], 150.0);
+    assert_eq!(trades[0]["quantity"], 100.0);
+    assert_eq!(trades[0]["quoteQuantity"], 15000.0);
+    assert_eq!(trades[0]["totalFee"], 12.5);
+}
+
+#[test]
+fn test_result_view_resolution_downsampling() {
+    use crate::product::product_research_backtest_projection::project_authoritative_result_view;
+    use crate::product::BacktestResultViewRequest;
+
+    let payload = json!({
+        "id": "run-downsample-test",
+        "status": "completed",
+        "result": {
+            "candles": [
+                {"time": "2026-01-01T10:00:00Z", "open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 10.0},
+                {"time": "2026-01-01T10:01:00Z", "open": 102.0, "high": 108.0, "low": 101.0, "close": 107.0, "volume": 20.0},
+                {"time": "2026-01-01T10:05:00Z", "open": 107.0, "high": 110.0, "low": 106.0, "close": 108.0, "volume": 30.0},
+                {"time": "2026-01-01T10:06:00Z", "open": 108.0, "high": 112.0, "low": 107.0, "close": 111.0, "volume": 40.0}
+            ],
+            "equityCurve": [
+                {"time": "2026-01-01T10:00:00Z", "equity": 1000.0},
+                {"time": "2026-01-01T10:01:00Z", "equity": 1050.0},
+                {"time": "2026-01-01T10:05:00Z", "equity": 1080.0},
+                {"time": "2026-01-01T10:06:00Z", "equity": 1120.0}
+            ]
+        }
+    });
+
+    let req = BacktestResultViewRequest {
+        run_id: "run-downsample-test".to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["candles".to_owned(), "pnlCurve".to_owned()]),
+        resolution: Some("5m".to_owned()),
+        ..Default::default()
+    };
+    let res = project_authoritative_result_view(&payload, None, &req).unwrap();
+    let candles = res["series"]["candles"].as_array().unwrap();
+    assert_eq!(candles.len(), 2, "4 minutes bucketed into two 5m candles");
+    assert_eq!(candles[0]["open"], 100.0);
+    assert_eq!(candles[0]["high"], 108.0);
+    assert_eq!(candles[0]["low"], 99.0);
+    assert_eq!(candles[0]["close"], 107.0);
+    assert_eq!(candles[0]["volume"], 30.0);
+
+    let pnl = res["series"]["pnlCurve"].as_array().unwrap();
+    assert_eq!(pnl.len(), 2, "equity points downsampled by resolution");
+    assert_eq!(pnl[0]["equity"], 1050.0, "last equity point in first 5m bucket");
+    assert_eq!(pnl[1]["equity"], 1120.0, "last equity point in second 5m bucket");
+}
+
+#[test]
+fn test_result_view_seed_preservation_and_metadata_stripping() {
+    let raw_payload = json!({
+        "symbol": "HK.00700",
+        "interval": "1m",
+        "marketDataProvider": "futu",
+        "__resultViewSeed": {
+            "formal_candles": [{"time": "2026-01-01T09:30:00Z", "open": 300.0}],
+            "formalStartTimeMs": 1704097800000_i64,
+            "warmupBars": 10,
+            "symbol": "HK.00700",
+            "nativeInterval": "1m"
+        }
+    });
+
+    let raw_str = raw_payload.to_string();
+    let (decoded, provider) = crate::product::product_production_ports::product_production_ports_execution::decode_request_metadata(&raw_str).unwrap();
+    assert_eq!(provider.as_deref(), Some("futu"));
+    assert!(decoded.get("__resultViewSeed").is_none(), "seed must be stripped in public projection");
+    assert!(decoded.get("marketDataProvider").is_none());
+    assert!(decoded.get("__marketDataProvider").is_none());
+    assert_eq!(decoded["symbol"], "HK.00700");
+}
+
+#[test]
+fn test_mcp_result_view_and_research_result_view_identity() {
+    use crate::product::product_research_backtest_execution::build_result_view_request_from_options;
+    use crate::product::BacktestResultViewRequest;
+
+    let options = json!({
+        "view": "chart",
+        "include": ["candles", "trades"],
+        "startTime": "2026-01-01T10:00:00Z",
+        "endTime": "2026-01-01T11:00:00Z",
+        "limit": 100,
+        "resolution": "5m"
+    });
+
+    let run_id = "test-run-123";
+    let research_req = build_result_view_request_from_options(run_id, Some(&options));
+
+    let mcp_req = BacktestResultViewRequest {
+        run_id: run_id.to_owned(),
+        view: Some("chart".to_owned()),
+        include: Some(vec!["candles".to_owned(), "trades".to_owned()]),
+        start_time: Some("2026-01-01T10:00:00Z".to_owned()),
+        end_time: Some("2026-01-01T11:00:00Z".to_owned()),
+        cursor: None,
+        limit: Some(100),
+        resolution: Some("5m".to_owned()),
+    };
+
+    assert_eq!(
+        research_req, mcp_req,
+        "both execution pathways must construct identical view requests"
+    );
+}

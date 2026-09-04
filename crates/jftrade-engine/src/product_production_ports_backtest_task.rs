@@ -239,6 +239,17 @@ impl ProductionBacktestPort {
                 "backtest K-line data is not ready".to_owned(),
             ));
         }
+        let result_view_seed = build_result_view_seed(
+            &formal_candles,
+            request.start_time_ms,
+            actual_warmup_count,
+            &request.symbol,
+            &request.interval,
+        );
+        let mut persisted_with_seed = persisted_payload.clone();
+        if let Some(obj) = persisted_with_seed.as_object_mut() {
+            obj.insert("__resultViewSeed".to_owned(), result_view_seed);
+        }
         candles.extend(formal_candles);
 
         let mut execution_payload = execution_payload;
@@ -257,7 +268,7 @@ impl ProductionBacktestPort {
         let run = jftrade_store_sqlite::StoredBacktestRun {
             id: run_id.clone(),
             status: "queued".to_owned(),
-            request_json: persist_request_with_provider(&persisted_payload, provider_id),
+            request_json: persist_request_with_provider(&persisted_with_seed, provider_id),
             result_json: String::new(),
             created_at: timestamp.clone(),
             updated_at: timestamp.clone(),
@@ -413,4 +424,37 @@ enum TaskOutcome {
     Cancelled,
     TimedOut,
     Failed(String),
+}
+
+fn build_result_view_seed(
+    formal_candles: &[jftrade_store_sqlite::StoredBacktestCandle],
+    start_time_ms: i64,
+    warmup_bars: usize,
+    symbol: &str,
+    interval: &str,
+) -> Value {
+    let seed_candles: Vec<Value> = formal_candles
+        .iter()
+        .map(|c| {
+            let rfc = time::OffsetDateTime::from_unix_timestamp_nanos((c.start_time as i128) * 1_000_000)
+                .ok()
+                .and_then(|dt| dt.format(&time::format_description::well_known::Rfc3339).ok());
+            json!({
+                "time": rfc.unwrap_or_else(|| c.start_time.to_string()),
+                "start": c.start_time,
+                "open": c.open.parse::<f64>().unwrap_or(0.0),
+                "high": c.high.parse::<f64>().unwrap_or(0.0),
+                "low": c.low.parse::<f64>().unwrap_or(0.0),
+                "close": c.close.parse::<f64>().unwrap_or(0.0),
+                "volume": c.volume.parse::<f64>().unwrap_or(0.0),
+            })
+        })
+        .collect();
+    json!({
+        "formal_candles": seed_candles,
+        "formalStartTimeMs": start_time_ms,
+        "warmupBars": warmup_bars,
+        "symbol": symbol,
+        "nativeInterval": interval,
+    })
 }

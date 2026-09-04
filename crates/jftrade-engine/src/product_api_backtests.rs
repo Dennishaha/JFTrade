@@ -5,6 +5,39 @@ pub trait BacktestReadSnapshotPort: Send + Sync + std::fmt::Debug {
     fn list(&self) -> Result<serde_json::Value, BacktestReadSnapshotError>;
     fn status(&self, run_id: &str) -> Result<Option<serde_json::Value>, BacktestReadSnapshotError>;
     fn result(&self, run_id: &str) -> Result<Option<serde_json::Value>, BacktestReadSnapshotError>;
+    fn result_view(
+        &self,
+        request: &BacktestResultViewRequest,
+    ) -> Result<Option<BacktestResultViewSnapshot>, BacktestResultViewError>;
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BacktestResultViewRequest {
+    pub run_id: String,
+    pub view: Option<String>,
+    pub include: Option<Vec<String>>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+    pub cursor: Option<String>,
+    pub limit: Option<usize>,
+    pub resolution: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BacktestResultViewSnapshot {
+    pub data: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum BacktestResultViewError {
+    #[error("invalid argument: {0}")]
+    Invalid(String),
+    #[error("backtest run was not found: {0}")]
+    NotFound(String),
+    #[error("backtest result view unavailable: {0}")]
+    Unavailable(String),
+    #[error("backtest result view failed: {0}")]
+    Failed(String),
 }
 
 /// Persisted projection for the mutable backtest sync-task state. The

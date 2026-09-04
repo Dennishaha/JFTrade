@@ -1,203 +1,18 @@
-//! Research backtest projection for ADK tools.
+//! Authoritative ResultView projection for backtest outcomes.
 //!
-//! Executes temporary strategy backtests using `BacktestsWritePort::Start`,
-//! polling `BacktestReadSnapshotPort` when `waitForCompletionMs > 0`, and
-//! generating the result view projection with full slice and window filtering.
+//! Provides deterministic view filtering, warmup trimming,
+//! and mapping from CorpusOutput (`cases[]`, `fills`, `orders`) to client view series.
 
-use std::time::Duration;
+use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
-use super::product_backtests_write_port::{BacktestsWriteInput, BacktestsWritePortResult};
-use crate::product::product_production_ports::ProductionPortBundle;
+#[path = "product_research_backtest_projection_filters.rs"]
+mod filters;
+pub(crate) use filters::*;
 
-fn research_script_hash(script: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(script.trim().as_bytes());
-    let result = hasher.finalize();
-    result[..8]
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>()
-}
-
-fn validate_research_script(
-    script: &str,
-) -> Result<jftrade_strategy::pinespec::ValidationPayload, String> {
-    let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
-    if !validation.ok {
-        return Err(format!(
-            "strategy script validation failed: {}",
-            validation.errors.join("; ")
-        ));
-    }
-    Ok(validation)
-}
-
-fn prepare_start_payload(arguments: &Value, script: &str) -> Value {
-    let mut start_payload = arguments.clone();
-    if let Some(obj) = start_payload.as_object_mut() {
-        obj.insert(
-            "strategyScript".to_owned(),
-            Value::String(script.to_owned()),
-        );
-        if !obj.contains_key("market") {
-            obj.insert("market".to_owned(), Value::String("HK".to_owned()));
-        }
-    }
-    start_payload
-}
-
-fn start_research_backtest(
-    ports: &ProductionPortBundle,
-    payload: Value,
-) -> Result<(String, String), String> {
-    let start_result = ports
-        .backtests_write
-        .mutate(&BacktestsWriteInput::Start { payload })
-        .map_err(|e| format!("failed to start research backtest: {e:?}"))?;
-
-    match start_result {
-        BacktestsWritePortResult::Data(data) => {
-            let id = data
-                .get("runId")
-                .or_else(|| data.get("id"))
-                .and_then(Value::as_str)
-                .ok_or_else(|| "backtest start response missing runId".to_owned())?
-                .to_owned();
-            let status = data
-                .get("status")
-                .and_then(Value::as_str)
-                .unwrap_or("queued")
-                .to_owned();
-            Ok((id, status))
-        }
-        other => Err(format!("unexpected backtest start result: {other:?}")),
-    }
-}
-
-fn poll_backtest_completion(
-    ports: &ProductionPortBundle,
-    run_id: &str,
-    wait_ms: u64,
-    initial_status: String,
-) -> String {
-    let mut current_status = initial_status;
-    if wait_ms == 0
-        || matches!(
-            current_status.as_str(),
-            "completed" | "failed" | "cancelled"
-        )
-    {
-        return current_status;
-    }
-    let start_instant = std::time::Instant::now();
-    let timeout = Duration::from_millis(wait_ms);
-    let poll_interval = Duration::from_millis(50);
-
-    while start_instant.elapsed() < timeout {
-        std::thread::sleep(poll_interval);
-        if let Ok(Some(status_val)) = ports.backtest_read.status(run_id)
-            && let Some(st) = status_val.get("status").and_then(Value::as_str)
-        {
-            current_status = st.to_owned();
-            if matches!(
-                current_status.as_str(),
-                "completed" | "failed" | "cancelled"
-            ) {
-                break;
-            }
-        }
-    }
-    current_status
-}
-
-fn slice_items(items: &[Value], offset: usize, limit: usize) -> (Vec<Value>, Option<String>) {
-    if offset >= items.len() {
-        return (Vec::new(), None);
-    }
-    let end = (offset + limit).min(items.len());
-    let next = if end < items.len() {
-        Some(end.to_string())
-    } else {
-        None
-    };
-    (items[offset..end].to_vec(), next)
-}
-
-fn parse_timestamp_nanos(val: Option<&Value>) -> Option<i128> {
-    match val {
-        Some(Value::Number(n)) => {
-            let ms = n.as_i64()?;
-            Some((ms as i128) * 1_000_000)
-        }
-        Some(Value::String(s)) => parse_rfc3339_nanos(s),
-        _ => None,
-    }
-}
-
-fn parse_rfc3339_nanos(s: &str) -> Option<i128> {
-    if let Ok(dt) = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339) {
-        Some(dt.unix_timestamp_nanos())
-    } else if let Ok(ms) = s.parse::<i64>() {
-        Some((ms as i128) * 1_000_000)
-    } else {
-        None
-    }
-}
-
-fn item_in_time_window(
-    time_val: Option<&Value>,
-    start_time: Option<&str>,
-    end_time: Option<&str>,
-) -> bool {
-    if start_time.is_none() && end_time.is_none() {
-        return true;
-    }
-    let Some(t_nanos) = parse_timestamp_nanos(time_val) else {
-        return true;
-    };
-    if let Some(start) = start_time
-        && let Some(start_nanos) = parse_rfc3339_nanos(start)
-        && t_nanos < start_nanos
-    {
-        return false;
-    }
-    if let Some(end) = end_time
-        && let Some(end_nanos) = parse_rfc3339_nanos(end)
-        && t_nanos > end_nanos
-    {
-        return false;
-    }
-    true
-}
-
-fn filter_timed_items(
-    items: &[Value],
-    time_field: &str,
-    start_time: Option<&str>,
-    end_time: Option<&str>,
-) -> Vec<Value> {
-    if start_time.is_none() && end_time.is_none() {
-        return items.to_vec();
-    }
-    items
-        .iter()
-        .filter(|item| {
-            let t = item.get(time_field);
-            item_in_time_window(t, start_time, end_time)
-        })
-        .cloned()
-        .collect()
-}
-
-struct ChartWindowArgs<'a> {
-    start_time: Option<&'a str>,
-    end_time: Option<&'a str>,
-    offset: usize,
-    limit: usize,
-}
+pub(crate) use crate::product::product_research_backtest_execution::execute_research_backtest;
+use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 
 struct NormalizedBacktestData {
     summary: Value,
@@ -286,186 +101,334 @@ fn annotate_and_trim_warmup(
     for order in orders {
         if let Some(obj) = order.as_object_mut() {
             let is_warmup = formal_start_nanos.is_some_and(|fs| {
-                parse_timestamp_nanos(obj.get("submittedAt").or_else(|| obj.get("filledAt"))).is_some_and(|t| t < fs)
+                parse_timestamp_nanos(obj.get("submittedAt").or_else(|| obj.get("filledAt")))
+                    .is_some_and(|t| t < fs)
             });
             obj.insert("warmup".to_owned(), json!(is_warmup));
         }
     }
 }
 
-fn extract_normalized_backtest(
+fn map_fill_to_trade(fill: &Value, symbol: &str, formal_start_nanos: Option<i128>) -> Value {
+    let trade_id = fill
+        .get("tradeId")
+        .or_else(|| fill.get("id"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let order_id = fill
+        .get("orderId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let time_val = fill.get("time").cloned().unwrap_or(Value::Null);
+    let is_warmup = formal_start_nanos
+        .is_some_and(|fs| parse_timestamp_nanos(Some(&time_val)).is_some_and(|t| t < fs));
+    let fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
+    json!({
+        "id": trade_id,
+        "tradeId": trade_id,
+        "orderId": order_id,
+        "clientOrderId": fill.get("clientOrderId").cloned().unwrap_or(Value::Null),
+        "symbol": fill.get("symbol").and_then(Value::as_str).unwrap_or(symbol),
+        "side": fill.get("side").or_else(|| fill.get("action")).and_then(Value::as_str).unwrap_or_default(),
+        "action": fill.get("side").or_else(|| fill.get("action")).and_then(Value::as_str).unwrap_or_default(),
+        "price": parse_f64_val(fill.get("price")),
+        "quantity": parse_f64_val(fill.get("quantity")),
+        "quoteQuantity": parse_f64_val(fill.get("quoteQuantity")),
+        "time": time_val,
+        "fee": fee,
+        "totalFee": fee,
+        "realizedPnl": parse_f64_val(fill.get("realizedPnl")),
+        "warmup": is_warmup,
+    })
+}
+
+fn map_order_to_orderbook(
+    order: &Value,
+    symbol: &str,
+    fees_by_order: &HashMap<String, f64>,
+    formal_start_nanos: Option<i128>,
+) -> Value {
+    let order_id = order
+        .get("orderId")
+        .or_else(|| order.get("id"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let sub = order.get("submittedAt").or_else(|| order.get("time"));
+    let fil = order.get("filledAt");
+    let is_warmup = formal_start_nanos.is_some_and(|fs| {
+        parse_timestamp_nanos(sub.or(fil)).is_some_and(|t| t < fs)
+    });
+    let fee = fees_by_order.get(order_id).copied().unwrap_or(0.0);
+    let order_type = order
+        .get("orderType")
+        .or_else(|| order.get("type"))
+        .and_then(Value::as_str)
+        .unwrap_or("MARKET");
+    json!({
+        "id": order_id,
+        "orderId": order_id,
+        "clientOrderId": order.get("clientOrderId").cloned().unwrap_or(Value::Null),
+        "symbol": order.get("symbol").and_then(Value::as_str).unwrap_or(symbol),
+        "side": order.get("side").and_then(Value::as_str).unwrap_or_default(),
+        "orderType": order_type,
+        "type": order_type,
+        "quantity": parse_f64_val(order.get("quantity")),
+        "status": order.get("status").and_then(Value::as_str).unwrap_or("FILLED"),
+        "filledQuantity": parse_f64_val(order.get("filledQuantity")),
+        "filledPrice": parse_f64_val(order.get("filledPrice")),
+        "submittedAt": sub.cloned().unwrap_or(Value::Null),
+        "filledAt": fil.cloned().unwrap_or(Value::Null),
+        "time": sub.cloned().unwrap_or(Value::Null),
+        "totalFees": fee,
+        "fee": fee,
+        "warmup": is_warmup,
+    })
+}
+
+fn map_curve_point(point: &Value, val_key: &str) -> Value {
+    let mut obj = point.as_object().cloned().unwrap_or_default();
+    if let Some(v) = obj.get(val_key) {
+        let num = parse_f64_val(Some(v));
+        obj.insert(val_key.to_owned(), json!(num));
+    }
+    Value::Object(obj)
+}
+
+fn extract_corpus_case_backtest(
+    result_val: &Value,
+    c: &Value,
+    seed_candles: Option<&[Value]>,
+    formal_start_nanos: Option<i128>,
+) -> NormalizedBacktestData {
+    let symbol = result_val
+        .get("request")
+        .and_then(|r| r.get("symbol"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let raw_orders = c.get("orders").and_then(Value::as_array).cloned().unwrap_or_default();
+    let raw_fills = c.get("fills").and_then(Value::as_array).cloned().unwrap_or_default();
+
+    let mut fees_by_order: HashMap<String, f64> = HashMap::new();
+    for fill in &raw_fills {
+        if let Some(order_id) = fill.get("orderId").and_then(Value::as_str) {
+            let fee = parse_f64_val(fill.get("totalFee").or_else(|| fill.get("fee")));
+            *fees_by_order.entry(order_id.to_owned()).or_default() += fee;
+        }
+    }
+
+    let mut trades: Vec<Value> = raw_fills
+        .into_iter()
+        .map(|fill| map_fill_to_trade(&fill, symbol, formal_start_nanos))
+        .collect();
+    let mut orders: Vec<Value> = raw_orders
+        .into_iter()
+        .map(|ord| map_order_to_orderbook(&ord, symbol, &fees_by_order, formal_start_nanos))
+        .collect();
+    let mut pnl_curve: Vec<Value> = c
+        .get("equityCurve")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| map_curve_point(&p, "equity"))
+        .collect();
+    let mut drawdown_curve: Vec<Value> = c
+        .get("drawdownCurve")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| map_curve_point(&p, "drawdown"))
+        .collect();
+    let warnings = c.get("warnings").and_then(Value::as_array).cloned().unwrap_or_default();
+
+    let mut candles = if let Some(seed) = seed_candles {
+        seed.to_vec()
+    } else {
+        result_val
+            .get("result")
+            .and_then(|r| r.get("candles"))
+            .or_else(|| result_val.get("candles"))
+            .or_else(|| result_val.get("request").and_then(|r| r.get("candles")))
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+    };
+
+    let logs = result_val
+        .get("logs")
+        .or_else(|| result_val.get("result").and_then(|r| r.get("logs")))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let runtime_errors = result_val
+        .get("runtimeErrors")
+        .or_else(|| result_val.get("errors"))
+        .or_else(|| result_val.get("result").and_then(|r| r.get("runtimeErrors")))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    annotate_and_trim_warmup(
+        formal_start_nanos,
+        &mut candles,
+        &mut pnl_curve,
+        &mut drawdown_curve,
+        &mut trades,
+        &mut orders,
+    );
+
+    let candles_count = if !candles.is_empty() {
+        candles.len()
+    } else {
+        c.get("processedBars").and_then(Value::as_u64).unwrap_or(0) as usize
+    };
+
+    let lengths = CaseLengths {
+        orders: orders.len(),
+        trades: trades.len(),
+        candles: candles_count,
+        pnl: pnl_curve.len(),
+        drawdown: drawdown_curve.len(),
+        warnings: warnings.len(),
+        logs: logs.len(),
+        errors: runtime_errors.len(),
+    };
+    let mut summary = extract_case_summary(c, &lengths);
+    if let Some(existing) = result_val.get("result").and_then(|r| r.get("summary")).and_then(Value::as_object)
+        && let Some(s_obj) = summary.as_object_mut()
+    {
+        for (k, v) in existing {
+            s_obj.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+    }
+
+    NormalizedBacktestData {
+        summary,
+        candles,
+        trades,
+        pnl_curve,
+        drawdown_curve,
+        orders,
+        logs,
+        warnings,
+        runtime_errors,
+    }
+}
+
+fn extract_legacy_backtest(
     result_val: &Value,
     result_node: &serde_json::Map<String, Value>,
+    seed_candles: Option<&[Value]>,
+    formal_start_nanos: Option<i128>,
+) -> NormalizedBacktestData {
+    let empty_vec = Vec::new();
+    let mut orders = result_node
+        .get("orderBook")
+        .or_else(|| result_node.get("orders"))
+        .or_else(|| result_val.get("orders"))
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let mut trades = result_node
+        .get("trades")
+        .or_else(|| result_val.get("trades"))
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let mut candles = if let Some(seed) = seed_candles {
+        seed.to_vec()
+    } else {
+        result_node
+            .get("candles")
+            .or_else(|| result_val.get("candles"))
+            .and_then(Value::as_array)
+            .unwrap_or(&empty_vec)
+            .clone()
+    };
+    let mut pnl_curve = result_node
+        .get("pnlCurve")
+        .or_else(|| result_node.get("equityCurve"))
+        .or_else(|| result_node.get("equity"))
+        .or_else(|| result_val.get("pnlCurve"))
+        .or_else(|| result_val.get("equityCurve"))
+        .or_else(|| result_val.get("equity"))
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let mut drawdown_curve = result_node
+        .get("drawdownCurve")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let logs = result_node
+        .get("logs")
+        .or_else(|| result_val.get("logs"))
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let warnings = result_node
+        .get("warnings")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let runtime_errors = result_node
+        .get("runtimeErrors")
+        .or_else(|| result_node.get("errors"))
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec)
+        .clone();
+    let summary = result_node
+        .get("summary")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+
+    annotate_and_trim_warmup(
+        formal_start_nanos,
+        &mut candles,
+        &mut pnl_curve,
+        &mut drawdown_curve,
+        &mut trades,
+        &mut orders,
+    );
+
+    NormalizedBacktestData {
+        summary,
+        candles,
+        trades,
+        pnl_curve,
+        drawdown_curve,
+        orders,
+        logs,
+        warnings,
+        runtime_errors,
+    }
+}
+
+fn extract_normalized_backtest(
+    result_val: &Value,
+    seed_candles: Option<&[Value]>,
 ) -> NormalizedBacktestData {
     let formal_start_nanos = result_val
         .get("request")
         .and_then(|r| r.get("startTime").or_else(|| r.get("startDate")))
         .and_then(|v| parse_timestamp_nanos(Some(v)));
 
+    let empty_obj = serde_json::Map::new();
+    let result_node = result_val
+        .get("result")
+        .and_then(Value::as_object)
+        .or_else(|| result_val.as_object())
+        .unwrap_or(&empty_obj);
+
     if let Some(cases) = result_node
         .get("cases")
         .and_then(Value::as_array)
         .filter(|c| !c.is_empty())
     {
-        let c = &cases[0];
-        let mut orders = c
-            .get("orders")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let mut trades = c
-            .get("fills")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let mut pnl_curve = c
-            .get("equityCurve")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let mut drawdown_curve = c
-            .get("drawdownCurve")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let warnings = c
-            .get("warnings")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let mut candles = result_node
-            .get("candles")
-            .or_else(|| result_val.get("request").and_then(|r| r.get("candles")))
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let logs = result_node
-            .get("logs")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let runtime_errors = result_node
-            .get("runtimeErrors")
-            .or_else(|| result_node.get("errors"))
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-
-        annotate_and_trim_warmup(
-            formal_start_nanos,
-            &mut candles,
-            &mut pnl_curve,
-            &mut drawdown_curve,
-            &mut trades,
-            &mut orders,
-        );
-
-        let candles_count = if !candles.is_empty() {
-            candles.len()
-        } else {
-            c.get("processedBars").and_then(Value::as_u64).unwrap_or(0) as usize
-        };
-
-        let lengths = CaseLengths {
-            orders: orders.len(),
-            trades: trades.len(),
-            candles: candles_count,
-            pnl: pnl_curve.len(),
-            drawdown: drawdown_curve.len(),
-            warnings: warnings.len(),
-            logs: logs.len(),
-            errors: runtime_errors.len(),
-        };
-        let mut summary = extract_case_summary(c, &lengths);
-
-        if let Some(existing) = result_node.get("summary").and_then(Value::as_object)
-            && let Some(s_obj) = summary.as_object_mut()
-        {
-            for (k, v) in existing {
-                s_obj.entry(k.clone()).or_insert_with(|| v.clone());
-            }
-        }
-
-        NormalizedBacktestData {
-            summary,
-            candles,
-            trades,
-            pnl_curve,
-            drawdown_curve,
-            orders,
-            logs,
-            warnings,
-            runtime_errors,
-        }
+        extract_corpus_case_backtest(result_val, &cases[0], seed_candles, formal_start_nanos)
     } else {
-        let empty_vec = Vec::new();
-        let mut orders = result_node
-            .get("orderBook")
-            .or_else(|| result_node.get("orders"))
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let mut trades = result_node
-            .get("trades")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let mut candles = result_node
-            .get("candles")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let mut pnl_curve = result_node
-            .get("pnlCurve")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let mut drawdown_curve = result_node
-            .get("drawdownCurve")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let logs = result_node
-            .get("logs")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let warnings = result_node
-            .get("warnings")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let runtime_errors = result_node
-            .get("runtimeErrors")
-            .or_else(|| result_node.get("errors"))
-            .and_then(Value::as_array)
-            .unwrap_or(&empty_vec)
-            .clone();
-        let summary = result_node
-            .get("summary")
-            .cloned()
-            .unwrap_or_else(|| json!({}));
-
-        annotate_and_trim_warmup(
-            formal_start_nanos,
-            &mut candles,
-            &mut pnl_curve,
-            &mut drawdown_curve,
-            &mut trades,
-            &mut orders,
-        );
-
-        NormalizedBacktestData {
-            summary,
-            candles,
-            trades,
-            pnl_curve,
-            drawdown_curve,
-            orders,
-            logs,
-            warnings,
-            runtime_errors,
-        }
+        extract_legacy_backtest(result_val, result_node, seed_candles, formal_start_nanos)
     }
 }
 
@@ -603,56 +566,58 @@ fn dispatch_view_projection(
     }
 }
 
-pub(crate) fn project_result_view(result_val: &Value, options: Option<&Value>) -> Value {
-    let view = options
-        .and_then(|o| o.get("view"))
-        .and_then(Value::as_str)
-        .unwrap_or("summary");
-    let limit = options
-        .and_then(|o| o.get("limit"))
-        .and_then(Value::as_u64)
-        .unwrap_or(500)
-        .clamp(1, 2000) as usize;
-    let offset = options
-        .and_then(|o| o.get("cursor"))
-        .and_then(Value::as_str)
-        .and_then(|c| c.parse::<usize>().ok())
-        .unwrap_or(0);
-    let start_time = options
-        .and_then(|o| o.get("startTime"))
-        .and_then(Value::as_str);
-    let end_time = options
-        .and_then(|o| o.get("endTime"))
-        .and_then(Value::as_str);
+pub(crate) fn project_authoritative_result_view(
+    run_val: &Value,
+    seed_candles: Option<&[Value]>,
+    request: &BacktestResultViewRequest,
+) -> Result<Value, BacktestResultViewError> {
+    let params = validate_result_view_request(request)?;
+    let mut data = extract_normalized_backtest(run_val, seed_candles);
 
-    let empty_obj = serde_json::Map::new();
-    let result_node = result_val
-        .get("result")
-        .and_then(Value::as_object)
-        .or_else(|| result_val.as_object())
-        .unwrap_or(&empty_obj);
-    let data = extract_normalized_backtest(result_val, result_node);
+    if params.view == "chart" {
+        let default_includes = ["candles", "trades", "pnlCurve", "drawdownCurve"];
+        let requested_includes: Vec<&str> = request
+            .include
+            .as_ref()
+            .map(|arr| arr.iter().map(String::as_str).collect())
+            .filter(|arr: &Vec<&str>| !arr.is_empty())
+            .unwrap_or_else(|| default_includes.to_vec());
+
+        if let Some(res_ms) = params.resolution_ms {
+            if requested_includes.contains(&"candles") {
+                data.candles = downsample_candles(&data.candles, res_ms);
+            }
+            if requested_includes.contains(&"pnlCurve") {
+                data.pnl_curve = downsample_curve(&data.pnl_curve, "equity", res_ms);
+            }
+            if requested_includes.contains(&"drawdownCurve") {
+                data.drawdown_curve = downsample_curve(&data.drawdown_curve, "drawdown", res_ms);
+            }
+        }
+    }
 
     let mut window = serde_json::Map::new();
-    window.insert("startTime".to_owned(), json!(start_time));
-    window.insert("endTime".to_owned(), json!(end_time));
-    window.insert("limit".to_owned(), json!(limit));
-    window.insert("offset".to_owned(), json!(offset));
+    window.insert("startTime".to_owned(), json!(request.start_time));
+    window.insert("endTime".to_owned(), json!(request.end_time));
+    window.insert("limit".to_owned(), json!(params.limit));
+    window.insert("offset".to_owned(), json!(params.offset));
     window.insert("truncated".to_owned(), json!(false));
     window.insert("nextCursor".to_owned(), json!(""));
     let mut returned = serde_json::Map::new();
     let mut series = serde_json::Map::new();
 
     let args = ChartWindowArgs {
-        start_time,
-        end_time,
-        offset,
-        limit,
+        start_time: request.start_time.as_deref(),
+        end_time: request.end_time.as_deref(),
+        offset: params.offset,
+        limit: params.limit,
     };
+    let include_opt = request.include.as_ref().map(|inc| json!({"include": inc}));
+
     dispatch_view_projection(
-        view,
+        &params.view,
         &data,
-        options,
+        include_opt.as_ref(),
         &args,
         &mut series,
         &mut returned,
@@ -661,136 +626,58 @@ pub(crate) fn project_result_view(result_val: &Value, options: Option<&Value>) -
     window.insert("returned".to_owned(), Value::Object(returned));
 
     let run_payload = json!({
-        "id": result_val.get("id").unwrap_or(&Value::Null),
-        "status": result_val.get("status").unwrap_or(&Value::Null),
-        "request": result_val.get("request").unwrap_or(&Value::Null),
-        "marketDataProvider": result_val.get("marketDataProvider").unwrap_or(&Value::Null),
+        "id": run_val.get("id").unwrap_or(&Value::Null),
+        "status": run_val.get("status").unwrap_or(&Value::Null),
+        "request": run_val.get("request").unwrap_or(&Value::Null),
+        "marketDataProvider": run_val.get("marketDataProvider").unwrap_or(&Value::Null),
     });
 
-    json!({
-        "view": view,
+    Ok(json!({
+        "view": params.view,
         "run": run_payload,
         "summary": data.summary,
         "window": window,
         "series": series,
-    })
+    }))
 }
 
-pub(crate) fn extract_run_metadata(
-    result_val: Option<&Value>,
-    arguments: &Value,
-) -> (String, String, String, bool, String, Value) {
-    let request = result_val.and_then(|r| r.get("request"));
-    let provider = result_val
-        .and_then(|r| r.get("marketDataProvider"))
-        .or_else(|| request.and_then(|req| req.get("marketDataProvider")))
-        .or_else(|| arguments.get("marketDataProvider"))
-        .and_then(Value::as_str)
-        .unwrap_or("futu")
-        .to_owned();
-    let chart_type = result_val
-        .and_then(|r| r.get("chartType"))
-        .or_else(|| request.and_then(|req| req.get("chartType")))
-        .or_else(|| arguments.get("chartType"))
-        .and_then(Value::as_str)
-        .unwrap_or("standard")
-        .to_owned();
-    let instrument_type = result_val
-        .and_then(|r| r.get("instrumentType"))
-        .or_else(|| request.and_then(|req| req.get("instrumentType")))
-        .or_else(|| arguments.get("instrumentType"))
-        .and_then(Value::as_str)
-        .unwrap_or("stock")
-        .to_owned();
-    let use_extended_hours = result_val
-        .and_then(|r| r.get("useExtendedHours"))
-        .or_else(|| request.and_then(|req| req.get("useExtendedHours")))
-        .or_else(|| arguments.get("useExtendedHours"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let execution_model = result_val
-        .and_then(|r| r.get("executionModel"))
-        .or_else(|| request.and_then(|req| req.get("executionModel")))
-        .or_else(|| arguments.get("executionModel"))
-        .and_then(Value::as_str)
-        .unwrap_or("conservative-bar-v1")
-        .to_owned();
-    let trading_costs = result_val
-        .and_then(|r| r.get("tradingCosts"))
-        .or_else(|| request.and_then(|req| req.get("tradingCosts")))
-        .or_else(|| arguments.get("tradingCosts"))
-        .cloned()
-        .unwrap_or(Value::Null);
-
-    (
-        provider,
-        chart_type,
-        instrument_type,
-        use_extended_hours,
-        execution_model,
-        trading_costs,
-    )
-}
-
-pub(crate) fn execute_research_backtest(
-    ports: &ProductionPortBundle,
-    arguments: &Value,
-) -> Result<Value, String> {
-    let script = arguments
-        .get("script")
-        .or_else(|| arguments.get("strategyScript"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| "script is required".to_owned())?;
-
-    let validation = validate_research_script(script)?;
-    let start_payload = prepare_start_payload(arguments, script);
-    let (run_id, initial_status) = start_research_backtest(ports, start_payload)?;
-
-    let wait_ms = arguments
-        .get("waitForCompletionMs")
-        .and_then(Value::as_i64)
-        .unwrap_or(0)
-        .clamp(0, 25_000) as u64;
-
-    let mut current_status = poll_backtest_completion(ports, &run_id, wait_ms, initial_status);
-
-    let result_snapshot = ports.backtest_read.result(&run_id).ok().flatten();
-    if let Some(ref res) = result_snapshot
-        && let Some(st) = res.get("status").and_then(Value::as_str)
-    {
-        current_status = st.to_owned();
-    }
-
-    let (provider, chart_type, inst_type, extended, exec_model, fees) =
-        extract_run_metadata(result_snapshot.as_ref(), arguments);
-
-    let mut response = json!({
-        "ok": true,
-        "status": current_status,
-        "runId": run_id,
-        "marketDataProvider": provider,
-        "chartType": chart_type,
-        "instrumentType": inst_type,
-        "useExtendedHours": extended,
-        "executionModel": exec_model,
-        "tradingCosts": fees,
-        "scriptHash": research_script_hash(script),
-        "validation": {
-            "metadata": validation.metadata,
-            "hooks": validation.hooks,
-            "warnings": validation.warnings,
-        },
-        "saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
-    });
-
-    if let Some(ref res) = result_snapshot {
-        let view_opts = arguments.get("resultView");
-        response["resultView"] = project_result_view(res, view_opts);
-    } else {
-        response["resultViewError"] = Value::String("result view snapshot unavailable".to_owned());
-    }
-
-    Ok(response)
+#[allow(dead_code)]
+pub(crate) fn project_result_view(result_val: &Value, options: Option<&Value>) -> Value {
+    let req = BacktestResultViewRequest {
+        run_id: result_val
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
+        view: options
+            .and_then(|o| o.get("view"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        include: options
+            .and_then(|o| o.get("include"))
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(Value::as_str).map(str::to_owned).collect()),
+        start_time: options
+            .and_then(|o| o.get("startTime"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        end_time: options
+            .and_then(|o| o.get("endTime"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        cursor: options
+            .and_then(|o| o.get("cursor"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        limit: options
+            .and_then(|o| o.get("limit"))
+            .and_then(Value::as_u64)
+            .map(|v| v as usize),
+        resolution: options
+            .and_then(|o| o.get("resolution"))
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+    };
+    project_authoritative_result_view(result_val, None, &req)
+        .unwrap_or_else(|err| json!({"error": err.to_string()}))
 }

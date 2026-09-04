@@ -14,6 +14,7 @@ use super::product_mcp_protocol::{
     model_search_text, optional_bool, optional_integer, optional_string, provider_model,
 };
 use super::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
+use crate::product::{BacktestResultViewError, BacktestResultViewRequest};
 use super::strategy_pine_mcp::{PINE_SPEC_TOOL, VALIDATE_PINE_TOOL, dispatch_strategy_pine_mcp};
 use jftrade_store_sqlite::AdkStore;
 
@@ -518,14 +519,39 @@ impl ProductionMcpToolExecutor {
 
     fn backtest_result_view(&self, arguments: &Value) -> Result<Value, McpToolFailure> {
         let run_id = required_string(arguments, "runId")?;
-        validate_result_view_arguments(arguments)?;
-        self.ports()?
-            .backtest_read
-            .result(&run_id)
-            .map_err(backtest_error)?
-            .ok_or_else(|| {
-                McpToolFailure::failed(404, "BACKTEST_NOT_FOUND", "backtest run was not found")
-            })
+        let view_req = BacktestResultViewRequest {
+            run_id,
+            view: optional_string(arguments, "view"),
+            include: arguments
+                .get("include")
+                .and_then(Value::as_array)
+                .map(|arr| arr.iter().filter_map(Value::as_str).map(str::to_owned).collect()),
+            start_time: optional_string(arguments, "startTime"),
+            end_time: optional_string(arguments, "endTime"),
+            cursor: optional_string(arguments, "cursor"),
+            limit: arguments.get("limit").and_then(Value::as_u64).map(|v| v as usize),
+            resolution: optional_string(arguments, "resolution"),
+        };
+        match self.ports()?.backtest_read.result_view(&view_req) {
+            Ok(Some(snapshot)) => Ok(snapshot.data),
+            Ok(None) => Err(McpToolFailure::failed(
+                404,
+                "BACKTEST_NOT_FOUND",
+                "backtest run was not found",
+            )),
+            Err(BacktestResultViewError::Invalid(msg)) => Err(McpToolFailure::invalid(msg)),
+            Err(BacktestResultViewError::NotFound(msg)) => {
+                Err(McpToolFailure::failed(404, "BACKTEST_NOT_FOUND", msg))
+            }
+            Err(BacktestResultViewError::Unavailable(msg)) => Err(McpToolFailure::failed(
+                503,
+                "BACKTEST_RESULT_UNAVAILABLE",
+                msg,
+            )),
+            Err(BacktestResultViewError::Failed(msg)) => {
+                Err(McpToolFailure::failed(500, "BACKTEST_RESULT_FAILED", msg))
+            }
+        }
     }
 
     fn broker_read(&self, resource: &str, arguments: &Value) -> Result<Value, McpToolFailure> {

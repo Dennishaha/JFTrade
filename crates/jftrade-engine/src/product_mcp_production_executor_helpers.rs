@@ -344,37 +344,6 @@ pub(super) fn broker_query(arguments: &Value, scope: String) -> String {
     ])
 }
 
-pub(super) fn validate_result_view_arguments(arguments: &Value) -> Result<(), McpToolFailure> {
-    if let Some(view) = super::optional_string(arguments, "view")
-        && !matches!(
-            view.to_ascii_lowercase().as_str(),
-            "summary" | "chart" | "orders" | "logs" | "warnings" | "errors"
-        )
-    {
-        return Err(McpToolFailure::invalid(
-            "view must be summary, chart, orders, logs, warnings, or errors",
-        ));
-    }
-    if arguments.get("include").is_some() {
-        let Some(include) = arguments.get("include").and_then(Value::as_array) else {
-            return Err(McpToolFailure::invalid("include must be an array"));
-        };
-        if include.iter().any(|value| {
-            !value.as_str().is_some_and(|item| {
-                matches!(item, "candles" | "trades" | "pnlCurve" | "drawdownCurve")
-            })
-        }) {
-            return Err(McpToolFailure::invalid(
-                "include contains an unsupported series",
-            ));
-        }
-    }
-    if arguments.get("limit").is_some() {
-        bounded_integer(arguments, "limit", 0, 1, 2_000)?;
-    }
-    Ok(())
-}
-
 pub(super) fn add_retry_hint(mut payload: Value) -> Value {
     if let Some(object) = payload.as_object_mut()
         && !object.contains_key("readyToRetry")

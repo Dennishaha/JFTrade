@@ -69,6 +69,22 @@ impl BacktestReadSnapshotPort for FixtureBacktestReadPort {
         }
         Ok(None)
     }
+
+    fn result_view(
+        &self,
+        request: &BacktestResultViewRequest,
+    ) -> Result<Option<BacktestResultViewSnapshot>, BacktestResultViewError> {
+        if request.run_id == "store-failure" {
+            return Err(BacktestResultViewError::Unavailable(
+                "load backtest result failed".to_owned(),
+            ));
+        }
+        if request.run_id == "fixture-run" {
+            let res = self.data.get("result-existing").cloned().unwrap_or(Value::Null);
+            return Ok(Some(BacktestResultViewSnapshot { data: res }));
+        }
+        Ok(None)
+    }
 }
 
 #[derive(Debug)]
@@ -89,6 +105,15 @@ impl BacktestReadSnapshotPort for FailingBacktestReadPort {
 
     fn result(&self, _run_id: &str) -> Result<Option<Value>, BacktestReadSnapshotError> {
         Err(BacktestReadSnapshotError::Unavailable(
+            "Go backtest run store unavailable".to_owned(),
+        ))
+    }
+
+    fn result_view(
+        &self,
+        _request: &BacktestResultViewRequest,
+    ) -> Result<Option<BacktestResultViewSnapshot>, BacktestResultViewError> {
+        Err(BacktestResultViewError::Unavailable(
             "Go backtest run store unavailable".to_owned(),
         ))
     }
