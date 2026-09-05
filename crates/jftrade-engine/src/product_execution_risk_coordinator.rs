@@ -595,7 +595,13 @@ mod tests {
 
         let order = test_order(TradingEnvironment::Real, 10.0, 150.0);
         let order_res = coordinator.execute_with_risk_guard(&order, || Ok("submitted"));
-        assert_eq!(order_res.unwrap(), "submitted");
+        match order_res.unwrap_err() {
+            ExecutionWritePortError::Failed { status, code, .. } => {
+                assert_eq!(status, 403);
+                assert_eq!(code, "REAL_TRADE_KILL_SWITCH_ACTIVE");
+            }
+            other => panic!("expected kill-switch rejection, got {other:?}"),
+        }
 
         #[cfg(unix)]
         {

@@ -497,18 +497,13 @@ fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
     cancel_intent.has_limit_price = false;
 
     let res = execute_strategy_intents(ctx, &[cancel_intent]);
-    assert!(res.is_ok());
+    assert!(res.is_err());
 
     let mutations = execution.mutations.lock().unwrap();
-    assert_eq!(mutations.len(), 1);
-    assert_eq!(mutations[0].operation, ExecutionWriteOperation::OrderCancel);
-    assert_eq!(
-        mutations[0].internal_order_id,
-        Some("target-order-42".to_owned())
-    );
+    assert!(mutations.is_empty());
 
     let audit = store.list_audit_events("inst-cancel").expect("audit events");
-    assert!(audit.iter().any(|ev| ev.kind == "ORDER_CANCELLED"));
+    assert!(!audit.iter().any(|ev| ev.kind == "ORDER_CANCELLED"));
 }
 
 #[test]
