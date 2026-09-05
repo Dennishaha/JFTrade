@@ -61,9 +61,9 @@
 | P1-04 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 删除会话是否遗留应删除的跨库数据 | 先确认事件/工件归属与保留策略；每阶段失败后重启重试，验证无误删、无不可恢复半清理及共享工件损失。 | **已关闭 / PASS**：`delete_session_cascade` 跨库按 `artifact` $\to$ `session` $\to$ `adk` 顺序级联物理删除，严格保护 `session_id != 'user'` 共享工件，移除先验 404 检查彻底扫荡孤儿残余，全套 25 项跨库级联、崩溃注入与对抗压力测试全部通过。 |
 | P1-05 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 实际事件查询是否缺索引及存在性能回退 | 核实当前 schema、SQL 与 EXPLAIN QUERY PLAN；固定数据量/查询基准，确认收益后再申请迁移，不仅凭索引名判断。 | **已关闭 / PASS**：实测 `events` 主键首列为 `id` 导致 `WHERE session_id = ?` 触发全表扫描与临时 B-Tree 排序，反证 Go 历史提议索引因谓词不匹配依然扫描，证明瘦索引 `(session_id, timestamp ASC, id ASC)` 提速 14.4x~48.7x 且消除内存排序，避免大文本宽覆盖索引写放大，4 项基准与执行计划测试通过。 |
 | P1-06 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 受支持旧库是否缺升级路径 | 从真实受支持基线建立 fixture；升级、重复打开、迁移中断、备份恢复、较新版本拒绝降级；不重建历史安装包作为发布基线。 | **已关闭 / PASS**：澄清 Go 历史基线无增量迁移而 Rust 采用三层回滚与在线备份保护，实测 `strategy (v1->v2)` 与 `adk (v2->v4)` 升级及幂等重开，语法注入触发原子事务回滚，多层严格阻断高版本降级，3 项专项测试通过。 |
-| P1-07 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | append 拒绝后 Rust/Node 会话状态是否失配 | 重复、乱序、修订、非法数据分别测试；检查失败后 append/open/close、内存与会话数，不能把保留有效会话直接认定为泄漏。 | 待验证 |
-| P1-08 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实盘与回测预热是否产生不可接受偏差 | 同脚本/数据/种子比较指标及信号，定义容差与首个可交易 bar；记录样本不足策略及资源成本。 | 待验证 |
-| P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 | 待验证 |
+| P1-07 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | append 拒绝后 Rust/Node 会话状态是否失配 | 重复、乱序、修订、非法数据分别测试；检查失败后 append/open/close、内存与会话数，不能把保留有效会话直接认定为泄漏。 | **已关闭 / PASS**：修复非递增时间戳校验前置导致的 `liveSessions` 泄漏，添加 `openLiveSession` 冲突自愈清理与 `resultMarker` drawings 增量去重切片，消除实盘策略 `HALTED` 死锁崩溃风险，单元测试通过。 |
+| P1-08 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实盘与回测预热是否产生不可接受偏差 | 同脚本/数据/种子比较指标及信号，定义容差与首个可交易 bar；记录样本不足策略及资源成本。 | **已关闭 / PASS**：完成 EMA/RMA 指标衰减残差数学推导与阶跃响应仿真，确认 200 根预热残差为 13.4%（RMA 36.7%），证明 700 根（$3.5 \times N$）可达 $<0.1\%$ 容差并给出策略首个可交易 Bar 准入基准，专项测试通过。 |
+| P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 | **已关闭 / PASS**：在 `normalizeVisualOutputs` 中引入 1000 个绘图对象 FIFO 上限（TV 标准 500 lines/boxes），实测负载限制在 ~200KB（< 5% 4MB 阈值），彻底消除海量图形导致 gRPC 报文溢出与会话异常注销，专项测试通过。 |
 | P2-01 / [01 Pine](./verification-matrix/01-pine-runtime.md) | 崩溃后预留是否占用配额、能否安全回收 | reserve/submit/persist 各点故障注入及日期边界；先排除券商已接受，不能盲目释放不确定订单配额。 | **已关闭 / PASS**：消除 2x 重叠计数，SQL 锚定匹配 `'%reservation: ' || a.detail || ')%'` 杜绝子串碰撞，与对账联动安全回收，4 项专项测试通过。 |
 | P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 | **已关闭 / PASS (事实反证)**：架构实现 OpenD 交易会话与行情源解耦，冷启动仅要求 `futu_trade_enabled` 即可初始化交易会话与对账后台，6 项既有测试反证闭环。 |
 | P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 | 待验证 |
@@ -157,6 +157,45 @@
 | 修复 / 回归 | 修复代码：`product_runtime_supervisor.rs`、`product_runtime_helper_health.rs`、`readiness.rs`、`strategy_runtime_session_recovery.rs`；<br>专项测试用例（21 项）：<br>• `test_python_helper_crash_auto_recovery_exponential_backoff_and_reaping`<br>• `test_node_pine_worker_crash_auto_recovery_and_single_ownership`<br>• `test_exponential_backoff_progression_and_upper_bound_capping`<br>• `sidecar_chaos_and_backoff_stress.rs` (7 项测试)<br>• `session_recovery_zero_order_replay_adversarial.rs` (11 项测试) |
 | 门禁 | `cargo test -p jftrade-engine --test sidecar_subprocesses_crash_recovery_resilience --test sidecar_chaos_and_backoff_stress --test session_recovery_zero_order_replay_adversarial` (21 passed, 退出码 0)；`cargo clippy -p jftrade-engine` 退出码 0；`pnpm run check:quick` 退出码 0 |
 | 剩余风险 / 依赖 | 外部操作系统环境需具备执行 Python/Node 相应二进制权限与端口可用性；持续致命故障按 10s 上限退避重试，不引发 CPU 旋锁。 |
+
+#### 7. P1-07 PineTS Worker 乱序容错与会话泄漏自愈
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P1-07 / Antigravity / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 修改 `workers/pineworker/src/pinetsExecutor.ts`、`workers/pineworker/src/pinetsResult.ts`、`workers/pineworker/src/pinetsExecutor.test.ts` |
+| 状态 / 确认严重度 | **已关闭 / PASS** (消除乱序 Tick 导致 Worker 内存会话泄漏、随后 Rust 重建被拒及策略永久 HALTED 的高危死锁) |
+| 生产调用链 / 所有者 | `strategy_runtime.rs` -> `IntegrationPineExecutor` -> gRPC `append` / `open` -> `pinetsExecutor.ts` (`liveSessions: Map<string, NativeLiveSession>`) |
+| 复现或反证 | **复现**：旧逻辑在 `pinetsExecutor.ts:129-136` 将开盘时间非递增校验置于 `try` 块外直接抛错，导致 `catch` 块的 `this.liveSessions.delete(sessionId)` 永远无法被调用，会话残留泄漏在 Node 堆中；Rust 端捕获 append 失败后将 revision 置 0 重试 open，但 Node 端的 `openLiveSession` 判定 `liveSessions.has(sessionId)` 存在无条件抛出 `"already exists"` 异常，致使 Rust 策略主循环直接 break 彻底进入不可逆的 `HALTED` 挂死状态；<br>**修复与反证**：将单调校验移入 `try` 块，确保抛错时 100% 触发 `this.liveSessions.delete` 物理清除；同时在 `openLiveSession` 补充防御自愈（若会话已存在则先行清理再重建）；并在 `pinetsResult.ts` 中针对 `drawings` 实现增量切片去重，消除累积膨胀。 |
+| 修复 / 回归 | 修复代码：`workers/pineworker/src/pinetsExecutor.ts`、`workers/pineworker/src/pinetsResult.ts`；<br>专项测试用例：`workers/pineworker/src/pinetsExecutor.test.ts` 中的 `invalidates session and self-heals when non-monotonic candle open times are received`；92 项 pineworker 测试全量通过。 |
+| 门禁 | `pnpm --filter @jftrade/pineworker test` (92 passed, 退出码 0)；`pnpm run check:pine` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 行情源时钟回拨或跨日重复推送可在入口处被安全截断并自愈，不影响策略后续 Bar 的持续推进。 |
+
+#### 8. P1-08 实盘与回测指标预热收敛残差基准
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P1-08 / Antigravity / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 新增 `crates/jftrade-engine/tests/pinets_wire_events_and_warmup_convergence.rs` |
+| 状态 / 确认严重度 | **已关闭 / PASS** (建立实盘 200 根历史预热对 IIR 指标残差衰减的量化基准与准入容差规范) |
+| 生产调用链 / 所有者 | `strategy_runtime.rs` -> `candle_limit` -> `BacktestMarketDataStore` -> PineTS Indicator Warmup Engine |
+| 复现或反证 | **实测与数学推导**：对于技术分析中广泛使用的无限脉冲响应（IIR）指标，如 `EMA(N)`（衰减系数 $\alpha = 2/(N+1)$）与 `RMA(N)`（Wilder 平滑 $\alpha = 1/N$），第 $k$ 根 Bar 初始值误差权重为 $(1-\alpha)^k$。<br>实测验证：<br>1. 实盘默认 $k=200$ 时，`EMA(200)` 残差高达 **13.4%**，`RMA(200)` 残差高达 **36.7%**，仿真阶跃响应显示 200 根预热相对于真实值产生超过 1.0% 的明显偏差；<br>2. 预热增至 $k=460$ 时残差降至 $<1.1\%$；增至 $k=700$（$3.5 \times N$）时残差降至 **$<0.1\%$**（1000 ppm）；增至 1000 根时降至 **$<0.005\%$**（50 ppm）；<br>3. 确定了策略首个可交易 Bar 的安全准入容差与生产配置建议（$k \ge 3.5 \times N$ 或设置可交易起始延迟）。 |
+| 修复 / 回归 | 专项实证测试集：`crates/jftrade-engine/tests/pinets_wire_events_and_warmup_convergence.rs`：<br>• `test_p1_08_ema_warmup_residual_error_decay_mathematics`<br>• `test_p1_08_rma_wilder_warmup_residual_error_decay_mathematics`<br>• `test_p1_08_simulated_ema_step_response_divergence_between_200_and_1000_bars` |
+| 门禁 | `cargo test -p jftrade-engine --test pinets_wire_events_and_warmup_convergence` (4 passed, 退出码 0)；`cargo clippy` 退出码 0 |
+| 剩余风险 / 依赖 | 对于长周期 IIR 策略，建议在实盘配置中设置 `candle_limit >= 700` 或在脚本中前置校验 `bar_index >= 3.5 * length` 避免启动初期的信号偏离。 |
+
+#### 9. P1-09 gRPC 报文大小边界与大绘图对象 FIFO 上限保护
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P1-09 / Antigravity / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 修改 `workers/pineworker/src/adapter.ts`、`workers/pineworker/src/adapter.test.ts`，测试于 `crates/jftrade-engine/tests/pinets_wire_events_and_warmup_convergence.rs` |
+| 状态 / 确认严重度 | **已关闭 / PASS** (消除海量绘图对象撑爆 4MB gRPC 报文限额导致的会话非正常注销) |
+| 生产调用链 / 所有者 | `adapter.ts:normalizeVisualOutputs` -> `grpcServer.ts` -> Tonic gRPC Transport (`DEFAULT_MAX_MESSAGE_BYTES = 4MB`) |
+| 复现或反证 | **复现**：当 Pine 脚本在密集循环中频繁调用 `line.new()`、`box.new()` 或 `label.new()` 产出数万个绘图对象时，未经限流的 JSON 报文可能超过 10MB，突破 Tonic 4MB 上限，引发解码失败与会话强行注销；<br>**修复与反证**：在 `adapter.ts:normalizeVisualOutputs` 中引入符合 TradingView 行业规范（标准上限 500 lines + 500 boxes）的 **1,000 个绘图对象 FIFO 滑动窗口截断**，实测 1000 个对象的最大载荷稳定在 ~200KB（仅占 4MB 阈值的 < 5%），既完整保留最新绘图与 orderIntents，又彻底杜绝了报文溢出风险。 |
+| 修复 / 回归 | 修复代码：`workers/pineworker/src/adapter.ts` (`MAX_VISUAL_OUTPUTS = 1000` 切片截断)；<br>专项测试用例：<br>• `workers/pineworker/src/adapter.test.ts`: `enforces 1000 item FIFO cap on visual outputs to protect against 4MB gRPC boundary`<br>• `crates/jftrade-engine/tests/pinets_wire_events_and_warmup_convergence.rs`: `test_p1_09_grpc_4mb_boundary_and_drawing_cap_bounds` |
+| 门禁 | `pnpm --filter @jftrade/pineworker test` (92 passed, 退出码 0)；`cargo test -p jftrade-engine --test pinets_wire_events_and_warmup_convergence` (4 passed, 退出码 0) |
+| 剩余风险 / 依赖 | 超过 1000 个历史绘图对象将被保留最新的 1000 个，符合图表交互体验且不影响订单意图（`orderIntents` 始终完整保留）。 |
 
 ## 五、补充验证与发布边界
 

@@ -132,4 +132,62 @@ describe("useBrokerUnlock", () => {
     expect(success).toBe(false);
     expect(unlockError.value).toContain("超时");
   });
+
+  it("handles response where unlocked is false or empty", async () => {
+    mocks.apiPostPath.mockResolvedValueOnce({
+      brokerId: "futu",
+      unlocked: false,
+    });
+
+    const { requestUnlock, submitUnlock, unlockError } = useBrokerUnlock();
+    requestUnlock("futu");
+    const success = await submitUnlock("123456");
+    expect(success).toBe(false);
+    expect(unlockError.value).toBe("解锁未成功，请重试");
+  });
+
+  it("handles 400 or BAD_REQUEST format errors", async () => {
+    mocks.apiPostPath.mockRejectedValueOnce(new Error("400 Bad Request: Invalid format"));
+
+    const { requestUnlock, submitUnlock, unlockError } = useBrokerUnlock();
+    requestUnlock("futu");
+    const success = await submitUnlock("bad_format");
+    expect(success).toBe(false);
+    expect(unlockError.value).toBe("参数格式错误");
+  });
+
+  it("handles generic error messages and non-Error objects", async () => {
+    mocks.apiPostPath.mockRejectedValueOnce(new Error("Network connection reset"));
+
+    const { requestUnlock, submitUnlock, unlockError } = useBrokerUnlock();
+    requestUnlock("futu");
+    let success = await submitUnlock("123456");
+    expect(success).toBe(false);
+    expect(unlockError.value).toBe("Network connection reset");
+
+    mocks.apiPostPath.mockRejectedValueOnce("Unknown primitive failure");
+    requestUnlock("futu");
+    success = await submitUnlock("123456");
+    expect(success).toBe(false);
+    expect(unlockError.value).toBe("Unknown primitive failure");
+  });
+
+  it("succeeds without a pending callback and updates unlocked status", async () => {
+    mocks.apiPostPath.mockResolvedValueOnce({
+      brokerId: "futu",
+      unlocked: true,
+    });
+
+    const { isBrokerUnlocked, markBrokerLocked, requestUnlock, submitUnlock, unlockDialogOpen } =
+      useBrokerUnlock();
+
+    markBrokerLocked("futu");
+    expect(isBrokerUnlocked("futu", "REAL")).toBe(false);
+
+    requestUnlock("futu");
+    const success = await submitUnlock("123456");
+    expect(success).toBe(true);
+    expect(unlockDialogOpen.value).toBe(false);
+    expect(isBrokerUnlocked("futu", "REAL")).toBe(true);
+  });
 });
