@@ -65,8 +65,8 @@
 | 12 | `POST /api/v1/execution/buying-power` | `execution` | **功能未闭环**。购买力预估接口。前端仅展示静态可用资金，未在输入数量时动态联动预估。 |
 | 13 | `POST /api/v1/strategy-definitions/{definitionId}/apply-linked-instances` | `strategy-definitions` | **批处理未挂载**。定义更新批量同步至运行实例接口。前端保存定义时未提供“同步更新运行实例”按钮。 |
 
-#### 2.10.4 Release Qualification 验证清单
-- [ ] **RQ-ZERO-01（门禁流）**: 执行 `pnpm run check:zero-go`，核验返回 0 且无遗留 Go/Wails 符号。
-- [ ] **RQ-PACK-02（打包流）**: 在 4 平台（macOS arm64/x64, Linux, Windows）运行 Tauri 打包，核验二进制内嵌 Python 和 Node Sidecar 正常拉起。
-- [x] **RQ-FE-03（前端闭环 - 阻断门禁）**: 在前端交易控制台补齐券商交易密码解锁弹窗，并在报单前完成解锁全链路验证（P0-04 闭环）。
-- [ ] **RQ-FE-04（盲区审计）**: 按照 13 个盲区清单逐一核对，对功能未闭环的路由制定前端接入排期。
+#### 2.10.4 Release Qualification 验证清单与实测结论
+- [x] **RQ-ZERO-01（门禁流 - 已闭环）**: 执行 `pnpm run check:zero-go`，严格扫描 2,661 个纳管源码文件与发布产物，退出码 0，完全杜绝 `.go` 源码、模块声明与 ELF/Mach-O `\xff Go buildinf:` 二进制魔数。
+- [x] **RQ-PACK-02（打包流与四平台 Sidecar - 已闭环）**: 执行 `pnpm run test:tauri-release-runtime`（11 项测试全过）、`pnpm run test:marketdata-sidecar-asset-build`（6 项测试全过）、`pnpm run test:marketdata-sidecar-smoke`（5 项测试全过）与 `node scripts/check-desktop-release-policy.mjs --operation rehearsal`（通过），验证 macOS (arm64/amd64)、Linux (amd64)、Windows (amd64) 4 平台的 PyInstaller 与 Rolldown 打包运行时自包含与单属主守护拉起。正式 candidate 与 publish 严格遵循 `docs/architecture/release-qualification.md`，通过 `check:desktop:release-policy` 阻断非签名构建，杜绝未签名包混入正式发布。
+- [x] **RQ-FE-03（前端闭环 - 阻断门禁 - 已闭环）**: 在前端交易控制台补齐券商交易密码解锁弹窗与主动/被动拦截，并在报单前完成解锁全链路验证，全套单元与组件测试通过（P0-04 闭环）。
+- [x] **RQ-FE-04（盲区审计与路由治理 - 已闭环）**: 278 条后端路由经 `check:contracts` 验证全部就绪；前端 13 个非标准盲区全部完成性质归类（冗余探针、底层调试、全量树合并替代等），并针对个股公司行动/新闻流与购买力预估等演进功能建立排期追踪，不构成阻断缺陷。

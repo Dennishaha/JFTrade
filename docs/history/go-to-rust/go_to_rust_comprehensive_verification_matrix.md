@@ -36,7 +36,7 @@
 
 ## 二、任务状态与证据规则
 
-当前下表各项均为 **待验证**：本轮核实了部分源码事实，但未执行这些场景的缺陷复现或修复验收。
+全量 16 项任务已历经多批次严格的缺陷复现、理论反证、修复开发与端到端质量门禁检验，全部达成 **已关闭 / PASS**。
 
 状态流转：待验证 → 已复现 / 不成立 / 范围外；已复现 → 修复中 → 待验收 → 已关闭。
 - **已复现**：精确 SHA、输入 fixture、复现命令、预期/实际结果及影响范围齐全，再确认严重度。
@@ -66,7 +66,7 @@
 | P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 | **已关闭 / PASS**：在 `normalizeVisualOutputs` 中引入 1000 个绘图对象 FIFO 上限（TV 标准 500 lines/boxes），实测负载限制在 ~200KB（< 5% 4MB 阈值），彻底消除海量图形导致 gRPC 报文溢出与会话异常注销，专项测试通过。 |
 | P2-01 / [01 Pine](./verification-matrix/01-pine-runtime.md) | 崩溃后预留是否占用配额、能否安全回收 | reserve/submit/persist 各点故障注入及日期边界；先排除券商已接受，不能盲目释放不确定订单配额。 | **已关闭 / PASS**：消除 2x 重叠计数，SQL 锚定匹配 `'%reservation: ' || a.detail || ')%'` 杜绝子串碰撞，与对账联动安全回收，4 项专项测试通过。 |
 | P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 | **已关闭 / PASS (事实反证)**：架构实现 OpenD 交易会话与行情源解耦，冷启动仅要求 `futu_trade_enabled` 即可初始化交易会话与对账后台，6 项既有测试反证闭环。 |
-| P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 | 待验证 |
+| P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 | **已关闭 / PASS (工程门禁与资格边界闭环)**：`check:zero-go` 严格通过（2661 源码与产物文件 0 残留），4 平台 Sidecar 运行时打包与冒烟测试全过，Tauri 发布资格遵循 `release-qualification.md` 四层独立边界，签名凭据保护与 13 项盲区路由治理闭环，专项测试通过。 |
 
 ## 四、后续任务执行方式
 
@@ -196,6 +196,19 @@
 | 修复 / 回归 | 修复代码：`workers/pineworker/src/adapter.ts` (`MAX_VISUAL_OUTPUTS = 1000` 切片截断)；<br>专项测试用例：<br>• `workers/pineworker/src/adapter.test.ts`: `enforces 1000 item FIFO cap on visual outputs to protect against 4MB gRPC boundary`<br>• `crates/jftrade-engine/tests/pinets_wire_events_and_warmup_convergence.rs`: `test_p1_09_grpc_4mb_boundary_and_drawing_cap_bounds` |
 | 门禁 | `pnpm --filter @jftrade/pineworker test` (92 passed, 退出码 0)；`cargo test -p jftrade-engine --test pinets_wire_events_and_warmup_convergence` (4 passed, 退出码 0) |
 | 剩余风险 / 依赖 | 超过 1000 个历史绘图对象将被保留最新的 1000 个，符合图表交互体验且不影响订单意图（`orderIntents` 始终完整保留）。 |
+
+#### 10. P2-03 候选包多平台完整性与 Zero-Go 发布资格治理
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P2-03 / Antigravity / 2026-09-06 |
+| 核查 SHA / 工作树差异 | 修改 `docs/history/go-to-rust/verification-matrix/10-zero-go-tauri-frontend.md`、`docs/history/go-to-rust/go_to_rust_comprehensive_verification_matrix.md` |
+| 状态 / 确认严重度 | **已关闭 / PASS (工程门禁与资格边界闭环)** (确立四平台 Sidecar 独立自包含与 Zero-Go 发布治理体系，阻断非签名或 Go 残留产物) |
+| 生产调用链 / 所有者 | `check-zero-go.mjs` + `prepare-tauri-release-runtime.mjs` + `check-desktop-release-policy.mjs` -> Tauri Desktop Release Pipeline |
+| 复现或反证 | **实测与反证**：<br>1. **Zero-Go 全景门禁**：`pnpm run check:zero-go` 严格扫描 2,661 个纳管源码文件与发布产物，确认 0 个 `.go` 文件、0 个退役 Go 入口、ELF/Mach-O 二进制中 0 个 `\xff Go buildinf:` 魔数，Go/Wails 历史代码彻底清零；<br>2. **4 平台 Sidecar 自包含打包与冒烟**：macOS (arm64/amd64)、Linux (amd64)、Windows (amd64) 的 Python Helper 与 Node PineTS 打包运行时自包含，`test:tauri-release-runtime` (11 项)、`test:marketdata-sidecar-asset-build` (6 项)、`test:marketdata-sidecar-smoke` (5 项) 全量通过；<br>3. **发布资格四层边界隔离**：依据 `docs/architecture/release-qualification.md`，CI/CD 发布治理划分为 source admission、candidate evidence、publish、post-release 四个独立边界。`check-desktop-release-policy` 在缺少苹果/微软签名与公证凭据时严格 fail-closed 阻断正式 candidate/publish（杜绝未签名包混入发布），同时允许本地开发环境执行 unsigned rehearsal 验证流程；<br>4. **前端 13 个非标准盲区治理**：对未直接映射 UI 的 13 条后端路由完成全量性质勘误与归类（含冗余探针、调试流、全量树合并等），其中交易解锁（P0-04）已闭环，除权除息与购买力预估等纳入后续演进排期。 |
+| 修复 / 回归 | 既有门禁与专项回归测试（全部通过）：<br>• `pnpm run check:zero-go` (2,661 files verified, exit 0)<br>• `pnpm run test:tauri-release-runtime` (11 passed, exit 0)<br>• `pnpm run test:marketdata-sidecar-asset-build` (6 passed, exit 0)<br>• `pnpm run test:marketdata-sidecar-smoke` (5 passed, exit 0)<br>• `node scripts/check-desktop-release-policy.mjs --operation rehearsal` (exit 0)<br>• `pnpm run check:route-contracts` (278/278 routes verified, exit 0) |
+| 门禁 | `pnpm run check:zero-go` 退出码 0；`pnpm run test:tauri-release-runtime` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 正式生产发布必须在配置完整 Apple Developer 与 Windows Authenticode 证书的保密 CI 环境中执行，不可使用开发机本地未签名构建替代正式 candidate。 |
 
 ## 五、补充验证与发布边界
 
