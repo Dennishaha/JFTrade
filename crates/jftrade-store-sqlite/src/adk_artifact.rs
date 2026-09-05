@@ -84,6 +84,20 @@ impl std::fmt::Debug for AdkArtifactStore {
 }
 
 impl AdkArtifactStore {
+    pub fn delete_session_artifacts(
+        &self,
+        app_name: &str,
+        user_id: &str,
+        session_id: &str,
+    ) -> Result<usize, AdkArtifactStoreError> {
+        let connection = self.lock_connection()?;
+        connection
+            .execute(
+                "DELETE FROM artifacts WHERE app_name = ?1 AND user_id = ?2 AND session_id = ?3",
+                params![app_name, user_id, session_id],
+            )
+            .map_err(AdkArtifactStoreError::Query)
+    }
     pub fn open(path: impl AsRef<Path>) -> Result<Self, AdkArtifactStoreError> {
         Self::open_existing(path, ADK_ARTIFACT_PRODUCTION_PROFILE)
     }

@@ -419,6 +419,19 @@ pub(super) fn dispatch(
         }
         AdkMutationOperation::DeleteSession => {
             let id = required_identifier(input, "sessionId")?;
+            let session = port.store.get_session(&id).map_err(session_mutation_failed)?;
+            let agent_id = session
+                .as_ref()
+                .and_then(|value| serde_json::from_str::<Value>(&value.payload_json).ok())
+                .and_then(|value| value.get("agentId").and_then(Value::as_str).map(str::to_owned))
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| AdkMutationPortError::Failed {
+                    status: 404, code: "ADK_SESSION_NOT_FOUND".to_owned(), message: "session not found".to_owned()
+                })?;
+            let app_name = format!("google-adk:{agent_id}");
+            let user_id = "local".to_owned();
+            port.session_store.delete_session(&app_name, &user_id, &id).map_err(session_mutation_failed)?;
+            port.artifact_store.delete_session_artifacts(&app_name, &user_id, &id).map_err(session_mutation_failed)?;
             let deleted = port
                 .store
                 .delete_session(&id)

@@ -52,12 +52,15 @@ impl ProductionExecutionPort {
                 .is_none_or(|(incoming, existing)| incoming >= existing)
         {
             next.filled_quantity = snapshot.fill_qty;
-        }
-        if snapshot
-            .fill_avg_price
-            .is_some_and(|value| value.is_finite() && value >= 0.0)
-        {
-            next.filled_average_price = snapshot.fill_avg_price;
+            // Quantity and average price describe the same cumulative fill.
+            // A delayed or malformed quantity must not replace the price of
+            // the newer projection while leaving its quantity untouched.
+            if snapshot
+                .fill_avg_price
+                .is_some_and(|value| value.is_finite() && value >= 0.0)
+            {
+                next.filled_average_price = snapshot.fill_avg_price;
+            }
         }
         if snapshot.qty.is_finite() && snapshot.qty > 0.0 {
             next.requested_quantity = Some(snapshot.qty);

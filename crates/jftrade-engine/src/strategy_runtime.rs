@@ -445,21 +445,18 @@ impl StrategyRuntimeManager {
                             session_operation,
                             expected_revision,
                         };
-                        let response = match runtime.block_on(worker.run_script(request)) {
-                            Ok(response) => {
-                                session.revision =
-                                    response.session_revision.max(session.revision + 1);
-                                response
-                            }
+                        let was_append = session.revision > 0;
+                        let response = match runtime.block_on(run_session_request(
+                            |request| worker.run_script(request), request, &mut session.revision,
+                        )) {
+                            Ok(response) => response,
                             Err(error) => {
-                                let was_append = session.revision > 0;
-                                session.revision = 0;
                                 if was_append {
                                     let err_msg = pine_error_message(error);
                                     let _ = store.append_audit_event(
                                         &id_for_thread,
                                         "SESSION_APPEND_RETRY",
-                                        &format!("Pine session append failed, resetting to open: {err_msg}"),
+                                        &format!("Pine append failed; retained revision {}: {err_msg}", session.revision),
                                         now_millis(),
                                     );
                                     continue;
@@ -955,6 +952,9 @@ mod strategy_runtime_mutation;
 mod strategy_runtime_execution;
 #[path = "strategy_runtime_candles.rs"]
 mod strategy_runtime_candles;
+#[path = "strategy_runtime_session_recovery.rs"]
+mod strategy_runtime_session_recovery;
+use strategy_runtime_session_recovery::run_session_request;
 use strategy_runtime_activity::*;
 use strategy_runtime_candles::*;
 use strategy_runtime_execution::*;

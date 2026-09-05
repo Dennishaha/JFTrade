@@ -220,12 +220,22 @@ impl AdkSessionStore {
         id: &str,
     ) -> Result<bool, AdkSessionStoreError> {
         let connection = self.lock_connection()?;
-        let affected = connection
+        let transaction = connection
+            .unchecked_transaction()
+            .map_err(AdkSessionStoreError::Query)?;
+        let affected = transaction
             .execute(
                 "DELETE FROM sessions WHERE app_name = ?1 AND user_id = ?2 AND id = ?3",
                 params![app_name, user_id, id],
             )
             .map_err(AdkSessionStoreError::Query)?;
+        transaction
+            .execute(
+                "DELETE FROM events WHERE app_name = ?1 AND user_id = ?2 AND session_id = ?3",
+                params![app_name, user_id, id],
+            )
+            .map_err(AdkSessionStoreError::Query)?;
+        transaction.commit().map_err(AdkSessionStoreError::Query)?;
         Ok(affected > 0)
     }
 
