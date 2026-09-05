@@ -42,9 +42,20 @@
 1. **发单成功但检查点未刷盘崩溃窗口 (Crash Gap)**:
    - **时序推演**: `dispatch_place_order` 发单成功，但在执行 `persist_pine_runtime_checkpoint`（`strategy_runtime.rs:545`）之前操作系统硬杀。
    - **防御机制**: 重启后该 Bar 重新触发 Intent，但由于 `clientOrderId` 完全一致，券商底层或 `ExecutionOrderStore` 的唯一索引 `(broker_id, trading_environment, account_id, client_order_id)` 触发拦截拒绝，防止资金双重暴露。
-2. **预留成功后崩溃导致的配额泄漏 (Leak Path - P2-01)**:
-   - **时序推演**: `reserve_daily_order` 写入 `ORDER_RESERVED` 后立即崩溃，未执行后续下单与释放。
-   - **失效后果**: 该孤儿预留事件将一直占用 1 个配额槽位直到 UTC 次日零点，导致当天策略可下单次数被动减少 1 次。
+2. **预留成功后崩溃导致的配额泄漏与子串碰撞修复 (P2-01 已闭环)**:
+   - **历史缺陷推演 (修复前)**:
+     1. `reserve_daily_order` 写入 `ORDER_RESERVED` 后若发生崩溃，旧逻辑未与对账恢复形成闭环，孤儿预留占用配额槽位。
+     2. `crates/jftrade-store-sqlite/src/strategy_runtime_observation.rs:74` 原使用无锚定子串查询 `(r.kind = 'ORDER_SUBMITTED' AND a.detail != '' AND (r.detail = a.detail OR r.detail LIKE '%' || a.detail || '%'))`。当 Order 1 预留键为 `:1:1`，Order 2 预留键为 `:1:10` 并提交时，Order 2 的 detail 包含 `... reservation: inst:US.AAPL:1:10)`，导致 `'...:1:10)' LIKE '%:1:1%'` 成立，从而错误将 Order 1 的在途预留从配额统计中提前剔除，在限额边界下允许非法第 3 笔订单侵入。
+     3. 存在配额统计在途预留与已提交订单计数的 2x 重叠计算风险。
+   - **已实施修复方案**:
+     1. **消除 2x 双重计数**: 在 `strategy_runtime_observation.rs` 中重构配额生命周期统计，分离有效预留（`ORDER_RESERVED` 且未 `RELEASED` 且未 `SUBMITTED`）与实际已提交委托（`ORDER_SUBMITTED`），确保各阶段计数严格单一。
+     2. **严格锚定 SQL 子串匹配**: 将子串模式严格锚定为 `(r.detail = a.detail OR r.detail LIKE '%reservation: ' || a.detail || ')%')`，杜绝 `:1:1` 与 `:1:10` 等前缀/子串碰撞。
+     3. **对账联动安全回收**: 结合 P0-02 对账发现，当确认券商端零候选判定为 `FAILED` 时，执行安全回收，不再永久泄露配额。
+   - **核心验证用例 (cargo test -p jftrade-store-sqlite --lib strategy_runtime_observation)**:
+     * `test_reserve_daily_order_no_double_counting_and_safe_reclaim`: 验证配额统计无 2x 双重计数，并验证崩溃/未成交订单的安全配额回收。
+     * `test_stress_quota_reservation_substring_collision_counter_evidence`: 验证 `:1:1` 在途与 `:1:10` 已提交时，在限额为 2 条件下第 3 笔预留被严格拦截为 `Err(StrategyRuntimeStoreError::Conflict)`，反证并闭环子串碰撞。
+     * `test_stress_quota_lifecycle_exact_counts`: 验证配额从预留、提交到释放各阶段计数的严格精确单调性。
+     * `test_stress_concurrent_quota_reservations`: 验证多并发预留下的 CAS 事务隔离与配额上限刚性约束。
 3. **PAUSED 实例抢先启动并发竞争 (Race Condition)**:
    - **时序推演**: 引擎刚启动、行情源尚未完成握手时，用户通过 API 触发 `POST /strategies/{id}/start`。
    - **失效后果**: 触发 `dependency_error()` 发现行情未就绪，直接将实例状态置为 `FAILED`，导致原本处于 `PAUSED` 状态的策略无法恢复。
@@ -53,6 +64,8 @@
 
 ## 2.1.4 Release Qualification 验证清单
 - [ ] **RQ-PINE-01（正常流）**: 实盘产生订单意图，核验 `strategy_audit_events` 严格按序产生 `ORDER_RESERVED` $\to$ `ORDER_SUBMITTED`，`submittedIntentKeys` 准确记录。
-- [ ] **RQ-PINE-02（异常流）**: 配置 `daily_max_orders = 3`，连续产生 4 笔信号，核验第 4 笔被 `reserve_daily_order` 拦截返回 409 `DAILY_LIMIT_REACHED`，策略平滑暂停。
+- [x] **RQ-PINE-02（异常流 / P2-01 配额生命周期与并发拦截已闭环）**:
+  - 配置 `daily_max_orders`，验证并发、在途与已提交订单总额不超过配额上限。
+  - 消除 2x 双重计数与 SQL 子串碰撞，验证 `test_reserve_daily_order_no_double_counting_and_safe_reclaim`、`test_stress_quota_reservation_substring_collision_counter_evidence`、`test_stress_quota_lifecycle_exact_counts`、`test_stress_concurrent_quota_reservations` 全部 PASS。
 - [ ] **RQ-PINE-03（断网注入）**: 运行中 `kill -9` 杀掉 Node Worker 进程，核验 Rust 记录 `SESSION_APPEND_RETRY`，Node 重启后 Rust 降级为 `open` 并注入 200 根 K 线重建指标。
 - [ ] **RQ-PINE-04（升级恢复）**: 策略运行中强杀 Rust 引擎，重启后 `restore_running_instances` 自动接管，核验最新已闭合 K 线未产生重复报单。
