@@ -594,7 +594,7 @@ pub async fn start_product_runtime(
             Ok((process, client, monitor)) => {
                 config.product = config.product.with_market_data_helper(client);
                 supervisor.helper_health = Some(Arc::clone(&monitor));
-                Some(Arc::new(Mutex::new(Some(process))))
+                Some(process)
             }
             Err(error) => {
                 // The helper is an optional external process.  Preserve the

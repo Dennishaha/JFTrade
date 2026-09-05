@@ -30,4 +30,5 @@ pub use process::{
 };
 pub use readiness::{
     DEFAULT_PINE_HEALTH_INTERVAL, PineReadinessMonitor, PineReadinessSnapshot, PineReadinessState,
+    PineRestartPolicy, compute_pine_backoff,
 };

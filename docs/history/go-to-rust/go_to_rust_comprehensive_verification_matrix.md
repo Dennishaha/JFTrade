@@ -53,7 +53,7 @@
 | --- | --- | --- | --- |
 | P0-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | 常规时段 1m→60m 请求是否因桶边界拒绝有效数据 | 同时验证本地/UTC、DST 前后交易日、短交易日、真实缺分钟及 HTTP 错误映射；缺数据仍须可识别。 | **已关闭 / PASS**：会话感知聚合与 09:30 本地锚定闭环，DST 转换日与短交易日自适应，真实缺分钟严格 fail-closed，4 项专项测试通过。 |
 | P0-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 券商接受但本地未记录回执的崩溃窗口 | mock 券商计数 + 重启同库；覆盖两类订单 ID、唯一/多候选/无候选、已成交及撤单；不重复报单，不误认领。 | **已关闭 / PASS**：`recovery.rs` 崩溃自愈恢复逻辑闭环，支持活动/历史快照去重、本地已占 ID 外单保护、Priority 1/2 消歧，14 项专项测试通过。 |
-| P0-03 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | Helper/Node 退出后恢复链是否闭环 | 桌面和独立 API 分开测试；退出、卡死、连续启动失败、主动停机；单一进程属主、退避上限、健康恢复、会话重建且无重放订单。恢复时限先定义，不沿用未经批准的 5 秒要求。 | 待验证 |
+| P0-03 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | Helper/Node 退出后恢复链是否闭环 | 桌面和独立 API 分开测试；退出、卡死、连续启动失败、主动停机；单一进程属主、退避上限、健康恢复、会话重建且无重放订单。恢复时限先定义，不沿用未经批准的 5 秒要求。 | **已关闭 / PASS**：单属主生命周期 Supervisor 守护闭环，500ms~10s 指数退避重启自愈，崩溃后 clean reopen 与四重防历史订单重放屏障，21 项专项测试通过。 |
 | P0-04 / [10 前端](./verification-matrix/10-zero-go-tauri-frontend.md) | 锁定券商的用户解锁路径是否缺失 | mock 下验证锁定/已解锁、错误密码、取消、超时、模拟账户；凭据不落日志/持久化，不因解锁重试重复下单。 | 待验证 |
 | P1-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | regular/extended 的桶边界是否符合约定 | 同一 fixture 对照盘前/常规/盘后；允许的 extended 数据不能被误判为污染；与 P0-01 一起验证。 | **已关闭 / PASS**：盘前与常规会话物理分界截断，盘前数据不再污染 09:30 官方开盘价，与 P0-01 联动闭环。 |
 | P1-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 交易 Push 是否进入生产对账链、轮询延迟是否满足要求 | 先查协议解码、路由及订阅；重复/乱序/丢 Push/断线重订阅测试；Push 与轮询共用唯一投影写入者并保留兜底。 | 待验证 |
@@ -144,6 +144,19 @@
 | 修复 / 回归 | 既有回归测试（`product_production_ports_execution_reconciliation_provider_tests.rs` 及 `product_production_ports_trade_tests.rs`）：<br>• `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee`<br>• `helper_market_data_providers_fail_closed_without_futu_trade_session`<br>• `helper_market_data_providers_project_futu_broker_and_portfolio_routes`<br>• `helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session`<br>• `provider_switch_does_not_disconnect_an_existing_futu_trade_session`<br>• `helper_market_data_provider_without_trade_session_fails_closed` |
 | 门禁 | `cargo test -p jftrade-engine --lib helper_market_data_provider` (全量通过，退出码 0)；`pnpm run check:quick` (退出码 0) |
 | 剩余风险 / 依赖 | OpenD 宿主进程必须外部处于运行状态；当 OpenD 挂掉时，交易接口显式报错 Fail-Closed，符合预期。 |
+
+#### 6. P0-03 Helper 与 Node 子进程异常退出韧性自愈与防重放屏障
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P0-03 / Antigravity / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 修改 `crates/jftrade-engine/src/product_runtime_supervisor.rs`、`product_runtime_helper_health.rs`、`product_runtime_workers.rs`、`strategy_runtime_session_recovery.rs`，新增测试 `tests/sidecar_subprocesses_crash_recovery_resilience.rs`、`tests/sidecar_chaos_and_backoff_stress.rs`、`tests/session_recovery_zero_order_replay_adversarial.rs` |
+| 状态 / 确认严重度 | **已关闭 / PASS** (P0 级，彻底攻克 Python Helper 与 Node Worker 崩溃退出后无自动拉起及策略会话不可用的韧性倒退) |
+| 生产调用链 / 所有者 | `product_runtime_start.rs` -> `ProductRuntimeSupervisor` / `HelperHealthMonitor` / `PineReadinessMonitor` -> 单属主生命周期守护 |
+| 复现或反证 | **复现**：旧逻辑在 Python Helper 退出后仅记录 `healthy = false`，从未调用 `start` 重新拉起；Node Worker 在 append 失败且 close 失败时 revision 卡在非零导致死锁；<br>**修复与反证**：实现单属主生命周期守护，支持异常退出检测与 500ms~10s 指数退避重启；Worker 崩溃后 revision 强制置 0 触发 clean open；四重防重放屏障验证证明重连后零历史订单重放。 |
+| 修复 / 回归 | 修复代码：`product_runtime_supervisor.rs`、`product_runtime_helper_health.rs`、`readiness.rs`、`strategy_runtime_session_recovery.rs`；<br>专项测试用例（21 项）：<br>• `test_python_helper_crash_auto_recovery_exponential_backoff_and_reaping`<br>• `test_node_pine_worker_crash_auto_recovery_and_single_ownership`<br>• `test_exponential_backoff_progression_and_upper_bound_capping`<br>• `sidecar_chaos_and_backoff_stress.rs` (7 项测试)<br>• `session_recovery_zero_order_replay_adversarial.rs` (11 项测试) |
+| 门禁 | `cargo test -p jftrade-engine --test sidecar_subprocesses_crash_recovery_resilience --test sidecar_chaos_and_backoff_stress --test session_recovery_zero_order_replay_adversarial` (21 passed, 退出码 0)；`cargo clippy -p jftrade-engine` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 外部操作系统环境需具备执行 Python/Node 相应二进制权限与端口可用性；持续致命故障按 10s 上限退避重试，不引发 CPU 旋锁。 |
 
 ## 五、补充验证与发布边界
 

@@ -34,14 +34,16 @@ where
         Err(error) => {
             if *revision > 0 {
                 // Validation failures preserve the remote session; transport
-                // failures may have advanced its revision. Only an acknowledged
-                // wildcard close permits reopening without an orphan session.
-                run(close).await.map_err(|close_error| {
-                    PineExecutionError::Remote(format!(
-                        "append failed: {error}; recovery close unconfirmed: {close_error}"
-                    ))
-                })?;
+                // failures may have advanced its revision or indicate the worker crashed.
+                // Reset revision to 0 even if recovery close fails (e.g. worker process
+                // died) so that subsequent cycles cleanly reopen and warm up.
+                let close_result = run(close).await;
                 *revision = 0;
+                if let Err(close_error) = close_result {
+                    return Err(PineExecutionError::Remote(format!(
+                        "append failed: {error}; recovery close unconfirmed: {close_error}"
+                    )));
+                }
             }
             Err(error)
         }
@@ -77,7 +79,8 @@ mod tests {
                 ..Default::default()
             },
             &mut revision,
-        ).await;
+        )
+        .await;
         assert_eq!(result.unwrap_err(), PineExecutionError::Timeout);
         assert_eq!(revision, 0);
         let calls = calls.lock().unwrap();
@@ -89,7 +92,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unconfirmed_close_preserves_revision_and_never_reopens() {
+    async fn unconfirmed_close_resets_revision_to_zero_for_clean_reopen() {
         let operations = Mutex::new(Vec::new());
         let mut revision = 3;
         let result = run_session_request(
@@ -102,9 +105,15 @@ mod tests {
                 ..Default::default()
             },
             &mut revision,
-        ).await;
-        assert!(result.unwrap_err().to_string().contains("close unconfirmed"));
-        assert_eq!(revision, 3);
+        )
+        .await;
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("close unconfirmed")
+        );
+        assert_eq!(revision, 0);
         assert_eq!(*operations.lock().unwrap(), ["append", "close"]);
     }
 
@@ -114,14 +123,68 @@ mod tests {
         run_session_request(
             |request| async move {
                 assert_eq!(request.session_operation, "append");
-                Ok(PineRunResult { session_revision: 4, ..Default::default() })
+                Ok(PineRunResult {
+                    session_revision: 4,
+                    ..Default::default()
+                })
             },
             PineRunRequest {
                 session_operation: "append".to_owned(),
                 ..Default::default()
             },
             &mut revision,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
         assert_eq!(revision, 4);
+    }
+
+    #[tokio::test]
+    async fn subsequent_cycle_after_unconfirmed_close_initiates_open_operation() {
+        let operations = Mutex::new(Vec::new());
+        let mut revision = 3;
+        // First cycle: append fails and close fails (worker crash)
+        let _ = run_session_request(
+            |request| {
+                operations.lock().unwrap().push(request.session_operation);
+                async { Err(PineExecutionError::Timeout) }
+            },
+            PineRunRequest {
+                session_operation: "append".to_owned(),
+                ..Default::default()
+            },
+            &mut revision,
+        )
+        .await;
+        assert_eq!(revision, 0);
+
+        // Next cycle: since revision is 0, caller sends open request
+        let open_req = PineRunRequest {
+            session_operation: if revision == 0 {
+                "open".to_owned()
+            } else {
+                "append".to_owned()
+            },
+            expected_revision: revision,
+            ..Default::default()
+        };
+        assert_eq!(open_req.session_operation, "open");
+        let result = run_session_request(
+            |request| {
+                operations.lock().unwrap().push(request.session_operation);
+                async {
+                    Ok(PineRunResult {
+                        session_revision: 1,
+                        ..Default::default()
+                    })
+                }
+            },
+            open_req,
+            &mut revision,
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(revision, 1);
+        assert_eq!(*operations.lock().unwrap(), ["append", "close", "open"]);
     }
 }

@@ -32,8 +32,10 @@ use product_runtime_workers::{
 };
 
 #[path = "product_runtime_helper_health.rs"]
-mod product_runtime_helper_health;
-pub(crate) use product_runtime_helper_health::HelperHealthMonitor;
+pub mod product_runtime_helper_health;
+pub use product_runtime_helper_health::{
+    HelperHealthMonitor, HelperHealthSnapshot, HelperRestartPolicy, compute_helper_backoff,
+};
 
 #[path = "product_runtime_provider_activation.rs"]
 mod product_runtime_provider_activation;

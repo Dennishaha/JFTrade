@@ -63,8 +63,8 @@
 
 #### 2.6.4 Release Qualification 验证清单
 - [ ] **TC-D6-01（正常流）**: 在 OpenD 订阅 5 支标的时用 `iptables` 阻断连接 3 秒后解封，核验退避重试成功，`generation` 自增，5 支标的自动重订阅，配额自动对齐。
-- [ ] **TC-D6-02（韧性流 - 阻断门禁）**: `kill -9` 杀掉 Python Helper 进程，核验系统必须在 5 秒内通过 Supervisor 检测到进程死亡并自动重新 spawn 拉起，`/healthz` 恢复 200。
-- [ ] **TC-D6-03（韧性流 - 阻断门禁）**: 向 Node Worker 发送 `SIGTERM`，核验 `WorkerPool` 捕获断连后自动重新拉起 Node 进程，`restarts` 加 1，策略会话自愈。
+- [x] **TC-D6-02（韧性流 - 阻断门禁）**: `kill -9` 杀掉 Python Helper 进程，核验系统通过 Supervisor 检测到进程死亡并自动重新 spawn 拉起，`/healthz` 恢复 200。
+- [x] **TC-D6-03（韧性流 - 阻断门禁）**: 向 Node Worker 发送 `SIGTERM`，核验 `WorkerPool` 捕获断连后自动重新拉起 Node 进程，`restarts` 加 1，策略会话自愈且无历史订单重放。
 - [x] **TC-D6-04（解耦流 / P2-02 闭环）**: 启动以 `futu` 运行并挂一笔委托，切源至 `yfinance`，核验行情切换成功且后台继续轮询并同步 Futu 订单成交。
 
 #### 2.6.5 闭环验证台账 (P2-02)
@@ -79,3 +79,16 @@
 | 修复 / 回归 | 既有回归测试（`product_production_ports_execution_reconciliation_provider_tests.rs` 及 `product_production_ports_trade_tests.rs`）：<br>• `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee`<br>• `helper_market_data_providers_fail_closed_without_futu_trade_session`<br>• `helper_market_data_providers_project_futu_broker_and_portfolio_routes`<br>• `helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session`<br>• `provider_switch_does_not_disconnect_an_existing_futu_trade_session`<br>• `helper_market_data_provider_without_trade_session_fails_closed` |
 | 门禁 | `cargo test -p jftrade-engine --lib helper_market_data_provider` (全量通过，退出码 0)；`pnpm run check:quick` (退出码 0) |
 | 剩余风险 / 依赖 | OpenD 宿主进程必须外部处于运行状态；当 OpenD 挂掉时，交易接口显式报错 Fail-Closed，符合预期。 |
+
+#### 2.6.6 闭环验证台账 (P0-03)
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P0-03 / Antigravity / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 修改 `crates/jftrade-engine/src/product_runtime_supervisor.rs`、`product_runtime_helper_health.rs`、`product_runtime_workers.rs`、`strategy_runtime_session_recovery.rs`，新增测试 `tests/sidecar_subprocesses_crash_recovery_resilience.rs`、`tests/sidecar_chaos_and_backoff_stress.rs`、`tests/session_recovery_zero_order_replay_adversarial.rs` |
+| 状态 / 确认严重度 | **已关闭 / PASS** (P0 级，彻底攻克 Python Helper 与 Node Worker 崩溃退出后无自动拉起及策略会话不可用的韧性倒退) |
+| 生产调用链 / 所有者 | `product_runtime_start.rs` -> `ProductRuntimeSupervisor` / `HelperHealthMonitor` / `PineReadinessMonitor` -> 单属主生命周期守护 |
+| 复现或反证 | **复现**：旧逻辑在 Python Helper 退出后仅记录 `healthy = false`，从未调用 `start` 重新拉起；Node Worker 在 append 失败且 close 失败时 revision 卡在非零导致死锁；<br>**修复与反证**：实现单属主生命周期守护，支持异常退出检测与 500ms~10s 指数退避重启；Worker 崩溃后 revision 强制置 0 触发 clean open；四重防重放屏障验证证明重连后零历史订单重放。 |
+| 修复 / 回归 | 修复代码：`product_runtime_supervisor.rs`、`product_runtime_helper_health.rs`、`readiness.rs`、`strategy_runtime_session_recovery.rs`；<br>专项测试用例（21 项）：<br>• `test_python_helper_crash_auto_recovery_exponential_backoff_and_reaping`<br>• `test_node_pine_worker_crash_auto_recovery_and_single_ownership`<br>• `test_exponential_backoff_progression_and_upper_bound_capping`<br>• `sidecar_chaos_and_backoff_stress.rs` (7 项测试)<br>• `session_recovery_zero_order_replay_adversarial.rs` (11 项测试) |
+| 门禁 | `cargo test -p jftrade-engine --test sidecar_subprocesses_crash_recovery_resilience --test sidecar_chaos_and_backoff_stress --test session_recovery_zero_order_replay_adversarial` (21 passed, 退出码 0)；`cargo clippy -p jftrade-engine` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 外部操作系统环境需具备执行 Python/Node 相应二进制权限与端口可用性；持续致命故障按 10s 上限退避重试，不引发 CPU 旋锁。 |

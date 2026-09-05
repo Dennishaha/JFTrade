@@ -112,7 +112,14 @@ impl DesktopRetainedRuntimeConfig {
 
 pub(crate) async fn start_pine_worker(
     config: PineWorkerRuntimeConfig,
-) -> Result<(PineProcess, WorkerHealth, Arc<PineReadinessMonitor>), PineProcessError> {
+) -> Result<
+    (
+        Arc<tokio::sync::Mutex<PineProcess>>,
+        WorkerHealth,
+        Arc<PineReadinessMonitor>,
+    ),
+    PineProcessError,
+> {
     let probe = GrpcPineReadinessProbe::new(
         config.process.bearer_token.clone(),
         config.connect_timeout,
@@ -123,8 +130,21 @@ pub(crate) async fn start_pine_worker(
     let health = process.wait_until_ready(&probe, config.readiness).await?;
     let readiness = PineReadinessState::new(spec.worker_id.clone());
     readiness.seed_success(health.clone());
-    let monitor = PineReadinessMonitor::spawn(readiness, probe, spec);
-    Ok((process, health, monitor))
+    let process_arc = Arc::new(tokio::sync::Mutex::new(process));
+    let restart_policy = jftrade_integration_pine::PineRestartPolicy {
+        initial_backoff: Duration::from_millis(500),
+        max_backoff: Duration::from_millis(10000),
+        multiplier: 2.0,
+        readiness_policy: config.readiness,
+    };
+    let monitor = PineReadinessMonitor::spawn_supervised(
+        readiness,
+        probe,
+        Arc::clone(&process_arc),
+        jftrade_integration_pine::DEFAULT_PINE_HEALTH_INTERVAL,
+        restart_policy,
+    );
+    Ok((process_arc, health, monitor))
 }
 
 pub(crate) async fn monitor_external_helper(client: HelperClient) -> Arc<HelperHealthMonitor> {
@@ -143,7 +163,7 @@ pub(crate) async fn start_marketdata_helper(
     config: MarketDataHelperRuntimeConfig,
 ) -> Result<
     (
-        HelperProcess,
+        Arc<std::sync::Mutex<Option<HelperProcess>>>,
         HelperClient,
         Arc<crate::product_runtime::HelperHealthMonitor>,
     ),
@@ -166,16 +186,27 @@ pub(crate) async fn start_marketdata_helper(
             config.max_retry_delay,
         )
         .await?;
-    let monitor = Arc::new(HelperHealthMonitor::new(
+    let process_arc = Arc::new(std::sync::Mutex::new(Some(process)));
+    let restart_policy = super::product_runtime_helper_health::HelperRestartPolicy {
+        initial_backoff: Duration::from_millis(500),
+        max_backoff: Duration::from_millis(10000),
+        multiplier: 2.0,
+        startup_timeout: config.startup_timeout,
+        initial_retry_delay: config.initial_retry_delay,
+        max_retry_delay: config.max_retry_delay,
+    };
+    let monitor = Arc::new(HelperHealthMonitor::with_managed_process(
         client.clone(),
         config.health_interval,
         config.health_ttl,
+        Arc::clone(&process_arc),
+        restart_policy,
     ));
     // The readiness gate above just proved /healthz with a real round trip;
     // seed the monitor with that evidence and keep it live.
     monitor.seed_success();
     monitor.spawn();
-    Ok((process, client, monitor))
+    Ok((process_arc, client, monitor))
 }
 
 pub(crate) fn desktop_pine_workers(
