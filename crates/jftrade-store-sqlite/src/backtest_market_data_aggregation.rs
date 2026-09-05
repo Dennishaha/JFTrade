@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 
 use jftrade_kernel::Fixed8;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use rusqlite::Connection;
 
 use super::{BacktestMarketDataStoreError, StoredBacktestCandle, read_direct_range, table_exists};
@@ -42,12 +44,178 @@ pub(crate) fn normalize_limit(limit: usize) -> usize {
     limit.max(1)
 }
 
+fn market_from_symbol(symbol: &str) -> Option<&'static str> {
+    let upper = symbol.trim().to_ascii_uppercase();
+    if upper.starts_with("US.") {
+        Some("US")
+    } else if upper.starts_with("HK.") {
+        Some("HK")
+    } else if upper.starts_with("CN.") || upper.starts_with("SH.") || upper.starts_with("SZ.") {
+        Some("CN")
+    } else {
+        None
+    }
+}
+
+fn market_timezone(market: &str) -> &'static str {
+    match market {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "CN" => "Asia/Shanghai",
+        _ => "UTC",
+    }
+}
+
+fn is_black_friday(date: Date) -> bool {
+    date.month() == 11
+        && date.weekday() == jiff::civil::Weekday::Friday
+        && (23..=29).contains(&date.day())
+}
+
+fn is_christmas_eve_early_close(date: Date) -> bool {
+    date.month() == 12
+        && date.day() == 24
+        && !matches!(
+            date.weekday(),
+            jiff::civil::Weekday::Saturday | jiff::civil::Weekday::Sunday
+        )
+}
+
+fn is_independence_day_early_close(date: Date) -> bool {
+    date.month() == 7
+        && date.day() == 3
+        && matches!(
+            date.weekday(),
+            jiff::civil::Weekday::Monday
+                | jiff::civil::Weekday::Tuesday
+                | jiff::civil::Weekday::Wednesday
+                | jiff::civil::Weekday::Thursday
+        )
+}
+
+fn market_session_windows(market: &str, date: Date, session_scope: &str) -> Vec<(i32, i32)> {
+    match market {
+        "US" => {
+            let early_close = is_black_friday(date)
+                || is_christmas_eve_early_close(date)
+                || is_independence_day_early_close(date);
+            let regular_end = if early_close { 780 } else { 960 };
+            let after_end = if early_close { 1080 } else { 1200 };
+            match session_scope.trim().to_ascii_lowercase().as_str() {
+                "regular" => vec![(570, regular_end)],
+                "extended" => vec![
+                    (0, 240),
+                    (240, 570),
+                    (570, regular_end),
+                    (regular_end, after_end),
+                ],
+                _ => vec![(570, regular_end)],
+            }
+        }
+        "HK" => vec![(570, 720), (780, 960)],
+        "CN" => vec![(570, 690), (780, 900)],
+        _ => Vec::new(),
+    }
+}
+
+pub(crate) fn resolve_aggregation_buckets(
+    symbol: &str,
+    session_scope: &str,
+    target_ms: i64,
+    start_time_ms: i64,
+    end_time_ms: i64,
+) -> Vec<(i64, i64)> {
+    if start_time_ms >= end_time_ms || target_ms <= 0 {
+        return Vec::new();
+    }
+    if let Some(market) = market_from_symbol(symbol) {
+        let tz_name = market_timezone(market);
+        if let Ok(tz) = TimeZone::get(tz_name) {
+            let start_ts = jiff::Timestamp::from_millisecond(start_time_ms).ok();
+            let end_ts = jiff::Timestamp::from_millisecond(end_time_ms.saturating_sub(1)).ok();
+            if let (Some(s_ts), Some(e_ts)) = (start_ts, end_ts) {
+                let start_date = s_ts.to_zoned(tz.clone()).date();
+                let end_date = e_ts.to_zoned(tz.clone()).date();
+                let mut buckets = Vec::new();
+                let mut current_date = start_date;
+                while current_date <= end_date {
+                    if !matches!(
+                        current_date.weekday(),
+                        jiff::civil::Weekday::Saturday | jiff::civil::Weekday::Sunday
+                    ) {
+                        for (start_min, end_min) in
+                            market_session_windows(market, current_date, session_scope)
+                        {
+                            let s_hour = (start_min / 60) as i8;
+                            let s_min = (start_min % 60) as i8;
+                            let e_hour = (end_min / 60) as i8;
+                            let e_min = (end_min % 60) as i8;
+
+                            let s_ms = current_date
+                                .at(s_hour, s_min, 0, 0)
+                                .in_tz(tz_name)
+                                .map(|z| z.timestamp().as_millisecond());
+                            let e_ms = current_date
+                                .at(e_hour, e_min, 0, 0)
+                                .in_tz(tz_name)
+                                .map(|z| z.timestamp().as_millisecond());
+                            if let (Ok(session_start), Ok(session_end)) = (s_ms, e_ms)
+                                && session_end > start_time_ms
+                                && session_start < end_time_ms
+                            {
+                                let mut cursor = session_start;
+                                while cursor < session_end {
+                                    let b_start = cursor;
+                                    let b_end = cursor.saturating_add(target_ms).min(session_end);
+                                    let effective_b_end = b_end.min(end_time_ms);
+                                    if effective_b_end > b_start
+                                        && b_start >= start_time_ms
+                                        && b_start < end_time_ms
+                                    {
+                                        buckets.push((b_start, effective_b_end));
+                                    }
+                                    cursor = cursor.saturating_add(target_ms);
+                                }
+                            }
+                        }
+                    }
+                    let next = match current_date.tomorrow() {
+                        Ok(d) => d,
+                        Err(_) => break,
+                    };
+                    current_date = next;
+                }
+                if !buckets.is_empty() {
+                    return buckets;
+                }
+            }
+        }
+    }
+
+    // Generic UTC fallback (e.g. mock timestamps or unknown symbols)
+    let first_bucket = floor_div(start_time_ms, target_ms).saturating_mul(target_ms);
+    let last_bucket = floor_div(end_time_ms.saturating_sub(1), target_ms).saturating_mul(target_ms);
+    if first_bucket > last_bucket {
+        return Vec::new();
+    }
+    let mut buckets = Vec::new();
+    let mut bucket = first_bucket;
+    while bucket <= last_bucket {
+        let b_end = bucket.saturating_add(target_ms);
+        buckets.push((bucket, b_end));
+        bucket = b_end;
+    }
+    buckets
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn aggregate_range(
     connection: &Connection,
     base_table: &str,
     source_minutes: i64,
     symbol: &str,
     interval: &str,
+    session_scope: &str,
     start_time_ms: i64,
     end_time_ms: i64,
 ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
@@ -69,13 +237,16 @@ pub(crate) fn aggregate_range(
     }
     let target_ms = target_minutes.saturating_mul(60_000);
     let source_ms = source_minutes.saturating_mul(60_000);
-    let first_bucket = floor_div(start_time_ms, target_ms).saturating_mul(target_ms);
-    let last_bucket = floor_div(end_time_ms.saturating_sub(1), target_ms).saturating_mul(target_ms);
-    if first_bucket > last_bucket {
+
+    let buckets =
+        resolve_aggregation_buckets(symbol, session_scope, target_ms, start_time_ms, end_time_ms);
+    if buckets.is_empty() {
         return Ok(Vec::new());
     }
-    let source_end = last_bucket.saturating_add(target_ms);
-    let source = read_direct_range(connection, base_table, first_bucket, source_end)?;
+
+    let source_start = buckets.first().map(|b| b.0).unwrap_or(start_time_ms);
+    let source_end = buckets.last().map(|b| b.1).unwrap_or(end_time_ms);
+    let source = read_direct_range(connection, base_table, source_start, source_end)?;
     if source.is_empty() {
         return Err(missing_coverage(
             symbol,
@@ -87,20 +258,32 @@ pub(crate) fn aggregate_range(
 
     let mut by_bucket: BTreeMap<i64, Vec<StoredBacktestCandle>> = BTreeMap::new();
     for candle in source {
-        let bucket = floor_div(candle.start_time, target_ms).saturating_mul(target_ms);
-        by_bucket.entry(bucket).or_default().push(candle);
+        if let Ok(idx) = buckets.binary_search_by(|&(b_start, b_end)| {
+            if candle.start_time < b_start {
+                std::cmp::Ordering::Greater
+            } else if candle.start_time >= b_end {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        }) {
+            by_bucket.entry(buckets[idx].0).or_default().push(candle);
+        }
     }
 
-    let mut aggregated = Vec::new();
-    let mut bucket = first_bucket;
-    while bucket <= last_bucket {
-        let rows = by_bucket.get(&bucket).ok_or_else(|| {
-            missing_coverage(symbol, interval, bucket, bucket.saturating_add(target_ms))
-        })?;
+    let mut aggregated = Vec::with_capacity(buckets.len());
+    for &(bucket_start, bucket_end) in &buckets {
+        let rows = by_bucket
+            .get(&bucket_start)
+            .ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_end))?;
         aggregated.push(aggregate_bucket(
-            symbol, interval, bucket, target_ms, source_ms, rows,
+            symbol,
+            interval,
+            bucket_start,
+            bucket_end,
+            source_ms,
+            rows,
         )?);
-        bucket = bucket.saturating_add(target_ms);
     }
     Ok(aggregated)
 }
@@ -109,18 +292,14 @@ pub(crate) fn aggregate_bucket(
     symbol: &str,
     interval: &str,
     bucket_start: i64,
-    bucket_ms: i64,
+    bucket_end: i64,
     source_ms: i64,
     rows: &[StoredBacktestCandle],
 ) -> Result<StoredBacktestCandle, BacktestMarketDataStoreError> {
+    let bucket_ms = bucket_end.saturating_sub(bucket_start);
     let factor = usize::try_from(bucket_ms / source_ms).unwrap_or(0);
-    if rows.len() != factor {
-        return Err(missing_coverage(
-            symbol,
-            interval,
-            bucket_start,
-            bucket_start.saturating_add(bucket_ms),
-        ));
+    if factor == 0 || rows.len() != factor {
+        return Err(missing_coverage(symbol, interval, bucket_start, bucket_end));
     }
     let mut ordered = rows.to_vec();
     ordered.sort_by_key(|candle| candle.start_time);
@@ -129,12 +308,7 @@ pub(crate) fn aggregate_bucket(
         let expected_start = bucket_start.saturating_add((index as i64).saturating_mul(source_ms));
         let expected_end = expected_start.saturating_add(source_ms).saturating_sub(1);
         if candle.start_time != expected_start || candle.end_time != expected_end {
-            return Err(missing_coverage(
-                symbol,
-                interval,
-                bucket_start,
-                bucket_start.saturating_add(bucket_ms),
-            ));
+            return Err(missing_coverage(symbol, interval, bucket_start, bucket_end));
         }
         values.push((
             parse_fixed("open", &candle.open)?,
@@ -144,22 +318,12 @@ pub(crate) fn aggregate_bucket(
             parse_fixed("volume", &candle.volume)?,
         ));
     }
-    let first = values.first().ok_or_else(|| {
-        missing_coverage(
-            symbol,
-            interval,
-            bucket_start,
-            bucket_start.saturating_add(bucket_ms),
-        )
-    })?;
-    let last = values.last().ok_or_else(|| {
-        missing_coverage(
-            symbol,
-            interval,
-            bucket_start,
-            bucket_start.saturating_add(bucket_ms),
-        )
-    })?;
+    let first = values
+        .first()
+        .ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_end))?;
+    let last = values
+        .last()
+        .ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_end))?;
     let high = values.iter().map(|value| value.1).max().unwrap_or(first.1);
     let low = values.iter().map(|value| value.2).min().unwrap_or(first.2);
     let volume = values.iter().try_fold(Fixed8::ZERO, |sum, value| {
@@ -168,7 +332,7 @@ pub(crate) fn aggregate_bucket(
     })?;
     Ok(StoredBacktestCandle {
         start_time: bucket_start,
-        end_time: bucket_start.saturating_add(bucket_ms).saturating_sub(1),
+        end_time: bucket_end.saturating_sub(1),
         open: first.0.storage_text(),
         high: high.storage_text(),
         low: low.storage_text(),

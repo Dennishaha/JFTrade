@@ -283,6 +283,7 @@ impl BacktestMarketDataStore {
                     *cand_min,
                     symbol,
                     interval,
+                    session_scope,
                     start_time_ms,
                     end_time_ms,
                 ) {
@@ -310,6 +311,7 @@ impl BacktestMarketDataStore {
             1,
             symbol,
             interval,
+            session_scope,
             start_time_ms,
             end_time_ms,
         )
