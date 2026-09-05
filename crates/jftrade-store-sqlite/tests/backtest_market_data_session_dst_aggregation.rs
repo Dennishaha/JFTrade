@@ -28,6 +28,40 @@ fn make_candle(start_time: i64, price: i64, volume: &str) -> StoredBacktestCandl
     }
 }
 
+#[test]
+fn query_cutoff_does_not_turn_an_unclosed_hour_into_a_closed_short_bar() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = open_test_store(&dir.path().join("query-cutoff.db"));
+    let open_ms = 1710163800000i64;
+    let candles: Vec<_> = (0..90)
+        .map(|i| make_candle(open_ms + i * MINUTE_MS, 100 + i, "1"))
+        .collect();
+    store
+        .insert_candles("futu", "US.AAPL", "1m", "forward", "regular", &candles)
+        .unwrap();
+    for elapsed in [30, 60, 90] {
+        let bars = store
+            .read_candles(
+                "futu",
+                "US.AAPL",
+                "60m",
+                "forward",
+                "regular",
+                open_ms,
+                open_ms + elapsed * MINUTE_MS,
+            )
+            .unwrap();
+        assert_eq!(
+            bars.len(),
+            (elapsed / 60) as usize,
+            "cutoff at {elapsed} minutes"
+        );
+        for bar in bars {
+            assert_eq!(bar.end_time - bar.start_time + 1, 60 * MINUTE_MS);
+        }
+    }
+}
+
 /// TC-D4-01: Regular session 09:30~16:00 continuous 1m data for US.AAPL (390 bars).
 /// Verify 5m (78 bars), 15m (26 bars), 30m (13 bars) aggregations are exact.
 #[test]
@@ -158,7 +192,7 @@ fn test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation() {
 }
 
 /// TC-D4-04: Extended session isolation.
-/// Data written from 04:00 to 10:00 ET.
+/// Data written from 04:00 to 10:30 ET.
 /// Pre-market data (04:00~09:30) must NOT contaminate the 09:30 official open price in 60m output.
 #[test]
 fn test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open() {
@@ -169,19 +203,19 @@ fn test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open() {
     // 2024-03-11 EDT:
     // Pre-market: 04:00 EDT = 08:00 UTC = 1710144000000 ms
     // Regular open: 09:30 EDT = 13:30 UTC = 1710163800000 ms
-    // Regular 10:00: 10:00 EDT = 14:00 UTC = 1710165600000 ms
+    // Regular 10:30: 10:30 EDT = 14:30 UTC = 1710167400000 ms
     let pre_open = 1710144000000i64; // 04:00 EDT
     let reg_open = 1710163800000i64; // 09:30 EDT
-    let test_end = 1710165600000i64; // 10:00 EDT
+    let test_end = 1710167400000i64; // 10:30 EDT
 
-    // Total minutes = (09:30 - 04:00) = 330m pre + 30m reg = 360 minutes
-    let mut candles = Vec::with_capacity(360);
+    // Total minutes = (09:30 - 04:00) = 330m pre + 60m reg = 390 minutes
+    let mut candles = Vec::with_capacity(390);
     // Pre-market: price = 100
     for i in 0..330 {
         candles.push(make_candle(pre_open + i * MINUTE_MS, 100 + i, "5.0"));
     }
     // Regular session: official open at 09:30 = price 500!
-    for i in 0..30 {
+    for i in 0..60 {
         candles.push(make_candle(reg_open + i * MINUTE_MS, 500 + i, "50.0"));
     }
 
@@ -199,7 +233,7 @@ fn test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open() {
     // 04:00~05:00, 05:00~06:00, 06:00~07:00, 07:00~08:00, 08:00~09:00 (5 full 60m bars)
     // 09:00~09:30 (1 truncated 30m pre-market bar)
     // Regular market bucket:
-    // 09:30~10:00 (1 truncated 30m regular bar or part of 09:30~10:30)
+    // 09:30~10:30 (1 complete 60m regular bar)
     assert_eq!(bars_60m.len(), 7);
 
     // Verify pre-market 09:00~09:30 bar

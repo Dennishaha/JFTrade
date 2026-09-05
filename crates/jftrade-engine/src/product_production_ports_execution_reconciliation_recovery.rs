@@ -6,18 +6,13 @@ use jftrade_store_sqlite::StoredExecutionOrder;
 
 use super::*;
 
-pub(super) enum RecoveryResolution {
-    Recovered(Box<TradeOrderSnapshot>),
-    TerminalFailed,
-}
-
 impl ProductionExecutionPort {
     pub(super) fn resolve_unidentified_submission(
         &self,
         reader: &Arc<dyn TradeReadPort>,
         order: &StoredExecutionOrder,
         header: &jftrade_integration_futu::TradeHeader,
-    ) -> Result<RecoveryResolution, String> {
+    ) -> Result<TradeOrderSnapshot, String> {
         let active_orders = reader
             .read_orders(header.clone(), Some(TradeFilter::default()), Vec::new(), Some(true))
             .map_err(|error| format!("broker order read failed: {error}"))?;
@@ -48,50 +43,14 @@ impl ProductionExecutionPort {
             .store
             .list_orders()
             .map_err(|error| format!("list execution orders for reconciliation: {error}"))?;
-        let mut claimed_numeric_ids = HashSet::new();
-        let mut claimed_ex_ids = HashSet::new();
-        for other in &local_orders {
-            if other.internal_order_id == order.internal_order_id {
-                continue;
-            }
-            if let Some(id) = other
-                .broker_order_id
-                .as_deref()
-                .and_then(|v| v.trim().parse::<u64>().ok())
-                .filter(|v| *v > 0)
-            {
-                claimed_numeric_ids.insert(id);
-            }
-            if let Some(ex) = other
-                .broker_order_id_ex
-                .as_deref()
-                .map(str::trim)
-                .filter(|v| !v.is_empty())
-            {
-                claimed_ex_ids.insert(ex.to_owned());
-            }
-        }
-
-        let unclaimed: Vec<TradeOrderSnapshot> = broker_orders
-            .into_iter()
-            .filter(|candidate| {
-                if candidate.order_id > 0 && claimed_numeric_ids.contains(&candidate.order_id) {
-                    return false;
-                }
-                let ex = candidate.order_id_ex.trim();
-                if !ex.is_empty() && claimed_ex_ids.contains(ex) {
-                    return false;
-                }
-                true
-            })
-            .collect();
+        let unclaimed = unclaimed_orders(broker_orders, &local_orders, order);
 
         let candidates = find_recovery_candidates(&unclaimed, order);
 
         match candidates.len() {
             1 => {
                 let snapshot = candidates.into_iter().next().unwrap();
-                Ok(RecoveryResolution::Recovered(Box::new(snapshot)))
+                Ok(snapshot)
             }
             count if count > 1 => {
                 let error = failed(
@@ -109,44 +68,65 @@ impl ProductionExecutionPort {
                 let error = failed(
                     502,
                     "BROKER_ORDER_NOT_FOUND",
-                    "broker order was not found in active or history snapshots; order was never placed/accepted by broker",
+                    "broker snapshots do not establish whether the submission was accepted",
                 );
-                self.persist_failed_if_needed(order, &error, "reconcile_order_never_accepted")?;
-                Ok(RecoveryResolution::TerminalFailed)
+                self.persist_unknown_if_needed(order, &error, "reconcile_order_missing")?;
+                Err("broker snapshots do not establish submission outcome".to_owned())
             }
         }
     }
 
-    pub(super) fn persist_failed_if_needed(
-        &self,
-        order: &StoredExecutionOrder,
-        error: &ExecutionWritePortError,
-        event_type: &str,
-    ) -> Result<(), String> {
-        if order.status.eq_ignore_ascii_case("FAILED")
-            && order.last_error_code.as_deref() == execution_error_details(error).1.as_deref()
-        {
-            return Ok(());
+}
+
+fn same_order_scope(left: &StoredExecutionOrder, right: &StoredExecutionOrder) -> bool {
+    left.broker_id.trim().eq_ignore_ascii_case(right.broker_id.trim())
+        && left.account_id.trim() == right.account_id.trim()
+        && left.trading_environment.trim().eq_ignore_ascii_case(right.trading_environment.trim())
+        && left.market.trim().eq_ignore_ascii_case(right.market.trim())
+}
+
+fn unclaimed_orders(
+    broker_orders: Vec<TradeOrderSnapshot>,
+    local_orders: &[StoredExecutionOrder],
+    order: &StoredExecutionOrder,
+) -> Vec<TradeOrderSnapshot> {
+    let mut claimed_numeric_ids = HashSet::new();
+    let mut claimed_ex_ids = HashSet::new();
+    for other in local_orders {
+        if other.internal_order_id == order.internal_order_id || !same_order_scope(other, order) {
+            continue;
         }
-        let mut failed_order = order.clone();
-        let now = crate::product::product_production_ports::provider_now_rfc3339();
-        let previous_status = failed_order.status.clone();
-        let expected_updated_at = failed_order.updated_at.clone();
-        failed_order.status = "FAILED".to_owned();
-        let (message, code) = execution_error_details(error);
-        failed_order.last_error = Some(message);
-        failed_order.last_error_code = code;
-        failed_order.last_error_source = Some("reconciliation".to_owned());
-        failed_order.updated_at = now.clone();
-        self.persist_transition(
-            &failed_order,
-            event_type,
-            Some(&previous_status),
-            &expected_updated_at,
-            &now,
-        )
-        .map_err(|error| format_error(&error))
+        if let Some(id) = other
+            .broker_order_id
+            .as_deref()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .filter(|v| *v > 0)
+        {
+            claimed_numeric_ids.insert(id);
+        }
+        if let Some(ex) = other
+            .broker_order_id_ex
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        {
+            claimed_ex_ids.insert(ex.to_owned());
+        }
     }
+
+    broker_orders
+        .into_iter()
+        .filter(|candidate| {
+            if candidate.order_id > 0 && claimed_numeric_ids.contains(&candidate.order_id) {
+                return false;
+            }
+            let ex = candidate.order_id_ex.trim();
+            if !ex.is_empty() && claimed_ex_ids.contains(ex) {
+                return false;
+            }
+            true
+        })
+        .collect()
 }
 
 fn symbols_match(local_symbol: Option<&str>, local_market: &str, broker_code: &str) -> bool {
@@ -181,37 +161,7 @@ fn symbols_match(local_symbol: Option<&str>, local_market: &str, broker_code: &s
     broker_normalized == local_normalized
 }
 
-fn parse_timestamp_to_seconds(s: &str) -> Option<i64> {
-    let s = s.trim();
-    if let Ok(dt) = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339) {
-        return Some(dt.unix_timestamp());
-    }
-    let format = time::format_description::parse_borrowed::<1>(
-        "[year]-[month]-[day] [hour]:[minute]:[second]",
-    )
-    .ok()?;
-    let pdt = time::PrimitiveDateTime::parse(s, &format).ok()?;
-    Some(pdt.assume_utc().unix_timestamp())
-}
-
-fn within_submission_window(
-    cand_time_str: &str,
-    cand_ts: Option<f64>,
-    order_created: &str,
-    order_submitted: Option<&str>,
-) -> bool {
-    let order_time_str = order_submitted.unwrap_or(order_created);
-    let order_epoch = parse_timestamp_to_seconds(order_time_str);
-    let cand_epoch = cand_ts
-        .map(|ts| ts as i64)
-        .or_else(|| parse_timestamp_to_seconds(cand_time_str));
-    match (order_epoch, cand_epoch) {
-        (Some(o), Some(c)) => (o - 60..=o + 300).contains(&c),
-        _ => cand_time_str.trim() == order_time_str.trim(),
-    }
-}
-
-fn matches_priority_1(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
+fn matches_submission_identity(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
     let Some(cand_remark) = candidate.remark.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
         return false;
     };
@@ -222,30 +172,15 @@ fn matches_priority_1(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrd
     {
         return false;
     }
-    let matches_client_id = order
-        .client_order_id
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|client_id| !client_id.is_empty() && cand_remark == client_id);
-    let matches_remark = order
-        .remark
-        .as_deref()
-        .map(str::trim)
-        .is_some_and(|remark| !remark.is_empty() && cand_remark == remark);
-    matches_client_id || matches_remark
-}
-
-fn has_conflicting_remark(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
-    let Some(cand_remark) = candidate.remark.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+    // Only the client id actually sent on the wire is correlation evidence.
+    // User remarks and matching market attributes are not unique identities.
+    let Some(client_id) = order.client_order_id.as_deref().map(str::trim).filter(|id| !id.is_empty())
+    else {
         return false;
     };
-    let order_client_id = order.client_order_id.as_deref().map(str::trim).filter(|v| !v.is_empty());
-    let order_remark = order.remark.as_deref().map(str::trim).filter(|v| !v.is_empty());
-
-    let matches_client_id = order_client_id.is_some_and(|id| cand_remark == id);
-    let matches_remark = order_remark.is_some_and(|rem| cand_remark == rem);
-
-    !(matches_client_id || matches_remark)
+    let sent_remark = order.remark.as_deref().map(str::trim).filter(|value| !value.is_empty())
+        .unwrap_or(client_id);
+    sent_remark == client_id && cand_remark == client_id && matches_safe_attributes(candidate, order)
 }
 
 fn matches_safe_attributes(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
@@ -278,14 +213,6 @@ fn matches_safe_attributes(candidate: &TradeOrderSnapshot, order: &StoredExecuti
             _ => {}
         }
     }
-    if !within_submission_window(
-        &candidate.create_time,
-        candidate.create_timestamp,
-        &order.created_at,
-        order.submitted_at.as_deref(),
-    ) {
-        return false;
-    }
     true
 }
 
@@ -293,28 +220,11 @@ fn find_recovery_candidates(
     unclaimed: &[TradeOrderSnapshot],
     order: &StoredExecutionOrder,
 ) -> Vec<TradeOrderSnapshot> {
-    let priority_1_matches: Vec<TradeOrderSnapshot> = unclaimed
+    unclaimed
         .iter()
-        .filter(|candidate| matches_priority_1(candidate, order))
+        .filter(|candidate| matches_submission_identity(candidate, order))
         .cloned()
-        .collect();
-
-    if !priority_1_matches.is_empty() {
-        return priority_1_matches;
-    }
-
-    let priority_2_matches: Vec<TradeOrderSnapshot> = unclaimed
-        .iter()
-        .filter(|candidate| {
-            if has_conflicting_remark(candidate, order) {
-                return false;
-            }
-            matches_safe_attributes(candidate, order)
-        })
-        .cloned()
-        .collect();
-
-    priority_2_matches
+        .collect()
 }
 
 pub(super) fn time_after(left: &str, right: &str) -> bool {
@@ -337,4 +247,3 @@ pub(super) fn format_error(error: &ExecutionWritePortError) -> String {
         None => message,
     }
 }
-

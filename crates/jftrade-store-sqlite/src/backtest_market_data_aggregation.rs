@@ -137,6 +137,7 @@ pub(crate) fn resolve_aggregation_buckets(
                 let start_date = s_ts.to_zoned(tz.clone()).date();
                 let end_date = e_ts.to_zoned(tz.clone()).date();
                 let mut buckets = Vec::new();
+                let mut intersects_session = false;
                 let mut current_date = start_date;
                 while current_date <= end_date {
                     if !matches!(
@@ -163,16 +164,18 @@ pub(crate) fn resolve_aggregation_buckets(
                                 && session_end > start_time_ms
                                 && session_start < end_time_ms
                             {
+                                intersects_session = true;
                                 let mut cursor = session_start;
                                 while cursor < session_end {
                                     let b_start = cursor;
                                     let b_end = cursor.saturating_add(target_ms).min(session_end);
-                                    let effective_b_end = b_end.min(end_time_ms);
-                                    if effective_b_end > b_start
+                                    // Only a real session boundary may shorten a bar.
+                                    // A query cutoff does not close the current bucket.
+                                    if b_end <= end_time_ms
                                         && b_start >= start_time_ms
                                         && b_start < end_time_ms
                                     {
-                                        buckets.push((b_start, effective_b_end));
+                                        buckets.push((b_start, b_end));
                                     }
                                     cursor = cursor.saturating_add(target_ms);
                                 }
@@ -185,7 +188,7 @@ pub(crate) fn resolve_aggregation_buckets(
                     };
                     current_date = next;
                 }
-                if !buckets.is_empty() {
+                if intersects_session {
                     return buckets;
                 }
             }

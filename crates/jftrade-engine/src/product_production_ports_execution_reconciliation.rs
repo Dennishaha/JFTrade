@@ -162,15 +162,11 @@ impl ProductionExecutionPort {
             .map(str::to_owned);
         let header = header_from_order(order).map_err(|error| format_error(&error))?;
         let matched = if broker_id.is_none() && broker_order_id_ex.is_none() {
-            match self.resolve_unidentified_submission(reader, order, &header)? {
-                RecoveryResolution::TerminalFailed => return Ok(true),
-                RecoveryResolution::Recovered(snapshot) => {
-                    broker_id = (snapshot.order_id > 0).then_some(snapshot.order_id);
-                    broker_order_id_ex = (!snapshot.order_id_ex.trim().is_empty())
-                        .then(|| snapshot.order_id_ex.trim().to_owned());
-                    Some(*snapshot)
-                }
-            }
+            let snapshot = self.resolve_unidentified_submission(reader, order, &header)?;
+            broker_id = (snapshot.order_id > 0).then_some(snapshot.order_id);
+            broker_order_id_ex = (!snapshot.order_id_ex.trim().is_empty())
+                .then(|| snapshot.order_id_ex.trim().to_owned());
+            Some(snapshot)
         } else {
             let filter = TradeFilter {
                 id_list: broker_id.into_iter().collect(),

@@ -1,5 +1,11 @@
 use super::*;
 
+fn correlated_order_snapshot(status: i32, fill_qty: Option<f64>) -> TradeOrderSnapshot {
+    let mut snapshot = super::order_snapshot(status, fill_qty);
+    snapshot.remark = Some("client-reconcile".to_owned());
+    snapshot
+}
+
 #[test]
 fn reconciliation_uses_extended_identity_when_numeric_identity_is_missing() {
     let (store, _directory) = reconciliation_store();
@@ -8,7 +14,7 @@ fn reconciliation_uses_extended_identity_when_numeric_identity_is_missing() {
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
     let reader = Arc::new(FixtureTradeReader {
         accounts: vec![account()],
-        active_orders: vec![order_snapshot(5, Some(0.0))],
+        active_orders: vec![correlated_order_snapshot(5, Some(0.0))],
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), reader);
@@ -26,10 +32,10 @@ fn reconciliation_does_not_guess_an_identity_for_an_uncertain_submission() {
     order.broker_order_id = None;
     order.broker_order_id_ex = None;
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
-    let mut snapshot1 = order_snapshot(5, Some(0.0));
+    let mut snapshot1 = correlated_order_snapshot(5, Some(0.0));
     snapshot1.order_id = 11;
     snapshot1.order_id_ex = "order-ex-1".to_owned();
-    let mut snapshot2 = order_snapshot(5, Some(0.0));
+    let mut snapshot2 = correlated_order_snapshot(5, Some(0.0));
     snapshot2.order_id = 12;
     snapshot2.order_id_ex = "order-ex-2".to_owned();
     let reader = Arc::new(FixtureTradeReader {
@@ -66,7 +72,7 @@ fn reconciliation_crash_window_recovers_submitting_order_and_binds_broker_ids() 
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
     let reader = Arc::new(FixtureTradeReader {
         accounts: vec![account()],
-        active_orders: vec![order_snapshot(5, Some(0.0))],
+        active_orders: vec![correlated_order_snapshot(5, Some(0.0))],
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), Arc::clone(&reader));
@@ -85,7 +91,7 @@ fn reconciliation_crash_window_recovers_filled_order_and_reconciles_fills() {
     order.broker_order_id = None;
     order.broker_order_id_ex = None;
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
-    let mut snap = order_snapshot(11, Some(5.0));
+    let mut snap = correlated_order_snapshot(11, Some(5.0));
     snap.fill_avg_price = Some(99.0);
     let reader = Arc::new(FixtureTradeReader {
         accounts: vec![account()],
@@ -105,7 +111,7 @@ fn reconciliation_crash_window_recovers_filled_order_and_reconciles_fills() {
 }
 
 #[test]
-fn reconciliation_no_candidate_transitions_to_failed_for_safe_quota_reclaim() {
+fn reconciliation_no_candidate_preserves_unknown_submission() {
     let (store, _directory) = reconciliation_store();
     let mut order = pending_order("SUBMITTING");
     order.broker_order_id = None;
@@ -118,9 +124,9 @@ fn reconciliation_no_candidate_transitions_to_failed_for_safe_quota_reclaim() {
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), Arc::clone(&reader));
-    assert_eq!(port.reconcile_pending_orders().unwrap(), 1);
+    assert!(port.reconcile_pending_orders().is_err());
     let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
-    assert_eq!(saved.status, "FAILED");
+    assert_eq!(saved.status, "UNKNOWN");
     assert_eq!(
         saved.last_error_code.as_deref(),
         Some("BROKER_ORDER_NOT_FOUND")
@@ -129,8 +135,8 @@ fn reconciliation_no_candidate_transitions_to_failed_for_safe_quota_reclaim() {
     assert!(saved.broker_order_id_ex.is_none());
     let events = store.list_order_events(&saved.internal_order_id).unwrap();
     assert_eq!(events.len(), 1);
-    assert_eq!(events[0].event_type, "reconcile_order_never_accepted");
-    assert_eq!(events[0].next_status, "FAILED");
+    assert_eq!(events[0].event_type, "reconcile_order_missing");
+    assert_eq!(events[0].next_status, "UNKNOWN");
 }
 
 #[test]
@@ -141,7 +147,7 @@ fn reconciliation_foreign_order_protection_ignores_unmatched_remark() {
     order.broker_order_id_ex = None;
     order.client_order_id = Some("strategy-instance-intent-1".to_owned());
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
-    let mut foreign_order = order_snapshot(5, Some(0.0));
+    let mut foreign_order = correlated_order_snapshot(5, Some(0.0));
     foreign_order.remark = Some("manual-app-trader".to_owned());
     let reader = Arc::new(FixtureTradeReader {
         accounts: vec![account()],
@@ -150,9 +156,9 @@ fn reconciliation_foreign_order_protection_ignores_unmatched_remark() {
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), Arc::clone(&reader));
-    assert_eq!(port.reconcile_pending_orders().unwrap(), 1);
+    assert!(port.reconcile_pending_orders().is_err());
     let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
-    assert_eq!(saved.status, "FAILED");
+    assert_eq!(saved.status, "UNKNOWN");
     assert_eq!(
         saved.last_error_code.as_deref(),
         Some("BROKER_ORDER_NOT_FOUND")
@@ -178,14 +184,14 @@ fn reconciliation_claimed_order_exclusion_protects_against_cross_binding() {
 
     let reader = Arc::new(FixtureTradeReader {
         accounts: vec![account()],
-        active_orders: vec![order_snapshot(5, Some(0.0))],
+        active_orders: vec![correlated_order_snapshot(5, Some(0.0))],
         history_orders: vec![],
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), Arc::clone(&reader));
     let _ = port.reconcile_pending_orders();
     let pending_saved = store.get_order("rust-order-pending").unwrap().unwrap();
-    assert_eq!(pending_saved.status, "FAILED");
+    assert_eq!(pending_saved.status, "UNKNOWN");
     assert!(pending_saved.broker_order_id.is_none());
 }
 
@@ -198,12 +204,12 @@ fn reconciliation_priority_1_matches_client_order_id_in_remark() {
     order.client_order_id = Some("my-unique-client-order-id".to_owned());
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-    let mut snap1 = order_snapshot(5, Some(0.0));
+    let mut snap1 = correlated_order_snapshot(5, Some(0.0));
     snap1.order_id = 101;
     snap1.order_id_ex = "ex-101".to_owned();
     snap1.remark = Some("other-order".to_owned());
 
-    let mut snap2 = order_snapshot(5, Some(0.0));
+    let mut snap2 = correlated_order_snapshot(5, Some(0.0));
     snap2.order_id = 102;
     snap2.order_id_ex = "ex-102".to_owned();
     snap2.remark = Some("my-unique-client-order-id".to_owned());
@@ -226,7 +232,7 @@ fn reconciliation_stale_fill_quantity_cannot_replace_the_average_price() {
     for stale_quantity in [Some(1.0), None, Some(-1.0), Some(f64::NAN)] {
         let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
         let mut current = store.get_order("rust-order-reconcile").unwrap().unwrap();
-        let mut snapshot = order_snapshot(10, Some(3.0));
+        let mut snapshot = correlated_order_snapshot(10, Some(3.0));
         snapshot.fill_avg_price = Some(105.0);
         assert!(port.apply_broker_snapshot(&current, &snapshot, 0).unwrap());
         current = store.get_order("rust-order-reconcile").unwrap().unwrap();
@@ -247,7 +253,7 @@ fn reconciliation_advancing_fill_quantity_updates_its_average_price() {
     for (quantity, price) in [(2.0, 100.0), (3.0, 105.0)] {
         let current = store.get_order("rust-order-reconcile").unwrap().unwrap();
         let revision = store.order_revision(&current.internal_order_id).unwrap();
-        let mut snapshot = order_snapshot(10, Some(quantity));
+        let mut snapshot = correlated_order_snapshot(10, Some(quantity));
         snapshot.fill_avg_price = Some(price);
         assert!(port.apply_broker_snapshot(&current, &snapshot, revision).unwrap());
         let saved = store.get_order(&current.internal_order_id).unwrap().unwrap();
@@ -285,7 +291,7 @@ fn apply_order_snapshot(
     let revision = store
         .order_revision(&current.internal_order_id)
         .expect("read reconciliation revision");
-    port.apply_broker_snapshot(&current, &order_snapshot(status, filled), revision)
+    port.apply_broker_snapshot(&current, &correlated_order_snapshot(status, filled), revision)
         .expect("apply broker order snapshot")
 }
 
@@ -424,7 +430,7 @@ fn reconciliation_extended_id_matching_and_binding_without_numeric_id() {
     order.symbol = Some("US.AAPL".to_owned());
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-    let mut snapshot = order_snapshot(5, Some(0.0));
+    let mut snapshot = correlated_order_snapshot(5, Some(0.0));
     snapshot.order_id = 0; // Pure extended ID with NO numeric ID
     snapshot.order_id_ex = "combo-option-ex-999".to_owned();
 
@@ -455,7 +461,7 @@ fn reconciliation_partial_fill_during_crash_window_recovers_to_partially_filled(
     order.broker_order_id_ex = None;
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-    let mut snap = order_snapshot(10, Some(2.0)); // 10 is FILLED_PART
+    let mut snap = correlated_order_snapshot(10, Some(2.0)); // 10 is FILLED_PART
     snap.fill_avg_price = Some(98.5);
     let mut fill_item = fill("2026-08-30T00:00:02Z", 2.0, "fill-part-1");
     fill_item.order_id = Some(11);
@@ -479,7 +485,7 @@ fn reconciliation_partial_fill_during_crash_window_recovers_to_partially_filled(
 }
 
 #[test]
-fn reconciliation_timestamp_window_boundary_301s_vs_299s() {
+fn reconciliation_time_proximity_is_not_identity_evidence() {
     let (store, _directory) = reconciliation_store();
 
     // Order A: submitted at 2026-08-30T00:05:00Z
@@ -503,18 +509,20 @@ fn reconciliation_timestamp_window_boundary_301s_vs_299s() {
     order_b.created_at = "2026-08-30T00:05:00Z".to_owned();
     store.save_order(order_b, "2026-08-30T00:05:00Z").unwrap();
 
-    // Candidate A: created at 2026-08-30T00:09:59Z (+299s) -> within 300s window!
-    let mut snap_a = order_snapshot(5, Some(0.0));
+    // Candidate A: created at 2026-08-30T00:09:59Z (+299s) -> still not identity evidence
+    let mut snap_a = correlated_order_snapshot(5, Some(0.0));
     snap_a.order_id = 101;
     snap_a.order_id_ex = "ex-101".to_owned();
     snap_a.qty = 5.0;
+    snap_a.remark = None;
     snap_a.create_time = "2026-08-30T00:09:59Z".to_owned();
 
-    // Candidate B: created at 2026-08-30T00:10:01Z (+301s) -> outside 300s window!
-    let mut snap_b = order_snapshot(5, Some(0.0));
+    // Candidate B: created at 2026-08-30T00:10:01Z (+301s) -> still not rejection evidence
+    let mut snap_b = correlated_order_snapshot(5, Some(0.0));
     snap_b.order_id = 102;
     snap_b.order_id_ex = "ex-102".to_owned();
     snap_b.qty = 10.0;
+    snap_b.remark = None;
     snap_b.create_time = "2026-08-30T00:10:01Z".to_owned();
 
     let reader = Arc::new(FixtureTradeReader {
@@ -528,15 +536,15 @@ fn reconciliation_timestamp_window_boundary_301s_vs_299s() {
 
     let saved_a = store.get_order("order-299s").unwrap().unwrap();
     assert_eq!(
-        saved_a.status, "SUBMITTED",
-        "Order within 299s window must be matched and recovered"
+        saved_a.status, "UNKNOWN",
+        "A nearby order must not be guessed as ours"
     );
-    assert_eq!(saved_a.broker_order_id.as_deref(), Some("101"));
+    assert!(saved_a.broker_order_id.is_none());
 
     let saved_b = store.get_order("order-301s").unwrap().unwrap();
     assert_eq!(
-        saved_b.status, "FAILED",
-        "Order outside 300s window (+301s) must not match and must transition to FAILED"
+        saved_b.status, "UNKNOWN",
+        "A distant order cannot establish submission failure"
     );
     assert_eq!(
         saved_b.last_error_code.as_deref(),
@@ -557,7 +565,7 @@ fn reconciliation_priority_1_matches_even_beyond_300s_window() {
     store.save_order(order, "2026-08-30T00:00:00Z").unwrap();
 
     // Broker candidate created 600 seconds after order submission, but has matching remark
-    let mut snap = order_snapshot(5, Some(0.0));
+    let mut snap = correlated_order_snapshot(5, Some(0.0));
     snap.order_id = 999;
     snap.order_id_ex = "ex-999".to_owned();
     snap.remark = Some("client-order-p1-window-test".to_owned());
@@ -590,17 +598,17 @@ fn challenge_edge_case_1_three_identical_broker_orders_no_client_id_remains_unkn
     order.remark = None;
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-    let mut snap1 = order_snapshot(5, Some(0.0));
+    let mut snap1 = correlated_order_snapshot(5, Some(0.0));
     snap1.order_id = 101;
     snap1.order_id_ex = "ex-101".to_owned();
     snap1.remark = None;
 
-    let mut snap2 = order_snapshot(5, Some(0.0));
+    let mut snap2 = correlated_order_snapshot(5, Some(0.0));
     snap2.order_id = 102;
     snap2.order_id_ex = "ex-102".to_owned();
     snap2.remark = None;
 
-    let mut snap3 = order_snapshot(5, Some(0.0));
+    let mut snap3 = correlated_order_snapshot(5, Some(0.0));
     snap3.order_id = 103;
     snap3.order_id_ex = "ex-103".to_owned();
     snap3.remark = None;
@@ -619,7 +627,7 @@ fn challenge_edge_case_1_three_identical_broker_orders_no_client_id_remains_unkn
     assert_eq!(saved.status, "UNKNOWN");
     assert_eq!(
         saved.last_error_code.as_deref(),
-        Some("EXECUTION_STATE_AMBIGUOUS")
+        Some("BROKER_ORDER_NOT_FOUND")
     );
     assert!(saved.broker_order_id.is_none(), "Must NOT guess numeric ID");
     assert!(saved.broker_order_id_ex.is_none(), "Must NOT guess extended ID");
@@ -638,13 +646,13 @@ fn challenge_edge_case_2_different_symbol_and_conflicting_remark_not_claimed() {
     store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
     // Broker candidate 1: Different symbol (US.TSLA)
-    let mut snap_tsla = order_snapshot(5, Some(0.0));
+    let mut snap_tsla = correlated_order_snapshot(5, Some(0.0));
     snap_tsla.order_id = 201;
     snap_tsla.order_id_ex = "ex-201".to_owned();
     snap_tsla.code = "US.TSLA".to_owned();
 
     // Broker candidate 2: Same symbol but conflicting foreign remark
-    let mut snap_foreign = order_snapshot(5, Some(0.0));
+    let mut snap_foreign = correlated_order_snapshot(5, Some(0.0));
     snap_foreign.order_id = 202;
     snap_foreign.order_id_ex = "ex-202".to_owned();
     snap_foreign.code = "US.AAPL".to_owned();
@@ -657,10 +665,10 @@ fn challenge_edge_case_2_different_symbol_and_conflicting_remark_not_claimed() {
         ..Default::default()
     });
     let port = production_port(Arc::clone(&store), Arc::clone(&reader));
-    assert_eq!(port.reconcile_pending_orders().unwrap(), 1);
+    assert!(port.reconcile_pending_orders().is_err());
 
     let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
-    assert_eq!(saved.status, "FAILED");
+    assert_eq!(saved.status, "UNKNOWN");
     assert_eq!(
         saved.last_error_code.as_deref(),
         Some("BROKER_ORDER_NOT_FOUND")
@@ -711,7 +719,7 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
         order.broker_order_id_ex = None;
         store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-        let mut snap = order_snapshot(11, Some(5.0)); // 11 is FILLED_ALL
+        let mut snap = correlated_order_snapshot(11, Some(5.0)); // 11 is FILLED_ALL
         snap.order_id = 301;
         snap.order_id_ex = "ex-301".to_owned();
         snap.fill_avg_price = Some(100.0);
@@ -740,7 +748,7 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
         order.broker_order_id_ex = None;
         store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-        let mut snap = order_snapshot(14, Some(0.0)); // 14 is CANCELLED_ALL
+        let mut snap = correlated_order_snapshot(14, Some(0.0)); // 14 is CANCELLED_ALL
         snap.order_id = 302;
         snap.order_id_ex = "ex-302".to_owned();
 
@@ -766,7 +774,7 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
         order.broker_order_id_ex = None;
         store.save_order(order, "2026-08-30T00:00:01Z").unwrap();
 
-        let mut snap = order_snapshot(21, Some(0.0)); // 21 is FAILED (rejected by broker)
+        let mut snap = correlated_order_snapshot(21, Some(0.0)); // 21 is FAILED (rejected by broker)
         snap.order_id = 303;
         snap.order_id_ex = "ex-303".to_owned();
         snap.last_err_msg = Some("broker risk rejection: margin insufficient".to_owned());
@@ -789,4 +797,3 @@ fn challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected() {
         );
     }
 }
-
