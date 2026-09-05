@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use super::{ResolvedTradeRequest, account_identity, checked_at, environment_label_from_code};
 use crate::product::{BrokerReadSnapshotError, PortfolioSnapshotError};
 
-pub(super) fn account_value(value: jftrade_integration_futu::TradeAccountSnapshot) -> Value {
+pub(crate) fn account_value(value: jftrade_integration_futu::TradeAccountSnapshot) -> Value {
     let account_id = account_identity(&value);
     let markets = value
         .trd_market_auth_list
@@ -50,7 +50,7 @@ pub(super) fn funds_value(request: &ResolvedTradeRequest, value: TradeFundsSnaps
     json!({"checkedAt": checked_at(), "connectivity": "connected", "currencyBalances": balances, "marketAssets": assets, "summary": {"accountId": request.account_id, "tradingEnvironment": request.environment, "market": request.market, "power": value.funds.power, "totalAssets": value.funds.total_assets, "cash": value.funds.cash, "marketValue": value.funds.market_val, "frozenCash": value.funds.frozen_cash, "debtCash": value.funds.debt_cash, "availableWithdrawalCash": value.funds.avl_withdrawal_cash, "currency": value.funds.currency, "availableFunds": value.funds.available_funds, "unrealizedPnl": value.funds.unrealized_pl, "realizedPnl": value.funds.realized_pl, "securitiesAssets": value.funds.securities_assets, "fundAssets": value.funds.fund_assets, "bondAssets": value.funds.bond_assets, "longMarketValue": value.funds.long_mv, "shortMarketValue": value.funds.short_mv, "netCashPower": value.funds.net_cash_power, "maxWithdrawal": value.funds.max_withdrawal, "pendingAsset": value.funds.pending_asset, "initialMargin": value.funds.initial_margin, "maintenanceMargin": value.funds.maintenance_margin, "marginCallMargin": value.funds.margin_call_margin, "isPdt": value.funds.is_pdt, "pdtSeq": value.funds.pdt_seq, "beginningDTBP": value.funds.beginning_dtbp, "remainingDTBP": value.funds.remaining_dtbp, "dtCallAmount": value.funds.dt_call_amount, "exposureLevel": value.funds.exposure_level, "exposureLimit": value.funds.exposure_limit, "usedLimit": value.funds.used_limit, "remainingLimit": value.funds.remaining_limit}})
 }
 
-pub(super) fn position_value(
+pub(crate) fn position_value(
     request: &ResolvedTradeRequest,
     value: jftrade_integration_futu::TradePositionSnapshot,
 ) -> Value {

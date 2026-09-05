@@ -93,7 +93,10 @@ fn core_schema_for(name: &str) -> Option<Value> {
             &[],
         )),
         "watchlist.list" => Some(watchlist_schema()),
-        "portfolio.summary" => Some(portfolio_schema(false)),
+        "portfolio.accounts"
+        | "portfolio.overview"
+        | "portfolio.positions"
+        | "portfolio.summary" => Some(portfolio_schema(false)),
         "backtest.runs" => Some(backtest_runs_schema()),
         "backtest.result_view" => Some(backtest_result_view_schema()),
         "backtest.kline_sync_status" => Some(backtest_kline_sync_status_schema()),
@@ -102,6 +105,7 @@ fn core_schema_for(name: &str) -> Option<Value> {
         "strategy.instance_activity" => Some(strategy_instance_activity_schema()),
         "strategy.pine_spec" => Some(strategy_pine_spec_schema()),
         "strategy.validate_pine" => Some(strategy_validate_pine_schema()),
+        "strategy.research_backtest" => Some(strategy_research_backtest_schema()),
         _ => None,
     }
 }

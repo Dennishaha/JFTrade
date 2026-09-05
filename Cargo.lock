@@ -2316,6 +2316,7 @@ dependencies = [
  "jftrade-datamanagement",
  "jftrade-kernel",
  "jftrade-owner-lock",
+ "jiff",
  "rusqlite",
  "serde",
  "serde_json",

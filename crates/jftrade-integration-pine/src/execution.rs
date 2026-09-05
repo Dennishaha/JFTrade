@@ -858,7 +858,11 @@ fn validate_session_result(
     let expected = match operation.as_str() {
         "open" => 1,
         "append" => request.expected_revision.saturating_add(1),
-        "close" => request.expected_revision.saturating_add(1),
+        // Native close returns the removed session's current revision, not
+        // an append revision. Zero requests an idempotent wildcard close and
+        // may acknowledge either an existing session or an already absent one.
+        "close" if request.expected_revision == 0 => return Ok(()),
+        "close" => request.expected_revision,
         _ => return Ok(()),
     };
     if result.session_revision != expected {

@@ -429,7 +429,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Test macOS desktop package
-        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
+        run: pnpm run test:tauri-release-runtime && node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop
 
       - name: Build signed ARM64 DMG candidate
         if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
@@ -601,7 +601,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Test Windows desktop package
-        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
+        run: pnpm run test:tauri-release-runtime && node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop
 
       - name: Build signed per-user NSIS candidate
         if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'
@@ -786,7 +786,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Test Windows ARM64 desktop package
-        run: pnpm run test:tauri-release-runtime && cargo test -p jftrade-desktop
+        run: pnpm run test:tauri-release-runtime && node scripts/quality/cargo-nextest.mjs run -p jftrade-desktop
 
       - name: Build signed ARM64 NSIS candidate
         if: env.JFTRADE_DESKTOP_SIGNED_CANDIDATE == 'true'

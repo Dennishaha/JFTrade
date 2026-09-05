@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { watch } from "vue";
+import { useBrokerUnlock } from "@/composables/trading/useBrokerUnlock";
 import { useOrderEntryPanel } from "@/composables/trading/useOrderEntryPanel";
 import InstrumentIdentity from "../domain/market-data/InstrumentIdentity.vue";
+import BrokerUnlockDialog from "./BrokerUnlockDialog.vue";
 import RealTradeConfirmationDialog from "./RealTradeConfirmationDialog.vue";
 
 const {
@@ -112,6 +115,47 @@ const {
   formatTimeInForceLabel,
   isFinalExecutionOrderStatus,
 } = useOrderEntryPanel();
+
+const {
+  isBrokerUnlocked,
+  markBrokerLocked,
+  unlockDialogOpen,
+  isUnlocking,
+  unlockError,
+  requestUnlock,
+  submitUnlock,
+  cancelUnlock,
+} = useBrokerUnlock();
+
+watch(
+  () => lastOrderFeedback.value,
+  (feedback) => {
+    if (!feedback || feedback.level !== "error") return;
+    const msg = (feedback.message || "").toLowerCase();
+    if (
+      msg.includes("account_locked") ||
+      msg.includes("broker_locked") ||
+      msg.includes("need_unlock") ||
+      msg.includes("未解锁") ||
+      msg.includes("锁定") ||
+      msg.includes("需解锁") ||
+      msg.includes("password")
+    ) {
+      markBrokerLocked(activeBrokerId.value);
+      requestUnlock(activeBrokerId.value);
+    }
+  },
+);
+
+function onConfirmRealTrade() {
+  if (isRealMode.value && !isBrokerUnlocked(activeBrokerId.value, activeTradingEnvironment.value)) {
+    requestUnlock(activeBrokerId.value, async () => {
+      await confirmRealTradeSubmission();
+    });
+  } else {
+    void confirmRealTradeSubmission();
+  }
+}
 </script>
 
 <template>
@@ -127,6 +171,16 @@ const {
         compact
       />
       <div class="flex-1"></div>
+      <button
+        v-if="isRealMode && !isBrokerUnlocked(activeBrokerId, activeTradingEnvironment)"
+        type="button"
+        class="tv-unlock-badge"
+        title="点击输入交易密码解锁券商实盘交易权限"
+        @click="requestUnlock(activeBrokerId)"
+      >
+        <span class="fa-solid fa-lock" aria-hidden="true"></span>
+        未解锁
+      </button>
       <span
         v-if="isRealMode"
         class="jf-mode-badge"
@@ -345,13 +399,42 @@ const {
         :required-confirmation-text="requiredRealTradeConfirmationText"
         :submitting="submitting"
         @cancel="cancelRealTradeConfirmation"
-        @confirm="confirmRealTradeSubmission"
+        @confirm="onConfirmRealTrade"
+      />
+
+      <BrokerUnlockDialog
+        v-model="unlockDialogOpen"
+        :broker-id="activeBrokerId"
+        :unlocking="isUnlocking"
+        :error="unlockError"
+        @submit="submitUnlock"
+        @cancel="cancelUnlock"
       />
     </div>
   </section>
 </template>
 
 <style scoped>
+.tv-unlock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(242, 54, 69, 0.15);
+  border: 1px solid rgba(242, 54, 69, 0.4);
+  color: #f23645;
+  font-size: var(--jf-text-4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 6px;
+  transition: background-color 0.2s;
+}
+
+.tv-unlock-badge:hover {
+  background: rgba(242, 54, 69, 0.25);
+}
+
 .order-entry__identity {
   max-width: 60%;
   min-width: 0;

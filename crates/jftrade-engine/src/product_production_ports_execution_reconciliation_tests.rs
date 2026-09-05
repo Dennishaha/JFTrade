@@ -324,6 +324,9 @@ fn production_port(
         trade_write_port: None,
         trade_runtime: Some(runtime),
         cancel_inflight: Arc::new(Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
     }
 }
 
@@ -387,6 +390,9 @@ fn reconciliation_uses_ready_trade_session_with_helper_market_provider() {
         trade_write_port: None,
         trade_runtime: Some(runtime),
         cancel_inflight: Arc::new(Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
     };
     assert!(port.reconciliation_reader().is_ok());
 }
@@ -407,6 +413,9 @@ fn reconciliation_rejects_trade_client_when_opend_physical_session_is_unready() 
         trade_write_port: None,
         trade_runtime: Some(runtime),
         cancel_inflight: Arc::new(Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
     };
 
     let result = port.reconciliation_reader();
@@ -748,3 +757,9 @@ mod provider_projection_tests;
 
 #[path = "product_production_ports_execution_reconciliation_order_state_tests.rs"]
 mod order_state_tests;
+
+#[path = "product_production_ports_execution_reconciliation_identity_tests.rs"]
+mod identity_tests;
+
+#[path = "product_production_ports_execution_reconciliation_push_worker_tests.rs"]
+mod push_worker_tests;

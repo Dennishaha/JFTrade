@@ -1,4 +1,40 @@
 use super::*;
+
+#[test]
+fn close_acknowledges_the_existing_revision_without_incrementing_it() {
+    for (expected, actual) in [(3, 3), (0, 3), (0, 0)] {
+        let request = PineRunRequest {
+            session_id: "session".to_owned(),
+            session_operation: "close".to_owned(),
+            expected_revision: expected,
+            ..Default::default()
+        };
+        let result = PineRunResult {
+            session_id: "session".to_owned(),
+            session_revision: actual,
+            ..Default::default()
+        };
+        assert!(validate_session_result(&request, &result).is_ok());
+    }
+}
+
+#[test]
+fn close_rejects_a_different_session_or_a_stale_explicit_revision() {
+    let request = PineRunRequest {
+        session_id: "session".to_owned(),
+        session_operation: "close".to_owned(),
+        expected_revision: 3,
+        ..Default::default()
+    };
+    for (session_id, session_revision) in [("other", 3), ("session", 4)] {
+        let result = PineRunResult {
+            session_id: session_id.to_owned(),
+            session_revision,
+            ..Default::default()
+        };
+        assert!(validate_session_result(&request, &result).is_err());
+    }
+}
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;

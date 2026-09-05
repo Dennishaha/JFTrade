@@ -72,6 +72,12 @@ impl PineReadinessPolicy {
     }
 }
 
+impl Default for PineReadinessPolicy {
+    fn default() -> Self {
+        Self::go_compatibility()
+    }
+}
+
 pub trait PineReadinessProbe {
     fn health<'a>(
         &'a self,
@@ -175,7 +181,8 @@ pub enum PineProcessError {
 pub struct PineProcess {
     spec: WorkerProcessSpec,
     config: PineProcessConfig,
-    child: Child,
+    child: Option<Child>,
+    restarts: u32,
 }
 
 impl PineProcess {
@@ -215,7 +222,8 @@ impl PineProcess {
         Ok(Self {
             spec,
             config,
-            child,
+            child: Some(child),
+            restarts: 0,
         })
     }
 
@@ -223,8 +231,27 @@ impl PineProcess {
         &self.spec.worker_id
     }
 
+    pub fn restarts(&self) -> u32 {
+        self.restarts
+    }
+
+    pub fn spec(&self) -> &WorkerProcessSpec {
+        &self.spec
+    }
+
+    pub fn config(&self) -> &PineProcessConfig {
+        &self.config
+    }
+
     pub fn pid(&self) -> Option<u32> {
-        self.child.id()
+        self.child.as_ref().and_then(Child::id)
+    }
+
+    pub fn is_alive(&mut self) -> bool {
+        self.child
+            .as_mut()
+            .and_then(|c| c.try_wait().ok())
+            .is_some_and(|status| status.is_none())
     }
 
     pub async fn wait_until_ready<P: PineReadinessProbe>(
@@ -232,10 +259,16 @@ impl PineProcess {
         probe: &P,
         policy: PineReadinessPolicy,
     ) -> Result<WorkerHealth, PineProcessError> {
+        let Some(child) = self.child.as_mut() else {
+            return Err(PineProcessError::Exited(format!(
+                "{} has no running process",
+                self.spec.worker_id
+            )));
+        };
         let deadline = tokio::time::Instant::now() + policy.timeout;
         let mut attempt = 0_u32;
         loop {
-            if let Some(status) = self.child.try_wait()? {
+            if let Some(status) = child.try_wait()? {
                 return Err(PineProcessError::Exited(format!(
                     "{} exited with {status}",
                     self.spec.worker_id
@@ -247,8 +280,8 @@ impl PineProcess {
                 Err(error) => error,
             };
             if tokio::time::Instant::now() >= deadline {
-                let _ = self.child.start_kill();
-                let _ = tokio::time::timeout(self.config.stop_timeout, self.child.wait()).await;
+                let _ = child.start_kill();
+                let _ = tokio::time::timeout(self.config.stop_timeout, child.wait()).await;
                 return Err(PineProcessError::ReadinessTimeout(last_error));
             }
             tokio::time::sleep(policy.retry_delay(attempt)).await;
@@ -256,12 +289,15 @@ impl PineProcess {
         }
     }
 
-    pub async fn stop(mut self) -> Result<(), PineProcessError> {
-        if self.child.try_wait()?.is_some() {
+    pub async fn stop(&mut self) -> Result<(), PineProcessError> {
+        let Some(mut child) = self.child.take() else {
+            return Ok(());
+        };
+        if child.try_wait()?.is_some() {
             return Ok(());
         }
-        self.child.start_kill()?;
-        match tokio::time::timeout(self.config.stop_timeout, self.child.wait()).await {
+        child.start_kill()?;
+        match tokio::time::timeout(self.config.stop_timeout, child.wait()).await {
             Ok(result) => {
                 result?;
                 Ok(())
@@ -270,9 +306,55 @@ impl PineProcess {
         }
     }
 
+    pub async fn restart(&mut self) -> Result<(), PineProcessError> {
+        let _ = self.stop().await;
+        let (stdout, stderr) = child_stdio(self.config.log_path.as_deref())?;
+        let mut command = Command::new(&self.config.runtime);
+        command
+            .arg(&self.config.bundle_path)
+            .arg("--address")
+            .arg(self.spec.address())
+            .arg("--worker-id")
+            .arg(&self.spec.worker_id)
+            .envs(&self.config.environment)
+            .stdin(Stdio::null())
+            .stdout(stdout)
+            .stderr(stderr)
+            .kill_on_drop(true);
+        if let Some(proto_path) = &self.config.proto_path {
+            command.arg("--proto").arg(proto_path);
+        }
+        if let Some(max_message_bytes) = self.config.max_message_bytes {
+            command
+                .arg("--max-message-bytes")
+                .arg(max_message_bytes.to_string());
+        }
+        if let Some(version) = &self.config.pine_ts_version {
+            command.arg("--pinets-version").arg(version);
+        }
+        if let Some(token) = &self.config.bearer_token {
+            command.env("JFTRADE_PINEWORKER_TOKEN", token);
+        }
+        let child = command.spawn()?;
+        self.child = Some(child);
+        self.restarts = self.restarts.saturating_add(1);
+        Ok(())
+    }
+
+    pub async fn restart_until_ready<P: PineReadinessProbe>(
+        &mut self,
+        probe: &P,
+        policy: PineReadinessPolicy,
+    ) -> Result<WorkerHealth, PineProcessError> {
+        self.restart().await?;
+        self.wait_until_ready(probe, policy).await
+    }
+
     pub fn terminate(&mut self) {
-        if self.child.try_wait().ok().flatten().is_none() {
-            let _ = self.child.start_kill();
+        if let Some(child) = self.child.as_mut()
+            && child.try_wait().ok().flatten().is_none()
+        {
+            let _ = child.start_kill();
         }
     }
 }

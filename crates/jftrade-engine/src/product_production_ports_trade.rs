@@ -41,14 +41,13 @@ mod product_production_ports_trade_requests;
 mod product_trade_runtime_options;
 #[path = "product_broker_capabilities_projection.rs"]
 mod product_broker_capabilities_projection;
-#[cfg(test)]
 pub(crate) use product_production_ports_trade_requests::market_code;
 pub(crate) use product_production_ports_trade_requests::{
     ResolvedTradeRequest, TradeRequest, account_identity, checked_at, environment_label_from_code,
     normalize_history_time, qot_market_label, quote_market_code,
 };
 #[path = "trade_projection.rs"]
-mod trade_projection;
+pub(crate) mod trade_projection;
 #[allow(unused_imports)]
 use trade_projection::{
     account_value, canonical_time, cash_flow_direction_label, cash_flow_value, currency_label,

@@ -41,6 +41,8 @@ pub struct ProcessSnapshot {
     pub endpoint: String,
     pub pid: Option<u32>,
     pub last_error: Option<String>,
+    #[serde(default)]
+    pub restarts: u32,
 }
 
 #[derive(Debug, Error)]
@@ -72,6 +74,7 @@ pub struct HelperProcess {
     child: Option<Child>,
     state: ProcessState,
     last_error: Option<String>,
+    restarts: u32,
 }
 
 impl HelperProcess {
@@ -82,6 +85,7 @@ impl HelperProcess {
             child: None,
             state: ProcessState::Stopped,
             last_error: None,
+            restarts: 0,
         })
     }
 
@@ -192,12 +196,48 @@ impl HelperProcess {
         }
     }
 
+    pub fn restarts(&self) -> u32 {
+        self.restarts
+    }
+
+    pub fn config(&self) -> &HelperProcessConfig {
+        &self.config
+    }
+
+    pub async fn restart(&mut self) -> Result<ProcessSnapshot, ProcessError> {
+        let _ = self.stop().await;
+        let snapshot = self.start()?;
+        self.restarts = self.restarts.saturating_add(1);
+        Ok(snapshot)
+    }
+
+    pub async fn restart_until_ready(
+        &mut self,
+        client: &HelperClient,
+        startup_timeout: Duration,
+        initial_retry_delay: Duration,
+        max_retry_delay: Duration,
+    ) -> Result<ProcessSnapshot, ProcessError> {
+        let _ = self.stop().await;
+        let snapshot = self
+            .start_until_ready(
+                client,
+                startup_timeout,
+                initial_retry_delay,
+                max_retry_delay,
+            )
+            .await?;
+        self.restarts = self.restarts.saturating_add(1);
+        Ok(snapshot)
+    }
+
     pub fn snapshot(&self) -> ProcessSnapshot {
         ProcessSnapshot {
             state: self.state,
             endpoint: format!("http://{}:{}", self.config.host, self.config.port),
             pid: self.child.as_ref().and_then(Child::id),
             last_error: self.last_error.clone(),
+            restarts: self.restarts,
         }
     }
 
@@ -226,6 +266,12 @@ impl HelperProcess {
             .transpose()
             .map_err(ProcessError::Io)
             .map(Option::flatten)
+    }
+}
+
+impl Drop for HelperProcess {
+    fn drop(&mut self) {
+        self.terminate();
     }
 }
 

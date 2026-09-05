@@ -11,6 +11,7 @@ use serde_json::Value;
 use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+use crate::adk_artifact::AdkArtifactStore;
 use crate::adk_session::{AdkSessionStore, AdkSessionWriteLease};
 use crate::schema_manifest::{SchemaManifestError, validate_current};
 
@@ -105,6 +106,9 @@ pub enum AdkToolInvocationClaim {
     /// Another executor still owns an unexpired claim.  Callers may wait for
     /// the reported durable expiry and retry under their run lease.
     Live(StoredAdkToolInvocation),
+    /// An in-flight side-effecting invocation expired; its outcome is unknown
+    /// and cannot be safely re-executed.
+    Unknown(StoredAdkToolInvocation),
 }
 
 /// Atomic result of resolving an approval and staging its pending run.
@@ -253,6 +257,8 @@ pub enum AdkStoreError {
     WriterLease(#[from] WriterLeaseError),
     #[error("adk session store: {0}")]
     SessionStore(#[from] crate::adk_session::AdkSessionStoreError),
+    #[error("adk artifact store: {0}")]
+    ArtifactStore(#[from] crate::adk_artifact::AdkArtifactStoreError),
     #[error("open adk database: {0}")]
     Open(#[source] rusqlite::Error),
     #[error("configure adk database: {0}")]
@@ -283,6 +289,8 @@ pub enum AdkStoreError {
     Invariant(String),
     #[error("invalid adk request: {0}")]
     Validation(String),
+    #[error("tool invocation outcome is unknown: {0}")]
+    ToolOutcomeUnknown(String),
     #[error("incompatible adk database: {0}")]
     Incompatible(String),
 }
@@ -762,21 +770,14 @@ impl AdkStore {
     }
 
     pub fn delete_session(&self, id: &str) -> Result<bool, AdkStoreError> {
-        let mut connection = self.lock_connection()?;
-        let exists = connection
-            .query_row(
-                "SELECT 1 FROM adk_sessions WHERE id = ?1 LIMIT 1",
-                params![id],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()
-            .map_err(AdkStoreError::Query)?
-            .is_some();
-        if !exists {
-            return Ok(false);
+        if id == "user" || id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
         }
-
+        let mut connection = self.lock_connection()?;
         let transaction = connection.transaction().map_err(AdkStoreError::Query)?;
+        let mut total_deleted = 0;
         for statement in [
             "DELETE FROM adk_tool_invocations WHERE run_id IN (SELECT id FROM adk_runs WHERE session_id = ?1)",
             "DELETE FROM adk_run_leases WHERE run_id IN (SELECT id FROM adk_runs WHERE session_id = ?1)",
@@ -790,12 +791,42 @@ impl AdkStore {
             "DELETE FROM adk_session_composer_state WHERE session_id = ?1",
             "DELETE FROM adk_sessions WHERE id = ?1",
         ] {
-            transaction
+            total_deleted += transaction
                 .execute(statement, params![id])
                 .map_err(AdkStoreError::Query)?;
         }
         transaction.commit().map_err(AdkStoreError::Query)?;
-        Ok(true)
+        Ok(total_deleted > 0)
+    }
+
+    pub fn get_session_agent_id(&self, id: &str) -> Result<Option<String>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "SELECT agent_id FROM adk_sessions WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
+    pub fn delete_session_cascade(
+        &self,
+        session_store: &AdkSessionStore,
+        artifact_store: &AdkArtifactStore,
+        id: &str,
+    ) -> Result<bool, AdkStoreError> {
+        if id == "user" || id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
+        }
+        let artifacts_deleted = artifact_store.delete_session_artifacts_by_id(id)?;
+        let session_db_deleted = session_store.delete_session_by_id(id)?;
+        let adk_db_deleted = self.delete_session(id)?;
+
+        Ok(artifacts_deleted > 0 || session_db_deleted || adk_db_deleted)
     }
 
     pub fn get_session(&self, id: &str) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
@@ -2036,6 +2067,7 @@ impl AdkStore {
         owner_id: &str,
         run_lease_token: i64,
         lease_ttl: Duration,
+        fail_closed: bool,
     ) -> Result<AdkToolInvocationClaim, AdkStoreError> {
         if lease_ttl.is_zero()
             || run_id.trim().is_empty()
@@ -2113,9 +2145,13 @@ impl AdkStore {
                     "tool invocation key {idempotency_key} was reused with different input"
                 )));
             }
+            if existing.status.eq_ignore_ascii_case("UNKNOWN") {
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok(AdkToolInvocationClaim::Unknown(existing));
+            }
             if matches!(
                 existing.status.to_ascii_uppercase().as_str(),
-                "SUCCEEDED" | "FAILED" | "UNKNOWN"
+                "SUCCEEDED" | "FAILED"
             ) {
                 transaction.commit().map_err(AdkStoreError::Query)?;
                 return Ok(AdkToolInvocationClaim::Replay(existing));
@@ -2140,6 +2176,44 @@ impl AdkStore {
                     |row| row.get(0),
                 )
                 .map_err(AdkStoreError::Query)?;
+            let next_fencing_token = fencing_token.saturating_add(1);
+
+            if fail_closed {
+                let invocation_affected = transaction
+                    .execute(
+                        "UPDATE adk_tool_invocations
+                         SET status = 'UNKNOWN', owner_id = '', fencing_token = ?1,
+                             run_lease_token = ?2, lease_expires_at_unix_ms = 0,
+                             updated_at = ?3
+                         WHERE run_id = ?4 AND idempotency_key = ?5
+                           AND status = 'RUNNING' AND lease_expires_at_unix_ms <= ?6",
+                        params![
+                            next_fencing_token,
+                            run_lease_token,
+                            now_text,
+                            run_id,
+                            idempotency_key,
+                            now_ms as i64,
+                        ],
+                    )
+                    .map_err(AdkStoreError::Query)?;
+                if invocation_affected != 1 {
+                    return Err(AdkStoreError::LeaseLost(format!(
+                        "tool invocation {idempotency_key} lease is no longer current"
+                    )));
+                }
+                transaction.commit().map_err(AdkStoreError::Query)?;
+                return Ok(AdkToolInvocationClaim::Unknown(StoredAdkToolInvocation {
+                    status: "UNKNOWN".to_owned(),
+                    owner_id: String::new(),
+                    fencing_token: next_fencing_token,
+                    run_lease_token,
+                    lease_expires_at_unix_ms: 0,
+                    updated_at: now_text,
+                    ..existing
+                }));
+            }
+
             let invocation_affected = transaction
                 .execute(
                     "UPDATE adk_tool_invocations
@@ -2150,7 +2224,7 @@ impl AdkStore {
                        AND status = 'RUNNING' AND lease_expires_at_unix_ms <= ?8",
                     params![
                         owner_id,
-                        fencing_token.saturating_add(1),
+                        next_fencing_token,
                         run_lease_token,
                         expires_ms as i64,
                         now_text,
@@ -2168,7 +2242,7 @@ impl AdkStore {
             transaction.commit().map_err(AdkStoreError::Query)?;
             return Ok(AdkToolInvocationClaim::Execute(StoredAdkToolInvocation {
                 owner_id: owner_id.to_owned(),
-                fencing_token: fencing_token.saturating_add(1),
+                fencing_token: next_fencing_token,
                 run_lease_token,
                 lease_expires_at_unix_ms: expires_ms as i64,
                 updated_at: now_text,
@@ -2340,7 +2414,7 @@ impl AdkStore {
                 }
                 if matches!(
                     existing.status.to_ascii_uppercase().as_str(),
-                    "SUCCEEDED" | "FAILED" | "UNKNOWN"
+                    "SUCCEEDED" | "FAILED"
                 ) {
                     transaction.commit().map_err(AdkStoreError::Query)?;
                     return Ok(AdkToolResultCommit {
@@ -2355,9 +2429,19 @@ impl AdkStore {
                     "tool invocation {idempotency_key} must be claimed before result commit"
                 )));
             };
+            if invocation.status.eq_ignore_ascii_case("UNKNOWN") {
+                return Err(AdkStoreError::LeaseLost(format!(
+                    "tool invocation {idempotency_key} is fenced with unknown outcome"
+                )));
+            }
             if invocation.lease_expires_at_unix_ms <= now_ms {
                 return Err(AdkStoreError::LeaseLost(format!(
                     "tool invocation {idempotency_key} lease has expired"
+                )));
+            }
+            if invocation.fencing_token != fencing_token || invocation.owner_id != owner_id {
+                return Err(AdkStoreError::LeaseLost(format!(
+                    "tool invocation {idempotency_key} fencing token is no longer current"
                 )));
             }
             if invocation.run_lease_token != run_lease_token {
@@ -4549,6 +4633,20 @@ impl AdkTestCutoverStore {
         self.inner.delete_session(id)
     }
 
+    pub fn get_session_agent_id(&self, id: &str) -> Result<Option<String>, AdkStoreError> {
+        self.inner.get_session_agent_id(id)
+    }
+
+    pub fn delete_session_cascade(
+        &self,
+        session_store: &AdkSessionStore,
+        artifact_store: &AdkArtifactStore,
+        id: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .delete_session_cascade(session_store, artifact_store, id)
+    }
+
     pub fn create_run(
         &self,
         params: CreateAdkRunParams<'_>,
@@ -4820,6 +4918,7 @@ impl AdkTestCutoverStore {
         owner_id: &str,
         run_lease_token: i64,
         lease_ttl: Duration,
+        fail_closed: bool,
     ) -> Result<AdkToolInvocationClaim, AdkStoreError> {
         self.inner.claim_tool_invocation_if_status_and_revision(
             run_id,
@@ -4831,6 +4930,7 @@ impl AdkTestCutoverStore {
             owner_id,
             run_lease_token,
             lease_ttl,
+            fail_closed,
         )
     }
 

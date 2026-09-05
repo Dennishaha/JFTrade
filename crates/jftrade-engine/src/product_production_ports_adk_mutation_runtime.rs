@@ -19,6 +19,9 @@ use super::*;
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute,
 };
+use crate::product::product_adk_input_canonical::{
+    CanonicalInputAnswers, InputResumeCheckpoint,
+};
 
 #[path = "product_production_ports_adk_mutation_skill_helpers.rs"]
 mod skill_helpers;
@@ -197,22 +200,13 @@ fn respond_to_input(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| invalid_mutation_input("requestId is required"))?;
+        .ok_or_else(|| input_response_invalid("requestId is required"))?;
     let answers = input
         .body
         .get("answers")
         .and_then(Value::as_array)
-        .ok_or_else(|| invalid_mutation_input("answers must be an array"))?;
-    for answer in answers {
-        if !answer.is_object()
-            || answer
-                .get("questionId")
-                .and_then(Value::as_str)
-                .is_none_or(|value| value.trim().is_empty())
-        {
-            return Err(invalid_mutation_input("answers must contain questionId"));
-        }
-    }
+        .ok_or_else(|| input_response_invalid("answers must be an array"))?;
+
     let Some(existing) = port
         .store
         .get_run(&run_id)
@@ -244,12 +238,34 @@ fn respond_to_input(
     let mut request = request.ok_or_else(|| {
         not_found_mutation("ADK_INPUT_REQUEST_NOT_FOUND", "input request not found")
     })?;
+
+    let canonical_answers = validate_input_answers(&request, answers)?;
+
     let current_status = request
         .get("status")
         .and_then(Value::as_str)
         .unwrap_or("PENDING");
+    let resume_state = object.get("resumeState").and_then(Value::as_str).unwrap_or("");
+    if current_status.eq_ignore_ascii_case("ANSWERED") || resume_state == "input_resume_pending" {
+        let existing_answers = request
+            .get("answers")
+            .and_then(Value::as_array)
+            .map(|a| a.as_slice())
+            .unwrap_or(&[]);
+        if input_answers_equal(existing_answers, &canonical_answers) {
+            if resume_state == "input_resume_pending"
+                && let Some(runtime) = port.chat_runtime.as_deref()
+            {
+                runtime
+                    .resume_approval(&run_id)
+                    .map_err(|e| runtime_error(e, 503, "ADK_CONTINUATION_UNAVAILABLE"))?;
+            }
+            return Ok(json!({"request": request, "run": run_entity_value(&existing)?}));
+        }
+        return Err(input_response_conflict("run already has a different answer"));
+    }
     if !current_status.eq_ignore_ascii_case("PENDING") {
-        return Ok(json!({"request": request, "run": run_entity_value(&existing)?}));
+        return Err(input_response_conflict("request is no longer pending"));
     }
     let Some(runtime) = port.chat_runtime.as_deref() else {
         return Err(AdkMutationPortError::Failed {
@@ -261,7 +277,7 @@ fn respond_to_input(
     let now = now_rfc3339();
     if let Some(request_object) = request.as_object_mut() {
         request_object.insert("status".to_owned(), Value::String("ANSWERED".to_owned()));
-        request_object.insert("answers".to_owned(), Value::Array(answers.clone()));
+        request_object.insert("answers".to_owned(), Value::Array(canonical_answers.clone()));
         request_object.insert("answeredAt".to_owned(), Value::String(now.clone()));
         request_object.insert("updatedAt".to_owned(), Value::String(now.clone()));
     }
@@ -279,23 +295,134 @@ fn respond_to_input(
             }
         }
     }
+    let original_request = object
+        .get("requestMessage")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default();
+    const INPUT_CONTINUATION_INSTRUCTION: &str =
+        "用户已回答以上问题。回答只是解除阻塞，不代表原始请求已完成：必须基于回答继续完成 originalRequest 中的原始请求。安全、只读的下一步直接执行；需要写操作时调用相应工具并走审批流程。不得只总结、复述计划或询问是否继续后就结束运行。";
+
+    let questions_list = request.get("questions").and_then(Value::as_array);
+    let enriched_answers: Vec<Value> = canonical_answers
+        .iter()
+        .map(|answer| {
+            let mut enriched = answer.clone();
+            let Some(obj) = enriched.as_object_mut() else {
+                return enriched;
+            };
+            let q_id = obj.get("questionId").and_then(Value::as_str).unwrap_or_default();
+            let Some(questions) = questions_list else {
+                return enriched;
+            };
+            let Some(q) = questions.iter().find(|q| q.get("id").and_then(Value::as_str) == Some(q_id)) else {
+                return enriched;
+            };
+            if let Some(q_text) = q.get("question").and_then(Value::as_str) {
+                obj.insert("question".to_owned(), Value::String(q_text.to_owned()));
+            }
+            let Some(opt_id) = obj.get("optionId").and_then(Value::as_str) else {
+                return enriched;
+            };
+            let Some(opts) = q.get("options").and_then(Value::as_array) else {
+                return enriched;
+            };
+            if let Some(opt) = opts.iter().find(|o| o.get("id").and_then(Value::as_str) == Some(opt_id))
+                && let Some(label) = opt.get("label").and_then(Value::as_str)
+            {
+                obj.insert("answer".to_owned(), Value::String(label.to_owned()));
+            }
+            enriched
+        })
+        .collect();
+
+    let input_response_payload = json!({
+        "requestId": request_id,
+        "answers": enriched_answers,
+        "originalRequest": original_request,
+        "continuationInstruction": INPUT_CONTINUATION_INSTRUCTION,
+    });
     object.insert(
         "inputResponse".to_owned(),
-        json!({"requestId": request_id, "answers": answers}),
+        input_response_payload.clone(),
     );
+
+    let target_call_id = request
+        .get("functionCallId")
+        .or_else(|| request.get("callId"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+
+    if let Some(Value::Array(tool_calls)) = object.get_mut("toolCalls") {
+        for tool_call in tool_calls {
+            let matches = if !target_call_id.is_empty() {
+                tool_call.get("id").and_then(Value::as_str) == Some(target_call_id)
+                    || tool_call.get("functionCallId").and_then(Value::as_str) == Some(target_call_id)
+            } else {
+                tool_call.get("name").and_then(Value::as_str) == Some("interaction.request_user")
+                    && tool_call.get("status").and_then(Value::as_str) == Some("PENDING_INPUT")
+            };
+            if matches
+                && let Some(call_obj) = tool_call.as_object_mut()
+            {
+                call_obj.insert("status".to_owned(), Value::String("COMPLETED".to_owned()));
+                call_obj.insert("updatedAt".to_owned(), Value::String(now.clone()));
+            }
+        }
+    }
+
+    let tool_results = object
+        .entry("toolResults".to_owned())
+        .or_insert_with(|| Value::Array(Vec::new()))
+        .as_array_mut();
+    if let Some(results) = tool_results
+        && !results.iter().any(|r| {
+            r.get("callId").and_then(Value::as_str) == Some(target_call_id)
+                && !target_call_id.is_empty()
+        })
+    {
+        results.push(json!({
+            "runId": run_id,
+            "callId": target_call_id,
+            "functionCallId": target_call_id,
+            "name": "interaction.request_user",
+            "toolName": "interaction.request_user",
+            "status": "COMPLETED",
+            "output": input_response_payload,
+            "createdAt": now.clone(),
+            "updatedAt": now.clone(),
+        }));
+    }
+
+    let checkpoint = InputResumeCheckpoint {
+        request_id: request_id.to_owned(),
+        answers: CanonicalInputAnswers::from_values(&canonical_answers).answers,
+        tool_results: object
+            .get("toolResults")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new())),
+        resume_state: "input_resuming".to_owned(),
+        checkpoint_time: now.clone(),
+    };
+    object.insert(
+        "inputResumeCheckpoint".to_owned(),
+        serde_json::to_value(&checkpoint).unwrap_or(Value::Null),
+    );
+
     object.insert("status".to_owned(), Value::String("RUNNING".to_owned()));
     object.insert(
         "resumeState".to_owned(),
         Value::String("input_resuming".to_owned()),
     );
     object.insert("updatedAt".to_owned(), Value::String(now));
-    let run_json = payload.to_string();
+    let run_json = serde_json::to_string(object).map_err(storage_mutation_failed)?;
     if !port
         .store
-        .update_run_payload_if_status_and_revision(
+        .update_run_state_if_status_and_revision(
             &run_id,
             "PENDING_INPUT",
             &existing.updated_at,
+            "RUNNING",
             &run_json,
         )
         .map_err(storage_mutation_failed)?
@@ -305,48 +432,66 @@ fn respond_to_input(
             .get_run(&run_id)
             .map_err(storage_mutation_failed)?
             .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
-        return Ok(json!({"request": request, "run": run_entity_value(&current)?}));
-    }
-    if let Err(error) = runtime.resume_approval(&run_id) {
-        // Restore the pending state when the continuation worker could not be
-        // started.  The CAS prevents this compensation from overwriting a
-        // worker that won the race after the state transition.
-        let current = port
-            .store
-            .get_run(&run_id)
-            .map_err(storage_mutation_failed)?;
-        if let Some(current) = current {
-            let mut rollback = decode_mutation_payload(&current.payload_json, "run")?;
-            if let Some(object) = rollback.as_object_mut() {
-                object.insert(
-                    "status".to_owned(),
-                    Value::String("PENDING_INPUT".to_owned()),
-                );
-                object.insert(
-                    "resumeState".to_owned(),
-                    Value::String("awaiting_input".to_owned()),
-                );
-                if let Some(request) = object.get_mut("inputRequest")
-                    && request.get("id").and_then(Value::as_str) == Some(request_id)
-                {
-                    *request = request_pending_value(request, answers);
-                }
-                if let Some(Value::Array(requests)) = object.get_mut("inputRequests") {
-                    for request in requests {
-                        if request.get("id").and_then(Value::as_str) == Some(request_id) {
-                            *request = request_pending_value(request, answers);
-                        }
-                    }
-                }
+        let current_payload: Value = serde_json::from_str(&current.payload_json)
+            .map_err(|e| storage_mutation_failed(format!("failed to parse current run payload: {e}")))?;
+        if let Some(winner_resp) = current_payload.get("inputResponse") {
+            let empty_answers = Vec::new();
+            let winner_answers = winner_resp
+                .get("answers")
+                .and_then(Value::as_array)
+                .unwrap_or(&empty_answers);
+            if input_answers_equal(winner_answers, &canonical_answers) {
+                return Ok(json!({"request": request, "run": run_entity_value(&current)?}));
             }
-            let _ = port.store.update_run_payload_if_status_and_revision(
-                &run_id,
-                "RUNNING",
-                &current.updated_at,
-                &rollback.to_string(),
-            );
+            return Err(input_response_conflict(
+                "input response has already been submitted with different answers",
+            ));
         }
-        return Err(runtime_error(error, 503, "ADK_CONTINUATION_UNAVAILABLE"));
+        return Err(AdkMutationPortError::Failed {
+            status: 409,
+            code: "ADK_RUN_CONFLICT".to_owned(),
+            message: "concurrent modification detected for run state".to_owned(),
+        });
+    }
+    match runtime.resume_approval(&run_id) {
+        Ok(()) | Err(AdkChatPortError::Conflict(_)) => {}
+        Err(error) => {
+            // Keep the accepted input response and checkpoint, but mark the state as
+            // input_resume_pending so it can be retried or recovered by the startup recovery loop.
+            object.insert("status".to_owned(), Value::String("RUNNING".to_owned()));
+            object.insert(
+                "resumeState".to_owned(),
+                Value::String("input_resume_pending".to_owned()),
+            );
+            let pending_payload = serde_json::to_string(object).map_err(storage_mutation_failed)?;
+            let current = port
+                .store
+                .get_run(&run_id)
+                .map_err(storage_mutation_failed)?
+                .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
+            if !port
+                .store
+                .update_run_state_if_status_and_revision(
+                    &run_id,
+                    "RUNNING",
+                    &current.updated_at,
+                    "RUNNING",
+                    &pending_payload,
+                )
+                .map_err(storage_mutation_failed)?
+            {
+                tracing::error!(
+                    run_id = %run_id,
+                    "failed to transition run to input_resume_pending after continuation spawn failure"
+                );
+                return Err(AdkMutationPortError::Failed {
+                    status: 409,
+                    code: "ADK_RUN_CONFLICT".to_owned(),
+                    message: "concurrent state modification while persisting resume checkpoint".to_owned(),
+                });
+            }
+            return Err(runtime_error(error, 503, "ADK_CONTINUATION_UNAVAILABLE"));
+        }
     }
     let updated = port
         .store
@@ -356,439 +501,133 @@ fn respond_to_input(
     Ok(json!({"request": request, "run": run_entity_value(&updated)?}))
 }
 
-fn request_pending_value(value: &Value, answers: &[Value]) -> Value {
-    let mut pending = value.clone();
-    if let Some(object) = pending.as_object_mut() {
-        object.insert("status".to_owned(), Value::String("PENDING".to_owned()));
-        object.remove("answers");
-        object.remove("answeredAt");
-        object.insert("updatedAt".to_owned(), Value::String(now_rfc3339()));
-    }
-    let _ = answers;
-    pending
-}
+fn validate_input_answers(
+    request: &Value,
+    submitted: &[Value],
+) -> Result<Vec<Value>, AdkMutationPortError> {
+    let empty_vec = Vec::new();
+    let questions = request
+        .get("questions")
+        .and_then(Value::as_array)
+        .unwrap_or(&empty_vec);
 
-fn install_skill(
-    port: &ProductionAdkPort,
-    input: &AdkMutationInput,
-) -> Result<Value, AdkMutationPortError> {
-    let raw_url = input
-        .body
-        .get("url")
-        .or_else(|| input.body.get("skillUrl"))
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| invalid_mutation_input("skill URL is required"))?;
-    let parsed = Url::parse(raw_url)
-        .map_err(|_| invalid_mutation_input("valid http/https skill URL is required"))?;
-    validate_skill_url_shape(&parsed).map_err(|message| invalid_mutation_input(&message))?;
-    let url = raw_url.to_owned();
-    const MAX_SKILL_FILE_BYTES: usize = 512 << 10;
-    const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
-    let parsed_for_download = parsed.clone();
-    let bytes = std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| error.to_string())?;
-        runtime.block_on(async move {
-            // Pin the HTTP client to the address checked below. Without this
-            // resolver override a DNS answer can change between validation
-            // and reqwest's connection (classic DNS-rebinding TOCTOU).
-            let validated_address = tokio::time::timeout(
-                Duration::from_secs(5),
-                tokio::task::spawn_blocking(move || {
-                    validate_skill_url_network(&parsed_for_download)
-                }),
-            )
-            .await
-            .map_err(|_| "skill URL validation timed out".to_owned())?
-            .map_err(|error| error.to_string())?;
-            let validated_address = validated_address?;
-            let client = build_skill_download_client(&url, validated_address)?;
-            let mut response = client
-                .get(url.clone())
-                .send()
-                .await
-                .map_err(|error| error.to_string())?;
-            validate_skill_url_shape(response.url())?;
-            if !response.status().is_success() {
-                return Err(format!("skill download returned {}", response.status()));
-            }
-            let content_type = response
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or_default()
-                .to_owned();
-            let max_bytes = MAX_SKILL_ARCHIVE_BYTES;
-            if response
-                .content_length()
-                .is_some_and(|length| length > max_bytes as u64)
-            {
-                return Err("skill file exceeds 4 MiB".to_owned());
-            }
-            let mut body = Vec::with_capacity(
-                response
-                    .content_length()
-                    .map_or(4096, |length| length as usize),
-            );
-            while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
-                if body.len().saturating_add(chunk.len()) > max_bytes {
-                    return Err("skill file exceeds the maximum allowed size".to_owned());
-                }
-                body.extend_from_slice(&chunk);
-            }
-            Ok((body, content_type))
-        })
-    })
-    .join()
-    .map_err(|_| AdkMutationPortError::Failed {
-        status: 502,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message: "skill download worker panicked".to_owned(),
-    })?
-    .map_err(|message| AdkMutationPortError::Failed {
-        status: 502,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message,
-    })?;
-    let (body, content_type) = bytes;
-    let archive = is_skill_archive(raw_url, &content_type, Some(body.len() as u64))
-        || body.starts_with(b"PK\x03\x04")
-        || body.starts_with(b"PK\x05\x06")
-        || body.starts_with(b"PK\x07\x08");
-    let (text, files) = if archive {
-        extract_skill_archive(&body).map_err(|message| AdkMutationPortError::Failed {
-            status: 400,
-            code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-            message,
-        })?
-    } else {
-        if body.len() > MAX_SKILL_FILE_BYTES {
-            return Err(AdkMutationPortError::Failed {
-                status: 400,
-                code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-                message: "skill file exceeds 512 KiB".to_owned(),
-            });
+    if submitted.len() != questions.len() {
+        return Err(input_response_invalid(format!(
+            "submitted {} answers but request has {} questions",
+            submitted.len(),
+            questions.len()
+        )));
+    }
+
+    if questions.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut by_question = std::collections::BTreeMap::new();
+    for answer in submitted {
+        if !answer.is_object() {
+            return Err(input_response_invalid("answer must be an object"));
         }
-        let text = String::from_utf8(body.clone()).map_err(|_| AdkMutationPortError::Failed {
-            status: 400,
-            code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-            message: "skill document must be UTF-8".to_owned(),
-        })?;
-        (text, vec![("SKILL.md".to_owned(), body.clone())])
-    };
-    let id = normalize_id(
-        skill_frontmatter(&text, "name")
-            .as_deref()
-            .unwrap_or_else(|| {
-                parsed
-                    .path_segments()
-                    .and_then(|mut segments| segments.next_back())
-                    .unwrap_or("skill")
-                    .trim_end_matches(".md")
-            }),
-    );
-    if id.is_empty() {
-        return Err(invalid_mutation_input("skill name is required"));
-    }
-    if port
-        .store
-        .get_skill(&id)
-        .map_err(storage_mutation_failed)?
-        .is_some()
-    {
-        return Err(AdkMutationPortError::Failed {
-            status: 409,
-            code: "ADK_SKILL_EXISTS".to_owned(),
-            message: "skill is already installed".to_owned(),
-        });
-    }
-    let mut digest = Sha256::new();
-    digest.update(&body);
-    let content_hash = encode_hex(&digest.finalize());
-    let skills_root = std::env::var_os("JFTRADE_ADK_SKILLS")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            port.settings_path
-                .parent()
-                .unwrap_or(std::path::Path::new("."))
-                .join("skills")
-        });
-    fs::create_dir_all(&skills_root).map_err(|error| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message: error.to_string(),
-    })?;
-    let skill_dir = skills_root.join(&id);
-    let temporary_dir = skills_root.join(format!(
-        ".{id}.tmp-{}",
-        SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-    ));
-    fs::create_dir(&temporary_dir).map_err(|error| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message: error.to_string(),
-    })?;
-    let write_result = write_skill_files(&temporary_dir, &files);
-    if let Err(error) = write_result {
-        let _ = fs::remove_dir_all(&temporary_dir);
-        return Err(AdkMutationPortError::Failed {
-            status: 500,
-            code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-            message: error,
-        });
-    }
-    if skill_dir.exists() || fs::rename(&temporary_dir, &skill_dir).is_err() {
-        let _ = fs::remove_dir_all(&temporary_dir);
-        return Err(AdkMutationPortError::Failed {
-            status: 409,
-            code: "ADK_SKILL_EXISTS".to_owned(),
-            message: "skill install path already exists".to_owned(),
-        });
-    }
-    let install_path = skill_dir.join("SKILL.md");
-    let payload = json!({
-        "id": id,
-        "displayName": skill_frontmatter(&text, "displayName").or_else(|| skill_frontmatter(&text, "name")).unwrap_or_default(),
-        "description": skill_frontmatter(&text, "description").unwrap_or_default(),
-        "source": raw_url,
-        "installPath": install_path.to_string_lossy(),
-        "enabled": true,
-        "builtin": false,
-        "tools": [],
-        "version": skill_frontmatter(&text, "version").unwrap_or_default(),
-        "contentHash": content_hash,
-        "validationStatus": "VALID",
-        "validationError": "",
-    });
-    let stored = match port.store.upsert_skill(&id, &payload.to_string()) {
-        Ok(stored) => stored,
-        Err(error) => {
-            let _ = fs::remove_dir_all(&skill_dir);
-            return Err(storage_mutation_failed(error));
+        let question_id = answer
+            .get("questionId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|q| !q.is_empty())
+            .ok_or_else(|| input_response_invalid("questionId is required"))?;
+
+        if by_question.contains_key(question_id) {
+            return Err(input_response_invalid(format!(
+                "duplicate answer for {question_id}"
+            )));
         }
-    };
-    object_payload(&stored, "skill")
-}
 
-fn validate_skill_url_shape(url: &Url) -> Result<(), String> {
-    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-        return Err("valid http/https skill URL is required".to_owned());
-    }
-    if !url.username().is_empty() || url.password().is_some() {
-        return Err("skill URL must not include credentials".to_owned());
-    }
-    let host = url.host_str().unwrap_or_default();
-    if host.eq_ignore_ascii_case("localhost") {
-        return Err("skill URL host is not allowed".to_owned());
-    }
-    if let Ok(address) = host.parse::<IpAddr>()
-        && unsafe_skill_ip(address)
-    {
-        return Err("skill URL host is not allowed".to_owned());
-    }
-    Ok(())
-}
+        let option_id = answer
+            .get("optionId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        let other_text = answer
+            .get("otherText")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
 
-fn validate_skill_url_network(url: &Url) -> Result<SocketAddr, String> {
-    validate_skill_url_shape(url)?;
-    let host = url
-        .host_str()
-        .ok_or_else(|| "skill URL host is required".to_owned())?;
-    let port = url
-        .port_or_known_default()
-        .ok_or_else(|| "skill URL port is invalid".to_owned())?;
-    let addresses = (host, port)
-        .to_socket_addrs()
-        .map_err(|_| "skill URL host could not be resolved".to_owned())?
-        .collect::<Vec<_>>();
-    if addresses.is_empty()
-        || addresses
-            .iter()
-            .any(|address| unsafe_skill_ip(address.ip()))
-    {
-        return Err("skill URL resolves to a private or local address".to_owned());
+        by_question.insert(question_id, (option_id, other_text));
     }
-    addresses
-        .into_iter()
-        .find(|address| !unsafe_skill_ip(address.ip()))
-        .ok_or_else(|| "skill URL has no safe address".to_owned())
-}
 
-fn build_skill_download_client(
-    raw_url: &str,
-    validated_address: SocketAddr,
-) -> Result<reqwest::Client, String> {
-    // The engine pins reqwest to rustls-no-provider.  Install the process
-    // crypto provider at this production client boundary so skill downloads
-    // do not depend on whether a model request (or a test using another
-    // adapter) happened to initialize rustls first.
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    reqwest::Client::builder()
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
-        .no_proxy()
-        // Redirects are denied so a later hop cannot bypass the initial
-        // private-address and DNS safety checks.
-        .redirect(reqwest::redirect::Policy::custom(|attempt| attempt.stop()))
-        .resolve(&parsed_for_download_host(raw_url)?, validated_address)
-        .build()
-        .map_err(|error| error.to_string())
-}
-
-fn is_skill_archive(url: &str, content_type: &str, _content_length: Option<u64>) -> bool {
-    let path_hint = Url::parse(url)
-        .ok()
-        .and_then(|parsed| {
-            parsed
-                .path_segments()
-                .and_then(|mut segments| segments.next_back())
-                .map(str::to_ascii_lowercase)
-        })
-        .is_some_and(|name| name.ends_with(".zip"));
-    path_hint || content_type.to_ascii_lowercase().contains("zip")
-}
-
-type ExtractedSkillArchive = (String, Vec<(String, Vec<u8>)>);
-
-fn extract_skill_archive(body: &[u8]) -> Result<ExtractedSkillArchive, String> {
-    const MAX_ENTRIES: usize = 256;
-    const MAX_ARCHIVE_BYTES: u64 = 4 << 20;
-    const MAX_SKILL_BYTES: u64 = 512 << 10;
-    const MAX_COMPRESSION_RATIO: u64 = 1_000;
-    if body.len() as u64 > MAX_ARCHIVE_BYTES {
-        return Err("skill archive exceeds 4 MiB".to_owned());
-    }
-    let mut archive = ZipArchive::new(Cursor::new(body))
-        .map_err(|error| format!("parse skill archive: {error}"))?;
-    if archive.len() > MAX_ENTRIES {
-        return Err("skill archive contains too many entries".to_owned());
-    }
-    let mut files = Vec::new();
-    let mut total_uncompressed = 0_u64;
-    let mut skill_doc: Option<(String, Vec<u8>)> = None;
-    for index in 0..archive.len() {
-        let file = archive
-            .by_index(index)
-            .map_err(|error| format!("read skill archive entry: {error}"))?;
-        let raw_name = file.name().to_owned();
-        if raw_name.contains('\\') || raw_name.contains('\0') {
-            return Err(format!("skill archive contains unsafe path {raw_name:?}"));
-        }
-        let path = std::path::Path::new(&raw_name);
-        if path.is_absolute()
-            || path
-                .components()
-                .any(|component| matches!(component, std::path::Component::ParentDir))
-        {
-            return Err(format!("skill archive contains unsafe path {raw_name:?}"));
-        }
-        if raw_name.split('/').any(|segment| segment == "__MACOSX") {
+    let mut canonical = Vec::with_capacity(submitted.len());
+    for question in questions {
+        let question_id = question
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .unwrap_or_default();
+        if question_id.is_empty() {
             continue;
         }
-        if file
-            .unix_mode()
-            .is_some_and(|mode| mode & 0o170000 == 0o120000)
-        {
-            return Err(format!("skill archive contains symbolic link {raw_name:?}"));
+
+        let Some((option_id, other_text)) = by_question.get(question_id).copied() else {
+            return Err(input_response_invalid(format!(
+                "missing answer for {question_id}"
+            )));
+        };
+
+        let uses_option = option_id.is_some();
+        let uses_other = other_text.is_some();
+        if uses_option == uses_other {
+            return Err(input_response_invalid(format!(
+                "{question_id} must use exactly one answer type"
+            )));
         }
-        if file.is_dir() {
+
+        let allow_other = question
+            .get("allowOther")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        if let Some(other) = other_text {
+            if !allow_other {
+                return Err(input_response_invalid(format!(
+                    "{question_id} does not allow other text"
+                )));
+            }
+            canonical.push(json!({
+                "questionId": question_id,
+                "otherText": other,
+            }));
             continue;
         }
-        let declared = file.size();
-        let compressed = file.compressed_size();
-        if compressed == 0 && declared > 0
-            || compressed > 0 && declared / compressed > MAX_COMPRESSION_RATIO
-        {
-            return Err(format!(
-                "skill archive entry has unsafe compression ratio {raw_name:?}"
-            ));
+
+        let selected_option = option_id.unwrap();
+        let valid_option = question
+            .get("options")
+            .and_then(Value::as_array)
+            .map(|opts| {
+                opts.iter().any(|opt| {
+                    opt.get("id").and_then(Value::as_str) == Some(selected_option)
+                })
+            })
+            .unwrap_or(false);
+
+        if !valid_option {
+            return Err(input_response_invalid(format!(
+                "invalid option for {question_id}"
+            )));
         }
-        total_uncompressed = total_uncompressed.saturating_add(declared);
-        if total_uncompressed > MAX_ARCHIVE_BYTES {
-            return Err("skill archive exceeds 4 MiB after extraction".to_owned());
-        }
-        let mut data = Vec::with_capacity(declared.min(MAX_ARCHIVE_BYTES) as usize);
-        file.take(MAX_ARCHIVE_BYTES + 1)
-            .read_to_end(&mut data)
-            .map_err(|error| format!("read skill archive entry: {error}"))?;
-        if data.len() as u64 > MAX_ARCHIVE_BYTES || data.len() as u64 != declared {
-            return Err(format!("skill archive entry size is invalid {raw_name:?}"));
-        }
-        let relative = raw_name.trim_start_matches("./");
-        if relative.rsplit('/').next() == Some("SKILL.md") {
-            if data.len() as u64 > MAX_SKILL_BYTES {
-                return Err("skill file exceeds 512 KiB".to_owned());
-            }
-            if skill_doc
-                .replace((relative.to_owned(), data.clone()))
-                .is_some()
-            {
-                return Err("skill archive must contain exactly one SKILL.md".to_owned());
-            }
-        }
-        files.push((relative.to_owned(), data));
+
+        canonical.push(json!({
+            "questionId": question_id,
+            "optionId": selected_option,
+        }));
     }
-    let Some((skill_path, skill_bytes)) = skill_doc else {
-        return Err("skill archive does not contain SKILL.md".to_owned());
-    };
-    let prefix = skill_path
-        .rsplit_once('/')
-        .map(|(prefix, _)| format!("{prefix}/"))
-        .unwrap_or_default();
-    let mut normalized = Vec::with_capacity(files.len());
-    for (path, data) in files {
-        let path = path.strip_prefix(&prefix).unwrap_or(path.as_str());
-        normalized.push((path.to_owned(), data));
-    }
-    let text =
-        String::from_utf8(skill_bytes).map_err(|_| "skill document must be UTF-8".to_owned())?;
-    Ok((text, normalized))
+
+    Ok(canonical)
 }
 
-fn write_skill_files(root: &std::path::Path, files: &[(String, Vec<u8>)]) -> Result<(), String> {
-    for (relative, data) in files {
-        let relative_path = std::path::Path::new(relative);
-        if relative.is_empty()
-            || relative_path.is_absolute()
-            || relative_path
-                .components()
-                .any(|component| matches!(component, std::path::Component::ParentDir))
-        {
-            return Err(format!("unsafe skill file path {relative:?}"));
-        }
-        let target = root.join(relative_path);
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-        }
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&target)
-            .map_err(|error| error.to_string())?;
-        file.write_all(data).map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
-    }
-    Ok(())
+fn input_answers_equal(left: &[Value], right: &[Value]) -> bool {
+    let l = CanonicalInputAnswers::from_values(left);
+    let r = CanonicalInputAnswers::from_values(right);
+    l.matches(&r)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::build_skill_download_client;
-    use std::net::SocketAddr;
-
-    #[test]
-    fn skill_download_client_installs_rustls_provider_before_build() {
-        let result = std::panic::catch_unwind(|| {
-            build_skill_download_client(
-                "https://example.com/skill.md",
-                SocketAddr::from(([203, 0, 113, 1], 443)),
-            )
-        });
-        assert!(result.is_ok(), "reqwest client construction must not panic");
-        assert!(result.expect("client construction did not panic").is_ok());
-    }
-}
+include!("product_production_ports_adk_mutation_skill.rs");

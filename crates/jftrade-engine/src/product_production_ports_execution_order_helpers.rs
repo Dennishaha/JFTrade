@@ -325,6 +325,7 @@ pub(crate) struct ProductRuleRequest {
 /// query does not need to coerce accountId into the numeric OpenD header.
 pub(crate) fn parse_product_rule_request(
     payload: &Value,
+    default_environment: Option<&str>,
 ) -> Result<ProductRuleRequest, ExecutionWritePortError> {
     let object = payload
         .as_object()
@@ -340,6 +341,7 @@ pub(crate) fn parse_product_rule_request(
         .and_then(|value| value.get("instrumentId"))
         .and_then(Value::as_str)
         .or_else(|| object.get("instrumentId").and_then(Value::as_str))
+        .or_else(|| object.get("instrument").and_then(Value::as_str))
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned);
@@ -368,6 +370,7 @@ pub(crate) fn parse_product_rule_request(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
+        .or(default_environment)
         .unwrap_or("SIMULATE")
         .to_ascii_uppercase();
     let market = instrument
@@ -556,4 +559,191 @@ pub(crate) fn map_trade_error(error: TradeSessionError) -> ExecutionWritePortErr
     } else {
         failed(502, "BROKER_UNAVAILABLE", message)
     }
+}
+
+pub(crate) fn build_pre_trade_risk_order(
+    parsed: &super::execution_order_parse::ParsedOrder,
+) -> jftrade_trading::PreTradeRiskOrder {
+    jftrade_trading::PreTradeRiskOrder {
+        broker_id: parsed.broker_id.clone(),
+        trading_environment: if parsed.header.trd_env == 1 {
+            jftrade_trading::TradingEnvironment::Real
+        } else {
+            jftrade_trading::TradingEnvironment::Simulate
+        },
+        account_id: parsed.header.acc_id.to_string(),
+        market: parsed.market.clone(),
+        symbol: parsed.symbol.clone(),
+        side: super::execution_order_parse::side_label(parsed.side).to_owned(),
+        order_type: super::execution_order_parse::order_type_label(parsed.order_type).to_owned(),
+        order_kind: parsed.order_kind.clone(),
+        product_class: parsed.product_class.clone(),
+        quantity_mode: parsed.quantity_mode.clone(),
+        quantity: jftrade_kernel::Fixed8::from_f64(parsed.quantity)
+            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+        price: parsed
+            .price
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
+        amount: parsed
+            .amount
+            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        legs: Vec::new(),
+    }
+}
+
+pub(crate) fn build_pre_trade_risk_combo_order(
+    parsed: &super::execution_order_parse::ParsedCombo,
+) -> jftrade_trading::PreTradeRiskOrder {
+    let combo_qty = parsed.combo_quantity();
+    let risk_legs = parsed
+        .legs
+        .iter()
+        .enumerate()
+        .map(|(index, leg)| {
+            let raw = parsed.leg_payloads.get(index).and_then(Value::as_object);
+            let leg_qty = raw
+                .and_then(|obj| obj.get("quantity"))
+                .and_then(Value::as_f64)
+                .or_else(|| leg.qty_ratio.map(|r| combo_qty * r))
+                .unwrap_or(combo_qty);
+            let leg_price = raw
+                .and_then(|obj| obj.get("price"))
+                .and_then(Value::as_f64)
+                .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok());
+            let leg_side = leg
+                .side
+                .map(super::execution_order_parse::side_label)
+                .unwrap_or("UNKNOWN")
+                .to_owned();
+            let leg_market = raw
+                .and_then(|obj| obj.get("market"))
+                .and_then(Value::as_str)
+                .unwrap_or(&parsed.order.market)
+                .to_owned();
+            let leg_product_class = raw
+                .and_then(|obj| obj.get("productClass"))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| parsed.order.product_class.clone());
+            let leg_multiplier = raw
+                .and_then(|obj| obj.get("multiplier"))
+                .and_then(Value::as_f64)
+                .and_then(|m| jftrade_kernel::Fixed8::from_f64(m).ok())
+                .unwrap_or_else(|| {
+                    if leg_product_class.eq_ignore_ascii_case("OPTION") {
+                        jftrade_kernel::Fixed8::from_f64(100.0)
+                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                    } else {
+                        jftrade_kernel::Fixed8::from_f64(1.0)
+                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                    }
+                });
+            jftrade_trading::PreTradeRiskComboLeg {
+                symbol: leg.code.trim().to_owned(),
+                market: leg_market,
+                side: leg_side,
+                quantity: jftrade_kernel::Fixed8::from_f64(leg_qty)
+                    .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+                multiplier: leg_multiplier,
+                price: leg_price,
+                product_class: leg_product_class,
+            }
+        })
+        .collect();
+
+    jftrade_trading::PreTradeRiskOrder {
+        broker_id: parsed.order.broker_id.clone(),
+        trading_environment: if parsed.order.header.trd_env == 1 {
+            jftrade_trading::TradingEnvironment::Real
+        } else {
+            jftrade_trading::TradingEnvironment::Simulate
+        },
+        account_id: parsed.order.header.acc_id.to_string(),
+        market: parsed.order.market.clone(),
+        symbol: parsed.order.symbol.clone(),
+        side: super::execution_order_parse::side_label(parsed.order.side).to_owned(),
+        order_type: super::execution_order_parse::order_type_label(parsed.order.order_type)
+            .to_owned(),
+        order_kind: parsed.order.order_kind.clone(),
+        product_class: parsed.order.product_class.clone(),
+        quantity_mode: parsed.order.quantity_mode.clone(),
+        quantity: jftrade_kernel::Fixed8::from_f64(combo_qty)
+            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+        price: parsed
+            .order
+            .price
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
+        amount: parsed
+            .order
+            .amount
+            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        legs: risk_legs,
+    }
+}
+
+pub(crate) fn prefetch_combo_leg_quotes(
+    runtime: Option<&super::SharedTradeReadRuntime>,
+    risk_order: &mut jftrade_trading::PreTradeRiskOrder,
+    payload: &Value,
+    now: &str,
+) -> Result<(), ExecutionWritePortError> {
+    if let Some(quote_expires_at) = payload
+        .get("quoteExpiresAt")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+    {
+        let quote_time = time::OffsetDateTime::parse(
+            quote_expires_at,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .map_err(|error| failed(400, "BAD_REQUEST", format!("quoteExpiresAt is invalid: {error}")))?;
+        let now_time = time::OffsetDateTime::parse(
+            now,
+            &time::format_description::well_known::Rfc3339,
+        )
+        .map_err(|error| failed(500, "EXECUTION_TIME_ERROR", error.to_string()))?;
+        if quote_time <= now_time {
+            return Err(failed(
+                403,
+                "PRE_TRADE_RISK_REJECTED",
+                "execution quote has expired",
+            ));
+        }
+    }
+
+    let Some(runtime) = runtime else {
+        return Err(failed(
+            403,
+            "PRE_TRADE_RISK_REJECTED",
+            "trade runtime unavailable for combo leg quote prefetch",
+        ));
+    };
+
+    for leg in &mut risk_order.legs {
+        if leg.price.is_some() {
+            continue;
+        }
+        let qot_market = super::execution_order_parse::quote_market(&leg.market);
+        let security = jftrade_integration_futu::TradeSecurity {
+            market: qot_market,
+            code: leg.symbol.clone(),
+        };
+        let snapshots = runtime
+            .security_snapshots(&[security])
+            .map_err(|error| failed(403, "PRE_TRADE_RISK_REJECTED", format!("quote prefetch failed: {error}")))?;
+        let price = snapshots
+            .first()
+            .and_then(|s| s.get("lastPrice").or_else(|| s.get("curPrice")))
+            .and_then(Value::as_f64)
+            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok())
+            .ok_or_else(|| {
+                failed(
+                    403,
+                    "PRE_TRADE_RISK_REJECTED",
+                    format!("market quote unavailable for combo leg {}", leg.symbol),
+                )
+            })?;
+        leg.price = Some(price);
+    }
+    Ok(())
 }

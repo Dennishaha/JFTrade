@@ -2017,12 +2017,31 @@ mod product_production_assembly_tests {
             .expect("market skill tools");
         assert!(market_tools.iter().any(|tool| tool == "market.search"));
 
-        let unavailable_skill_ids = [
-            "jftrade-derivatives",
-            "jftrade-prediction",
-            "jftrade-trading",
-            "external-http",
-        ];
+        let derivatives_tools = skills
+            .iter()
+            .find(|skill| skill["id"] == "jftrade-derivatives")
+            .expect("derivatives builtin skill")["tools"]
+            .as_array()
+            .expect("derivatives skill tools");
+        assert!(
+            derivatives_tools
+                .iter()
+                .any(|tool| tool == "derivatives.option_chain")
+        );
+
+        let prediction_tools = skills
+            .iter()
+            .find(|skill| skill["id"] == "jftrade-prediction")
+            .expect("prediction builtin skill")["tools"]
+            .as_array()
+            .expect("prediction skill tools");
+        assert!(
+            prediction_tools
+                .iter()
+                .any(|tool| tool == "prediction.discover")
+        );
+
+        let unavailable_skill_ids = ["jftrade-trading", "external-http"];
         for id in unavailable_skill_ids {
             let skill = skills
                 .iter()

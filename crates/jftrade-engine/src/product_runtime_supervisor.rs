@@ -57,7 +57,7 @@ pub(crate) struct ProductShutdownSupervisor {
     pub(crate) market_data_opend: Option<Arc<Mutex<OpenDSessionCoordinator>>>,
     pub(crate) marketdata_helper: Option<Arc<Mutex<Option<HelperProcess>>>>,
     pub(crate) helper_health: Option<Arc<super::HelperHealthMonitor>>,
-    pub(crate) pine_workers: Vec<PineProcess>,
+    pub(crate) pine_workers: Vec<Arc<tokio::sync::Mutex<PineProcess>>>,
     pub(crate) pine_health_monitors: Vec<Arc<PineReadinessMonitor>>,
     pub(crate) production_ports: Option<ProductionPortBundle>,
     pub(crate) backtest_sync_workers: Option<Arc<BacktestSyncWorkerRegistry>>,
@@ -199,7 +199,7 @@ impl ProductShutdownSupervisor {
             workers.shutdown().await;
         }
         if let Some(monitor) = self.helper_health.take() {
-            monitor.stop();
+            monitor.shutdown().await;
         }
         let helper_opt = self
             .marketdata_helper
@@ -220,7 +220,8 @@ impl ProductShutdownSupervisor {
         // 8. Stop Pine workers
         let had_pine = !self.pine_workers.is_empty();
         while let Some(worker) = self.pine_workers.pop() {
-            if let Err(error) = worker.stop().await {
+            let mut proc = worker.lock().await;
+            if let Err(error) = proc.stop().await {
                 failures.push(error.to_string());
             }
         }
@@ -320,8 +321,10 @@ impl ProductShutdownSupervisor {
             monitor.terminate();
         }
         let had_pine = !self.pine_workers.is_empty();
-        while let Some(mut worker) = self.pine_workers.pop() {
-            worker.terminate();
+        while let Some(worker) = self.pine_workers.pop() {
+            if let Ok(mut proc) = worker.try_lock() {
+                proc.terminate();
+            }
         }
         if had_pine {
             self.recorder.record("pine_worker");

@@ -1,39 +1,46 @@
 //! Production strategy runtime adapter.
 
 use crate::product::product_active_provider_state::ActiveProviderState;
-use crate::product::product_execution_write_port::{
-    ExecutionWriteInput, ExecutionWriteOperation, ExecutionWritePort, ExecutionWritePortError,
-};
+use crate::product::product_execution_write_port::ExecutionWritePort;
 use crate::product::product_strategy_runtime_write_port::{
     StrategyRuntimeWriteInput, StrategyRuntimeWriteOperation, StrategyRuntimeWritePort,
     StrategyRuntimeWritePortError,
 };
 use crate::product::{
-    MarketDataQuoteReadSnapshotError, MarketDataQuoteReadSnapshotPort, StrategyReadSnapshotError,
-    StrategyReadSnapshotPort, StrategyRuntimeStatusPort, StrategyRuntimeSummary,
+    MarketDataQuoteReadSnapshotPort, ProductNotificationPort,
+    StrategyReadSnapshotError, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
+    StrategyRuntimeSummary,
 };
 use jftrade_integration_pine::{
-    GrpcPineExecutionPort, PineCandle, PineExecutionError, PineOrderIntent, PineRunRequest,
+    GrpcPineExecutionPort, PineExecutionError, PineRunRequest,
 };
 use jftrade_marketdata::{InstrumentRef, ProviderRouter};
-use jftrade_store_sqlite::{StrategyDefinitionStore, StrategyRuntimeStore};
+use jftrade_store_sqlite::{ExecutionOrderStore, StrategyDefinitionStore, StrategyRuntimeStore};
+use jftrade_integration_futu::{TradeFilter, TradeHeader};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
-use std::time::Duration;
 
 #[derive(Debug)]
 struct RuntimeTask {
     cancel: Arc<AtomicBool>,
+    wake: Arc<tokio::sync::Notify>,
     _join: Option<JoinHandle<()>>,
 }
 
-/// Rust-owned lifecycle coordinator for live strategy instances.  The HTTP
-/// port remains synchronous, therefore task execution is isolated in a
-/// dedicated thread with its own Tokio runtime; cancellation and demand
-/// release happen before the persisted state transition.
+#[derive(Debug)]
+struct SymbolSessionState {
+    revision: u64,
+    submitted_intents: BTreeSet<String>,
+}
+
+/// In-memory worker task supervisor for live strategy instances.
+///
+/// Holds cancellation handles and demand-token tracking. Each task runs on a
+/// dedicated thread with its own Tokio runtime; lifecycle mutations publish
+/// the persisted CAS transition before applying cancellation side effects.
 #[derive(Debug)]
 pub(crate) struct StrategyRuntimeManager {
     tasks: Mutex<BTreeMap<String, RuntimeTask>>,
@@ -41,7 +48,10 @@ pub(crate) struct StrategyRuntimeManager {
     worker: Option<Arc<GrpcPineExecutionPort>>,
     quote: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     execution: Option<Arc<dyn ExecutionWritePort>>,
+    execution_store: Option<Arc<ExecutionOrderStore>>,
+    trade_runtime: Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
     provider: Arc<ActiveProviderState>,
+    notification: Option<Arc<dyn ProductNotificationPort>>,
 }
 
 impl StrategyRuntimeManager {
@@ -58,8 +68,35 @@ impl StrategyRuntimeManager {
             worker,
             quote,
             execution,
+            execution_store: None,
+            trade_runtime: None,
             provider,
+            notification: None,
         }
+    }
+
+    pub(crate) fn with_execution_store(
+        mut self,
+        execution_store: Arc<ExecutionOrderStore>,
+    ) -> Self {
+        self.execution_store = Some(execution_store);
+        self
+    }
+
+    pub(crate) fn with_notification(
+        mut self,
+        notification: Arc<dyn ProductNotificationPort>,
+    ) -> Self {
+        self.notification = Some(notification);
+        self
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
+        self
     }
 
     fn dependency_error(&self) -> Option<StrategyRuntimeWritePortError> {
@@ -94,6 +131,24 @@ impl StrategyRuntimeManager {
         None
     }
 
+    fn wake(&self, instance_id: &str) {
+        if let Some(task) = self
+            .tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(instance_id)
+        {
+            task.wake.notify_waiters();
+        }
+    }
+
+    fn is_task_alive(&self, instance_id: &str) -> bool {
+        self.tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key(instance_id)
+    }
+
     fn cancel(&self, instance_id: &str) {
         let task = self
             .tasks
@@ -102,6 +157,7 @@ impl StrategyRuntimeManager {
             .remove(instance_id);
         if let Some(mut task) = task {
             task.cancel.store(true, Ordering::Release);
+            task.wake.notify_waiters();
             // Do not hold the task-map mutex while waiting for the worker;
             // the worker may need to finish a final observation write.
             if let Some(join) = task._join.take() {
@@ -118,6 +174,7 @@ impl StrategyRuntimeManager {
         let instance_ids = tasks.keys().cloned().collect::<Vec<_>>();
         for task in tasks.values() {
             task.cancel.store(true, Ordering::Release);
+            task.wake.notify_waiters();
         }
         for (_, mut task) in tasks {
             if let Some(join) = task._join.take() {
@@ -177,8 +234,7 @@ impl StrategyRuntimeManager {
                 message: "strategy binding requires at least one symbol".to_owned(),
             });
         }
-        let managed =
-            self.provider.snapshot().provider == Some(jftrade_settings::MarketDataProvider::Futu);
+        let managed = true;
         router
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -204,6 +260,9 @@ impl StrategyRuntimeManager {
             ));
         };
         let execution = self.execution.clone();
+        let execution_store = self.execution_store.clone();
+        let trade_runtime = self.trade_runtime.clone();
+        let notification = self.notification.clone();
         let provider = Arc::clone(&self.provider);
         let router = self.router.clone();
         let script = binding_string_opt(&binding, &["script", "source"]);
@@ -233,10 +292,15 @@ impl StrategyRuntimeManager {
             .map(|value| value.clamp(1, 1_000) as usize)
             .unwrap_or(200);
         let sessions = binding_sessions(&binding);
-        let execute_orders = binding
-            .get("executeOrders")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
+        let execution_mode = binding_string_opt(&binding, &["executionMode"]);
+        let execute_orders = match execution_mode.as_deref() {
+            Some("notify_only") => false,
+            Some("live") => true,
+            _ => binding
+                .get("executeOrders")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
+        };
         if execute_orders {
             if execution.is_none() {
                 return Err(StrategyRuntimeWritePortError::Unavailable(
@@ -253,6 +317,8 @@ impl StrategyRuntimeManager {
         }
         let cancel = Arc::new(AtomicBool::new(false));
         let cancel_for_thread = Arc::clone(&cancel);
+        let wake = Arc::new(tokio::sync::Notify::new());
+        let wake_for_thread = Arc::clone(&wake);
         let id_for_thread = instance_id.clone();
         let join = std::thread::Builder::new()
             .name(format!("strategy-runtime-{instance_id}"))
@@ -270,9 +336,45 @@ impl StrategyRuntimeManager {
                         return;
                     }
                 };
-                let mut last_closed_by_symbol = BTreeMap::<String, i64>::new();
-                let mut first_cycle = true;
+                let (mut last_closed_by_symbol, mut session_state_by_symbol) =
+                    match restore_pine_runtime_state(&store, &id_for_thread, &active_symbols) {
+                        Ok(state) => state,
+                        Err(error) => {
+                            fail_strategy_task(&store, &router, &id_for_thread, &active_symbols, error);
+                            return;
+                        }
+                    };
+                // The worker process is not assumed to survive an engine
+                // restart.  A fresh worker session is opened on the first
+                // cycle; durable checkpoints still fence already-processed
+                // candles and intent keys. This does not restore JS heap state.
+                for state in session_state_by_symbol.values_mut() {
+                    state.revision = 0;
+                }
                 while !cancel_for_thread.load(Ordering::Acquire) {
+                    let current_instance = match store.get_instance(&id_for_thread) {
+                        Ok(Some(inst)) => inst,
+                        Ok(None) => break,
+                        Err(_) => {
+                            sleep_until_next_strategy_poll(&cancel_for_thread);
+                            continue;
+                        }
+                    };
+                    if current_instance.status.eq_ignore_ascii_case("PAUSED") {
+                        runtime.block_on(async {
+                            tokio::select! {
+                                _ = wake_for_thread.notified() => {}
+                                _ = tokio::time::sleep(std::time::Duration::from_millis(500)) => {}
+                            }
+                        });
+                        continue;
+                    }
+                    if !current_instance.status.eq_ignore_ascii_case("RUNNING")
+                        && !current_instance.status.eq_ignore_ascii_case("STARTING")
+                    {
+                        break;
+                    }
+                    let current_risk_revision = Some(current_instance.runtime_risk_revision);
                     let mut last_closed = None;
                     let mut last_signal = None;
                     let mut last_order = None;
@@ -301,18 +403,30 @@ impl StrategyRuntimeManager {
                             continue;
                         };
                         let latest_open_time = latest.open_time;
+                        let latest_close = latest.close;
                         last_closed = Some(last_closed.map_or(latest_open_time, |value: i64| {
                             value.max(latest_open_time)
                         }));
-                        if !first_cycle
-                            && last_closed_by_symbol
-                                .get(requested_symbol)
-                                .is_some_and(|previous| *previous >= latest_open_time)
+                        if last_closed_by_symbol
+                            .get(requested_symbol)
+                            .is_some_and(|previous| *previous >= latest_open_time)
                         {
                             continue;
                         }
                         let latest_bar_index = i32::try_from(candles.len().saturating_sub(1))
                             .unwrap_or(i32::MAX);
+                        let session = session_state_by_symbol
+                            .entry(requested_symbol.clone())
+                            .or_insert_with(|| SymbolSessionState {
+                                revision: 0,
+                                submitted_intents: BTreeSet::new(),
+                            });
+                        let (session_operation, expected_revision, candles_to_send) =
+                            if session.revision == 0 {
+                                ("open".to_owned(), 0, candles)
+                            } else {
+                                ("append".to_owned(), session.revision, vec![latest.clone()])
+                            };
                         let request = PineRunRequest {
                             job_id: format!(
                                 "live:{id_for_thread}:{symbol}:{}",
@@ -325,34 +439,80 @@ impl StrategyRuntimeManager {
                             chart_type: binding_string_opt(&binding, &["chartType"])
                                 .unwrap_or_else(|| "standard".to_owned()),
                             mode: "live".to_owned(),
-                            candles,
+                            candles: candles_to_send,
                             params: binding_params(&binding),
-                            session_id: String::new(),
-                            session_operation: String::new(),
-                            expected_revision: 0,
+                            session_id: format!("strategy:{id_for_thread}:{symbol}"),
+                            session_operation,
+                            expected_revision,
                         };
-                        let response = match runtime.block_on(worker.run_script(request)) {
+                        let was_append = session.revision > 0;
+                        let response = match runtime.block_on(run_session_request(
+                            |request| worker.run_script(request), request, &mut session.revision,
+                        )) {
                             Ok(response) => response,
                             Err(error) => {
+                                if was_append {
+                                    let err_msg = pine_error_message(error);
+                                    let _ = store.append_audit_event(
+                                        &id_for_thread,
+                                        "SESSION_APPEND_RETRY",
+                                        &format!("Pine append failed; retained revision {}: {err_msg}", session.revision),
+                                        now_millis(),
+                                    );
+                                    continue;
+                                }
                                 cycle_error = Some(pine_error_message(error));
                                 break;
                             }
                         };
-                        let current_intents = current_bar_intents(
+                        let raw_intents = current_bar_intents(
                             &response.order_intents,
                             latest_bar_index,
                             latest_open_time,
                         );
+                        let mut current_intents = Vec::new();
+                        for intent in raw_intents {
+                            let key = format!("{}:{}:{}", latest_open_time, intent.id, intent.bar_index);
+                            if !session.submitted_intents.contains(&key) {
+                                session.submitted_intents.insert(key);
+                                current_intents.push(intent);
+                            }
+                        }
                         if !current_intents.is_empty() {
                             last_signal = Some(latest_open_time);
                             if execute_orders {
+                                let account_inputs = match if trading_environment_is_real(&binding) {
+                                    read_strategy_account_inputs(
+                                        trade_runtime.as_deref(),
+                                        &binding,
+                                        &market,
+                                        &symbol,
+                                    )
+                                } else {
+                                    Ok(StrategyAccountInputs::default())
+                                } {
+                                    Ok(inputs) => inputs,
+                                    Err(error) => {
+                                        cycle_error = Some(error);
+                                        break;
+                                    }
+                                };
                                 match execute_strategy_intents(
-                                    execution.as_deref(),
-                                    &provider,
-                                    &id_for_thread,
-                                    &market,
-                                    &symbol,
-                                    &binding,
+                                    StrategyExecutionContext {
+                                        execution: execution.as_deref(),
+                                        execution_store: execution_store.as_deref(),
+                                        provider: &provider,
+                                        store: &store,
+                                        instance_id: &id_for_thread,
+                                        market: &market,
+                                        symbol: &symbol,
+                                        binding: &binding,
+                                        expected_risk_revision: current_risk_revision,
+                                        fallback_price: Some(latest_close),
+                                        sellable_quantity: account_inputs.sellable_quantity,
+                                        current_position: account_inputs.current_position,
+                                        available_cash: account_inputs.available_cash,
+                                    },
                                     &current_intents,
                                 ) {
                                     Ok(true) => last_order = Some(latest_open_time),
@@ -362,6 +522,15 @@ impl StrategyRuntimeManager {
                                         break;
                                     }
                                 }
+                            } else if let Err(error) = notify_strategy_intents(
+                                notification.as_deref(),
+                                &store,
+                                &id_for_thread,
+                                &format!("{market}.{symbol}"),
+                                &current_intents,
+                            ) {
+                                cycle_error = Some(error);
+                                break;
                             }
                         }
                         if let Err(error) =
@@ -370,10 +539,40 @@ impl StrategyRuntimeManager {
                             cycle_error = Some(format!("persist Pine worker output: {error}"));
                             break;
                         }
+                        if let Err(error) = persist_pine_runtime_checkpoint(
+                            &store,
+                            &id_for_thread,
+                            requested_symbol,
+                            session.revision,
+                            latest_open_time,
+                            &session.submitted_intents,
+                        ) {
+                            cycle_error = Some(format!("persist Pine runtime checkpoint: {error}"));
+                            break;
+                        }
                         last_closed_by_symbol.insert(requested_symbol.clone(), latest_open_time);
                     }
-                    first_cycle = false;
                     if let Some(error) = cycle_error {
+                        let is_paused = store
+                            .get_instance(&id_for_thread)
+                            .ok()
+                            .flatten()
+                            .is_some_and(|inst| inst.status.eq_ignore_ascii_case("PAUSED"));
+                        if is_paused {
+                            continue;
+                        }
+                        close_strategy_pine_sessions(
+                            &runtime,
+                            worker.as_ref(),
+                            &store,
+                            &id_for_thread,
+                            &script_id,
+                            &script,
+                            &default_market,
+                            &timeframe,
+                            &binding,
+                            &session_state_by_symbol,
+                        );
                         fail_strategy_task(
                             &store,
                             &router,
@@ -395,6 +594,18 @@ impl StrategyRuntimeManager {
                     );
                     sleep_until_next_strategy_poll(&cancel_for_thread);
                 }
+                close_strategy_pine_sessions(
+                    &runtime,
+                    worker.as_ref(),
+                    &store,
+                    &id_for_thread,
+                    &script_id,
+                    &script,
+                    &default_market,
+                    &timeframe,
+                    &binding,
+                    &session_state_by_symbol,
+                );
             })
             .map_err(|error| {
                 StrategyRuntimeWritePortError::Unavailable(format!(
@@ -405,6 +616,7 @@ impl StrategyRuntimeManager {
             instance_id,
             RuntimeTask {
                 cancel,
+                wake,
                 _join: Some(join),
             },
         );
@@ -421,6 +633,199 @@ impl Drop for StrategyRuntimeManager {
 fn now_millis() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64 / 1_000_000
 }
+
+/// Rebuild the small amount of live Pine state that must survive an engine
+/// restart.  The worker's JavaScript object graph is intentionally not
+/// serialized; the durable checkpoint fences closed-candle replays and order
+/// intents while a new worker session is warmed up.
+type RestoredPineState = (BTreeMap<String, i64>, BTreeMap<String, SymbolSessionState>);
+
+fn restore_pine_runtime_state(
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+    active_symbols: &[String],
+) -> Result<RestoredPineState, String> {
+    let mut last_closed = BTreeMap::new();
+    let mut sessions = BTreeMap::new();
+    let scope = pine_checkpoint_scope(store, instance_id)?;
+    let events = store.list_audit_events(instance_id)
+        .map_err(|error| format!("read Pine recovery checkpoints: {error}"))?;
+    let wanted = active_symbols.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    for event in events {
+        if event.kind != "PINE_SESSION_CHECKPOINT" {
+            continue;
+        }
+        let payload = serde_json::from_str::<Value>(&event.detail)
+            .map_err(|error| format!("invalid Pine recovery checkpoint: {error}"))?;
+        if payload.get("scope").and_then(Value::as_str) != Some(scope.as_str()) {
+            continue;
+        }
+        let symbol = payload.get("symbol").and_then(Value::as_str)
+            .ok_or_else(|| "Pine recovery checkpoint is missing symbol".to_owned())?;
+        if !wanted.contains(symbol) || last_closed.contains_key(symbol) {
+            continue;
+        }
+        let open_time = payload.get("lastClosedOpenTime").and_then(Value::as_i64)
+            .ok_or_else(|| "Pine recovery checkpoint is missing lastClosedOpenTime".to_owned())?;
+        last_closed.insert(symbol.to_owned(), open_time);
+        let submitted_intents = payload
+            .get("submittedIntentKeys")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "Pine recovery checkpoint is missing submittedIntentKeys".to_owned())?
+            .iter()
+            .map(|value| value.as_str().map(ToOwned::to_owned)
+                .ok_or_else(|| "invalid Pine recovery intent key".to_owned()))
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        sessions.insert(
+            symbol.to_owned(),
+            SymbolSessionState {
+                revision: payload
+                    .get("sessionRevision")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default(),
+                submitted_intents,
+            },
+        );
+    }
+    Ok((last_closed, sessions))
+}
+
+fn persist_pine_runtime_checkpoint(
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+    symbol: &str,
+    session_revision: u64,
+    last_closed_open_time: i64,
+    submitted_intents: &BTreeSet<String>,
+) -> Result<(), String> {
+    let detail = serde_json::to_string(&json!({
+        "scope": pine_checkpoint_scope(store, instance_id)?,
+        "symbol": symbol,
+        "sessionRevision": session_revision,
+        "lastClosedOpenTime": last_closed_open_time,
+        "submittedIntentKeys": submitted_intents,
+    }))
+    .map_err(|error| error.to_string())?;
+    store
+        .append_audit_event(instance_id, "PINE_SESSION_CHECKPOINT", &detail, now_millis())
+        .map_err(|error| error.to_string())
+}
+
+fn pine_checkpoint_scope(store: &StrategyRuntimeStore, instance_id: &str) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    let instance = store.get_instance(instance_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Pine checkpoint instance no longer exists".to_owned())?;
+    let source = json!({"binding": instance.binding, "definitionRevision": instance.definition_revision});
+    Ok(Sha256::digest(source.to_string().as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+#[derive(Default)]
+struct StrategyAccountInputs {
+    available_cash: Option<f64>,
+    current_position: Option<f64>,
+    sellable_quantity: Option<f64>,
+}
+
+fn trading_environment_is_real(binding: &Value) -> bool {
+    binding_string_opt(binding, &["tradingEnvironment", "environment", "env"])
+        .or_else(|| binding.get("brokerAccount").and_then(|account|
+            binding_string_opt(account, &["tradingEnvironment", "environment", "env"])))
+        .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
+}
+
+fn read_strategy_account_inputs(
+    runtime: Option<&crate::product::product_production_ports::SharedTradeReadRuntime>,
+    binding: &Value,
+    market: &str,
+    symbol: &str,
+) -> Result<StrategyAccountInputs, String> {
+    let runtime = runtime.ok_or_else(|| "trade account runtime is unavailable for REAL strategy execution".to_owned())?;
+    let snapshot = runtime.snapshot();
+    let client = snapshot
+        .client
+        .filter(|_| snapshot.trade_logged_in == Some(true))
+        .ok_or_else(|| "trade account session is not ready for REAL strategy execution".to_owned())?;
+    let account_id = strategy_binding_scalar_string(binding, &["accountId", "account"])
+        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["accountId", "account"]))
+        .ok_or_else(|| "strategy execution accountId is not configured".to_owned())?
+        .parse::<u64>()
+        .map_err(|_| "strategy execution accountId must be numeric for trade snapshot".to_owned())?;
+    let environment = strategy_binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
+        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["tradingEnvironment", "environment", "env"]))
+        .unwrap_or_else(|| "REAL".to_owned());
+    let trd_env = if environment.eq_ignore_ascii_case("SIMULATE") { 0 } else { 1 };
+    let trd_market = strategy_trade_market_code(market)?;
+    let header = TradeHeader { trd_env, acc_id: account_id, trd_market, jp_acc_type: None };
+    let funds = client
+        .read_funds(header.clone(), Some(true), None, None)
+        .map_err(|error| format!("read strategy account funds: {error}"))?;
+    let available_cash = [
+        funds.funds.available_funds,
+        funds.funds.net_cash_power,
+        Some(funds.funds.power),
+        Some(funds.funds.cash),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|value| value.is_finite() && *value >= 0.0);
+    let positions = client
+        .read_positions(
+            header,
+            Some(TradeFilter { code_list: vec![symbol.to_owned()], ..TradeFilter::default() }),
+            None,
+            None,
+            Some(true),
+            None,
+            None,
+            None,
+        )
+        .map_err(|error| format!("read strategy account positions: {error}"))?;
+    let position = positions.into_iter().find(|position| position.code.eq_ignore_ascii_case(symbol));
+    let (current_position, sellable_quantity) = position.map_or((Some(0.0), Some(0.0)), |position| {
+        let signed_qty = if position.position_side == 2 { -position.qty.abs() } else { position.qty.abs() };
+        (Some(signed_qty), Some(position.can_sell_qty.max(0.0)))
+    });
+    Ok(StrategyAccountInputs { available_cash, current_position, sellable_quantity })
+}
+
+fn strategy_trade_market_code(market: &str) -> Result<i32, String> {
+    match market.trim().to_ascii_uppercase().as_str() {
+        "HK" => Ok(1),
+        "US" => Ok(11),
+        "SH" | "CN" => Ok(21),
+        "SZ" => Ok(22),
+        "SG" => Ok(31),
+        "JP" => Ok(41),
+        "AU" => Ok(51),
+        "MY" => Ok(61),
+        "CA" => Ok(71),
+        value => Err(format!("unsupported trade market for strategy account snapshot: {value}")),
+    }
+}
+
+fn strategy_binding_scalar_string(binding: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| binding.get(*key).and_then(|value| match value {
+        Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
+        Value::Number(value) => Some(value.to_string()),
+        _ => None,
+    }))
+}
+
+fn strategy_nested_binding_scalar_string(
+    binding: &Value,
+    object_key: &str,
+    keys: &[&str],
+) -> Option<String> {
+    binding
+        .get(object_key)
+        .and_then(Value::as_object)
+        .and_then(|object| keys.iter().find_map(|key| object.get(*key).and_then(|value| match value {
+            Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
+            Value::Number(value) => Some(value.to_string()),
+            _ => None,
+        })))
+}
 fn now_rfc3339() -> Result<String, String> {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
@@ -428,6 +833,48 @@ fn now_rfc3339() -> Result<String, String> {
 }
 fn pine_error_message(error: PineExecutionError) -> String {
     error.to_string()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn close_strategy_pine_sessions(
+    runtime: &tokio::runtime::Runtime,
+    worker: &GrpcPineExecutionPort,
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+    script_id: &str,
+    script: &str,
+    default_market: &str,
+    timeframe: &str,
+    binding: &Value,
+    sessions: &BTreeMap<String, SymbolSessionState>,
+) {
+    for (requested_symbol, session) in sessions {
+        if session.revision > 0 {
+            let (market, symbol) = split_strategy_symbol(requested_symbol, default_market);
+            let request = PineRunRequest {
+                job_id: format!("close:{instance_id}:{symbol}:{}", now_millis()),
+                script_id: script_id.to_owned(),
+                source: script.to_owned(),
+                symbol: format!("{market}.{symbol}"),
+                timeframe: timeframe.to_owned(),
+                chart_type: "standard".to_owned(),
+                mode: "live".to_owned(),
+                candles: Vec::new(),
+                params: binding_params(binding),
+                session_id: format!("strategy:{instance_id}:{symbol}"),
+                session_operation: "close".to_owned(),
+                expected_revision: session.revision,
+            };
+            if let Err(err) = runtime.block_on(worker.run_script(request)) {
+                let _ = store.append_audit_event(
+                    instance_id,
+                    "SESSION_CLOSE_FAILED",
+                    &format!("close session for {symbol} failed: {err}"),
+                    now_millis(),
+                );
+            }
+        }
+    }
 }
 
 fn strategy_write_error_message(error: StrategyRuntimeWritePortError) -> String {
@@ -476,354 +923,6 @@ fn fail_strategy_task(
     }
 }
 
-async fn read_strategy_candles(
-    quote: &dyn MarketDataQuoteReadSnapshotPort,
-    market: &str,
-    symbol: &str,
-    timeframe: &str,
-    limit: usize,
-    sessions: &[String],
-) -> Result<Vec<PineCandle>, String> {
-    let path = format!("/api/v1/market-data/candles/{market}/{symbol}");
-    let query = format!(
-        "period={timeframe}&limit={limit}&sessions={}",
-        sessions.join(",")
-    );
-    let value = quote.read(&path, &query).await.map_err(quote_error_message)?;
-    parse_strategy_candles(&value)
-}
-
-fn quote_error_message(error: MarketDataQuoteReadSnapshotError) -> String {
-    match error {
-        MarketDataQuoteReadSnapshotError::Unavailable(message) => {
-            format!("market-data unavailable: {message}")
-        }
-        MarketDataQuoteReadSnapshotError::Failed {
-            status,
-            code,
-            message,
-            retry_after_seconds,
-        } => match retry_after_seconds {
-            Some(retry) => format!("market-data failed ({status} {code}): {message}; retry after {retry}s"),
-            None => format!("market-data failed ({status} {code}): {message}"),
-        },
-    }
-}
-
-fn parse_strategy_candles(value: &Value) -> Result<Vec<PineCandle>, String> {
-    let entries = value
-        .get("candles")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "market-data candle response is missing candles".to_owned())?;
-    let mut previous = None;
-    let mut candles = Vec::with_capacity(entries.len());
-    for (index, entry) in entries.iter().enumerate() {
-        let at = entry
-            .get("at")
-            .and_then(Value::as_str)
-            .ok_or_else(|| format!("candle[{index}] is missing at"))?;
-        let timestamp = time::OffsetDateTime::parse(
-            at,
-            &time::format_description::well_known::Rfc3339,
-        )
-        .map_err(|error| format!("candle[{index}] has invalid at: {error}"))?;
-        let open_time = timestamp.unix_timestamp_nanos() / 1_000_000;
-        let open_time = i64::try_from(open_time)
-            .map_err(|_| format!("candle[{index}] timestamp is out of range"))?;
-        if previous.is_some_and(|previous| open_time <= previous) {
-            return Err("market-data candles are not strictly chronological".to_owned());
-        }
-        previous = Some(open_time);
-        let open = candle_number(entry, "open", index)?;
-        let high = candle_number(entry, "high", index)?;
-        let low = candle_number(entry, "low", index)?;
-        let close = candle_number(entry, "close", index)?;
-        if high < low || high < open || high < close || low > open || low > close {
-            return Err(format!("candle[{index}] has invalid OHLC bounds"));
-        }
-        let volume = entry
-            .get("volume")
-            .filter(|value| !value.is_null())
-            .map(|value| candle_number_value(value, "volume", index))
-            .transpose()?
-            .unwrap_or(0.0);
-        if volume < 0.0 {
-            return Err(format!("candle[{index}] has negative volume"));
-        }
-        candles.push(PineCandle {
-            open_time,
-            close_time: open_time,
-            open,
-            high,
-            low,
-            close,
-            volume,
-        });
-    }
-    Ok(candles)
-}
-
-fn candle_number(entry: &Value, field: &str, index: usize) -> Result<f64, String> {
-    let value = entry
-        .get(field)
-        .ok_or_else(|| format!("candle[{index}] is missing {field}"))?;
-    candle_number_value(value, field, index)
-}
-
-fn candle_number_value(value: &Value, field: &str, index: usize) -> Result<f64, String> {
-    let parsed = match value {
-        Value::Number(number) => number
-            .as_f64()
-            .ok_or_else(|| format!("candle[{index}] {field} is not finite"))?,
-        Value::String(text) => text
-            .trim()
-            .parse::<f64>()
-            .map_err(|_| format!("candle[{index}] {field} is not numeric"))?,
-        _ => return Err(format!("candle[{index}] {field} is not numeric")),
-    };
-    if !parsed.is_finite() {
-        return Err(format!("candle[{index}] {field} is not finite"));
-    }
-    Ok(parsed)
-}
-
-fn current_bar_intents(
-    intents: &[PineOrderIntent],
-    bar_index: i32,
-    open_time: i64,
-) -> Vec<PineOrderIntent> {
-    intents
-        .iter()
-        .filter(|intent| {
-            intent.bar_index == bar_index || (intent.time > 0 && intent.time == open_time)
-        })
-        .cloned()
-        .collect()
-}
-
-fn execute_strategy_intents(
-    execution: Option<&dyn ExecutionWritePort>,
-    provider: &ActiveProviderState,
-    instance_id: &str,
-    market: &str,
-    symbol: &str,
-    binding: &Value,
-    intents: &[PineOrderIntent],
-) -> Result<bool, String> {
-    let Some(execution) = execution else {
-        return Err("strategy execution order port is unavailable".to_owned());
-    };
-    let (broker_id, account_id, trading_environment) =
-        strategy_execution_binding(binding, provider)?;
-    let mut placed = false;
-    for (index, intent) in intents.iter().enumerate() {
-        if intent.has_quantity_pct && !intent.has_quantity {
-            return Err(format!(
-                "strategy order intent {index} uses quantity percent without account sizing"
-            ));
-        }
-        if !intent.has_quantity || !intent.quantity.is_finite() || intent.quantity <= 0.0 {
-            return Err(format!(
-                "strategy order intent {index} requires a positive finite quantity"
-            ));
-        }
-        let side = match intent.direction.trim().to_ascii_lowercase().as_str() {
-            "buy" | "long" | "bull" | "bullish" => "BUY",
-            "sell" | "short" | "bear" | "bearish" => "SELL",
-            _ => return Err(format!("strategy order intent {index} has invalid direction")),
-        };
-        let order_type = if intent.has_limit_price {
-            "LIMIT"
-        } else if intent.has_stop_price {
-            "STOP"
-        } else {
-            "MARKET"
-        };
-        let mut payload = json!({
-            "brokerId": broker_id,
-            "accountId": account_id,
-            "tradingEnvironment": trading_environment,
-            "market": market,
-            "symbol": symbol,
-            "code": symbol,
-            "side": side,
-            "orderType": order_type,
-            "quantity": intent.quantity,
-            "orderKind": intent.kind,
-            "remark": format!("strategy runtime {instance_id}"),
-            "clientOrderId": strategy_client_order_id(instance_id, intent, index),
-        });
-        if intent.has_limit_price {
-            payload["price"] = json!(intent.limit_price);
-        }
-        if intent.has_stop_price {
-            payload["stopPrice"] = json!(intent.stop_price);
-        }
-        let input = ExecutionWriteInput {
-            operation: ExecutionWriteOperation::OrderPlace,
-            internal_order_id: None,
-            payload,
-            context: crate::product::product_execution_write_port::ExecutionWriteContext::Normal,
-        };
-        execution
-            .mutate(&input)
-            .map_err(execution_error_message)?;
-        placed = true;
-    }
-    Ok(placed)
-}
-
-fn validate_strategy_execution_binding(
-    binding: &Value,
-    provider: &ActiveProviderState,
-) -> Result<(), String> {
-    strategy_execution_binding(binding, provider).map(|_| ())
-}
-
-/// Resolve the account context required by the execution parser. Strategy
-/// bindings historically stored this under `brokerAccount`, while a few
-/// persisted rows use flat keys; accept both forms but never invent an
-/// account or trading environment. The execution adapter requires a numeric
-/// account id for Futu, so validating that shape here prevents a running task
-/// from failing only after Pine emits its first order intent.
-fn strategy_execution_binding(
-    binding: &Value,
-    provider: &ActiveProviderState,
-) -> Result<(String, String, String), String> {
-    let broker_id = binding_scalar_string(binding, &["brokerId", "broker"])
-        .or_else(|| {
-            nested_binding_scalar_string(binding, "brokerAccount", &["brokerId", "broker"])
-        })
-        .or_else(|| {
-            (provider.snapshot().provider == Some(jftrade_settings::MarketDataProvider::Futu))
-                .then_some("futu".to_owned())
-        })
-        .ok_or_else(|| "strategy execution broker is not configured".to_owned())?;
-    let account_id = binding_scalar_string(binding, &["accountId", "account"])
-        .or_else(|| {
-            nested_binding_scalar_string(binding, "brokerAccount", &["accountId", "account"])
-        })
-        .ok_or_else(|| "strategy execution accountId is not configured".to_owned())?;
-    if account_id.parse::<u64>().is_err() {
-        return Err("strategy execution accountId must be numeric for Futu".to_owned());
-    }
-    let trading_environment = binding_scalar_string(
-        binding,
-        &["tradingEnvironment", "environment", "env"],
-    )
-    .or_else(|| {
-        nested_binding_scalar_string(
-            binding,
-            "brokerAccount",
-            &["tradingEnvironment", "environment", "env"],
-        )
-    })
-    .ok_or_else(|| "strategy execution tradingEnvironment is not configured".to_owned())?
-    .to_ascii_uppercase();
-    if !matches!(trading_environment.as_str(), "REAL" | "SIMULATE") {
-        return Err("strategy execution tradingEnvironment must be REAL or SIMULATE".to_owned());
-    }
-    Ok((broker_id, account_id, trading_environment))
-}
-
-fn binding_scalar_string(binding: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|key| binding.get(*key).and_then(value_scalar_string))
-}
-
-fn nested_binding_scalar_string(
-    binding: &Value,
-    object_key: &str,
-    keys: &[&str],
-) -> Option<String> {
-    binding
-        .get(object_key)
-        .and_then(Value::as_object)
-        .and_then(|object| {
-            keys.iter()
-                .find_map(|key| object.get(*key).and_then(value_scalar_string))
-        })
-}
-
-fn value_scalar_string(value: &Value) -> Option<String> {
-    match value {
-        Value::String(value) => {
-            let value = value.trim();
-            (!value.is_empty()).then_some(value.to_owned())
-        }
-        Value::Number(value) => Some(value.to_string()),
-        _ => None,
-    }
-}
-
-fn strategy_client_order_id(instance_id: &str, intent: &PineOrderIntent, index: usize) -> String {
-    let identity = if intent.id.trim().is_empty() {
-        format!("bar-{}-{index}", intent.bar_index)
-    } else {
-        intent.id.trim().to_owned()
-    };
-    format!("strategy-{instance_id}-{identity}")
-}
-
-fn execution_error_message(error: ExecutionWritePortError) -> String {
-    match error {
-        ExecutionWritePortError::Unavailable(message) => {
-            format!("strategy execution unavailable: {message}")
-        }
-        ExecutionWritePortError::Failed {
-            status,
-            code,
-            message,
-        } => format!("strategy execution failed ({status} {code}): {message}"),
-    }
-}
-
-fn record_worker_output(
-    store: &StrategyRuntimeStore,
-    instance_id: &str,
-    response: &jftrade_integration_pine::PineRunResult,
-    at_ms: i64,
-) -> Result<(), String> {
-    for message in response.logs.iter().chain(response.warnings.iter()) {
-        store
-            .append_log_event(instance_id, message, "info", at_ms)
-            .map_err(|error| error.to_string())?;
-    }
-    for diagnostic in &response.diagnostics {
-        let detail = if diagnostic.code.trim().is_empty() {
-            diagnostic.message.clone()
-        } else {
-            format!("{}: {}", diagnostic.code, diagnostic.message)
-        };
-        store
-            .append_log_event(instance_id, &detail, &diagnostic.severity, at_ms)
-            .map_err(|error| error.to_string())?;
-    }
-    if !response.order_intents.is_empty() {
-        store
-            .append_audit_event(
-                instance_id,
-                "SIGNAL",
-                &format!("{} order intent(s)", response.order_intents.len()),
-                at_ms,
-            )
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-fn sleep_until_next_strategy_poll(cancel: &AtomicBool) {
-    const POLL_INTERVAL: Duration = Duration::from_secs(1);
-    let deadline = std::time::Instant::now() + POLL_INTERVAL;
-    while !cancel.load(Ordering::Acquire) {
-        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        std::thread::sleep(remaining.min(Duration::from_millis(100)));
-    }
-}
-
 impl From<jftrade_store_sqlite::StrategyRuntimeStoreError> for StrategyRuntimeWritePortError {
     fn from(error: jftrade_store_sqlite::StrategyRuntimeStoreError) -> Self {
         let message = error.to_string();
@@ -849,6 +948,16 @@ mod strategy_runtime_port;
 mod strategy_runtime_activity;
 #[path = "strategy_runtime_mutation.rs"]
 mod strategy_runtime_mutation;
+#[path = "strategy_runtime_execution.rs"]
+mod strategy_runtime_execution;
+#[path = "strategy_runtime_candles.rs"]
+mod strategy_runtime_candles;
+#[path = "strategy_runtime_session_recovery.rs"]
+mod strategy_runtime_session_recovery;
+use strategy_runtime_session_recovery::run_session_request;
 use strategy_runtime_activity::*;
+use strategy_runtime_candles::*;
+use strategy_runtime_execution::*;
 
 pub(crate) use strategy_runtime_port::ProductionStrategyRuntimePort;
+pub(crate) use strategy_runtime_activity::normalize_strategy_binding;

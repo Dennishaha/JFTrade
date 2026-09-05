@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 use super::execution_order_hash::preview_request_hash;
 use super::execution_order_helpers::{parse_product_rule_request, product_rule_rejection};
 use super::execution_order_parse::{
-    ParsedCombo, ParsedOrder, market_label, order_type_label, parse_order, parse_order_type,
-    parse_session, quote_market_label, sec_market, side_label, trade_market,
+    ParsedCombo, ParsedOrder, market_label, order_type_label, parse_combo, parse_order,
+    parse_order_type, parse_session, quote_market_label, sec_market, side_label, trade_market,
 };
 use super::*;
 
@@ -127,7 +127,8 @@ impl ProductionExecutionPort {
         &self,
         payload: &Value,
     ) -> Result<Value, ExecutionWritePortError> {
-        let request = parse_product_rule_request(payload)?;
+        let default_env = self.default_trading_environment.as_ref().map(|getter| getter());
+        let request = parse_product_rule_request(payload, default_env.as_deref())?;
         if let Some((code, message)) = product_rule_rejection(&request) {
             // Product-rule denials are a valid response, but only after the
             // request has crossed the same local validation boundary as Go.
@@ -530,11 +531,6 @@ impl ProductionExecutionPort {
 
     pub(super) fn ensure_futu_runtime(&self) -> Result<(), ExecutionWritePortError> {
         let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu) {
-            return Err(ExecutionWritePortError::Unavailable(
-                "Futu is not the active market-data provider".to_owned(),
-            ));
-        }
         if !snapshot.opend_ready {
             return Err(ExecutionWritePortError::Unavailable(
                 "Futu OpenD runtime is not ready".to_owned(),

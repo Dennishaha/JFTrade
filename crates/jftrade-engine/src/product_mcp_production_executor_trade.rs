@@ -107,14 +107,11 @@ impl ProductionMcpToolExecutor {
         &self,
         arguments: &Value,
     ) -> Result<Value, McpToolFailure> {
-        for key in [
-            "accountId",
-            "tradingEnvironment",
-            "market",
-            "instrument",
-            "orderKind",
-        ] {
+        for key in ["accountId", "tradingEnvironment", "market", "orderKind"] {
             super::required_string(arguments, key)?;
+        }
+        if arguments.get("instrument").is_none() {
+            return Err(McpToolFailure::invalid("instrument is required"));
         }
         let input = ExecutionWriteInput {
             operation: ExecutionWriteOperation::BuyingPower,

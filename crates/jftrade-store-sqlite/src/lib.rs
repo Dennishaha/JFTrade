@@ -18,6 +18,10 @@ mod schema_manifest;
 mod schema_migrations;
 mod strategy_definition;
 mod strategy_runtime;
+mod strategy_runtime_link;
+mod strategy_runtime_observation;
+mod strategy_runtime_records;
+mod strategy_runtime_test_cutover;
 mod watchlist;
 
 pub use schema_manifest::{current_version, initialize_current, validate_current};
@@ -71,10 +75,10 @@ pub use strategy_definition::{
     StrategyDefinitionStore, StrategyDefinitionStoreError, StrategyDefinitionTestCutoverStore,
 };
 pub use strategy_runtime::{
-    STRATEGY_RUNTIME_PRODUCTION_PROFILE, STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE,
-    StoredRuntimeInstance, StoredRuntimeObservation, StoredStrategyAuditEvent,
-    StoredStrategyLogEvent, StrategyRuntimeStore, StrategyRuntimeStoreError,
-    StrategyRuntimeTestCutoverStore,
+    LinkedDefinitionApplyResult, STRATEGY_RUNTIME_PRODUCTION_PROFILE,
+    STRATEGY_RUNTIME_TEST_CUTOVER_PROFILE, StoredRuntimeInstance, StoredRuntimeObservation,
+    StoredStrategyAuditEvent, StoredStrategyLogEvent, StrategyRuntimeStore,
+    StrategyRuntimeStoreError, StrategyRuntimeTestCutoverStore,
 };
 pub use watchlist::{
     StoredBinding, StoredGroup, StoredImportPreview, StoredImportRun, StoredRemoteGroup,

@@ -11,7 +11,7 @@ use jftrade_integration_pine::{
     GrpcPineExecutionPort, PineBacktestExecutionAdapter, PineExecutionConfig, PineProcessError,
 };
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
-use jftrade_settings::{MarketDataProvider, MarketDataProviderSettingsStorePort};
+use jftrade_settings::MarketDataProvider;
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
 use thiserror::Error;
@@ -32,8 +32,10 @@ use product_runtime_workers::{
 };
 
 #[path = "product_runtime_helper_health.rs"]
-mod product_runtime_helper_health;
-pub(crate) use product_runtime_helper_health::HelperHealthMonitor;
+pub mod product_runtime_helper_health;
+pub use product_runtime_helper_health::{
+    HelperHealthMonitor, HelperHealthSnapshot, HelperRestartPolicy, compute_helper_backoff,
+};
 
 #[path = "product_runtime_provider_activation.rs"]
 mod product_runtime_provider_activation;

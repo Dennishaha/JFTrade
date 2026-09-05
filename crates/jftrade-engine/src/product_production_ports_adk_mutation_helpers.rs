@@ -28,6 +28,22 @@ pub(super) fn invalid_mutation_input(message: &str) -> AdkMutationPortError {
     }
 }
 
+pub(super) fn input_response_invalid(message: impl Into<String>) -> AdkMutationPortError {
+    AdkMutationPortError::Failed {
+        status: 400,
+        code: "ADK_INPUT_RESPONSE_INVALID".to_owned(),
+        message: message.into(),
+    }
+}
+
+pub(super) fn input_response_conflict(message: impl Into<String>) -> AdkMutationPortError {
+    AdkMutationPortError::Failed {
+        status: 409,
+        code: "ADK_INPUT_RESPONSE_CONFLICT".to_owned(),
+        message: message.into(),
+    }
+}
+
 pub(super) fn required_body_string(
     body: &Value,
     field: &str,
