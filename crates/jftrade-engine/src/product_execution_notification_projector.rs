@@ -5,8 +5,7 @@
 //! - `projector_desktop_notification`: delivers desktop notifications for execution events.
 //! - `projector_livehub`: broadcasts execution events to LiveHub clients.
 
-use std::collections::BTreeSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use jftrade_settings::SystemNotificationSettingsStorePort;
 use jftrade_store_sqlite::{ExecutionOrderStore, ExecutionOrderStoreError};
@@ -23,7 +22,6 @@ pub(crate) struct ExecutionNotificationProjector {
     notification: Option<Arc<dyn ProductNotificationPort>>,
     live_hub: Option<Arc<jftrade_api::LiveHub>>,
     settings_store: Option<Arc<dyn SystemNotificationSettingsStorePort>>,
-    delivered_events: Arc<Mutex<BTreeSet<String>>>,
 }
 
 impl std::fmt::Debug for ExecutionNotificationProjector {
@@ -48,7 +46,6 @@ impl ExecutionNotificationProjector {
             notification,
             live_hub,
             settings_store: None,
-            delivered_events: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
@@ -107,8 +104,9 @@ impl ExecutionNotificationProjector {
                         (forward, default_settings.sound_enabled)
                     }
                     Err(_) => {
-                        // Fail closed if settings cannot be loaded: do not deliver notification
-                        (false, false)
+                        // Keep the durable cursor unchanged so a transient settings-store
+                        // failure can be retried instead of permanently dropping the event.
+                        return Ok((count, advanced));
                     }
                 }
             } else {
@@ -117,13 +115,9 @@ impl ExecutionNotificationProjector {
 
             let delivered = if should_forward {
                 let event_key = format!("{}|{}", event.internal_order_id, event.id);
-                let already_delivered = {
-                    let set = self
-                        .delivered_events
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner());
-                    set.contains(&event_key)
-                };
+                let marker = format!("projector_desktop_event:{event_key}");
+                let persisted = self.store.get_sequence(&marker).unwrap_or_default() > 0;
+                let already_delivered = persisted;
 
                 if already_delivered {
                     true
@@ -135,11 +129,7 @@ impl ExecutionNotificationProjector {
                     };
                     let ok = notifier.deliver(request).delivered;
                     if ok {
-                        let mut set = self
-                            .delivered_events
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        set.insert(event_key);
+                        self.store.set_sequence(&marker, 1)?;
                     }
                     ok
                 } else {
@@ -168,6 +158,16 @@ impl ExecutionNotificationProjector {
         let mut count = 0;
         let mut advanced = false;
         for (row_id, event) in events {
+            let marker = format!(
+                "projector_livehub_event:{}|{}",
+                event.internal_order_id, event.id
+            );
+            if self.store.get_sequence(&marker).unwrap_or_default() > 0 {
+                self.store.set_sequence(CURSOR_LIVEHUB, row_id)?;
+                count += 1;
+                advanced = true;
+                continue;
+            }
             if let Some(ref hub) = self.live_hub {
                 let presentation = map_order_event_presentation(&event);
                 let details: Value =
@@ -198,7 +198,14 @@ impl ExecutionNotificationProjector {
                     "serverTime": event.created_at,
                     "payload": notification_payload,
                 });
-                let _ = hub.publish(live_event);
+                if !hub.publish(live_event) {
+                    // No subscriber consumed this event; retain the cursor for a later retry.
+                    break;
+                }
+                self.store.set_sequence(&marker, 1)?;
+            } else {
+                // A missing hub is not an acknowledgement of delivery.
+                break;
             }
             self.store.set_sequence(CURSOR_LIVEHUB, row_id)?;
             count += 1;
@@ -723,8 +730,9 @@ mod tests {
             .expect("save event2");
 
         let (notified2, _) = projector.project_pending().expect("project pending 2");
-        assert_eq!(notified2, 1);
-        // Fail-closed: still 0 delivered notifications
+        assert_eq!(notified2, 0);
+        assert_eq!(store.get_sequence(CURSOR_DESKTOP_NOTIFICATION).unwrap(), 1);
+        // Settings read failure retains the event for a later retry.
         assert_eq!(notifier.delivered.lock().unwrap().len(), 0);
     }
 }

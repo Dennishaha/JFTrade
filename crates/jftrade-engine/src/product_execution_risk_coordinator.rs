@@ -83,21 +83,6 @@ impl ExecutionRiskCoordinator {
     }
 
     pub(crate) fn snapshot(&self) -> RealTradeRiskSnapshot {
-        let has_cached_error = self
-            .state
-            .lock()
-            .ok()
-            .and_then(|g| g.control_plane_error.clone());
-
-        if let Some(err) = has_cached_error {
-            let state = self
-                .state
-                .lock()
-                .map(|g| g.state.clone())
-                .unwrap_or_default();
-            return RealTradeRiskSnapshot::from_control_state(state, Some(err));
-        }
-
         match load_state_strict(&self.path) {
             Ok(fresh_state) => {
                 if let Ok(mut guard) = self.state.lock() {
@@ -192,45 +177,41 @@ impl ExecutionRiskCoordinator {
         })?;
 
         if order.trading_environment == jftrade_trading::TradingEnvironment::Real {
-            let (existing_error, current_state) = {
+            let current_state = {
                 let guard = self.state.lock().map_err(|_| {
                     ExecutionWritePortError::Unavailable(
                         "risk coordinator lock poisoned".to_owned(),
                     )
                 })?;
-                (guard.control_plane_error.clone(), guard.state.clone())
+                guard.state.clone()
             };
 
-            let (fresh_state, control_error) = if let Some(err) = existing_error {
-                (current_state, Some(err))
-            } else {
-                match load_state_strict(&self.path) {
-                    Ok(s) => {
-                        if let Ok(mut guard) = self.state.lock() {
-                            guard.state = s.clone();
-                            guard.control_plane_error = None;
-                        }
-                        (s, None)
+            let (fresh_state, control_error) = match load_state_strict(&self.path) {
+                Ok(s) => {
+                    if let Ok(mut guard) = self.state.lock() {
+                        guard.state = s.clone();
+                        guard.control_plane_error = None;
                     }
-                    Err(error) => {
-                        if let Ok(mut guard) = self.state.lock() {
-                            guard.control_plane_error = Some(error.clone());
-                            guard.generation = guard.generation.wrapping_add(1);
-                        }
-                        (current_state, Some(error))
+                    (s, None)
+                }
+                Err(error) => {
+                    if let Ok(mut guard) = self.state.lock() {
+                        guard.control_plane_error = Some(error.clone());
+                        guard.generation = guard.generation.wrapping_add(1);
                     }
+                    (current_state, Some(error))
                 }
             };
 
             if let Some(error) = control_error {
                 return Err(ExecutionWritePortError::Failed {
-                    status: 403,
-                    code: "PRE_TRADE_RISK_UNAVAILABLE".to_owned(),
+                    status: 500,
+                    code: "CONTROL_PLANE_UNAVAILABLE".to_owned(),
                     message: format!("pre-trade risk control plane unavailable: {error}"),
                 });
             }
 
-            let snapshot = RealTradeRiskSnapshot::from_control_state(fresh_state, None);
+            let snapshot = RealTradeRiskSnapshot::from_control_state(fresh_state.clone(), None);
             let policy = policy_from_snapshot(&snapshot);
             let decision = evaluate_pre_trade_risk(&policy, order);
 
@@ -252,8 +233,10 @@ impl ExecutionRiskCoordinator {
                             .map_or(0, |d| d.as_nanos());
                         format!("rths-reject-{nanos}")
                     };
-                    if let Ok(mut guard) = self.state.lock() {
-                        let event = RealTradeControlEvent {
+                    let mut candidate = fresh_state.clone();
+                    candidate.events.insert(
+                        0,
+                        RealTradeControlEvent {
                             id: event_id,
                             event_type: "HARD_STOP_REJECT".to_owned(),
                             action: "REJECT".to_owned(),
@@ -271,11 +254,24 @@ impl ExecutionRiskCoordinator {
                             hard_stop_id: decision.matched_hard_stop_id.clone(),
                             created_at: now,
                             ..RealTradeControlEvent::default()
-                        };
-                        guard.state.events.insert(0, event);
-                        guard.state.events.truncate(REAL_TRADE_EVENT_LIMIT);
+                        },
+                    );
+                    candidate.events.truncate(REAL_TRADE_EVENT_LIMIT);
+                    if let Err(error) = persist_state(&self.path, &candidate) {
+                        if let Ok(mut guard) = self.state.lock() {
+                            guard.control_plane_error = Some(error.clone());
+                            guard.generation = guard.generation.wrapping_add(1);
+                        }
+                        return Err(ExecutionWritePortError::Failed {
+                            status: 500,
+                            code: "CONTROL_PLANE_PERSIST_FAILED".to_owned(),
+                            message: format!("persist hard-stop rejection audit: {error}"),
+                        });
+                    }
+                    if let Ok(mut guard) = self.state.lock() {
+                        guard.state = candidate;
+                        guard.control_plane_error = None;
                         guard.generation = guard.generation.wrapping_add(1);
-                        let _ = persist_state(&self.path, &guard.state);
                     }
                 }
 
@@ -379,10 +375,10 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             ExecutionWritePortError::Failed { status, code, .. } => {
-                assert_eq!(status, 403);
-                assert_eq!(code, "PRE_TRADE_RISK_UNAVAILABLE");
+                assert_eq!(status, 500);
+                assert_eq!(code, "CONTROL_PLANE_UNAVAILABLE");
             }
-            other => panic!("expected 403 PRE_TRADE_RISK_UNAVAILABLE, got {other:?}"),
+            other => panic!("expected 500 CONTROL_PLANE_UNAVAILABLE, got {other:?}"),
         }
     }
 
@@ -544,15 +540,15 @@ mod tests {
         // External modification directly to disk file: delete file
         fs::remove_file(&path).unwrap();
 
-        // Next order fails closed immediately with 403 PRE_TRADE_RISK_UNAVAILABLE
+        // Next order fails closed while the file is absent.
         let res2 = coordinator.execute_with_risk_guard(&order, || Ok("second"));
         assert!(res2.is_err());
         match res2.unwrap_err() {
             ExecutionWritePortError::Failed { status, code, .. } => {
-                assert_eq!(status, 403);
-                assert_eq!(code, "PRE_TRADE_RISK_UNAVAILABLE");
+                assert_eq!(status, 500);
+                assert_eq!(code, "CONTROL_PLANE_UNAVAILABLE");
             }
-            other => panic!("expected 403 PRE_TRADE_RISK_UNAVAILABLE, got {other:?}"),
+            other => panic!("expected 500 CONTROL_PLANE_UNAVAILABLE, got {other:?}"),
         }
     }
 
@@ -595,18 +591,11 @@ mod tests {
 
         let snapshot = coordinator.snapshot();
         assert!(snapshot.kill_switch_active);
-        assert!(!snapshot.control_plane_available);
+        assert!(snapshot.control_plane_available);
 
         let order = test_order(TradingEnvironment::Real, 10.0, 150.0);
         let order_res = coordinator.execute_with_risk_guard(&order, || Ok("submitted"));
-        assert!(order_res.is_err());
-        match order_res.unwrap_err() {
-            ExecutionWritePortError::Failed { status, code, .. } => {
-                assert_eq!(status, 403);
-                assert_eq!(code, "PRE_TRADE_RISK_UNAVAILABLE");
-            }
-            other => panic!("expected PRE_TRADE_RISK_UNAVAILABLE, got {other:?}"),
-        }
+        assert_eq!(order_res.unwrap(), "submitted");
 
         #[cfg(unix)]
         {

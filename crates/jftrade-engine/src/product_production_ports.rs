@@ -574,7 +574,8 @@ pub(crate) fn production_ports(
         Some(execution_port.clone()),
         Arc::clone(&active_provider_state),
     )
-    .with_execution_store(Arc::clone(&execution_store));
+    .with_execution_store(Arc::clone(&execution_store))
+    .with_trade_runtime(config.trade_runtime.clone());
     if let Some(ref notification) = config.notification_port {
         strategy_runtime_manager =
             strategy_runtime_manager.with_notification(Arc::clone(notification));

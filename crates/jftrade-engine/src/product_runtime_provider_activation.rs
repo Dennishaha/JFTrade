@@ -67,7 +67,9 @@ pub(super) fn dynamic_provider_readiness(
         } else {
             false
         };
-        let router_ready = dyn_router_for_readiness.is_some();
+        let router_ready = dyn_router_for_readiness
+            .as_ref()
+            .is_some_and(|router| router.lock().is_ok());
         (helper_ready, opend_ready, router_ready)
     })
 }
@@ -128,11 +130,17 @@ pub(super) fn provider_activation(
     let settings_path = settings_path.to_owned();
     let trade_runtime_for_activation = Arc::clone(&trade_runtime);
     Ok(Arc::new(move |provider, previous| {
-        let has_managed_consumers = previous.is_some_and(|prev| prev != provider)
-            && activation_router
+        let has_managed_consumers = if previous.is_some_and(|prev| prev != provider) {
+            let router = activation_router
                 .as_ref()
-                .and_then(|r| r.lock().ok())
-                .is_some_and(|guard| guard.has_managed_consumers());
+                .ok_or_else(|| "market-data provider router is not configured".to_owned())?;
+            let guard = router
+                .lock()
+                .map_err(|_| "market-data provider router lock is poisoned".to_owned())?;
+            guard.has_managed_consumers()
+        } else {
+            false
+        };
         if has_managed_consumers {
             return Err("MANAGED_SUBSCRIPTIONS_ACTIVE: cannot switch market data provider while managed strategy subscriptions are active".to_owned());
         }
@@ -157,22 +165,21 @@ pub(super) fn provider_activation(
                     let provider = OpenDProviderRuntime::start(configuration)
                         .map_err(|error| error.to_string())?;
                     let trade_logged_in = provider.trade_logged_in();
-                    let client = provider
-                        .coordinator()
-                        .lock()
-                        .ok()
-                        .and_then(|coordinator| {
-                            jftrade_integration_futu::OpenDTradeReadClient::from_coordinator(
-                                &coordinator,
-                            )
-                            .ok()
-                        })
-                        .map(Arc::new);
-                    let read_client = client
-                        .clone()
-                        .map(|client| client as Arc<dyn jftrade_integration_futu::TradeReadPort>);
-                    let write_client = client
-                        .map(|client| client as Arc<dyn jftrade_integration_futu::TradeWritePort>);
+                    let coordinator_handle = provider.coordinator();
+                    let client = {
+                        let coordinator = coordinator_handle.lock().map_err(|_| {
+                            "failed to lock OpenD coordinator for trade client".to_owned()
+                        })?;
+                        jftrade_integration_futu::OpenDTradeReadClient::from_coordinator(
+                            &coordinator,
+                        )
+                        .map(Arc::new)
+                        .map_err(|error| format!("create OpenD trade client: {error}"))?
+                    };
+                    let read_client =
+                        Some(client.clone() as Arc<dyn jftrade_integration_futu::TradeReadPort>);
+                    let write_client =
+                        Some(client as Arc<dyn jftrade_integration_futu::TradeWritePort>);
                     let historical_reader = {
                         let coordinator = provider.coordinator();
                         Arc::new(jftrade_integration_futu::OpenDHistoricalKlineReader::new(
@@ -383,9 +390,9 @@ pub(super) fn provider_activation(
                         false
                     }
                 } else {
-                    true
+                    false
                 };
-                if !is_helper_ready && previous == Some(MarketDataProvider::Futu) {
+                if !is_helper_ready {
                     return Err("market-data helper is not ready".to_owned());
                 }
                 // OpenD is also the authenticated Futu trade owner.  Keep it

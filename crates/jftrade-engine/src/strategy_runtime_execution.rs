@@ -78,12 +78,8 @@ pub(super) fn execute_strategy_intents(
     let today_midnight_ms = OffsetDateTime::new_utc(now_utc.date(), time::Time::MIDNIGHT)
         .unix_timestamp_nanos() as i64
         / 1_000_000;
-    let initial_daily_orders = ctx
-        .store
-        .count_daily_orders(ctx.instance_id, today_midnight_ms)
-        .map_err(|error| format!("query strategy daily orders: {error}"))?;
-
     let mut placed = false;
+    let mut submitted_count = 0_i64;
     for (index, intent) in intents.iter().enumerate() {
         let kind = intent.kind.trim().to_ascii_lowercase();
         if kind == "cancel" || kind == "cancel_all" {
@@ -147,6 +143,7 @@ pub(super) fn execute_strategy_intents(
             side,
             is_close,
             index,
+            !execution_binding_is_real(ctx.binding),
         )?;
         let Some((quantity, reduce_only)) = resolved_qty else {
             let _ = ctx.store.append_audit_event(
@@ -182,7 +179,11 @@ pub(super) fn execute_strategy_intents(
         let risk_context = RuntimeRiskContext {
             current_price: order_price,
             sellable_quantity: risk_sellable_qty,
-            today_submitted_order_count: initial_daily_orders + index as i64,
+            today_submitted_order_count: ctx
+                .store
+                .count_daily_orders(ctx.instance_id, today_midnight_ms)
+                .map_err(|error| format!("query strategy daily orders: {error}"))?
+                + submitted_count,
         };
 
         let decision = risk_settings.evaluate(&risk_order, &risk_context);
@@ -215,7 +216,48 @@ pub(super) fn execute_strategy_intents(
             );
         }
 
-        dispatch_place_order(
+        if let Some(expected) = ctx.expected_risk_revision {
+            let latest = ctx
+                .store
+                .get_instance(ctx.instance_id)
+                .map_err(|error| format!("reload strategy risk revision: {error}"))?
+                .ok_or_else(|| format!("strategy instance {} not found", ctx.instance_id))?;
+            if latest.runtime_risk_revision != expected {
+                let detail = format!(
+                    "expected revision {expected} does not match stored revision {} before submit",
+                    latest.runtime_risk_revision
+                );
+                let _ = ctx.store.append_audit_event(
+                    ctx.instance_id,
+                    "RUNTIME_RISK_REVISION_MISMATCH",
+                    &detail,
+                    now_millis(),
+                );
+                return Err(format!("runtime risk revision fence triggered: {detail}"));
+            }
+        }
+
+        let reservation_key = format!(
+            "{ctx_instance}:{symbol}:{bar}:{index}",
+            ctx_instance = ctx.instance_id,
+            symbol = ctx.symbol,
+            bar = intent.bar_index,
+        );
+        let reservation_required =
+            risk_settings.mode == "enforce" && risk_settings.daily_max_orders.is_some();
+        if reservation_required {
+            ctx.store
+                .reserve_daily_order(
+                    ctx.instance_id,
+                    ctx.expected_risk_revision.unwrap_or(stored_instance.runtime_risk_revision),
+                    today_midnight_ms,
+                    risk_settings.daily_max_orders,
+                    &reservation_key,
+                    now_millis(),
+                )
+                .map_err(|error| format!("reserve strategy daily order slot: {error}"))?;
+        }
+        if let Err(error) = dispatch_place_order(
             execution,
             ctx.store,
             ctx.instance_id,
@@ -229,8 +271,19 @@ pub(super) fn execute_strategy_intents(
             reduce_only,
             intent,
             index,
-        )?;
+            Some(&reservation_key),
+        ) {
+            if reservation_required {
+                let _ = ctx.store.release_order_reservation(
+                    ctx.instance_id,
+                    &reservation_key,
+                    now_millis(),
+                );
+            }
+            return Err(error);
+        }
         placed = true;
+        submitted_count += 1;
     }
     Ok(placed)
 }
@@ -251,10 +304,13 @@ fn dispatch_cancel_intent(
     let kind = intent.kind.trim().to_ascii_lowercase();
     if kind == "cancel_all" {
         let mut cancelled_any = false;
-        if let Some(ord_store) = execution_store {
-            let active = ord_store
-                .list_active_orders_for_instance(instance_id)
-                .map_err(|e| format!("query active orders for cancel: {e}"))?;
+        let ord_store = execution_store
+            .ok_or_else(|| "execution order store is unavailable for cancel_all".to_owned())?;
+        let active = ord_store
+            .list_active_orders_for_instance(instance_id)
+            .map_err(|e| format!("query active orders for cancel: {e}"))?;
+        let mut failures = Vec::new();
+        {
             for order in active {
                 let input = ExecutionWriteInput {
                     operation: ExecutionWriteOperation::OrderCancel,
@@ -274,6 +330,7 @@ fn dispatch_cancel_intent(
                 };
                 if let Err(e) = execution.mutate(&input) {
                     let err_msg = execution_error_message(e);
+                    failures.push(format!("{}: {err_msg}", order.internal_order_id));
                     let _ = store.append_audit_event(
                         instance_id,
                         "ORDER_CANCEL_FAILED",
@@ -290,6 +347,9 @@ fn dispatch_cancel_intent(
                     );
                 }
             }
+        }
+        if !failures.is_empty() {
+            return Err(format!("cancel_all partially failed: {}", failures.join("; ")));
         }
         return Ok(cancelled_any);
     }
@@ -310,15 +370,27 @@ fn dispatch_cancel_intent(
                 account_id,
                 target_order_id,
             ) {
-                existing.internal_order_id
+                if existing.source == "strategy-runtime"
+                    && existing.source_detail == instance_id
+                    && matches!(
+                        existing.status.as_str(),
+                        "SUBMITTING" | "SUBMITTED" | "WAITING" | "OPEN"
+                    )
+                {
+                    existing.internal_order_id
+                } else {
+                    return Err(format!(
+                        "strategy order {target_order_id} is not owned by instance {instance_id}"
+                    ));
+                }
             } else {
-                target_order_id.to_owned()
+                return Err(format!("strategy order {target_order_id} is not owned by instance {instance_id}"));
             }
         } else {
             String::new()
         }
     } else {
-        target_order_id.to_owned()
+        return Err("execution order store is unavailable for targeted cancel".to_owned());
     };
 
     let input = ExecutionWriteInput {
@@ -378,6 +450,7 @@ fn dispatch_place_order(
     reduce_only: bool,
     intent: &PineOrderIntent,
     index: usize,
+    reservation_key: Option<&str>,
 ) -> Result<(), String> {
     let order_type = if intent.has_limit_price {
         "LIMIT"
@@ -418,10 +491,14 @@ fn dispatch_place_order(
     };
     execution.mutate(&input).map_err(execution_error_message)?;
 
+    let detail = match reservation_key {
+        Some(key) => format!("{symbol} {side} {quantity} (clientOrderId: {client_order_id}; reservation: {key})"),
+        None => format!("{symbol} {side} {quantity} (clientOrderId: {client_order_id})"),
+    };
     let _ = store.append_audit_event(
         instance_id,
         "ORDER_SUBMITTED",
-        &format!("{symbol} {side} {quantity} (clientOrderId: {client_order_id})"),
+        &detail,
         now_millis(),
     );
     Ok(())
@@ -545,6 +622,18 @@ fn value_scalar_string(value: &Value) -> Option<String> {
     }
 }
 
+fn execution_binding_is_real(binding: &Value) -> bool {
+    binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
+        .or_else(|| {
+            nested_binding_scalar_string(
+                binding,
+                "brokerAccount",
+                &["tradingEnvironment", "environment", "env"],
+            )
+        })
+        .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn resolve_strategy_intent_quantity(
     intent: &PineOrderIntent,
@@ -555,6 +644,7 @@ fn resolve_strategy_intent_quantity(
     side: &str,
     is_close: bool,
     index: usize,
+    allow_default_quantity: bool,
 ) -> Result<Option<(f64, bool)>, String> {
     let kind = intent.kind.trim().to_ascii_lowercase();
     let reduce_only = intent.reduce_only || is_close;
@@ -574,58 +664,32 @@ fn resolve_strategy_intent_quantity(
             intent.quantity
         };
         if side == "BUY" {
-            let base_capital = available_cash
-                .or_else(|| {
-                    binding_scalar_f64(
-                        binding,
-                        &[
-                            "capital",
-                            "initialCapital",
-                            "orderSize",
-                            "defaultOrderSize",
-                            "accountSize",
-                        ],
-                    )
-                })
-                .or_else(|| {
-                    nested_binding_scalar_f64(
-                        binding,
-                        "brokerAccount",
-                        &["capital", "orderSize", "accountSize"],
-                    )
-                })
-                .unwrap_or(100.0);
+            let base_capital = available_cash.ok_or_else(|| {
+                "available cash is required to resolve quantity percentage".to_owned()
+            })?;
             let notional = base_capital * (pct / 100.0);
             let price = if intent.has_limit_price && intent.limit_price > 0.0 {
                 Some(intent.limit_price)
             } else {
                 current_price.filter(|p| *p > 0.0)
             };
-            if let Some(p) = price {
-                (notional / p).floor()
-            } else {
-                notional.floor()
-            }
+            let p = price.ok_or_else(|| {
+                "price required to resolve quantity percentage".to_owned()
+            })?;
+            (notional / p).floor()
         } else {
-            let pos = current_position.map(|p| p.abs()).unwrap_or(0.0);
-            if pos > 0.0 {
-                (pos * (pct / 100.0)).floor()
-            } else {
-                let base_capital = binding_scalar_f64(
-                    binding,
-                    &[
-                        "capital",
-                        "initialCapital",
-                        "orderSize",
-                        "defaultOrderSize",
-                        "accountSize",
-                    ],
-                )
-                .unwrap_or(100.0);
-                (base_capital * (pct / 100.0)).floor()
-            }
+            let pos = current_position
+                .map(|p| p.abs())
+                .filter(|p| *p > 0.0)
+                .ok_or_else(|| {
+                    "sellable position is required to resolve quantity percentage".to_owned()
+                })?;
+            (pos * (pct / 100.0)).floor()
         }
-    } else if matches!(kind.as_str(), "entry" | "order") && intent.quantity <= 0.0 {
+    } else if allow_default_quantity
+        && matches!(kind.as_str(), "entry" | "order")
+        && intent.quantity <= 0.0
+    {
         1.0
     } else {
         return Err(format!(
@@ -653,24 +717,6 @@ fn binding_scalar_f64(binding: &Value, keys: &[&str]) -> Option<f64> {
                 .or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok()))
         })
     })
-}
-
-fn nested_binding_scalar_f64(
-    binding: &Value,
-    object_key: &str,
-    keys: &[&str],
-) -> Option<f64> {
-    binding
-        .get(object_key)
-        .and_then(Value::as_object)
-        .and_then(|object| {
-            keys.iter().find_map(|key| {
-                object.get(*key).and_then(|v| {
-                    v.as_f64()
-                        .or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok()))
-                })
-            })
-        })
 }
 
 fn strategy_client_order_id(
@@ -717,4 +763,3 @@ pub(super) fn now_rfc3339() -> Result<String, String> {
 #[cfg(test)]
 #[path = "strategy_runtime_execution_tests.rs"]
 mod tests;
-

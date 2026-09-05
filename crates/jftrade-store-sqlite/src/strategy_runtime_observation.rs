@@ -37,6 +37,74 @@ pub struct StoredStrategyAuditEvent {
 }
 
 impl StrategyRuntimeStore {
+    /// Atomically reserves one daily order slot against the current runtime-risk
+    /// revision. The reservation is represented in the durable audit stream so
+    /// concurrent workers cannot oversell the daily limit before broker submit.
+    pub fn reserve_daily_order(
+        &self,
+        instance_id: &str,
+        expected_revision: i64,
+        since_ms: i64,
+        daily_max_orders: Option<i64>,
+        reservation_key: &str,
+        at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        let mut connection = self.lock()?;
+        let transaction = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        let instance =
+            crate::strategy_runtime_records::get_instance_query(&transaction, instance_id)?
+                .ok_or(StrategyRuntimeStoreError::NotFound)?;
+        if instance.deleted || instance.runtime_risk_revision != expected_revision {
+            return Err(StrategyRuntimeStoreError::Conflict);
+        }
+        if let Some(limit) = daily_max_orders.filter(|value| *value > 0) {
+            let count: i64 = transaction
+                .query_row(
+                    "SELECT COUNT(*) FROM strategy_audit_events a
+                     WHERE a.instance_id = ?1 AND a.at_ms >= ?2
+                       AND (a.kind = 'ORDER_SUBMITTED' OR
+                            (a.kind = 'ORDER_RESERVED' AND NOT EXISTS (
+                                SELECT 1 FROM strategy_audit_events r
+                                WHERE r.instance_id = a.instance_id
+                                  AND r.kind = 'ORDER_RESERVATION_RELEASED'
+                                  AND r.detail = a.detail
+                                  AND r.at_ms >= a.at_ms)))",
+                    rusqlite::params![instance_id, since_ms],
+                    |row| row.get(0),
+                )
+                .map_err(StrategyRuntimeStoreError::Query)?;
+            if count >= limit {
+                return Err(StrategyRuntimeStoreError::Conflict);
+            }
+        }
+        transaction
+            .execute(
+                "INSERT INTO strategy_audit_events (instance_id, kind, detail, at_ms)
+                 VALUES (?1, 'ORDER_RESERVED', ?2, ?3)",
+                rusqlite::params![instance_id, reservation_key, at_ms],
+            )
+            .map_err(StrategyRuntimeStoreError::Query)?;
+        transaction
+            .commit()
+            .map_err(StrategyRuntimeStoreError::Query)
+    }
+
+    pub fn release_order_reservation(
+        &self,
+        instance_id: &str,
+        reservation_key: &str,
+        at_ms: i64,
+    ) -> Result<(), StrategyRuntimeStoreError> {
+        self.append_audit_event(
+            instance_id,
+            "ORDER_RESERVATION_RELEASED",
+            reservation_key,
+            at_ms,
+        )
+    }
+
     pub fn get_observation(
         &self,
         instance_id: &str,

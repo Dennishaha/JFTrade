@@ -16,6 +16,7 @@ use jftrade_integration_pine::{
 };
 use jftrade_marketdata::{InstrumentRef, ProviderRouter};
 use jftrade_store_sqlite::{ExecutionOrderStore, StrategyDefinitionStore, StrategyRuntimeStore};
+use jftrade_integration_futu::{TradeFilter, TradeHeader};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -38,8 +39,8 @@ struct SymbolSessionState {
 /// In-memory worker task supervisor for live strategy instances.
 ///
 /// Holds cancellation handles and demand-token tracking. Each task runs on a
-/// dedicated thread with its own Tokio runtime; cancellation and demand
-/// release happen before the persisted state transition.
+/// dedicated thread with its own Tokio runtime; lifecycle mutations publish
+/// the persisted CAS transition before applying cancellation side effects.
 #[derive(Debug)]
 pub(crate) struct StrategyRuntimeManager {
     tasks: Mutex<BTreeMap<String, RuntimeTask>>,
@@ -48,6 +49,7 @@ pub(crate) struct StrategyRuntimeManager {
     quote: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     execution: Option<Arc<dyn ExecutionWritePort>>,
     execution_store: Option<Arc<ExecutionOrderStore>>,
+    trade_runtime: Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
     provider: Arc<ActiveProviderState>,
     notification: Option<Arc<dyn ProductNotificationPort>>,
 }
@@ -67,6 +69,7 @@ impl StrategyRuntimeManager {
             quote,
             execution,
             execution_store: None,
+            trade_runtime: None,
             provider,
             notification: None,
         }
@@ -85,6 +88,14 @@ impl StrategyRuntimeManager {
         notification: Arc<dyn ProductNotificationPort>,
     ) -> Self {
         self.notification = Some(notification);
+        self
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
         self
     }
 
@@ -250,6 +261,7 @@ impl StrategyRuntimeManager {
         };
         let execution = self.execution.clone();
         let execution_store = self.execution_store.clone();
+        let trade_runtime = self.trade_runtime.clone();
         let notification = self.notification.clone();
         let provider = Arc::clone(&self.provider);
         let router = self.router.clone();
@@ -461,6 +473,22 @@ impl StrategyRuntimeManager {
                         if !current_intents.is_empty() {
                             last_signal = Some(latest_open_time);
                             if execute_orders {
+                                let account_inputs = match if trading_environment_is_real(&binding) {
+                                    read_strategy_account_inputs(
+                                        trade_runtime.as_deref(),
+                                        &binding,
+                                        &market,
+                                        &symbol,
+                                    )
+                                } else {
+                                    Ok(StrategyAccountInputs::default())
+                                } {
+                                    Ok(inputs) => inputs,
+                                    Err(error) => {
+                                        cycle_error = Some(error);
+                                        break;
+                                    }
+                                };
                                 match execute_strategy_intents(
                                     StrategyExecutionContext {
                                         execution: execution.as_deref(),
@@ -473,9 +501,9 @@ impl StrategyRuntimeManager {
                                         binding: &binding,
                                         expected_risk_revision: current_risk_revision,
                                         fallback_price: Some(latest_close),
-                                        sellable_quantity: None,
-                                        current_position: None,
-                                        available_cash: None,
+                                        sellable_quantity: account_inputs.sellable_quantity,
+                                        current_position: account_inputs.current_position,
+                                        available_cash: account_inputs.available_cash,
                                     },
                                     &current_intents,
                                 ) {
@@ -586,6 +614,116 @@ impl Drop for StrategyRuntimeManager {
 
 fn now_millis() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64 / 1_000_000
+}
+
+#[derive(Default)]
+struct StrategyAccountInputs {
+    available_cash: Option<f64>,
+    current_position: Option<f64>,
+    sellable_quantity: Option<f64>,
+}
+
+fn trading_environment_is_real(binding: &Value) -> bool {
+    binding_string_opt(binding, &["tradingEnvironment", "environment", "env"])
+        .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
+        || binding
+            .get("brokerAccount")
+            .and_then(Value::as_object)
+            .and_then(|object| object.get("tradingEnvironment").and_then(Value::as_str))
+            .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
+}
+
+fn read_strategy_account_inputs(
+    runtime: Option<&crate::product::product_production_ports::SharedTradeReadRuntime>,
+    binding: &Value,
+    market: &str,
+    symbol: &str,
+) -> Result<StrategyAccountInputs, String> {
+    let runtime = runtime.ok_or_else(|| "trade account runtime is unavailable for REAL strategy execution".to_owned())?;
+    let snapshot = runtime.snapshot();
+    let client = snapshot
+        .client
+        .filter(|_| snapshot.trade_logged_in == Some(true))
+        .ok_or_else(|| "trade account session is not ready for REAL strategy execution".to_owned())?;
+    let account_id = strategy_binding_scalar_string(binding, &["accountId", "account"])
+        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["accountId", "account"]))
+        .ok_or_else(|| "strategy execution accountId is not configured".to_owned())?
+        .parse::<u64>()
+        .map_err(|_| "strategy execution accountId must be numeric for trade snapshot".to_owned())?;
+    let environment = strategy_binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
+        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["tradingEnvironment", "environment", "env"]))
+        .unwrap_or_else(|| "REAL".to_owned());
+    let trd_env = if environment.eq_ignore_ascii_case("SIMULATE") { 0 } else { 1 };
+    let trd_market = strategy_trade_market_code(market)?;
+    let header = TradeHeader { trd_env, acc_id: account_id, trd_market, jp_acc_type: None };
+    let funds = client
+        .read_funds(header.clone(), Some(true), None, None)
+        .map_err(|error| format!("read strategy account funds: {error}"))?;
+    let available_cash = [
+        funds.funds.available_funds,
+        funds.funds.net_cash_power,
+        Some(funds.funds.power),
+        Some(funds.funds.cash),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|value| value.is_finite() && *value >= 0.0);
+    let positions = client
+        .read_positions(
+            header,
+            Some(TradeFilter { code_list: vec![symbol.to_owned()], ..TradeFilter::default() }),
+            None,
+            None,
+            Some(true),
+            None,
+            None,
+            None,
+        )
+        .map_err(|error| format!("read strategy account positions: {error}"))?;
+    let position = positions.into_iter().find(|position| position.code.eq_ignore_ascii_case(symbol));
+    let (current_position, sellable_quantity) = position.map_or((Some(0.0), Some(0.0)), |position| {
+        let signed_qty = if position.position_side == 2 { -position.qty.abs() } else { position.qty.abs() };
+        (Some(signed_qty), Some(position.can_sell_qty.max(0.0)))
+    });
+    Ok(StrategyAccountInputs { available_cash, current_position, sellable_quantity })
+}
+
+fn strategy_trade_market_code(market: &str) -> Result<i32, String> {
+    match market.trim().to_ascii_uppercase().as_str() {
+        "HK" => Ok(1),
+        "US" => Ok(11),
+        "SH" | "CN" => Ok(21),
+        "SZ" => Ok(22),
+        "SG" => Ok(31),
+        "JP" => Ok(41),
+        "AU" => Ok(51),
+        "MY" => Ok(61),
+        "CA" => Ok(71),
+        value => Err(format!("unsupported trade market for strategy account snapshot: {value}")),
+    }
+}
+
+fn strategy_binding_scalar_string(binding: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| binding.get(*key).and_then(|value| match value {
+        Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
+        Value::Number(value) => Some(value.to_string()),
+        _ => None,
+    }))
+}
+
+fn strategy_nested_binding_scalar_string(
+    binding: &Value,
+    object_key: &str,
+    keys: &[&str],
+) -> Option<String> {
+    binding
+        .get(object_key)
+        .and_then(Value::as_object)
+        .and_then(|object| keys.iter().find_map(|key| object.get(*key).and_then(|value| match value {
+            Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
+            Value::Number(value) => Some(value.to_string()),
+            _ => None,
+        })))
 }
 fn now_rfc3339() -> Result<String, String> {
     time::OffsetDateTime::now_utc()

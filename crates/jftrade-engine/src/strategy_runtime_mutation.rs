@@ -65,11 +65,7 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 }
 
                 let runtime_binding = self.effective_binding(&current)?;
-                self.manager
-                    .acquire_demand(&input.instance_id, &runtime_binding)?;
-
-                let starting_instance = self
-                    .store
+                self.store
                     .update_status_cas(
                         &input.instance_id,
                         &["STOPPED", "FAILED", "PAUSED"],
@@ -77,7 +73,6 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         &timestamp,
                     )
                     .map_err(|e| {
-                        self.manager.release_demand(&input.instance_id);
                         StrategyRuntimeWritePortError::Failed {
                             status: 409,
                             code: "CONFLICT".to_owned(),
@@ -85,17 +80,42 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         }
                     })?;
 
+                if let Err(error) = self
+                    .manager
+                    .acquire_demand(&input.instance_id, &runtime_binding)
+                {
+                    let _ = self.store.update_status_cas(
+                        &input.instance_id,
+                        &["STARTING"],
+                        "FAILED",
+                        &timestamp,
+                    );
+                    return Err(error);
+                }
+
                 match self.manager.spawn_task(
                     input.instance_id.clone(),
                     runtime_binding,
                     Arc::clone(&self.store),
                 ) {
                     Ok(()) => {
-                        let running_instance = self
-                            .store
-                            .update_status_cas(&input.instance_id, &["STARTING"], "RUNNING", &timestamp)
-                            .unwrap_or(starting_instance);
-                        Ok(running_instance)
+                        match self.store.update_status_cas(
+                            &input.instance_id,
+                            &["STARTING"],
+                            "RUNNING",
+                            &timestamp,
+                        ) {
+                            Ok(running_instance) => Ok(running_instance),
+                            Err(error) => {
+                                self.manager.cancel(&input.instance_id);
+                                self.manager.release_demand(&input.instance_id);
+                                Err(StrategyRuntimeWritePortError::Failed {
+                                    status: 409,
+                                    code: "CONFLICT".to_owned(),
+                                    message: format!("transition to RUNNING failed: {error}"),
+                                })
+                            }
+                        }
                     }
                     Err(error) => {
                         let _ = self.store.update_status_cas(
@@ -117,16 +137,17 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "strategy instance is already stopped".to_owned(),
                     });
                 }
-                self.manager.cancel(&input.instance_id);
-                self.manager.release_demand(&input.instance_id);
-                self.store
+                let stopped = self.store
                     .update_status_cas(
                         &input.instance_id,
                         &["RUNNING", "PAUSED", "STARTING", "FAILED"],
                         "STOPPED",
                         &timestamp,
                     )
-                    .map_err(Into::into)
+                    .map_err(StrategyRuntimeWritePortError::from)?;
+                self.manager.cancel(&input.instance_id);
+                self.manager.release_demand(&input.instance_id);
+                Ok(stopped)
             }
             StrategyRuntimeWriteOperation::Pause => {
                 if !current.status.eq_ignore_ascii_case("RUNNING") {
@@ -192,76 +213,20 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 let was_running =
                     current.runtime_active || current.status.eq_ignore_ascii_case("RUNNING");
                 if was_running {
-                    self.manager.cancel(&input.instance_id);
-                    self.manager.release_demand(&input.instance_id);
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "STRATEGY_REFRESH_REQUIRES_STOP".to_owned(),
+                        message: "refresh definition requires an explicitly stopped strategy instance".to_owned(),
+                    });
                 }
                 let refreshed = match self
                     .store
                     .refresh_definition(&input.instance_id, &timestamp)
                 {
                     Ok(refreshed) => refreshed,
-                    Err(error) => {
-                        if was_running {
-                            let _ =
-                                self.store
-                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
-                        }
-                        return Err(error.into());
-                    }
+                    Err(error) => return Err(error.into()),
                 };
-                if was_running {
-                    if let Some(error) = self.manager.dependency_error() {
-                        let _ = self
-                            .store
-                            .update_status(&input.instance_id, "STOPPED", &timestamp);
-                        return Err(error);
-                    }
-                    let runtime_binding = match self.effective_binding(&refreshed) {
-                        Ok(binding) => binding,
-                        Err(error) => {
-                            let _ =
-                                self.store
-                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
-                            return Err(error);
-                        }
-                    };
-                    if let Err(error) = self
-                        .manager
-                        .acquire_demand(&input.instance_id, &runtime_binding)
-                    {
-                        let _ = self
-                            .store
-                            .update_status(&input.instance_id, "STOPPED", &timestamp);
-                        return Err(error);
-                    }
-                    let running =
-                        match self
-                            .store
-                            .update_status(&input.instance_id, "RUNNING", &timestamp)
-                        {
-                            Ok(running) => running,
-                            Err(error) => {
-                                self.manager.release_demand(&input.instance_id);
-                                return Err(error.into());
-                            }
-                        };
-                    match self.manager.spawn_task(
-                        input.instance_id.clone(),
-                        runtime_binding,
-                        Arc::clone(&self.store),
-                    ) {
-                        Ok(()) => Ok(running),
-                        Err(error) => {
-                            let _ =
-                                self.store
-                                    .update_status(&input.instance_id, "STOPPED", &timestamp);
-                            self.manager.release_demand(&input.instance_id);
-                            Err(error)
-                        }
-                    }
-                } else {
-                    Ok(refreshed)
-                }
+                Ok(refreshed)
             }
         };
 
