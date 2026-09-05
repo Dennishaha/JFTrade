@@ -38,6 +38,14 @@ use runtime_recovery::DurableRunRecoverySupervisor;
 
 include!("product_adk_model_runtime_lifecycle.rs");
 
+#[cfg(test)]
+#[path = "product_adk_model_runtime_fencing_tests.rs"]
+mod fencing_tests;
+
+#[cfg(test)]
+#[path = "product_adk_model_runtime_takeover_tests.rs"]
+mod takeover_tests;
+
 const MAX_RESPONSE_BYTES: usize = 4 << 20;
 const DEFAULT_TIMEOUT_MS: u64 = 120_000;
 const DEFAULT_BUILTIN_AGENT_ID: &str = "jftrade-default";
@@ -342,6 +350,7 @@ pub(crate) fn classify_durable_store_error(error: &AdkStoreError) -> DurableErro
             DurableErrorClass::LeaseHeldOrLost
         }
         AdkStoreError::RevisionChanged(_) => DurableErrorClass::RevisionConflict,
+        AdkStoreError::ToolOutcomeUnknown(_) => DurableErrorClass::StorageFailure,
         AdkStoreError::StaleToolClaim(_)
         | AdkStoreError::Invariant(_)
         | AdkStoreError::Conflict(_) => DurableErrorClass::InvariantViolation,
@@ -350,15 +359,22 @@ pub(crate) fn classify_durable_store_error(error: &AdkStoreError) -> DurableErro
 }
 
 pub(crate) fn runtime_store_error(error: AdkStoreError) -> AdkChatPortError {
-    match classify_durable_store_error(&error) {
-        DurableErrorClass::StorageFailure => storage_unavailable(error),
-        DurableErrorClass::LeaseHeldOrLost | DurableErrorClass::RevisionConflict => {
-            AdkChatPortError::Conflict(error.to_string())
-        }
-        DurableErrorClass::InvariantViolation => AdkChatPortError::Failed {
+    match &error {
+        AdkStoreError::ToolOutcomeUnknown(message) => AdkChatPortError::Failed {
             status: 500,
-            code: "ADK_STORAGE_CORRUPT".to_owned(),
-            message: error.to_string(),
+            code: "ADK_TOOL_OUTCOME_UNKNOWN".to_owned(),
+            message: message.clone(),
+        },
+        _ => match classify_durable_store_error(&error) {
+            DurableErrorClass::StorageFailure => storage_unavailable(error),
+            DurableErrorClass::LeaseHeldOrLost | DurableErrorClass::RevisionConflict => {
+                AdkChatPortError::Conflict(error.to_string())
+            }
+            DurableErrorClass::InvariantViolation => AdkChatPortError::Failed {
+                status: 500,
+                code: "ADK_STORAGE_CORRUPT".to_owned(),
+                message: error.to_string(),
+            },
         },
     }
 }

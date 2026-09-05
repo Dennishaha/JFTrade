@@ -79,13 +79,14 @@ impl ProductionAdkChatRuntime {
                     let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
-                if !replay_safe_tool(&name) || !self.tool_executor.supports(&name) {
+                if !self.tool_executor.supports(&name) {
                     let error = tool_unavailable(format!(
-                        "tool {name} is not declared replay-safe by the production runtime"
+                        "tool {name} is not supported by the production runtime"
                     ));
                     let _ = self.persist_failure(&chat, &error, &run_lease);
                     return;
                 }
+                let fail_closed = !replay_safe_tool(&name);
                 let idempotency_key = call_id.clone();
                 let input_json = match serde_json::to_string(&arguments) {
                     Ok(input_json) => input_json,
@@ -103,6 +104,7 @@ impl ProductionAdkChatRuntime {
                     &owner_id,
                     &run_lease,
                     &cancellation,
+                    fail_closed,
                 );
                 let (outcome, claim_owner, claim_fencing_token) = match claim {
                     Ok(Some(AdkToolInvocationClaim::Replay(invocation))) => (
@@ -122,6 +124,9 @@ impl ProductionAdkChatRuntime {
                         invocation.fencing_token,
                     ),
                     Ok(Some(AdkToolInvocationClaim::Execute(invocation))) => {
+                        if run_lease.is_lost() {
+                            return;
+                        }
                         let mut heartbeat = match ToolClaimHeartbeat::start(
                             Arc::clone(&self.store),
                             invocation.clone(),
@@ -140,6 +145,17 @@ impl ProductionAdkChatRuntime {
                             return;
                         }
                         (outcome, invocation.owner_id, invocation.fencing_token)
+                    }
+                    Ok(Some(AdkToolInvocationClaim::Unknown(_))) => {
+                        let error = AdkChatPortError::Failed {
+                            status: 500,
+                            code: "ADK_TOOL_OUTCOME_UNKNOWN".to_owned(),
+                            message: format!(
+                                "tool invocation {idempotency_key} expired while in flight; outcome unknown"
+                            ),
+                        };
+                        let _ = self.persist_failure(&chat, &error, &run_lease);
+                        return;
                     }
                     Ok(Some(AdkToolInvocationClaim::Live(_))) => {
                         unreachable!("live tool claims are consumed by the retry helper")
@@ -285,6 +301,7 @@ impl ProductionAdkChatRuntime {
         owner_id: &str,
         run_lease: &RunLeaseGuard,
         cancellation: &Arc<AtomicBool>,
+        fail_closed: bool,
     ) -> Result<Option<AdkToolInvocationClaim>, AdkChatPortError> {
         loop {
             if run_lease.is_lost()
@@ -308,6 +325,7 @@ impl ProductionAdkChatRuntime {
                 owner_id,
                 run_lease.token(),
                 TOOL_CLAIM_TTL,
+                fail_closed,
             );
             match claim {
                 Ok(AdkToolInvocationClaim::Live(invocation)) => {

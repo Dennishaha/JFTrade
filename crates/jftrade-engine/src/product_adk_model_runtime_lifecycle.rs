@@ -485,6 +485,7 @@ mod tests {
                 "owner-first",
                 first_lease.fencing_token,
                 Duration::from_millis(100),
+                false,
             )
             .expect("claim first tool invocation")
         {
@@ -514,6 +515,7 @@ mod tests {
                     "owner-second",
                     second_lease.fencing_token,
                     Duration::from_millis(100),
+                    false,
                 )
                 .expect("observe live claim"),
             AdkToolInvocationClaim::Live(_)
@@ -534,6 +536,7 @@ mod tests {
                 "owner-second",
                 second_lease.fencing_token,
                 Duration::from_millis(100),
+                false,
             )
             .expect("take over expired claim");
         let AdkToolInvocationClaim::Execute(takeover) = takeover else {

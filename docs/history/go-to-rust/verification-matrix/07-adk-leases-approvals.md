@@ -47,5 +47,26 @@
 #### 2.7.4 Release Qualification 验证清单
 - [ ] **RQ-ADK-01（正常流）**: 发起需审批的任务，审批状态由 `PENDING` $\to$ 调用 approve 接口 $\to$ 状态转为 `SUCCEEDED`，事件表记录完整。
 - [ ] **RQ-ADK-02（崩溃注入）**: 在 `resolve_and_stage_approval` 提交后插入 panic 杀死进程，重启核验恢复线程在租约过期后接管并推进任务。
-- [ ] **RQ-ADK-03（慢推理失窃 - 阻断门禁）**: Mock LLM 延迟 45 秒使租约心跳超时被抢占，核验原 Worker 返回时写库被 `fencing_token` 拦截，工具调用表通过唯一键阻断重复下单。
+- [x] **RQ-ADK-03（慢推理失窃 - 阻断门禁 / P1-03 外部工具防重已闭环）**:
+  - **核心修复架构与机制**:
+    1. **区分 Replay-Safe 与 Fail-Closed 外部工具**: `replay_safe_tool(&name)` 区分只读幂等查询（`fail_closed = false`）与具有外部副作用工具（`fail_closed = true`，如 `trade.place_order`）。
+    2. **租约超时原子 Fail-Closed 屏障**: 当 side-effecting 工具调用租约超时（`lease_expires_at_unix_ms <= now_ms`），新 Worker 接管调用 `claim_tool_invocation_if_status_and_revision`，在单一事务中原子更新 `status = 'UNKNOWN'`、清空 `owner_id`、置 `lease_expires_at_unix_ms = 0` 并递增 `fencing_token`，返回 `AdkToolInvocationClaim::Unknown`，彻底阻断新 Worker 重复发起外部调用（物理调用计数严格等于 1）。
+    3. **迟到 Commit 严格 Fencing 拦截**: 原 Worker 超时返回后调用 `commit_tool_result_if_status_and_revision_with_event`，受限于四重防线（状态非 UNKNOWN、租约未过期、`fencing_token` 匹配、`run_lease_token` 匹配），严格返回 `Err(AdkStoreError::LeaseLost)` 拒绝写入，防止脏结果污染。
+    4. **ADK_TOOL_OUTCOME_UNKNOWN 映射**: 引擎层将 `AdkToolInvocationClaim::Unknown` 与 `AdkStoreError::ToolOutcomeUnknown` 清晰映射为 HTTP 500 `ADK_TOOL_OUTCOME_UNKNOWN` 错误信封，安全持久化失败并终止 Run，避免重复执行或状态不一致扩散。
+  - **验证测试用例清单**:
+    * **核心端到端并发与抢占集成测试**:
+      - `product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit`
+      - `product::product_adk_model_runtime::fencing_tests::multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool`
+      - `product::product_adk_model_runtime::fencing_tests::takeover_worker_never_invokes_external_tool_for_expired_running_invocation`
+    * **接管与迟到提交边界测试 (`product_adk_model_runtime_takeover_tests.rs`)**:
+      - `product::product_adk_model_runtime::takeover_tests::stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_condition` (覆盖 5 大迟到提交场景)
+      - `product::product_adk_model_runtime::takeover_tests::replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims`
+    * **外部租约 Fencing 边界集成测试 (`tests/adk_lease_fencing_takeover_edge_conditions.rs` 5 项)**:
+      - `test_engine_cleanly_maps_adk_tool_outcome_unknown_to_http_500_without_panic`
+      - `test_commit_tool_result_strictly_returns_lease_lost_on_unknown_expired_or_mismatched_token`
+      - `test_fencing_token_monotonically_increases_across_takeovers`
+      - `test_lease_expiration_boundary_before_and_after_expiry`
+      - `product_adk_chat_stream_port::tests::adk_port_outputs_and_errors_keep_route_wire_mapping`
+  - **剩余风险边界**:
+    - 本地 SQLite Fencing 保证了引擎与存储层对同一工具调用的单次发起与防重，但若外部券商/系统本身无客户端订单号幂等机制且请求已在超时前发出并在外部成交，属于外部系统端状态，需配合 P0-02 对账机制闭环。
 - [ ] **RQ-ADK-04（级联删除）**: 调用删除会话接口，核验 `adk-session.db` 的 events 表及 `adk-artifact.db` 的 artifacts 表对应记录均被彻底清除。
