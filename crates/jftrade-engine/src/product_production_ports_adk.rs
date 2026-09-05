@@ -37,12 +37,12 @@ use projection::{
 };
 
 #[derive(Debug)]
-pub(crate) struct ProductionAdkPort {
-    pub(crate) store: Arc<AdkStore>,
-    pub(crate) session_store: Arc<AdkSessionStore>,
-    pub(crate) artifact_store: Arc<AdkArtifactStore>,
-    pub(crate) tool_catalog: Arc<ProductionToolCatalog>,
-    pub(crate) settings_path: PathBuf,
+pub struct ProductionAdkPort {
+    pub store: Arc<AdkStore>,
+    pub session_store: Arc<AdkSessionStore>,
+    pub artifact_store: Arc<AdkArtifactStore>,
+    pub tool_catalog: Arc<ProductionToolCatalog>,
+    pub settings_path: PathBuf,
     /// Optional runtime-owned chat adapter.
     ///
     /// The production composition root must inject the concrete assistant
@@ -50,7 +50,25 @@ pub(crate) struct ProductionAdkPort {
     /// the seam on the production port (rather than branching in the HTTP
     /// layer) ensures configured runtimes can execute both chat and stream
     /// requests while an unconfigured runtime remains explicitly unavailable.
-    pub(crate) chat_runtime: Option<Arc<dyn AdkChatStreamPort>>,
+    pub chat_runtime: Option<Arc<dyn AdkChatStreamPort>>,
+}
+
+impl ProductionAdkPort {
+    pub fn new_for_test(
+        store: Arc<AdkStore>,
+        session_store: Arc<AdkSessionStore>,
+        artifact_store: Arc<AdkArtifactStore>,
+        settings_path: PathBuf,
+    ) -> Self {
+        Self {
+            store,
+            session_store,
+            artifact_store,
+            tool_catalog: Arc::new(ProductionToolCatalog::empty_for_test()),
+            settings_path,
+            chat_runtime: None,
+        }
+    }
 }
 
 impl Drop for ProductionAdkPort {
@@ -66,7 +84,7 @@ impl Drop for ProductionAdkPort {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ProductionToolCatalog {
+pub struct ProductionToolCatalog {
     tools: Vec<Value>,
     /// The startup binding snapshot is retained for fail-closed validation and
     /// for adapters whose capability is independent of the selected provider.
@@ -81,6 +99,18 @@ pub(crate) struct ProductionToolCatalog {
 }
 
 impl ProductionToolCatalog {
+    pub fn empty_for_test() -> Self {
+        Self {
+            tools: Vec::new(),
+            bindings: BTreeMap::new(),
+            research_bindings: BTreeMap::new(),
+            active_provider_state: None,
+            trade_runtime: None,
+            backtest_execution_ready: false,
+            pine_readiness: None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn from_bindings(
         bindings: &BTreeMap<ProductionRouteAdapter, ProductionAdapterBinding>,

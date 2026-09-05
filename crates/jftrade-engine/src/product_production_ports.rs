@@ -28,7 +28,7 @@ mod product_production_adapter_bindings;
 #[path = "product_production_database_leases.rs"]
 mod product_production_database_leases;
 #[path = "product_production_ports_adk.rs"]
-pub(crate) mod product_production_ports_adk;
+pub mod product_production_ports_adk;
 #[path = "product_production_ports_execution.rs"]
 mod product_production_ports_execution;
 #[path = "product_production_ports_market_data.rs"]

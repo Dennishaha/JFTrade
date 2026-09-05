@@ -75,6 +75,8 @@ pub enum AdkSessionStoreError {
     NotFound(String),
     #[error("incompatible adk-session database: {0}")]
     Incompatible(String),
+    #[error("invalid adk session request: {0}")]
+    Validation(String),
 }
 
 pub struct AdkSessionStore {
@@ -219,6 +221,11 @@ impl AdkSessionStore {
         user_id: &str,
         id: &str,
     ) -> Result<bool, AdkSessionStoreError> {
+        if id == "user" || id.trim().is_empty() {
+            return Err(AdkSessionStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
+        }
         let connection = self.lock_connection()?;
         let transaction = connection
             .unchecked_transaction()
@@ -229,14 +236,44 @@ impl AdkSessionStore {
                 params![app_name, user_id, id],
             )
             .map_err(AdkSessionStoreError::Query)?;
-        transaction
+        let events_deleted = transaction
             .execute(
                 "DELETE FROM events WHERE app_name = ?1 AND user_id = ?2 AND session_id = ?3",
                 params![app_name, user_id, id],
             )
             .map_err(AdkSessionStoreError::Query)?;
         transaction.commit().map_err(AdkSessionStoreError::Query)?;
-        Ok(affected > 0)
+        Ok(affected > 0 || events_deleted > 0)
+    }
+
+    pub fn delete_session_by_id(&self, session_id: &str) -> Result<bool, AdkSessionStoreError> {
+        if session_id == "user" || session_id.trim().is_empty() {
+            return Err(AdkSessionStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        let transaction = connection
+            .unchecked_transaction()
+            .map_err(AdkSessionStoreError::Query)?;
+        let events_deleted = transaction
+            .execute(
+                "DELETE FROM events WHERE session_id = ?1",
+                params![session_id],
+            )
+            .map_err(AdkSessionStoreError::Query)?;
+        let sessions_deleted = transaction
+            .execute("DELETE FROM sessions WHERE id = ?1", params![session_id])
+            .map_err(AdkSessionStoreError::Query)?;
+        transaction.commit().map_err(AdkSessionStoreError::Query)?;
+        Ok(sessions_deleted > 0 || events_deleted > 0)
+    }
+
+    pub fn delete_session_and_events_by_id(
+        &self,
+        session_id: &str,
+    ) -> Result<bool, AdkSessionStoreError> {
+        self.delete_session_by_id(session_id)
     }
 
     pub fn list_sessions(&self) -> Result<Vec<StoredAdkSessionState>, AdkSessionStoreError> {
@@ -434,6 +471,10 @@ impl AdkSessionTestCutoverStore {
         id: &str,
     ) -> Result<bool, AdkSessionStoreError> {
         self.inner.delete_session(app_name, user_id, id)
+    }
+
+    pub fn delete_session_by_id(&self, session_id: &str) -> Result<bool, AdkSessionStoreError> {
+        self.inner.delete_session_by_id(session_id)
     }
 
     pub fn record_event(

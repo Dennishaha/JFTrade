@@ -66,6 +66,8 @@ pub enum AdkArtifactStoreError {
     NotFound(String),
     #[error("incompatible adk-artifact database: {0}")]
     Incompatible(String),
+    #[error("invalid adk artifact request: {0}")]
+    Validation(String),
 }
 
 pub struct AdkArtifactStore {
@@ -90,11 +92,34 @@ impl AdkArtifactStore {
         user_id: &str,
         session_id: &str,
     ) -> Result<usize, AdkArtifactStoreError> {
+        if session_id == "user" || session_id.trim().is_empty() {
+            return Err(AdkArtifactStoreError::Validation(
+                "shared user artifact session cannot be deleted".to_owned(),
+            ));
+        }
         let connection = self.lock_connection()?;
         connection
             .execute(
-                "DELETE FROM artifacts WHERE app_name = ?1 AND user_id = ?2 AND session_id = ?3",
+                "DELETE FROM artifacts WHERE app_name = ?1 AND user_id = ?2 AND session_id = ?3 AND session_id != 'user'",
                 params![app_name, user_id, session_id],
+            )
+            .map_err(AdkArtifactStoreError::Query)
+    }
+
+    pub fn delete_session_artifacts_by_id(
+        &self,
+        session_id: &str,
+    ) -> Result<usize, AdkArtifactStoreError> {
+        if session_id == "user" || session_id.trim().is_empty() {
+            return Err(AdkArtifactStoreError::Validation(
+                "shared user artifact session cannot be deleted".to_owned(),
+            ));
+        }
+        let connection = self.lock_connection()?;
+        connection
+            .execute(
+                "DELETE FROM artifacts WHERE session_id = ?1 AND session_id != 'user'",
+                params![session_id],
             )
             .map_err(AdkArtifactStoreError::Query)
     }
@@ -311,5 +336,22 @@ impl AdkArtifactTestCutoverStore {
     ) -> Result<Option<StoredAdkArtifact>, AdkArtifactStoreError> {
         self.inner
             .get_artifact(app_name, user_id, session_id, file_name, version)
+    }
+
+    pub fn delete_session_artifacts(
+        &self,
+        app_name: &str,
+        user_id: &str,
+        session_id: &str,
+    ) -> Result<usize, AdkArtifactStoreError> {
+        self.inner
+            .delete_session_artifacts(app_name, user_id, session_id)
+    }
+
+    pub fn delete_session_artifacts_by_id(
+        &self,
+        session_id: &str,
+    ) -> Result<usize, AdkArtifactStoreError> {
+        self.inner.delete_session_artifacts_by_id(session_id)
     }
 }

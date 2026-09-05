@@ -11,6 +11,7 @@ use serde_json::Value;
 use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+use crate::adk_artifact::AdkArtifactStore;
 use crate::adk_session::{AdkSessionStore, AdkSessionWriteLease};
 use crate::schema_manifest::{SchemaManifestError, validate_current};
 
@@ -256,6 +257,8 @@ pub enum AdkStoreError {
     WriterLease(#[from] WriterLeaseError),
     #[error("adk session store: {0}")]
     SessionStore(#[from] crate::adk_session::AdkSessionStoreError),
+    #[error("adk artifact store: {0}")]
+    ArtifactStore(#[from] crate::adk_artifact::AdkArtifactStoreError),
     #[error("open adk database: {0}")]
     Open(#[source] rusqlite::Error),
     #[error("configure adk database: {0}")]
@@ -767,21 +770,14 @@ impl AdkStore {
     }
 
     pub fn delete_session(&self, id: &str) -> Result<bool, AdkStoreError> {
-        let mut connection = self.lock_connection()?;
-        let exists = connection
-            .query_row(
-                "SELECT 1 FROM adk_sessions WHERE id = ?1 LIMIT 1",
-                params![id],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()
-            .map_err(AdkStoreError::Query)?
-            .is_some();
-        if !exists {
-            return Ok(false);
+        if id == "user" || id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
         }
-
+        let mut connection = self.lock_connection()?;
         let transaction = connection.transaction().map_err(AdkStoreError::Query)?;
+        let mut total_deleted = 0;
         for statement in [
             "DELETE FROM adk_tool_invocations WHERE run_id IN (SELECT id FROM adk_runs WHERE session_id = ?1)",
             "DELETE FROM adk_run_leases WHERE run_id IN (SELECT id FROM adk_runs WHERE session_id = ?1)",
@@ -795,12 +791,42 @@ impl AdkStore {
             "DELETE FROM adk_session_composer_state WHERE session_id = ?1",
             "DELETE FROM adk_sessions WHERE id = ?1",
         ] {
-            transaction
+            total_deleted += transaction
                 .execute(statement, params![id])
                 .map_err(AdkStoreError::Query)?;
         }
         transaction.commit().map_err(AdkStoreError::Query)?;
-        Ok(true)
+        Ok(total_deleted > 0)
+    }
+
+    pub fn get_session_agent_id(&self, id: &str) -> Result<Option<String>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        connection
+            .query_row(
+                "SELECT agent_id FROM adk_sessions WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)
+    }
+
+    pub fn delete_session_cascade(
+        &self,
+        session_store: &AdkSessionStore,
+        artifact_store: &AdkArtifactStore,
+        id: &str,
+    ) -> Result<bool, AdkStoreError> {
+        if id == "user" || id.trim().is_empty() {
+            return Err(AdkStoreError::Validation(
+                "cannot delete reserved user session or empty session id".to_owned(),
+            ));
+        }
+        let artifacts_deleted = artifact_store.delete_session_artifacts_by_id(id)?;
+        let session_db_deleted = session_store.delete_session_by_id(id)?;
+        let adk_db_deleted = self.delete_session(id)?;
+
+        Ok(artifacts_deleted > 0 || session_db_deleted || adk_db_deleted)
     }
 
     pub fn get_session(&self, id: &str) -> Result<Option<StoredAdkEntity>, AdkStoreError> {
@@ -4605,6 +4631,20 @@ impl AdkTestCutoverStore {
 
     pub fn delete_session(&self, id: &str) -> Result<bool, AdkStoreError> {
         self.inner.delete_session(id)
+    }
+
+    pub fn get_session_agent_id(&self, id: &str) -> Result<Option<String>, AdkStoreError> {
+        self.inner.get_session_agent_id(id)
+    }
+
+    pub fn delete_session_cascade(
+        &self,
+        session_store: &AdkSessionStore,
+        artifact_store: &AdkArtifactStore,
+        id: &str,
+    ) -> Result<bool, AdkStoreError> {
+        self.inner
+            .delete_session_cascade(session_store, artifact_store, id)
     }
 
     pub fn create_run(

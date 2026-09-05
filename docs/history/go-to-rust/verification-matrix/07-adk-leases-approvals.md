@@ -69,4 +69,16 @@
       - `product_adk_chat_stream_port::tests::adk_port_outputs_and_errors_keep_route_wire_mapping`
   - **剩余风险边界**:
     - 本地 SQLite Fencing 保证了引擎与存储层对同一工具调用的单次发起与防重，但若外部券商/系统本身无客户端订单号幂等机制且请求已在超时前发出并在外部成交，属于外部系统端状态，需配合 P0-02 对账机制闭环。
-- [ ] **RQ-ADK-04（级联删除）**: 调用删除会话接口，核验 `adk-session.db` 的 events 表及 `adk-artifact.db` 的 artifacts 表对应记录均被彻底清除。
+- [x] **RQ-ADK-04（级联删除 / P1-04 跨库清理已闭环）**:
+  - **核心修复架构与机制**:
+    1. **跨三库协调时序**: 严格按照 `adk-artifact.db` $\to$ `adk-session.db` $\to$ `adk.db` 顺序执行物理清理；任何阶段失败重启重试均可继续幂等清理，不遗留孤儿数据。
+    2. **用户共享工件硬保护**: `delete_session_artifacts` 与 `delete_session_cascade` 强制拦截 `session_id == 'user'`，杜绝误删用户全局共享文档与偏好。
+    3. **移除先验 404 阻断以实现孤儿兜底扫荡**: 移除 `SELECT 1 FROM adk_sessions` 前置短路检查，在单个事务中顺序清理全部 11 张关联表（`adk_tool_invocations`, `adk_run_leases`, `adk_tasks`, `adk_approvals`, `adk_runs`, `adk_session_contexts`, `adk_session_context_state`, `adk_handoff_segments`, `adk_session_notices`, `adk_session_composer_state`, `adk_sessions`），确保半清理残余数据可安全彻底回收。
+    4. **解耦脆弱过滤**: 消除 `app_name` 与 `user_id` 在不同模块间不一致可能引发的假成功缺陷。
+  - **验证测试用例清单 (全套 25 项测试全部 PASS)**:
+    * `crates/jftrade-store-sqlite/tests/adk_cascade_session_cleanup.rs` (4 项)
+    * `crates/jftrade-store-sqlite/tests/adk_crash_recovery_orphan_injection_challenge.rs` (7 项)
+    * `crates/jftrade-engine/tests/adk_session_cascade_deletion_resilience.rs` (5 项)
+    * `crates/jftrade-engine/tests/adk_session_cascade_adversarial_stress.rs` (5 项)
+    * `crates/jftrade-engine/tests/adk_engine_orphan_concurrency_challenge.rs` (4 项)
+
