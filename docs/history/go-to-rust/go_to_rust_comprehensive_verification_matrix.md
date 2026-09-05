@@ -65,7 +65,7 @@
 | P1-08 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实盘与回测预热是否产生不可接受偏差 | 同脚本/数据/种子比较指标及信号，定义容差与首个可交易 bar；记录样本不足策略及资源成本。 | 待验证 |
 | P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 | 待验证 |
 | P2-01 / [01 Pine](./verification-matrix/01-pine-runtime.md) | 崩溃后预留是否占用配额、能否安全回收 | reserve/submit/persist 各点故障注入及日期边界；先排除券商已接受，不能盲目释放不确定订单配额。 | **已关闭 / PASS**：消除 2x 重叠计数，SQL 锚定匹配 `'%reservation: ' || a.detail || ')%'` 杜绝子串碰撞，与对账联动安全回收，4 项专项测试通过。 |
-| P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 | 待验证 |
+| P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 | **已关闭 / PASS (事实反证)**：架构实现 OpenD 交易会话与行情源解耦，冷启动仅要求 `futu_trade_enabled` 即可初始化交易会话与对账后台，6 项既有测试反证闭环。 |
 | P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 | 待验证 |
 
 ## 四、后续任务执行方式
@@ -131,6 +131,19 @@
 | 修复 / 回归 | 修复代码：`crates/jftrade-store-sqlite/src/backtest_market_data_aggregation.rs`（`resolve_aggregation_buckets`、`aggregate_range`、`aggregate_bucket`），`crates/jftrade-store-sqlite/src/backtest_market_data.rs`；<br>专项回归测试（4 项，位于 `tests/backtest_market_data_session_dst_aggregation.rs`）：<br>• `test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation`<br>• `test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation`<br>• `test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open`<br>• `test_safety_red_line_missing_minute_fails_closed_with_coverage_error` |
 | 门禁 | `cargo test -p jftrade-store-sqlite` (16 suites pass, 退出码 0)；`pnpm run check:rust:static` 退出码 0；`pnpm run check:clippy` 退出码 0；`pnpm run check:generated` 退出码 0；`pnpm run check:quick` 退出码 0 |
 | 剩余风险 / 依赖 | 1. 针对非股票类或无特定交易所日历的自定义标的，自动平滑回退至纯 UTC 周期分桶；<br>2. 聚合校验严格遵循 fail-closed，依赖上游数据同步（`BacktestSyncTask`）保证交易分钟完整落库。 |
+
+#### 5. P2-02 yfinance 冷启动下历史 Futu 订单对账解耦
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P2-02 / worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 生产代码基线 `ccac83d1` / `crates/jftrade-engine/src/product_runtime_composition.rs:48-78`、`product_production_ports_execution_reconciliation_provider_tests.rs:136-197` |
+| 状态 / 确认严重度 | **已关闭 / PASS (事实反证)** (原 P2 级推演在当前架构下不成立，已由角色解耦机制彻底消除) |
+| 生产调用链 / 所有者 | `compose_market_data_runtime` -> `futu_trade_enabled` -> `OpenDProviderRuntime` -> `ExecutionReconciliationWorker` -> `execution.db` 单一写属主 |
+| 复现或反证 | 原材料推测以 yfinance 冷启动时因未选 Futu 行情而导致 OpenD 未初始化、历史订单无法对账；反证证据证实：架构将 OpenD 交易会话作为独立属主管理，冷启动仅要求 `futu_trade_enabled` 即可初始化交易会话与对账后台；已由 `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee` 等测试全链路验证通过。 |
+| 修复 / 回归 | 既有回归测试（`product_production_ports_execution_reconciliation_provider_tests.rs` 及 `product_production_ports_trade_tests.rs`）：<br>• `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee`<br>• `helper_market_data_providers_fail_closed_without_futu_trade_session`<br>• `helper_market_data_providers_project_futu_broker_and_portfolio_routes`<br>• `helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session`<br>• `provider_switch_does_not_disconnect_an_existing_futu_trade_session`<br>• `helper_market_data_provider_without_trade_session_fails_closed` |
+| 门禁 | `cargo test -p jftrade-engine --lib helper_market_data_provider` (全量通过，退出码 0)；`pnpm run check:quick` (退出码 0) |
+| 剩余风险 / 依赖 | OpenD 宿主进程必须外部处于运行状态；当 OpenD 挂掉时，交易接口显式报错 Fail-Closed，符合预期。 |
 
 ## 五、补充验证与发布边界
 

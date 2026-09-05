@@ -44,10 +44,38 @@
   **对比 Go 基线：Rust 现存明显的子进程自动运维韧性倒退，属于严重 P0 阻断性缺陷。**
 
 #### 2. 冷启动 OpenD 未初始化隐患 (P2-02)
-若系统以 `market_data_provider = "yfinance"` 冷启动，系统仅启动 Python Helper，不会初始化 OpenD。历史在途的 Futu 订单将无法自动对账，直至用户手动切源或激活。
+- **原始推演假说**: 若系统以 `market_data_provider = "yfinance"` 冷启动，系统仅启动 Python Helper，不会初始化 OpenD。历史在途的 Futu 订单将无法自动对账，直至用户手动切源或激活。
+- **现实验证反证（风险不成立）**:
+  在生产运行时组合入口 `crates/jftrade-engine/src/product_runtime_composition.rs:48-78`，Rust 架构在冷启动时已实现券商交易与行情源的明确解耦：
+  ```rust
+  // Futu's OpenD session is a shared trade owner, not merely a market-data
+  // provider. When a broker integration is enabled, compose it even if
+  // yfinance/AKShare currently owns market-data reads; reconciliation then
+  // keeps account/order/history/fill/fee visibility across provider switches.
+  let futu_trade_enabled = store ... .is_some_and(|integration| integration.enabled);
+  if active_provider == Some(MarketDataProvider::Futu) || futu_trade_enabled || futu_env_override {
+      let provider_config = opend_provider_config(settings_path, Arc::clone(&router))?;
+      config.market_data_opend_provider = Some(provider_config);
+      config.market_data_router = Some(router);
+  }
+  ```
+  既有生产回归测试（`product_production_ports_execution_reconciliation_provider_tests.rs:136` `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee` 与 `product_production_ports_trade_tests.rs:363` `helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session`）充分证实：即便冷启动且活跃行情源为 `Yfinance` 或 `Akshare`，只要开启了 Futu broker，交易会话（OpenD Trade Session）独立保持运行，后台对账 Worker（`ExecutionReconciliationWorker`）持续对账 Futu 历史订单、成交与佣金，完全不受行情源影响。在 OpenD 离线时，系统严格 Fail-Closed 并显式暴露错误，绝无虚假数据。
 
 #### 2.6.4 Release Qualification 验证清单
 - [ ] **TC-D6-01（正常流）**: 在 OpenD 订阅 5 支标的时用 `iptables` 阻断连接 3 秒后解封，核验退避重试成功，`generation` 自增，5 支标的自动重订阅，配额自动对齐。
 - [ ] **TC-D6-02（韧性流 - 阻断门禁）**: `kill -9` 杀掉 Python Helper 进程，核验系统必须在 5 秒内通过 Supervisor 检测到进程死亡并自动重新 spawn 拉起，`/healthz` 恢复 200。
 - [ ] **TC-D6-03（韧性流 - 阻断门禁）**: 向 Node Worker 发送 `SIGTERM`，核验 `WorkerPool` 捕获断连后自动重新拉起 Node 进程，`restarts` 加 1，策略会话自愈。
-- [ ] **TC-D6-04（解耦流）**: 启动以 `futu` 运行并挂一笔委托，切源至 `yfinance`，核验行情切换成功且后台继续轮询并同步 Futu 订单成交。
+- [x] **TC-D6-04（解耦流 / P2-02 闭环）**: 启动以 `futu` 运行并挂一笔委托，切源至 `yfinance`，核验行情切换成功且后台继续轮询并同步 Futu 订单成交。
+
+#### 2.6.5 闭环验证台账 (P2-02)
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P2-02 / worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 生产代码基线 `ccac83d1` / `crates/jftrade-engine/src/product_runtime_composition.rs:48-78`、`product_production_ports_execution_reconciliation_provider_tests.rs:136-197` |
+| 状态 / 确认严重度 | **已关闭 / PASS (事实反证)** (原 P2 级推演在当前架构下不成立，已由角色解耦机制彻底消除) |
+| 生产调用链 / 所有者 | `compose_market_data_runtime` -> `futu_trade_enabled` -> `OpenDProviderRuntime` -> `ExecutionReconciliationWorker` |
+| 复现或反证 | 原材料推测以 yfinance 冷启动时因未选 Futu 行情而导致 OpenD 未初始化、历史订单无法对账；反证证据证实：架构将 OpenD 交易会话作为独立属主管理，冷启动仅要求 `futu_trade_enabled` 即可初始化交易会话与对账后台；已由 `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee` 等测试全链路验证通过。 |
+| 修复 / 回归 | 既有回归测试（`product_production_ports_execution_reconciliation_provider_tests.rs` 及 `product_production_ports_trade_tests.rs`）：<br>• `helper_market_data_providers_reconcile_futu_account_order_fill_and_fee`<br>• `helper_market_data_providers_fail_closed_without_futu_trade_session`<br>• `helper_market_data_providers_project_futu_broker_and_portfolio_routes`<br>• `helper_market_data_provider_keeps_futu_trade_reads_on_the_trade_session`<br>• `provider_switch_does_not_disconnect_an_existing_futu_trade_session`<br>• `helper_market_data_provider_without_trade_session_fails_closed` |
+| 门禁 | `cargo test -p jftrade-engine --lib helper_market_data_provider` (全量通过，退出码 0)；`pnpm run check:quick` (退出码 0) |
+| 剩余风险 / 依赖 | OpenD 宿主进程必须外部处于运行状态；当 OpenD 挂掉时，交易接口显式报错 Fail-Closed，符合预期。 |
