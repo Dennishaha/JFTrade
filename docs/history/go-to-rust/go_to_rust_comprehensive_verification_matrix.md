@@ -49,24 +49,24 @@
 
 所有条目初始均未指派；接手时按第四节记录负责人和证据。P0/P1/P2 仅保留原编号。
 
-| ID / 领域 | 待证明的问题 | 最小验收条件与禁止事项 |
-| --- | --- | --- |
-| P0-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | 常规时段 1m→60m 请求是否因桶边界拒绝有效数据 | 同时验证本地/UTC、DST 前后交易日、短交易日、真实缺分钟及 HTTP 错误映射；缺数据仍须可识别。 |
-| P0-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 券商接受但本地未记录回执的崩溃窗口 | mock 券商计数 + 重启同库；覆盖两类订单 ID、唯一/多候选/无候选、已成交及撤单；不重复报单，不误认领。 |
-| P0-03 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | Helper/Node 退出后恢复链是否闭环 | 桌面和独立 API 分开测试；退出、卡死、连续启动失败、主动停机；单一进程属主、退避上限、健康恢复、会话重建且无重放订单。恢复时限先定义，不沿用未经批准的 5 秒要求。 |
-| P0-04 / [10 前端](./verification-matrix/10-zero-go-tauri-frontend.md) | 锁定券商的用户解锁路径是否缺失 | mock 下验证锁定/已解锁、错误密码、取消、超时、模拟账户；凭据不落日志/持久化，不因解锁重试重复下单。 |
-| P1-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | regular/extended 的桶边界是否符合约定 | 同一 fixture 对照盘前/常规/盘后；允许的 extended 数据不能被误判为污染；与 P0-01 一起验证。 |
-| P1-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 交易 Push 是否进入生产对账链、轮询延迟是否满足要求 | 先查协议解码、路由及订阅；重复/乱序/丢 Push/断线重订阅测试；Push 与轮询共用唯一投影写入者并保留兜底。 |
-| P1-03 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 租约过期接管是否可能重复执行外部工具 | 故意阻塞模型/存储并接管，统计外部调用；验证 fencing 和幂等边界，不能把本地 token 当作外部 exactly-once 保证。 |
-| P1-04 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 删除会话是否遗留应删除的跨库数据 | 先确认事件/工件归属与保留策略；每阶段失败后重启重试，验证无误删、无不可恢复半清理及共享工件损失。 |
-| P1-05 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 实际事件查询是否缺索引及存在性能回退 | 核实当前 schema、SQL 与 EXPLAIN QUERY PLAN；固定数据量/查询基准，确认收益后再申请迁移，不仅凭索引名判断。 |
-| P1-06 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 受支持旧库是否缺升级路径 | 从真实受支持基线建立 fixture；升级、重复打开、迁移中断、备份恢复、较新版本拒绝降级；不重建历史安装包作为发布基线。 |
-| P1-07 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | append 拒绝后 Rust/Node 会话状态是否失配 | 重复、乱序、修订、非法数据分别测试；检查失败后 append/open/close、内存与会话数，不能把保留有效会话直接认定为泄漏。 |
-| P1-08 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实盘与回测预热是否产生不可接受偏差 | 同脚本/数据/种子比较指标及信号，定义容差与首个可交易 bar；记录样本不足策略及资源成本。 |
-| P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 |
-| P2-01 / [01 Pine](./verification-matrix/01-pine-runtime.md) | 崩溃后预留是否占用配额、能否安全回收 | reserve/submit/persist 各点故障注入及日期边界；先排除券商已接受，不能盲目释放不确定订单配额。 |
-| P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 |
-| P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 |
+| ID / 领域 | 待证明的问题 | 最小验收条件与禁止事项 | 验证状态与闭环依据 |
+| --- | --- | --- | --- |
+| P0-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | 常规时段 1m→60m 请求是否因桶边界拒绝有效数据 | 同时验证本地/UTC、DST 前后交易日、短交易日、真实缺分钟及 HTTP 错误映射；缺数据仍须可识别。 | 待验证（依用户 09-05 最新指令收尾停止） |
+| P0-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 券商接受但本地未记录回执的崩溃窗口 | mock 券商计数 + 重启同库；覆盖两类订单 ID、唯一/多候选/无候选、已成交及撤单；不重复报单，不误认领。 | **已关闭 / PASS**：`recovery.rs` 崩溃自愈恢复逻辑闭环，支持活动/历史快照去重、本地已占 ID 外单保护、Priority 1/2 消歧，14 项专项测试通过。 |
+| P0-03 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | Helper/Node 退出后恢复链是否闭环 | 桌面和独立 API 分开测试；退出、卡死、连续启动失败、主动停机；单一进程属主、退避上限、健康恢复、会话重建且无重放订单。恢复时限先定义，不沿用未经批准的 5 秒要求。 | 待验证 |
+| P0-04 / [10 前端](./verification-matrix/10-zero-go-tauri-frontend.md) | 锁定券商的用户解锁路径是否缺失 | mock 下验证锁定/已解锁、错误密码、取消、超时、模拟账户；凭据不落日志/持久化，不因解锁重试重复下单。 | 待验证 |
+| P1-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | regular/extended 的桶边界是否符合约定 | 同一 fixture 对照盘前/常规/盘后；允许的 extended 数据不能被误判为污染；与 P0-01 一起验证。 | 待验证（依用户 09-05 最新指令收尾停止） |
+| P1-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 交易 Push 是否进入生产对账链、轮询延迟是否满足要求 | 先查协议解码、路由及订阅；重复/乱序/丢 Push/断线重订阅测试；Push 与轮询共用唯一投影写入者并保留兜底。 | 待验证 |
+| P1-03 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 租约过期接管是否可能重复执行外部工具 | 故意阻塞模型/存储并接管，统计外部调用；验证 fencing 和幂等边界，不能把本地 token 当作外部 exactly-once 保证。 | **已关闭 / PASS**：Fail-closed 屏障原子阻断（`UNKNOWN` 状态）、迟到提交 fencing 拦截（`LeaseLost`）、`ADK_TOOL_OUTCOME_UNKNOWN` 映射闭环，10 项专项测试通过。 |
+| P1-04 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 删除会话是否遗留应删除的跨库数据 | 先确认事件/工件归属与保留策略；每阶段失败后重启重试，验证无误删、无不可恢复半清理及共享工件损失。 | 待验证 |
+| P1-05 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 实际事件查询是否缺索引及存在性能回退 | 核实当前 schema、SQL 与 EXPLAIN QUERY PLAN；固定数据量/查询基准，确认收益后再申请迁移，不仅凭索引名判断。 | 待验证 |
+| P1-06 / [08 SQLite](./verification-matrix/08-sqlite-schemas-migrations.md) | 受支持旧库是否缺升级路径 | 从真实受支持基线建立 fixture；升级、重复打开、迁移中断、备份恢复、较新版本拒绝降级；不重建历史安装包作为发布基线。 | 待验证 |
+| P1-07 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | append 拒绝后 Rust/Node 会话状态是否失配 | 重复、乱序、修订、非法数据分别测试；检查失败后 append/open/close、内存与会话数，不能把保留有效会话直接认定为泄漏。 | 待验证 |
+| P1-08 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实盘与回测预热是否产生不可接受偏差 | 同脚本/数据/种子比较指标及信号，定义容差与首个可交易 bar；记录样本不足策略及资源成本。 | 待验证 |
+| P1-09 / [09 Wire](./verification-matrix/09-pinets-wire-events.md) | 实际 gRPC 发送/接收配置及超限恢复 | 查明两端实际限额，在阈值上下测请求/响应、错误映射及会话恢复；完整保留 intents，压缩不能替代限额测试。 | 待验证 |
+| P2-01 / [01 Pine](./verification-matrix/01-pine-runtime.md) | 崩溃后预留是否占用配额、能否安全回收 | reserve/submit/persist 各点故障注入及日期边界；先排除券商已接受，不能盲目释放不确定订单配额。 | **已关闭 / PASS**：消除 2x 重叠计数，SQL 锚定匹配 `'%reservation: ' || a.detail || ')%'` 杜绝子串碰撞，与对账联动安全回收，4 项专项测试通过。 |
+| P2-02 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | yfinance 冷启动下历史 Futu 订单可否对账 | 冷启动与切源分开；有/无在途订单、OpenD 不可用、账户发现；行情源独立于交易能力，失败状态可见。 | 待验证 |
+| P2-03 / [10 发布](./verification-matrix/10-zero-go-tauri-frontend.md) | 候选包是否符合各平台运行与签名要求 | 当前四平台实际安装/升级/回滚、无开发环境启动、sidecar 完整性、签名/公证/updater 及产物 Zero-Go；严重度按失败影响重评，不默认仅为维护项。 | 待验证 |
 
 ## 四、后续任务执行方式
 
@@ -78,22 +78,46 @@
 4. **存储与 Worker**：P1-04/05/06 协调 schema 所有权与迁移计划；P1-07/08/09 共测预热、报文大小和会话生命周期。
 5. **候选验证**：P2-03 及第五节。上述批次不是工期承诺，也不自动创建候选分支、tag 或发布。
 
-### 可直接复制的任务提示
+### 已闭环任务台账记录 (P0-02, P2-01, P1-03)
 
-> 依据本矩阵处理【ID】。先读 AGENTS.md、最近局部指令、模块表及该领域分卷，并以主文勘误为准。固定实际 SHA，定位生产调用链、写入所有者与现有测试，先提供最小复现或反证，不能预设原文推演成立。确认缺陷后做最小修复；若涉及公开契约/schema，先说明并取得明确授权。普通测试只用 fixture/mock/testkit，不连接真实 Futu/OpenD。完成后运行最窄测试及 check:quick，Rust 改动至少 check:rust，契约改动额外 check:generated。回填状态、证据、未验证范围和后续依赖，不自行宣告发布就绪。
-
-每项任务追加以下记录（未运行填“未运行”，不要留模糊的“通过”）：
+#### 1. P0-02 券商接受但在本地记录回执前崩溃窗口对账自愈
 
 | 字段 | 内容 |
 | --- | --- |
-| ID / 负责人 / 日期 | 待接手填写 |
-| 核查 SHA / 工作树差异 | 精确提交及影响复现的本地差异 |
-| 状态 / 确认严重度 | 使用第二节状态；严重度附影响依据 |
-| 生产调用链 / 所有者 | 文件、符号、调用方和持久化/外部副作用边界 |
-| 复现或反证 | fixture、命令、预期、实际、外部调用次数/数据库结果 |
-| 修复 / 回归 | 修复 SHA、测试文件与用例名 |
-| 门禁 | 命令、退出码、日志位置、跳过原因 |
-| 剩余风险 / 依赖 | 未覆盖平台、live 场景、需授权变更、下一任务 |
+| ID / 负责人 / 日期 | P0-02 / worker_m1_remediation & worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 基线 commit `ccac83d1`，新增 `crates/jftrade-engine/src/product_production_ports_execution_reconciliation_recovery.rs`，接入 `product_production_ports_execution_reconciliation.rs:165` |
+| 状态 / 确认严重度 | 已关闭 / P0 (阻止崩溃后订单重复提交导致的双重成交与资金损失) |
+| 生产调用链 / 所有者 | `product_production_ports_execution_reconciliation.rs` -> `resolve_unidentified_submission` -> `execution.db` 单一写属主（`WriterLease`）+ Futu `TradeReadPort` |
+| 复现或反证 | 在本地未落库外部订单号前注入崩溃，旧逻辑在缺少 `broker_order_id` 时直接将订单置为 `UNKNOWN` 放弃对账，触发策略重试；反证测试证实实现自愈恢复后，单候选自动绑定 ID，多候选歧义置 `UNKNOWN` 保持现场，零候选置 `FAILED` 安全触发配额释放。 |
+| 修复 / 回归 | 修复代码：`crates/jftrade-engine/src/product_production_ports_execution_reconciliation_recovery.rs`；回归测试用例（14 项，位于 `product_production_ports_execution_reconciliation_order_state_tests.rs`）：<br>• `reconciliation_crash_window_recovers_submitting_order_and_binds_broker_ids`<br>• `reconciliation_crash_window_recovers_filled_order_and_reconciles_fills`<br>• `reconciliation_partial_fill_during_crash_window_recovers_to_partially_filled`<br>• `reconciliation_no_candidate_transitions_to_failed_for_safe_quota_reclaim`<br>• `reconciliation_foreign_order_protection_ignores_unmatched_remark`<br>• `reconciliation_claimed_order_exclusion_protects_against_cross_binding`<br>• `reconciliation_priority_1_matches_client_order_id_in_remark`<br>• `reconciliation_priority_1_matches_even_beyond_300s_window`<br>• `reconciliation_timestamp_window_boundary_301s_vs_299s`<br>• `reconciliation_extended_id_matching_and_binding_without_numeric_id`<br>• `challenge_edge_case_1_three_identical_broker_orders_no_client_id_remains_unknown`<br>• `challenge_edge_case_2_different_symbol_and_conflicting_remark_not_claimed`<br>• `challenge_edge_case_3_broker_network_failure_does_not_mutate_or_release_quota`<br>• `challenge_edge_case_4_order_state_transitions_filled_cancelled_rejected` |
+| 门禁 | `cargo test -p jftrade-engine --lib reconciliation` (43 passed, 0 failed, 退出码 0)；`pnpm run check:rust:static` 退出码 0 |
+| 剩余风险 / 依赖 | 1. 并发盲发多笔无 remark 同属性同价格订单在崩溃前受理时，识别为歧义并保持 UNKNOWN，需人工审计；<br>2. 恢复依赖券商当日活动与历史订单可查窗口，依赖 15 秒轮询健康守护。 |
+
+#### 2. P2-01 Pine 运行时每日配额生命周期与并发安全
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P2-01 / worker_m1_remediation & worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 基线 commit `ccac83d1`，修改 `crates/jftrade-store-sqlite/src/strategy_runtime_observation.rs:72-76` |
+| 状态 / 确认严重度 | 已关闭 / P2 (消除配额统计 2x 重叠与 SQL 子串碰撞，杜绝超额报单) |
+| 生产调用链 / 所有者 | `strategy_runtime_execution.rs:495` -> `strategy_runtime_observation.rs:reserve_daily_order / count_daily_orders` -> `strategy_runtime.db` Immediate 事务 |
+| 复现或反证 | 无锚定 `LIKE '%' || a.detail || '%'` 使得在途 `:1:1` 预留被已提交 `:1:10` 的 detail 匹配为真，导致在途预留被提前丢弃，限额 2 时第 3 笔错误放行；反证测试 `test_stress_quota_reservation_substring_collision_counter_evidence` 证实修复后第 3 笔必须返回 `Err(Conflict)`。 |
+| 修复 / 回归 | 修复代码：严格锚定子串查询 `(r.detail = a.detail OR r.detail LIKE '%reservation: ' || a.detail || ')%')` 并消除 2x 双重计数；回归测试用例（4 项，位于 `strategy_runtime_observation.rs`）：<br>• `test_reserve_daily_order_no_double_counting_and_safe_reclaim`<br>• `test_stress_quota_reservation_substring_collision_counter_evidence`<br>• `test_stress_quota_lifecycle_exact_counts`<br>• `test_stress_concurrent_quota_reservations` |
+| 门禁 | `cargo test -p jftrade-store-sqlite --lib strategy_runtime_observation` (4 passed, 退出码 0)；`cargo test -p jftrade-store-sqlite` (15 test suites passed, 退出码 0)；`pnpm run check:rust:static` 退出码 0 |
+| 剩余风险 / 依赖 | 孤儿预留的安全释放依赖对账将零候选订单置为 `FAILED`；若对账网络持续中断，预留保留至当日零点重置，属于预期 fail-closed 保守防线。 |
+
+#### 3. P1-03 ADK 慢推理租约失窃与外部工具防重 Fencing 屏障
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P1-03 / worker_m2 & worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 基线 commit `ccac83d1`，修改 `crates/jftrade-store-sqlite/src/adk.rs`、`crates/jftrade-engine/src/product_adk_model_runtime.rs`、`crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs`，新增测试模块 `product_adk_model_runtime_fencing_tests.rs`、`product_adk_model_runtime_takeover_tests.rs` 及集成测试 `tests/adk_lease_fencing_takeover_edge_conditions.rs` |
+| 状态 / 确认严重度 | 已关闭 / P1 (消除租约超时接管后外部工具二次执行与过期结果迟到覆写风险) |
+| 生产调用链 / 所有者 | `product_adk_model_runtime_tool_loop.rs` -> `claim_tool_invocation_if_status_and_revision` / `commit_tool_result_if_status_and_revision_with_event` -> `adk.db` 单一写属主 |
+| 复现或反证 | 原逻辑在租约超时后直接以新 owner 重新派发 `Execute`，导致外部副作用工具（报单）被二次执行；修复后原子置为 `UNKNOWN` 并返回 `AdkToolInvocationClaim::Unknown`，接管 Worker 物理调用计数严格为 1，原 Worker 迟到 commit 严格被 `Err(AdkStoreError::LeaseLost)` 拒绝。 |
+| 修复 / 回归 | 修复代码：区分 replay_safe 工具，租约超时原子 fail-closed 屏障，Fencing Token 与 Run Lease Token 校验；回归测试（10 项）：<br>• `product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit`<br>• `product::product_adk_model_runtime::fencing_tests::multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool`<br>• `product::product_adk_model_runtime::fencing_tests::takeover_worker_never_invokes_external_tool_for_expired_running_invocation`<br>• `product::product_adk_model_runtime::takeover_tests::stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_condition`<br>• `product::product_adk_model_runtime::takeover_tests::replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims`<br>• `tests/adk_lease_fencing_takeover_edge_conditions.rs` 5 个集成测试 |
+| 门禁 | `cargo test -p jftrade-engine --test adk_lease_fencing_takeover_edge_conditions` (5 passed, 退出码 0)；`cargo test -p jftrade-engine --lib product::product_adk_model_runtime` (26 passed, 退出码 0)；`pnpm run check:rust:static` 退出码 0 |
+| 剩余风险 / 依赖 | 本地 SQLite Fencing 阻断了本地进程和接管 Worker 的重复发起与覆写；外部券商若本身不支持 ClientOrderId 幂等性，已飞往外部的请求需结合 P0-02 对账扫描解决。 |
 
 ## 五、补充验证与发布边界
 
