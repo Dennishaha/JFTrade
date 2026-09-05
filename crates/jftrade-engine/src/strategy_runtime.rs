@@ -336,9 +336,21 @@ impl StrategyRuntimeManager {
                         return;
                     }
                 };
-                let mut last_closed_by_symbol = BTreeMap::<String, i64>::new();
-                let mut session_state_by_symbol = BTreeMap::<String, SymbolSessionState>::new();
-                let mut first_cycle = true;
+                let (mut last_closed_by_symbol, mut session_state_by_symbol) =
+                    match restore_pine_runtime_state(&store, &id_for_thread, &active_symbols) {
+                        Ok(state) => state,
+                        Err(error) => {
+                            fail_strategy_task(&store, &router, &id_for_thread, &active_symbols, error);
+                            return;
+                        }
+                    };
+                // The worker process is not assumed to survive an engine
+                // restart.  A fresh worker session is opened on the first
+                // cycle; durable checkpoints still fence already-processed
+                // candles and intent keys. This does not restore JS heap state.
+                for state in session_state_by_symbol.values_mut() {
+                    state.revision = 0;
+                }
                 while !cancel_for_thread.load(Ordering::Acquire) {
                     let current_instance = match store.get_instance(&id_for_thread) {
                         Ok(Some(inst)) => inst,
@@ -395,10 +407,9 @@ impl StrategyRuntimeManager {
                         last_closed = Some(last_closed.map_or(latest_open_time, |value: i64| {
                             value.max(latest_open_time)
                         }));
-                        if !first_cycle
-                            && last_closed_by_symbol
-                                .get(requested_symbol)
-                                .is_some_and(|previous| *previous >= latest_open_time)
+                        if last_closed_by_symbol
+                            .get(requested_symbol)
+                            .is_some_and(|previous| *previous >= latest_open_time)
                         {
                             continue;
                         }
@@ -531,9 +542,19 @@ impl StrategyRuntimeManager {
                             cycle_error = Some(format!("persist Pine worker output: {error}"));
                             break;
                         }
+                        if let Err(error) = persist_pine_runtime_checkpoint(
+                            &store,
+                            &id_for_thread,
+                            requested_symbol,
+                            session.revision,
+                            latest_open_time,
+                            &session.submitted_intents,
+                        ) {
+                            cycle_error = Some(format!("persist Pine runtime checkpoint: {error}"));
+                            break;
+                        }
                         last_closed_by_symbol.insert(requested_symbol.clone(), latest_open_time);
                     }
-                    first_cycle = false;
                     if let Some(error) = cycle_error {
                         let is_paused = store
                             .get_instance(&id_for_thread)
@@ -616,6 +637,92 @@ fn now_millis() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64 / 1_000_000
 }
 
+/// Rebuild the small amount of live Pine state that must survive an engine
+/// restart.  The worker's JavaScript object graph is intentionally not
+/// serialized; the durable checkpoint fences closed-candle replays and order
+/// intents while a new worker session is warmed up.
+type RestoredPineState = (BTreeMap<String, i64>, BTreeMap<String, SymbolSessionState>);
+
+fn restore_pine_runtime_state(
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+    active_symbols: &[String],
+) -> Result<RestoredPineState, String> {
+    let mut last_closed = BTreeMap::new();
+    let mut sessions = BTreeMap::new();
+    let scope = pine_checkpoint_scope(store, instance_id)?;
+    let events = store.list_audit_events(instance_id)
+        .map_err(|error| format!("read Pine recovery checkpoints: {error}"))?;
+    let wanted = active_symbols.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    for event in events {
+        if event.kind != "PINE_SESSION_CHECKPOINT" {
+            continue;
+        }
+        let payload = serde_json::from_str::<Value>(&event.detail)
+            .map_err(|error| format!("invalid Pine recovery checkpoint: {error}"))?;
+        if payload.get("scope").and_then(Value::as_str) != Some(scope.as_str()) {
+            continue;
+        }
+        let symbol = payload.get("symbol").and_then(Value::as_str)
+            .ok_or_else(|| "Pine recovery checkpoint is missing symbol".to_owned())?;
+        if !wanted.contains(symbol) || last_closed.contains_key(symbol) {
+            continue;
+        }
+        let open_time = payload.get("lastClosedOpenTime").and_then(Value::as_i64)
+            .ok_or_else(|| "Pine recovery checkpoint is missing lastClosedOpenTime".to_owned())?;
+        last_closed.insert(symbol.to_owned(), open_time);
+        let submitted_intents = payload
+            .get("submittedIntentKeys")
+            .and_then(Value::as_array)
+            .ok_or_else(|| "Pine recovery checkpoint is missing submittedIntentKeys".to_owned())?
+            .iter()
+            .map(|value| value.as_str().map(ToOwned::to_owned)
+                .ok_or_else(|| "invalid Pine recovery intent key".to_owned()))
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        sessions.insert(
+            symbol.to_owned(),
+            SymbolSessionState {
+                revision: payload
+                    .get("sessionRevision")
+                    .and_then(Value::as_u64)
+                    .unwrap_or_default(),
+                submitted_intents,
+            },
+        );
+    }
+    Ok((last_closed, sessions))
+}
+
+fn persist_pine_runtime_checkpoint(
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+    symbol: &str,
+    session_revision: u64,
+    last_closed_open_time: i64,
+    submitted_intents: &BTreeSet<String>,
+) -> Result<(), String> {
+    let detail = serde_json::to_string(&json!({
+        "scope": pine_checkpoint_scope(store, instance_id)?,
+        "symbol": symbol,
+        "sessionRevision": session_revision,
+        "lastClosedOpenTime": last_closed_open_time,
+        "submittedIntentKeys": submitted_intents,
+    }))
+    .map_err(|error| error.to_string())?;
+    store
+        .append_audit_event(instance_id, "PINE_SESSION_CHECKPOINT", &detail, now_millis())
+        .map_err(|error| error.to_string())
+}
+
+fn pine_checkpoint_scope(store: &StrategyRuntimeStore, instance_id: &str) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    let instance = store.get_instance(instance_id)
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Pine checkpoint instance no longer exists".to_owned())?;
+    let source = json!({"binding": instance.binding, "definitionRevision": instance.definition_revision});
+    Ok(Sha256::digest(source.to_string().as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
 #[derive(Default)]
 struct StrategyAccountInputs {
     available_cash: Option<f64>,
@@ -625,12 +732,9 @@ struct StrategyAccountInputs {
 
 fn trading_environment_is_real(binding: &Value) -> bool {
     binding_string_opt(binding, &["tradingEnvironment", "environment", "env"])
+        .or_else(|| binding.get("brokerAccount").and_then(|account|
+            binding_string_opt(account, &["tradingEnvironment", "environment", "env"])))
         .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
-        || binding
-            .get("brokerAccount")
-            .and_then(Value::as_object)
-            .and_then(|object| object.get("tradingEnvironment").and_then(Value::as_str))
-            .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
 }
 
 fn read_strategy_account_inputs(
@@ -856,3 +960,4 @@ use strategy_runtime_candles::*;
 use strategy_runtime_execution::*;
 
 pub(crate) use strategy_runtime_port::ProductionStrategyRuntimePort;
+pub(crate) use strategy_runtime_activity::normalize_strategy_binding;

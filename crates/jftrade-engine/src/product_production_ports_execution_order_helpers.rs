@@ -325,6 +325,7 @@ pub(crate) struct ProductRuleRequest {
 /// query does not need to coerce accountId into the numeric OpenD header.
 pub(crate) fn parse_product_rule_request(
     payload: &Value,
+    default_environment: Option<&str>,
 ) -> Result<ProductRuleRequest, ExecutionWritePortError> {
     let object = payload
         .as_object()
@@ -369,6 +370,7 @@ pub(crate) fn parse_product_rule_request(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
+        .or(default_environment)
         .unwrap_or("SIMULATE")
         .to_ascii_uppercase();
     let market = instrument

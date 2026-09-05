@@ -16,7 +16,7 @@ use jftrade_integration_futu::{
 };
 use jftrade_integration_marketdata_helper::HelperProcess;
 use jftrade_marketdata::ProviderRouter;
-use jftrade_settings::MarketDataProvider;
+use jftrade_settings::{MarketDataProvider, MarketDataProviderSettingsStorePort};
 
 use super::product_runtime_composition::{SharedOpenDProviderRuntime, opend_provider_config};
 use super::product_runtime_helper_health::HelperHealthMonitor;
@@ -24,6 +24,24 @@ use super::product_runtime_opend_listener::LiveHubOpenDEventListener;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
 
 pub(super) type DynamicReadiness = Arc<dyn Fn() -> (bool, bool, bool) + Send + Sync>;
+
+pub(super) fn configured_provider(
+    path: &std::path::Path,
+) -> Result<Option<MarketDataProvider>, super::ProductRuntimeError> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let store = super::SettingsFileStore::open_read_only(path)
+        .map_err(|error| super::ProductRuntimeError::Settings(error.to_string()))?;
+    store
+        .load_active_market_data_provider()
+        .map_err(|error| super::ProductRuntimeError::Settings(error.to_string()))?
+        .map(|provider| {
+            jftrade_settings::parse_market_data_provider(&provider)
+                .map_err(|error| super::ProductRuntimeError::Settings(error.to_string()))
+        })
+        .transpose()
+}
 
 /// Build the dynamic readiness reader: helper process + health monitor,
 /// OpenD provider recorder/physical state, router presence.
@@ -55,7 +73,9 @@ pub(super) fn dynamic_provider_readiness(
                 false
             }
         } else {
-            false
+            helper_health
+                .as_ref()
+                .is_some_and(|monitor| monitor.is_ready())
         };
         let opend_ready = if let Some(ref provider) = *dyn_opend_for_readiness
             .lock()
@@ -390,7 +410,9 @@ pub(super) fn provider_activation(
                         false
                     }
                 } else {
-                    false
+                    helper_health
+                        .as_ref()
+                        .is_some_and(|monitor| monitor.is_ready())
                 };
                 if !is_helper_ready {
                     return Err("market-data helper is not ready".to_owned());

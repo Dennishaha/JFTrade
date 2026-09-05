@@ -10,6 +10,17 @@ use jftrade_integration_futu::{
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
+#[test]
+fn buying_power_defaults_follow_settings_and_preserve_explicit_environment() {
+    let request = execution_order_helpers::parse_product_rule_request(&json!({}), Some("REAL"))
+        .expect("settings default");
+    assert_eq!(request.trading_environment, "REAL");
+    let request = execution_order_helpers::parse_product_rule_request(
+        &json!({"env": "SIMULATE"}), Some("REAL"),
+    ).expect("explicit environment");
+    assert_eq!(request.trading_environment, "SIMULATE");
+}
+
 #[derive(Debug)]
 struct PreviewTradeReader {
     calls: Arc<Mutex<Vec<TradeMaxTradeQuantityRequest>>>,

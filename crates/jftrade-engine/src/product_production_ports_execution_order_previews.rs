@@ -127,7 +127,8 @@ impl ProductionExecutionPort {
         &self,
         payload: &Value,
     ) -> Result<Value, ExecutionWritePortError> {
-        let request = parse_product_rule_request(payload)?;
+        let default_env = self.default_trading_environment.as_ref().map(|getter| getter());
+        let request = parse_product_rule_request(payload, default_env.as_deref())?;
         if let Some((code, message)) = product_rule_rejection(&request) {
             // Product-rule denials are a valid response, but only after the
             // request has crossed the same local validation boundary as Go.

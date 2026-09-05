@@ -219,13 +219,10 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "refresh definition requires an explicitly stopped strategy instance".to_owned(),
                     });
                 }
-                let refreshed = match self
+                let refreshed = self
                     .store
                     .refresh_definition(&input.instance_id, &timestamp)
-                {
-                    Ok(refreshed) => refreshed,
-                    Err(error) => return Err(error.into()),
-                };
+                    .map_err(StrategyRuntimeWritePortError::from)?;
                 Ok(refreshed)
             }
         };
@@ -361,5 +358,82 @@ mod tests {
         assert_eq!(result["status"], "STOPPED");
         assert_eq!(result["binding"]["symbols"], json!(["US.AAPL"])); // Normalized to dot
         assert_eq!(result["binding"]["interval"], "5m"); // Defaulted interval
+    }
+
+    #[test]
+    fn binding_normalization_validates_execution_enums_and_nested_account() {
+        let mut binding = json!({
+            "symbols": ["aapl", "US:AAPL"],
+            "executionMode": "LIVE",
+            "chartType": "HeikinAshi",
+            "market": "us",
+            "sessions": "REGULAR, extended",
+            "brokerAccount": {"accountId": 42, "tradingEnvironment": "simulate"}
+        });
+        normalize_strategy_binding(&mut binding).expect("binding should normalize");
+        assert_eq!(binding["executionMode"], "live");
+        assert_eq!(binding["executeOrders"], true);
+        assert_eq!(binding["chartType"], "heikinashi");
+        assert_eq!(binding["market"], "US");
+        assert_eq!(binding["symbols"], json!(["US.AAPL"]));
+        assert_eq!(binding["sessions"], json!(["extended", "regular"]));
+        assert_eq!(binding["brokerAccount"]["tradingEnvironment"], "SIMULATE");
+
+        let mut invalid = json!({"chartType": "renko"});
+        assert!(normalize_strategy_binding(&mut invalid).is_err());
+        let mut invalid = json!({"market": "EU"});
+        assert!(normalize_strategy_binding(&mut invalid).is_err());
+        let mut invalid = json!({"sessions": ["regular", "premarket"]});
+        assert!(normalize_strategy_binding(&mut invalid).is_err());
+        for mut invalid in [json!({"chartType": 1}), json!({"interval": 5}),
+            json!({"symbols": 1}), json!({"symbols": [false]}),
+            json!({"executeOrders": "false"}), json!({"brokerAccount": []})] {
+            assert!(normalize_strategy_binding(&mut invalid).is_err(), "{invalid}");
+        }
+        assert!(trading_environment_is_real(&json!({"brokerAccount": {"env": "REAL"}})));
+        assert!(!trading_environment_is_real(&json!({"tradingEnvironment": "SIMULATE", "brokerAccount": {"env": "REAL"}})));
+    }
+
+    #[test]
+    fn pine_runtime_checkpoint_restores_latest_bar_and_intent_keys() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("strategy.db");
+        seed_strategy_test_db(&path);
+        let definitions = Arc::new(
+            StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+                .expect("open definition store"),
+        );
+        let store = StrategyRuntimeStore::from_definition_store(&definitions);
+        store
+            .seed_instance_with_binding(
+                "checkpoint-inst",
+                "RUNNING",
+                json!({"symbols": ["US.AAPL"]}),
+                "2026-09-05T00:00:00Z",
+            )
+            .expect("seed instance");
+        let mut keys = BTreeSet::new();
+        keys.insert("100:entry:0".to_owned());
+        persist_pine_runtime_checkpoint(&store, "checkpoint-inst", "US.AAPL", 2, 200, &keys)
+            .expect("persist first checkpoint");
+        keys.insert("200:entry:0".to_owned());
+        persist_pine_runtime_checkpoint(&store, "checkpoint-inst", "US.AAPL", 3, 300, &keys)
+            .expect("persist second checkpoint");
+
+        let (last_closed, sessions) =
+            restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()])
+                .expect("restore checkpoint");
+        assert_eq!(last_closed.get("US.AAPL"), Some(&300));
+        assert_eq!(sessions["US.AAPL"].revision, 3);
+        assert_eq!(sessions["US.AAPL"].submitted_intents.len(), 2);
+        store.update_status("checkpoint-inst", "STOPPED", "2026-09-05T00:30:00Z").expect("stop before binding update");
+        store.update_binding("checkpoint-inst", json!({"symbols": ["US.AAPL"], "interval": "1h"}),
+            "2026-09-05T01:00:00Z").expect("change binding scope");
+        let (last_closed, _) = restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()])
+            .expect("restore changed binding");
+        assert!(last_closed.is_empty(), "old binding checkpoints must not suppress new signals");
+        store.append_audit_event("checkpoint-inst", "PINE_SESSION_CHECKPOINT", "{broken", i64::MAX)
+            .expect("inject corrupt checkpoint");
+        assert!(restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()]).is_err());
     }
 }

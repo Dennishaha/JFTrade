@@ -127,6 +127,18 @@ pub(crate) async fn start_pine_worker(
     Ok((process, health, monitor))
 }
 
+pub(crate) async fn monitor_external_helper(client: HelperClient) -> Arc<HelperHealthMonitor> {
+    // An injected client is not readiness evidence: probe before publishing.
+    let monitor = Arc::new(HelperHealthMonitor::new(
+        client,
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(15),
+    ));
+    monitor.refresh().await;
+    monitor.spawn();
+    monitor
+}
+
 pub(crate) async fn start_marketdata_helper(
     config: MarketDataHelperRuntimeConfig,
 ) -> Result<

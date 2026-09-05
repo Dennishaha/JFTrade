@@ -39,6 +39,60 @@ fn shadow_result_derives_go_compatible_signal_count_from_plot_tails() {
 }
 
 #[test]
+fn instantiate_persists_the_same_normalized_binding_as_runtime_update() {
+    let dir = tempdir().expect("tempdir");
+    let db_path = dir.path().join("strategy-instantiate.db");
+    let connection = rusqlite::Connection::open(&db_path).expect("create strategy database");
+    jftrade_store_sqlite::initialize_current(&connection, "strategy")
+        .expect("initialize strategy schema");
+    drop(connection);
+    let store = Arc::new(
+        StrategyDefinitionStore::open_existing(
+            &db_path,
+            jftrade_store_sqlite::STRATEGY_DEFINITION_PRODUCTION_PROFILE,
+        )
+        .expect("open strategy definition store"),
+    );
+    store
+        .save_definition(
+            jftrade_store_sqlite::StoredStrategyDefinition {
+                id: "normalize-instantiate".to_owned(),
+                name: "Normalize instantiate".to_owned(),
+                version: "0.1.0".to_owned(),
+                description: String::new(),
+                runtime: "pine-pinets".to_owned(),
+                source_format: "pine-v6".to_owned(),
+                symbol: "US.AAPL".to_owned(),
+                interval: "5m".to_owned(),
+                script: "//@version=6\nstrategy(\"x\")".to_owned(),
+                visual_model_json: "{}".to_owned(),
+                created_at: "2026-09-05T00:00:00Z".to_owned(),
+                updated_at: "2026-09-05T00:00:00Z".to_owned(),
+                deleted_at: None,
+            },
+            "2026-09-05T00:00:00Z",
+        )
+        .expect("save definition");
+    let port = ProductionStrategyDefinitionPort { store: Arc::clone(&store) };
+    let result = port
+        .mutate(&StrategyDefinitionWriteInput {
+            operation: StrategyDefinitionWriteOperation::Instantiate,
+            definition_id: Some("normalize-instantiate".to_owned()),
+            definition: None,
+            binding: Some(json!({
+                "symbol": "aapl",
+                "executionMode": "notify_only",
+                "chartType": "standard"
+            })),
+            binding_error: None,
+        })
+        .expect("instantiate strategy");
+    assert_eq!(result["binding"]["symbols"], json!(["US.AAPL"]));
+    assert_eq!(result["binding"]["executeOrders"], false);
+    assert_eq!(result["binding"]["interval"], "5m");
+}
+
+#[test]
 fn strategy_definition_preview_derives_warmup_bars_and_overrides_preview_parameters() {
     let dir = tempdir().expect("tempdir");
     let db_path = dir.path().join("strategy.db");

@@ -11,7 +11,7 @@ use jftrade_integration_pine::{
     GrpcPineExecutionPort, PineBacktestExecutionAdapter, PineExecutionConfig, PineProcessError,
 };
 use jftrade_marketdata::{MarketDataRuntimeRecorder, ProviderRouter};
-use jftrade_settings::{MarketDataProvider, MarketDataProviderSettingsStorePort};
+use jftrade_settings::MarketDataProvider;
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_strategy::StrategyRuntimeRegistry;
 use thiserror::Error;

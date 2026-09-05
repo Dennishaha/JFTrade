@@ -609,22 +609,15 @@ pub async fn start_product_runtime(
         None
     };
     supervisor.marketdata_helper = helper_process.clone();
+    if supervisor.helper_health.is_none()
+        && let Some(client) = config.product.market_data_helper.clone()
+    {
+        supervisor.helper_health =
+            Some(super::product_runtime_workers::monitor_external_helper(client).await);
+    }
 
-    let settings_file = std::path::Path::new(config.product.settings_path());
-    let configured_provider = if settings_file.exists() {
-        let store = SettingsFileStore::open_read_only(config.product.settings_path())
-            .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?;
-        store
-            .load_active_market_data_provider()
-            .map_err(|error| ProductRuntimeError::Settings(error.to_string()))?
-            .map(|provider| {
-                jftrade_settings::parse_market_data_provider(&provider)
-                    .map_err(|error| ProductRuntimeError::Settings(error.to_string()))
-            })
-            .transpose()?
-    } else {
-        None
-    };
+    let configured_provider =
+        product_runtime_provider_activation::configured_provider(config.product.settings_path())?;
     let dynamic_opend_ready = dynamic_opend
         .lock()
         .unwrap_or_else(|error| error.into_inner())

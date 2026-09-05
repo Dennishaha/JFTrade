@@ -4,6 +4,7 @@ use crate::product::product_strategy_definition_write_port::{
     StrategyDefinitionWriteInput, StrategyDefinitionWriteOperation, StrategyDefinitionWritePort,
     StrategyDefinitionWritePortError,
 };
+use crate::product::product_strategy_runtime_write_port::StrategyRuntimeWritePortError;
 use crate::product::strategy_pine::{
     StrategyPineAnalyzeInput, StrategyPineAnalyzeSnapshotError, StrategyPineAnalyzeSnapshotPort,
 };
@@ -15,6 +16,7 @@ use jftrade_store_sqlite::{
 };
 use serde_json::{Value, json};
 use std::sync::Arc;
+use self::product_production_ports_strategy_runtime::normalize_strategy_binding;
 
 #[path = "product_production_ports_research.rs"]
 mod product_production_ports_research;
@@ -470,7 +472,18 @@ impl StrategyDefinitionWritePort for ProductionStrategyDefinitionPort {
                     });
                 }
                 let instance_id = generate_instance_id(definition_id);
-                let binding = input.binding.clone().unwrap_or_else(|| json!({}));
+                let mut binding = input.binding.clone().unwrap_or_else(|| json!({}));
+                normalize_strategy_binding(&mut binding).map_err(|error| {
+                    let message = match error {
+                        StrategyRuntimeWritePortError::Unavailable(message) => message,
+                        StrategyRuntimeWritePortError::Failed { message, .. } => message,
+                    };
+                    StrategyDefinitionWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message,
+                    }
+                })?;
                 let runtime = StrategyRuntimeStore::from_definition_store(&self.store);
                 runtime
                     .seed_instance_with_definition(

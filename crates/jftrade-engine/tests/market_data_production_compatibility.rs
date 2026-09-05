@@ -701,6 +701,15 @@ async fn test_omitted_broker_subscription_lifecycle_and_single_demand_owner() {
 
 #[tokio::test]
 async fn test_active_provider_mutation_atomic_single_state_source() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let helper_addr = listener.local_addr().unwrap();
+    let helper_task = tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut request = [0; 4096];
+            let _ = stream.read(&mut request).await;
+            stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}").await.unwrap();
+        }
+    });
     let temp_dir = tempfile::tempdir().unwrap();
     let settings_path = temp_dir.path().join("settings.json");
     let settings_content = serde_json::json!({
@@ -720,6 +729,16 @@ async fn test_active_provider_mutation_atomic_single_state_source() {
     )
     .expect("config");
 
+    let product_config = product_config.with_market_data_helper(
+        HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{helper_addr}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(2),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .unwrap(),
+    );
     let runtime_config =
         ProductRuntimeConfig::desktop(product_config, DesktopRetainedRuntimeConfig::default())
             .unwrap();
@@ -783,6 +802,7 @@ async fn test_active_provider_mutation_atomic_single_state_source() {
     );
 
     runtime.shutdown().await.expect("clean shutdown");
+    helper_task.abort();
 }
 
 #[tokio::test]
@@ -797,7 +817,9 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
                 let n = stream.read(&mut buf).await.unwrap_or(0);
                 let req_str = String::from_utf8_lossy(&buf[..n]);
 
-                let response_body = if req_str.contains("/providers/yfinance/candles/US/AAPL") {
+                let response_body = if req_str.contains("GET /healthz ") {
+                    json!({"status": "ok"})
+                } else if req_str.contains("/providers/yfinance/candles/US/AAPL") {
                     json!({
                         "market": "US",
                         "symbol": "AAPL",
@@ -942,13 +964,14 @@ async fn test_go_compatible_candle_conversion_and_session_classification() {
     assert_eq!(candle_resp.body["data"]["meta"]["session"], "all");
 
     // 2. AKShare candles -> session is null
-    let _ = request_api(
+    let switch_response = request_api(
         addr,
         "PUT",
         "/api/v1/settings/market-data-provider",
         Some(&json!({ "activeProvider": "akshare" })),
     )
     .await;
+    assert_eq!(switch_response.status, 200, "{}", switch_response.body);
 
     let ak_resp = request_api(
         addr,
