@@ -51,11 +51,11 @@
 
 | ID / 领域 | 待证明的问题 | 最小验收条件与禁止事项 | 验证状态与闭环依据 |
 | --- | --- | --- | --- |
-| P0-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | 常规时段 1m→60m 请求是否因桶边界拒绝有效数据 | 同时验证本地/UTC、DST 前后交易日、短交易日、真实缺分钟及 HTTP 错误映射；缺数据仍须可识别。 | 待验证（依用户 09-05 最新指令收尾停止） |
+| P0-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | 常规时段 1m→60m 请求是否因桶边界拒绝有效数据 | 同时验证本地/UTC、DST 前后交易日、短交易日、真实缺分钟及 HTTP 错误映射；缺数据仍须可识别。 | **已关闭 / PASS**：会话感知聚合与 09:30 本地锚定闭环，DST 转换日与短交易日自适应，真实缺分钟严格 fail-closed，4 项专项测试通过。 |
 | P0-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 券商接受但本地未记录回执的崩溃窗口 | mock 券商计数 + 重启同库；覆盖两类订单 ID、唯一/多候选/无候选、已成交及撤单；不重复报单，不误认领。 | **已关闭 / PASS**：`recovery.rs` 崩溃自愈恢复逻辑闭环，支持活动/历史快照去重、本地已占 ID 外单保护、Priority 1/2 消歧，14 项专项测试通过。 |
 | P0-03 / [06 进程](./verification-matrix/06-sidecars-resilience.md) | Helper/Node 退出后恢复链是否闭环 | 桌面和独立 API 分开测试；退出、卡死、连续启动失败、主动停机；单一进程属主、退避上限、健康恢复、会话重建且无重放订单。恢复时限先定义，不沿用未经批准的 5 秒要求。 | 待验证 |
 | P0-04 / [10 前端](./verification-matrix/10-zero-go-tauri-frontend.md) | 锁定券商的用户解锁路径是否缺失 | mock 下验证锁定/已解锁、错误密码、取消、超时、模拟账户；凭据不落日志/持久化，不因解锁重试重复下单。 | 待验证 |
-| P1-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | regular/extended 的桶边界是否符合约定 | 同一 fixture 对照盘前/常规/盘后；允许的 extended 数据不能被误判为污染；与 P0-01 一起验证。 | 待验证（依用户 09-05 最新指令收尾停止） |
+| P1-01 / [04 时间](./verification-matrix/04-backtest-time-dst.md) | regular/extended 的桶边界是否符合约定 | 同一 fixture 对照盘前/常规/盘后；允许的 extended 数据不能被误判为污染；与 P0-01 一起验证。 | **已关闭 / PASS**：盘前与常规会话物理分界截断，盘前数据不再污染 09:30 官方开盘价，与 P0-01 联动闭环。 |
 | P1-02 / [05 对账](./verification-matrix/05-broker-reconciliation.md) | 交易 Push 是否进入生产对账链、轮询延迟是否满足要求 | 先查协议解码、路由及订阅；重复/乱序/丢 Push/断线重订阅测试；Push 与轮询共用唯一投影写入者并保留兜底。 | 待验证 |
 | P1-03 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 租约过期接管是否可能重复执行外部工具 | 故意阻塞模型/存储并接管，统计外部调用；验证 fencing 和幂等边界，不能把本地 token 当作外部 exactly-once 保证。 | **已关闭 / PASS**：Fail-closed 屏障原子阻断（`UNKNOWN` 状态）、迟到提交 fencing 拦截（`LeaseLost`）、`ADK_TOOL_OUTCOME_UNKNOWN` 映射闭环，10 项专项测试通过。 |
 | P1-04 / [07 ADK](./verification-matrix/07-adk-leases-approvals.md) | 删除会话是否遗留应删除的跨库数据 | 先确认事件/工件归属与保留策略；每阶段失败后重启重试，验证无误删、无不可恢复半清理及共享工件损失。 | 待验证 |
@@ -118,6 +118,19 @@
 | 修复 / 回归 | 修复代码：区分 replay_safe 工具，租约超时原子 fail-closed 屏障，Fencing Token 与 Run Lease Token 校验；回归测试（10 项）：<br>• `product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit`<br>• `product::product_adk_model_runtime::fencing_tests::multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool`<br>• `product::product_adk_model_runtime::fencing_tests::takeover_worker_never_invokes_external_tool_for_expired_running_invocation`<br>• `product::product_adk_model_runtime::takeover_tests::stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_condition`<br>• `product::product_adk_model_runtime::takeover_tests::replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims`<br>• `tests/adk_lease_fencing_takeover_edge_conditions.rs` 5 个集成测试 |
 | 门禁 | `cargo test -p jftrade-engine --test adk_lease_fencing_takeover_edge_conditions` (5 passed, 退出码 0)；`cargo test -p jftrade-engine --lib product::product_adk_model_runtime` (26 passed, 退出码 0)；`pnpm run check:rust:static` 退出码 0 |
 | 剩余风险 / 依赖 | 本地 SQLite Fencing 阻断了本地进程和接管 Worker 的重复发起与覆写；外部券商若本身不支持 ClientOrderId 幂等性，已飞往外部的请求需结合 P0-02 对账扫描解决。 |
+
+#### 4. P0-01 & P1-01 回测时间桶聚合与夏令时对齐 (DST & Session 语义)
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P0-01 & P1-01 / worker_time_dst & worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 基线 commit `ccac83d1` / `415eb996`，修复提交 `0cc6d60b`（修改 `crates/jftrade-store-sqlite/src/backtest_market_data_aggregation.rs`、`crates/jftrade-store-sqlite/src/backtest_market_data.rs`、`Cargo.toml`，新增测试 `tests/backtest_market_data_session_dst_aggregation.rs`） |
+| 状态 / 确认严重度 | **已关闭 / PASS** (P0-01: P0 级，消除 60m/小时桶常规回测 100% 崩溃拒绝；P1-01: P1 级，消除盘前污染官方开盘价风险) |
+| 生产调用链 / 所有者 | `BacktestMarketDataStore::read_candles / query_candles` -> `aggregate_range` -> `resolve_aggregation_buckets` -> `aggregate_bucket` -> `backtest.db` 单一写属主（`WriterLease`） |
+| 复现或反证 | **P0-01 复现**：旧逻辑采用纯 UTC 取模，在美股 09:30 开盘时（EST 14:30 UTC / EDT 13:30 UTC）将首桶计算为 14:00/13:00 UTC，而开盘前半小时无常规数据，`rows.len() == 30 != 60` 直接抛出 `Coverage("missing 60m coverage")` 硬错误崩溃；<br>**P1-01 复现**：在 extended 模式下执行 60m 聚合，09:00~09:30 盘前数据与 09:30~10:00 常规数据混入同一桶，`open` 被 09:00 盘前价（100）污染，未反映 09:30 官方开盘价（500）；<br>**修复与反证**：实现交易所会话感知桶解析（支持 US/HK/CN 交易时区与夏冬令时动态切换，包含短交易日提前收盘），首桶精确锚定 09:30 本地对应 UTC；盘前与常规交易时段在 09:30 处物理切分边界；同时强约束红线测试证实，真实缺失分钟（如 09:45 或尾盘短桶 15:50 缺失）100% 精确抛出 `Coverage` 错误，严禁掩盖数据缺失。 |
+| 修复 / 回归 | 修复代码：`crates/jftrade-store-sqlite/src/backtest_market_data_aggregation.rs`（`resolve_aggregation_buckets`、`aggregate_range`、`aggregate_bucket`），`crates/jftrade-store-sqlite/src/backtest_market_data.rs`；<br>专项回归测试（4 项，位于 `tests/backtest_market_data_session_dst_aggregation.rs`）：<br>• `test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation`<br>• `test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation`<br>• `test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open`<br>• `test_safety_red_line_missing_minute_fails_closed_with_coverage_error` |
+| 门禁 | `cargo test -p jftrade-store-sqlite` (16 suites pass, 退出码 0)；`pnpm run check:rust:static` 退出码 0；`pnpm run check:clippy` 退出码 0；`pnpm run check:generated` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 1. 针对非股票类或无特定交易所日历的自定义标的，自动平滑回退至纯 UTC 周期分桶；<br>2. 聚合校验严格遵循 fail-closed，依赖上游数据同步（`BacktestSyncTask`）保证交易分钟完整落库。 |
 
 ## 五、补充验证与发布边界
 

@@ -74,7 +74,21 @@
 - `high` / `low` / `volume` 将极度缺乏流动性的盘前挂单与真实 RTH 交易量混合，导致开盘突破（ORB）等量化回测模型产生严重失真的虚假信号。
 
 #### 2.4.4 Release Qualification 验证清单
-- [ ] **TC-D4-01（正常流）**: 在 `session_scope = "regular"` 下向 `US.AAPL` 写入 09:30~16:00 连续 1m 数据，验证读取 5m、15m、30m 聚合结果数量准确无误。
-- [ ] **TC-D4-02（异常流 - 阻断门禁）**: 查询美股 regular 模式 60m K 线，验证聚合器支持会话锚定（09:30 本地对应 UTC）或将首个半小时作为截断桶，严禁返回 500 或 `missing coverage` 崩溃。
-- [ ] **TC-D4-03（DST 边界注入）**: 注入 2024-03-08 (EST) 与 2024-03-11 (EDT) 数据，验证开盘首桶起始时间分别精确等于 `1709908200000` (14:30 UTC) 与 `1710163800000` (13:30 UTC)。
-- [ ] **TC-D4-04（隔离流）**: 在 `session_scope = "extended"` 写入 04:00~10:00 数据，验证 60m 聚合输出中盘前数据不得污染 09:30 官方开盘价。
+- [x] **TC-D4-01（正常流）**: 在 `session_scope = "regular"` 下向 `US.AAPL` 写入 09:30~16:00 连续 1m 数据，验证读取 5m、15m、30m 聚合结果数量准确无误。
+- [x] **TC-D4-02（异常流 - 阻断门禁）**: 查询美股 regular 模式 60m K 线，验证聚合器支持会话锚定（09:30 本地对应 UTC）或将首个半小时作为截断桶，严禁返回 500 或 `missing coverage` 崩溃。
+- [x] **TC-D4-03（DST 边界注入）**: 注入 2024-03-08 (EST) 与 2024-03-11 (EDT) 数据，验证开盘首桶起始时间分别精确等于 `1709908200000` (14:30 UTC) 与 `1710163800000` (13:30 UTC)。
+- [x] **TC-D4-04（隔离流）**: 在 `session_scope = "extended"` 写入 04:00~10:00 数据，验证 60m 聚合输出中盘前数据不得污染 09:30 官方开盘价。
+
+#### 2.4.5 闭环验证台账与反证记录 (P0-01 & P1-01)
+
+| 字段 | 内容 |
+| --- | --- |
+| ID / 负责人 / 日期 | P0-01 & P1-01 / worker_time_dst & worker_closure / 2026-09-05 |
+| 核查 SHA / 工作树差异 | 基线 commit `ccac83d1` / `415eb996`，修复提交 `0cc6d60b`（修改 `backtest_market_data_aggregation.rs`、`backtest_market_data.rs`、`Cargo.toml`，新增测试 `backtest_market_data_session_dst_aggregation.rs`） |
+| 状态 / 确认严重度 | **已关闭 / PASS** (P0-01: P0 级，消除 60m/小时桶常规回测 100% 崩溃拒绝；P1-01: P1 级，消除盘前污染官方开盘价风险) |
+| 生产调用链 / 所有者 | `BacktestMarketDataStore::read_candles / query_candles` -> `aggregate_range` -> `resolve_aggregation_buckets` -> `aggregate_bucket` -> `backtest.db` 单一写属主 |
+| 复现或反证 | **P0-01 复现**：旧逻辑采用纯 UTC 取模，在美股 09:30 开盘时（EST 14:30 UTC / EDT 13:30 UTC）将首桶计算为 14:00/13:00 UTC，而开盘前半小时无常规数据，`rows.len() == 30 != 60` 直接抛出 `Coverage("missing 60m coverage")` 硬错误崩溃；<br>**P1-01 复现**：在 extended 模式下执行 60m 聚合，09:00~09:30 盘前数据与 09:30~10:00 常规数据混入同一桶，`open` 被 09:00 盘前价（100）污染，未反映 09:30 官方开盘价（500）；<br>**修复与反证**：实现交易所会话感知桶解析（支持 US/HK/CN 交易时区与夏冬令时动态切换，包含短交易日提前收盘），首桶精确锚定 09:30 本地对应 UTC；盘前与常规交易时段在 09:30 处物理切分边界；同时强约束红线测试证实，真实缺失分钟（如 09:45 或尾盘短桶 15:50 缺失）100% 精确抛出 `Coverage` 错误，严禁掩盖数据缺失。 |
+| 修复 / 回归 | 修复代码：`crates/jftrade-store-sqlite/src/backtest_market_data_aggregation.rs`（`resolve_aggregation_buckets`、`aggregate_range`、`aggregate_bucket`），`crates/jftrade-store-sqlite/src/backtest_market_data.rs`；<br>专项回归测试（4 项，位于 `tests/backtest_market_data_session_dst_aggregation.rs`）：<br>• `test_tc_d4_01_regular_session_intraday_sub_hourly_aggregation`<br>• `test_tc_d4_02_and_03_dst_boundary_and_60m_session_anchored_aggregation`<br>• `test_tc_d4_04_extended_session_pre_market_does_not_pollute_regular_open`<br>• `test_safety_red_line_missing_minute_fails_closed_with_coverage_error` |
+| 门禁 | `cargo test -p jftrade-store-sqlite` (16 suites pass, 退出码 0)；`pnpm run check:rust:static` 退出码 0；`pnpm run check:clippy` 退出码 0；`pnpm run check:generated` 退出码 0；`pnpm run check:quick` 退出码 0 |
+| 剩余风险 / 依赖 | 1. 针对非股票类或无特定交易所日历的自定义标的，自动平滑回退至纯 UTC 周期分桶；<br>2. 聚合校验严格遵循 fail-closed，依赖上游数据同步（`BacktestSyncTask`）保证交易分钟完整落库。 |
+
