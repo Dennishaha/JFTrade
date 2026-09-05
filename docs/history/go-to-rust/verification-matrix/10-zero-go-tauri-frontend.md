@@ -32,11 +32,20 @@
 
 #### 2.10.3 微观差异与破坏性边界失效推演
 
-#### 1. 前端第 11 项盲区：Futu 交易解锁接口缺失 (P0-04 缺陷推演)
+#### 1. 前端第 11 项盲区：Futu 交易解锁接口补齐 (P0-04 闭环)
 - **路由路径**: `POST /api/v1/brokers/{brokerId}/unlock`
-- **失效后果**: Futu 官方 OpenD 在启动后，交易通道默认处于**锁定（LOCKED）状态**，实盘下单必须先输入交易密码执行解锁。
-- 后端端口已具备解锁实现，但**前端交易控制台完全没有设计交易密码输入弹窗，亦未在报单受阻时调用该 API**！
-- 实盘用户在控制台下单将直接遭遇 `ACCOUNT_LOCKED` 错误，导致**实盘交易链路被前端彻底阻断**！
+- **历史问题**: Futu 官方 OpenD 在启动后，交易通道默认处于**锁定（LOCKED）状态**，实盘下单必须先输入交易密码执行解锁。历史前端交易控制台未设计交易密码输入弹窗，实盘下单遭遇 `ACCOUNT_LOCKED` 错误。
+- **闭环实现**:
+  1. `apps/web/src/composables/trading/brokerUnlockCrypto.ts`: 零外部依赖 RFC 1321 纯 TypeScript MD5 实现，完全兼容标准向量与 UTF-8，规避 Web SubtleCrypto 不支持 MD5 的限制。
+  2. `apps/web/src/composables/trading/useBrokerUnlock.ts`: 券商解锁状态机，支持主动解锁（`requestUnlock`）与被动拦截响应（`watch(lastOrderFeedback)`）；向 `/api/v1/brokers/{brokerId}/unlock` 发送 `{ unlock: true, passwordMd5 }`；针对 400（参数错误）、502（密码错误）、504（超时）提供精确错误映射；模拟盘环境（`SIMULATE`）与非锁定券商默认免解锁放行。
+  3. `apps/web/src/components/workspace/BrokerUnlockDialog.vue`: 交易密码输入弹窗，提交/取消后即时擦除密码变量（凭据不落日志/不持久化），防止重试阶段重放订单。
+  4. `apps/web/src/components/workspace/OrderEntryPanel.vue`: 挂载解锁弹窗与面板头部“未解锁”状态徽标，实盘确认报单前拦截并弹窗解锁。
+- **验证证据**:
+  - `apps/web/tests/composables/brokerUnlockCrypto.test.ts` (3 tests PASS)
+  - `apps/web/tests/composables/useBrokerUnlock.test.ts` (6 tests PASS)
+  - `apps/web/tests/components/workspace/BrokerUnlockDialog.test.ts` (6 tests PASS)
+  - `apps/web/tests/components/workspace/OrderEntryPanel.test.ts` (16 tests PASS)
+  - `apps/web/tests/shared/ThemeTokenUsage.contract.test.ts` (2 tests PASS)
 
 #### 2. 13 个路由盲区全景清单与根因分析
 
@@ -52,12 +61,12 @@
 | 8 | `GET /api/v1/system/exchange-calendars/sources` | `system` | **管理后台缺位**。日历来源列表接口已就绪，但前端仅提供了刷新开关，未提供数据源列表管理。 |
 | 9 | `GET /api/v1/system/storage/overview` | `system` | **历史路径替代**。前端使用 `/api/v1/data-management/overview`，系统组下的存储总览成为死路径。 |
 | 10 | `GET /api/v1/system/worker/broker-order-updates` | `system` | **内部调试流**。该路由为长轮询调试接口，实盘推送前端统一使用全局 WebSocket。 |
-| 11 | `POST /api/v1/brokers/{brokerId}/unlock` | `brokers` | **高危盲区 (P0 阻断)**。Futu 交易需要密码解锁，前端控制台未实现密码弹窗，实盘报单直接失败！ |
+| 11 | `POST /api/v1/brokers/{brokerId}/unlock` | `brokers` | **已闭环 (P0-04)**。已补齐前端交易密码弹窗与解锁链路，全链路通过单元与组件测试。 |
 | 12 | `POST /api/v1/execution/buying-power` | `execution` | **功能未闭环**。购买力预估接口。前端仅展示静态可用资金，未在输入数量时动态联动预估。 |
 | 13 | `POST /api/v1/strategy-definitions/{definitionId}/apply-linked-instances` | `strategy-definitions` | **批处理未挂载**。定义更新批量同步至运行实例接口。前端保存定义时未提供“同步更新运行实例”按钮。 |
 
 #### 2.10.4 Release Qualification 验证清单
 - [ ] **RQ-ZERO-01（门禁流）**: 执行 `pnpm run check:zero-go`，核验返回 0 且无遗留 Go/Wails 符号。
 - [ ] **RQ-PACK-02（打包流）**: 在 4 平台（macOS arm64/x64, Linux, Windows）运行 Tauri 打包，核验二进制内嵌 Python 和 Node Sidecar 正常拉起。
-- [ ] **RQ-FE-03（前端闭环 - 阻断门禁）**: 在前端交易控制台补齐券商交易密码解锁弹窗，并在报单前完成解锁全链路验证。
+- [x] **RQ-FE-03（前端闭环 - 阻断门禁）**: 在前端交易控制台补齐券商交易密码解锁弹窗，并在报单前完成解锁全链路验证（P0-04 闭环）。
 - [ ] **RQ-FE-04（盲区审计）**: 按照 13 个盲区清单逐一核对，对功能未闭环的路由制定前端接入排期。
