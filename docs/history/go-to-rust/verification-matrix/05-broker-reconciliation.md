@@ -83,8 +83,10 @@ $$q_{\text{applied}} = \max(0, q_{\text{fill}} - Q_{\text{covered}})$$
 当 OpenD 离线时，`execute_portfolio_overview` 读取失败，将 `positionCount = 0, partial = true`。策略运行时调用 `read_positions` 报错后，当前 Tick 指标计算与下单被直接中断丢弃，保证了无有效持仓数据时不产生盲目调仓。
 
 #### 2.5.4 Release Qualification 验证清单
-- [ ] **TC-D5-01（正常流）**: 模拟 100 股订单的 3 笔连续部分成交（20, 30, 50 股）与佣金，核验状态严格单调推进，均价准确。
-- [ ] **TC-D5-02（乱序流）**: 注入乱序成交回执（先 50 股快照，后 20 股细则），核验累计成交恒等于 50 股，无重复超买。
+- [x] **TC-D5-01（正常流 / P1-02 闭环）**: 模拟 100 股订单的 3 笔连续部分成交（20, 30, 50 股）与佣金，核验状态严格单调推进（`SUBMITTED` -> `PARTIALLY_FILLED` -> `FILLED`），均价准确（$100 \to \$103 \to \$106.5$），佣金正确绑定。
+  - 验证用例：`test_tc_d5_01_sequential_partial_fills_and_fees_monotonic` (PASS)
+- [x] **TC-D5-02（乱序流 / P1-02 闭环）**: 注入乱序成交回执（先 50 股快照，后 30 股与 20 股细则），核验累计成交恒等于 50 股，无重复超买，`covered_by_snapshot` 拦截有效。
+  - 验证用例：`test_tc_d5_02_out_of_order_push_chaos_covered_by_snapshot` (PASS)
 - [x] **TC-D5-03（崩溃注入 - 阻断门禁 / P0-02 对账自愈已闭环）**:
   - **核心验证用例 (cargo test -p jftrade-engine --lib reconciliation)**:
     * `reconciliation_crash_window_recovers_submitting_order_and_binds_broker_ids`: 模拟发单落库前崩溃，对账扫描自动从券商订单识别并绑定外部订单 ID。
@@ -104,4 +106,8 @@ $$q_{\text{applied}} = \max(0, q_{\text{fill}} - Q_{\text{covered}})$$
   - **剩余风险边界**:
     1. *多候选歧义*: 当无 `client_order_id` 备注且并发提交多笔同属性订单时，对账进入 `UNKNOWN`，需人工干预。
     2. *券商历史窗口*: 恢复延迟若超过券商历史订单查询最长时间范围，无法查到快照将判定为 0 候选，依赖 15 秒常态轮询保障。
-- [ ] **TC-D5-04（断网恢复）**: 阻断 OpenD 端口，验证 Worker 状态由 `ready` 转为 `degraded` 并按指数退避，恢复网络后下周期自动转为 `ready`。
+- [x] **TC-D5-04（断网恢复 / P1-02 闭环）**: 阻断 OpenD 端口，验证 Worker 状态由 `ready` 转为 `degraded` 并按指数退避（1s~60s），恢复网络后调用 `wake()` 立即自愈恢复为 `ready`。
+  - 验证用例：`test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing` (PASS)
+- [x] **P1-02 专项：Push 与轮询双轨对账一致性与低延迟保障**:
+  - `test_p1_02_push_wake_latency_and_polling_fallback`: 交易 Push 接收后即刻唤醒 worker（< 100ms 延迟响应），若丢包未唤醒则 15 秒轮询兜底稳定生效。
+  - `test_p1_02_single_writer_lease_and_concurrency_fencing`: Push 洪峰与并发唤醒严格受控于 `ProductionExecutionPort` 单一写属主（`WriterLease`），零锁争用、零双写。
