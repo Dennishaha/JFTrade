@@ -34,6 +34,7 @@ import {
   directionClass,
   entryDayKey,
   formatCompactNumber,
+  formatPrice,
   formatSigned,
   pickNumber,
 } from "../../../src/components/research/researchEntry";
@@ -79,6 +80,11 @@ describe("research utility boundaries", () => {
     expect(pickNumber({ value: "bad" }, ["value"])).toBeNull();
     expect(formatSigned(-2, "%")).toBe("-2.00%");
     expect(formatCompactNumber(1_200_000_000_000)).toBe("1.20万亿");
+    expect(formatPrice(180)).toBe("180");
+    expect(formatPrice(180.5)).toBe("180.5");
+    expect(formatPrice(12.3, "HK")).toBe("12.300");
+    expect(formatPrice(180.5, "US")).toBe("180.50");
+    expect(formatPrice(null)).toBe("--");
     expect(directionClass(-1)).toBe("tv-down");
     expect(entryDayKey({ reportDate: "2026-07-23T12:00:00Z" })).toBe(
       "2026-07-23",

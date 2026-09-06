@@ -2,6 +2,7 @@ import {
   type InjectionKey,
   type Ref,
   computed,
+  hasInjectionContext,
   inject,
   provide,
   ref,
@@ -451,7 +452,7 @@ export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
 }
 
 export function useWorkspaceViewState(): WorkspaceViewStateStore {
-  const store = inject(viewStateKey);
+  const store = hasInjectionContext() ? inject(viewStateKey, null) : null;
   if (!store) {
     throw new Error("Workspace view state store not provided.");
   }
@@ -459,7 +460,7 @@ export function useWorkspaceViewState(): WorkspaceViewStateStore {
 }
 
 export function useWorkspaceTradingPrefs(): WorkspaceTradingPreferencesStore {
-  const store = inject(tradingPrefsKey);
+  const store = hasInjectionContext() ? inject(tradingPrefsKey, null) : null;
   if (!store) {
     throw new Error("Workspace trading preferences store not provided.");
   }

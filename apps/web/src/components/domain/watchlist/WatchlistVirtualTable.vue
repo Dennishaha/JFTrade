@@ -103,9 +103,10 @@ function isDelayedSnapshot(quote: WatchlistQuote | undefined): boolean {
 }
 
 function formatPrice(value: number | undefined, market?: string): string {
+  const resolvedMarket = market?.trim() || null;
   return formatMarketPrice(value, {
-    market: market ?? null,
-    precision: pricePrecisionForMarket(market),
+    market: resolvedMarket,
+    precision: pricePrecisionForMarket(resolvedMarket),
   });
 }
 
@@ -277,7 +278,7 @@ onBeforeUnmount(() => {
           </span>
           <span class="watchlist-table__price is-numeric" role="gridcell">
             <template v-if="quoteFor(row.item)">
-              {{ formatPrice(quoteFor(row.item)?.price, row.item.market) }}
+              {{ formatPrice(quoteFor(row.item)?.price, row.item.market || row.item.instrumentId) }}
 	              <v-icon
 	                v-if="isDelayedSnapshot(quoteFor(row.item))"
 	                class="watchlist-table__quote-delayed watchlist-table__quote-error"
@@ -299,7 +300,7 @@ onBeforeUnmount(() => {
             <template v-else>—</template>
           </span>
           <span class="is-numeric" role="gridcell" :class="changeClass(quoteFor(row.item))">
-            {{ formatChange(quoteFor(row.item), row.item.market) }}
+            {{ formatChange(quoteFor(row.item), row.item.market || row.item.instrumentId) }}
           </span>
           <span v-if="!compact" class="watchlist-table__session" role="gridcell">
             {{ formatMarketSessionLabel(quoteFor(row.item)?.session) || "—" }}

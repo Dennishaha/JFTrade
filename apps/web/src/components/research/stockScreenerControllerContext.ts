@@ -1,4 +1,4 @@
-import { inject, provide, type InjectionKey } from "vue";
+import { hasInjectionContext, inject, provide, type InjectionKey } from "vue";
 
 import type { StockScreenerController } from "./useStockScreenerController";
 
@@ -12,7 +12,9 @@ export function provideStockScreenerController(
 }
 
 export function useStockScreenerControllerContext(): StockScreenerController {
-  const controller = inject(stockScreenerControllerKey);
+  const controller = hasInjectionContext()
+    ? inject(stockScreenerControllerKey, null)
+    : null;
   if (!controller) {
     throw new Error("Stock screener controller is not available");
   }

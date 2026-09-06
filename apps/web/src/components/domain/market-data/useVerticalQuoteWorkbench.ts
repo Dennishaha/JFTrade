@@ -26,6 +26,7 @@ import {
   type QuoteSeed,
   type ResearchQuoteTarget,
 } from "../../research/researchQuote";
+import { formatMarketPrice } from "@/utils/numberFormat";
 import { fetchResearchSnapshots } from "../../research/researchSnapshots";
 
 interface MetricItem {
@@ -221,8 +222,16 @@ export function useVerticalQuoteWorkbench(
     return value > 0 ? "tv-up" : "tv-down";
   }
 
+  function formatCount(value: number | null): string {
+    return value == null ? "--" : numberFormatter.format(Math.round(value));
+  }
+
   function formatPrice(value: number | null): string {
-    return value == null ? "--" : numberFormatter.format(value);
+    if (value == null) return "--";
+    return formatMarketPrice(value, {
+      market: instrumentParts.value?.market ?? null,
+      fallback: "--",
+    });
   }
 
   function formatSigned(value: number | null, suffix = ""): string {
@@ -304,9 +313,9 @@ export function useVerticalQuoteWorkbench(
       const stats = exact ?? plateMemberStats.value;
       return [
         ...base,
-        metric("上涨", formatPrice(firstNumber(stats?.raiseCount))),
-        metric("下跌", formatPrice(firstNumber(stats?.fallCount))),
-        metric("平盘", formatPrice(firstNumber(stats?.equalCount))),
+        metric("上涨", formatCount(firstNumber(stats?.raiseCount))),
+        metric("下跌", formatCount(firstNumber(stats?.fallCount))),
+        metric("平盘", formatCount(firstNumber(stats?.equalCount))),
         ...(exact == null && plateMemberStats.value != null
           ? [metric("统计范围", `${plateMemberStats.value.sampleSize} / ${plateMemberStats.value.total} 只`)]
           : []),
@@ -315,9 +324,9 @@ export function useVerticalQuoteWorkbench(
     if (details?.index != null || resolvedTarget.value?.productClass === "index") {
       return [
         ...base,
-        metric("上涨", formatPrice(firstNumber(details?.index?.raiseCount))),
-        metric("下跌", formatPrice(firstNumber(details?.index?.fallCount))),
-        metric("平盘", formatPrice(firstNumber(details?.index?.equalCount))),
+        metric("上涨", formatCount(firstNumber(details?.index?.raiseCount))),
+        metric("下跌", formatCount(firstNumber(details?.index?.fallCount))),
+        metric("平盘", formatCount(firstNumber(details?.index?.equalCount))),
       ];
     }
     if (

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 
 import EmptyState from "@/components/shared/EmptyState.vue";
+import { formatMarketPrice } from "@/utils/numberFormat";
 
 type SortOrder = "desc" | "asc";
 
@@ -106,11 +107,18 @@ function formatValue(value: number | null): string {
   return formatted;
 }
 
-function formatPrice(value: number | null): string {
+function formatPrice(
+  value: number | null,
+  entry?: Record<string, unknown>,
+): string {
   if (value == null) return "--";
-  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(
-    value,
-  );
+  const market = entry
+    ? pickString(entry, ["market", "instrumentId", "symbol"])
+    : null;
+  return formatMarketPrice(value, {
+    market,
+    fallback: "--",
+  });
 }
 
 function valueClass(value: number | null): string {
@@ -161,7 +169,7 @@ function valueClass(value: number | null): string {
             {{ formatValue(entryValue(entry)) }}
           </td>
           <td class="rank-list-panel__price tv-num">
-            {{ formatPrice(entryPrice(entry)) }}
+            {{ formatPrice(entryPrice(entry), entry) }}
           </td>
         </tr>
       </tbody>

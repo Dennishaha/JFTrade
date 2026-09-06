@@ -2,6 +2,7 @@ import {
   type InjectionKey,
   type Ref,
   computed,
+  hasInjectionContext,
   inject,
   provide,
   ref,
@@ -78,7 +79,7 @@ export function provideNotificationsStore(): NotificationsStore {
 }
 
 export function useNotifications(): NotificationsStore {
-  const store = inject(notificationsKey);
+  const store = hasInjectionContext() ? inject(notificationsKey, null) : null;
   if (!store) {
     throw new Error("Notifications store not provided.");
   }

@@ -63,6 +63,12 @@ describe("marketProfiles", () => {
     ]);
     expect(profiles.quoteCurrencyForMarket("US")).toBe("USD");
     expect(profiles.pricePrecisionForMarket("US")).toBe(2);
+    expect(profiles.pricePrecisionForMarket("US.HK")).toBe(2);
+    expect(profiles.quoteCurrencyForMarket("US.HK")).toBe("USD");
+    expect(profiles.supportsExtendedHoursForMarket("US.HK")).toBe(true);
+    expect(profiles.pricePrecisionForMarket("HK.US")).toBe(3);
+    expect(profiles.quoteCurrencyForMarket("HK.US")).toBe("HKD");
+    expect(profiles.supportsExtendedHoursForMarket("HK.US")).toBe(false);
     expect(profiles.supportsExtendedHoursForMarket("HK")).toBe(false);
   });
 
@@ -417,5 +423,31 @@ describe("marketProfiles", () => {
     expect(profiles.defaultMarket.value).toBe("HK");
     expect(profiles.marketProfilesError.value).toBe("");
     expect(profiles.isLoadingMarketProfiles.value).toBe(false);
+  });
+
+  it("preserves price precision when metadata omits precision or provides zeros", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        createResponse({
+          defaultMarket: "HK",
+          markets: [
+            { code: "US", name: "United States" },
+            { code: "HK", name: "Hong Kong", precision: { price: 0, quote: 0 } },
+          ],
+        }),
+      ),
+    );
+
+    const module = await loadFreshMarketProfilesModule();
+    const profiles = module.useMarketProfiles();
+    await profiles.loadMarketProfiles();
+
+    expect(profiles.pricePrecisionForMarket("US")).toBe(2);
+    expect(profiles.pricePrecisionForMarket("HK")).toBe(3);
+    expect(profiles.pricePrecisionForMarket("US.AAPL")).toBe(2);
+    expect(profiles.pricePrecisionForMarket("AAPL.US")).toBe(2);
+    expect(profiles.pricePrecisionForMarket("HK.00700")).toBe(3);
+    expect(profiles.pricePrecisionForMarket("00700.HK")).toBe(3);
   });
 });

@@ -513,7 +513,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
       </div>
       <div v-else
         class="jf-empty-panel">
-        当前标的暂无快照，行情加载后会在这里显示价格信息。
+        <span>{{ instrumentId }}</span> 当前标的暂无快照，行情加载后会在这里显示价格信息。
       </div>
     </div>
     <WatchlistMembershipDialog

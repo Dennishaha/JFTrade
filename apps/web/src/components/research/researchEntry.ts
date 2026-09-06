@@ -1,3 +1,8 @@
+import {
+  formatMarketPrice,
+  type MarketPriceFormatOptions,
+} from "../../utils/numberFormat";
+
 /**
  * 研究页视图共享的 entry 字段读取与格式化工具。
  * 字段名兼容思路沿用 ProductFeaturePanel 的列映射：同一语义尝试多个候选字段名，
@@ -39,8 +44,18 @@ const numberFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 4,
 });
 
-export function formatPrice(value: number | null): string {
-  if (value == null) return "--";
+export function formatPrice(
+  value: number | null | undefined,
+  marketOrOptions?: string | MarketPriceFormatOptions,
+): string {
+  if (value == null || !Number.isFinite(value)) return "--";
+  if (marketOrOptions != null) {
+    const options: MarketPriceFormatOptions =
+      typeof marketOrOptions === "string"
+        ? { market: marketOrOptions, fallback: "--" }
+        : { fallback: "--", ...marketOrOptions };
+    return formatMarketPrice(value, options);
+  }
   return numberFormatter.format(value);
 }
 

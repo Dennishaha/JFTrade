@@ -1,4 +1,4 @@
-import { computed, type ComputedRef, type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
+import { computed, type ComputedRef, hasInjectionContext, type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
 
 import { apiGet, apiPut } from "@/composables/shared/apiClient";
 import type { ThemeMode } from "@/composables/settings/useTheme";
@@ -162,7 +162,7 @@ export function provideUIColorPreferencesStore(
 }
 
 export function useUIColorPreferences(): UIColorPreferencesStore {
-  const store = inject(colorKey);
+  const store = hasInjectionContext() ? inject(colorKey, null) : null;
   if (!store) {
     throw new Error("UI color preferences store not provided.");
   }

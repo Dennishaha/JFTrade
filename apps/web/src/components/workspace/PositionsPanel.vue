@@ -148,21 +148,23 @@ function formatTabCount(count: number, loaded: boolean): string {
 
 function formatPositionPrice(
   value: number | null | undefined,
-  market: string,
+  market: string | null | undefined,
 ): string {
+  const resolvedMarket = market?.trim() || null;
   return formatMarketPrice(value, {
-    market,
-    precision: pricePrecisionForMarket(market),
+    market: resolvedMarket,
+    precision: pricePrecisionForMarket(resolvedMarket),
   });
 }
 
 function formatPositionValue(
   value: number | null | undefined,
-  market: string,
+  market: string | null | undefined,
 ): string {
+  const resolvedMarket = market?.trim() || null;
   return formatMarketPrice(value, {
-    market,
-    precision: pricePrecisionForMarket(market),
+    market: resolvedMarket,
+    precision: pricePrecisionForMarket(resolvedMarket),
   });
 }
 
@@ -386,8 +388,8 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             <td class="jf-text-muted">{{ p.accountId }}</td>
             <td>{{ formatTradingEnvironment(p.tradingEnvironment) }}</td>
             <td class="tv-num" :class="p.quantity >= 0 ? 'tv-up' : 'tv-down'">{{ formatQuantity(p.quantity) }}</td>
-            <td class="tv-num">{{ formatPositionPrice(p.averagePrice, p.market) }}</td>
-            <td class="tv-num">{{ formatPositionValue(p.marketValue, p.market) }}</td>
+            <td class="tv-num">{{ formatPositionPrice(p.averagePrice, p.market || p.symbol) }}</td>
+            <td class="tv-num">{{ formatPositionValue(p.marketValue, p.market || p.symbol) }}</td>
             <td class="jf-note">{{ formatDateTime(p.updatedAt) }}</td>
           </tr>
           <tr v-if="!isPositionsLoaded">
@@ -423,7 +425,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
             <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
             <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
             <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
-            <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
+            <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market || o.symbol) }}</td>
             <td class="jf-note">{{ formatDateTime(o.updatedAt) }}</td>
             <td>
               <button
@@ -444,7 +446,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                 <code>{{ leg.instrumentId }}</code>
                 <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
                 <span>成交 {{ formatQuantity(leg.filledQuantity ?? 0) }} / {{ formatQuantity(leg.requestedQuantity) }}</span>
-                <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market) }}</span>
+                <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market || o.symbol || leg.instrumentId) }}</span>
                 <span>费用 {{ formatNumber(leg.fees) }}</span>
               </div>
             </td>
@@ -496,7 +498,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
               <td>{{ formatExecutionOrderStatusLabel(o.status) }}</td>
               <td class="tv-num">{{ formatQuantity(o.requestedQuantity) }}</td>
               <td class="tv-num">{{ formatQuantity(o.filledQuantity ?? 0) }}</td>
-              <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market) }}</td>
+              <td class="tv-num">{{ formatPositionPrice(o.filledAveragePrice, o.market || o.symbol) }}</td>
               <td class="jf-note">{{ formatDateTime(o.updatedAt) }}</td>
             </tr>
             <tr v-if="isExpanded(o.internalOrderId)" class="tv-order-legs">
@@ -507,7 +509,7 @@ async function cancelOrder(order: ExecutionOrder): Promise<void> {
                   <code>{{ leg.instrumentId }}</code>
                   <span>{{ formatExecutionOrderStatusLabel(leg.status) }}</span>
                   <span>成交 {{ formatQuantity(leg.filledQuantity ?? 0) }} / {{ formatQuantity(leg.requestedQuantity) }}</span>
-                  <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market) }}</span>
+                  <span>均价 {{ formatPositionPrice(leg.averagePrice, o.market || o.symbol || leg.instrumentId) }}</span>
                   <span>费用 {{ formatNumber(leg.fees) }}</span>
                 </div>
               </td>

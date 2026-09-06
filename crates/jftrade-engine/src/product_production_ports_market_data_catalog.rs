@@ -1,5 +1,9 @@
 //! Production market-data catalog adapter for markets and instrument search.
 
+#[cfg(test)]
+#[path = "product_production_ports_market_data_catalog_tests.rs"]
+mod tests;
+
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperMarketsResponse, HelperSearchResponse,
 };
@@ -91,9 +95,21 @@ impl ProductionMarketDataCatalogPort {
                         json!({
                             "code": p.code,
                             "market": p.code,
+                            "resolvedMarket": p.resolved_market,
+                            "preferredPrefix": p.preferred_prefix,
                             "name": p.display_name,
                             "displayName": p.display_name,
+                            "quoteCurrency": p.quote_currency,
                             "timezone": p.timezone,
+                            "supportsExtendedHours": p.supports_extended_hours,
+                            "requiresExchangePrefix": p.requires_exchange_prefix,
+                            "aliases": p.aliases,
+                            "regularSessions": p.regular_sessions,
+                            "precision": {
+                                "price": p.precision.price,
+                                "quote": p.precision.quote,
+                            },
+                            "tickSize": p.tick_size,
                         })
                     })
                     .collect::<Vec<_>>();
@@ -108,10 +124,81 @@ impl ProductionMarketDataCatalogPort {
             MarketDataProvider::Futu => Ok(json!({
                 "defaultMarket": "HK",
                 "markets": [
-                    {"code": "HK", "market": "HK", "name": "Hong Kong", "displayName": "Hong Kong", "timezone": "Asia/Hong_Kong"},
-                    {"code": "US", "market": "US", "name": "United States", "displayName": "United States", "timezone": "America/New_York"},
-                    {"code": "SH", "market": "SH", "name": "Shanghai", "displayName": "Shanghai", "timezone": "Asia/Shanghai"},
-                    {"code": "SZ", "market": "SZ", "name": "Shenzhen", "displayName": "Shenzhen", "timezone": "Asia/Shanghai"},
+                    {
+                        "code": "HK",
+                        "market": "HK",
+                        "resolvedMarket": "HK",
+                        "preferredPrefix": "HK",
+                        "name": "Hong Kong",
+                        "displayName": "Hong Kong",
+                        "quoteCurrency": "HKD",
+                        "timezone": "Asia/Hong_Kong",
+                        "supportsExtendedHours": false,
+                        "requiresExchangePrefix": false,
+                        "aliases": ["HKEX"],
+                        "regularSessions": [
+                            {"startMinute": 570, "endMinute": 720, "label": "09:30-12:00"},
+                            {"startMinute": 780, "endMinute": 960, "label": "13:00-16:00"}
+                        ],
+                        "precision": {"price": 3, "quote": 3},
+                        "tickSize": 0.001
+                    },
+                    {
+                        "code": "US",
+                        "market": "US",
+                        "resolvedMarket": "US",
+                        "preferredPrefix": "US",
+                        "name": "United States",
+                        "displayName": "United States",
+                        "quoteCurrency": "USD",
+                        "timezone": "America/New_York",
+                        "supportsExtendedHours": true,
+                        "requiresExchangePrefix": false,
+                        "aliases": ["NYSE", "NASDAQ"],
+                        "regularSessions": [
+                            {"startMinute": 570, "endMinute": 960, "label": "09:30-16:00"}
+                        ],
+                        "precision": {"price": 2, "quote": 2},
+                        "tickSize": 0.01
+                    },
+                    {
+                        "code": "SH",
+                        "market": "SH",
+                        "resolvedMarket": "CN",
+                        "preferredPrefix": "SH",
+                        "name": "Shanghai",
+                        "displayName": "Shanghai",
+                        "quoteCurrency": "CNY",
+                        "timezone": "Asia/Shanghai",
+                        "supportsExtendedHours": false,
+                        "requiresExchangePrefix": true,
+                        "aliases": ["CNSH"],
+                        "regularSessions": [
+                            {"startMinute": 570, "endMinute": 690, "label": "09:30-11:30"},
+                            {"startMinute": 780, "endMinute": 900, "label": "13:00-15:00"}
+                        ],
+                        "precision": {"price": 2, "quote": 2},
+                        "tickSize": 0.01
+                    },
+                    {
+                        "code": "SZ",
+                        "market": "SZ",
+                        "resolvedMarket": "CN",
+                        "preferredPrefix": "SZ",
+                        "name": "Shenzhen",
+                        "displayName": "Shenzhen",
+                        "quoteCurrency": "CNY",
+                        "timezone": "Asia/Shanghai",
+                        "supportsExtendedHours": false,
+                        "requiresExchangePrefix": true,
+                        "aliases": ["CNSZ"],
+                        "regularSessions": [
+                            {"startMinute": 570, "endMinute": 690, "label": "09:30-11:30"},
+                            {"startMinute": 780, "endMinute": 900, "label": "13:00-15:00"}
+                        ],
+                        "precision": {"price": 2, "quote": 2},
+                        "tickSize": 0.01
+                    },
                 ],
             })),
         }

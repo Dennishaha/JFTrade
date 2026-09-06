@@ -157,7 +157,16 @@ function createConsoleDataState() {
 }
 
 function mountAccountPage() {
-  const wrapper = mount(AccountPage);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/:pathMatch(.*)*", component: { template: "<div />" } }],
+  });
+  void router.push("/account");
+  const wrapper = mount(AccountPage, {
+    global: {
+      plugins: [router],
+    },
+  });
   wrappers.push(wrapper);
   const setup = wrapper.vm.$.setupState as SetupState;
   const call = <T>(name: string, ...args: unknown[]) =>

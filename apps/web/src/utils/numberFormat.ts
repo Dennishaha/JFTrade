@@ -89,7 +89,16 @@ export function marketPricePrecision(
   market: string | null | undefined,
 ): number | null {
   const normalized = (market ?? "").trim().toUpperCase();
-  return MARKET_PRICE_PRECISION[normalized] ?? null;
+  if (normalized === "") return null;
+  const parts = normalized.split(/[.:]/);
+  const prefix = parts[0] ?? normalized;
+  const suffix = parts[parts.length - 1] ?? normalized;
+  return (
+    MARKET_PRICE_PRECISION[prefix] ??
+    MARKET_PRICE_PRECISION[suffix] ??
+    MARKET_PRICE_PRECISION[normalized] ??
+    null
+  );
 }
 
 function adaptivePricePrecision(value: number): number {
@@ -105,8 +114,9 @@ export function formatMarketPrice(
 ): string {
   const normalized = finiteNumber(value);
   if (normalized == null) return options.fallback ?? EMPTY_NUMERIC_TEXT;
+  const explicitPrecision = normalizeFractionDigits(options.precision);
   const precision =
-    normalizeFractionDigits(options.precision) ??
+    explicitPrecision ??
     marketPricePrecision(options.market) ??
     adaptivePricePrecision(normalized);
   return formatNumber(normalized, {

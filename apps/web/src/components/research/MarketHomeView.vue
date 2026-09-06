@@ -218,7 +218,7 @@ const anyError = computed(
             <span class="market-home-view__index-name">{{ card.name }}</span>
           </div>
           <div class="market-home-view__index-value tv-num" :class="directionClass(card.changeRate)">
-            {{ formatPrice(card.value) }}
+            {{ formatPrice(card.value, pickString(card.entry, ["market", "instrumentId", "symbol"]) || props.market) }}
           </div>
           <div class="market-home-view__index-change tv-num" :class="directionClass(card.changeRate)">
             {{ formatSigned(card.changeAmount) }}

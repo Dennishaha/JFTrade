@@ -218,7 +218,12 @@ function listedIsQuoteable(entry: Record<string, unknown>): boolean {
                     {{ pickString(entry, ["name"]) || "--" }}
                   </td>
                   <td class="ipo-center-view__num tv-num">
-                    {{ formatPrice(pickNumber(entry, ["price", "lastPrice"])) }}
+                    {{
+                      formatPrice(
+                        pickNumber(entry, ["price", "lastPrice"]),
+                        pickString(entry, ["market", "instrumentId", "symbol"]) || props.market,
+                      )
+                    }}
                   </td>
                   <td
                     class="ipo-center-view__num tv-num"

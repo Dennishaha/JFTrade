@@ -46,9 +46,10 @@ function formatPositionPrice(
   value: number | null | undefined,
   market: string | null | undefined,
 ): string {
+  const resolvedMarket = market?.trim() || null;
   return formatMarketPrice(value, {
-    market: market ?? null,
-    precision: pricePrecisionForMarket(market),
+    market: resolvedMarket,
+    precision: pricePrecisionForMarket(resolvedMarket),
   });
 }
 
@@ -117,8 +118,8 @@ function formatPositionProduct(value: string | null | undefined): string {
           </td>
           <td>{{ formatUserMarketLabel(position.market) }}</td>
           <td class="tv-num">{{ formatQuantity(position.quantity) }}</td>
-          <td class="tv-num">{{ formatPositionPrice(position.lastPrice, position.market) }}</td>
-          <td class="tv-num">{{ formatPositionPrice(position.averagePrice, position.market) }}</td>
+          <td class="tv-num">{{ formatPositionPrice(position.lastPrice, position.market || position.symbol) }}</td>
+          <td class="tv-num">{{ formatPositionPrice(position.averagePrice, position.market || position.symbol) }}</td>
           <td class="tv-num">{{ formatPositionMoney(position.marketValue, position.currency) }}</td>
           <td class="tv-num" :class="pnlClass(position.unrealizedPnl)">
             {{ formatPositionMoney(position.unrealizedPnl, position.currency) }}

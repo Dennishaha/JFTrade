@@ -18,9 +18,14 @@ describe("console router", () => {
     expect(resolvedRisk.meta.title).toBe("风控");
     expect(resolvedRisk.matched[0]?.redirect).toBeUndefined();
     expect(router.resolve("/watchlist").matched).toHaveLength(1);
-    expect(router.resolve("/adk").matched).toHaveLength(0);
-    expect(router.resolve("/adk?view=chat").matched).toHaveLength(0);
-    expect(router.resolve("/adk?view=workflows").matched).toHaveLength(0);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(router.resolve("/adk").matched).toHaveLength(0);
+      expect(router.resolve("/adk?view=chat").matched).toHaveLength(0);
+      expect(router.resolve("/adk?view=workflows").matched).toHaveLength(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("keeps the root route on the trading workspace", async () => {

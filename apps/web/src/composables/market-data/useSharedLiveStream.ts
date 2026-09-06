@@ -1,4 +1,4 @@
-import { type InjectionKey, inject, provide } from "vue";
+import { hasInjectionContext, type InjectionKey, inject, provide } from "vue";
 
 import { useLiveStream as createLiveStream } from "@/composables/market-data/useLiveStream";
 
@@ -15,7 +15,7 @@ export function provideLiveStreamStore(): LiveStreamStore {
 }
 
 export function useSharedLiveStream(): LiveStreamStore {
-  const store = inject(liveStreamKey);
+  const store = hasInjectionContext() ? inject(liveStreamKey, null) : null;
   if (!store) {
     throw new Error(
       "Live stream not provided. Call provideLiveStreamStore() in AppShell.",
