@@ -9,7 +9,8 @@ use crate::product::product_backtests_write_port::{
     BacktestsWritePortResult,
 };
 use crate::product::{
-    BacktestReadSnapshotError, BacktestReadSnapshotPort, BacktestSyncReadSnapshotError,
+    BacktestReadSnapshotError, BacktestReadSnapshotPort, BacktestResultViewError,
+    BacktestResultViewRequest, BacktestResultViewSnapshot, BacktestSyncReadSnapshotError,
     BacktestSyncReadSnapshotPort,
 };
 use jftrade_integration_marketdata_helper::HelperClient;
@@ -160,6 +161,88 @@ impl BacktestReadSnapshotPort for ProductionBacktestPort {
         })
         .transpose()
     }
+
+    fn result_view(
+        &self,
+        request: &BacktestResultViewRequest,
+    ) -> Result<Option<BacktestResultViewSnapshot>, BacktestResultViewError> {
+        self.execution_workers.reap_finished();
+        self.recover_orphaned_runs()
+            .map_err(|e| BacktestResultViewError::Unavailable(e.to_string()))?;
+        let run = self
+            .store
+            .get_run(&request.run_id)
+            .map_err(|e| BacktestResultViewError::Unavailable(e.to_string()))?;
+        let Some(r) = run else {
+            return Ok(None);
+        };
+        let (req_json, request_provider) = decode_request_metadata(&r.request_json)
+            .map_err(|e| BacktestResultViewError::Unavailable(e.to_string()))?;
+        let result_json = decode_optional_json_field(&r.result_json, "backtest result")
+            .map_err(|e| BacktestResultViewError::Unavailable(e.to_string()))?;
+        let market_data_provider = result_json
+            .as_ref()
+            .and_then(|v| v.get("marketDataProvider"))
+            .and_then(Value::as_str)
+            .or(request_provider.as_deref())
+            .unwrap_or("futu");
+
+        let raw_req: Value = serde_json::from_str(&r.request_json).unwrap_or(Value::Null);
+        let seed_candles = raw_req
+            .get("__resultViewSeed")
+            .and_then(|s| s.get("formal_candles"))
+            .and_then(Value::as_array)
+            .cloned();
+
+        let (candles, candle_missing) = if let Some(c) = seed_candles {
+            (Some(c), false)
+        } else {
+            match self.reconstruct_candles_from_store(&raw_req, market_data_provider) {
+                Some(c) => (Some(c), false),
+                None => (None, true),
+            }
+        };
+
+        let view = request.view.as_deref().unwrap_or("summary");
+        let requests_candles = view == "chart"
+            && request
+                .include
+                .as_ref()
+                .map(|inc| inc.iter().any(|s| s == "candles"))
+                .unwrap_or(true);
+
+        let has_result_candles = result_json
+            .as_ref()
+            .and_then(|r| r.get("candles").or_else(|| r.get("result").and_then(|res| res.get("candles"))))
+            .and_then(Value::as_array)
+            .is_some_and(|arr| !arr.is_empty());
+
+        if candle_missing && requests_candles && !has_result_candles {
+            return Err(BacktestResultViewError::Unavailable(
+                "backtest candle seed is missing and candle data could not be reconstructed from store".to_owned(),
+            ));
+        }
+
+        let mut run_val = json!({
+            "id": r.id,
+            "status": r.status,
+            "request": req_json,
+            "createdAt": r.created_at,
+            "updatedAt": r.updated_at,
+            "marketDataProvider": market_data_provider,
+        });
+        if let Some(res) = result_json {
+            run_val["result"] = res;
+        }
+
+        let view_val = crate::product::product_research_backtest_projection::project_authoritative_result_view(
+            &run_val,
+            candles.as_deref(),
+            request,
+        )?;
+
+        Ok(Some(BacktestResultViewSnapshot { data: view_val }))
+    }
 }
 
 fn decode_json_field(raw: &str, field: &str) -> Result<Value, BacktestReadSnapshotError> {
@@ -171,7 +254,7 @@ fn decode_json_field(raw: &str, field: &str) -> Result<Value, BacktestReadSnapsh
 /// The provider is private run metadata.  It is persisted beside the request
 /// so queued/running rows retain their frozen source across a restart, while
 /// the public request projection remains byte-for-byte compatible with Go.
-fn decode_request_metadata(
+pub(crate) fn decode_request_metadata(
     raw: &str,
 ) -> Result<(Value, Option<String>), BacktestReadSnapshotError> {
     let mut request = decode_json_field(raw, "backtest request")?;
@@ -192,6 +275,7 @@ fn decode_request_metadata(
         object.remove("__marketDataProvider");
         object.remove("marketDataProvider");
         object.remove("marketDataProviderOverride");
+        object.remove("__resultViewSeed");
     }
     Ok((request, provider))
 }
@@ -266,6 +350,85 @@ impl ProductionBacktestPort {
         }
         Ok(())
     }
+
+    fn reconstruct_candles_from_store(
+        &self,
+        raw_req: &Value,
+        provider: &str,
+    ) -> Option<Vec<Value>> {
+        let symbol = raw_req.get("symbol")?.as_str()?;
+        let interval = raw_req
+            .get("interval")
+            .or_else(|| raw_req.get("period"))?
+            .as_str()?;
+        let rehab = raw_req
+            .get("rehabType")
+            .and_then(Value::as_str)
+            .unwrap_or("forward");
+        let session = raw_req
+            .get("sessionScope")
+            .and_then(Value::as_str)
+            .unwrap_or("regular");
+        let start_ms = raw_req
+            .get("startTimeMs")
+            .and_then(Value::as_i64)
+            .or_else(|| {
+                raw_req
+                    .get("startTime")
+                    .or_else(|| raw_req.get("startDate"))
+                    .and_then(Value::as_str)
+                    .and_then(|s| {
+                        product_production_ports_backtest_parse::parse_start_timestamp(s).ok()
+                    })
+            })?;
+        let end_ms = raw_req
+            .get("endTimeMs")
+            .and_then(Value::as_i64)
+            .or_else(|| {
+                raw_req
+                    .get("endTime")
+                    .or_else(|| raw_req.get("endDate"))
+                    .and_then(Value::as_str)
+                    .and_then(|s| {
+                        product_production_ports_backtest_parse::parse_end_timestamp(s).ok()
+                    })
+            })?;
+        let stored = self
+            ._market_data_store
+            .read_candles(
+                provider, symbol, interval, rehab, session, start_ms, end_ms,
+            )
+            .map_err(|e| {
+                tracing::warn!(error = ?e, "failed to read stored candles for result view");
+                e
+            })
+            .ok()?;
+        if stored.is_empty() {
+            return None;
+        }
+        Some(
+            stored
+                .into_iter()
+                .map(|c| {
+                    let rfc = time::OffsetDateTime::from_unix_timestamp_nanos(
+                        (c.end_time as i128) * 1_000_000,
+                    )
+                    .ok()
+                    .and_then(|dt| {
+                        dt.format(&time::format_description::well_known::Rfc3339).ok()
+                    });
+                    json!({
+                        "time": rfc.unwrap_or_else(|| c.end_time.to_string()),
+                        "open": c.open,
+                        "high": c.high,
+                        "low": c.low,
+                        "close": c.close,
+                        "volume": c.volume,
+                    })
+                })
+                .collect(),
+        )
+    }
 }
 
 fn decode_optional_json_field(
@@ -287,6 +450,79 @@ impl BacktestSyncReadSnapshotPort for ProductionBacktestPort {
             .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?
             .map(|task| sync_task_projection(&task))
             .transpose()
+    }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, BacktestSyncReadSnapshotError> {
+        self.sync_workers.reap_finished();
+        let tasks = self
+            .sync_tasks
+            .list_active()
+            .map_err(|error| BacktestSyncReadSnapshotError::Unavailable(error.to_string()))?;
+        tasks.iter().map(sync_task_projection).collect()
+    }
+
+    fn check_coverage(
+        &self,
+        request: &crate::product::BacktestDataCoverageRequest,
+    ) -> Result<bool, BacktestSyncReadSnapshotError> {
+        let formal = self
+            ._market_data_store
+            .read_candles(
+                &request.provider,
+                &request.symbol,
+                &request.interval,
+                &request.rehab_type,
+                &request.session_scope,
+                request.start_time_ms,
+                request.end_time_ms,
+            )
+            .map_err(|e| BacktestSyncReadSnapshotError::Unavailable(e.to_string()))?;
+        if formal.is_empty() {
+            return Ok(false);
+        }
+
+        if request.warmup_bars > 0 {
+            let interval_ms: i64 = match request.interval.trim().to_ascii_lowercase().as_str() {
+                "1m" | "1min" => 60_000,
+                "5m" | "5min" => 300_000,
+                "15m" | "15min" => 900_000,
+                "30m" | "30min" => 1_800_000,
+                "60m" | "60min" | "1h" => 3_600_000,
+                "1d" | "d" => 86_400_000,
+                "1w" | "w" | "week" => 7 * 86_400_000,
+                "1mo" | "1mon" | "1month" | "mo" | "month" => 30 * 86_400_000,
+                _ => 60_000,
+            };
+            let mut found = false;
+            for &m in &[3, 7, 14, 30, 60] {
+                let bounded_start = request.start_time_ms.saturating_sub(
+                    interval_ms.saturating_mul((request.warmup_bars as i64).saturating_mul(m)),
+                );
+                if self
+                    ._market_data_store
+                    .query_candles(
+                        &request.provider,
+                        &request.symbol,
+                        &request.interval,
+                        &request.rehab_type,
+                        &request.session_scope,
+                        bounded_start,
+                        request.start_time_ms,
+                        "DESC",
+                        request.warmup_bars,
+                    )
+                    .map(|w| w.len() >= request.warmup_bars)
+                    .unwrap_or(false)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }
 

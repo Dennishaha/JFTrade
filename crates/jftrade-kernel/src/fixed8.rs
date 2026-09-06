@@ -129,6 +129,10 @@ impl Fixed8 {
         }
     }
 
+    pub fn from_f64(value: f64) -> Result<Self, CodecError> {
+        Self::from_go_float(value)
+    }
+
     fn from_go_float(value: f64) -> Result<Self, CodecError> {
         let scaled = value * SCALE as f64;
         if !scaled.is_finite() || scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {

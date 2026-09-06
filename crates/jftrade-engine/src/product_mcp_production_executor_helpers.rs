@@ -184,9 +184,22 @@ pub(super) fn optional_string_array(
     let Some(value) = arguments.get(key) else {
         return Ok(None);
     };
+    if let Some(s) = value.as_str() {
+        let text = s.trim();
+        if text.is_empty() {
+            return Ok(None);
+        }
+        let list: Vec<String> = text
+            .split(',')
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .map(str::to_owned)
+            .collect();
+        return Ok(Some(list));
+    }
     let values = value
         .as_array()
-        .ok_or_else(|| McpToolFailure::invalid(format!("{key} must be an array")))?;
+        .ok_or_else(|| McpToolFailure::invalid(format!("{key} must be a string or array")))?;
     let mut result = Vec::with_capacity(values.len());
     for item in values {
         let text = item
@@ -342,37 +355,6 @@ pub(super) fn broker_query(arguments: &Value, scope: String) -> String {
         ("startTime", super::optional_string(arguments, "startTime")),
         ("endTime", super::optional_string(arguments, "endTime")),
     ])
-}
-
-pub(super) fn validate_result_view_arguments(arguments: &Value) -> Result<(), McpToolFailure> {
-    if let Some(view) = super::optional_string(arguments, "view")
-        && !matches!(
-            view.to_ascii_lowercase().as_str(),
-            "summary" | "chart" | "orders" | "logs" | "warnings" | "errors"
-        )
-    {
-        return Err(McpToolFailure::invalid(
-            "view must be summary, chart, orders, logs, warnings, or errors",
-        ));
-    }
-    if arguments.get("include").is_some() {
-        let Some(include) = arguments.get("include").and_then(Value::as_array) else {
-            return Err(McpToolFailure::invalid("include must be an array"));
-        };
-        if include.iter().any(|value| {
-            !value.as_str().is_some_and(|item| {
-                matches!(item, "candles" | "trades" | "pnlCurve" | "drawdownCurve")
-            })
-        }) {
-            return Err(McpToolFailure::invalid(
-                "include contains an unsupported series",
-            ));
-        }
-    }
-    if arguments.get("limit").is_some() {
-        bounded_integer(arguments, "limit", 0, 1, 2_000)?;
-    }
-    Ok(())
 }
 
 pub(super) fn add_retry_hint(mut payload: Value) -> Value {

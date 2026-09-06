@@ -82,7 +82,7 @@ export class NativePineTSExecutor implements PineTSExecutor {
 
   async openLiveSession(sessionId: string, request: PreparedRunScriptRequest): Promise<PineTSRunResult> {
     if (this.liveSessions.has(sessionId)) {
-      throw new Error(`PineTS live session ${JSON.stringify(sessionId)} already exists`);
+      this.liveSessions.delete(sessionId);
     }
     if ((request.expectedRevision ?? 0) !== 0) {
       throw new Error("PineTS live session open requires expected revision 0");
@@ -124,19 +124,20 @@ export class NativePineTSExecutor implements PineTSExecutor {
         );
       }
       assertSameLiveSessionDefinition(session.request, request);
-      const lastOpenTime = session.request.candles[session.request.candles.length - 1]?.openTime ?? 0;
-      let previousOpenTime = lastOpenTime;
-      for (const candle of request.candles) {
-        if (candle.openTime <= previousOpenTime) {
-          throw new Error(
-            `PineTS live session ${JSON.stringify(sessionId)} requires strictly increasing closed candle open times`,
-          );
-        }
-        previousOpenTime = candle.openTime;
-      }
 
       const marker = resultMarker(session.context, session.capture);
       try {
+        const lastOpenTime = session.request.candles[session.request.candles.length - 1]?.openTime ?? 0;
+        let previousOpenTime = lastOpenTime;
+        for (const candle of request.candles) {
+          if (candle.openTime <= previousOpenTime) {
+            throw new Error(
+              `PineTS live session ${JSON.stringify(sessionId)} requires strictly increasing closed candle open times`,
+            );
+          }
+          previousOpenTime = candle.openTime;
+        }
+
         for (const candle of request.candles) {
           session.provider.append(candle);
           session.request.candles.push({ ...candle });

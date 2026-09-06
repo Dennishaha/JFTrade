@@ -283,6 +283,159 @@ fn strategy_validate_pine_schema() -> Value {
     )
 }
 
+fn trading_costs_schema() -> Value {
+    let fee_rule = strict_object(
+        object([
+            ("id", json!({"type": "string"})),
+            ("label", json!({"type": "string"})),
+            ("category", json!({"type": "string"})),
+            ("side", json!({"type": "string"})),
+            ("basis", json!({"type": "string"})),
+            ("rate", json!({"type": "number"})),
+            ("fixedAmount", json!({"type": "number"})),
+            ("minAmount", json!({"type": "number"})),
+            ("maxAmount", json!({"type": "number"})),
+            ("maxRate", json!({"type": "number"})),
+            ("rounding", json!({"type": "string"})),
+            ("currency", json!({"type": "string"})),
+            (
+                "appliesTo",
+                json!({"type": "array", "items": {"type": "string"}}),
+            ),
+            ("effectiveFrom", json!({"type": "string"})),
+            ("effectiveTo", json!({"type": "string"})),
+            ("sourceUrl", json!({"type": "string"})),
+        ]),
+        &["id", "label", "category", "basis"],
+    );
+    let fee_schedule = strict_object(
+        object([
+            (
+                "mode",
+                enum_schema(&["none", "market_preset", "custom", "script"]),
+            ),
+            ("presetId", json!({"type": "string"})),
+            ("rules", json!({"type": "array", "items": fee_rule})),
+        ]),
+        &[],
+    );
+    strict_object(
+        object([
+            ("brokerFees", fee_schedule.clone()),
+            ("marketFees", fee_schedule),
+        ]),
+        &[],
+    )
+}
+
+fn backtest_result_view_options_schema() -> Value {
+    strict_object(
+        object([
+            ("runId", json!({"type": "string"})),
+            (
+                "view",
+                enum_schema(&[
+                    "summary", "chart", "orders", "logs", "warnings", "errors",
+                ]),
+            ),
+            (
+                "resolution",
+                json!({
+                    "type": "string",
+                    "description": "chart 视图精度，auto 或 1m/5m/1h/1d 等；不得细于原生周期。"
+                }),
+            ),
+            ("startTime", json!({"type": "string"})),
+            ("endTime", json!({"type": "string"})),
+            (
+                "include",
+                json!({
+                    "type": "array",
+                    "items": enum_schema(&["candles", "trades", "pnlCurve", "drawdownCurve"]),
+                }),
+            ),
+            (
+                "limit",
+                json!({"type": "integer", "minimum": 1, "maximum": 2000}),
+            ),
+            ("cursor", json!({"type": "string"})),
+        ]),
+        &[],
+    )
+}
+
+fn strategy_research_backtest_schema() -> Value {
+    let mut schema = strict_object(
+        object([
+            (
+                "script",
+                json!({
+                    "type": "string",
+                    "description": "临时 Pine Script v6 策略脚本；不会保存为策略定义。"
+                }),
+            ),
+            ("market", json!({"type": "string"})),
+            ("symbol", json!({"type": "string"})),
+            ("code", json!({"type": "string"})),
+            (
+                "interval",
+                json!({
+                    "type": "string",
+                    "description": "回测原生周期，例如 1m、5m、1d；默认 1m。"
+                }),
+            ),
+            ("instrumentType", enum_schema(&["stock", "etf"])),
+            ("startDate", json!({"type": "string"})),
+            ("endDate", json!({"type": "string"})),
+            (
+                "startTime",
+                json!({
+                    "type": "string",
+                    "description": "RFC3339 开始时间。"
+                }),
+            ),
+            (
+                "endTime",
+                json!({
+                    "type": "string",
+                    "description": "RFC3339 结束时间。"
+                }),
+            ),
+            ("initialBalance", json!({"type": "number", "exclusiveMinimum": 0})),
+            ("chartType", enum_schema(&["standard", "heikinashi"])),
+            ("rehabType", enum_schema(&["forward", "backward", "none"])),
+            ("useExtendedHours", json!({"type": "boolean"})),
+            ("tradingCosts", trading_costs_schema()),
+            ("executionModel", enum_schema(&["conservative-bar-v1"])),
+            (
+                "marketDataProvider",
+                enum_schema(&["futu", "yfinance", "akshare"]),
+            ),
+            (
+                "waitForCompletionMs",
+                json!({
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 25000,
+                    "description": "可选短等待，最多 25000ms；长轮询请用 workflow.wait 后再查 backtest.result_view。"
+                }),
+            ),
+            ("resultView", backtest_result_view_options_schema()),
+        ]),
+        &["script", "market"],
+    );
+    if let Some(obj) = schema.as_object_mut() {
+        obj.insert(
+            "anyOf".to_owned(),
+            json!([
+                {"required": ["symbol"]},
+                {"required": ["code"]}
+            ]),
+        );
+    }
+    schema
+}
+
 fn default_query_schema() -> Value {
     strict_object(
         object([(

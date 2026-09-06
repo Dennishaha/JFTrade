@@ -35,10 +35,12 @@ import { provideConsoleDataStore } from "@/composables/workspace/useConsoleData"
 import { provideNotificationsStore } from "@/composables/shared/useNotifications";
 import { provideUIColorPreferencesStore } from "@/composables/settings/useUIColorPreferences";
 import { provideWorkspaceTradingPreferencesStore } from "@/composables/workspace/useWorkspaceLayout";
+import { useBrokerUnlock } from "@/composables/trading/useBrokerUnlock";
 
 afterEach(() => {
   window.localStorage?.clear();
   marketProfilesState.extendedHoursMarkets.clear();
+  useBrokerUnlock().setBrokerUnlocked("futu", true);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -844,6 +846,89 @@ describe("OrderEntryPanel", () => {
         String(request).includes("/api/v1/execution/orders"),
       ),
     ).toBe(false);
+  });
+
+  it("interacts with broker unlock flow and responds to lock feedback and real confirmation", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/api/v1/brokers/futu/unlock")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ ok: true, data: { unlocked: true } }),
+          json: async () => ({ ok: true, data: { unlocked: true } }),
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 400,
+        text: async () =>
+          JSON.stringify({
+            ok: false,
+            error: { code: "BROKER_LOCKED", message: "need_unlock: 交易需解锁" },
+          }),
+        json: async () => ({
+          ok: false,
+          error: { code: "BROKER_LOCKED", message: "need_unlock: 交易需解锁" },
+        }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper, store } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+    applyBrokerReadFeatureSupport(store, {
+      market: "HK",
+      tradingEnvironment: "REAL",
+    });
+    useBrokerUnlock().markBrokerLocked("futu");
+    await nextTick();
+
+    // 1. In real mode and broker locked, unlock badge is displayed and clickable
+    const badge = wrapper.find(".tv-unlock-badge");
+    expect(badge.exists()).toBe(true);
+    await badge.trigger("click");
+    await nextTick();
+
+    const unlockDialog = wrapper.findComponent({ name: "BrokerUnlockDialog" });
+    expect(unlockDialog.exists()).toBe(true);
+    expect(unlockDialog.props("modelValue")).toBe(true);
+
+    // Cancel dialog
+    await unlockDialog.vm.$emit("cancel");
+    await nextTick();
+    expect(unlockDialog.props("modelValue")).toBe(false);
+
+    // 2. onConfirmRealTrade triggers requestUnlock when broker is locked
+    const realConfirmation = wrapper.findComponent({ name: "RealTradeConfirmationDialog" });
+    expect(realConfirmation.exists()).toBe(true);
+    await realConfirmation.vm.$emit("confirm");
+    await nextTick();
+    expect(unlockDialog.props("modelValue")).toBe(true);
+
+    // 3. Submitting password successfully unlocks broker and proceeds
+    await unlockDialog.vm.$emit("submit", "123456");
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(unlockDialog.props("modelValue")).toBe(false);
+    });
+
+    // When broker is unlocked, onConfirmRealTrade takes else branch
+    await realConfirmation.vm.$emit("confirm");
+    await nextTick();
+
+    // 4. In SIMULATE mode, submitting an order receiving 'need_unlock' triggers watcher
+    applyBrokerReadFeatureSupport(store, {
+      market: "HK",
+      tradingEnvironment: "SIMULATE",
+    });
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(unlockDialog.props("modelValue")).toBe(true);
+    });
   });
 });
 

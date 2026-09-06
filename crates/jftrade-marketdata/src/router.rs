@@ -275,6 +275,10 @@ impl ProviderRouter {
         self.demand.snapshot()
     }
 
+    pub fn has_managed_consumers(&self) -> bool {
+        self.demand.has_managed_consumers()
+    }
+
     pub fn runtime_recorder(&self) -> Arc<MarketDataRuntimeRecorder> {
         Arc::clone(&self.runtime_recorder)
     }

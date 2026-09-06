@@ -11,6 +11,9 @@ use axum::http::{HeaderMap, header};
 #[cfg(test)]
 pub(crate) use readiness::mcp_tool_adapter;
 pub(crate) use readiness::mcp_tool_availability;
+#[cfg(test)]
+pub(crate) use schema_catalog::schema_for;
+pub(crate) use schema_catalog::try_schema_for;
 use serde_json::{Value, json};
 
 pub(crate) const DEFAULT_PROTOCOL_VERSION: &str = "2025-03-26";

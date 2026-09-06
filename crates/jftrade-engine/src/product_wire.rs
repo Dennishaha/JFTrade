@@ -491,7 +491,16 @@ fn market_data_provider_failure(
     match error {
         MarketDataProviderSettingsError::Invalid => ApiFailure::new(400, invalid_code, message),
         MarketDataProviderSettingsError::Runtime(_) => {
-            ApiFailure::new(409, "MARKET_DATA_PROVIDER_UPDATE_FAILED", message)
+            let lower = message.to_ascii_lowercase();
+            let code = if lower.contains("managed subscriptions active")
+                || message.contains("MANAGED_SUBSCRIPTIONS_ACTIVE")
+                || lower.contains("active managed subscriptions")
+            {
+                "MANAGED_SUBSCRIPTIONS_ACTIVE"
+            } else {
+                "MARKET_DATA_PROVIDER_UPDATE_FAILED"
+            };
+            ApiFailure::new(409, code, message)
         }
         MarketDataProviderSettingsError::Store(_) => {
             ApiFailure::new(500, "SETTINGS_SAVE_FAILED", message)

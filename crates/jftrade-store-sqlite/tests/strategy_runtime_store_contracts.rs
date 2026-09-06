@@ -87,6 +87,24 @@ fn strategy_runtime_instance_lifecycle_and_restart_durability() {
     assert_eq!(started.status, "RUNNING");
     assert!(started.runtime_active);
 
+    let running_conflict = store
+        .update_binding(
+            "inst-1",
+            json!({"symbols":["US.AAPL","US.TSLA"]}),
+            TIMESTAMP_2,
+        )
+        .expect_err("running instance cannot update binding");
+    assert!(matches!(
+        running_conflict,
+        StrategyRuntimeStoreError::Conflict
+    ));
+
+    let stopped = store
+        .update_status("inst-1", "STOPPED", TIMESTAMP_2)
+        .expect("stop instance");
+    assert_eq!(stopped.status, "STOPPED");
+    assert!(!stopped.runtime_active);
+
     let updated_binding = store
         .update_binding(
             "inst-1",

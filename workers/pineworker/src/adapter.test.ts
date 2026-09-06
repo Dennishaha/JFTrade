@@ -376,6 +376,35 @@ describe("buildResponse", () => {
       hasStrategyOutperformance: true,
     });
   });
+
+  test("enforces 1000 item FIFO cap on visual outputs to protect against 4MB gRPC boundary (P1-09)", () => {
+    const drawings = Array.from({ length: 1500 }, (_, i) => ({
+      kind: "line",
+      id: `line-${i}`,
+      x1: i,
+      y1: 100,
+      x2: i + 1,
+      y2: 101,
+    }));
+    const response = buildResponse(validRequest(), {
+      drawings,
+    }, {
+      workerId: "worker-1",
+      version: "0.1.0",
+      pineTSVersion: "test",
+      scriptHash: "script",
+      dataHash: "data",
+      durationMs: 1,
+      requestBytes: 2,
+      responseBytes: 3,
+      peakRSSBytes: 4,
+    });
+
+    expect(response.visualOutputs).toHaveLength(1000);
+    // FIFO eviction: keeps the newest items
+    expect(response.visualOutputs[0]?.name).toBe("line-500");
+    expect(response.visualOutputs[999]?.name).toBe("line-1499");
+  });
 });
 
 function validRequest(overrides: Partial<RunScriptRequest> = {}): PreparedRunScriptRequest {

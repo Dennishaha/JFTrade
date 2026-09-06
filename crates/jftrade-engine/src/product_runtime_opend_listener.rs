@@ -81,6 +81,7 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                             "openPrice": quote.open_price,
                             "lastClosePrice": quote.last_close_price,
                             "at": at,
+                            "provenance": "stream",
                         });
                         let envelope = serde_json::json!({
                             "eventId": format!("market-data.tick|{instrument_id}|{at}"),
@@ -160,6 +161,7 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                             "asks": asks,
                         },
                         "at": at,
+                        "provenance": "stream",
                     });
                     let envelope = serde_json::json!({
                         "eventId": format!("market.depth|{instrument_id}|{at}"),

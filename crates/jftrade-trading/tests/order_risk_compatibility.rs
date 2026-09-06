@@ -196,6 +196,7 @@ fn real_risk_limits_fail_closed_at_missing_price_and_hard_stop_boundaries() {
         max_order_quantity: Some(fixed("10")),
         max_order_notional: Some(fixed("100")),
         hard_stops: vec![HardStop {
+            id: None,
             broker_id: Some("FUTU".to_owned()),
             trading_environment: Some("REAL".to_owned()),
             account_id: Some("*".to_owned()),

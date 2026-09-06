@@ -228,6 +228,42 @@ describe("NativePineTSExecutor", () => {
     }))).rejects.toThrow("is not available");
   });
 
+  test("invalidates session and self-heals when non-monotonic candle open times are received (P1-07)", async () => {
+    const candles = conditionalOrderCandles();
+    const executor = await createNativePineTSExecutor("pinets-test");
+    const source = `//@version=6\nindicator("monotonic test")\nplot(close)`;
+
+    await executor.openLiveSession("monotonic-session", preparedRequest({
+      jobId: "open-mono", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "monotonic-session", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 2),
+    }));
+
+    // Inject non-monotonic (duplicate) candle open time
+    const duplicateCandle = { ...candles[1]!, close: 106 };
+    await expect(executor.appendLiveSession("monotonic-session", 1, preparedRequest({
+      jobId: "append-mono-fail", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "monotonic-session", sessionOperation: "append", expectedRevision: 1,
+      candles: [duplicateCandle],
+    }))).rejects.toThrow("strictly increasing closed candle open times");
+
+    // Session must be removed/invalidated from liveSessions map (no zombie session left)
+    await expect(executor.appendLiveSession("monotonic-session", 1, preparedRequest({
+      jobId: "append-stale-mono", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "monotonic-session", sessionOperation: "append", expectedRevision: 1,
+      candles: [candles[2]!],
+    }))).rejects.toThrow("is not available");
+
+    // Self-healing: reopening with the same session id must succeed and not throw "already exists"
+    const reopened = await executor.openLiveSession("monotonic-session", preparedRequest({
+      jobId: "reopen-mono", source, symbol: "US.AAPL", timeframe: "1", mode: "live",
+      sessionId: "monotonic-session", sessionOperation: "open", expectedRevision: 0,
+      candles: candles.slice(0, 3),
+    }));
+    expect(reopened).toBeDefined();
+    expect(reopened.orderIntents).toEqual([]);
+  });
+
   test("requires PineTS updateTail to open a live session", async () => {
     const executor = new NativePineTSExecutor({
       PineTS: class {

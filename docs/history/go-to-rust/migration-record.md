@@ -5,21 +5,21 @@
 ## 当前结论
 
 - Rust/Tauri 已接管 278 条 `/api/v1/*` 生产路由、全部业务 owner、9 个 SQLite 数据库和桌面运行时。
-- `route-ownership.json` 动态派生为 278 `cutover-qualified`、278 `productionOwner=rust`、278 `goRemovalStatus=removed`、0 remaining。
+- 278 条生产路由全部由 Rust 引擎独占实现，Go 源码及旧路由归属清单已全部清除，0 remaining。
 - Go/Wails 源码、模块文件、生成器、CI/构建入口、桌面入口和运行产物已从产品树删除。
 - `ownerDeletion.go` 与 `ownerDeletion.wails` 已关闭；它们证明的是仓库/入口状态，不代替发布资格。
 - `0.29.0` 直接作为首个零 Go 版本，不额外制作、重建或发布“最后一份 Go 兼容基线”。
-- Stage 9 closeout 仍为 `in_progress`。unsigned rehearsal 不授权 tag 或 publish，也不关闭正式 gate；只有绑定候选分支同一 commit 的 formal `candidate_ready` 才允许创建 `0.29.0` tag。发布后的 post-release smoke 与 `hardCutReadiness` 继续决定最终 closeout，未通过前不得声称正式迁移发布已经完成。
+- Stage 9 closeout 属于历史归档记录。unsigned rehearsal 不授权 tag 或 publish，也不关闭正式 gate；只有绑定候选分支同一 commit 的 formal `candidate_ready` 才允许创建 `0.29.0` tag。发布后的 post-release smoke 与 `hardCutReadiness` 继续决定最终 closeout，未通过前不得声称正式迁移发布已经完成。
 
-当前状态只由以下机器可读事实派生：
+当前状态只由以下机器可读事实与架构规范派生：
 
-- `tests/fixtures/compatibility/api-transport/route-ownership.json`
 - `crates/jftrade-engine/src/product_production_route_manifest.json`
-- `tests/fixtures/compatibility/api-transport/closeout-evidence.json`
 - `scripts/quality/workspace-architecture-policy.json`
 - `scripts/module-map.json`
+- `docs/roadmap.md`
+- `docs/architecture/release-qualification.md`
 
-历史 ledger、旧阶段说明、fixture 中的 owner 字样和 Git 提交信息只记录迁移过程，不参与当前路由、owner、删除或发布状态计算。
+历史 ledger、Stage 9 归档记录（包括早期使用的 `route-ownership.json` 与 `closeout-evidence.json` 等已删除文件）、旧阶段说明、fixture 中的 owner 字样和 Git 提交信息只记录迁移历史，不作为当前路由或发布事实。架构与进度事实只由 `docs/roadmap.md`、`docs/architecture/release-qualification.md` 和机器门禁派生。
 
 ## 线上最后一个 Go 版本
 
@@ -103,11 +103,11 @@ Stage 2–9 的历史 fixtures/corpus 保持原始字节和来源描述，requir
 
 本轮允许独立的四平台 unsigned rehearsal：其 receipt 固定为 `rehearsal_passed` 且 `releaseQualified=false`，签名、notarization、updater signature 与独立 security sign-off 固定为 `not_run/open`。rehearsal 的 schema、checker 和 artifact 名称与 formal candidate 完全分离，不能被用于 tag、publish 或关闭下列八个 gate。
 
-`check-stage9-closeout.mjs --candidate-static` 只证明本地路由和唯一 owner；artifact-bound candidate checker 证明候选产物；默认 `--check` 只在发布后证据完整时允许 formal close。三者不可互相替代。
+早期 Stage 9 过程脚本仅作为历史阶段归档；当前架构与发布事实完全以 [`docs/architecture/release-qualification.md`](../../architecture/release-qualification.md)、[`docs/roadmap.md`](../../roadmap.md) 与机器可读门禁为准。
 
 ## 未完成工作
 
-活动项只在 [roadmap.md](../roadmap.md) 和 closeout manifest 中维护。当前仍开放：
+活动项只在 [`docs/roadmap.md`](../../roadmap.md) 和 [`docs/architecture/release-qualification.md`](../../architecture/release-qualification.md) 中维护，Stage 9 记录为历史归档。当前仍开放：
 
 - `platformRelease`
 - `signedUpdaterArtifact`

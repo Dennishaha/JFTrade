@@ -22,6 +22,275 @@ pub struct Requirements {
     pub requires_total_account_value: bool,
 }
 
+impl IndicatorRequirement {
+    pub fn estimated_lookback_bars(&self) -> usize {
+        self.estimated_lookback_bars_with_session("", "5m", false)
+    }
+
+    pub fn validate_timeframe_alignment(
+        &self,
+        symbol: &str,
+        interval: &str,
+        use_extended_hours: bool,
+    ) -> Result<(), String> {
+        let minutes_per_day = trading_minutes_per_day(symbol, use_extended_hours);
+        let interval_minutes = resolve_interval_minutes(interval, minutes_per_day);
+        let parts: Vec<&str> = self.key.split(':').collect();
+
+        let tf_opt = match self.kind.as_str() {
+            "security" => parts.get(2).copied(),
+            "ma" if parts.len() >= 4 => parts.last().copied(),
+            _ => None,
+        };
+
+        if let Some(tf_str) = tf_opt {
+            let tf_str = tf_str.trim().trim_matches('"').trim_matches('\'');
+            if !tf_str.is_empty()
+                && let Some(target_minutes) = resolve_timeframe_minutes(tf_str, minutes_per_day)
+            {
+                if target_minutes < interval_minutes {
+                    return Err(format!(
+                        "indicator {} fixed timeframe {} is lower than strategy interval {}; JFTrade supports request.security() only at the current or a higher timeframe",
+                        self.kind, tf_str, interval
+                    ));
+                }
+                if target_minutes < minutes_per_day && target_minutes % interval_minutes != 0 {
+                    return Err(format!(
+                        "indicator {} fixed timeframe {} is not aligned with strategy interval {}; JFTrade aggregates MTF data from a single native interval",
+                        self.kind, tf_str, interval
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn estimated_lookback_bars_with_session(
+        &self,
+        symbol: &str,
+        interval: &str,
+        use_extended_hours: bool,
+    ) -> usize {
+        if self
+            .validate_timeframe_alignment(symbol, interval, use_extended_hours)
+            .is_err()
+        {
+            return 0;
+        }
+        let minutes_per_day = trading_minutes_per_day(symbol, use_extended_hours);
+        let interval_minutes = resolve_interval_minutes(interval, minutes_per_day);
+        let parts: Vec<&str> = self.key.split(':').collect();
+
+        match self.kind.as_str() {
+            "security" => {
+                let timeframe = parts.get(2).copied().unwrap_or_default();
+                let expression = parts.get(3).copied().unwrap_or_default();
+                let period = parse_expression_period(expression);
+                let tf_minutes = resolve_timeframe_minutes(timeframe, minutes_per_day)
+                    .unwrap_or(minutes_per_day);
+                (period * tf_minutes).div_ceil(interval_minutes)
+            }
+            "ma" => {
+                let period = parts
+                    .iter()
+                    .filter_map(|p| p.parse::<usize>().ok())
+                    .max()
+                    .unwrap_or(0);
+                if parts.len() >= 4 {
+                    let tf_part = parts.last().copied().unwrap_or_default();
+                    if let Some(tf_minutes) = resolve_timeframe_minutes(tf_part, minutes_per_day) {
+                        return (period * tf_minutes).div_ceil(interval_minutes);
+                    }
+                }
+                period
+            }
+            "macd" => {
+                let nums: Vec<usize> = parts
+                    .iter()
+                    .filter_map(|p| p.parse::<usize>().ok())
+                    .collect();
+                if nums.len() >= 3 {
+                    nums[1].saturating_add(nums[2])
+                } else if !nums.is_empty() {
+                    nums.iter().sum()
+                } else {
+                    35
+                }
+            }
+            "atr" | "change" | "rising" | "falling" => parts
+                .iter()
+                .filter_map(|p| p.parse::<usize>().ok())
+                .max()
+                .unwrap_or(14)
+                .saturating_add(1),
+            _ => parts
+                .iter()
+                .filter_map(|p| p.parse::<usize>().ok())
+                .max()
+                .unwrap_or(0),
+        }
+    }
+}
+
+impl Requirements {
+    pub fn derived_warmup_bars(&self) -> usize {
+        self.derived_warmup_bars_with_session("", "5m", false)
+    }
+
+    pub fn validate_timeframe_alignments(
+        &self,
+        symbol: &str,
+        interval: &str,
+        use_extended_hours: bool,
+    ) -> Result<(), String> {
+        for indicator in &self.indicators {
+            indicator.validate_timeframe_alignment(symbol, interval, use_extended_hours)?;
+        }
+        Ok(())
+    }
+
+    pub fn try_derived_warmup_bars_with_session(
+        &self,
+        symbol: &str,
+        interval: &str,
+        use_extended_hours: bool,
+    ) -> Result<usize, String> {
+        self.validate_timeframe_alignments(symbol, interval, use_extended_hours)?;
+        Ok(self.derived_warmup_bars_with_session(symbol, interval, use_extended_hours))
+    }
+
+    pub fn derived_warmup_bars_with_session(
+        &self,
+        symbol: &str,
+        interval: &str,
+        use_extended_hours: bool,
+    ) -> usize {
+        self.indicators
+            .iter()
+            .map(|i| i.estimated_lookback_bars_with_session(symbol, interval, use_extended_hours))
+            .max()
+            .unwrap_or(0)
+    }
+}
+
+fn trading_minutes_per_day(symbol: &str, use_extended_hours: bool) -> usize {
+    let sym = symbol.trim().to_ascii_uppercase();
+    if sym.starts_with("US.") || sym.starts_with("US:") {
+        if use_extended_hours { 1440 } else { 390 }
+    } else if sym.starts_with("HK.") || sym.starts_with("HK:") {
+        330
+    } else if sym.starts_with("SH.")
+        || sym.starts_with("SZ.")
+        || sym.starts_with("CN.")
+        || sym.starts_with("SH:")
+        || sym.starts_with("SZ:")
+        || sym.starts_with("CN:")
+    {
+        240
+    } else {
+        390
+    }
+}
+
+fn resolve_interval_minutes(interval: &str, minutes_per_day: usize) -> usize {
+    let val = interval.trim().to_ascii_lowercase();
+    if val.is_empty() {
+        return 1;
+    }
+    if let Some(num) = val.strip_suffix("mo").or_else(|| val.strip_suffix("month")) {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return n * minutes_per_day * 20;
+    }
+    if let Some(num) = val.strip_suffix('w').or_else(|| val.strip_suffix("week")) {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return n * minutes_per_day * 5;
+    }
+    if let Some(num) = val.strip_suffix('d').or_else(|| val.strip_suffix("day")) {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return n * minutes_per_day;
+    }
+    if let Some(num) = val.strip_suffix('h').or_else(|| val.strip_suffix("hour")) {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return n * 60;
+    }
+    if let Some(num) = val.strip_suffix("min").or_else(|| val.strip_suffix('m')) {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return n;
+    }
+    val.parse::<usize>().unwrap_or(1).max(1)
+}
+
+fn resolve_timeframe_minutes(timeframe: &str, minutes_per_day: usize) -> Option<usize> {
+    let clean = timeframe.trim().trim_matches('"').trim_matches('\'');
+    if clean.is_empty() {
+        return None;
+    }
+    if let Some(num) = clean.strip_suffix('m') {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return Some(n);
+    }
+    if let Some(num) = clean
+        .strip_suffix("min")
+        .or_else(|| clean.strip_suffix("MIN"))
+    {
+        let n: usize = num.trim().parse().unwrap_or(1).max(1);
+        return Some(n);
+    }
+    let tf = clean.to_ascii_uppercase();
+    if tf == "D" || tf == "1D" || tf == "DAY" {
+        return Some(minutes_per_day);
+    }
+    if tf == "W" || tf == "1W" || tf == "WEEK" {
+        return Some(minutes_per_day * 5);
+    }
+    if tf == "M" || tf == "1M" || tf == "1MO" || tf == "MONTH" {
+        return Some(minutes_per_day * 20);
+    }
+    if let Some(num) = tf.strip_suffix('D') {
+        return num
+            .trim()
+            .parse::<usize>()
+            .ok()
+            .map(|n| n * minutes_per_day);
+    }
+    if let Some(num) = tf.strip_suffix('W') {
+        return num
+            .trim()
+            .parse::<usize>()
+            .ok()
+            .map(|n| n * minutes_per_day * 5);
+    }
+    if let Some(num) = tf.strip_suffix("MO") {
+        return num
+            .trim()
+            .parse::<usize>()
+            .ok()
+            .map(|n| n * minutes_per_day * 20);
+    }
+    if let Some(num) = tf.strip_suffix('H') {
+        return num.trim().parse::<usize>().ok().map(|n| n * 60);
+    }
+    if let Some(num) = tf.strip_suffix('M').or_else(|| tf.strip_suffix("MIN")) {
+        return num.trim().parse::<usize>().ok();
+    }
+    tf.parse::<usize>().ok()
+}
+
+fn parse_expression_period(expression: &str) -> usize {
+    let lower = expression.to_ascii_lowercase();
+    let nums: Vec<usize> = lower
+        .split(|c: char| !c.is_ascii_digit())
+        .filter_map(|s| s.parse::<usize>().ok())
+        .collect();
+    if lower.contains("macd") && nums.len() >= 3 {
+        nums[1].saturating_add(nums[2])
+    } else if lower.contains("atr") {
+        nums.into_iter().max().unwrap_or(14).saturating_add(1)
+    } else {
+        nums.into_iter().max().unwrap_or(1).max(1)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
 pub enum PlannerError {
     #[error("pine line {line}: {message}")]

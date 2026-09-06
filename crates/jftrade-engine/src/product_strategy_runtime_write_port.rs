@@ -318,6 +318,12 @@ struct RuntimeRiskWire {
     daily_max_orders: Option<i64>,
     #[serde(default)]
     pause_on_reject: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "expectedRevision"
+    )]
+    expected_revision: Option<i64>,
 }
 
 fn option_vec_is_none_or_empty<T>(value: &Option<Vec<T>>) -> bool {

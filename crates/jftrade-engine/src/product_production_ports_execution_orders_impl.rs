@@ -52,12 +52,15 @@ impl ProductionExecutionPort {
                 .is_none_or(|(incoming, existing)| incoming >= existing)
         {
             next.filled_quantity = snapshot.fill_qty;
-        }
-        if snapshot
-            .fill_avg_price
-            .is_some_and(|value| value.is_finite() && value >= 0.0)
-        {
-            next.filled_average_price = snapshot.fill_avg_price;
+            // Quantity and average price describe the same cumulative fill.
+            // A delayed or malformed quantity must not replace the price of
+            // the newer projection while leaving its quantity untouched.
+            if snapshot
+                .fill_avg_price
+                .is_some_and(|value| value.is_finite() && value >= 0.0)
+            {
+                next.filled_average_price = snapshot.fill_avg_price;
+            }
         }
         if snapshot.qty.is_finite() && snapshot.qty > 0.0 {
             next.requested_quantity = Some(snapshot.qty);
@@ -152,11 +155,6 @@ impl ProductionExecutionPort {
 
     fn writer(&self) -> Result<Arc<dyn TradeWritePort>, ExecutionWritePortError> {
         let snapshot = self.active_provider_state.snapshot();
-        if snapshot.provider != Some(jftrade_settings::MarketDataProvider::Futu) {
-            return Err(ExecutionWritePortError::Unavailable(
-                "Futu is not the active market-data provider".to_owned(),
-            ));
-        }
         if !snapshot.opend_ready {
             return Err(ExecutionWritePortError::Unavailable(
                 "Futu OpenD runtime is not ready".to_owned(),
@@ -186,7 +184,12 @@ impl ProductionExecutionPort {
     }
 
     fn place_order(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
-        let parsed = parse_order(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
+        let default_env = self
+            .default_trading_environment
+            .as_ref()
+            .map(|getter| getter());
+        let parsed = parse_order_with_defaults(payload, default_env.as_deref())
+            .map_err(|message| failed(400, "BAD_REQUEST", message))?;
         let now = crate::product::product_production_ports::provider_now_rfc3339();
         if requires_locked_preview(&parsed) {
             if parsed.preview_id.is_none() {
@@ -224,6 +227,7 @@ impl ProductionExecutionPort {
         {
             return replay_or_conflict(existing, &request_hash);
         }
+        let risk_order = build_pre_trade_risk_order(&parsed);
         // Probe readiness before consuming a preview. A runtime that becomes
         // unavailable after this probe is still fenced as UNKNOWN below.
         let writer = self.writer()?;
@@ -247,12 +251,17 @@ impl ProductionExecutionPort {
         if let ExecutionOrderReservation::Existing(existing) = reservation {
             return replay_or_conflict(existing, &request_hash);
         }
-        let result = match writer.place_order(parsed.to_trade_request()) {
+        let result = match self.execute_order_under_guard(&risk_order, || {
+            writer.place_order(parsed.to_trade_request()).map_err(map_trade_error)
+        }) {
             Ok(result) => result,
             Err(error) => {
-                let mapped = map_trade_error(error);
-                self.persist_unknown(&mut order, &mapped, "submission_failed", &now)?;
-                return Err(mapped);
+                if is_risk_rejection(&error) {
+                    let _ = self.persist_rejected(&mut order, &error, &now);
+                    return Err(error);
+                }
+                self.persist_unknown(&mut order, &error, "submission_failed", &now)?;
+                return Err(error);
             }
         };
         if result.order_id.is_none() && result.order_id_ex.as_deref().is_none_or(str::is_empty) {
@@ -275,7 +284,12 @@ impl ProductionExecutionPort {
     }
 
     fn place_combo(&self, payload: &Value) -> Result<Value, ExecutionWritePortError> {
-        let parsed = parse_combo(payload).map_err(|message| failed(400, "BAD_REQUEST", message))?;
+        let default_env = self
+            .default_trading_environment
+            .as_ref()
+            .map(|getter| getter());
+        let parsed = parse_combo_with_defaults(payload, default_env.as_deref())
+            .map_err(|message| failed(400, "BAD_REQUEST", message))?;
         if parsed.order.preview_id.is_none() {
             return Err(failed(
                 400,
@@ -283,8 +297,21 @@ impl ProductionExecutionPort {
                 "previewId is required for combo orders",
             ));
         }
-        let now = crate::product::product_production_ports::provider_now_rfc3339();
         let legs = execution_order_previews::canonical_combo_legs(&parsed);
+        let now = crate::product::product_production_ports::provider_now_rfc3339();
+        let mut risk_order = build_pre_trade_risk_combo_order(&parsed);
+        if parsed.order.header.trd_env == 1
+            && !parsed.order.quantity_mode.eq_ignore_ascii_case("amount")
+            && risk_order.price.is_none()
+            && risk_order.legs.iter().any(|l| l.price.is_none())
+        {
+            prefetch_combo_leg_quotes(
+                self.trade_runtime.as_deref(),
+                &mut risk_order,
+                payload,
+                &now,
+            )?;
+        }
         let request_hash = preview_request_hash(payload, &parsed.order, Some(legs.clone()))?;
         if let Some(client_order_id) = parsed.order.client_order_id.as_deref()
             && let Some(existing) = self
@@ -328,12 +355,17 @@ impl ProductionExecutionPort {
         if let ExecutionOrderReservation::Existing(existing) = reservation {
             return replay_or_conflict(existing, &request_hash);
         }
-        let result = match writer.place_combo_order(parsed.to_trade_request()) {
+        let result = match self.execute_order_under_guard(&risk_order, || {
+            writer.place_combo_order(parsed.to_trade_request()).map_err(map_trade_error)
+        }) {
             Ok(result) => result,
             Err(error) => {
-                let mapped = map_trade_error(error);
-                self.persist_unknown(&mut order, &mapped, "submission_failed", &now)?;
-                return Err(mapped);
+                if is_risk_rejection(&error) {
+                    let _ = self.persist_rejected(&mut order, &error, &now);
+                    return Err(error);
+                }
+                self.persist_unknown(&mut order, &error, "submission_failed", &now)?;
+                return Err(error);
             }
         };
         let Some(order_id_ex) = result.order_id_ex.filter(|value| !value.trim().is_empty()) else {
@@ -658,6 +690,45 @@ impl ProductionExecutionPort {
             .map_err(map_transition_store_error)
     }
 
+    fn execute_order_under_guard<T>(
+        &self,
+        risk_order: &PreTradeRiskOrder,
+        submit_fn: impl FnOnce() -> Result<T, ExecutionWritePortError>,
+    ) -> Result<T, ExecutionWritePortError> {
+        match self.risk_coordinator.as_ref() {
+            Some(coordinator) => coordinator.execute_with_risk_guard(risk_order, submit_fn),
+            None if risk_order.trading_environment == TradingEnvironment::Real => Err(failed(
+                403,
+                "PRE_TRADE_RISK_UNAVAILABLE",
+                "pre-trade risk gateway is unavailable; REAL orders are blocked",
+            )),
+            None => submit_fn(),
+        }
+    }
+
+    fn persist_rejected(
+        &self,
+        order: &mut StoredExecutionOrder,
+        error: &ExecutionWritePortError,
+        timestamp: &str,
+    ) -> Result<(), ExecutionWritePortError> {
+        let previous_status = order.status.clone();
+        let expected_updated_at = order.updated_at.clone();
+        order.status = "REJECTED".to_owned();
+        let (message, code) = execution_error_details(error);
+        order.last_error = Some(message);
+        order.last_error_code = code;
+        order.last_error_source = Some("risk".to_owned());
+        order.updated_at = timestamp.to_owned();
+        self.persist_transition(
+            order,
+            "risk_rejected",
+            Some(&previous_status),
+            &expected_updated_at,
+            timestamp,
+        )
+    }
+
     fn persist_unknown(
         &self,
         order: &mut StoredExecutionOrder,
@@ -681,5 +752,16 @@ impl ProductionExecutionPort {
             timestamp,
         )
     }
+}
 
+fn is_risk_rejection(error: &ExecutionWritePortError) -> bool {
+    match error {
+        ExecutionWritePortError::Failed { status: 403, .. } => true,
+        ExecutionWritePortError::Failed { status: 400, code, .. } => {
+            code == "INVALID_ORDER_RISK_SHAPE"
+                || code.starts_with("PRE_TRADE_RISK_")
+                || code.contains("RISK_")
+        }
+        _ => false,
+    }
 }

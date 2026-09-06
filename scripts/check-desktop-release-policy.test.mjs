@@ -73,3 +73,18 @@ test("publish policy needs no signing secrets because it only consumes a sealed 
     blockers: [],
   });
 });
+
+test("p2_03: release qualification verifies platform signing boundaries and blocks unverified candidates", () => {
+  // Rehearsal builds are allowed without signing secrets
+  const rehearsal = evaluateDesktopReleasePolicy({
+    environment: { JFTRADE_DESKTOP_OPERATION: "rehearsal" },
+  });
+  assert.equal(rehearsal.valid, true);
+
+  // Candidate builds fail-closed without credentials
+  const candidate = evaluateDesktopReleasePolicy({
+    environment: { JFTRADE_DESKTOP_OPERATION: "candidate" },
+  });
+  assert.equal(candidate.valid, false);
+  assert.ok(candidate.blockers.length >= 12);
+});

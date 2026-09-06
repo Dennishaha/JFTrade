@@ -29,7 +29,7 @@ try {
   assert(blocked.status === 0, `blocked release check failed: ${blocked.stderr}`);
   const blockedLog = readFileSync(runLog, "utf8");
   assert(!blockedLog.includes("pnpm run build:pineworker"), "blocked release check should skip release asset build");
-  assert(blockedLog.includes("cargo test -p jftrade-integration-pine --all-targets"), "blocked release check did not run the Rust Pine integration gate");
+  assert(blockedLog.includes("node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-pine --all-targets"), "blocked release check did not run the Rust Pine integration gate");
   assert(blockedLog.includes("pnpm run check:pinets-compliance"), "blocked release check did not run PineTS compliance gate");
   assert(blockedLog.includes("pnpm run test:web"), "blocked release check did not run frontend test gate");
   assert(blockedLog.includes("pnpm run typecheck:web"), "blocked release check did not run frontend typecheck gate");

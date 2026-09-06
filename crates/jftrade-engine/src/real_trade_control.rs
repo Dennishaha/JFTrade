@@ -42,6 +42,63 @@ impl RealTradeControlReader {
     }
 }
 
+#[allow(dead_code)]
+pub fn load_state(path: &Path) -> Result<RealTradeControlState, String> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(RealTradeControlState::default());
+        }
+        Err(error) => return Err(format!("read real-trade control state: {error}")),
+    };
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Ok(RealTradeControlState::default());
+    }
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("decode real-trade control state: {error}"))
+}
+
+pub fn load_state_strict(path: &Path) -> Result<RealTradeControlState, String> {
+    let bytes =
+        fs::read(path).map_err(|error| format!("read real-trade control state: {error}"))?;
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Err("real-trade control state file is empty".to_owned());
+    }
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("decode real-trade control state: {error}"))
+}
+
+pub fn ensure_default_state_file(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        persist_state(path, &RealTradeControlState::default())?;
+    }
+    Ok(())
+}
+
+pub fn persist_state(path: &Path, state: &RealTradeControlState) -> Result<(), String> {
+    use std::io::Write;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("create real-trade control dir: {error}"))?;
+    let bytes = serde_json::to_vec_pretty(state)
+        .map_err(|error| format!("encode real-trade control state: {error}"))?;
+    let mut file = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("create real-trade control temporary file: {error}"))?;
+    file.write_all(&bytes)
+        .map_err(|error| format!("write real-trade control state: {error}"))?;
+    file.write_all(b"\n")
+        .map_err(|error| format!("write real-trade control newline: {error}"))?;
+    file.as_file()
+        .sync_all()
+        .map_err(|error| format!("flush real-trade control file: {error}"))?;
+    file.persist(path)
+        .map_err(|error| format!("persist real-trade control state: {error}"))?;
+    Ok(())
+}
+
 pub fn derive_real_trade_control_path(settings_path: &Path) -> PathBuf {
     settings_path
         .parent()

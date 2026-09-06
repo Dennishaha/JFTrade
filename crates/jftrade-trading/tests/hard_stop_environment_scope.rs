@@ -28,6 +28,7 @@ fn engine(environment: Option<&str>) -> RiskEngine {
         max_order_quantity: None,
         max_order_notional: None,
         hard_stops: vec![HardStop {
+            id: None,
             broker_id: Some("futu".to_owned()),
             trading_environment: environment.map(str::to_owned),
             account_id: Some("acc-1".to_owned()),

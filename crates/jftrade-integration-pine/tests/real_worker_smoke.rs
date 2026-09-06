@@ -108,7 +108,49 @@ async fn rust_client_executes_bundled_pinets_worker() {
         "native PineTS should return the close plot"
     );
 
+    verify_live_session_recovery(&port).await;
     process.stop().await.expect("stop PineTS worker");
+}
+
+async fn verify_live_session_recovery(port: &GrpcPineExecutionPort) {
+    let mut request = PineRunRequest {
+        job_id: "live-recovery".to_owned(),
+        script_id: "live-recovery".to_owned(),
+        source: "//@version=6\nindicator(\"recovery\")\nplot(close)".to_owned(),
+        symbol: "US.AAPL".to_owned(),
+        timeframe: "1m".to_owned(),
+        mode: "live".to_owned(),
+        session_id: "live-recovery-session".to_owned(),
+        session_operation: "open".to_owned(),
+        candles: vec![candle(1_700_000_000_000, 10.0)],
+        ..Default::default()
+    };
+    let opened = port
+        .run(request.clone())
+        .await
+        .expect("open native session");
+    assert_eq!(opened.session_revision, 1);
+    assert!(opened.order_intents.is_empty());
+    request.session_operation = "append".to_owned();
+    request.expected_revision = 1;
+    // Validation fails without mutating the native session or its revision.
+    assert!(port.run(request.clone()).await.is_err());
+    request.candles = vec![candle(1_700_000_060_000, 11.0)];
+    assert_eq!(port.run(request.clone()).await.unwrap().session_revision, 2);
+    request.session_operation = "close".to_owned();
+    request.expected_revision = 0;
+    request.candles.clear();
+    assert_eq!(port.run(request.clone()).await.unwrap().session_revision, 2);
+    assert_eq!(port.run(request.clone()).await.unwrap().session_revision, 0);
+    request.session_operation = "open".to_owned();
+    request.candles = vec![candle(1_700_000_000_000, 10.0)];
+    let reopened = port.run(request.clone()).await.expect("reopen after close");
+    assert_eq!(reopened.session_revision, 1);
+    assert!(reopened.order_intents.is_empty());
+    request.session_operation = "close".to_owned();
+    request.expected_revision = 1;
+    request.candles.clear();
+    assert_eq!(port.run(request).await.unwrap().session_revision, 1);
 }
 
 fn candle(open_time: i64, close: f64) -> PineCandle {

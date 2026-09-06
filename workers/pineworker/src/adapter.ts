@@ -192,7 +192,12 @@ function normalizeAlerts(items: unknown[] | undefined): AlertEvent[] {
 function normalizeVisualOutputs(result: PineTSRunResult): VisualOutput[] {
   const explicit = normalizeVisualOutputItems(result.visualOutputs, "visual");
   const drawings = normalizeVisualOutputItems(result.drawings, "drawing");
-  return [...explicit, ...drawings];
+  const all = [...explicit, ...drawings];
+  const MAX_VISUAL_OUTPUTS = 1000;
+  if (all.length > MAX_VISUAL_OUTPUTS) {
+    return all.slice(all.length - MAX_VISUAL_OUTPUTS);
+  }
+  return all;
 }
 
 function normalizeVisualOutputItems(value: unknown, fallbackKind: string): VisualOutput[] {

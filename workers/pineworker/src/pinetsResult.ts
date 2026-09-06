@@ -11,6 +11,7 @@ export type ResultMarker = {
   plotLengths: Record<string, number>;
   alertCount: number;
   visualCount: number;
+  drawingCount: number;
   logCount: number;
   warningCount: number;
   diagnosticCount: number;
@@ -22,6 +23,11 @@ export function resultMarker(result: PineTSRunResult, capture: OrderIntentCaptur
     plotLengths: Object.fromEntries(Object.entries(result.plots ?? {}).map(([name, plot]) => [name, plotLength(plot)])),
     alertCount: result.alerts?.length ?? 0,
     visualCount: result.visualOutputs?.length ?? 0,
+    drawingCount: Array.isArray(result.drawings)
+      ? result.drawings.length
+      : result.drawings !== undefined && result.drawings !== null
+        ? 1
+        : 0,
     logCount: result.logs?.length ?? 0,
     warningCount: result.warnings?.length ?? 0,
     diagnosticCount: result.diagnostics?.length ?? 0,
@@ -40,6 +46,11 @@ export function incrementalResult(
   };
   if (result.alerts !== undefined) delta.alerts = result.alerts.slice(marker.alertCount);
   if (result.visualOutputs !== undefined) delta.visualOutputs = result.visualOutputs.slice(marker.visualCount);
+  if (Array.isArray(result.drawings)) {
+    delta.drawings = result.drawings.slice(marker.drawingCount ?? 0);
+  } else if (result.drawings !== undefined) {
+    delta.drawings = marker.drawingCount > 0 ? undefined : result.drawings;
+  }
   if (result.logs !== undefined) delta.logs = result.logs.slice(marker.logCount);
   if (result.warnings !== undefined) delta.warnings = result.warnings.slice(marker.warningCount);
   if (result.diagnostics !== undefined) delta.diagnostics = result.diagnostics.slice(marker.diagnosticCount);

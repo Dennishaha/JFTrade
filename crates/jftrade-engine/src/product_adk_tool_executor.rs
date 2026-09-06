@@ -6,11 +6,12 @@
 //! implementation are handled here; every other call fails closed with a
 //! 503-compatible error instead of returning synthetic data.
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde_json::{Value, json};
 
-use crate::product::product_production_ports::ProductionToolCatalog;
+use crate::product::product_mcp_production_executor::ProductionMcpToolExecutor;
+use crate::product::product_production_ports::{ProductionPortBundle, ProductionToolCatalog};
 use jftrade_store_sqlite::AdkStore;
 
 pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
@@ -20,23 +21,101 @@ pub(crate) trait AdkToolExecutor: Send + Sync + std::fmt::Debug {
     /// a descriptor exists in the catalog.
     fn supports(&self, name: &str) -> bool;
     fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String>;
+    fn attach_ports(&self, _ports: Arc<ProductionPortBundle>) {}
+    fn detach_ports(&self) {}
 }
 
-#[derive(Debug)]
 pub(crate) struct ProductionAdkToolExecutor {
     catalog: Arc<ProductionToolCatalog>,
     store: Arc<AdkStore>,
+    mcp_executor: Arc<RwLock<Option<ProductionMcpToolExecutor>>>,
+    ports: Arc<RwLock<Option<Arc<ProductionPortBundle>>>>,
+}
+
+impl std::fmt::Debug for ProductionAdkToolExecutor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProductionAdkToolExecutor")
+            .field("catalog", &self.catalog)
+            .field("store", &self.store)
+            .finish()
+    }
 }
 
 impl ProductionAdkToolExecutor {
     pub(crate) fn new(catalog: Arc<ProductionToolCatalog>, store: Arc<AdkStore>) -> Self {
-        Self { catalog, store }
+        Self {
+            catalog,
+            store,
+            mcp_executor: Arc::new(RwLock::new(None)),
+            ports: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn with_ports(
+        catalog: Arc<ProductionToolCatalog>,
+        store: Arc<AdkStore>,
+        ports: Arc<ProductionPortBundle>,
+    ) -> Self {
+        let mcp = ProductionMcpToolExecutor::from_production_ports(ports.clone());
+        Self {
+            catalog,
+            store,
+            mcp_executor: Arc::new(RwLock::new(Some(mcp))),
+            ports: Arc::new(RwLock::new(Some(ports))),
+        }
+    }
+
+    pub(crate) fn attach_ports(&self, ports: Arc<ProductionPortBundle>) {
+        if let Ok(mut guard) = self.ports.write() {
+            *guard = Some(ports.clone());
+        }
+        if let Ok(mut guard) = self.mcp_executor.write() {
+            *guard = Some(ProductionMcpToolExecutor::from_production_ports(ports));
+        }
+    }
+
+    pub(crate) fn detach_ports(&self) {
+        if let Ok(mut guard) = self.ports.write() {
+            *guard = None;
+        }
+        if let Ok(mut guard) = self.mcp_executor.write() {
+            *guard = None;
+        }
     }
 }
 
 impl AdkToolExecutor for ProductionAdkToolExecutor {
     fn supports(&self, name: &str) -> bool {
-        matches!(name, "tools.search" | "models.list")
+        if matches!(
+            name,
+            "tools.search" | "models.list" | "strategy.validate_pine" | "strategy.pine_spec"
+        ) {
+            return true;
+        }
+        if matches!(
+            name,
+            "portfolio.accounts"
+                | "portfolio.overview"
+                | "portfolio.positions"
+                | "strategy.research_backtest"
+        ) {
+            return self.ports.read().map(|g| g.is_some()).unwrap_or(false);
+        }
+        if let Ok(guard) = self.mcp_executor.read()
+            && let Some(mcp) = guard.as_ref()
+        {
+            return mcp.supports(name);
+        }
+        false
+    }
+
+    fn attach_ports(&self, ports: Arc<ProductionPortBundle>) {
+        ProductionAdkToolExecutor::attach_ports(self, ports);
+    }
+
+    fn detach_ports(&self) {
+        ProductionAdkToolExecutor::detach_ports(self);
     }
 
     fn execute(&self, name: &str, arguments: &Value) -> Result<Value, String> {
@@ -98,7 +177,70 @@ impl AdkToolExecutor for ProductionAdkToolExecutor {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(json!({"providers": providers, "total": providers.len()}))
             }
-            _ => Err(format!("tool executor is unavailable for {name}")),
+            "strategy.validate_pine" | "strategy.pine_spec" => {
+                crate::product::strategy_pine_mcp::dispatch_strategy_pine_mcp(name, arguments)
+                    .map_err(|error| error.message)
+            }
+            "portfolio.accounts" => {
+                let guard = self
+                    .ports
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                let ports = guard
+                    .as_ref()
+                    .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
+                crate::product::product_portfolio_projection::execute_portfolio_accounts(
+                    ports, arguments,
+                )
+            }
+            "portfolio.overview" => {
+                let guard = self
+                    .ports
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                let ports = guard
+                    .as_ref()
+                    .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
+                crate::product::product_portfolio_projection::execute_portfolio_overview(
+                    ports, arguments,
+                )
+            }
+            "portfolio.positions" => {
+                let guard = self
+                    .ports
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                let ports = guard
+                    .as_ref()
+                    .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
+                crate::product::product_portfolio_projection::execute_portfolio_positions(
+                    ports, arguments,
+                )
+            }
+            "strategy.research_backtest" => {
+                let guard = self
+                    .ports
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                let ports = guard
+                    .as_ref()
+                    .ok_or_else(|| format!("tool executor is unavailable for {name}"))?;
+                crate::product::product_research_backtest_projection::execute_research_backtest(
+                    ports, arguments,
+                )
+            }
+            _ => {
+                let guard = self
+                    .mcp_executor
+                    .read()
+                    .map_err(|_| "tool executor lock poisoned".to_owned())?;
+                if let Some(mcp) = guard.as_ref() {
+                    mcp.execute_production(name, arguments)
+                        .map_err(|error| error.message)
+                } else {
+                    Err(format!("tool executor is unavailable for {name}"))
+                }
+            }
         }
     }
 }

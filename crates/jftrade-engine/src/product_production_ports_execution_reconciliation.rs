@@ -15,6 +15,10 @@ use super::execution_order_helpers::{
 };
 use crate::product::product_execution_write_port::ExecutionWritePortError;
 
+#[path = "product_production_ports_execution_reconciliation_recovery.rs"]
+mod recovery;
+use recovery::*;
+
 impl ProductionExecutionPort {
     pub(super) fn reconcile_pending_orders(&self) -> Result<usize, String> {
         let reader = self.reconciliation_reader()?;
@@ -145,65 +149,65 @@ impl ProductionExecutionPort {
                 order.account_id
             ));
         }
-        let broker_id = order
+        let mut broker_id = order
             .broker_order_id
             .as_deref()
             .and_then(|value| value.trim().parse::<u64>().ok())
             .filter(|value| *value > 0);
-        let broker_order_id_ex = order
+        let mut broker_order_id_ex = order
             .broker_order_id_ex
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(str::to_owned);
-        if broker_id.is_none() && broker_order_id_ex.is_none() {
-            let error = failed(
-                502,
-                "EXECUTION_STATE_UNKNOWN",
-                "broker order identity is unavailable for reconciliation",
-            );
-            self.persist_unknown_if_needed(order, &error, "reconcile_identity_unknown")?;
-            return Err("broker order identity is unavailable for reconciliation".to_owned());
-        }
         let header = header_from_order(order).map_err(|error| format_error(&error))?;
-        let filter = TradeFilter {
-            id_list: broker_id.into_iter().collect(),
-            order_id_ex_list: broker_order_id_ex.clone().into_iter().collect(),
-            ..TradeFilter::default()
-        };
-        let active =
-            reader.read_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true));
-        let active_error = active.as_ref().err().map(ToString::to_string);
-        let mut matched = active.ok().and_then(|orders| {
-            orders.into_iter().find(|candidate| {
-                matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
-            })
-        });
-        if matched.is_none() {
-            let history = reader
-                .read_history_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true))
-                .map_err(|error| format!("broker order history read failed: {error}"))?;
-            matched = history.into_iter().find(|candidate| {
-                matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
+        let matched = if broker_id.is_none() && broker_order_id_ex.is_none() {
+            let snapshot = self.resolve_unidentified_submission(reader, order, &header)?;
+            broker_id = (snapshot.order_id > 0).then_some(snapshot.order_id);
+            broker_order_id_ex = (!snapshot.order_id_ex.trim().is_empty())
+                .then(|| snapshot.order_id_ex.trim().to_owned());
+            Some(snapshot)
+        } else {
+            let filter = TradeFilter {
+                id_list: broker_id.into_iter().collect(),
+                order_id_ex_list: broker_order_id_ex.clone().into_iter().collect(),
+                ..TradeFilter::default()
+            };
+            let active =
+                reader.read_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true));
+            let active_error = active.as_ref().err().map(ToString::to_string);
+            let mut matched = active.ok().and_then(|orders| {
+                orders.into_iter().find(|candidate| {
+                    matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
+                })
             });
-        }
-        if matched.is_none() {
-            if let Some(error) = active_error {
-                return Err(format!("broker order read failed: {error}"));
+            if matched.is_none() {
+                let history = reader
+                    .read_history_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true))
+                    .map_err(|error| format!("broker order history read failed: {error}"))?;
+                matched = history.into_iter().find(|candidate| {
+                    matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
+                });
             }
-            if is_terminal(&order.status) {
-                return self.reconcile_terminal_fees_only(reader, header, order);
+            if matched.is_none() {
+                if let Some(error) = active_error {
+                    return Err(format!("broker order read failed: {error}"));
+                }
+                if is_terminal(&order.status) {
+                    return self.reconcile_terminal_fees_only(reader, header, order);
+                }
+                let error = failed(
+                    502,
+                    "BROKER_ORDER_NOT_FOUND",
+                    "broker order identity was not found in active or history snapshots",
+                );
+                self.persist_unknown_if_needed(order, &error, "reconcile_order_missing")?;
+                return Err(
+                    "broker order identity was not found in active or history snapshots".to_owned(),
+                );
             }
-            let error = failed(
-                502,
-                "BROKER_ORDER_NOT_FOUND",
-                "broker order identity was not found in active or history snapshots",
-            );
-            self.persist_unknown_if_needed(order, &error, "reconcile_order_missing")?;
-            return Err(
-                "broker order identity was not found in active or history snapshots".to_owned(),
-            );
-        }
+            matched
+        };
         let mut changed = false;
         if let Some(snapshot) = matched {
             match self.apply_broker_snapshot_with_recovery(order, &snapshot) {
@@ -221,6 +225,11 @@ impl ProductionExecutionPort {
             }
         }
 
+        let filter = TradeFilter {
+            id_list: broker_id.into_iter().collect(),
+            order_id_ex_list: broker_order_id_ex.clone().into_iter().collect(),
+            ..TradeFilter::default()
+        };
         let fills = self.read_fills(reader, &header, &filter)?;
         for fill in fills {
             if !matches_fill(&fill, broker_id, broker_order_id_ex.as_deref()) {
@@ -772,27 +781,6 @@ fn covered_by_snapshot(
 
 fn invalid_stored(message: impl Into<String>) -> ExecutionWritePortError {
     failed(500, "EXECUTION_ORDER_DATA_INVALID", message)
-}
-
-fn time_after(left: &str, right: &str) -> bool {
-    let left = time::OffsetDateTime::parse(left, &time::format_description::well_known::Rfc3339);
-    let right = time::OffsetDateTime::parse(right, &time::format_description::well_known::Rfc3339);
-    match (left, right) {
-        (Ok(left), Ok(right)) => left > right,
-        _ => false,
-    }
-}
-
-fn is_terminal(status: &str) -> bool {
-    canonical_stored_status(status).is_terminal()
-}
-
-fn format_error(error: &ExecutionWritePortError) -> String {
-    let (message, code) = execution_error_details(error);
-    match code {
-        Some(code) => format!("{code}: {message}"),
-        None => message,
-    }
 }
 
 #[cfg(test)]

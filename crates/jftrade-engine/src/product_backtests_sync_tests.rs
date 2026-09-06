@@ -52,6 +52,10 @@ impl BacktestSyncReadSnapshotPort for FixtureBacktestSyncReadPort {
         };
         Ok(self.data.get(case).cloned())
     }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, BacktestSyncReadSnapshotError> {
+        Ok(Vec::new())
+    }
 }
 
 #[derive(Debug)]
@@ -59,6 +63,12 @@ struct FailingBacktestSyncReadPort;
 
 impl BacktestSyncReadSnapshotPort for FailingBacktestSyncReadPort {
     fn progress(&self, _task_id: &str) -> Result<Option<Value>, BacktestSyncReadSnapshotError> {
+        Err(BacktestSyncReadSnapshotError::Unavailable(
+            "Go backtest sync task store unavailable".to_owned(),
+        ))
+    }
+
+    fn active_tasks(&self) -> Result<Vec<Value>, BacktestSyncReadSnapshotError> {
         Err(BacktestSyncReadSnapshotError::Unavailable(
             "Go backtest sync task store unavailable".to_owned(),
         ))

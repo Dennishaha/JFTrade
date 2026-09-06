@@ -54,6 +54,6 @@ impl ProductConfig {
 
 include!("product_error.rs");
 #[path = "product_production_ports.rs"]
-pub(crate) mod product_production_ports;
+pub mod product_production_ports;
 #[path = "product_production_route_registry.rs"]
 mod product_production_route_registry;

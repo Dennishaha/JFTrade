@@ -160,7 +160,7 @@ export function rustAffectedTestCommands(files, options = {}) {
   const packages = rustAffectedPackages(files, options);
   if (packages === null) return ["pnpm run test:rust"];
   if (packages.length === 0) return [];
-  return [`cargo test ${packages.map((name) => `-p ${name}`).join(" ")} --all-targets --locked`];
+  return [`node scripts/quality/cargo-nextest.mjs run ${packages.map((name) => `-p ${name}`).join(" ")} --all-targets --locked`];
 }
 
 export function rustAffectedClippyCommands(files, options = {}) {
@@ -340,7 +340,7 @@ export function planAffected(files, {
 }
 
 export function commandRequiresRustCompileEnvironment(command) {
-  return /^\s*cargo\s+(?:test|check|build|clippy|run)\b/.test(command);
+  return /^\s*(?:cargo\s+(?:test|check|build|clippy|run)|node\s+scripts\/quality\/cargo-nextest\.mjs)\b/.test(command);
 }
 
 function run(command) {
