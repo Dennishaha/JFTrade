@@ -184,6 +184,8 @@ impl ProductionToolCatalog {
                 "name": definition.id,
                 "category": definition.category,
                 "displayName": definition.display_name,
+                "description": definition.display_name,
+                "permission": "read",
                 "allowedModes": allowed_modes,
                 "requiresApprovalIn": [],
                 "riskLevel": "low",

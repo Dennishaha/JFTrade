@@ -153,7 +153,7 @@ const futuProviderReadiness = computed<{
   }
   const health = futuOpenDHealth.value;
   if (health == null) {
-    return { displayState: "unavailable", reason: "尚未检查 OpenD 连接" };
+    return { displayState: "degraded", reason: "正在检查 OpenD 连接…" };
   }
   if (!isFutuOpenDHealthy(health)) {
     return {

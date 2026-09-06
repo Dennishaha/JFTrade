@@ -49,8 +49,9 @@ mod prediction;
 
 use product_trade_runtime_candles::{historical_snapshot, parse_requested_sessions};
 
-#[cfg(test)]
-pub(super) fn canonical_candle_time(value: &str, market: &str) -> String { product_trade_runtime_candles::canonical_candle_time(value, market) }
+pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
+    product_trade_runtime_candles::canonical_candle_time(value, market)
+}
 use product_trade_runtime_projection_values::{
     insert_rich_quote_fields, insert_rich_security_fields, security_snapshot_value,
 };
@@ -779,10 +780,7 @@ impl SharedTradeReadRuntime {
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
             .map_or(
-                TradeReadRuntimeSnapshot {
-                    client: None,
-                    trade_logged_in: None,
-                },
+                TradeReadRuntimeSnapshot { client: None, trade_logged_in: None },
                 |(c, logged)| TradeReadRuntimeSnapshot {
                     client: Some(Arc::clone(c)),
                     trade_logged_in: Some(*logged),

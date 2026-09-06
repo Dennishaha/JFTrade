@@ -81,7 +81,7 @@ pub(super) fn historical_snapshot(
     })
 }
 
-pub(super) fn canonical_candle_time(value: &str, market: &str) -> String {
+pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
     if value.contains('T') || value.ends_with('Z') {
         return value.to_owned();
     }

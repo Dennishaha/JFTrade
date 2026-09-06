@@ -3,9 +3,11 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
-use jftrade_settings::FutuOpenDInstallSettingsStorePort;
-use jftrade_settings::{InterfaceSettingsStorePort, PineWorkerSettingsStorePort};
-use jftrade_settings::normalize_pine_worker_settings;
+use jftrade_settings::{
+    BrokerSettingsStorePort, FutuOpenDInstallSettingsStorePort, InterfaceSettingsStorePort,
+    MarketDataProvider, MarketDataProviderRuntimePort, PineWorkerSettingsStorePort,
+    normalize_pine_worker_settings,
+};
 use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{
     AdkStore, BacktestRunStore, BacktestSyncTaskStore, ExecutionOrderStore,
@@ -29,6 +31,8 @@ use crate::product::{
 };
 use crate::product::ExecutionRiskCoordinator;
 pub(crate) struct ProductionSystemPort {
+    pub(crate) active_provider_state: Arc<super::ActiveProviderState>,
+    pub(crate) trade_runtime: Option<Arc<super::SharedTradeReadRuntime>>,
     pub(crate) runtime_status: Option<Arc<dyn MarketDataRuntimeStatusPort>>,
     pub(crate) live_hub: Option<Arc<jftrade_api::LiveHub>>,
     pub(crate) settings: Arc<SettingsFileStore>,
@@ -208,12 +212,18 @@ impl ProductionSystemPort {
     }
 
     fn futu_opend_snapshot(&self) -> Result<Value, SystemReadSnapshotError> {
-        let Some(runtime_status) = self.runtime_status.as_ref() else {
+        let quote_ready = self.active_provider_state.snapshot().opend_ready;
+        let broker_inputs = self.settings.load_broker_settings_inputs().ok();
+        let futu_enabled = broker_inputs
+            .as_ref()
+            .and_then(|inputs| inputs.saved_integration.as_ref())
+            .is_some_and(|int| int.enabled);
+        if !futu_enabled && !quote_ready && self.runtime_status.is_none() {
             return Ok(json!({
                 "status": "unavailable",
                 "reason": "broker integration not enabled",
             }));
-        };
+        }
         let settings = self
             .settings
             .load_futu_open_d_install_settings()
@@ -223,7 +233,7 @@ impl ProductionSystemPort {
                     "Futu OpenD settings are not configured".to_owned(),
                 )
             })?;
-        let state = runtime_status.snapshot();
+        let state = self.runtime_status.as_ref().map(|port| port.snapshot()).unwrap_or_default();
         let has_error = state
             .quote_last_error
             .as_ref()
@@ -232,20 +242,6 @@ impl ProductionSystemPort {
                 .stream_last_error
                 .as_ref()
                 .is_some_and(|error| !error.is_empty());
-        let connectivity = if state.connected {
-            "connected"
-        } else if has_error {
-            "degraded"
-        } else {
-            "disconnected"
-        };
-        let status = if state.connected {
-            "healthy"
-        } else if has_error || self.opend_status == ProductionRuntimeStatus::Degraded {
-            "degraded"
-        } else {
-            "offline"
-        };
         let last_error = state
             .quote_last_error
             .clone()
@@ -254,6 +250,79 @@ impl ProductionSystemPort {
                 .stream_last_error
                 .clone()
                 .filter(|error| !error.is_empty()));
+
+        let host = settings.host.trim();
+        let port = settings.api_port;
+        let socket_addr = format!("{host}:{port}")
+            .parse::<std::net::SocketAddr>()
+            .ok()
+            .or_else(|| {
+                use std::net::ToSocketAddrs;
+                (host, port as u16)
+                    .to_socket_addrs()
+                    .ok()
+                    .and_then(|mut it| it.next())
+            });
+        let probe_result = socket_addr.map(|addr| {
+            let config = jftrade_integration_futu::OpenDTcpProbeConfig::new(
+                addr,
+                std::time::Duration::from_millis(1500),
+            );
+            jftrade_integration_futu::OpenDTcpProbe::probe(config)
+        });
+
+        let (
+            connectivity,
+            status,
+            server_version,
+            program_status,
+            quote_logged_in,
+            diag_code,
+            manual_retry,
+            restart_recommended,
+            effective_last_error,
+        ) = if let Some(Ok(probe)) = probe_result {
+            if probe.status == "healthy" {
+                let current = self.active_provider_state.snapshot();
+                if !current.opend_ready {
+                    self.active_provider_state.set_readiness(
+                        current.helper_ready,
+                        true,
+                        current.router_ready,
+                    );
+                }
+            }
+            (
+                probe.connectivity, probe.status,
+                probe.server_version.map(Value::String).unwrap_or(Value::Null),
+                probe.program_status.map(Value::String).unwrap_or(Value::Null),
+                probe.quote_logged_in.or(Some(true)), "NONE", false, false, probe.last_error,
+            )
+        } else if quote_ready || state.connected {
+            (
+                "connected".to_owned(), "healthy".to_owned(),
+                Value::Null, Value::Null, Some(true), "NONE", false, false, last_error,
+            )
+        } else {
+            let err = last_error.or_else(|| probe_result.and_then(|r| r.err().map(|e| e.to_string())));
+            let conn_refused = err.as_ref().is_some_and(|e| {
+                let l = e.to_lowercase();
+                l.contains("connection refused") || l.contains("os { code: 61")
+            });
+            let status = if has_error || self.opend_status == ProductionRuntimeStatus::Degraded {
+                "degraded"
+            } else {
+                "offline"
+            };
+            let code = if err.is_some() { "OPEND_API_CONNECTIVITY" } else { "OPEND_UNAVAILABLE" };
+            (
+                if has_error { "degraded".to_owned() } else { "disconnected".to_owned() },
+                status.to_owned(), Value::Null, Value::Null, None, code, true, conn_refused, err,
+            )
+        };
+        let diag_summary = effective_last_error.clone().map(Value::String).unwrap_or(Value::Null);
+        let trade_logged_in = self.trade_runtime.as_ref().and_then(|r| r.snapshot().trade_logged_in);
+
         let live_snapshot = self.live_hub.as_ref().map(|hub| hub.snapshot());
         let live_connections = live_snapshot.as_ref().map_or(0, |snapshot| snapshot.connected);
         let live_limit = settings.max_websocket_connections.max(0) as usize;
@@ -270,18 +339,18 @@ impl ProductionSystemPort {
                 "useEncryption": settings.use_encryption,
                 "websocketKeyConfigured": settings.websocket_key_required,
                 "marketDataTransport": "bbgo-opend-tcp-api",
-                "quoteLoggedIn": Value::Null,
-                "tradeLoggedIn": Value::Null,
-                "programStatus": Value::Null,
-                "serverVersion": Value::Null,
+                "quoteLoggedIn": quote_logged_in,
+                "tradeLoggedIn": trade_logged_in,
+                "programStatus": program_status,
+                "serverVersion": server_version,
                 "minimumVersion": jftrade_integration_futu::MINIMUM_OPEND_VERSION,
-                "lastError": last_error,
+                "lastError": effective_last_error,
             },
             "diagnosis": {
-                "code": if state.connected { "NONE" } else { "OPEND_UNAVAILABLE" },
-                "summary": last_error,
-                "manualRetryRequired": !state.connected,
-                "restartOpenDRecommended": false,
+                "code": diag_code,
+                "summary": diag_summary,
+                "manualRetryRequired": manual_retry,
+                "restartOpenDRecommended": restart_recommended,
             },
             "localSocketDiagnostics": {
                 "transportMode": "bbgo-opend-tcp-api",
@@ -329,17 +398,43 @@ const REAL_TRADE_EVENT_LIMIT: usize = 200;
 #[derive(Debug)]
 pub(crate) struct ProductionSystemWritePort {
     coordinator: Arc<ExecutionRiskCoordinator>,
+    active_provider_state: Option<Arc<super::ActiveProviderState>>,
+    trade_runtime: Option<Arc<super::SharedTradeReadRuntime>>,
 }
 
 impl ProductionSystemWritePort {
     #[allow(dead_code)]
     pub(crate) fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
         let coordinator = Arc::new(ExecutionRiskCoordinator::new(path));
-        Ok(Self { coordinator })
+        Ok(Self {
+            coordinator,
+            active_provider_state: None,
+            trade_runtime: None,
+        })
     }
 
     pub(crate) fn with_coordinator(coordinator: Arc<ExecutionRiskCoordinator>) -> Self {
-        Self { coordinator }
+        Self {
+            coordinator,
+            active_provider_state: None,
+            trade_runtime: None,
+        }
+    }
+
+    pub(crate) fn with_active_provider_state(
+        mut self,
+        active_provider_state: Option<Arc<super::ActiveProviderState>>,
+    ) -> Self {
+        self.active_provider_state = active_provider_state;
+        self
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        trade_runtime: Option<Arc<super::SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = trade_runtime;
+        self
     }
 
     fn mutate_state(&self, input: &SystemWriteInput) -> Result<Value, SystemWritePortError> {
@@ -347,35 +442,24 @@ impl ProductionSystemWritePort {
         self.coordinator.mutate_with(|state| {
             match input.operation {
                 SystemWriteOperation::ManualRetry => {
-                    return Err(SystemWritePortError::Unavailable(
-                        "OpenD runtime is not configured".to_owned(),
-                    ));
+                    let Some(_) = self.trade_runtime.as_ref() else {
+                        return Err(SystemWritePortError::Unavailable(
+                            "OpenD runtime is not configured".to_owned(),
+                        ));
+                    };
+                    if let Some(state) = self.active_provider_state.as_ref() {
+                        let _ = state.activate(MarketDataProvider::Futu);
+                    }
+                    return Ok(json!({ "accepted": true }));
                 }
-                SystemWriteOperation::ActivateKillSwitch => {
-                    activate_kill_switch(state, required_kill_switch(input)?, &now);
-                }
-                SystemWriteOperation::ReleaseKillSwitch => {
-                    release_kill_switch(state, required_kill_switch(input)?, &now);
-                }
-                SystemWriteOperation::UpdateRisk => {
-                    update_risk(state, required_risk(input)?, &now);
-                }
-                SystemWriteOperation::DisableRisk => {
-                    disable_risk(state, required_risk(input)?, &now);
-                }
-                SystemWriteOperation::ActivateHardStop => {
-                    activate_hard_stop(state, required_hard_stop(input)?, &now);
-                }
+                SystemWriteOperation::ActivateKillSwitch => activate_kill_switch(state, required_kill_switch(input)?, &now),
+                SystemWriteOperation::ReleaseKillSwitch => release_kill_switch(state, required_kill_switch(input)?, &now),
+                SystemWriteOperation::UpdateRisk => update_risk(state, required_risk(input)?, &now),
+                SystemWriteOperation::DisableRisk => disable_risk(state, required_risk(input)?, &now),
+                SystemWriteOperation::ActivateHardStop => activate_hard_stop(state, required_hard_stop(input)?, &now),
                 SystemWriteOperation::ReleaseHardStop => {
-                    release_hard_stop(
-                        state,
-                        input
-                            .hard_stop_id
-                            .as_deref()
-                            .ok_or_else(|| control_failed("real-trade hard stop id is missing"))?,
-                        required_hard_stop(input)?,
-                        &now,
-                    )?;
+                    let hard_stop_id = input.hard_stop_id.as_deref().ok_or_else(|| control_failed("real-trade hard stop id is missing"))?;
+                    release_hard_stop(state, hard_stop_id, required_hard_stop(input)?, &now)?;
                 }
             }
             snapshot_value(state.clone())

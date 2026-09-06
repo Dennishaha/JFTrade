@@ -102,6 +102,40 @@ impl DesktopRetainedRuntimeConfig {
                 bearer_token: token,
                 log_path: None,
             })
+        } else if std::env::var("JFTRADE_MARKETDATA_HELPER_URL").is_err() {
+            let dev_python = std::env::var("JFTRADE_MARKETDATA_DEV_PYTHON")
+                .map(PathBuf::from)
+                .ok()
+                .or_else(|| {
+                    let venv_python = if cfg!(target_os = "windows") {
+                        PathBuf::from("workers/marketdata-sidecar/.venv/Scripts/python.exe")
+                    } else {
+                        PathBuf::from("workers/marketdata-sidecar/.venv/bin/python")
+                    };
+                    venv_python.is_file().then_some(venv_python)
+                });
+            if let Some(python) = dev_python {
+                let token = std::env::var("JFTRADE_MARKETDATA_BEARER_TOKEN")
+                    .unwrap_or_else(|_| "marketdata-token-12345678901234567890".to_owned());
+                let source = std::env::var("JFTRADE_MARKETDATA_DEV_PYTHONPATH")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|_| PathBuf::from("workers/marketdata-sidecar/src"));
+                let abs_source = std::fs::canonicalize(&source).unwrap_or(source);
+                let mut environment = BTreeMap::new();
+                environment.insert(
+                    "PYTHONPATH".to_owned(),
+                    abs_source.to_string_lossy().into_owned(),
+                );
+                Some(DesktopMarketDataRuntimeConfig {
+                    executable: python,
+                    prefix_args: vec!["-m".to_owned(), "marketdata_sidecar.main".to_owned()],
+                    environment,
+                    bearer_token: token,
+                    log_path: None,
+                })
+            } else {
+                None
+            }
         } else {
             None
         };

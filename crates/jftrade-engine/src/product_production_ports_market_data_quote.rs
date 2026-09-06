@@ -15,6 +15,7 @@ use serde_json::{Value, json};
 #[path = "product_production_ports_market_data_quote_reads.rs"]
 mod quote_reads;
 use std::sync::{Arc, Mutex};
+use super::super::product_production_ports_trade::{canonical_candle_time, quote_market_code};
 
 use super::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339, map_helper_quote_error,
@@ -250,6 +251,8 @@ impl ProductionMarketDataQuotePort {
             return Ok(json!({
                 "meta": {
                     "source": resp.source,
+                    "brokerId": provider_str,
+                    "instrumentId": format!("{market}.{symbol}"),
                 },
                 "request": {
                     "instrumentId": format!("{market}.{symbol}"),
@@ -266,6 +269,68 @@ impl ProductionMarketDataQuotePort {
                     "supportedPeriods": resp.supported_periods,
                     "symbol": symbol,
                     "timezone": resp.timezone,
+                },
+            }));
+        }
+
+        if provider == MarketDataProvider::Futu {
+            let market_code = quote_market_code(&market)
+                .ok_or_else(|| MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: format!("invalid market: {market}"),
+                    retry_after_seconds: None,
+                })?;
+            let security = jftrade_integration_futu::TradeSecurity {
+                market: market_code,
+                code: symbol.clone(),
+            };
+            let snapshot_opt = self.trade_runtime.as_ref().and_then(|runtime| {
+                runtime.security_snapshots(&[security]).ok().and_then(|mut list| {
+                    if list.is_empty() { None } else { Some(list.remove(0)) }
+                })
+            });
+            let name = snapshot_opt
+                .as_ref()
+                .and_then(|s| s.get("name").and_then(|n| n.as_str()))
+                .filter(|n| !n.trim().is_empty())
+                .unwrap_or(&symbol);
+            let security_type = snapshot_opt
+                .as_ref()
+                .and_then(|s| s.get("securityType").and_then(|t| t.as_str()))
+                .unwrap_or("EQUITY");
+
+            return Ok(json!({
+                "meta": {
+                    "source": "futu",
+                    "brokerId": "futu",
+                    "instrumentId": format!("{market}.{symbol}"),
+                },
+                "request": {
+                    "instrumentId": format!("{market}.{symbol}"),
+                    "market": market,
+                    "symbol": symbol,
+                },
+                "security": {
+                    "currency": match market.as_str() {
+                        "HK" => "HKD",
+                        "US" => "USD",
+                        "SH" | "SZ" | "CN" => "CNY",
+                        _ => "USD",
+                    },
+                    "exchange": market,
+                    "instrumentId": format!("{market}.{symbol}"),
+                    "market": market,
+                    "name": name,
+                    "securityType": security_type,
+                    "supportedPeriods": [
+                        "tick", "1m", "3m", "5m", "10m", "15m", "30m", "1h", "1d", "1w", "1mo"
+                    ],
+                    "symbol": symbol,
+                    "timezone": match market.as_str() {
+                        "US" => "America/New_York",
+                        _ => "Asia/Shanghai",
+                    },
                 },
             }));
         }

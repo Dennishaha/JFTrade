@@ -154,7 +154,7 @@ impl OpenDTcpProbe {
         session: &OpenDInitializedSession,
     ) -> Result<OpenDProbe, OpenDTcpProbeError> {
         let global_body = GetGlobalStateRequest {
-            c2s: Some(GetGlobalStateC2s { user_id: 0 }),
+            c2s: Some(GetGlobalStateC2s { user_id: Some(0) }),
         }
         .encode_to_vec();
         let global_response = session
@@ -347,8 +347,8 @@ struct GetGlobalStateRequest {
 
 #[derive(Clone, PartialEq, Message)]
 struct GetGlobalStateC2s {
-    #[prost(uint64, tag = "1")]
-    user_id: u64,
+    #[prost(uint64, optional, tag = "1")]
+    user_id: Option<u64>,
 }
 
 #[derive(Clone, PartialEq, Message)]

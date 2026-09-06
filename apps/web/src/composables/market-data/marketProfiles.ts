@@ -55,14 +55,14 @@ function tradingWindows(value: unknown): MarketProfileDto["regularSessions"] {
 function mapMarketProfiles(response: MarketProfilesWire): MarketProfilesResponse {
   const markets = response.markets.flatMap((raw) => {
     const entry = recordValue(raw);
-    const code = String(entry.code ?? "").trim();
+    const code = String(entry.code ?? entry.market ?? "").trim();
     if (code === "") return [];
     const precision = recordValue(entry.precision);
     return [{
       code,
       resolvedMarket: String(entry.resolvedMarket ?? code),
       preferredPrefix: String(entry.preferredPrefix ?? ""),
-      displayName: String(entry.displayName ?? code),
+      displayName: String(entry.displayName ?? entry.name ?? code),
       quoteCurrency: String(entry.quoteCurrency ?? ""),
       timezone: String(entry.timezone ?? ""),
       supportsExtendedHours: entry.supportsExtendedHours === true,

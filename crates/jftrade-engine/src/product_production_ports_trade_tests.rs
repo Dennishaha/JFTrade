@@ -535,6 +535,24 @@ fn broker_read_projects_margin_ratios_with_real_environment_and_omits_absent_val
 }
 
 #[test]
+fn margin_ratios_returns_empty_in_simulated_environment() {
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+    let value = port
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "tradingEnvironment=SIMULATE&accountId=10280980&market=HK&symbol=HK.00700",
+        )
+        .expect("simulated margin ratios");
+    assert_eq!(value["connectivity"], "connected");
+    assert_eq!(value["marginRatios"].as_array().map(|a| a.len()), Some(0));
+}
+
+#[test]
 fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty() {
     let funds = FakeTradeRead
         .read_funds(trade_header(1, 42, 2), None, None, None)
@@ -1039,7 +1057,7 @@ fn broker_quote_fails_closed_without_market_data_runtime() {
 }
 
 #[test]
-fn broker_capabilities_fail_closed_without_a_market_data_reader() {
+fn broker_capabilities_preserve_catalog_without_a_market_data_reader() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());
     runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
     let port = ProductionBrokerPort {
@@ -1048,12 +1066,14 @@ fn broker_capabilities_fail_closed_without_a_market_data_reader() {
         trade_logged_in: None,
         trade_runtime: Some(runtime),
     };
-    let error = port
+    let value = port
         .read("/api/v1/brokers/capabilities", "")
-        .expect_err("capabilities require market-data reader");
-    assert!(
-        matches!(error, BrokerReadSnapshotError::Unavailable(message) if message.contains("market-data reader"))
-    );
+        .expect("catalog remains discoverable without market-data reader");
+    assert_eq!(value["brokers"][0]["id"], "futu");
+    assert!(!value["catalog"]["features"].as_array().unwrap().is_empty());
+    let snapshot = value["runtime"].as_array().unwrap().iter()
+        .find(|item| item["featureId"] == "market.snapshot").unwrap();
+    assert_eq!(snapshot["evaluation"]["state"], "unavailable");
 }
 
 #[test]

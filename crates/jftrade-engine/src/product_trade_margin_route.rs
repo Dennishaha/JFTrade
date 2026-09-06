@@ -37,6 +37,13 @@ pub(super) fn read_margin_ratios(
     let securities = request
         .securities()
         .map_err(BrokerReadSnapshotError::Invalid)?;
+    if matches!(request.environment_code(), Ok(Some(0))) {
+        return Ok(json!({
+            "checkedAt": checked_at(),
+            "connectivity": "connected",
+            "marginRatios": []
+        }));
+    }
     let resolved = request
         .resolve_account_real_for_market(client, securities[0].market)
         .map_err(map_broker_header_error)?;

@@ -34,7 +34,7 @@ mod product_trade_margin_cache;
 mod product_trade_margin_route;
 #[path = "product_trade_runtime_projection.rs"]
 mod product_trade_runtime_projection;
-pub(crate) use product_trade_runtime_projection::SharedTradeReadRuntime;
+pub(crate) use product_trade_runtime_projection::{SharedTradeReadRuntime, canonical_candle_time};
 #[path = "product_production_ports_trade_requests.rs"]
 mod product_production_ports_trade_requests;
 #[path = "product_trade_runtime_options.rs"]
@@ -96,14 +96,11 @@ impl std::fmt::Debug for ProductionBrokerPort {
 impl BrokerReadSnapshotPort for ProductionBrokerPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, BrokerReadSnapshotError> {
         if path == "/api/v1/brokers/capabilities" {
-            self.ensure_ready()?;
-            let runtime = self
-                .trade_runtime
-                .as_ref()
-                .ok_or_else(|| unavailable("Futu market-data reader is unavailable"))?;
-            if !runtime.market_data_reader_available() {
-                return Err(unavailable("Futu market-data reader is unavailable"));
-            }
+            // Catalog discovery must remain available before OpenD login.
+            // The projection reports unavailable readers per capability;
+            // gating the catalog itself hides Futu and all chart periods.
+            let fallback_runtime = Arc::new(SharedTradeReadRuntime::default());
+            let runtime = self.trade_runtime.as_ref().unwrap_or(&fallback_runtime);
             let provider = self.active_provider_state.snapshot();
             return product_broker_capabilities_projection::project(runtime, &provider, query)
                 .map_err(unavailable);
@@ -298,7 +295,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 let filter = request
                     .trade_filter(history, &resolved.market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
-                let fills = if history {
+                let fills_result = if history {
                     client.read_history_fills(
                         resolved.header.clone(),
                         filter,
@@ -310,8 +307,17 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                         request.filter(),
                         request.refresh_cache(),
                     )
-                }
-                .map_err(session_error)?;
+                };
+                let fills = match fills_result {
+                    Ok(fills) => fills,
+                    Err(error)
+                        if resolved.header.trd_env == 0
+                            || error.to_string().contains("模拟交易不支持成交数据") =>
+                    {
+                        Vec::new()
+                    }
+                    Err(error) => return Err(session_error(error)),
+                };
                 Ok(
                     json!({"checkedAt": checked_at(), "connectivity": "connected", "fills": fills.into_iter().map(|v| fill_value(&resolved, v)).collect::<Vec<_>>() }),
                 )

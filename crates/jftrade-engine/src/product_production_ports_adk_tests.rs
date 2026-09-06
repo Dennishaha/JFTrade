@@ -79,6 +79,13 @@ fn tool_catalog_marks_external_unavailable_tools_non_callable() {
     );
 
     let catalog = ProductionToolCatalog::from_bindings(&bindings).expect("complete bindings");
+    for tool in catalog.values() {
+        for field in ["name", "displayName", "description", "category", "permission"] {
+            assert!(tool[field].as_str().is_some_and(|value| !value.is_empty()), "{field}: {tool}");
+        }
+        assert!(tool["allowedModes"].is_array());
+        assert!(tool["requiresApprovalIn"].is_array());
+    }
     let market_search = catalog
         .tools
         .iter()

@@ -1,6 +1,7 @@
 //! Product runtime startup orchestration.
 
 use super::*;
+use jftrade_settings::MarketDataProviderRuntimePort;
 
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
@@ -128,6 +129,10 @@ pub async fn start_product_runtime(
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                 trade_runtime.set_writer(config.product.trade_write_port.clone());
                 trade_runtime.set_historical_klines(Some(historical_reader));
+                product_runtime_provider_activation::try_install_security_snapshot_reader(
+                    &trade_runtime,
+                    &runtime.coordinator(),
+                );
                 let customization_reader = Arc::new(
                     jftrade_integration_futu::FutuRemoteWatchlistReader::new(runtime.coordinator()),
                 );
@@ -349,6 +354,10 @@ pub async fn start_product_runtime(
         trade_runtime
             .set_customization_readers(Some(customization_reader.clone()), Some(alert_reader));
         trade_runtime.set_customization_writers(Some(customization_reader), Some(alert_writer));
+        product_runtime_provider_activation::try_install_security_snapshot_reader(
+            &trade_runtime,
+            coordinator,
+        );
         trade_runtime.set_future_info(Some(Arc::new(
             jftrade_integration_futu::OpenDFutureInfoReader::new(Arc::clone(coordinator)),
         )));
@@ -658,6 +667,9 @@ pub async fn start_product_runtime(
         dynamic_readiness().1,
         market_data_router.is_some(),
     );
+    if let Some(initial) = initial_provider {
+        let _ = active_provider_state.activate(initial);
+    }
     config.product = config
         .product
         .with_active_provider_state(active_provider_state);
@@ -670,14 +682,11 @@ pub async fn start_product_runtime(
         production_provider_status(provider_configured, market_data_runtime_recorder.as_deref())
     };
 
-    let opend_status = if opend_configured {
-        if opend_task_configured && supervisor.market_data_opend_runtime.is_none() {
-            ProductionRuntimeStatus::Unavailable
-        } else {
-            provider_status
-        }
-    } else {
-        ProductionRuntimeStatus::Unavailable
+    let opend_status = match !opend_configured
+        || (opend_task_configured && supervisor.market_data_opend_runtime.is_none())
+    {
+        true => ProductionRuntimeStatus::Unavailable,
+        false => provider_status,
     };
 
     let worker_status = if worker_configured {
@@ -777,17 +786,14 @@ fn production_provider_status(
     recorder: Option<&MarketDataRuntimeRecorder>,
 ) -> ProductionRuntimeStatus {
     let Some(state) = recorder.map(MarketDataRuntimeRecorder::snapshot) else {
-        return if configured {
-            ProductionRuntimeStatus::Degraded
-        } else {
-            ProductionRuntimeStatus::Unavailable
+        return match configured {
+            true => ProductionRuntimeStatus::Degraded,
+            false => ProductionRuntimeStatus::Unavailable,
         };
     };
-    if state.closed {
-        ProductionRuntimeStatus::Failed
-    } else if state.connected {
-        ProductionRuntimeStatus::Ready
-    } else {
-        ProductionRuntimeStatus::Degraded
+    match (state.closed, state.connected) {
+        (true, _) => ProductionRuntimeStatus::Failed,
+        (false, true) => ProductionRuntimeStatus::Ready,
+        (false, false) => ProductionRuntimeStatus::Degraded,
     }
 }

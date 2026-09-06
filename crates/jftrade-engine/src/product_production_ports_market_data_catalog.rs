@@ -89,8 +89,10 @@ impl ProductionMarketDataCatalogPort {
                     .iter()
                     .map(|p| {
                         json!({
+                            "code": p.code,
                             "market": p.code,
                             "name": p.display_name,
+                            "displayName": p.display_name,
                             "timezone": p.timezone,
                         })
                     })
@@ -106,10 +108,10 @@ impl ProductionMarketDataCatalogPort {
             MarketDataProvider::Futu => Ok(json!({
                 "defaultMarket": "HK",
                 "markets": [
-                    {"market": "HK", "name": "Hong Kong", "timezone": "Asia/Hong_Kong"},
-                    {"market": "US", "name": "United States", "timezone": "America/New_York"},
-                    {"market": "SH", "name": "Shanghai", "timezone": "Asia/Shanghai"},
-                    {"market": "SZ", "name": "Shenzhen", "timezone": "Asia/Shanghai"},
+                    {"code": "HK", "market": "HK", "name": "Hong Kong", "displayName": "Hong Kong", "timezone": "Asia/Hong_Kong"},
+                    {"code": "US", "market": "US", "name": "United States", "displayName": "United States", "timezone": "America/New_York"},
+                    {"code": "SH", "market": "SH", "name": "Shanghai", "displayName": "Shanghai", "timezone": "Asia/Shanghai"},
+                    {"code": "SZ", "market": "SZ", "name": "Shenzhen", "displayName": "Shenzhen", "timezone": "Asia/Shanghai"},
                 ],
             })),
         }
@@ -274,9 +276,73 @@ impl ProductionMarketDataCatalogPort {
                     "totalReturned": total_returned,
                 }))
             }
-            MarketDataProvider::Futu => Err(MarketDataCatalogReadSnapshotError::Unavailable(
-                "futu instrument search is not available without active search provider".to_owned(),
-            )),
+            MarketDataProvider::Futu => {
+                let norm_q = search_query.trim().to_ascii_uppercase();
+                let (market_part, symbol_part) = if let Some((m, s)) = norm_q.split_once('.') {
+                    (m.trim(), s.trim())
+                } else if let Some((m, s)) = norm_q.split_once(':') {
+                    (m.trim(), s.trim())
+                } else if !requested_market.is_empty() {
+                    (requested_market.trim(), norm_q.as_str())
+                } else {
+                    ("", norm_q.as_str())
+                };
+
+                let market_upper = market_part.to_ascii_uppercase();
+                let is_valid_market = matches!(
+                    market_upper.as_str(),
+                    "HK" | "US" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA"
+                );
+
+                let mut entries = Vec::new();
+                if is_valid_market && !symbol_part.is_empty() {
+                    let canonical_market = if market_upper == "CNSH" {
+                        "SH".to_owned()
+                    } else if market_upper == "CNSZ" {
+                        "SZ".to_owned()
+                    } else {
+                        market_upper.clone()
+                    };
+                    let resolved_market = if canonical_market == "SH" || canonical_market == "SZ" {
+                        "CN".to_owned()
+                    } else {
+                        canonical_market.clone()
+                    };
+                    let selectable = matches!(
+                        canonical_market.as_str(),
+                        "HK" | "US" | "SH" | "SZ" | "CN"
+                    );
+                    let instrument_id = format!("{canonical_market}.{symbol_part}");
+                    let entry = json!({
+                        "instrumentId": instrument_id,
+                        "market": canonical_market,
+                        "resolvedMarket": resolved_market,
+                        "symbol": symbol_part,
+                        "code": symbol_part,
+                        "name": "",
+                        "securityType": "stock",
+                        "source": "futu",
+                        "selectable": selectable,
+                    });
+                    entries.push(entry);
+                }
+
+                let resolution_status = if entries.is_empty() {
+                    "not_found"
+                } else {
+                    "resolved"
+                };
+                let total_returned = entries.len();
+
+                Ok(json!({
+                    "entries": entries,
+                    "failures": [],
+                    "query": search_query,
+                    "requestedMarket": requested_market,
+                    "resolutionStatus": resolution_status,
+                    "totalReturned": total_returned,
+                }))
+            }
         }
     }
 }

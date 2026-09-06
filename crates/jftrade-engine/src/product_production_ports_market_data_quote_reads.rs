@@ -76,7 +76,8 @@ impl ProductionMarketDataQuotePort {
                     "fromCache": !refresh,
                     "instrumentId": instrument_id,
                     "resolvedAt": resp.observed_at,
-                    "source": resp.source
+                    "source": resp.source,
+                    "brokerId": provider_str,
                 },
                 "request": {
                     "instrumentId": instrument_id,
@@ -108,14 +109,9 @@ impl ProductionMarketDataQuotePort {
         }
 
         if provider == MarketDataProvider::Futu {
-            let Some(router) = &self.router else {
-                return Err(MarketDataQuoteReadSnapshotError::Unavailable(
-                    "market-data provider router is not configured".to_owned(),
-                ));
-            };
             let instrument_id = format!("{market}.{symbol}");
             let now_ms = current_unix_millis();
-            let cached_tick = {
+            let cached_tick = self.router.as_ref().and_then(|router| {
                 let router_guard = router.lock().unwrap_or_else(|e| e.into_inner());
                 let cache_handle = router_guard.cache_handle();
                 let cache_guard = cache_handle.lock().unwrap_or_else(|e| e.into_inner());
@@ -123,50 +119,119 @@ impl ProductionMarketDataQuotePort {
                     CacheLookup::Fresh(t) | CacheLookup::Stale(t) => Some(t),
                     CacheLookup::Missing => None,
                 }
-            };
+            });
 
-            let Some(tick) = cached_tick else {
-                return Err(MarketDataQuoteReadSnapshotError::Unavailable(format!(
-                    "no cached snapshot available for {instrument_id}"
-                )));
-            };
-
-            let observed_at = format_unix_millis_rfc3339(tick.observed_at_ms);
-
-            return Ok(json!({
-                "meta": {
-                    "fromCache": true,
-                    "instrumentId": instrument_id,
-                    "resolvedAt": observed_at,
-                    "source": "futu"
-                },
-                "request": {
-                    "instrumentId": instrument_id,
-                    "market": market,
-                    "symbol": symbol
-                },
-                "snapshot": {
-                    "ask": Value::Null,
-                    "at": observed_at,
-                    "bid": Value::Null,
-                    "extended": {
-                        "afterMarket": Value::Null,
-                        "overnight": Value::Null,
-                        "preMarket": Value::Null
+            if let Some(tick) = cached_tick {
+                let observed_at = format_unix_millis_rfc3339(tick.observed_at_ms);
+                return Ok(json!({
+                    "meta": {
+                        "fromCache": true,
+                        "instrumentId": instrument_id,
+                        "resolvedAt": observed_at,
+                        "source": "futu",
+                        "brokerId": "futu",
                     },
-                    "extendedHours": false,
-                    "highPrice": Value::Null,
-                    "lastClosePrice": Value::Null,
-                    "lowPrice": Value::Null,
-                    "observedAt": observed_at,
-                    "openPrice": Value::Null,
-                    "previousClosePrice": Value::Null,
-                    "price": tick.price.to_string(),
-                    "session": "regular",
-                    "turnover": Value::Null,
-                    "volume": tick.volume.as_str(),
+                    "request": {
+                        "instrumentId": instrument_id,
+                        "market": market,
+                        "symbol": symbol
+                    },
+                    "snapshot": {
+                        "ask": Value::Null,
+                        "at": observed_at,
+                        "bid": Value::Null,
+                        "extended": {
+                            "afterMarket": Value::Null,
+                            "overnight": Value::Null,
+                            "preMarket": Value::Null
+                        },
+                        "extendedHours": false,
+                        "highPrice": Value::Null,
+                        "lastClosePrice": Value::Null,
+                        "lowPrice": Value::Null,
+                        "observedAt": observed_at,
+                        "openPrice": Value::Null,
+                        "previousClosePrice": Value::Null,
+                        "price": tick.price.to_string(),
+                        "session": "regular",
+                        "turnover": Value::Null,
+                        "volume": tick.volume.as_str(),
+                    }
+                }));
+            }
+
+            let fallback_snapshot = if let (Some(runtime), Some(market_code)) = (
+                &self.trade_runtime,
+                quote_market_code(&market),
+            ) {
+                let security = jftrade_integration_futu::TradeSecurity {
+                    market: market_code,
+                    code: symbol.clone(),
+                };
+                runtime.security_snapshots(&[security]).ok().and_then(|mut list| {
+                    if list.is_empty() { None } else { Some(list.remove(0)) }
+                })
+            } else {
+                None
+            };
+
+            if let Some(snap) = fallback_snapshot {
+                let price_str = snap.get("lastPrice")
+                    .and_then(|v| {
+                        if let Some(f) = v.as_f64() {
+                            Some(f.to_string())
+                        } else {
+                            v.as_str().map(str::to_owned)
+                        }
+                    })
+                    .unwrap_or_default();
+                if !price_str.trim().is_empty() {
+                    let observed_at = snap.get("updateTime")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned)
+                        .unwrap_or_else(|| format_unix_millis_rfc3339(now_ms));
+                    let to_val = |key: &str| snap.get(key).cloned().unwrap_or(Value::Null);
+                    return Ok(json!({
+                        "meta": {
+                            "fromCache": false,
+                            "instrumentId": instrument_id,
+                            "resolvedAt": observed_at,
+                            "source": "futu",
+                            "brokerId": "futu",
+                        },
+                        "request": {
+                            "instrumentId": instrument_id,
+                            "market": market,
+                            "symbol": symbol,
+                        },
+                        "snapshot": {
+                            "ask": to_val("askPrice"),
+                            "at": observed_at,
+                            "bid": to_val("bidPrice"),
+                            "extended": {
+                                "afterMarket": Value::Null,
+                                "overnight": Value::Null,
+                                "preMarket": Value::Null
+                            },
+                            "extendedHours": false,
+                            "highPrice": to_val("highPrice"),
+                            "lastClosePrice": to_val("previousClose"),
+                            "lowPrice": to_val("lowPrice"),
+                            "observedAt": observed_at,
+                            "openPrice": to_val("openPrice"),
+                            "previousClosePrice": to_val("previousClose"),
+                            "price": price_str,
+                            "session": "regular",
+                            "turnover": to_val("turnover"),
+                            "volume": to_val("volume"),
+                        }
+                    }));
                 }
-            }));
+            }
+
+            return Err(MarketDataQuoteReadSnapshotError::Unavailable(format!(
+                "no cached snapshot available for {instrument_id}"
+            )));
         }
 
         Err(MarketDataQuoteReadSnapshotError::Unavailable(format!(
@@ -356,8 +421,164 @@ impl ProductionMarketDataQuotePort {
             );
         }
 
+        if provider == MarketDataProvider::Futu {
+            let market_code = quote_market_code(&market)
+                .ok_or_else(|| MarketDataQuoteReadSnapshotError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: format!("invalid market: {market}"),
+                    retry_after_seconds: None,
+                })?;
+            let Some(runtime) = &self.trade_runtime else {
+                return Err(MarketDataQuoteReadSnapshotError::Unavailable(
+                    "Futu historical klines runtime is unavailable".to_owned(),
+                ));
+            };
+            let begin_time = to_futu_time(from_time.as_deref(), "1970-01-01 00:00:00");
+            let end_time = to_futu_time(to_time.as_deref().or(before.as_deref()), "2999-12-31 23:59:59");
+            let extended_hours = sessions.iter().any(|s| *s == "extended" || *s == "overnight");
+            let futu_result = runtime
+                .historical_klines(&jftrade_integration_futu::HistoricalKlineQuery {
+                    market: market_code,
+                    symbol: symbol.clone(),
+                    period: period.to_owned(),
+                    adjustment: 1,
+                    begin_time,
+                    end_time,
+                    max_ack_kl_num: Some(limit as i32),
+                    next_req_key: Vec::new(),
+                    extended_time: Some(extended_hours),
+                    session: None,
+                });
+            let result = match futu_result {
+                Ok(res) if !res.klines.is_empty() => res,
+                other => {
+                    if let Some(helper) = &self.helper {
+                        let provider_str = if market.eq_ignore_ascii_case("US") {
+                            "yfinance"
+                        } else {
+                            "akshare"
+                        };
+                        let limit_str = limit.to_string();
+                        let mut query_params = vec![("period", period), ("limit", limit_str.as_str())];
+                        if let Some(ft) = from_time.as_deref() { query_params.push(("from", ft)); }
+                        if let Some(tt) = to_time.as_deref() { query_params.push(("to", tt)); }
+                        if let Some(bf) = before.as_deref() { query_params.push(("before", bf)); }
+                        let sessions_joined = sessions.join(",");
+                        query_params.push(("sessions", sessions_joined.as_str()));
+
+                        if let Ok(resp) = helper
+                            .get_provider_json_with_query::<HelperCandlesResponse>(
+                                provider_str,
+                                &["candles", &market, &symbol],
+                                &query_params,
+                            )
+                            .await
+                        {
+                            return crate::product::product_candle_converter::convert_helper_candles_response(
+                                resp,
+                                crate::product::product_candle_converter::HelperCandleConversionParams {
+                                    market: &market,
+                                    symbol: &symbol,
+                                    period,
+                                    limit,
+                                    from_time: from_time.as_deref(),
+                                    to_time: to_time.as_deref(),
+                                    before: before.as_deref(),
+                                    sessions: &sessions,
+                                    is_yfinance: provider_str == "yfinance",
+                                    is_akshare: provider_str == "akshare",
+                                    calendar: self.calendar.as_deref(),
+                                },
+                            );
+                        }
+                    }
+                    return Err(other.err().map(MarketDataQuoteReadSnapshotError::Unavailable).unwrap_or_else(|| {
+                        MarketDataQuoteReadSnapshotError::Unavailable("no candles found".to_owned())
+                    }));
+                }
+            };
+
+            let mut candles = Vec::with_capacity(result.klines.len());
+            for kline in &result.klines {
+                if kline.is_blank {
+                    continue;
+                }
+                let at = canonical_candle_time(&kline.time, &market);
+                candles.push(json!({
+                    "at": at,
+                    "close": kline.close_price.map(|v| v.to_string()).unwrap_or_default(),
+                    "high": kline.high_price.map(|v| v.to_string()).unwrap_or_default(),
+                    "low": kline.low_price.map(|v| v.to_string()).unwrap_or_default(),
+                    "open": kline.open_price.map(|v| v.to_string()).unwrap_or_default(),
+                    "period": period,
+                    "session": "regular",
+                    "volume": kline.volume.map(|v| v.to_string()).unwrap_or_else(|| "0".to_owned()),
+                }));
+            }
+            if candles.len() > limit {
+                candles = candles.split_off(candles.len() - limit);
+            }
+            let next_before = candles
+                .first()
+                .and_then(|c| c.get("at"))
+                .and_then(|v| v.as_str())
+                .map(str::to_owned);
+            let bounded = from_time.is_some() || to_time.is_some() || before.is_some();
+            let pagination = if !bounded && !result.next_req_key.is_empty() {
+                json!({ "hasMore": true, "nextBefore": next_before })
+            } else {
+                json!({ "hasMore": false })
+            };
+            let instrument_id = format!("{market}.{symbol}");
+            return Ok(json!({
+                "candles": candles,
+                "meta": {
+                    "brokerId": "futu",
+                    "extendedHours": extended_hours,
+                    "fromCache": false,
+                    "instrumentId": instrument_id,
+                    "resolvedAt": format_unix_millis_rfc3339(current_unix_millis()),
+                    "sessions": sessions,
+                    "source": "futu",
+                },
+                "pagination": pagination,
+                "request": {
+                    "instrument": {
+                        "instrumentId": instrument_id,
+                        "market": market,
+                        "symbol": symbol,
+                    },
+                    "limit": limit,
+                    "period": period,
+                    "sessions": sessions,
+                },
+                "totalReturned": candles.len(),
+            }));
+        }
+
         Err(MarketDataQuoteReadSnapshotError::Unavailable(
             "candle provider is not configured".to_owned(),
         ))
     }
+}
+
+fn to_futu_time(time_str: Option<&str>, fallback: &str) -> String {
+    let Some(raw) = time_str else {
+        return fallback.to_owned();
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return fallback.to_owned();
+    }
+    if trimmed.len() >= 19 && trimmed.as_bytes()[10] == b'T' {
+        return format!("{} {}", &trimmed[..10], &trimmed[11..19]);
+    }
+    if trimmed.len() == 10 {
+        return format!("{trimmed} 00:00:00");
+    }
+    if trimmed.len() >= 19 && trimmed.as_bytes()[10] == b' ' {
+        return trimmed[..19].to_owned();
+    }
+    fallback.to_owned()
 }
