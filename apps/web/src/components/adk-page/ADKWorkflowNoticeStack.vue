@@ -8,8 +8,6 @@ defineProps<{
 defineEmits<{
   dismissError: [];
   dismissSuccess: [];
-  "dismiss-error": [];
-  "dismiss-success": [];
 }>();
 </script>
 

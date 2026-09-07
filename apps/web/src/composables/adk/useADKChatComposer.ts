@@ -1,6 +1,5 @@
 import {
   computed,
-  hasInjectionContext,
   inject,
   ref,
   toRefs,
@@ -79,7 +78,7 @@ export interface ADKChatComposerProps {
     selectedSessionId?: string;
     selectedProvider?: ADKProvider | null;
     selectedProviderId?: string;
-    sendingChat?: boolean;
+    sendingChat: boolean;
     slashCommands?: SlashCommandItem[];
     suggestions?: string[];
     defaultWorkMode?: ADKWorkMode | string;
@@ -727,9 +726,7 @@ export const adkChatComposerContextKey: InjectionKey<ADKChatComposerContext> =
   Symbol("adk-chat-composer-context");
 
 export function useADKChatComposerContext(): ADKChatComposerContext {
-  const context = hasInjectionContext()
-    ? inject(adkChatComposerContextKey, null)
-    : null;
+  const context = inject(adkChatComposerContextKey);
   if (context == null) {
     throw new Error("ADK chat composer context is unavailable");
   }

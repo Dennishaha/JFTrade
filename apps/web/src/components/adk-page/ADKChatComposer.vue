@@ -42,7 +42,6 @@ const props = withDefaults(defineProps<ADKChatComposerProps>(), {
   queuedMessages: () => [],
   queueDispatchingId: "",
   savingProviderSelection: false,
-  sendingChat: false,
   selectedAgent: null,
   selectedAgentId: "",
   selectedSessionId: "",

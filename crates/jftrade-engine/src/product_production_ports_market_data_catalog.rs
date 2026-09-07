@@ -88,7 +88,7 @@ impl ProductionMarketDataCatalogPort {
                     .get_provider_json::<HelperMarketsResponse>(provider_str, &["markets"])
                     .await
                     .map_err(|error| map_helper_catalog_error(error, "MARKET_DATA_FAILED"))?;
-                let markets_array = markets_resp
+                let mut markets_array = markets_resp
                     .markets
                     .iter()
                     .map(|p| {
@@ -113,6 +113,18 @@ impl ProductionMarketDataCatalogPort {
                         })
                     })
                     .collect::<Vec<_>>();
+                if markets_array
+                    .iter()
+                    .any(|m| m["code"] == "SH" || m["code"] == "SZ")
+                    && !markets_array.iter().any(|m| m["code"] == "CN")
+                {
+                    let insert_pos = markets_array
+                        .iter()
+                        .position(|m| m["code"] == "SH" || m["code"] == "SZ")
+                        .unwrap_or(markets_array.len());
+                    markets_array
+                        .insert(insert_pos, jftrade_marketdata::cn_market_rule().to_api_value());
+                }
                 let default_market = markets_resp
                     .default_market
                     .unwrap_or_else(|| "US".to_owned());
@@ -123,83 +135,10 @@ impl ProductionMarketDataCatalogPort {
             }
             MarketDataProvider::Futu => Ok(json!({
                 "defaultMarket": "HK",
-                "markets": [
-                    {
-                        "code": "HK",
-                        "market": "HK",
-                        "resolvedMarket": "HK",
-                        "preferredPrefix": "HK",
-                        "name": "Hong Kong",
-                        "displayName": "Hong Kong",
-                        "quoteCurrency": "HKD",
-                        "timezone": "Asia/Hong_Kong",
-                        "supportsExtendedHours": false,
-                        "requiresExchangePrefix": false,
-                        "aliases": ["HKEX"],
-                        "regularSessions": [
-                            {"startMinute": 570, "endMinute": 720, "label": "09:30-12:00"},
-                            {"startMinute": 780, "endMinute": 960, "label": "13:00-16:00"}
-                        ],
-                        "precision": {"price": 3, "quote": 3},
-                        "tickSize": 0.001
-                    },
-                    {
-                        "code": "US",
-                        "market": "US",
-                        "resolvedMarket": "US",
-                        "preferredPrefix": "US",
-                        "name": "United States",
-                        "displayName": "United States",
-                        "quoteCurrency": "USD",
-                        "timezone": "America/New_York",
-                        "supportsExtendedHours": true,
-                        "requiresExchangePrefix": false,
-                        "aliases": ["NYSE", "NASDAQ"],
-                        "regularSessions": [
-                            {"startMinute": 570, "endMinute": 960, "label": "09:30-16:00"}
-                        ],
-                        "precision": {"price": 2, "quote": 2},
-                        "tickSize": 0.01
-                    },
-                    {
-                        "code": "SH",
-                        "market": "SH",
-                        "resolvedMarket": "CN",
-                        "preferredPrefix": "SH",
-                        "name": "Shanghai",
-                        "displayName": "Shanghai",
-                        "quoteCurrency": "CNY",
-                        "timezone": "Asia/Shanghai",
-                        "supportsExtendedHours": false,
-                        "requiresExchangePrefix": true,
-                        "aliases": ["CNSH"],
-                        "regularSessions": [
-                            {"startMinute": 570, "endMinute": 690, "label": "09:30-11:30"},
-                            {"startMinute": 780, "endMinute": 900, "label": "13:00-15:00"}
-                        ],
-                        "precision": {"price": 2, "quote": 2},
-                        "tickSize": 0.01
-                    },
-                    {
-                        "code": "SZ",
-                        "market": "SZ",
-                        "resolvedMarket": "CN",
-                        "preferredPrefix": "SZ",
-                        "name": "Shenzhen",
-                        "displayName": "Shenzhen",
-                        "quoteCurrency": "CNY",
-                        "timezone": "Asia/Shanghai",
-                        "supportsExtendedHours": false,
-                        "requiresExchangePrefix": true,
-                        "aliases": ["CNSZ"],
-                        "regularSessions": [
-                            {"startMinute": 570, "endMinute": 690, "label": "09:30-11:30"},
-                            {"startMinute": 780, "endMinute": 900, "label": "13:00-15:00"}
-                        ],
-                        "precision": {"price": 2, "quote": 2},
-                        "tickSize": 0.01
-                    },
-                ],
+                "markets": jftrade_marketdata::default_markets()
+                    .into_iter()
+                    .map(|m| m.to_api_value())
+                    .collect::<Vec<_>>(),
             })),
         }
     }
@@ -378,7 +317,7 @@ impl ProductionMarketDataCatalogPort {
                 let market_upper = market_part.to_ascii_uppercase();
                 let is_valid_market = matches!(
                     market_upper.as_str(),
-                    "HK" | "US" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA"
+                    "HK" | "US" | "SH" | "SZ" | "CN" | "CNSH" | "CNSZ" | "SG" | "JP" | "AU" | "MY" | "CA"
                 );
 
                 let mut entries = Vec::new();
@@ -387,6 +326,8 @@ impl ProductionMarketDataCatalogPort {
                         "SH".to_owned()
                     } else if market_upper == "CNSZ" {
                         "SZ".to_owned()
+                    } else if market_upper == "CN" {
+                        jftrade_marketdata::infer_cn_prefix(symbol_part).to_owned()
                     } else {
                         market_upper.clone()
                     };

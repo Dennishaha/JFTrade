@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { formatMarketPrice } from "@/utils/numberFormat";
 
 import EmptyState from "@/components/shared/EmptyState.vue";
-import { formatMarketPrice } from "@/utils/numberFormat";
 
 type SortOrder = "desc" | "asc";
 
@@ -109,12 +109,9 @@ function formatValue(value: number | null): string {
 
 function formatPrice(
   value: number | null,
-  entry?: Record<string, unknown>,
+  market?: string | null,
 ): string {
   if (value == null) return "--";
-  const market = entry
-    ? pickString(entry, ["market", "instrumentId", "symbol"])
-    : null;
   return formatMarketPrice(value, {
     market,
     fallback: "--",
@@ -169,7 +166,7 @@ function valueClass(value: number | null): string {
             {{ formatValue(entryValue(entry)) }}
           </td>
           <td class="rank-list-panel__price tv-num">
-            {{ formatPrice(entryPrice(entry), entry) }}
+            {{ formatPrice(entryPrice(entry), pickString(entry, ["market", "instrumentId", "symbol"])) }}
           </td>
         </tr>
       </tbody>

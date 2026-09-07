@@ -1,7 +1,17 @@
-import { computed, hasInjectionContext, inject, onMounted, ref, watch, type InjectionKey } from "vue";
+import {
+  computed,
+  inject,
+  onMounted,
+  ref,
+  watch,
+  type InjectionKey,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { KLINE_CHART_TYPES, KLINE_PERIODS } from "@/charting/kline";
+import {
+  KLINE_CHART_TYPES,
+  KLINE_PERIODS,
+} from "@/charting/kline";
 import {
   formatBacktestRehabType,
   formatBacktestRunDate,
@@ -782,9 +792,7 @@ export const backtestPageContextKey: InjectionKey<BacktestPageContext> = Symbol(
 );
 
 export function useBacktestPageContext(): BacktestPageContext {
-  const context = hasInjectionContext()
-    ? inject(backtestPageContextKey, null)
-    : null;
+  const context = inject(backtestPageContextKey);
   if (context == null) {
     throw new Error("Backtest page context is unavailable");
   }

@@ -757,4 +757,16 @@ describe("PositionsPanel", () => {
     expect(wrapper.text()).not.toContain("other-account");
     expect(wrapper.text()).toContain("下单已受理");
   });
+
+  it("formats position prices and values with market and fallback identifiers", () => {
+    const { call } = mountPositionsPanel();
+    expect(call("formatPositionPrice", 123.456, "HK")).toBe("123.456");
+    expect(call("formatPositionPrice", 123.456, null, "HK.00700")).toBe("123.456");
+    expect(call("formatPositionPrice", 123.456, null, null, "HK.00700")).toBe("123.456");
+    expect(call("formatPositionPrice", 123.456)).toBe("123.456");
+
+    expect(call("formatPositionValue", 1000, "US")).toBe("1,000.00");
+    expect(call("formatPositionValue", 1000, null, "US.AAPL")).toBe("1,000.00");
+    expect(call("formatPositionValue", 1000)).toBe("1,000.00");
+  });
 });

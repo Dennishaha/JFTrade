@@ -13,12 +13,13 @@ async fn futu_catalog_retains_market_precision_and_session_metadata() {
     let response = port.read("/api/v1/market-data/markets", "").await.unwrap();
     assert_eq!(response["defaultMarket"], "HK");
     let markets = response["markets"].as_array().unwrap();
-    assert_eq!(markets.len(), 4);
-    for (index, (code, resolved, currency, precision, tick, extended, sessions)) in [
-        ("HK", "HK", "HKD", 3, 0.001, false, vec![(570, 720), (780, 960)]),
-        ("US", "US", "USD", 2, 0.01, true, vec![(570, 960)]),
-        ("SH", "CN", "CNY", 2, 0.01, false, vec![(570, 690), (780, 900)]),
-        ("SZ", "CN", "CNY", 2, 0.01, false, vec![(570, 690), (780, 900)]),
+    assert_eq!(markets.len(), 5);
+    for (index, (code, resolved, prefix, currency, precision, tick, extended, sessions)) in [
+        ("HK", "HK", "HK", "HKD", 3, 0.001, false, vec![(570, 720), (780, 960)]),
+        ("US", "US", "US", "USD", 2, 0.01, true, vec![(570, 960)]),
+        ("CN", "CN", "", "CNY", 2, 0.01, false, vec![(570, 690), (780, 900)]),
+        ("SH", "CN", "SH", "CNY", 2, 0.01, false, vec![(570, 690), (780, 900)]),
+        ("SZ", "CN", "SZ", "CNY", 2, 0.01, false, vec![(570, 690), (780, 900)]),
     ]
     .into_iter()
     .enumerate()
@@ -26,7 +27,7 @@ async fn futu_catalog_retains_market_precision_and_session_metadata() {
         let market = &markets[index];
         assert_eq!(market["code"], code);
         assert_eq!(market["resolvedMarket"], resolved);
-        assert_eq!(market["preferredPrefix"], code);
+        assert_eq!(market["preferredPrefix"], prefix);
         assert_eq!(market["quoteCurrency"], currency);
         assert_eq!(market["precision"], json!({"price": precision, "quote": precision}));
         assert_eq!(market["tickSize"], tick);
@@ -39,6 +40,10 @@ async fn futu_catalog_retains_market_precision_and_session_metadata() {
             assert_eq!(window["endMinute"], end);
         }
     }
+
+    let cn_market = markets.iter().find(|m| m["code"] == "CN").unwrap();
+    assert_eq!(cn_market["displayName"], "沪深");
+    assert_eq!(cn_market["aliases"], json!(["SH", "SZ", "CNSH", "CNSZ"]));
 }
 
 async fn helper_catalog_response(provider: MarketDataProvider, name: &str, body: Value) -> Value {

@@ -19,6 +19,10 @@ describe("number formatting contract", () => {
   });
 
   it("formats prices from the market precision contract", () => {
+    expect(marketPricePrecision("")).toBeNull();
+    expect(marketPricePrecision("   ")).toBeNull();
+    expect(marketPricePrecision(null)).toBeNull();
+    expect(marketPricePrecision(undefined)).toBeNull();
     expect(marketPricePrecision("NASDAQ")).toBe(2);
     expect(marketPricePrecision("HKEX")).toBe(3);
     expect(marketPricePrecision("US.AAPL")).toBe(2);

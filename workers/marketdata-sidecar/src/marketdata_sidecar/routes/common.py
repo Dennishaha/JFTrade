@@ -131,7 +131,7 @@ MARKET_SPECS: dict[str, MarketSpec] = {
         ),
         price_precision=3,
         quote_precision=3,
-        tick_size=0.01,
+        tick_size=0.001,
     ),
     "SH": MarketSpec(
         code="SH",
