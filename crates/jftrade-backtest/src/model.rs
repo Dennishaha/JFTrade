@@ -1,4 +1,4 @@
-use jftrade_kernel::{Fixed8, WireTimestamp};
+use jftrade_kernel::{Decimal, WireTimestamp};
 use serde::{Deserialize, Serialize};
 
 pub const CORPUS_VERSION: u32 = 1;
@@ -18,7 +18,7 @@ pub struct BacktestCase {
     pub symbol: String,
     pub base_currency: String,
     pub quote_currency: String,
-    pub initial_balance: Fixed8,
+    pub initial_balance: Decimal,
     #[serde(default)]
     pub process_orders_on_close: bool,
     #[serde(default)]
@@ -38,9 +38,9 @@ pub struct BacktestCase {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MarketRules {
-    pub tick_size: Fixed8,
-    pub quantity_step: Fixed8,
-    pub min_quantity: Fixed8,
+    pub tick_size: Decimal,
+    pub quantity_step: Decimal,
+    pub min_quantity: Decimal,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -48,11 +48,11 @@ pub struct MarketRules {
 pub struct Candle {
     pub start: WireTimestamp,
     pub end: WireTimestamp,
-    pub open: Fixed8,
-    pub high: Fixed8,
-    pub low: Fixed8,
-    pub close: Fixed8,
-    pub volume: Fixed8,
+    pub open: Decimal,
+    pub high: Decimal,
+    pub low: Decimal,
+    pub close: Decimal,
+    pub volume: Decimal,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -68,11 +68,11 @@ pub struct OrderIntent {
     #[serde(default)]
     pub order_type: String,
     #[serde(default)]
-    pub quantity: Fixed8,
+    pub quantity: Decimal,
     #[serde(default)]
-    pub limit_price: Fixed8,
+    pub limit_price: Decimal,
     #[serde(default)]
-    pub stop_price: Fixed8,
+    pub stop_price: Decimal,
     #[serde(default)]
     pub reduce_only: bool,
     #[serde(default)]
@@ -93,15 +93,15 @@ pub struct FeeRule {
     pub side: String,
     pub basis: String,
     #[serde(default)]
-    pub rate: Fixed8,
+    pub rate: Decimal,
     #[serde(default)]
-    pub fixed_amount: Fixed8,
+    pub fixed_amount: Decimal,
     #[serde(default)]
-    pub min_amount: Fixed8,
+    pub min_amount: Decimal,
     #[serde(default)]
-    pub max_amount: Fixed8,
+    pub max_amount: Decimal,
     #[serde(default)]
-    pub max_rate: Fixed8,
+    pub max_rate: Decimal,
     #[serde(default)]
     pub rounding: String,
 }

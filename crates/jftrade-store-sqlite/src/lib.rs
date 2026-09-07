@@ -89,7 +89,7 @@ pub use watchlist::{
 use std::path::Path;
 use std::time::Duration;
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::{Decimal, DecimalTradingExt};
 use rusqlite::{Connection, OpenFlags};
 use serde::Serialize;
 use thiserror::Error;
@@ -112,8 +112,8 @@ pub enum SnapshotError {
     Incompatible(String),
     #[error("inspect backtest SQLite snapshot: {0}")]
     Inspect(#[source] rusqlite::Error),
-    #[error("decode fixed8 column {column} value {value:?}: {reason}")]
-    Fixed8 {
+    #[error("decode decimal column {column} value {value:?}: {reason}")]
+    Decimal {
         column: &'static str,
         value: String,
         reason: String,
@@ -436,22 +436,22 @@ fn read_klines(connection: &Connection, tables: &[Table]) -> Result<Vec<Kline>, 
                 table: table.name.clone(),
                 end_time: row.0,
                 start_time: row.1,
-                open: canonical_fixed8("open", row.2)?,
-                high: canonical_fixed8("high", row.3)?,
-                low: canonical_fixed8("low", row.4)?,
-                close: canonical_fixed8("close", row.5)?,
-                volume: canonical_fixed8("volume", row.6)?,
+                open: canonical_decimal("open", row.2)?,
+                high: canonical_decimal("high", row.3)?,
+                low: canonical_decimal("low", row.4)?,
+                close: canonical_decimal("close", row.5)?,
+                volume: canonical_decimal("volume", row.6)?,
             });
         }
     }
     Ok(result)
 }
 
-fn canonical_fixed8(column: &'static str, value: String) -> Result<String, SnapshotError> {
+fn canonical_decimal(column: &'static str, value: String) -> Result<String, SnapshotError> {
     value
-        .parse::<Fixed8>()
-        .map(|fixed| fixed.storage_text())
-        .map_err(|error| SnapshotError::Fixed8 {
+        .parse::<Decimal>()
+        .map(|dec| dec.to_storage_text())
+        .map_err(|error| SnapshotError::Decimal {
             column,
             value,
             reason: error.to_string(),

@@ -16,10 +16,7 @@ pub(super) fn insert_rich_quote_fields(
         ("lastClose", rich.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
+            item.insert(key.to_owned(), json!(value));
         }
     }
     if let Some(turnover) = rich.turnover.as_ref() {
@@ -48,10 +45,7 @@ fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<V
         ("lowPrice", value.low_price),
     ] {
         if let Some(number) = number {
-            result.insert(
-                key.to_owned(),
-                json!(number.to_f64().map_err(|error| error.to_string())?),
-            );
+            result.insert(key.to_owned(), json!(number));
         }
     }
     for (key, number) in [
@@ -103,16 +97,10 @@ pub(super) fn insert_rich_security_fields(
         item.insert("pbRate".to_owned(), decimal_number(value)?);
     }
     if let Some(value) = rich.bid_price {
-        item.insert(
-            "bidPrice".to_owned(),
-            json!(value.to_f64().map_err(|e| e.to_string())?),
-        );
+        item.insert("bidPrice".to_owned(), json!(value));
     }
     if let Some(value) = rich.ask_price {
-        item.insert(
-            "askPrice".to_owned(),
-            json!(value.to_f64().map_err(|e| e.to_string())?),
-        );
+        item.insert("askPrice".to_owned(), json!(value));
     }
     item.remove("marketTime");
     Ok(())
@@ -141,10 +129,7 @@ pub(super) fn security_snapshot_value(
         ("previousClose", snapshot.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
+            item.insert(key.to_owned(), json!(value));
         }
     }
     if let Some(turnover) = snapshot.turnover.as_ref() {

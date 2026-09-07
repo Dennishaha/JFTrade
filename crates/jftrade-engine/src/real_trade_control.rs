@@ -144,7 +144,10 @@ mod tests {
         .expect("write control state");
         let active = reader.snapshot();
         assert!(active.real_trading_enabled);
-        assert_eq!(active.effective_max_order_quantity, Some(12.5));
+        assert_eq!(
+            active.effective_max_order_quantity,
+            Some(jftrade_kernel::Decimal::new(125, 1))
+        );
 
         fs::write(&path, b"{").expect("write malformed state");
         let unavailable = reader.snapshot();

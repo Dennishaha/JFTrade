@@ -2180,6 +2180,7 @@ name = "jftrade-backtest"
 version = "0.1.0"
 dependencies = [
  "jftrade-kernel",
+ "rust_decimal",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -2339,6 +2340,7 @@ dependencies = [
 name = "jftrade-kernel"
 version = "0.1.0"
 dependencies = [
+ "rust_decimal",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -2433,6 +2435,7 @@ name = "jftrade-trading"
 version = "0.1.0"
 dependencies = [
  "jftrade-kernel",
+ "rust_decimal",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -3975,6 +3978,7 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
+ "zmij",
 ]
 
 [[package]]

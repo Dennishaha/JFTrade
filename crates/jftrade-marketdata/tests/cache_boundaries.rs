@@ -1,10 +1,11 @@
-use jftrade_kernel::{DecimalText, Fixed8};
+use jftrade_kernel::DecimalText;
 use jftrade_marketdata::{
     CacheLookup, ExtendedQuoteSnapshot, MarketDataError, Tick, TickCache, TradeQuoteSnapshot,
 };
+use rust_decimal::Decimal;
 
-fn fixed(value: &str) -> Fixed8 {
-    value.parse().expect("valid fixed8 fixture")
+fn price_dec(value: &str) -> Decimal {
+    value.parse().expect("valid decimal fixture")
 }
 
 fn decimal(value: &str) -> DecimalText {
@@ -21,7 +22,7 @@ fn tick(
 ) -> Tick {
     Tick {
         instrument_id: instrument_id.to_owned(),
-        price: fixed(price),
+        price: price_dec(price),
         volume: decimal(volume),
         snapshot,
         observed_at_ms,
@@ -32,9 +33,9 @@ fn tick(
 fn quote_snapshot(previous_close: &str, after_market_price: Option<&str>) -> TradeQuoteSnapshot {
     TradeQuoteSnapshot {
         symbol: Some("AAPL".to_owned()),
-        previous_close: Some(fixed(previous_close)),
+        previous_close: Some(price_dec(previous_close)),
         after_market: after_market_price.map(|price| ExtendedQuoteSnapshot {
-            price: Some(fixed(price)),
+            price: Some(price_dec(price)),
             ..ExtendedQuoteSnapshot::default()
         }),
         ..TradeQuoteSnapshot::default()
@@ -86,7 +87,7 @@ fn cache_retains_latest_sample_for_trimmed_case_insensitive_key() {
             price,
             observed_at_ms: 2_001,
             ..
-        }) if price == fixed("322.5")
+        }) if price == price_dec("322.5")
     ));
 }
 
@@ -173,7 +174,7 @@ fn cache_preserves_same_price_quote_context_and_generation_fencing() {
         CacheLookup::Fresh(value) => value,
         other => panic!("expected fresh rich quote, got {other:?}"),
     };
-    assert_eq!(cached.price, fixed("100"));
+    assert_eq!(cached.price, price_dec("100"));
     assert_eq!(cached.snapshot, Some(refreshed_snapshot));
     assert_eq!(
         cache.lookup_for_generation("US.AAPL", 4_001, 0, generation + 1),

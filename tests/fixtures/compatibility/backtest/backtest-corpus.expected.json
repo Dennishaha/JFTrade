@@ -337,13 +337,13 @@
           "period": 2,
           "values": [
             "100",
-            "99.99999999",
-            "99.99999998"
+            "100",
+            "100"
           ]
         }
       ],
       "warnings": [],
-      "resultHash": "fnv1a64:a78b44d97a24de2b"
+      "resultHash": "fnv1a64:5375a5073266f036"
     },
     {
       "id": "stop-limit-slippage-short",

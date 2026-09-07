@@ -611,7 +611,7 @@ fn lookup_tick_snapshot(
         ("symbol".to_owned(), Value::String(tick.instrument_id)),
         (
             "lastPrice".to_owned(),
-            json!(tick.price.to_f64().unwrap_or_default()),
+            json!(tick.price),
         ),
         ("volume".to_owned(), Value::Number(volume)),
         (
@@ -655,10 +655,7 @@ fn lookup_tick_snapshot(
                     return Err(format!("no cached quote available for {instrument_id}"));
                 }
             };
-            let last_price = tick
-                .price
-                .to_f64()
-                .map_err(|error| format!("invalid cached price for {instrument_id}: {error}"))?;
+            let last_price = tick.price;
             let volume = tick
                 .volume
                 .as_str()

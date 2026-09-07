@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::{Decimal, DecimalTradingExt};
 
 use crate::BacktestError;
 use crate::fees::{AppliedFees, FeeEngine};
@@ -46,44 +46,44 @@ struct OrderRecord {
     client_order_id: String,
     side: String,
     order_type: String,
-    quantity: Fixed8,
-    limit_price: Fixed8,
-    stop_price: Fixed8,
+    quantity: Decimal,
+    limit_price: Decimal,
+    stop_price: Decimal,
     reduce_only: bool,
     parent_order_id: u64,
     oco_group_id: String,
     has_children: bool,
     stop_triggered: bool,
-    remaining: Fixed8,
-    filled: Fixed8,
-    filled_notional: Fixed8,
-    average_price: Fixed8,
+    remaining: Decimal,
+    filled: Decimal,
+    filled_notional: Decimal,
+    average_price: Decimal,
     status: Status,
     submitted_at: String,
     filled_at: String,
-    closing_quantity: Fixed8,
-    closing_pnl: Fixed8,
+    closing_quantity: Decimal,
+    closing_pnl: Decimal,
     closing_finalized: bool,
 }
 
 struct FillEvent {
     trade_id: u64,
-    price: Fixed8,
-    quantity: Fixed8,
-    quote_quantity: Fixed8,
+    price: Decimal,
+    quantity: Decimal,
+    quote_quantity: Decimal,
     time: String,
     fees: AppliedFees,
-    realized_pnl: Fixed8,
+    realized_pnl: Decimal,
 }
 
 struct Engine<'a> {
     case: &'a BacktestCase,
-    cash: Fixed8,
-    base_position: Fixed8,
-    accounting_position: Fixed8,
-    average_entry_price: Fixed8,
+    cash: Decimal,
+    base_position: Decimal,
+    accounting_position: Decimal,
+    average_entry_price: Decimal,
     position_cost_known: bool,
-    realized_pnl: Fixed8,
+    realized_pnl: Decimal,
     orders: Vec<OrderRecord>,
     matching_order: Vec<usize>,
     order_index_by_client_id: HashMap<String, usize>,
@@ -96,7 +96,7 @@ struct Engine<'a> {
     next_order_id: u64,
     next_trade_id: u64,
     current_bar: Option<&'a Candle>,
-    current_bar_budget: Fixed8,
+    current_bar_budget: Decimal,
     total_trades: usize,
     winning_trades: usize,
 }
@@ -106,11 +106,11 @@ impl<'a> Engine<'a> {
         Self {
             case,
             cash: case.initial_balance,
-            base_position: Fixed8::ZERO,
-            accounting_position: Fixed8::ZERO,
-            average_entry_price: Fixed8::ZERO,
+            base_position: Decimal::ZERO,
+            accounting_position: Decimal::ZERO,
+            average_entry_price: Decimal::ZERO,
             position_cost_known: false,
-            realized_pnl: Fixed8::ZERO,
+            realized_pnl: Decimal::ZERO,
             orders: Vec::new(),
             matching_order: Vec::new(),
             order_index_by_client_id: HashMap::new(),
@@ -123,7 +123,7 @@ impl<'a> Engine<'a> {
             next_order_id: INITIAL_ORDER_ID,
             next_trade_id: INITIAL_TRADE_ID,
             current_bar: None,
-            current_bar_budget: Fixed8::ZERO,
+            current_bar_budget: Decimal::ZERO,
             total_trades: 0,
             winning_trades: 0,
         }
@@ -131,8 +131,11 @@ impl<'a> Engine<'a> {
 
     fn consume_bar(&mut self, candle: &'a Candle) -> Result<(), BacktestError> {
         self.current_bar = Some(candle);
-        self.current_bar_budget = candle.volume.checked_mul("0.1".parse()?)?;
-        if candle.volume <= Fixed8::ZERO && self.has_pending_orders() {
+        self.current_bar_budget = candle
+            .volume
+            .checked_mul(Decimal::new(1, 1))
+            .ok_or_else(|| BacktestError::Arithmetic("current_bar_budget overflow".into()))?;
+        if candle.volume <= Decimal::ZERO && self.has_pending_orders() {
             self.warn_once(
                 format!("zero-volume|{}", self.case.symbol),
                 format!(
@@ -144,7 +147,7 @@ impl<'a> Engine<'a> {
             let matching_order = self.matching_order.clone();
             for order_index in matching_order {
                 self.try_fill(order_index, candle, MatchMode::FullBar)?;
-                if self.current_bar_budget <= Fixed8::ZERO {
+                if self.current_bar_budget <= Decimal::ZERO {
                     break;
                 }
             }
@@ -263,14 +266,14 @@ impl<'a> Engine<'a> {
             has_children: false,
             stop_triggered: false,
             remaining: intent.quantity,
-            filled: Fixed8::ZERO,
-            filled_notional: Fixed8::ZERO,
-            average_price: Fixed8::ZERO,
+            filled: Decimal::ZERO,
+            filled_notional: Decimal::ZERO,
+            average_price: Decimal::ZERO,
             status: Status::New,
             submitted_at,
             filled_at: String::new(),
-            closing_quantity: Fixed8::ZERO,
-            closing_pnl: Fixed8::ZERO,
+            closing_quantity: Decimal::ZERO,
+            closing_pnl: Decimal::ZERO,
             closing_finalized: false,
         });
         self.order_index_by_client_id
@@ -293,7 +296,7 @@ impl<'a> Engine<'a> {
         candle: &Candle,
         mode: MatchMode,
     ) -> Result<(), BacktestError> {
-        if self.orders[order_index].remaining <= Fixed8::ZERO {
+        if self.orders[order_index].remaining <= Decimal::ZERO {
             return Ok(());
         }
         let parent_order_id = self.orders[order_index].parent_order_id;
@@ -305,13 +308,13 @@ impl<'a> Engine<'a> {
         {
             return Ok(());
         }
-        if self.current_bar_budget <= Fixed8::ZERO {
+        if self.current_bar_budget <= Decimal::ZERO {
             return Ok(());
         }
         let Some(price) = self.match_price(order_index, candle, mode)? else {
             return Ok(());
         };
-        if price <= Fixed8::ZERO {
+        if price <= Decimal::ZERO {
             return Ok(());
         }
         let mut quantity = self.orders[order_index]
@@ -319,14 +322,14 @@ impl<'a> Engine<'a> {
             .min(self.current_bar_budget);
         if self.orders[order_index].reduce_only {
             let reducible = self.reduce_only_quantity(&self.orders[order_index].side)?;
-            if reducible <= Fixed8::ZERO {
+            if reducible <= Decimal::ZERO {
                 self.cancel_order(order_index, event_time(candle, mode))?;
                 return Ok(());
             }
             quantity = quantity.min(reducible);
         }
         quantity = quantity.truncate_to_increment(self.case.market.quantity_step)?;
-        if quantity <= Fixed8::ZERO {
+        if quantity <= Decimal::ZERO {
             self.warn_once(
                 format!("liquidity-step|{}", self.case.symbol),
                 format!(
@@ -336,7 +339,7 @@ impl<'a> Engine<'a> {
             );
             return Ok(());
         }
-        if self.case.market.min_quantity > Fixed8::ZERO && quantity < self.case.market.min_quantity
+        if self.case.market.min_quantity > Decimal::ZERO && quantity < self.case.market.min_quantity
         {
             self.warn_once(
                 format!("liquidity-min|{}", self.case.symbol),
@@ -350,7 +353,10 @@ impl<'a> Engine<'a> {
             return Ok(());
         }
         self.apply_fill(order_index, quantity, price, event_time(candle, mode))?;
-        self.current_bar_budget = self.current_bar_budget.checked_sub(quantity)?;
+        self.current_bar_budget = self
+            .current_bar_budget
+            .checked_sub(quantity)
+            .ok_or_else(|| BacktestError::Arithmetic("current_bar_budget underflow".into()))?;
         Ok(())
     }
 
@@ -359,7 +365,7 @@ impl<'a> Engine<'a> {
         order_index: usize,
         candle: &Candle,
         mode: MatchMode,
-    ) -> Result<Option<Fixed8>, BacktestError> {
+    ) -> Result<Option<Decimal>, BacktestError> {
         let order = &self.orders[order_index];
         match order.order_type.as_str() {
             "market" => {
@@ -410,20 +416,34 @@ impl<'a> Engine<'a> {
     fn apply_fill(
         &mut self,
         order_index: usize,
-        quantity: Fixed8,
-        price: Fixed8,
+        quantity: Decimal,
+        price: Decimal,
         at: String,
     ) -> Result<(), BacktestError> {
-        let quote_quantity = quantity.checked_mul(price)?;
+        let quote_quantity = quantity
+            .checked_mul(price)
+            .ok_or_else(|| BacktestError::Arithmetic("quote_quantity overflow".into()))?;
         let side = self.orders[order_index].side.clone();
         match side.as_str() {
             "buy" => {
-                self.cash = self.cash.checked_sub(quote_quantity)?;
-                self.base_position = self.base_position.checked_add(quantity)?;
+                self.cash = self
+                    .cash
+                    .checked_sub(quote_quantity)
+                    .ok_or_else(|| BacktestError::Arithmetic("cash underflow".into()))?;
+                self.base_position = self
+                    .base_position
+                    .checked_add(quantity)
+                    .ok_or_else(|| BacktestError::Arithmetic("base_position overflow".into()))?;
             }
             "sell" => {
-                self.cash = self.cash.checked_add(quote_quantity)?;
-                self.base_position = self.base_position.checked_sub(quantity)?;
+                self.cash = self
+                    .cash
+                    .checked_add(quote_quantity)
+                    .ok_or_else(|| BacktestError::Arithmetic("cash overflow".into()))?;
+                self.base_position = self
+                    .base_position
+                    .checked_sub(quantity)
+                    .ok_or_else(|| BacktestError::Arithmetic("base_position underflow".into()))?;
             }
             _ => {
                 return Err(BacktestError::InvalidInput(format!(
@@ -432,15 +452,27 @@ impl<'a> Engine<'a> {
             }
         }
         let (closed_quantity, realized) = self.apply_position_fill(&side, quantity, price)?;
-        self.realized_pnl = self.realized_pnl.checked_add(realized)?;
+        self.realized_pnl = self
+            .realized_pnl
+            .checked_add(realized)
+            .ok_or_else(|| BacktestError::Arithmetic("realized_pnl overflow".into()))?;
         let order_id = self.orders[order_index].order_id;
         let fees = self.fee_engine.apply(order_id, &side, price, quantity)?;
-        self.cash = self.cash.checked_sub(fees.total)?;
+        self.cash = self
+            .cash
+            .checked_sub(fees.total)
+            .ok_or_else(|| BacktestError::Arithmetic("cash fee deduction underflow".into()))?;
         self.update_filled_order(order_index, quantity, quote_quantity, at.clone())?;
-        if closed_quantity > Fixed8::ZERO {
+        if closed_quantity > Decimal::ZERO {
             let order = &mut self.orders[order_index];
-            order.closing_quantity = order.closing_quantity.checked_add(closed_quantity)?;
-            order.closing_pnl = order.closing_pnl.checked_add(realized)?;
+            order.closing_quantity = order
+                .closing_quantity
+                .checked_add(closed_quantity)
+                .ok_or_else(|| BacktestError::Arithmetic("closing_quantity overflow".into()))?;
+            order.closing_pnl = order
+                .closing_pnl
+                .checked_add(realized)
+                .ok_or_else(|| BacktestError::Arithmetic("closing_pnl overflow".into()))?;
         }
         self.next_trade_id = self
             .next_trade_id
@@ -460,7 +492,7 @@ impl<'a> Engine<'a> {
             },
         ));
         let order_closed = order.status.closed();
-        let cancel_oco = !order.oco_group_id.is_empty() && order.filled > Fixed8::ZERO;
+        let cancel_oco = !order.oco_group_id.is_empty() && order.filled > Decimal::ZERO;
         if order_closed {
             self.finalize_closing_order(order_index);
         }
@@ -473,17 +505,31 @@ impl<'a> Engine<'a> {
     fn update_filled_order(
         &mut self,
         order_index: usize,
-        quantity: Fixed8,
-        quote_quantity: Fixed8,
+        quantity: Decimal,
+        quote_quantity: Decimal,
         at: String,
     ) -> Result<(), BacktestError> {
         let order = &mut self.orders[order_index];
-        order.filled = order.filled.checked_add(quantity)?;
-        order.remaining = order.remaining.checked_sub(quantity)?;
-        order.filled_notional = order.filled_notional.checked_add(quote_quantity)?;
-        order.average_price = order.filled_notional.checked_div(order.filled)?;
+        order.filled = order
+            .filled
+            .checked_add(quantity)
+            .ok_or_else(|| BacktestError::Arithmetic("order filled overflow".into()))?;
+        order.remaining = order
+            .remaining
+            .checked_sub(quantity)
+            .ok_or_else(|| BacktestError::Arithmetic("order remaining underflow".into()))?;
+        order.filled_notional = order
+            .filled_notional
+            .checked_add(quote_quantity)
+            .ok_or_else(|| BacktestError::Arithmetic("order filled_notional overflow".into()))?;
+        order.average_price = order
+            .filled_notional
+            .checked_div(order.filled)
+            .ok_or_else(|| {
+                BacktestError::Arithmetic("order average_price division error".into())
+            })?;
         order.filled_at = at;
-        order.status = if order.remaining > Fixed8::ZERO {
+        order.status = if order.remaining > Decimal::ZERO {
             Status::PartiallyFilled
         } else {
             Status::Filled
@@ -494,55 +540,68 @@ impl<'a> Engine<'a> {
     fn apply_position_fill(
         &mut self,
         side: &str,
-        quantity: Fixed8,
-        price: Fixed8,
-    ) -> Result<(Fixed8, Fixed8), BacktestError> {
-        let delta = if side == "sell" {
-            quantity.checked_neg()?
-        } else {
-            quantity
-        };
+        quantity: Decimal,
+        price: Decimal,
+    ) -> Result<(Decimal, Decimal), BacktestError> {
+        let delta = if side == "sell" { -quantity } else { quantity };
         let current = self.accounting_position;
-        if current.is_zero() || current.signum() == delta.signum() {
-            let next = current.checked_add(delta)?;
+        if current.is_zero()
+            || (current > Decimal::ZERO && delta > Decimal::ZERO)
+            || (current < Decimal::ZERO && delta < Decimal::ZERO)
+        {
+            let next = current
+                .checked_add(delta)
+                .ok_or_else(|| BacktestError::Arithmetic("position delta overflow".into()))?;
             if current.is_zero() {
                 self.average_entry_price = price;
-                self.position_cost_known = price > Fixed8::ZERO;
-            } else if self.position_cost_known && price > Fixed8::ZERO {
+                self.position_cost_known = price > Decimal::ZERO;
+            } else if self.position_cost_known && price > Decimal::ZERO {
                 let current_cost = self
                     .average_entry_price
-                    .checked_mul(current.checked_abs()?)?;
-                let fill_cost = price.checked_mul(quantity)?;
+                    .checked_mul(current.abs())
+                    .ok_or_else(|| BacktestError::Arithmetic("current_cost overflow".into()))?;
+                let fill_cost = price
+                    .checked_mul(quantity)
+                    .ok_or_else(|| BacktestError::Arithmetic("fill_cost overflow".into()))?;
                 self.average_entry_price = current_cost
-                    .checked_add(fill_cost)?
-                    .checked_div(next.checked_abs()?)?;
+                    .checked_add(fill_cost)
+                    .and_then(|tot| tot.checked_div(next.abs()))
+                    .ok_or_else(|| {
+                        BacktestError::Arithmetic("average_entry_price overflow".into())
+                    })?;
             } else {
-                self.average_entry_price = Fixed8::ZERO;
+                self.average_entry_price = Decimal::ZERO;
                 self.position_cost_known = false;
             }
             self.accounting_position = next;
-            return Ok((Fixed8::ZERO, Fixed8::ZERO));
+            return Ok((Decimal::ZERO, Decimal::ZERO));
         }
-        let closed_quantity = quantity.min(current.checked_abs()?);
-        let realized = if !self.position_cost_known || price <= Fixed8::ZERO {
-            Fixed8::ZERO
-        } else if current > Fixed8::ZERO {
+        let closed_quantity = quantity.min(current.abs());
+        let realized = if !self.position_cost_known || price <= Decimal::ZERO {
+            Decimal::ZERO
+        } else if current > Decimal::ZERO {
             price
-                .checked_sub(self.average_entry_price)?
-                .checked_mul(closed_quantity)?
+                .checked_sub(self.average_entry_price)
+                .and_then(|p| p.checked_mul(closed_quantity))
+                .ok_or_else(|| BacktestError::Arithmetic("realized pnl overflow".into()))?
         } else {
             self.average_entry_price
-                .checked_sub(price)?
-                .checked_mul(closed_quantity)?
+                .checked_sub(price)
+                .and_then(|p| p.checked_mul(closed_quantity))
+                .ok_or_else(|| BacktestError::Arithmetic("realized pnl overflow".into()))?
         };
-        let next = current.checked_add(delta)?;
+        let next = current
+            .checked_add(delta)
+            .ok_or_else(|| BacktestError::Arithmetic("position delta overflow".into()))?;
         self.accounting_position = next;
         if next.is_zero() {
-            self.average_entry_price = Fixed8::ZERO;
+            self.average_entry_price = Decimal::ZERO;
             self.position_cost_known = false;
-        } else if next.signum() != current.signum() {
+        } else if (next > Decimal::ZERO && current < Decimal::ZERO)
+            || (next < Decimal::ZERO && current > Decimal::ZERO)
+        {
             self.average_entry_price = price;
-            self.position_cost_known = price > Fixed8::ZERO;
+            self.position_cost_known = price > Decimal::ZERO;
         }
         Ok((closed_quantity, realized))
     }
@@ -569,11 +628,11 @@ impl<'a> Engine<'a> {
     }
 
     fn cancel_order(&mut self, order_index: usize, at: String) -> Result<(), BacktestError> {
-        if self.orders[order_index].remaining <= Fixed8::ZERO {
+        if self.orders[order_index].remaining <= Decimal::ZERO {
             return Ok(());
         }
         let parent_order_id = self.orders[order_index].order_id;
-        self.orders[order_index].remaining = Fixed8::ZERO;
+        self.orders[order_index].remaining = Decimal::ZERO;
         self.orders[order_index].status = Status::Cancelled;
         self.orders[order_index].filled_at = at.clone();
         self.finalize_closing_order(order_index);
@@ -582,7 +641,7 @@ impl<'a> Engine<'a> {
             .iter()
             .enumerate()
             .filter_map(|(index, order)| {
-                (order.parent_order_id == parent_order_id && order.remaining > Fixed8::ZERO)
+                (order.parent_order_id == parent_order_id && order.remaining > Decimal::ZERO)
                     .then_some(index)
             })
             .collect();
@@ -602,7 +661,7 @@ impl<'a> Engine<'a> {
             .filter_map(|(index, order)| {
                 (index != filled_index
                     && order.oco_group_id == group
-                    && order.remaining > Fixed8::ZERO)
+                    && order.remaining > Decimal::ZERO)
                     .then_some(index)
             })
             .collect();
@@ -614,49 +673,52 @@ impl<'a> Engine<'a> {
 
     fn finalize_closing_order(&mut self, order_index: usize) {
         let order = &mut self.orders[order_index];
-        if order.closing_finalized || order.closing_quantity <= Fixed8::ZERO {
+        if order.closing_finalized || order.closing_quantity <= Decimal::ZERO {
             return;
         }
         order.closing_finalized = true;
         self.total_trades += 1;
-        if order.closing_pnl > Fixed8::ZERO {
+        if order.closing_pnl > Decimal::ZERO {
             self.winning_trades += 1;
         }
     }
 
-    fn reduce_only_quantity(&self, side: &str) -> Result<Fixed8, BacktestError> {
+    fn reduce_only_quantity(&self, side: &str) -> Result<Decimal, BacktestError> {
         match side {
-            "sell" if self.base_position > Fixed8::ZERO => self
-                .base_position
-                .checked_abs()
-                .map_err(BacktestError::from),
-            "buy" if self.base_position < Fixed8::ZERO => self
-                .base_position
-                .checked_abs()
-                .map_err(BacktestError::from),
-            "buy" | "sell" => Ok(Fixed8::ZERO),
+            "sell" if self.base_position > Decimal::ZERO => Ok(self.base_position.abs()),
+            "buy" if self.base_position < Decimal::ZERO => Ok(self.base_position.abs()),
+            "buy" | "sell" => Ok(Decimal::ZERO),
             _ => Err(BacktestError::InvalidInput(format!(
                 "unsupported side {side}"
             ))),
         }
     }
 
-    fn apply_slippage(&self, side: &str, price: Fixed8) -> Result<Fixed8, BacktestError> {
+    fn apply_slippage(&self, side: &str, price: Decimal) -> Result<Decimal, BacktestError> {
         if self.case.slippage_ticks == 0
-            || price <= Fixed8::ZERO
-            || self.case.market.tick_size <= Fixed8::ZERO
+            || price <= Decimal::ZERO
+            || self.case.market.tick_size <= Decimal::ZERO
         {
             return Ok(price);
         }
-        let ticks: Fixed8 = self.case.slippage_ticks.to_string().parse()?;
-        let offset = self.case.market.tick_size.checked_mul(ticks)?;
+        let ticks = Decimal::from(self.case.slippage_ticks);
+        let offset = self
+            .case
+            .market
+            .tick_size
+            .checked_mul(ticks)
+            .ok_or_else(|| BacktestError::Arithmetic("slippage offset overflow".into()))?;
         let slipped = if side == "buy" {
-            price.checked_add(offset)?
+            price
+                .checked_add(offset)
+                .ok_or_else(|| BacktestError::Arithmetic("slippage add overflow".into()))?
         } else {
-            price.checked_sub(offset)?
+            price
+                .checked_sub(offset)
+                .ok_or_else(|| BacktestError::Arithmetic("slippage sub underflow".into()))?
         };
-        if slipped <= Fixed8::ZERO {
-            return Ok(Fixed8::ZERO);
+        if slipped <= Decimal::ZERO {
+            return Ok(Decimal::ZERO);
         }
         slipped
             .truncate_to_increment(self.case.market.tick_size)
@@ -664,12 +726,17 @@ impl<'a> Engine<'a> {
     }
 
     fn record_equity(&mut self, candle: &Candle) -> Result<(), BacktestError> {
+        let position_val = self
+            .base_position
+            .checked_mul(candle.close)
+            .ok_or_else(|| BacktestError::Arithmetic("position notional overflow".into()))?;
         let equity = self
             .cash
-            .checked_add(self.base_position.checked_mul(candle.close)?)?;
+            .checked_add(position_val)
+            .ok_or_else(|| BacktestError::Arithmetic("equity overflow".into()))?;
         self.equity_curve.push(EquityPoint {
             time: candle.end.to_string(),
-            equity: equity.storage_text(),
+            equity: equity.to_storage_text(),
         });
         Ok(())
     }
@@ -688,7 +755,7 @@ impl<'a> Engine<'a> {
     fn has_pending_orders(&self) -> bool {
         self.orders
             .iter()
-            .any(|order| order.remaining > Fixed8::ZERO)
+            .any(|order| order.remaining > Decimal::ZERO)
     }
 
     fn warn_once(&mut self, key: String, message: String) {
@@ -722,12 +789,17 @@ pub(crate) fn run_case(case: &BacktestCase) -> Result<BacktestOutput, BacktestEr
     let last_close = case
         .candles
         .get(processed_bars.saturating_sub(1))
-        .map_or(Fixed8::ZERO, |candle| candle.close);
+        .map_or(Decimal::ZERO, |candle| candle.close);
+    let position_val = engine
+        .base_position
+        .checked_mul(last_close)
+        .ok_or_else(|| BacktestError::Arithmetic("last position value overflow".into()))?;
     let final_equity = engine
         .cash
-        .checked_add(engine.base_position.checked_mul(last_close)?)?;
+        .checked_add(position_val)
+        .ok_or_else(|| BacktestError::Arithmetic("final equity overflow".into()))?;
     let (max_drawdown, current_drawdown, drawdown_curve) = drawdown_metrics(&engine.equity_curve)?;
-    let closes: Vec<Fixed8> = case
+    let closes: Vec<Decimal> = case
         .candles
         .iter()
         .take(processed_bars)
@@ -736,23 +808,27 @@ pub(crate) fn run_case(case: &BacktestCase) -> Result<BacktestOutput, BacktestEr
     let total_fees = engine
         .fee_engine
         .broker_total()
-        .checked_add(engine.fee_engine.market_total())?;
+        .checked_add(engine.fee_engine.market_total())
+        .ok_or_else(|| BacktestError::Arithmetic("total fees overflow".into()))?;
     let win_rate = if engine.total_trades == 0 {
         "0".to_owned()
     } else {
-        metric_text(engine.winning_trades as f64 / engine.total_trades as f64)
+        let rate = Decimal::from(engine.winning_trades)
+            .checked_div(Decimal::from(engine.total_trades))
+            .ok_or_else(|| BacktestError::Arithmetic("win rate division error".into()))?;
+        metric_text(rate)
     };
     let mut output = BacktestOutput {
         id: case.id.clone(),
         status,
         processed_bars,
-        cash: engine.cash.storage_text(),
-        base_position: engine.base_position.storage_text(),
-        final_equity: final_equity.storage_text(),
-        realized_pnl: engine.realized_pnl.storage_text(),
-        total_broker_fees: engine.fee_engine.broker_total().storage_text(),
-        total_market_fees: engine.fee_engine.market_total().storage_text(),
-        total_fees: total_fees.storage_text(),
+        cash: engine.cash.to_storage_text(),
+        base_position: engine.base_position.to_storage_text(),
+        final_equity: final_equity.to_storage_text(),
+        realized_pnl: engine.realized_pnl.to_storage_text(),
+        total_broker_fees: engine.fee_engine.broker_total().to_storage_text(),
+        total_market_fees: engine.fee_engine.market_total().to_storage_text(),
+        total_fees: total_fees.to_storage_text(),
         total_fills: engine.fills.len(),
         total_trades: engine.total_trades,
         winning_trades: engine.winning_trades,
@@ -778,18 +854,18 @@ fn fill_output(order: &OrderRecord, event: FillEvent) -> FillOutput {
         order_id: order.order_id.to_string(),
         client_order_id: order.client_order_id.clone(),
         side: order.side.clone(),
-        price: event.price.storage_text(),
-        quantity: event.quantity.storage_text(),
-        quote_quantity: event.quote_quantity.storage_text(),
+        price: event.price.to_storage_text(),
+        quantity: event.quantity.to_storage_text(),
+        quote_quantity: event.quote_quantity.to_storage_text(),
         time: event.time,
         maker: matches!(
             order.order_type.as_str(),
             "limit" | "limit_maker" | "stop_limit"
         ),
-        broker_fee: event.fees.broker.storage_text(),
-        market_fee: event.fees.market.storage_text(),
-        total_fee: event.fees.total.storage_text(),
-        realized_pnl: event.realized_pnl.storage_text(),
+        broker_fee: event.fees.broker.to_storage_text(),
+        market_fee: event.fees.market.to_storage_text(),
+        total_fee: event.fees.total.to_storage_text(),
+        realized_pnl: event.realized_pnl.to_storage_text(),
     }
 }
 
@@ -799,10 +875,10 @@ fn order_output(order: &OrderRecord) -> OrderOutput {
         client_order_id: order.client_order_id.clone(),
         side: order.side.clone(),
         order_type: order.order_type.clone(),
-        quantity: order.quantity.storage_text(),
+        quantity: order.quantity.to_storage_text(),
         status: order.status.text().to_owned(),
-        filled_quantity: order.filled.storage_text(),
-        filled_price: order.average_price.storage_text(),
+        filled_quantity: order.filled.to_storage_text(),
+        filled_price: order.average_price.to_storage_text(),
         submitted_at: order.submitted_at.clone(),
         filled_at: order.filled_at.clone(),
         reduce_only: order.reduce_only,

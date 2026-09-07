@@ -10,7 +10,7 @@
     },
     {
       "path": "provider-lifecycle-corpus.expected.json",
-      "sha256": "1018c1fd31069c3db2f0fd9ea6192cd9d52e108cd5c0131e51c956a0b46fe519"
+      "sha256": "b40722f9f883abec6c452dbc383442bc3004e0eaf9a74d26eb7190b4d417665e"
     },
     {
       "path": "resource-baseline.darwin-arm64.json",

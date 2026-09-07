@@ -1,7 +1,7 @@
-use jftrade_kernel::Fixed8;
 use jftrade_trading::{
     HardStop, PreTradeRiskOrder, PreTradeRiskPolicy, TradingEnvironment, evaluate_pre_trade_risk,
 };
+use rust_decimal::Decimal;
 use std::str::FromStr;
 
 fn test_order(environment: TradingEnvironment) -> PreTradeRiskOrder {
@@ -16,8 +16,8 @@ fn test_order(environment: TradingEnvironment) -> PreTradeRiskOrder {
         order_kind: "single".to_owned(),
         product_class: "equity".to_owned(),
         quantity_mode: "units".to_owned(),
-        quantity: Fixed8::from_str("10").unwrap(),
-        price: Some(Fixed8::from_str("150").unwrap()),
+        quantity: Decimal::from_str("10").unwrap(),
+        price: Some(Decimal::from_str("150").unwrap()),
         amount: None,
         legs: Vec::new(),
     }
@@ -28,8 +28,8 @@ fn valid_policy() -> PreTradeRiskPolicy {
         control_plane_available: true,
         real_trading_enabled: true,
         kill_switch_active: false,
-        effective_max_order_quantity: Some(Fixed8::from_str("100").unwrap()),
-        effective_max_order_notional: Some(Fixed8::from_str("50000").unwrap()),
+        effective_max_order_quantity: Some(Decimal::from_str("100").unwrap()),
+        effective_max_order_notional: Some(Decimal::from_str("50000").unwrap()),
         hard_stops: Vec::new(),
     }
 }
@@ -38,7 +38,7 @@ fn valid_policy() -> PreTradeRiskPolicy {
 fn pre_trade_risk_rejects_non_positive_quantity_in_units_mode() {
     let policy = valid_policy();
     let mut order = test_order(TradingEnvironment::Simulate);
-    order.quantity = Fixed8::ZERO;
+    order.quantity = Decimal::ZERO;
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
     assert_eq!(
@@ -60,7 +60,7 @@ fn pre_trade_risk_rejects_missing_or_negative_amount_in_amount_mode() {
         Some("INVALID_ORDER_RISK_SHAPE")
     );
 
-    order.amount = Some(Fixed8::ZERO);
+    order.amount = Some(Decimal::ZERO);
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
     assert_eq!(
@@ -143,7 +143,7 @@ fn pre_trade_risk_fails_when_hard_stop_matches() {
 #[test]
 fn pre_trade_risk_enforces_quantity_limit() {
     let mut policy = valid_policy();
-    policy.effective_max_order_quantity = Some(Fixed8::from_str("5").unwrap());
+    policy.effective_max_order_quantity = Some(Decimal::from_str("5").unwrap());
     let order = test_order(TradingEnvironment::Real); // qty 10
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
@@ -156,7 +156,7 @@ fn pre_trade_risk_enforces_quantity_limit() {
 #[test]
 fn pre_trade_risk_requires_price_for_notional_limit() {
     let mut policy = valid_policy();
-    policy.effective_max_order_notional = Some(Fixed8::from_str("1000").unwrap());
+    policy.effective_max_order_notional = Some(Decimal::from_str("1000").unwrap());
     let mut order = test_order(TradingEnvironment::Real);
     order.price = None;
     let decision = evaluate_pre_trade_risk(&policy, &order);
@@ -170,11 +170,11 @@ fn pre_trade_risk_requires_price_for_notional_limit() {
 #[test]
 fn pre_trade_risk_enforces_notional_limit_with_option_multiplier() {
     let mut policy = valid_policy();
-    policy.effective_max_order_notional = Some(Fixed8::from_str("5000").unwrap());
+    policy.effective_max_order_notional = Some(Decimal::from_str("5000").unwrap());
     let mut order = test_order(TradingEnvironment::Real);
     order.product_class = "option".to_owned();
-    order.quantity = Fixed8::from_str("1").unwrap();
-    order.price = Some(Fixed8::from_str("60").unwrap());
+    order.quantity = Decimal::from_str("1").unwrap();
+    order.price = Some(Decimal::from_str("60").unwrap());
     // 1 contract * $60 * 100 multiplier = $6,000 > $5,000 limit
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
@@ -184,7 +184,7 @@ fn pre_trade_risk_enforces_notional_limit_with_option_multiplier() {
     );
 
     // 1 contract * $40 * 100 multiplier = $4,000 <= $5,000 limit
-    order.price = Some(Fixed8::from_str("40").unwrap());
+    order.price = Some(Decimal::from_str("40").unwrap());
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(decision.allowed);
 }
@@ -194,7 +194,7 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
     use jftrade_trading::PreTradeRiskComboLeg;
 
     let mut policy = valid_policy();
-    policy.effective_max_order_notional = Some(Fixed8::from_str("10000").unwrap());
+    policy.effective_max_order_notional = Some(Decimal::from_str("10000").unwrap());
     policy.hard_stops = vec![HardStop {
         id: None,
         broker_id: None,
@@ -212,18 +212,18 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
             symbol: "AAPL".to_owned(),
             market: "US".to_owned(),
             side: "BUY".to_owned(),
-            quantity: Fixed8::from_str("1").unwrap(),
-            multiplier: Fixed8::from_str("100").unwrap(),
-            price: Some(Fixed8::from_str("40").unwrap()), // $4,000
+            quantity: Decimal::from_str("1").unwrap(),
+            multiplier: Decimal::from_str("100").unwrap(),
+            price: Some(Decimal::from_str("40").unwrap()), // $4,000
             product_class: "option".to_owned(),
         },
         PreTradeRiskComboLeg {
             symbol: "NVDA".to_owned(),
             market: "US".to_owned(),
             side: "SELL".to_owned(),
-            quantity: Fixed8::from_str("2").unwrap(),
-            multiplier: Fixed8::from_str("100").unwrap(),
-            price: Some(Fixed8::from_str("35").unwrap()), // $7,000
+            quantity: Decimal::from_str("2").unwrap(),
+            multiplier: Decimal::from_str("100").unwrap(),
+            price: Some(Decimal::from_str("35").unwrap()), // $7,000
             product_class: "option".to_owned(),
         },
     ];
@@ -233,7 +233,7 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
     assert!(decision.allowed);
 
     // Directional net notional exceeding limit: BUY $20,000, SELL $7,000 -> Net $13,000 > $10,000 limit
-    order.legs[0].price = Some(Fixed8::from_str("200").unwrap());
+    order.legs[0].price = Some(Decimal::from_str("200").unwrap());
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
     assert_eq!(
@@ -242,7 +242,7 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
     );
 
     // Leg price unavailable with NO combo price fails closed
-    order.legs[0].price = Some(Fixed8::from_str("40").unwrap());
+    order.legs[0].price = Some(Decimal::from_str("40").unwrap());
     order.legs[1].price = None;
     order.price = None;
     let decision = evaluate_pre_trade_risk(&policy, &order);
@@ -253,13 +253,13 @@ fn pre_trade_risk_enforces_combo_multi_leg_notional_and_hard_stops() {
     );
 
     // Leg price unavailable WITH combo price uses combo price ($50 * 1 contract * 100 = $5,000 <= $10,000 limit)
-    order.quantity = Fixed8::from_str("1").unwrap();
-    order.price = Some(Fixed8::from_str("50").unwrap());
+    order.quantity = Decimal::from_str("1").unwrap();
+    order.price = Some(Decimal::from_str("50").unwrap());
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(decision.allowed);
 
     // Leg matching hard stop rejects combo
-    order.legs[1].price = Some(Fixed8::from_str("10").unwrap());
+    order.legs[1].price = Some(Decimal::from_str("10").unwrap());
     order.legs[1].symbol = "TSLA".to_owned(); // Matches hard stop!
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
@@ -274,21 +274,21 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
     use jftrade_trading::PreTradeRiskComboLeg;
 
     let mut policy = valid_policy();
-    policy.effective_max_order_notional = Some(Fixed8::from_str("10000").unwrap());
-    policy.effective_max_order_quantity = Some(Fixed8::from_str("50").unwrap());
+    policy.effective_max_order_notional = Some(Decimal::from_str("10000").unwrap());
+    policy.effective_max_order_quantity = Some(Decimal::from_str("50").unwrap());
 
     let mut order = test_order(TradingEnvironment::Real);
     order.order_kind = "combo".to_owned();
     order.quantity_mode = "amount".to_owned();
-    order.amount = Some(Fixed8::from_str("8000").unwrap());
+    order.amount = Some(Decimal::from_str("8000").unwrap());
     order.price = None;
     order.legs = vec![
         PreTradeRiskComboLeg {
             symbol: "AAPL".to_owned(),
             market: "US".to_owned(),
             side: "BUY".to_owned(),
-            quantity: Fixed8::ZERO,
-            multiplier: Fixed8::from_str("100").unwrap(),
+            quantity: Decimal::ZERO,
+            multiplier: Decimal::from_str("100").unwrap(),
             price: None, // No price required in amount mode
             product_class: "option".to_owned(),
         },
@@ -296,8 +296,8 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
             symbol: "NVDA".to_owned(),
             market: "US".to_owned(),
             side: "SELL".to_owned(),
-            quantity: Fixed8::ZERO,
-            multiplier: Fixed8::from_str("100").unwrap(),
+            quantity: Decimal::ZERO,
+            multiplier: Decimal::from_str("100").unwrap(),
             price: None, // No price required in amount mode
             product_class: "option".to_owned(),
         },
@@ -308,7 +308,7 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
     assert!(decision.allowed);
 
     // Amount $12,000 > $10,000 limit -> Rejects on notional limit
-    order.amount = Some(Fixed8::from_str("12000").unwrap());
+    order.amount = Some(Decimal::from_str("12000").unwrap());
     let decision = evaluate_pre_trade_risk(&policy, &order);
     assert!(!decision.allowed);
     assert_eq!(

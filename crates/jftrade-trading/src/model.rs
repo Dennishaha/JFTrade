@@ -1,4 +1,5 @@
-use jftrade_kernel::{Fixed8, WireTimestamp};
+use jftrade_kernel::WireTimestamp;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -204,8 +205,8 @@ pub struct OrderCommand {
     pub market: String,
     pub symbol: String,
     pub side: OrderSide,
-    pub quantity: Fixed8,
-    pub price: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub price: Option<Decimal>,
     pub client_order_id: String,
 }
 
@@ -224,10 +225,10 @@ impl OrderCommand {
                 return Err(TradingError::MissingField(field));
             }
         }
-        if self.quantity.signum() <= 0 {
+        if self.quantity <= Decimal::ZERO {
             return Err(TradingError::InvalidQuantity);
         }
-        if self.price.is_some_and(|price| price.signum() <= 0) {
+        if self.price.is_some_and(|price| price <= Decimal::ZERO) {
             return Err(TradingError::InvalidPrice);
         }
         Ok(())
@@ -242,9 +243,11 @@ impl OrderCommand {
             self.market.trim().to_ascii_uppercase(),
             self.symbol.trim().to_ascii_uppercase(),
             self.side.as_str(),
-            self.quantity,
-            self.price
-                .map_or_else(|| "market".to_owned(), |value| value.to_string()),
+            self.quantity.normalize(),
+            self.price.map_or_else(
+                || "market".to_owned(),
+                |value| value.normalize().to_string()
+            ),
             self.client_order_id.trim()
         )
     }
@@ -259,7 +262,7 @@ pub struct BrokerOrderEvent {
     pub sequence: u64,
     pub raw_status: String,
     pub fill_id: Option<String>,
-    pub fill_quantity: Option<Fixed8>,
+    pub fill_quantity: Option<Decimal>,
     pub occurred_at: WireTimestamp,
 }
 
@@ -291,7 +294,7 @@ pub struct ShadowCommandPlan {
 pub struct OrderProjection {
     pub broker_order_id: String,
     pub status: OrderStatus,
-    pub filled_quantity: Fixed8,
+    pub filled_quantity: Decimal,
     pub last_sequence: u64,
     pub accepted_events: usize,
     pub duplicate_events: usize,
@@ -318,7 +321,7 @@ pub enum TradingError {
     IdempotencyConflict,
     #[error("order event is invalid: {0}")]
     InvalidEvent(&'static str),
-    #[error("fixed-point arithmetic failed")]
+    #[error("decimal arithmetic failed")]
     Arithmetic,
     #[error("checkpoint is inconsistent: {0}")]
     InvalidCheckpoint(&'static str),

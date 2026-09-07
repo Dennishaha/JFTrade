@@ -18,7 +18,7 @@ mod product_production_assembly_tests {
         TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot,
         TradeOrderSnapshot, TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
     };
-    use jftrade_kernel::{Fixed8, WireTimestamp};
+    use jftrade_kernel::WireTimestamp;
     use jftrade_marketdata::{ProviderRouter, Tick};
     use jftrade_settings::MarketDataProvider;
     use serde_json::{Value, json};
@@ -426,7 +426,7 @@ mod product_production_assembly_tests {
             .insert(
                 Tick {
                     instrument_id: "US.AAPL".to_owned(),
-                    price: Fixed8::from_scaled(1_234_000_000),
+                    price: "12.34".parse().expect("price"),
                     volume: "100".parse().expect("volume"),
                     snapshot: None,
                     observed_at_ms: 1_700_000_000_000,

@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use jftrade_kernel::Fixed8;
 use jftrade_trading::{
     OrderCommand, OrderSide, RUNTIME_RISK_MODE_ENFORCE, RUNTIME_RISK_MODE_MONITOR,
     RUNTIME_RISK_MODE_OFF, RiskConfig, RiskEngine, RuntimeRiskContext, RuntimeRiskOrder,
     RuntimeRiskSettings, TradingEnvironment, evaluate_runtime_risk,
 };
+use rust_decimal::Decimal;
 
 fn command(environment: TradingEnvironment) -> OrderCommand {
     OrderCommand {
@@ -17,8 +17,8 @@ fn command(environment: TradingEnvironment) -> OrderCommand {
         market: "US".to_owned(),
         symbol: "AAPL".to_owned(),
         side: OrderSide::Buy,
-        quantity: Fixed8::from_str("11").expect("quantity"),
-        price: Some(Fixed8::from_str("10").expect("price")),
+        quantity: Decimal::from_str("11").expect("quantity"),
+        price: Some(Decimal::from_str("10").expect("price")),
         client_order_id: "client-1".to_owned(),
     }
 }
@@ -51,8 +51,8 @@ fn real_notional_uses_fixed_point_arithmetic() {
     let engine = RiskEngine::new(RiskConfig {
         real_trading_enabled: true,
         kill_switch_active: false,
-        max_order_quantity: Some(Fixed8::from_str("20").expect("maximum quantity")),
-        max_order_notional: Some(Fixed8::from_str("100").expect("maximum notional")),
+        max_order_quantity: Some(Decimal::from_str("20").expect("maximum quantity")),
+        max_order_notional: Some(Decimal::from_str("100").expect("maximum notional")),
         hard_stops: Vec::new(),
     });
     assert_eq!(
@@ -87,7 +87,7 @@ fn runtime_risk_normalizes_modes_and_clears_off_limits() {
         mode: " unknown ".to_owned(),
         close_only: true,
         max_order_quantity: Some("-1".parse().expect("quantity")),
-        max_order_notional: Some(Fixed8::POS_INFINITY),
+        max_order_notional: Some(Decimal::MAX),
         daily_max_orders: Some(0),
         pause_on_reject: true,
     }

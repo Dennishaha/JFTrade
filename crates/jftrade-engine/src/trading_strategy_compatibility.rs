@@ -117,7 +117,7 @@ pub enum TradingStrategyReplayError {
 mod tests {
     use std::str::FromStr;
 
-    use jftrade_kernel::Fixed8;
+    use jftrade_kernel::Decimal;
     use jftrade_strategy::{ExecutionMode, Signal};
     use jftrade_trading::RiskConfig;
 
@@ -147,8 +147,8 @@ mod tests {
                 market: "US".to_owned(),
                 symbol: "AAPL".to_owned(),
                 side: "BUY".to_owned(),
-                quantity: Fixed8::from_str("1").expect("quantity"),
-                price: Some(Fixed8::from_str("100").expect("price")),
+                quantity: Decimal::from_str("1").expect("quantity"),
+                price: Some(Decimal::from_str("100").expect("price")),
                 observed_at: "2026-08-19T00:00:00Z".parse().expect("timestamp"),
             })
             .expect("signal");

@@ -1,4 +1,4 @@
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::Decimal;
 
 use crate::model::Candle;
 
@@ -10,30 +10,32 @@ pub(crate) enum MatchMode {
 
 pub(crate) fn limit_price(
     side: &str,
-    limit: Fixed8,
+    limit: Decimal,
     candle: &Candle,
     mode: MatchMode,
-) -> Option<Fixed8> {
-    if limit <= Fixed8::ZERO {
+) -> Option<Decimal> {
+    if limit <= Decimal::ZERO {
         return None;
     }
     match (mode, side) {
-        (MatchMode::ClosePoint, "buy") if candle.close > Fixed8::ZERO && candle.close <= limit => {
+        (MatchMode::ClosePoint, "buy") if candle.close > Decimal::ZERO && candle.close <= limit => {
             Some(candle.close)
         }
-        (MatchMode::ClosePoint, "sell") if candle.close > Fixed8::ZERO && candle.close >= limit => {
+        (MatchMode::ClosePoint, "sell")
+            if candle.close > Decimal::ZERO && candle.close >= limit =>
+        {
             Some(candle.close)
         }
-        (MatchMode::FullBar, "buy") if candle.open > Fixed8::ZERO && candle.open <= limit => {
+        (MatchMode::FullBar, "buy") if candle.open > Decimal::ZERO && candle.open <= limit => {
             Some(candle.open)
         }
-        (MatchMode::FullBar, "buy") if candle.low > Fixed8::ZERO && candle.low <= limit => {
+        (MatchMode::FullBar, "buy") if candle.low > Decimal::ZERO && candle.low <= limit => {
             Some(limit)
         }
-        (MatchMode::FullBar, "sell") if candle.open > Fixed8::ZERO && candle.open >= limit => {
+        (MatchMode::FullBar, "sell") if candle.open > Decimal::ZERO && candle.open >= limit => {
             Some(candle.open)
         }
-        (MatchMode::FullBar, "sell") if candle.high > Fixed8::ZERO && candle.high >= limit => {
+        (MatchMode::FullBar, "sell") if candle.high > Decimal::ZERO && candle.high >= limit => {
             Some(limit)
         }
         _ => None,
@@ -42,30 +44,30 @@ pub(crate) fn limit_price(
 
 pub(crate) fn stop_market_price(
     side: &str,
-    stop: Fixed8,
+    stop: Decimal,
     candle: &Candle,
     mode: MatchMode,
-) -> Option<Fixed8> {
-    if stop <= Fixed8::ZERO {
+) -> Option<Decimal> {
+    if stop <= Decimal::ZERO {
         return None;
     }
     match (mode, side) {
-        (MatchMode::ClosePoint, "buy") if candle.close > Fixed8::ZERO && candle.close >= stop => {
+        (MatchMode::ClosePoint, "buy") if candle.close > Decimal::ZERO && candle.close >= stop => {
             Some(candle.close)
         }
-        (MatchMode::ClosePoint, "sell") if candle.close > Fixed8::ZERO && candle.close <= stop => {
+        (MatchMode::ClosePoint, "sell") if candle.close > Decimal::ZERO && candle.close <= stop => {
             Some(candle.close)
         }
-        (MatchMode::FullBar, "buy") if candle.open > Fixed8::ZERO && candle.open >= stop => {
+        (MatchMode::FullBar, "buy") if candle.open > Decimal::ZERO && candle.open >= stop => {
             Some(candle.open)
         }
-        (MatchMode::FullBar, "buy") if candle.high > Fixed8::ZERO && candle.high >= stop => {
+        (MatchMode::FullBar, "buy") if candle.high > Decimal::ZERO && candle.high >= stop => {
             Some(stop)
         }
-        (MatchMode::FullBar, "sell") if candle.open > Fixed8::ZERO && candle.open <= stop => {
+        (MatchMode::FullBar, "sell") if candle.open > Decimal::ZERO && candle.open <= stop => {
             Some(candle.open)
         }
-        (MatchMode::FullBar, "sell") if candle.low > Fixed8::ZERO && candle.low <= stop => {
+        (MatchMode::FullBar, "sell") if candle.low > Decimal::ZERO && candle.low <= stop => {
             Some(stop)
         }
         _ => None,

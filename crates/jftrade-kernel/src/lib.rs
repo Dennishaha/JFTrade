@@ -10,7 +10,11 @@ mod fixed8;
 mod timestamp;
 
 pub use decimal::DecimalText;
-pub use fixed8::Fixed8;
+pub use fixed8::{
+    DecimalTradingExt, Fixed8, align_decimal_to_step, ceil_decimal_to_increment,
+    truncate_decimal_to_increment,
+};
+pub use rust_decimal::Decimal;
 pub use timestamp::WireTimestamp;
 
 use thiserror::Error;

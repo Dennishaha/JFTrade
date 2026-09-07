@@ -169,9 +169,7 @@ impl<P: TradePlannerPort> StrategyCoordinator<P> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
-    use jftrade_kernel::Fixed8;
+    use jftrade_kernel::Decimal;
 
     use super::{StrategyCoordinator, TradePlannerPort};
     use crate::{
@@ -209,8 +207,8 @@ mod tests {
             market: "US".to_owned(),
             symbol: "AAPL".to_owned(),
             side: "BUY".to_owned(),
-            quantity: Fixed8::from_str("1").expect("quantity"),
-            price: Some(Fixed8::from_str("100").expect("price")),
+            quantity: Decimal::from(1),
+            price: Some(Decimal::from(100)),
             observed_at: "2026-08-19T00:00:00Z".parse().expect("timestamp"),
         }
     }

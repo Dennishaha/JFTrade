@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use jftrade_kernel::{Fixed8, WireTimestamp};
+use jftrade_kernel::WireTimestamp;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::TradingError;
@@ -11,9 +12,9 @@ pub struct PositionProjection {
     pub account_id: String,
     pub market: String,
     pub symbol: String,
-    pub quantity: Fixed8,
-    pub sellable_quantity: Fixed8,
-    pub last_price: Fixed8,
+    pub quantity: Decimal,
+    pub sellable_quantity: Decimal,
+    pub last_price: Decimal,
 }
 
 impl PositionProjection {
@@ -67,12 +68,12 @@ pub fn position_matches_symbol(position: &PositionProjection, symbol: &str) -> b
 pub fn sellable_quantity(
     positions: &[PositionProjection],
     symbol: &str,
-) -> Result<Fixed8, TradingError> {
-    positions.iter().try_fold(Fixed8::ZERO, |total, position| {
+) -> Result<Decimal, TradingError> {
+    positions.iter().try_fold(Decimal::ZERO, |total, position| {
         if position.matches_symbol(symbol) {
             total
                 .checked_add(position.sellable_quantity)
-                .map_err(|_| TradingError::Arithmetic)
+                .ok_or(TradingError::Arithmetic)
         } else {
             Ok(total)
         }
@@ -167,14 +168,14 @@ impl AccountPortfolio {
         self.positions.values().collect()
     }
 
-    pub fn sellable_quantity(&self, symbol: &str) -> Result<Fixed8, TradingError> {
+    pub fn sellable_quantity(&self, symbol: &str) -> Result<Decimal, TradingError> {
         self.positions()
             .into_iter()
-            .try_fold(Fixed8::ZERO, |total, position| {
+            .try_fold(Decimal::ZERO, |total, position| {
                 if position.matches_symbol(symbol) {
                     total
                         .checked_add(position.sellable_quantity)
-                        .map_err(|_| TradingError::Arithmetic)
+                        .ok_or(TradingError::Arithmetic)
                 } else {
                     Ok(total)
                 }
@@ -202,9 +203,9 @@ fn refresh_fingerprint(refresh: &AccountRefresh) -> String {
             position.account_id.trim(),
             position.market.trim().to_ascii_uppercase(),
             position.symbol.trim().to_ascii_uppercase(),
-            position.quantity,
-            position.sellable_quantity,
-            position.last_price
+            position.quantity.normalize(),
+            position.sellable_quantity.normalize(),
+            position.last_price.normalize()
         )
     }));
     fields.join(";")
@@ -224,7 +225,7 @@ fn validate_position(
             "position market and symbol are required",
         ));
     }
-    if position.sellable_quantity.signum() < 0 || position.last_price.signum() < 0 {
+    if position.sellable_quantity < Decimal::ZERO || position.last_price < Decimal::ZERO {
         return Err(TradingError::InvalidPortfolio(
             "sellable quantity and last price cannot be negative",
         ));
@@ -236,7 +237,7 @@ fn validate_position(
 mod tests {
     use std::str::FromStr;
 
-    use jftrade_kernel::Fixed8;
+    use rust_decimal::Decimal;
 
     use super::{
         AccountPortfolio, AccountRefresh, PortfolioOutcome, PositionProjection,
@@ -255,9 +256,9 @@ mod tests {
                 account_id: "acc-1".to_owned(),
                 market: "US".to_owned(),
                 symbol: "AAPL".to_owned(),
-                quantity: Fixed8::from_str("10").expect("quantity"),
-                sellable_quantity: Fixed8::from_str("8").expect("sellable"),
-                last_price: Fixed8::from_str("100").expect("price"),
+                quantity: Decimal::from_str("10").expect("quantity"),
+                sellable_quantity: Decimal::from_str("8").expect("sellable"),
+                last_price: Decimal::from_str("100").expect("price"),
             }],
         }
     }
@@ -300,17 +301,17 @@ mod tests {
                 account_id: "acc-1".to_owned(),
                 market: "US".to_owned(),
                 symbol: "AAPL".to_owned(),
-                quantity: Fixed8::from_str("5").expect("quantity"),
-                sellable_quantity: Fixed8::from_str("3").expect("sellable"),
-                last_price: Fixed8::from_str("100").expect("price"),
+                quantity: Decimal::from_str("5").expect("quantity"),
+                sellable_quantity: Decimal::from_str("3").expect("sellable"),
+                last_price: Decimal::from_str("100").expect("price"),
             },
             PositionProjection {
                 account_id: "acc-1".to_owned(),
                 market: "HK".to_owned(),
                 symbol: "00700".to_owned(),
-                quantity: Fixed8::from_str("10").expect("quantity"),
-                sellable_quantity: Fixed8::from_str("10").expect("sellable"),
-                last_price: Fixed8::from_str("300").expect("price"),
+                quantity: Decimal::from_str("10").expect("quantity"),
+                sellable_quantity: Decimal::from_str("10").expect("sellable"),
+                last_price: Decimal::from_str("300").expect("price"),
             },
         ];
         assert!(positions[0].matches_symbol("us.aapl"));
@@ -326,11 +327,11 @@ mod tests {
         assert!(!positions[1].matches_symbol("US.AAPL"));
         assert_eq!(
             sellable_quantity(&positions, "US.AAPL").expect("sellable quantity"),
-            Fixed8::from_str("3").expect("expected quantity")
+            Decimal::from_str("3").expect("expected quantity")
         );
         assert_eq!(
             sellable_quantity(&positions, " ").expect("empty quantity"),
-            Fixed8::ZERO
+            Decimal::ZERO
         );
     }
 }

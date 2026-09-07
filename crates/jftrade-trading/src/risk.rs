@@ -1,4 +1,4 @@
-use jftrade_kernel::Fixed8;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{OrderCommand, TradingEnvironment};
@@ -24,8 +24,8 @@ pub struct HardStop {
 pub struct RiskConfig {
     pub real_trading_enabled: bool,
     pub kill_switch_active: bool,
-    pub max_order_quantity: Option<Fixed8>,
-    pub max_order_notional: Option<Fixed8>,
+    pub max_order_quantity: Option<Decimal>,
+    pub max_order_notional: Option<Decimal>,
     #[serde(default)]
     pub hard_stops: Vec<HardStop>,
 }
@@ -66,8 +66,8 @@ pub const RUNTIME_RISK_MODE_ENFORCE: &str = "enforce";
 pub struct RuntimeRiskSettings {
     pub mode: String,
     pub close_only: bool,
-    pub max_order_quantity: Option<Fixed8>,
-    pub max_order_notional: Option<Fixed8>,
+    pub max_order_quantity: Option<Decimal>,
+    pub max_order_notional: Option<Decimal>,
     pub daily_max_orders: Option<i64>,
     pub pause_on_reject: bool,
 }
@@ -82,8 +82,8 @@ impl RuntimeRiskSettings {
             RUNTIME_RISK_MODE_ENFORCE => RUNTIME_RISK_MODE_ENFORCE.to_owned(),
             _ => RUNTIME_RISK_MODE_OFF.to_owned(),
         };
-        self.max_order_quantity = normalize_positive_fixed(self.max_order_quantity);
-        self.max_order_notional = normalize_positive_fixed(self.max_order_notional);
+        self.max_order_quantity = normalize_positive_decimal(self.max_order_quantity);
+        self.max_order_notional = normalize_positive_decimal(self.max_order_notional);
         self.daily_max_orders = self.daily_max_orders.filter(|maximum| *maximum > 0);
         if self.mode == RUNTIME_RISK_MODE_OFF {
             self.close_only = false;
@@ -111,8 +111,8 @@ impl RuntimeRiskSettings {
 pub struct RuntimeRiskOrder {
     pub symbol: String,
     pub side: String,
-    pub quantity: Fixed8,
-    pub price: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub price: Option<Decimal>,
 }
 
 impl RuntimeRiskOrder {
@@ -130,8 +130,8 @@ impl RuntimeRiskOrder {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeRiskContext {
-    pub current_price: Option<Fixed8>,
-    pub sellable_quantity: Fixed8,
+    pub current_price: Option<Decimal>,
+    pub sellable_quantity: Decimal,
     pub today_submitted_order_count: i64,
 }
 
@@ -184,11 +184,11 @@ fn runtime_reject_reason<'a>(
         if side != "SELL" {
             return Some("close_only");
         }
-        let tolerance = Fixed8::from_scaled(10);
+        let tolerance = Decimal::new(10, 8);
         let sellable = context
             .sellable_quantity
             .checked_add(tolerance)
-            .unwrap_or(Fixed8::POS_INFINITY);
+            .unwrap_or(Decimal::MAX);
         if order.quantity > sellable {
             return Some("close_only_insufficient_position");
         }
@@ -202,12 +202,12 @@ fn runtime_reject_reason<'a>(
     if let Some(maximum) = settings.max_order_notional {
         let price = order
             .price
-            .filter(|value| value.signum() > 0)
-            .or_else(|| context.current_price.filter(|value| value.signum() > 0));
+            .filter(|value| *value > Decimal::ZERO)
+            .or_else(|| context.current_price.filter(|value| *value > Decimal::ZERO));
         let Some(price) = price else {
             return Some("max_order_notional_missing_price");
         };
-        let Ok(notional) = order.quantity.checked_mul(price) else {
+        let Some(notional) = order.quantity.checked_mul(price) else {
             return Some("max_order_notional");
         };
         if notional > maximum {
@@ -232,36 +232,36 @@ fn runtime_risk_detail(
         "rule={reason} symbol={} side={} qty={} mode={} closeOnly={} maxQty={} maxNotional={} dailyMaxOrders={}",
         order.symbol,
         order.side,
-        format_fixed8(order.quantity),
+        format_decimal(order.quantity),
         settings.mode,
         settings.close_only,
-        optional_fixed_label(settings.max_order_quantity),
-        optional_fixed_label(settings.max_order_notional),
+        optional_decimal_label(settings.max_order_quantity),
+        optional_decimal_label(settings.max_order_notional),
         settings
             .daily_max_orders
             .map_or_else(|| "none".to_owned(), |value| value.to_string()),
     )
 }
 
-fn normalize_positive_fixed(value: Option<Fixed8>) -> Option<Fixed8> {
-    value.filter(|value| {
-        value.signum() > 0 && *value != Fixed8::POS_INFINITY && *value != Fixed8::NEG_INFINITY
-    })
+fn normalize_positive_decimal(value: Option<Decimal>) -> Option<Decimal> {
+    value.filter(|value| *value > Decimal::ZERO && *value != Decimal::MAX && *value != Decimal::MIN)
 }
 
-fn optional_fixed_label(value: Option<Fixed8>) -> String {
-    value.map_or_else(|| "none".to_owned(), format_fixed8)
+fn optional_decimal_label(value: Option<Decimal>) -> String {
+    value.map_or_else(|| "none".to_owned(), format_decimal)
 }
 
-fn format_fixed8(value: Fixed8) -> String {
-    let Ok(number) = value.to_f64() else {
-        return value.storage_text();
-    };
-    if number == 0.0 {
+fn format_decimal(value: Decimal) -> String {
+    if value.is_zero() {
         return "0".to_owned();
     }
-    let text = format!("{number:.4}");
-    text.trim_end_matches('0').trim_end_matches('.').to_owned()
+    let rounded = value.round_dp(4);
+    let text = rounded.to_string();
+    if text.contains('.') {
+        text.trim_end_matches('0').trim_end_matches('.').to_owned()
+    } else {
+        text
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -275,6 +275,12 @@ impl RiskEngine {
     }
 
     pub fn evaluate(&self, command: &OrderCommand) -> RiskDecision {
+        if command.quantity <= Decimal::ZERO {
+            return RiskDecision::reject("INVALID_ORDER_RISK_SHAPE");
+        }
+        if command.price.is_some_and(|price| price <= Decimal::ZERO) {
+            return RiskDecision::reject("INVALID_ORDER_RISK_SHAPE");
+        }
         if command.environment == TradingEnvironment::Simulate {
             return RiskDecision::allow();
         }
@@ -303,7 +309,10 @@ impl RiskEngine {
             let Some(price) = command.price else {
                 return RiskDecision::reject("RISK_PRICE_UNAVAILABLE");
             };
-            let Ok(notional) = command.quantity.checked_mul(price) else {
+            if price <= Decimal::ZERO {
+                return RiskDecision::reject("INVALID_ORDER_RISK_SHAPE");
+            }
+            let Some(notional) = command.quantity.checked_mul(price) else {
                 return RiskDecision::reject("INVALID_ORDER_RISK_SHAPE");
             };
             if notional > maximum {
@@ -349,9 +358,9 @@ pub struct PreTradeRiskOrder {
     pub order_kind: String,
     pub product_class: String,
     pub quantity_mode: String,
-    pub quantity: Fixed8,
-    pub price: Option<Fixed8>,
-    pub amount: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub price: Option<Decimal>,
+    pub amount: Option<Decimal>,
     #[serde(default)]
     pub legs: Vec<PreTradeRiskComboLeg>,
 }
@@ -363,9 +372,9 @@ pub struct PreTradeRiskComboLeg {
     pub symbol: String,
     pub market: String,
     pub side: String,
-    pub quantity: Fixed8,
-    pub multiplier: Fixed8,
-    pub price: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub multiplier: Decimal,
+    pub price: Option<Decimal>,
     #[serde(default)]
     pub product_class: String,
 }
@@ -377,8 +386,8 @@ pub struct PreTradeRiskPolicy {
     pub control_plane_available: bool,
     pub real_trading_enabled: bool,
     pub kill_switch_active: bool,
-    pub effective_max_order_quantity: Option<Fixed8>,
-    pub effective_max_order_notional: Option<Fixed8>,
+    pub effective_max_order_quantity: Option<Decimal>,
+    pub effective_max_order_notional: Option<Decimal>,
     #[serde(default)]
     pub hard_stops: Vec<HardStop>,
 }
@@ -430,26 +439,47 @@ pub fn evaluate_pre_trade_risk(
                 "order amount is required in amount mode",
             );
         };
-        if amount.signum() <= 0 {
+        if amount <= Decimal::ZERO {
             return PreTradeRiskDecision::reject(
                 "INVALID_ORDER_RISK_SHAPE",
                 "order amount must be positive in amount mode",
             );
         }
     } else {
-        if order.quantity.signum() <= 0 {
+        if order.quantity <= Decimal::ZERO {
             return PreTradeRiskDecision::reject(
                 "INVALID_ORDER_RISK_SHAPE",
                 "order quantity must be positive",
             );
         }
         for leg in &order.legs {
-            if leg.quantity.signum() <= 0 {
+            if leg.quantity <= Decimal::ZERO {
                 return PreTradeRiskDecision::reject(
                     "INVALID_ORDER_RISK_SHAPE",
                     "combo leg quantity must be positive",
                 );
             }
+        }
+    }
+
+    if order.price.is_some_and(|price| price <= Decimal::ZERO) {
+        return PreTradeRiskDecision::reject(
+            "INVALID_ORDER_RISK_SHAPE",
+            "order price must be positive",
+        );
+    }
+    for leg in &order.legs {
+        if leg.price.is_some_and(|price| price <= Decimal::ZERO) {
+            return PreTradeRiskDecision::reject(
+                "INVALID_ORDER_RISK_SHAPE",
+                "combo leg price must be positive",
+            );
+        }
+        if leg.multiplier < Decimal::ZERO {
+            return PreTradeRiskDecision::reject(
+                "INVALID_ORDER_RISK_SHAPE",
+                "combo leg multiplier cannot be negative",
+            );
         }
     }
 
@@ -554,16 +584,22 @@ pub fn evaluate_pre_trade_risk(
                     "order price is required to enforce the configured real-trade notional limit",
                 );
             };
+            if price <= Decimal::ZERO {
+                return PreTradeRiskDecision::reject(
+                    "INVALID_ORDER_RISK_SHAPE",
+                    "order price must be positive",
+                );
+            }
             let multiplier = if order.product_class.eq_ignore_ascii_case("option") {
-                Fixed8::from_scaled(100 * 100_000_000)
+                Decimal::from(100)
             } else {
-                Fixed8::from_scaled(100_000_000)
+                Decimal::ONE
             };
             order
                 .quantity
                 .checked_mul(price)
                 .and_then(|val| val.checked_mul(multiplier))
-                .map_err(|_| "INVALID_ORDER_RISK_SHAPE")
+                .ok_or("INVALID_ORDER_RISK_SHAPE")
         };
         match notional {
             Ok(val) => {
@@ -590,24 +626,30 @@ pub fn evaluate_pre_trade_risk(
     PreTradeRiskDecision::allow()
 }
 
-fn calculate_combo_notional(order: &PreTradeRiskOrder) -> Result<Fixed8, PreTradeRiskDecision> {
+fn calculate_combo_notional(order: &PreTradeRiskOrder) -> Result<Decimal, PreTradeRiskDecision> {
     let all_legs_have_price = order.legs.iter().all(|leg| leg.price.is_some());
     if all_legs_have_price {
-        let mut net_notional = Fixed8::ZERO;
+        let mut net_notional = Decimal::ZERO;
         for leg in &order.legs {
             let price = leg.price.unwrap();
-            let multiplier = if leg.multiplier > Fixed8::ZERO {
+            if price <= Decimal::ZERO {
+                return Err(PreTradeRiskDecision::reject(
+                    "INVALID_ORDER_RISK_SHAPE",
+                    "combo leg price must be positive",
+                ));
+            }
+            let multiplier = if leg.multiplier > Decimal::ZERO {
                 leg.multiplier
             } else if leg.product_class.eq_ignore_ascii_case("option") {
-                Fixed8::from_scaled(100 * 100_000_000)
+                Decimal::from(100)
             } else {
-                Fixed8::from_scaled(100_000_000)
+                Decimal::ONE
             };
             let leg_notional = leg
                 .quantity
                 .checked_mul(price)
                 .and_then(|val| val.checked_mul(multiplier))
-                .map_err(|_| {
+                .ok_or_else(|| {
                     PreTradeRiskDecision::reject(
                         "INVALID_ORDER_RISK_SHAPE",
                         "invalid order risk shape for notional calculation",
@@ -619,44 +661,38 @@ fn calculate_combo_notional(order: &PreTradeRiskOrder) -> Result<Fixed8, PreTrad
             } else {
                 net_notional.checked_add(leg_notional)
             };
-            net_notional = next_net.map_err(|_| {
+            net_notional = next_net.ok_or_else(|| {
                 PreTradeRiskDecision::reject(
                     "INVALID_ORDER_RISK_SHAPE",
                     "invalid order risk shape for notional calculation",
                 )
             })?;
         }
-        let abs_notional = if net_notional < Fixed8::ZERO {
-            Fixed8::ZERO.checked_sub(net_notional).map_err(|_| {
-                PreTradeRiskDecision::reject("INVALID_ORDER_RISK_SHAPE", "notional overflow")
-            })?
-        } else {
-            net_notional
-        };
+        let abs_notional = net_notional.abs();
         Ok(abs_notional)
     } else if let Some(combo_price) = order.price {
+        if combo_price <= Decimal::ZERO {
+            return Err(PreTradeRiskDecision::reject(
+                "INVALID_ORDER_RISK_SHAPE",
+                "order price must be positive",
+            ));
+        }
         let multiplier = if order
             .legs
             .iter()
             .any(|l| l.product_class.eq_ignore_ascii_case("option"))
             || order.product_class.eq_ignore_ascii_case("option")
         {
-            Fixed8::from_scaled(100 * 100_000_000)
+            Decimal::from(100)
         } else {
-            Fixed8::from_scaled(100_000_000)
+            Decimal::ONE
         };
-        let price_abs = if combo_price < Fixed8::ZERO {
-            Fixed8::ZERO.checked_sub(combo_price).map_err(|_| {
-                PreTradeRiskDecision::reject("INVALID_ORDER_RISK_SHAPE", "notional overflow")
-            })?
-        } else {
-            combo_price
-        };
+        let price_abs = combo_price.abs();
         order
             .quantity
             .checked_mul(price_abs)
             .and_then(|val| val.checked_mul(multiplier))
-            .map_err(|_| {
+            .ok_or_else(|| {
                 PreTradeRiskDecision::reject(
                     "INVALID_ORDER_RISK_SHAPE",
                     "invalid order risk shape for notional calculation",

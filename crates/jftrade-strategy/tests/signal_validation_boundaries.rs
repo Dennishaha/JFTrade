@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::Decimal;
 use jftrade_strategy::{
     ExecutionMode, RuntimeState, Signal, StrategyCoordinator, StrategyError, TradeIntent,
     TradePlanReceipt, TradePlannerPort,
@@ -32,8 +32,8 @@ fn signal() -> Signal {
         market: "US".to_owned(),
         symbol: "AAPL".to_owned(),
         side: "BUY".to_owned(),
-        quantity: Fixed8::from_str("1").expect("quantity"),
-        price: Some(Fixed8::from_str("100").expect("price")),
+        quantity: Decimal::from(1),
+        price: Some(Decimal::from(100)),
         observed_at: "2026-08-19T00:00:00Z".parse().expect("timestamp"),
     }
 }
@@ -98,11 +98,11 @@ fn missing_signal_identity_is_rejected_before_planning() {
 #[test]
 fn non_positive_signal_quantity_is_rejected_before_planning() {
     let mut zero = signal();
-    zero.quantity = Fixed8::ZERO;
+    zero.quantity = Decimal::ZERO;
     assert_rejected_without_planning(zero, StrategyError::InvalidQuantity, "zero quantity");
 
     let mut negative = signal();
-    negative.quantity = Fixed8::from_str("-1").expect("negative quantity");
+    negative.quantity = Decimal::from_str("-1").expect("negative quantity");
     assert_rejected_without_planning(
         negative,
         StrategyError::InvalidQuantity,

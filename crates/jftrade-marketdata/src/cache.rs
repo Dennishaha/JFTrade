@@ -126,7 +126,7 @@ impl TickCache {
 
 #[cfg(test)]
 mod tests {
-    use jftrade_kernel::Fixed8;
+    use rust_decimal::Decimal;
 
     use super::*;
 
@@ -135,7 +135,7 @@ mod tests {
         let mut cache = TickCache::new(2);
         let tick = Tick {
             instrument_id: "US.AAPL".to_owned(),
-            price: Fixed8::from_scaled(18_850_000_000),
+            price: Decimal::new(1885, 1),
             volume: "10".parse().expect("volume"),
             snapshot: None,
             observed_at_ms: 100,

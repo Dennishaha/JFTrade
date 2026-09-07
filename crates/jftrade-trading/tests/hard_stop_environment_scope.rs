@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use jftrade_kernel::Fixed8;
 use jftrade_trading::{
     HardStop, OrderCommand, OrderSide, RiskConfig, RiskEngine, TradingEnvironment,
 };
+use rust_decimal::Decimal;
 
 fn command(environment: TradingEnvironment) -> OrderCommand {
     OrderCommand {
@@ -15,8 +15,8 @@ fn command(environment: TradingEnvironment) -> OrderCommand {
         market: "US".to_owned(),
         symbol: "AAPL".to_owned(),
         side: OrderSide::Buy,
-        quantity: Fixed8::from_str("1").expect("quantity"),
-        price: Some(Fixed8::from_str("10").expect("price")),
+        quantity: Decimal::from_str("1").expect("quantity"),
+        price: Some(Decimal::from_str("10").expect("price")),
         client_order_id: "client-1".to_owned(),
     }
 }

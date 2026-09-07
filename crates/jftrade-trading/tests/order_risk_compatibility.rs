@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
-use jftrade_kernel::Fixed8;
 use jftrade_trading::{
     HardStop, OrderCommand, OrderSide, OrderStatus, RiskConfig, RiskEngine, TradingEnvironment,
     TradingError, canonical_broker_status, canonical_stored_status, reconcile_status,
 };
+use rust_decimal::Decimal;
 
-fn fixed(value: &str) -> Fixed8 {
-    Fixed8::from_str(value)
-        .unwrap_or_else(|error| panic!("invalid Fixed8 value {value:?}: {error}"))
+fn decimal_val(value: &str) -> Decimal {
+    Decimal::from_str(value)
+        .unwrap_or_else(|error| panic!("invalid Decimal value {value:?}: {error}"))
 }
 
 fn command() -> OrderCommand {
@@ -21,8 +21,8 @@ fn command() -> OrderCommand {
         market: "US".to_owned(),
         symbol: "AAPL".to_owned(),
         side: OrderSide::Buy,
-        quantity: fixed("10"),
-        price: Some(fixed("10")),
+        quantity: decimal_val("10"),
+        price: Some(decimal_val("10")),
         client_order_id: "client-1".to_owned(),
     }
 }
@@ -169,22 +169,22 @@ fn status_reconciliation_prevents_regressions_and_preserves_cancel_races() {
 #[test]
 fn order_validation_rejects_non_positive_quantity_and_optional_price() {
     let mut zero_quantity = command();
-    zero_quantity.quantity = Fixed8::ZERO;
+    zero_quantity.quantity = Decimal::ZERO;
     assert_eq!(zero_quantity.validate(), Err(TradingError::InvalidQuantity));
 
     let mut negative_quantity = command();
-    negative_quantity.quantity = fixed("-1");
+    negative_quantity.quantity = decimal_val("-1");
     assert_eq!(
         negative_quantity.validate(),
         Err(TradingError::InvalidQuantity)
     );
 
     let mut zero_price = command();
-    zero_price.price = Some(Fixed8::ZERO);
+    zero_price.price = Some(Decimal::ZERO);
     assert_eq!(zero_price.validate(), Err(TradingError::InvalidPrice));
 
     let mut negative_price = command();
-    negative_price.price = Some(fixed("-1"));
+    negative_price.price = Some(decimal_val("-1"));
     assert_eq!(negative_price.validate(), Err(TradingError::InvalidPrice));
 }
 
@@ -193,8 +193,8 @@ fn real_risk_limits_fail_closed_at_missing_price_and_hard_stop_boundaries() {
     let engine = RiskEngine::new(RiskConfig {
         real_trading_enabled: true,
         kill_switch_active: false,
-        max_order_quantity: Some(fixed("10")),
-        max_order_notional: Some(fixed("100")),
+        max_order_quantity: Some(decimal_val("10")),
+        max_order_notional: Some(decimal_val("100")),
         hard_stops: vec![HardStop {
             id: None,
             broker_id: Some("FUTU".to_owned()),
@@ -213,14 +213,14 @@ fn real_risk_limits_fail_closed_at_missing_price_and_hard_stop_boundaries() {
 
     let mut outside_stop = command();
     outside_stop.symbol = "MSFT".to_owned();
-    outside_stop.quantity = fixed("11");
+    outside_stop.quantity = decimal_val("11");
     assert_eq!(
         engine.evaluate(&outside_stop).reason_code.as_deref(),
         Some("MAX_ORDER_QUANTITY_EXCEEDED")
     );
 
     let mut missing_price = outside_stop;
-    missing_price.quantity = fixed("10");
+    missing_price.quantity = decimal_val("10");
     missing_price.price = None;
     assert_eq!(
         engine.evaluate(&missing_price).reason_code.as_deref(),
@@ -229,7 +229,7 @@ fn real_risk_limits_fail_closed_at_missing_price_and_hard_stop_boundaries() {
 
     let mut notional_exceeded = command();
     notional_exceeded.symbol = "MSFT".to_owned();
-    notional_exceeded.price = Some(fixed("11"));
+    notional_exceeded.price = Some(decimal_val("11"));
     assert_eq!(
         engine.evaluate(&notional_exceeded).reason_code.as_deref(),
         Some("MAX_ORDER_NOTIONAL_EXCEEDED")

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use jftrade_kernel::{DecimalText, Fixed8};
+use jftrade_kernel::{Decimal, DecimalText};
 use jftrade_marketdata::BrokerSecuritySnapshot;
 use prost::Message;
 use thiserror::Error;
@@ -206,16 +206,16 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
         market: Some(market.to_owned()),
         name: basic.name,
         is_suspended: Some(basic.is_suspend),
-        bid_price: optional_fixed8(basic.bid_price),
-        ask_price: optional_fixed8(basic.ask_price),
-        last_price: optional_fixed8(Some(basic.cur_price)),
+        bid_price: optional_price(basic.bid_price),
+        ask_price: optional_price(basic.ask_price),
+        last_price: optional_price(Some(basic.cur_price)),
         volume: DecimalText::from_str(&basic.volume.to_string()).ok(),
         lot_size: Some(basic.lot_size),
         security_type: Some(security_type(basic.r#type).to_owned()),
-        open_price: optional_fixed8(Some(basic.open_price)),
-        high_price: optional_fixed8(Some(basic.high_price)),
-        low_price: optional_fixed8(Some(basic.low_price)),
-        previous_close: optional_fixed8(Some(basic.last_close_price)),
+        open_price: optional_price(Some(basic.open_price)),
+        high_price: optional_price(Some(basic.high_price)),
+        low_price: optional_price(Some(basic.low_price)),
+        previous_close: optional_price(Some(basic.last_close_price)),
         turnover: optional_decimal(Some(basic.turnover)),
         update_time: Some(basic.update_time),
         status: basic.sec_status,
@@ -231,10 +231,10 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
     })
 }
 
-fn optional_fixed8(value: Option<f64>) -> Option<Fixed8> {
+fn optional_price(value: Option<f64>) -> Option<Decimal> {
     value
         .filter(|v| v.is_finite())
-        .and_then(|v| Fixed8::from_str(&v.to_string()).ok())
+        .and_then(|v| Decimal::from_str(&v.to_string()).ok())
 }
 fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
     value

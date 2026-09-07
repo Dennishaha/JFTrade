@@ -832,7 +832,7 @@ fn broker_securities_projects_real_futu_tick_cache() {
         .insert(
             jftrade_marketdata::Tick {
                 instrument_id: "US.AAPL".to_owned(),
-                price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
+                price: "123.45".parse().expect("price"),
                 volume: "1000".parse().expect("decimal volume"),
                 snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
                     name: Some("Apple Inc.".to_owned()),
@@ -954,7 +954,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
         .insert(
             jftrade_marketdata::Tick {
                 instrument_id: "US.AAPL".to_owned(),
-                price: jftrade_kernel::Fixed8::from_scaled(12_345_000_000),
+                price: "123.45".parse().expect("price"),
                 volume: "1000".parse().expect("decimal volume"),
                 snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
                     name: Some("Apple Inc.".to_owned()),
@@ -979,7 +979,7 @@ fn broker_quote_projects_real_futu_tick_cache_for_all_symbols() {
         .insert(
             jftrade_marketdata::Tick {
                 instrument_id: "US.MSFT".to_owned(),
-                price: jftrade_kernel::Fixed8::from_scaled(20_000_000_000),
+                price: "200".parse().expect("price"),
                 volume: "2000".parse().expect("decimal volume"),
                 snapshot: None,
                 observed_at_ms: 1_700_000_000_100,
@@ -1294,7 +1294,6 @@ impl jftrade_integration_futu::SecuritySnapshotReadPort for FailingSecuritySnaps
 
 #[test]
 fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
-    use jftrade_kernel::Fixed8;
     use jftrade_marketdata::Tick;
 
     let runtime = SharedTradeReadRuntime::default();
@@ -1312,7 +1311,7 @@ fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
         .insert(
             Tick {
                 instrument_id: "HK.00700".to_owned(),
-                price: Fixed8::from_scaled(380_0000_0000),
+                price: "380".parse().expect("price"),
                 volume: "100".parse().expect("volume"),
                 snapshot: None,
                 observed_at_ms: now_ms,

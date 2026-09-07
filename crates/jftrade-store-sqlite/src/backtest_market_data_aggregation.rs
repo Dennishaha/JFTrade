@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::{Decimal, DecimalTradingExt};
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use rusqlite::Connection;
@@ -314,11 +314,11 @@ pub(crate) fn aggregate_bucket(
             return Err(missing_coverage(symbol, interval, bucket_start, bucket_end));
         }
         values.push((
-            parse_fixed("open", &candle.open)?,
-            parse_fixed("high", &candle.high)?,
-            parse_fixed("low", &candle.low)?,
-            parse_fixed("close", &candle.close)?,
-            parse_fixed("volume", &candle.volume)?,
+            parse_decimal("open", &candle.open)?,
+            parse_decimal("high", &candle.high)?,
+            parse_decimal("low", &candle.low)?,
+            parse_decimal("close", &candle.close)?,
+            parse_decimal("volume", &candle.volume)?,
         ));
     }
     let first = values
@@ -329,24 +329,24 @@ pub(crate) fn aggregate_bucket(
         .ok_or_else(|| missing_coverage(symbol, interval, bucket_start, bucket_end))?;
     let high = values.iter().map(|value| value.1).max().unwrap_or(first.1);
     let low = values.iter().map(|value| value.2).min().unwrap_or(first.2);
-    let volume = values.iter().try_fold(Fixed8::ZERO, |sum, value| {
+    let volume = values.iter().try_fold(Decimal::ZERO, |sum, value| {
         sum.checked_add(value.4)
-            .map_err(|error| BacktestMarketDataStoreError::Validation(format!("volume: {error}")))
+            .ok_or_else(|| BacktestMarketDataStoreError::Validation("volume overflow".to_owned()))
     })?;
     Ok(StoredBacktestCandle {
         start_time: bucket_start,
         end_time: bucket_end.saturating_sub(1),
-        open: first.0.storage_text(),
-        high: high.storage_text(),
-        low: low.storage_text(),
-        close: last.3.storage_text(),
-        volume: volume.storage_text(),
+        open: first.0.to_storage_text(),
+        high: high.to_storage_text(),
+        low: low.to_storage_text(),
+        close: last.3.to_storage_text(),
+        volume: volume.to_storage_text(),
     })
 }
 
-fn parse_fixed(name: &str, value: &str) -> Result<Fixed8, BacktestMarketDataStoreError> {
+fn parse_decimal(name: &str, value: &str) -> Result<Decimal, BacktestMarketDataStoreError> {
     value
-        .parse::<Fixed8>()
+        .parse::<Decimal>()
         .map_err(|error| BacktestMarketDataStoreError::Validation(format!("{name}: {error}")))
 }
 

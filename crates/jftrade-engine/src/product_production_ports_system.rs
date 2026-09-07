@@ -1,8 +1,10 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jftrade_api::{Clock, SystemClock};
+use jftrade_kernel::Decimal;
 use jftrade_settings::{
     BrokerSettingsStorePort, FutuOpenDInstallSettingsStorePort, InterfaceSettingsStorePort,
     MarketDataProvider, MarketDataProviderRuntimePort, PineWorkerSettingsStorePort,
@@ -556,8 +558,8 @@ fn update_risk(
         id: "runtime-risk-config".to_owned(),
         trading_environment: environment.clone(),
         real_trading_enabled: command.real_trading_enabled,
-        max_order_quantity: command.max_order_quantity,
-        max_order_notional: command.max_order_notional,
+        max_order_quantity: opt_f64_dec(command.max_order_quantity),
+        max_order_notional: opt_f64_dec(command.max_order_notional),
         operator_id: normalize_operator(&command.operator_id),
         reason: command.reason.trim().to_owned(),
         activated_at: activated_at.clone(),
@@ -760,9 +762,8 @@ fn normalized_or(value: &str, fallback: &str, uppercase: bool) -> String {
 fn normalize_hard_stop_scope(command: &RealTradeHardStopCommand) -> String {
     let scope = command.hard_stop_scope.trim().to_ascii_uppercase();
     if matches!(scope.as_str(), "ACCOUNT" | "MARKET" | "SYMBOL") {
-        return scope;
-    }
-    if !command.symbol.trim().is_empty() {
+        scope
+    } else if !command.symbol.trim().is_empty() {
         "SYMBOL".to_owned()
     } else if !command.market.trim().is_empty() {
         "MARKET".to_owned()
@@ -780,10 +781,12 @@ fn optional_trimmed(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
 
+fn opt_f64_dec(value: Option<f64>) -> Option<Decimal> {
+    value.filter(|v| v.is_finite()).and_then(|v| Decimal::from_str(&v.to_string()).ok())
+}
+
 fn next_id(prefix: &str) -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |duration| duration.as_nanos());
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos());
     format!("{prefix}-{nanos}")
 }
 

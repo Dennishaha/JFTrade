@@ -1,10 +1,11 @@
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::{Decimal, DecimalTradingExt};
+use rust_decimal::prelude::ToPrimitive;
 
 use crate::BacktestError;
 use crate::model::IndicatorOutput;
 
 pub(crate) fn calculate_indicators(
-    closes: &[Fixed8],
+    closes: &[Decimal],
     periods: &[usize],
 ) -> Result<Vec<IndicatorOutput>, BacktestError> {
     let mut output = Vec::with_capacity(periods.len() * 2);
@@ -29,43 +30,67 @@ pub(crate) fn calculate_indicators(
 }
 
 fn simple_moving_average(
-    values: &[Fixed8],
+    values: &[Decimal],
     period: usize,
 ) -> Result<Vec<Option<String>>, BacktestError> {
-    let divisor = integer_fixed(period)?;
-    let mut sum = Fixed8::ZERO;
+    let divisor = Decimal::from(period);
+    let mut sum = Decimal::ZERO;
     let mut output = Vec::with_capacity(values.len());
     for (index, value) in values.iter().copied().enumerate() {
-        sum = sum.checked_add(value)?;
+        sum = sum
+            .checked_add(value)
+            .ok_or_else(|| BacktestError::Arithmetic("SMA sum overflow".into()))?;
         if index >= period {
-            sum = sum.checked_sub(values[index - period])?;
+            sum = sum
+                .checked_sub(values[index - period])
+                .ok_or_else(|| BacktestError::Arithmetic("SMA sum underflow".into()))?;
         }
         if index + 1 < period {
             output.push(None);
         } else {
-            output.push(Some(sum.checked_div(divisor)?.storage_text()));
+            let avg = sum
+                .checked_div(divisor)
+                .ok_or_else(|| BacktestError::Arithmetic("SMA division error".into()))?;
+            output.push(Some(avg.trunc_with_scale(8).to_storage_text()));
         }
     }
     Ok(output)
 }
 
 fn exponential_moving_average(
-    values: &[Fixed8],
+    values: &[Decimal],
     period: usize,
 ) -> Result<Vec<Option<String>>, BacktestError> {
     if values.is_empty() {
         return Ok(Vec::new());
     }
-    let alpha = integer_fixed(2)?.checked_div(integer_fixed(period + 1)?)?;
-    let one_minus_alpha = "1".parse::<Fixed8>()?.checked_sub(alpha)?;
-    let mut current = values[0];
+    const SCALE: i128 = 100_000_000;
+    let period_i128 = period as i128;
+    let alpha_scaled = (2 * SCALE) / (period_i128 + 1);
+    let one_minus_alpha_scaled = SCALE - alpha_scaled;
+
+    let mut current = values[0].trunc_with_scale(8);
     let mut output = Vec::with_capacity(values.len());
-    output.push(Some(current.storage_text()));
+    output.push(Some(current.to_storage_text()));
+
     for value in &values[1..] {
-        current = value
-            .checked_mul(alpha)?
-            .checked_add(current.checked_mul(one_minus_alpha)?)?;
-        output.push(Some(current.storage_text()));
+        let val_scaled = (value
+            .trunc_with_scale(8)
+            .checked_mul(Decimal::from(100_000_000))
+            .ok_or_else(|| BacktestError::Arithmetic("EMA value overflow".into()))?)
+        .to_i128()
+        .ok_or_else(|| BacktestError::Arithmetic("EMA value i128 conversion error".into()))?;
+
+        let cur_scaled = (current
+            .checked_mul(Decimal::from(100_000_000))
+            .ok_or_else(|| BacktestError::Arithmetic("EMA current overflow".into()))?)
+        .to_i128()
+        .ok_or_else(|| BacktestError::Arithmetic("EMA current i128 conversion error".into()))?;
+
+        let sum = (val_scaled * alpha_scaled + cur_scaled * one_minus_alpha_scaled) / SCALE;
+
+        current = Decimal::from_i128_with_scale(sum, 8);
+        output.push(Some(current.to_storage_text()));
     }
     Ok(output)
 }
@@ -211,32 +236,24 @@ fn validate_pine_period(indicator: &str, period: usize) -> Result<(), BacktestEr
     Ok(())
 }
 
-fn integer_fixed(value: usize) -> Result<Fixed8, BacktestError> {
-    value
-        .to_string()
-        .parse::<Fixed8>()
-        .map_err(BacktestError::from)
-}
-
 #[cfg(test)]
 mod tests {
-    use jftrade_kernel::Fixed8;
+    use rust_decimal::Decimal;
 
     use super::calculate_indicators;
 
     #[test]
     fn indicator_properties_stay_within_go_compatibility_bounds() {
         for period in 1..=32 {
-            let values = vec!["42".parse::<Fixed8>().expect("value"); period * 3];
+            let values = vec!["42".parse::<Decimal>().expect("value"); period * 3];
             let indicators = calculate_indicators(&values, &[period]).expect("indicators");
             for indicator in indicators {
                 for value in indicator.values.into_iter().flatten() {
                     if indicator.kind == "sma" {
                         assert_eq!(value, "42");
                     } else {
-                        let scaled = value.parse::<Fixed8>().expect("EMA value").scaled();
-                        assert!(scaled <= 4_200_000_000);
-                        assert!(scaled >= 4_199_999_000);
+                        let parsed = value.parse::<Decimal>().expect("EMA value");
+                        assert_eq!(parsed, Decimal::from(42));
                     }
                 }
             }

@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use jftrade_kernel::Fixed8;
 use jftrade_trading::{
     HardStop, PreTradeRiskOrder, PreTradeRiskPolicy, RealTradeControlEvent, RealTradeControlState,
     RealTradeRiskSnapshot, evaluate_pre_trade_risk,
@@ -246,8 +245,8 @@ impl ExecutionRiskCoordinator {
                             account_id: Some(order.account_id.clone()),
                             market: Some(order.market.clone()),
                             symbol: Some(order.symbol.clone()),
-                            quantity: order.quantity.to_f64().ok(),
-                            price: order.price.and_then(|p| p.to_f64().ok()),
+                            quantity: Some(order.quantity),
+                            price: order.price,
                             operator_id: Some("system".to_owned()),
                             reason: Some(message.clone()),
                             error_code: Some(code.clone()),
@@ -310,12 +309,8 @@ fn policy_from_snapshot(snapshot: &RealTradeRiskSnapshot) -> PreTradeRiskPolicy 
         control_plane_available: snapshot.control_plane_available,
         real_trading_enabled: snapshot.real_trading_enabled,
         kill_switch_active: snapshot.kill_switch_active,
-        effective_max_order_quantity: snapshot
-            .effective_max_order_quantity
-            .and_then(|v| Fixed8::from_f64(v).ok()),
-        effective_max_order_notional: snapshot
-            .effective_max_order_notional
-            .and_then(|v| Fixed8::from_f64(v).ok()),
+        effective_max_order_quantity: snapshot.effective_max_order_quantity,
+        effective_max_order_notional: snapshot.effective_max_order_notional,
         hard_stops,
     }
 }
@@ -323,8 +318,10 @@ fn policy_from_snapshot(snapshot: &RealTradeRiskSnapshot) -> PreTradeRiskPolicy 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jftrade_kernel::Decimal;
     use jftrade_trading::TradingEnvironment;
     use std::fs;
+    use std::str::FromStr;
     use tempfile::TempDir;
 
     fn write_control_file(dir: &Path, content: &str) -> PathBuf {
@@ -345,9 +342,12 @@ mod tests {
             order_kind: "single".to_owned(),
             product_class: "equity".to_owned(),
             quantity_mode: "units".to_owned(),
-            quantity: Fixed8::from_f64(qty).unwrap(),
-            price: Some(Fixed8::from_f64(price).unwrap()),
-            amount: Some(Fixed8::from_f64(qty * price).unwrap()),
+            quantity: Decimal::from_str(&qty.to_string()).unwrap_or_default(),
+            price: Some(Decimal::from_str(&price.to_string()).unwrap_or_default()),
+            amount: Some(
+                Decimal::from_str(&qty.to_string()).unwrap_or_default()
+                    * Decimal::from_str(&price.to_string()).unwrap_or_default(),
+            ),
             legs: Vec::new(),
         }
     }

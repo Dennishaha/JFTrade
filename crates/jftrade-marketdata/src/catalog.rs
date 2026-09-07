@@ -71,7 +71,9 @@ impl MarketRule {
         if self.tick_size.is_zero() {
             return price;
         }
-        (price / self.tick_size).round() * self.tick_size
+        (price / self.tick_size)
+            .round_dp_with_strategy(0, rust_decimal::RoundingStrategy::MidpointAwayFromZero)
+            * self.tick_size
     }
 }
 

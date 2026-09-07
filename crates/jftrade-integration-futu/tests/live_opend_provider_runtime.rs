@@ -6,6 +6,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use jftrade_integration_futu::{
     OpenDProviderRuntime, OpenDProviderRuntimeConfig, OpenDTcpProbeConfig, provider_descriptor,
 };
+use jftrade_kernel::Decimal;
 use jftrade_marketdata::{CacheLookup, InstrumentRef, ProviderReadiness, ProviderRouter};
 
 const LIVE_TEST_ENV: &str = "JFTRADE_FUTU_LIVE_TEST";
@@ -36,7 +37,10 @@ fn live_opend_provider_runtime_reads_generation_fenced_hk_quote() {
 
     let tick = wait_for_live_tick(&runtime, "HK.00700", Duration::from_secs(15));
     assert_eq!(tick.instrument_id, "HK.00700");
-    assert!(tick.price.scaled() > 0, "live quote price must be positive");
+    assert!(
+        tick.price > Decimal::ZERO,
+        "live quote price must be positive"
+    );
     let state = router.lock().expect("router").runtime();
     assert_eq!(state.active_provider, "futu");
     assert_eq!(state.readiness, ProviderReadiness::Ready);
