@@ -1,6 +1,7 @@
 //! Typed Qot_GetSecuritySnapshot (3203) reader.
 
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use jftrade_kernel::{DecimalText, Fixed8};
@@ -9,8 +10,8 @@ use prost::Message;
 use thiserror::Error;
 
 use crate::{
-    OpenDInitializedSession, PROTO_GET_SECURITY_SNAPSHOT,
-    trade_proto::qot_get_security_snapshot as wire,
+    OpenDManagedSessionError, OpenDSessionCoordinator, OpenDSessionCoordinatorError,
+    PROTO_GET_SECURITY_SNAPSHOT, trade_proto::qot_get_security_snapshot as wire,
 };
 
 const SNAPSHOT_TIMEOUT: Duration = Duration::from_millis(900);
@@ -21,43 +22,37 @@ pub trait SecuritySnapshotReadPort: Send + Sync {
 
 #[derive(Clone)]
 pub struct OpenDSecuritySnapshotReader {
-    session: OpenDInitializedSession,
+    coordinator: Arc<Mutex<OpenDSessionCoordinator>>,
+}
+
+impl std::fmt::Debug for OpenDSecuritySnapshotReader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenDSecuritySnapshotReader")
+            .finish_non_exhaustive()
+    }
 }
 
 impl OpenDSecuritySnapshotReader {
-    pub fn new(session: OpenDInitializedSession) -> Self {
-        Self { session }
+    pub fn new(coordinator: Arc<Mutex<OpenDSessionCoordinator>>) -> Self {
+        Self { coordinator }
     }
 
-    pub fn query(
+    fn query_raw_securities(
         &self,
-        instruments: &[String],
+        securities: &[crate::trade_proto::qot_common::Security],
     ) -> Result<Vec<BrokerSecuritySnapshot>, SecuritySnapshotQueryError> {
-        if instruments.is_empty() {
-            return Ok(Vec::new());
-        }
-        let securities = instruments
-            .iter()
-            .map(|value| {
-                let (market, code) = value
-                    .split_once('.')
-                    .ok_or_else(|| SecuritySnapshotQueryError::InvalidInstrument(value.clone()))?;
-                let market = market_code(market)
-                    .ok_or_else(|| SecuritySnapshotQueryError::InvalidInstrument(value.clone()))?;
-                Ok::<_, SecuritySnapshotQueryError>(crate::trade_proto::qot_common::Security {
-                    market,
-                    code: code.trim().to_ascii_uppercase(),
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
         let body = wire::Request {
             c2s: wire::C2s {
-                security_list: securities,
+                security_list: securities.to_vec(),
                 header: None,
             },
         }
         .encode_to_vec();
-        let bytes = self.session.managed_session().call_with_timeout(
+        let coordinator = self.coordinator.lock().map_err(|_| {
+            SecuritySnapshotQueryError::Session("coordinator lock poisoned".to_owned())
+        })?;
+        let session = coordinator.session()?;
+        let bytes = session.managed_session().call_with_timeout(
             PROTO_GET_SECURITY_SNAPSHOT,
             &body,
             SNAPSHOT_TIMEOUT,
@@ -83,6 +78,84 @@ impl OpenDSecuritySnapshotReader {
             })
             .unwrap_or_default())
     }
+
+    pub fn query(
+        &self,
+        instruments: &[String],
+    ) -> Result<Vec<BrokerSecuritySnapshot>, SecuritySnapshotQueryError> {
+        if instruments.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut securities = Vec::with_capacity(instruments.len());
+        let mut first_invalid = None;
+        for value in instruments {
+            match value.split_once('.').and_then(|(market, code)| {
+                let m = market_code(market)?;
+                let c = code.trim().to_ascii_uppercase();
+                if c.is_empty() { None } else { Some((m, c)) }
+            }) {
+                Some((market, code)) => {
+                    securities.push(crate::trade_proto::qot_common::Security { market, code });
+                }
+                None => {
+                    if first_invalid.is_none() {
+                        first_invalid =
+                            Some(SecuritySnapshotQueryError::InvalidInstrument(value.clone()));
+                    }
+                }
+            }
+        }
+        if securities.is_empty() {
+            if let Some(err) = first_invalid {
+                return Err(err);
+            }
+            return Ok(Vec::new());
+        }
+
+        let mut by_market: std::collections::BTreeMap<
+            i32,
+            Vec<crate::trade_proto::qot_common::Security>,
+        > = std::collections::BTreeMap::new();
+        for sec in securities {
+            by_market.entry(sec.market).or_default().push(sec);
+        }
+
+        let mut all_snapshots = Vec::new();
+        let mut last_error = None;
+
+        for (_market, list) in by_market {
+            for chunk in list.chunks(20) {
+                match self.query_raw_securities(chunk) {
+                    Ok(snaps) => all_snapshots.extend(snaps),
+                    Err(err) => {
+                        let mut chunk_succeeded = false;
+                        if chunk.len() > 1 {
+                            for single in chunk {
+                                if let Ok(snaps) =
+                                    self.query_raw_securities(std::slice::from_ref(single))
+                                    && !snaps.is_empty()
+                                {
+                                    chunk_succeeded = true;
+                                    all_snapshots.extend(snaps);
+                                }
+                            }
+                        }
+                        if !chunk_succeeded {
+                            last_error = Some(err);
+                        }
+                    }
+                }
+            }
+        }
+
+        if all_snapshots.is_empty()
+            && let Some(err) = last_error.or(first_invalid)
+        {
+            return Err(err);
+        }
+
+        Ok(all_snapshots)
+    }
 }
 
 impl SecuritySnapshotReadPort for OpenDSecuritySnapshotReader {
@@ -96,7 +169,7 @@ pub enum SecuritySnapshotQueryError {
     #[error("invalid OpenD security snapshot instrument: {0}")]
     InvalidInstrument(String),
     #[error("OpenD security snapshot session: {0}")]
-    Session(#[from] crate::OpenDManagedSessionError),
+    Session(String),
     #[error("decode OpenD Qot_GetSecuritySnapshot response: {0}")]
     Decode(#[from] prost::DecodeError),
     #[error(
@@ -107,6 +180,18 @@ pub enum SecuritySnapshotQueryError {
         err_code: i32,
         message: String,
     },
+}
+
+impl From<OpenDManagedSessionError> for SecuritySnapshotQueryError {
+    fn from(error: OpenDManagedSessionError) -> Self {
+        Self::Session(error.to_string())
+    }
+}
+
+impl From<OpenDSessionCoordinatorError> for SecuritySnapshotQueryError {
+    fn from(error: OpenDSessionCoordinatorError) -> Self {
+        Self::Session(error.to_string())
+    }
 }
 
 fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
@@ -124,7 +209,7 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
         bid_price: optional_fixed8(basic.bid_price),
         ask_price: optional_fixed8(basic.ask_price),
         last_price: optional_fixed8(Some(basic.cur_price)),
-        volume: optional_decimal(Some(basic.volume as f64)),
+        volume: DecimalText::from_str(&basic.volume.to_string()).ok(),
         lot_size: Some(basic.lot_size),
         security_type: Some(security_type(basic.r#type).to_owned()),
         open_price: optional_fixed8(Some(basic.open_price)),
@@ -160,8 +245,13 @@ fn market_code(value: &str) -> Option<i32> {
     match value.trim().to_ascii_uppercase().as_str() {
         "HK" => Some(1),
         "US" => Some(11),
-        "SH" => Some(21),
+        "SH" | "CN" => Some(21),
         "SZ" => Some(22),
+        "SG" => Some(31),
+        "JP" => Some(41),
+        "AU" => Some(51),
+        "MY" => Some(61),
+        "CA" => Some(71),
         _ => None,
     }
 }
@@ -171,19 +261,25 @@ fn market_label(value: i32) -> Option<&'static str> {
         11 => Some("US"),
         21 => Some("SH"),
         22 => Some("SZ"),
+        31 => Some("SG"),
+        41 => Some("JP"),
+        51 => Some("AU"),
+        61 => Some("MY"),
+        71 => Some("CA"),
         _ => None,
     }
 }
 fn security_type(value: i32) -> &'static str {
     match value {
-        1 => "EQUITY",
-        2 => "BOND",
-        3 => "WARRANT",
-        4 => "OPTION",
-        5 => "FUTURE",
+        1 => "BOND",
+        2 => "BWRT",
+        3 => "EQUITY",
+        4 => "TRUST",
+        5 => "WARRANT",
         6 => "INDEX",
         7 => "PLATE",
-        8 => "FUND",
+        8 => "OPTION",
+        10 => "FUTURE",
         _ => "UNKNOWN",
     }
 }
@@ -232,7 +328,7 @@ mod tests {
                     code: "AAPL".to_owned(),
                 },
                 name: Some("Apple Inc.".to_owned()),
-                r#type: 1,
+                r#type: 3,
                 is_suspend: false,
                 list_time: "1980-12-12".to_owned(),
                 lot_size: 1,
@@ -344,7 +440,7 @@ mod tests {
                                 code: "AAPL".to_owned(),
                             },
                             name: Some("Apple Inc.".to_owned()),
-                            r#type: 1,
+                            r#type: 3,
                             is_suspend: false,
                             list_time: "1980".to_owned(),
                             lot_size: 1,
@@ -403,16 +499,60 @@ mod tests {
                 )
                 .expect("response");
         });
-        let session = OpenDInitializedSession::connect_with_push_notifications(
-            &OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
-            1,
-        )
-        .expect("session");
-        let snapshots = OpenDSecuritySnapshotReader::new(session)
+        let coordinator = Arc::new(Mutex::new(
+            OpenDSessionCoordinator::connect(
+                OpenDTcpProbeConfig::new(address, Duration::from_secs(1)),
+                Arc::new(jftrade_marketdata::MarketDataRuntimeRecorder::default()),
+                Vec::new(),
+                0,
+            )
+            .expect("coordinator"),
+        ));
+        let snapshots = OpenDSecuritySnapshotReader::new(coordinator)
             .query(&["US.AAPL".to_owned()])
             .expect("snapshot query");
         assert_eq!(snapshots[0].bid_price.expect("bid").to_string(), "1.7");
         assert_eq!(snapshots[0].ask_price.expect("ask").to_string(), "1.9");
         server.join().expect("server");
+    }
+
+    #[test]
+    fn security_type_mapping_matches_futu_proto_definitions() {
+        assert_eq!(security_type(1), "BOND");
+        assert_eq!(security_type(2), "BWRT");
+        assert_eq!(security_type(3), "EQUITY");
+        assert_eq!(security_type(4), "TRUST");
+        assert_eq!(security_type(5), "WARRANT");
+        assert_eq!(security_type(6), "INDEX");
+        assert_eq!(security_type(7), "PLATE");
+        assert_eq!(security_type(8), "OPTION");
+        assert_eq!(security_type(10), "FUTURE");
+        assert_eq!(security_type(99), "UNKNOWN");
+    }
+
+    #[test]
+    fn market_code_and_label_supports_all_standard_markets() {
+        assert_eq!(market_code("HK"), Some(1));
+        assert_eq!(market_code("US"), Some(11));
+        assert_eq!(market_code("SH"), Some(21));
+        assert_eq!(market_code("CN"), Some(21));
+        assert_eq!(market_code("SZ"), Some(22));
+        assert_eq!(market_code("SG"), Some(31));
+        assert_eq!(market_code("JP"), Some(41));
+        assert_eq!(market_code("AU"), Some(51));
+        assert_eq!(market_code("MY"), Some(61));
+        assert_eq!(market_code("CA"), Some(71));
+        assert_eq!(market_code("UNKNOWN"), None);
+
+        assert_eq!(market_label(1), Some("HK"));
+        assert_eq!(market_label(11), Some("US"));
+        assert_eq!(market_label(21), Some("SH"));
+        assert_eq!(market_label(22), Some("SZ"));
+        assert_eq!(market_label(31), Some("SG"));
+        assert_eq!(market_label(41), Some("JP"));
+        assert_eq!(market_label(51), Some("AU"));
+        assert_eq!(market_label(61), Some("MY"));
+        assert_eq!(market_label(71), Some("CA"));
+        assert_eq!(market_label(999), None);
     }
 }

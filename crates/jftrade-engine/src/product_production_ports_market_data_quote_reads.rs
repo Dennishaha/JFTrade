@@ -123,6 +123,36 @@ impl ProductionMarketDataQuotePort {
 
             if let Some(tick) = cached_tick {
                 let observed_at = format_unix_millis_rfc3339(tick.observed_at_ms);
+                let snap = tick.snapshot.as_ref();
+                let ask = snap
+                    .and_then(|s| s.ask_price)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let bid = snap
+                    .and_then(|s| s.bid_price)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let open_price = snap
+                    .and_then(|s| s.open_price)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let high_price = snap
+                    .and_then(|s| s.high_price)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let low_price = snap
+                    .and_then(|s| s.low_price)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let prev_close = snap
+                    .and_then(|s| s.previous_close)
+                    .map(|v| json!(v.to_string()))
+                    .unwrap_or(Value::Null);
+                let turnover = snap
+                    .and_then(|s| s.turnover.as_ref())
+                    .map(|v| json!(v.as_str()))
+                    .unwrap_or(Value::Null);
+
                 return Ok(json!({
                     "meta": {
                         "fromCache": true,
@@ -137,24 +167,24 @@ impl ProductionMarketDataQuotePort {
                         "symbol": symbol
                     },
                     "snapshot": {
-                        "ask": Value::Null,
+                        "ask": ask,
                         "at": observed_at,
-                        "bid": Value::Null,
+                        "bid": bid,
                         "extended": {
                             "afterMarket": Value::Null,
                             "overnight": Value::Null,
                             "preMarket": Value::Null
                         },
                         "extendedHours": false,
-                        "highPrice": Value::Null,
-                        "lastClosePrice": Value::Null,
-                        "lowPrice": Value::Null,
+                        "highPrice": high_price,
+                        "lastClosePrice": prev_close.clone(),
+                        "lowPrice": low_price,
                         "observedAt": observed_at,
-                        "openPrice": Value::Null,
-                        "previousClosePrice": Value::Null,
+                        "openPrice": open_price,
+                        "previousClosePrice": prev_close,
                         "price": tick.price.to_string(),
                         "session": "regular",
-                        "turnover": Value::Null,
+                        "turnover": turnover,
                         "volume": tick.volume.as_str(),
                     }
                 }));
@@ -434,8 +464,14 @@ impl ProductionMarketDataQuotePort {
                     "Futu historical klines runtime is unavailable".to_owned(),
                 ));
             };
-            let begin_time = to_futu_time(from_time.as_deref(), "1970-01-01 00:00:00");
-            let end_time = to_futu_time(to_time.as_deref().or(before.as_deref()), "2999-12-31 23:59:59");
+            let (begin_time, end_time, query_current) = futu_kline_query_window(
+                &market,
+                period,
+                limit,
+                from_time.as_deref(),
+                to_time.as_deref(),
+                before.as_deref(),
+            );
             let extended_hours = sessions.iter().any(|s| *s == "extended" || *s == "overnight");
             let futu_result = runtime
                 .historical_klines(&jftrade_integration_futu::HistoricalKlineQuery {
@@ -450,7 +486,7 @@ impl ProductionMarketDataQuotePort {
                     extended_time: Some(extended_hours),
                     session: None,
                 });
-            let result = match futu_result {
+            let mut result = match futu_result {
                 Ok(res) if !res.klines.is_empty() => res,
                 other => {
                     if let Some(helper) = &self.helper {
@@ -498,6 +534,44 @@ impl ProductionMarketDataQuotePort {
                     }));
                 }
             };
+
+            if query_current {
+                let current_query = jftrade_integration_futu::CurrentKlineQuery::new(
+                    market_code,
+                    &symbol,
+                    period,
+                );
+                if let Ok(current_res) = runtime.current_kline(&current_query) {
+                    if !current_res.klines.is_empty() {
+                        result.klines = jftrade_integration_futu::kline_query::merge_klines_by_time(
+                            &result.klines,
+                            &current_res.klines,
+                        );
+                    }
+                    if result.name.is_none() {
+                        result.name = current_res.name;
+                    }
+                }
+            }
+
+            let name_missing = result.name.as_deref().unwrap_or_default().trim().is_empty()
+                || result.name.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(&symbol));
+            if name_missing
+                && let Ok(snapshots) = runtime.security_snapshots(&[jftrade_integration_futu::TradeSecurity {
+                    market: market_code,
+                    code: symbol.clone(),
+                }])
+            {
+                for snap in snapshots {
+                    if let Some(n) = snap.get("name").and_then(|v| v.as_str()) {
+                        let trimmed = n.trim();
+                        if !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case(&symbol) {
+                            result.name = Some(trimmed.to_owned());
+                            break;
+                        }
+                    }
+                }
+            }
 
             let mut candles = Vec::with_capacity(result.klines.len());
             for kline in &result.klines {
@@ -563,22 +637,105 @@ impl ProductionMarketDataQuotePort {
     }
 }
 
-fn to_futu_time(time_str: Option<&str>, fallback: &str) -> String {
-    let Some(raw) = time_str else {
-        return fallback.to_owned();
-    };
+fn effective_period_seconds(period: &str) -> i64 {
+    let secs = jftrade_integration_futu::kline_query::period_duration_seconds(period);
+    if secs > 0 {
+        return secs;
+    }
+    match period.trim().to_ascii_lowercase().as_str() {
+        "1d" | "day" => 86_400,
+        "1w" | "week" => 604_800,
+        "1mo" | "month" => 2_592_000,
+        "1y" | "year" => 31_536_000,
+        _ => 86_400,
+    }
+}
+
+fn parse_futu_time_to_ts(raw: &str, tz: &jiff::tz::TimeZone) -> Option<jiff::Timestamp> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return fallback.to_owned();
+        return None;
     }
-    if trimmed.len() >= 19 && trimmed.as_bytes()[10] == b'T' {
-        return format!("{} {}", &trimmed[..10], &trimmed[11..19]);
+    if (trimmed.contains('T') || trimmed.ends_with('Z'))
+        && let Ok(ts) = trimmed.parse::<jiff::Timestamp>()
+    {
+        return Some(ts);
     }
-    if trimmed.len() == 10 {
-        return format!("{trimmed} 00:00:00");
+    if let Ok(dt) = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", trimmed) {
+        return dt.to_zoned(tz.clone()).ok().map(|z| z.timestamp());
     }
-    if trimmed.len() >= 19 && trimmed.as_bytes()[10] == b' ' {
-        return trimmed[..19].to_owned();
+    if let Ok(d) = jiff::civil::Date::strptime("%Y-%m-%d", trimmed) {
+        return d
+            .to_datetime(jiff::civil::Time::midnight())
+            .to_zoned(tz.clone())
+            .ok()
+            .map(|z| z.timestamp());
     }
-    fallback.to_owned()
+    None
+}
+
+fn futu_kline_query_window(
+    market: &str,
+    period: &str,
+    limit: usize,
+    from_time: Option<&str>,
+    to_time: Option<&str>,
+    before: Option<&str>,
+) -> (String, String, bool) {
+    let tz_str = match market {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "SH" | "SZ" | "CN" => "Asia/Shanghai",
+        "JP" => "Asia/Tokyo",
+        _ => "UTC",
+    };
+    let tz = jiff::tz::TimeZone::get(tz_str).unwrap_or(jiff::tz::TimeZone::UTC);
+    let now_ts = jiff::Timestamp::now();
+    let bar_duration = effective_period_seconds(period);
+    let eff_limit = limit.clamp(1, 1000) as i64;
+    let mut lookback_secs = bar_duration.saturating_mul(eff_limit).saturating_mul(4);
+    let min_lookback_secs = if bar_duration >= 86_400 {
+        45 * 86_400
+    } else {
+        36 * 3_600
+    };
+    if lookback_secs < min_lookback_secs {
+        lookback_secs = min_lookback_secs;
+    }
+
+    let end_ts = if let Some(raw_end) = to_time.or(before) {
+        parse_futu_time_to_ts(raw_end, &tz).unwrap_or(now_ts)
+    } else {
+        now_ts
+    };
+
+    let begin_ts = if let Some(raw_begin) = from_time {
+        let parsed = parse_futu_time_to_ts(raw_begin, &tz).unwrap_or_else(|| {
+            end_ts
+                .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
+                .unwrap_or(now_ts)
+        });
+        if parsed >= end_ts {
+            end_ts
+                .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
+                .unwrap_or(now_ts)
+        } else {
+            parsed
+        }
+    } else {
+        end_ts
+            .checked_sub(jiff::SignedDuration::from_secs(lookback_secs))
+            .unwrap_or(now_ts)
+    };
+
+    let begin_zoned = begin_ts.to_zoned(tz.clone());
+    let end_zoned = end_ts.to_zoned(tz);
+    let begin_str = begin_zoned.strftime("%Y-%m-%d %H:%M:%S").to_string();
+    let end_str = end_zoned.strftime("%Y-%m-%d %H:%M:%S").to_string();
+
+    let query_current = end_ts
+        >= now_ts
+            .checked_sub(jiff::SignedDuration::from_secs(bar_duration))
+            .unwrap_or(now_ts);
+    (begin_str, end_str, query_current)
 }

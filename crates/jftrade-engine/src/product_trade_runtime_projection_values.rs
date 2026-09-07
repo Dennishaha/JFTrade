@@ -82,12 +82,37 @@ pub(super) fn insert_rich_security_fields(
     }
     if let Some(value) = rich.is_suspended {
         item.insert("isSuspended".to_owned(), Value::Bool(value));
+        item.insert("isSuspend".to_owned(), Value::Bool(value));
     }
     if let Some(status) = rich.status {
         item.insert("status".to_owned(), json!(status));
     }
     if let Some(update_time) = rich.update_time.as_ref() {
         item.insert("updateTime".to_owned(), Value::String(update_time.clone()));
+    }
+    if let Some(value) = rich.lot_size {
+        item.insert("lotSize".to_owned(), json!(value));
+    }
+    if let Some(value) = rich.security_type.as_ref() {
+        item.insert("securityType".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = rich.pe_rate.as_ref() {
+        item.insert("peRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = rich.pb_rate.as_ref() {
+        item.insert("pbRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = rich.bid_price {
+        item.insert(
+            "bidPrice".to_owned(),
+            json!(value.to_f64().map_err(|e| e.to_string())?),
+        );
+    }
+    if let Some(value) = rich.ask_price {
+        item.insert(
+            "askPrice".to_owned(),
+            json!(value.to_f64().map_err(|e| e.to_string())?),
+        );
     }
     item.remove("marketTime");
     Ok(())
@@ -133,6 +158,7 @@ pub(super) fn security_snapshot_value(
     }
     if let Some(value) = snapshot.is_suspended {
         item.insert("isSuspended".to_owned(), Value::Bool(value));
+        item.insert("isSuspend".to_owned(), Value::Bool(value));
     }
     if let Some(value) = snapshot.lot_size {
         item.insert("lotSize".to_owned(), json!(value));

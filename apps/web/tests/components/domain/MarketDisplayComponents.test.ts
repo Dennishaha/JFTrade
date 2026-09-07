@@ -93,8 +93,22 @@ describe("market and runtime display components", () => {
     expect(failure.attributes("data-state")).toBe("error");
     expect(failure.text()).toContain("OpenD unavailable");
     const disabled = mount(OrderBookDepthTable, { props: { levels: [], disabled: true } });
-    expect(disabled.attributes("data-state")).toBe("disabled");
+    expect(disabled.attributes("data-tone") ?? disabled.attributes("data-state")).toBe("disabled");
     const empty = mount(OrderBookDepthTable, { props: { levels: [] } });
     expect(empty.attributes("data-state")).toBe("empty");
+
+    const singleBbo = mount(OrderBookDepthTable, {
+      props: {
+        market: "HK",
+        levels: [
+          { bidPrice: 380.2, askPrice: 380.4, bidSize: 1000, askSize: 2000 },
+        ],
+      },
+    });
+    expect(singleBbo.attributes("data-state")).toBe("normal");
+    expect(singleBbo.text()).toContain("380.20");
+    expect(singleBbo.text()).toContain("380.40");
+    expect(singleBbo.findAll(".tv-ob-depth-row-bid")).toHaveLength(5);
+    expect(singleBbo.findAll(".tv-ob-depth-row-ask")).toHaveLength(5);
   });
 });

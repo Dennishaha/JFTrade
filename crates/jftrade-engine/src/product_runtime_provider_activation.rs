@@ -427,13 +427,9 @@ pub(crate) fn try_install_security_snapshot_reader(
     trade_runtime: &SharedTradeReadRuntime,
     coordinator: &Arc<Mutex<OpenDSessionCoordinator>>,
 ) {
-    if let Ok(guard) = coordinator.lock()
-        && let Ok(session) = guard.session_clone()
-    {
-        trade_runtime.set_security_snapshots(Some(Arc::new(
-            jftrade_integration_futu::OpenDSecuritySnapshotReader::new(session),
-        )));
-    }
+    trade_runtime.set_security_snapshots(Some(Arc::new(
+        jftrade_integration_futu::OpenDSecuritySnapshotReader::new(Arc::clone(coordinator)),
+    )));
 }
 
 #[cfg(test)]

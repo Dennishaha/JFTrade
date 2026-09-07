@@ -361,10 +361,12 @@ fn evaluation(
         check("degraded", "ACCOUNT_CONTEXT_REQUIRED", "A logged-in trade session is required.", &now)
     };
     let quote = if spec.access == "read" {
-        if available {
-            check("degraded", "QUOTE_RIGHT_UNVERIFIED", "OpenD quote entitlement has not been verified for this session.", &now)
-        } else {
+        if !available {
             check("unavailable", "CAPABILITY_UNAVAILABLE", "The concrete reader for this capability is unavailable.", &now)
+        } else if connection_ready {
+            check("available", "QUOTE_RIGHT_AVAILABLE", "OpenD quote entitlement is verified for this session.", &now)
+        } else {
+            check("degraded", "QUOTE_RIGHT_UNVERIFIED", "OpenD quote entitlement has not been verified for this session.", &now)
         }
     } else {
         check("available", "NOT_REQUIRED", "This runtime dimension is not required.", &now)
@@ -400,14 +402,66 @@ fn feature_runtime_available(id: &str, provider: &ProviderRuntimeSnapshot, runti
     match id {
         "market.snapshot" | "market.snapshots" => runtime.market_data_reader_available(),
         "market.candles" => runtime.historical_klines_available(),
+        "market.depth"
+        | "market.ticks"
+        | "market.intraday"
+        | "market.broker_queue"
+        | "market.capital_flow" => runtime.market_microstructure_available(),
+        "market.search" | "market.instrument_profile" => {
+            runtime.market_data_reader_available() || runtime.market_microstructure_available()
+        }
         "derivatives.option_chain" => runtime.option_chains_available() || runtime.option_expirations_available(),
         "derivatives.option_screen" => runtime.option_screens_available(),
-        "derivatives.option_analysis" => runtime.option_quotes_available() || runtime.option_volatility_available() || runtime.option_exercise_probability_available() || runtime.option_underlying_overview_available() || runtime.option_underlying_his_volatility_available() || runtime.option_market_statistic_available() || runtime.option_underlying_his_statistic_available() || runtime.option_strategy_spread_available() || runtime.option_strategy_available() || runtime.option_strategy_analysis_available() || runtime.option_underlying_rank_available() || runtime.option_contract_rank_available(),
-        "derivatives.option_events" => runtime.option_events_available() || runtime.option_zero_dte_screener_available() || runtime.option_zero_dte_contract_available() || runtime.option_earnings_screener_available() || runtime.option_seller_screener_available(),
+        "derivatives.option_analysis" => {
+            runtime.option_quotes_available()
+                || runtime.option_volatility_available()
+                || runtime.option_exercise_probability_available()
+                || runtime.option_underlying_overview_available()
+                || runtime.option_underlying_his_volatility_available()
+                || runtime.option_market_statistic_available()
+                || runtime.option_underlying_his_statistic_available()
+                || runtime.option_strategy_spread_available()
+                || runtime.option_strategy_available()
+                || runtime.option_strategy_analysis_available()
+                || runtime.option_underlying_rank_available()
+                || runtime.option_contract_rank_available()
+        }
+        "derivatives.option_events" => {
+            runtime.option_events_available()
+                || runtime.option_zero_dte_screener_available()
+                || runtime.option_zero_dte_contract_available()
+                || runtime.option_earnings_screener_available()
+                || runtime.option_seller_screener_available()
+        }
         "derivatives.futures" => runtime.future_info_available(),
+        "derivatives.warrants" => {
+            runtime.option_chains_available()
+                || runtime.option_screens_available()
+                || runtime.market_data_reader_available()
+        }
         "research.valuation" => runtime.valuation_detail_available(),
         "research.news" => runtime.news_reader_available(),
         "research.corporate_actions" => runtime.corporate_actions_reader_available(),
+        "research.institutions" => runtime.institution_reader_available(),
+        "research.short_interest" => runtime.short_interest_reader_available(),
+        "research.technical_indicators" => runtime.technical_indicator_reader_available(),
+        "research.instrument"
+        | "research.financials"
+        | "research.analyst"
+        | "research.ownership" => runtime.valuation_detail_available(),
+        "research.screen"
+        | "research.calendar"
+        | "research.macro"
+        | "research.rankings"
+        | "research.industry" => {
+            provider.helper_ready || runtime.market_data_reader_available()
+        }
+        "prediction.discover"
+        | "prediction.snapshot"
+        | "prediction.depth"
+        | "prediction.history"
+        | "prediction.combo_eligible" => runtime.prediction_reader_available(),
+        "prediction.combo_quote" => runtime.prediction_combo_quote_available(),
         "alerts.price.list" | "alerts.option_event.list" => runtime.alert_reader().is_some(),
         "alerts.price.set" | "alerts.option_event.set" => runtime.alert_writer().is_some(),
         "watchlist.remote.list" => runtime.remote_watchlist_reader().is_some(),

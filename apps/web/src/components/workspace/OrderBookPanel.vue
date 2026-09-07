@@ -76,7 +76,11 @@ const removeDepthListener = liveHub.addEventListener((event) => {
   if (event.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
     return;
   }
-  if (Math.trunc(event.request.num) !== depthNum.value) {
+  if (
+    event.request?.num != null &&
+    Math.trunc(event.request.num) !== depthNum.value &&
+    Math.trunc(event.request.num) !== 1
+  ) {
     return;
   }
   depthData.value = event;
@@ -157,10 +161,26 @@ function isSameDepthSubscription(
   );
 }
 
-const bidPrice = computed(() => security.value?.bidPrice ?? snapshot.value?.bid ?? null);
-const askPrice = computed(() => security.value?.askPrice ?? snapshot.value?.ask ?? null);
-const bidVolume = computed(() => security.value?.bidVolume ?? null);
-const askVolume = computed(() => security.value?.askVolume ?? null);
+const bidPrice = computed(
+  () =>
+    security.value?.bidPrice ??
+    snapshot.value?.bid ??
+    depthLevels.value[0]?.bidPrice ??
+    null,
+);
+const askPrice = computed(
+  () =>
+    security.value?.askPrice ??
+    snapshot.value?.ask ??
+    depthLevels.value[0]?.askPrice ??
+    null,
+);
+const bidVolume = computed(
+  () => security.value?.bidVolume ?? depthLevels.value[0]?.bidSize ?? null,
+);
+const askVolume = computed(
+  () => security.value?.askVolume ?? depthLevels.value[0]?.askSize ?? null,
+);
 const lastPrice = computed(() => security.value?.currentPrice ?? snapshot.value?.price ?? null);
 const depthObservedAt = computed(() => depthData.value?.meta.resolvedAt ?? null);
 const depthConnectionState = computed(() => liveHub.connectionState?.value ?? "idle");

@@ -135,6 +135,7 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                                 serde_json::json!({
                                     "price": p,
                                     "volume": b.volume,
+                                    "orderCount": b.order_count.unwrap_or(0),
                                 })
                             })
                         })
@@ -147,30 +148,12 @@ impl jftrade_integration_futu::OpenDSessionEventListener for LiveHubOpenDEventLi
                                 serde_json::json!({
                                     "price": p,
                                     "volume": a.volume,
+                                    "orderCount": a.order_count.unwrap_or(0),
                                 })
                             })
                         })
                         .collect::<Vec<_>>();
-                    let instrument_id = format!("{market}.{code}");
-                    let payload = serde_json::json!({
-                        "type": "market.depth",
-                        "brokerId": "futu",
-                        "instrumentId": instrument_id,
-                        "depth": {
-                            "bids": bids,
-                            "asks": asks,
-                        },
-                        "at": at,
-                        "provenance": "stream",
-                    });
-                    let envelope = serde_json::json!({
-                        "eventId": format!("market.depth|{instrument_id}|{at}"),
-                        "type": "market.depth",
-                        "source": "market-data",
-                        "entityId": instrument_id,
-                        "serverTime": at,
-                        "payload": payload,
-                    });
+                    let envelope = order_book_depth_envelope(market, &code, at, bids, asks);
                     self.live_hub.publish(envelope);
                 }
                 _ => {}
@@ -276,4 +259,46 @@ fn current_utc_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+}
+
+fn order_book_depth_envelope(
+    market: &str,
+    code: &str,
+    at: &str,
+    bids: Vec<serde_json::Value>,
+    asks: Vec<serde_json::Value>,
+) -> serde_json::Value {
+    let instrument_id = format!("{market}.{code}");
+    let num = bids.len().max(asks.len()).max(1);
+    let payload = serde_json::json!({
+        "type": "market.depth",
+        "brokerId": "futu",
+        "instrumentId": instrument_id,
+        "at": at,
+        "provenance": "stream",
+        "depth": {
+            "symbol": instrument_id,
+            "bids": bids,
+            "asks": asks,
+        },
+        "meta": {
+            "instrumentId": instrument_id,
+            "source": "futu",
+            "resolvedAt": at,
+        },
+        "request": {
+            "market": market,
+            "symbol": code,
+            "instrumentId": instrument_id,
+            "num": num,
+        },
+    });
+    serde_json::json!({
+        "eventId": format!("market.depth|{instrument_id}|{at}"),
+        "type": "market.depth",
+        "source": "market-data",
+        "entityId": instrument_id,
+        "serverTime": at,
+        "payload": payload,
+    })
 }

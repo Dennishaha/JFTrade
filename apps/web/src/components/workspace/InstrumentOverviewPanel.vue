@@ -51,7 +51,14 @@ const instrumentName = computed(() => {
   const option = marketInstrumentSearchOptions.value.find(
     (candidate) => candidate.instrumentId === instrumentId.value,
   );
-  return option?.name ?? security.value?.name ?? "";
+  const candidateName = option?.name?.trim() || security.value?.name?.trim() || "";
+  if (
+    candidateName.toUpperCase() === prefs.value.symbol.toUpperCase() ||
+    candidateName.toUpperCase() === instrumentId.value.toUpperCase()
+  ) {
+    return "";
+  }
+  return candidateName;
 });
 const { query: watchlistMembershipQuery } = useWatchlistMembership(
   () => prefs.value.market,

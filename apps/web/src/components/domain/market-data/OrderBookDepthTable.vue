@@ -29,8 +29,29 @@ const props = withDefaults(defineProps<{
   pricePrecision: null,
 });
 
-const maxBidSize = computed(() => Math.max(...props.levels.map((level) => level.bidSize), 1));
-const maxAskSize = computed(() => Math.max(...props.levels.map((level) => level.askSize), 1));
+const displayLevels = computed<OrderBookDepthLevel[]>(() => {
+  if (props.levels.length === 0) return [];
+  if (props.levels.length === 1) {
+    const padded: OrderBookDepthLevel[] = [...props.levels];
+    for (let i = 1; i < 5; i++) {
+      padded.push({
+        bidPrice: null,
+        askPrice: null,
+        bidSize: 0,
+        askSize: 0,
+      });
+    }
+    return padded;
+  }
+  return props.levels;
+});
+
+const maxBidSize = computed(() =>
+  Math.max(...displayLevels.value.map((level) => level.bidSize), 1),
+);
+const maxAskSize = computed(() =>
+  Math.max(...displayLevels.value.map((level) => level.askSize), 1),
+);
 
 function formatPrice(value: number | null): string {
   return formatMarketPrice(value, {
@@ -40,11 +61,12 @@ function formatPrice(value: number | null): string {
 }
 
 function formatSize(value: number | null): string {
+  if (value == null || value <= 0) return "—";
   return formatCompactNumber(value);
 }
 
 function barWidth(max: number, value: number): string {
-  if (max <= 0) return "0%";
+  if (max <= 0 || value <= 0) return "0%";
   return `${formatNumber((value / max) * 100, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
@@ -54,26 +76,26 @@ function barWidth(max: number, value: number): string {
 </script>
 
 <template>
-  <div v-if="levels.length > 0" class="tv-ob-depth-table-wrap" data-state="normal">
+  <div v-if="displayLevels.length > 0" class="tv-ob-depth-table-wrap" data-state="normal">
     <div class="tv-ob-depth-table">
       <div class="tv-ob-depth-col tv-ob-depth-bid-size-col" data-testid="depth-bid-size-col">
-        <div v-for="(row, index) in levels" :key="`b${index}`" class="tv-ob-depth-row tv-ob-depth-row-bid">
+        <div v-for="(row, index) in displayLevels" :key="`b${index}`" class="tv-ob-depth-row tv-ob-depth-row-bid">
           <span class="tv-ob-depth-size">{{ formatSize(row.bidSize) }}</span>
           <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
         </div>
       </div>
       <div class="tv-ob-depth-col tv-ob-depth-bid-price-col" data-testid="depth-bid-price-col">
-        <div v-for="(row, index) in levels" :key="`bp${index}`" class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price">
+        <div v-for="(row, index) in displayLevels" :key="`bp${index}`" class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price">
           {{ formatPrice(row.bidPrice) }}
         </div>
       </div>
       <div class="tv-ob-depth-col tv-ob-depth-ask-price-col" data-testid="depth-ask-price-col">
-        <div v-for="(row, index) in levels" :key="`ap${index}`" class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
+        <div v-for="(row, index) in displayLevels" :key="`ap${index}`" class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
           {{ formatPrice(row.askPrice) }}
         </div>
       </div>
       <div class="tv-ob-depth-col tv-ob-depth-ask-size-col" data-testid="depth-ask-size-col">
-        <div v-for="(row, index) in levels" :key="`a${index}`" class="tv-ob-depth-row tv-ob-depth-row-ask">
+        <div v-for="(row, index) in displayLevels" :key="`a${index}`" class="tv-ob-depth-row tv-ob-depth-row-ask">
           <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
           <span class="tv-ob-depth-size">{{ formatSize(row.askSize) }}</span>
         </div>

@@ -1076,6 +1076,263 @@ fn broker_capabilities_preserve_catalog_without_a_market_data_reader() {
     assert_eq!(snapshot["evaluation"]["state"], "unavailable");
 }
 
+#[derive(Debug)]
+struct FakeMarketMicrostructureReader;
+
+impl jftrade_integration_futu::MarketMicrostructureReadPort for FakeMarketMicrostructureReader {
+    fn query(
+        &self,
+        _: jftrade_integration_futu::MarketMicrostructureOperation,
+        _: &str,
+        _: &serde_json::Value,
+    ) -> Result<serde_json::Value, jftrade_integration_futu::MarketMicrostructureError> {
+        Ok(serde_json::json!({}))
+    }
+}
+
+#[derive(Debug)]
+struct FakeValuationDetailReader;
+
+impl jftrade_integration_futu::ValuationDetailReadPort for FakeValuationDetailReader {
+    fn query(
+        &self,
+        _: &jftrade_integration_futu::ValuationDetailQuery,
+    ) -> Result<
+        jftrade_integration_futu::ValuationDetailSnapshot,
+        jftrade_integration_futu::ValuationDetailQueryError,
+    > {
+        Ok(jftrade_integration_futu::ValuationDetailSnapshot {
+            security: jftrade_integration_futu::ValuationDetailSecurity {
+                market: "HK".to_owned(),
+                code: "00700".to_owned(),
+                instrument_id: "HK.00700".to_owned(),
+            },
+            valuation_type: None,
+            last_update_time: None,
+            last_update_time_str: None,
+            trend: None,
+            market_distribution: None,
+            plate_distribution: None,
+            profit_growth_rate: None,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct FakeOptionChainReader;
+
+impl jftrade_integration_futu::OptionChainReadPort for FakeOptionChainReader {
+    fn query(
+        &self,
+        _: &jftrade_integration_futu::OptionChainQuery,
+    ) -> Result<
+        Vec<jftrade_integration_futu::OptionChainDate>,
+        jftrade_integration_futu::OptionChainQueryError,
+    > {
+        Ok(Vec::new())
+    }
+}
+
+#[derive(Debug)]
+struct FakeHistoricalKlineReader;
+
+impl jftrade_integration_futu::HistoricalKlineReadPort for FakeHistoricalKlineReader {
+    fn query(
+        &self,
+        _: &jftrade_integration_futu::HistoricalKlineQuery,
+    ) -> Result<
+        jftrade_integration_futu::HistoricalKlineResult,
+        jftrade_integration_futu::HistoricalKlineError,
+    > {
+        Ok(jftrade_integration_futu::HistoricalKlineResult {
+            security: jftrade_integration_futu::HistoricalSecurity {
+                market: 1,
+                code: "00700".to_owned(),
+            },
+            name: Some("腾讯控股".to_owned()),
+            klines: Vec::new(),
+            next_req_key: Vec::new(),
+        })
+    }
+
+    fn query_current(
+        &self,
+        query: &jftrade_integration_futu::CurrentKlineQuery,
+    ) -> Result<
+        jftrade_integration_futu::CurrentKlineResult,
+        jftrade_integration_futu::CurrentKlineError,
+    > {
+        Ok(jftrade_integration_futu::CurrentKlineResult {
+            security: jftrade_integration_futu::HistoricalSecurity {
+                market: query.market,
+                code: query.symbol.clone(),
+            },
+            name: Some("腾讯控股".to_owned()),
+            klines: vec![jftrade_integration_futu::HistoricalKline {
+                time: "2026-09-07 09:30:00".to_owned(),
+                is_blank: false,
+                high_price: Some(380.0),
+                open_price: Some(378.0),
+                low_price: Some(377.5),
+                close_price: Some(379.5),
+                volume: Some(1000),
+                turnover: Some(379500.0),
+                change_rate: Some(0.5),
+            }],
+        })
+    }
+}
+
+#[test]
+fn broker_capabilities_microstructure_and_research_runtime_ready() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_microstructure(Some(Arc::new(FakeMarketMicrostructureReader)));
+    runtime.set_valuation_detail(Some(Arc::new(FakeValuationDetailReader)));
+    runtime.set_option_chains(Some(Arc::new(FakeOptionChainReader)));
+    runtime.set_historical_klines(Some(Arc::new(FakeHistoricalKlineReader)));
+
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+
+    let runtime_items = value["runtime"].as_array().expect("runtime items");
+
+    for feature_id in [
+        "market.depth",
+        "market.ticks",
+        "market.intraday",
+        "market.broker_queue",
+        "market.capital_flow",
+    ] {
+        let item = runtime_items
+            .iter()
+            .find(|item| item["featureId"] == feature_id)
+            .unwrap_or_else(|| panic!("missing feature {feature_id}"));
+        assert_eq!(item["evaluation"]["state"], "available");
+        assert_eq!(item["evaluation"]["code"], "RUNTIME_READY");
+        assert_eq!(item["evaluation"]["quoteRight"]["state"], "available");
+        assert_eq!(item["evaluation"]["quoteRight"]["code"], "QUOTE_RIGHT_AVAILABLE");
+        assert_eq!(item["capability"]["state"], "available");
+        assert_eq!(item["capability"]["reasonCode"], "RUNTIME_READY");
+    }
+
+    let warrants = runtime_items
+        .iter()
+        .find(|item| item["featureId"] == "derivatives.warrants")
+        .expect("derivatives.warrants");
+    assert_eq!(warrants["evaluation"]["state"], "available");
+    assert_eq!(warrants["evaluation"]["code"], "RUNTIME_READY");
+
+    for research_id in ["research.valuation", "research.financials", "research.instrument"] {
+        let item = runtime_items
+            .iter()
+            .find(|item| item["featureId"] == research_id)
+            .unwrap_or_else(|| panic!("missing research {research_id}"));
+        assert_eq!(item["evaluation"]["state"], "available");
+        assert_eq!(item["evaluation"]["code"], "RUNTIME_READY");
+    }
+}
+
+#[test]
+fn broker_capabilities_quote_right_unverified_when_opend_disconnected() {
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set(Some(Arc::new(FakeTradeRead)), Some(true));
+    runtime.set_market_microstructure(Some(Arc::new(FakeMarketMicrostructureReader)));
+
+    let state = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Futu)));
+    state.set_readiness(false, false, false);
+
+    let port = ProductionBrokerPort {
+        active_provider_state: state,
+        trade_read_port: None,
+        trade_logged_in: None,
+        trade_runtime: Some(runtime),
+    };
+    let value = port
+        .read("/api/v1/brokers/capabilities", "")
+        .expect("read capabilities");
+    let depth = value["runtime"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["featureId"] == "market.depth")
+        .unwrap();
+    assert_eq!(depth["evaluation"]["state"], "unavailable");
+    assert_eq!(depth["evaluation"]["connection"]["code"], "OPEND_CONNECTION_UNAVAILABLE");
+}
+
+#[test]
+fn trade_runtime_current_kline_delegates_to_reader() {
+    let runtime = SharedTradeReadRuntime::default();
+    runtime.set_historical_klines(Some(Arc::new(FakeHistoricalKlineReader)));
+    let query = jftrade_integration_futu::CurrentKlineQuery::new(1, "00700", "1m");
+    let result = runtime.current_kline(&query).expect("current kline");
+    assert_eq!(result.name.as_deref(), Some("腾讯控股"));
+    assert_eq!(result.klines.len(), 1);
+    assert_eq!(result.klines[0].time, "2026-09-07 09:30:00");
+    assert_eq!(result.klines[0].close_price, Some(379.5));
+}
+
+#[derive(Debug)]
+struct FailingSecuritySnapshotReader;
+
+impl jftrade_integration_futu::SecuritySnapshotReadPort for FailingSecuritySnapshotReader {
+    fn query(
+        &self,
+        _: &[String],
+    ) -> Result<Vec<jftrade_marketdata::BrokerSecuritySnapshot>, String> {
+        Err("OpenD timeout".to_owned())
+    }
+}
+
+#[test]
+fn trade_runtime_security_snapshots_falls_through_to_tick_cache_on_failure() {
+    use jftrade_kernel::Fixed8;
+    use jftrade_marketdata::Tick;
+
+    let runtime = SharedTradeReadRuntime::default();
+    runtime.set_security_snapshots(Some(Arc::new(FailingSecuritySnapshotReader)));
+
+    let router = Arc::new(std::sync::Mutex::new(ProviderRouter::new(8)));
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    router
+        .lock()
+        .expect("router")
+        .cache_mut()
+        .insert(
+            Tick {
+                instrument_id: "HK.00700".to_owned(),
+                price: Fixed8::from_scaled(380_0000_0000),
+                volume: "100".parse().expect("volume"),
+                snapshot: None,
+                observed_at_ms: now_ms,
+                provider_generation: 0,
+            },
+            0,
+        )
+        .expect("tick");
+    runtime.set_market_data_router(Some(router));
+
+    let snapshots = runtime
+        .security_snapshots(&[TradeSecurity {
+            market: 1,
+            code: "00700".to_owned(),
+        }])
+        .expect("should fall through to tick cache without aborting on reader error");
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(snapshots[0]["symbol"], "HK.00700");
+}
+
 #[test]
 fn broker_quote_requires_symbol_query() {
     let runtime = Arc::new(SharedTradeReadRuntime::default());

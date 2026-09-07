@@ -9,7 +9,9 @@ use super::{
     string_array, ProductionWatchlistPort, WatchlistWritePortError, MAX_PAGE_LIMIT,
 };
 use crate::product::product_production_ports::provider_now_rfc3339;
-use crate::product::product_production_ports::product_production_ports_trade::quote_market_code;
+use crate::product::product_production_ports::product_production_ports_trade::{
+    qot_market_label, quote_market_code,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct WatchlistQuoteCacheEntry {
@@ -316,7 +318,9 @@ impl ProductionWatchlistPort {
                     }
                     Err(err) => {
                         for sec in &securities {
-                            let id = format!("{}.{}", sec.market.to_string().to_uppercase(), sec.code);
+                            let id = qot_market_label(sec.market)
+                                .map(|m| format!("{m}.{}", sec.code))
+                                .unwrap_or_else(|| format!("{}.{}", sec.market, sec.code));
                             error_messages.insert(id, err.to_string());
                         }
                     }

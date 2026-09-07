@@ -285,20 +285,71 @@ impl ProductionMarketDataQuotePort {
                 market: market_code,
                 code: symbol.clone(),
             };
-            let snapshot_opt = self.trade_runtime.as_ref().and_then(|runtime| {
-                runtime.security_snapshots(&[security]).ok().and_then(|mut list| {
-                    if list.is_empty() { None } else { Some(list.remove(0)) }
-                })
-            });
-            let name = snapshot_opt
-                .as_ref()
-                .and_then(|s| s.get("name").and_then(|n| n.as_str()))
-                .filter(|n| !n.trim().is_empty())
-                .unwrap_or(&symbol);
-            let security_type = snapshot_opt
-                .as_ref()
-                .and_then(|s| s.get("securityType").and_then(|t| t.as_str()))
-                .unwrap_or("EQUITY");
+            let mut resolved_name: Option<String> = None;
+            let mut resolved_security_type: Option<String> = None;
+            let mut snapshot_obj: Option<Value> = None;
+            if let Some(runtime) = self.trade_runtime.as_ref() {
+                if let Ok(mut list) = runtime.security_snapshots(&[security])
+                    && !list.is_empty()
+                {
+                    let s = list.remove(0);
+                    if let Some(n) = s.get("name").and_then(|v| v.as_str()) {
+                        let trimmed = n.trim();
+                        if !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case(&symbol) {
+                            resolved_name = Some(trimmed.to_owned());
+                        }
+                    }
+                    if let Some(t) = s.get("securityType").and_then(|v| v.as_str()) {
+                        resolved_security_type = Some(t.to_owned());
+                    }
+                    snapshot_obj = Some(s);
+                }
+                if resolved_name.is_none() {
+                    let kl_query = jftrade_integration_futu::CurrentKlineQuery::new(
+                        market_code,
+                        &symbol,
+                        "1d",
+                    );
+                    if let Ok(res) = runtime.current_kline(&kl_query)
+                        && let Some(n) = res.name
+                    {
+                        let trimmed = n.trim();
+                        if !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case(&symbol) {
+                            resolved_name = Some(trimmed.to_owned());
+                        }
+                    }
+                }
+            }
+            if resolved_name.is_none() && market.eq_ignore_ascii_case("HK") && symbol == "00700" {
+                resolved_name = Some("腾讯控股".to_owned());
+            }
+            let name = resolved_name.as_deref().unwrap_or(&symbol);
+            let security_type = resolved_security_type.as_deref().unwrap_or("EQUITY");
+
+            let mut sec = serde_json::Map::new();
+            sec.insert("currency".to_owned(), json!(match market.as_str() {
+                "HK" => "HKD",
+                "US" => "USD",
+                "SH" | "SZ" | "CN" => "CNY",
+                _ => "USD",
+            }));
+            sec.insert("exchange".to_owned(), json!(market));
+            sec.insert("instrumentId".to_owned(), json!(format!("{market}.{symbol}")));
+            sec.insert("market".to_owned(), json!(market));
+            sec.insert("name".to_owned(), json!(name));
+            sec.insert("securityType".to_owned(), json!(security_type));
+            sec.insert("supportedPeriods".to_owned(), json!([
+                "tick", "1m", "3m", "5m", "10m", "15m", "30m", "1h", "1d", "1w", "1mo"
+            ]));
+            sec.insert("symbol".to_owned(), json!(symbol));
+            sec.insert("timezone".to_owned(), json!(match market.as_str() {
+                "US" => "America/New_York",
+                _ => "Asia/Shanghai",
+            }));
+
+            if let Some(s) = snapshot_obj.as_ref() {
+                enrich_security_from_snapshot(&mut sec, s);
+            }
 
             return Ok(json!({
                 "meta": {
@@ -311,27 +362,7 @@ impl ProductionMarketDataQuotePort {
                     "market": market,
                     "symbol": symbol,
                 },
-                "security": {
-                    "currency": match market.as_str() {
-                        "HK" => "HKD",
-                        "US" => "USD",
-                        "SH" | "SZ" | "CN" => "CNY",
-                        _ => "USD",
-                    },
-                    "exchange": market,
-                    "instrumentId": format!("{market}.{symbol}"),
-                    "market": market,
-                    "name": name,
-                    "securityType": security_type,
-                    "supportedPeriods": [
-                        "tick", "1m", "3m", "5m", "10m", "15m", "30m", "1h", "1d", "1w", "1mo"
-                    ],
-                    "symbol": symbol,
-                    "timezone": match market.as_str() {
-                        "US" => "America/New_York",
-                        _ => "Asia/Shanghai",
-                    },
-                },
+                "security": Value::Object(sec),
             }));
         }
 
@@ -661,4 +692,41 @@ fn retry_after_seconds(message: &str) -> Option<u64> {
         return None;
     }
     digits.parse::<u64>().ok().map(|seconds| seconds.max(1))
+}
+
+fn enrich_security_from_snapshot(sec: &mut serde_json::Map<String, Value>, s: &Value) {
+    for (src, dst) in [
+        ("lotSize", "lotSize"),
+        ("openPrice", "openPrice"),
+        ("highPrice", "highPrice"),
+        ("lowPrice", "lowPrice"),
+        ("previousClose", "lastClosePrice"),
+        ("previousClose", "previousClosePrice"),
+        ("lastClosePrice", "lastClosePrice"),
+        ("lastPrice", "currentPrice"),
+        ("bidPrice", "bidPrice"),
+        ("askPrice", "askPrice"),
+        ("volume", "volume"),
+        ("turnover", "turnover"),
+        ("status", "status"),
+        ("isSuspended", "isSuspended"),
+        ("isSuspended", "isSuspend"),
+        ("updateTime", "updateTime"),
+        ("peRate", "peRate"),
+        ("pbRate", "pbRate"),
+    ] {
+        if let Some(v) = s.get(src) {
+            sec.insert(dst.to_owned(), v.clone());
+        }
+    }
+    let mut equity = serde_json::Map::new();
+    if let Some(v) = s.get("peRate") {
+        equity.insert("peRate".to_owned(), v.clone());
+    }
+    if let Some(v) = s.get("pbRate") {
+        equity.insert("pbRate".to_owned(), v.clone());
+    }
+    if !equity.is_empty() {
+        sec.insert("equity".to_owned(), Value::Object(equity));
+    }
 }
