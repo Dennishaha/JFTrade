@@ -65,8 +65,8 @@ prost = "=0.14.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
-rust_decimal = { version = "=1.42.1", default-features = false, features = ["maths", "serde", "serde-arbitrary-precision", "serde-float", "std"] }
-rustls = { version = "=0.23.43", default-features = false, features = ["ring", "std"] }
+rust_decimal = { version = "=1.43.0", default-features = false, features = ["maths", "serde", "serde-arbitrary-precision", "serde-float", "std"] }
+rustls = { version = "=0.23.44", default-features = false, features = ["ring", "std"] }
 sha1 = { version = "=0.11.0", default-features = false }
 sha2 = { version = "=0.11.0", default-features = false }
 thiserror = "=2.0.20"
@@ -78,13 +78,13 @@ tonic-health = "=0.14.6"
 tonic-prost = "=0.14.6"
 tonic-prost-build = "=0.14.6"
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
-tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
+tower-http = { version = "=0.7.1", default-features = false, features = ["trace"] }
 tauri = { version = "=2.11.5", default-features = false }
 tauri-build = "=2.6.3"
-tauri-plugin-opener = "=2.5.4"
-tauri-plugin-notification = "=2.3.3"
-tauri-plugin-single-instance = "=2.4.3"
-tauri-plugin-updater = { version = "=2.10.1", default-features = false, features = ["rustls-tls", "zip"] }
+tauri-plugin-opener = "=2.5.5"
+tauri-plugin-notification = "=2.4.0"
+tauri-plugin-single-instance = "=2.4.4"
+tauri-plugin-updater = { version = "=2.11.0", default-features = false, features = ["rustls-tls", "zip"] }
 tempfile = "=3.27.0"
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }

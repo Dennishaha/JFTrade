@@ -51,7 +51,7 @@ exceptions = [
   { crate = "libloading@0.7.4", allow = ["ISC"] },
   # Exact rustls signing/TLS graph used by the official Tauri updater.
   { crate = "ring@0.17.14", allow = ["ISC"] },
-  { crate = "rustls-webpki@0.103.14", allow = ["ISC"] },
+  { crate = "rustls-webpki@0.103.15", allow = ["ISC"] },
   { crate = "target-lexicon@0.12.16", allow = ["Apache-2.0 WITH LLVM-exception"] },
   { crate = "untrusted@0.9.0", allow = ["ISC"] },
 ]
