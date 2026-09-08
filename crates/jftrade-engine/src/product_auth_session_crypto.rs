@@ -1,6 +1,7 @@
 //! Hashing and constant-time comparison helpers for web sessions.
 
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 
 pub(super) fn derive_csrf_token(session_token: &str) -> String {
     token_hash(&format!("jftrade.csrf.v1:{session_token}"))
@@ -13,16 +14,7 @@ pub(super) fn token_hash(token: &str) -> String {
 }
 
 pub(super) fn constant_time_eq(a: &str, b: &str) -> bool {
-    let a_bytes = a.as_bytes();
-    let b_bytes = b.as_bytes();
-    if a_bytes.len() != b_bytes.len() {
-        return false;
-    }
-    let mut diff = 0;
-    for (x, y) in a_bytes.iter().zip(b_bytes.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
+    a.as_bytes().ct_eq(b.as_bytes()).into()
 }
 
 pub(super) fn encode_hex(bytes: impl AsRef<[u8]>) -> String {

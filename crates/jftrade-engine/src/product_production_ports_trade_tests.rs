@@ -208,11 +208,15 @@ struct ErrorTradeRead {
 
 impl ErrorTradeRead {
     fn error(&self) -> TradeSessionError {
-        TradeSessionError::Response(ResponseError::ReturnCode {
-            ret_type: -1,
-            err_code: 429,
-            message: self.message.to_owned(),
-        })
+        if self.message.contains("rate limit") {
+            TradeSessionError::RateLimited
+        } else {
+            TradeSessionError::Response(ResponseError::ReturnCode {
+                ret_type: -1,
+                err_code: 429,
+                message: self.message.to_owned(),
+            })
+        }
     }
 }
 

@@ -427,3 +427,214 @@ fn takeover_worker_never_invokes_external_tool_for_expired_running_invocation() 
         assert_eq!(call_count.load(Ordering::SeqCst), 0);
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_completion_barrier_high_concurrency_tokio_blocking() {
+    let barrier = Arc::new(super::CompletionBarrier::default());
+    let task_count = 100;
+    let completed = Arc::new(AtomicUsize::new(0));
+
+    let mut handles = Vec::new();
+    for _ in 0..task_count {
+        let barrier_clone = Arc::clone(&barrier);
+        let completed_clone = Arc::clone(&completed);
+        let guard = barrier_clone.enter();
+        let handle = tokio::task::spawn_blocking(move || {
+            let _guard = guard;
+            thread::sleep(Duration::from_millis(15));
+            completed_clone.fetch_add(1, Ordering::SeqCst);
+        });
+        handles.push(handle);
+    }
+
+    let wait_ok = barrier.wait_timeout(Duration::from_secs(5));
+    assert!(wait_ok, "Barrier must wait successfully for all tasks");
+    assert_eq!(completed.load(Ordering::SeqCst), task_count);
+
+    for handle in handles {
+        handle.await.expect("join handle");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_completion_barrier_timeout_expires_without_deadlock() {
+    let barrier = Arc::new(super::CompletionBarrier::default());
+    let guard = barrier.enter();
+
+    tokio::task::spawn_blocking(move || {
+        let _guard = guard;
+        thread::sleep(Duration::from_secs(2));
+    });
+
+    let start = std::time::Instant::now();
+    let wait_ok = barrier.wait_timeout(Duration::from_millis(100));
+    let elapsed = start.elapsed();
+
+    assert!(!wait_ok, "Barrier must return false when timeout expires");
+    assert!(
+        elapsed >= Duration::from_millis(90),
+        "Must have waited at least timeout duration"
+    );
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "Must not block indefinitely: elapsed {elapsed:?}"
+    );
+
+    let wait_finish = barrier.wait_timeout(Duration::from_secs(5));
+    assert!(wait_finish, "Barrier must return true after task finishes");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_shutdown_blocks_for_all_tasks() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let task_count = 50;
+    let completed = Arc::new(AtomicUsize::new(0));
+
+    for i in 0..task_count {
+        let completed_clone = Arc::clone(&completed);
+        let run_id = format!("run-{i}");
+        supervisor
+            .spawn(&run_id, move |_cancellation| {
+                thread::sleep(Duration::from_millis(20));
+                completed_clone.fetch_add(1, Ordering::SeqCst);
+            })
+            .expect("spawn must succeed");
+    }
+
+    let start = std::time::Instant::now();
+    supervisor.shutdown();
+    let elapsed = start.elapsed();
+
+    assert_eq!(
+        completed.load(Ordering::SeqCst),
+        task_count,
+        "Shutdown returned before all continuation tasks completed!"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(15),
+        "Shutdown must have blocked for tasks"
+    );
+
+    let subsequent_spawn = supervisor.spawn("run-after-shutdown", |_| {});
+    assert!(
+        subsequent_spawn.is_err(),
+        "Spawn after shutdown must fail closed"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_continuation_supervisor_cancellation_signal_propagates() {
+    let supervisor = Arc::new(super::ContinuationSupervisor::default());
+    let task_count = 20;
+    let cancelled_count = Arc::new(AtomicUsize::new(0));
+
+    for i in 0..task_count {
+        let cancelled_clone = Arc::clone(&cancelled_count);
+        let run_id = format!("run-cancel-{i}");
+        supervisor
+            .spawn(&run_id, move |cancellation| {
+                let start = std::time::Instant::now();
+                while !cancellation.load(Ordering::Acquire) {
+                    if start.elapsed() > Duration::from_secs(4) {
+                        return;
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
+                cancelled_clone.fetch_add(1, Ordering::SeqCst);
+            })
+            .expect("spawn must succeed");
+    }
+
+    let start = std::time::Instant::now();
+    supervisor.shutdown();
+    let elapsed = start.elapsed();
+
+    assert_eq!(
+        cancelled_count.load(Ordering::SeqCst),
+        task_count,
+        "All tasks must observe cancellation during shutdown"
+    );
+    assert!(
+        elapsed < Duration::from_secs(2),
+        "Shutdown should be fast when tasks react to cancellation: elapsed {elapsed:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn challenge_continuation_supervisor_concurrent_spawn_shutdown_race() {
+    for iter in 0..200 {
+        let supervisor = Arc::new(super::ContinuationSupervisor::default());
+        let shutdown_finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let task_active_after_shutdown = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+        let mut spawners = Vec::new();
+        for t in 0..8 {
+            let supervisor_spawn = Arc::clone(&supervisor);
+            let shutdown_finished_spawn = Arc::clone(&shutdown_finished);
+            let task_active_after_shutdown_spawn = Arc::clone(&task_active_after_shutdown);
+
+            spawners.push(std::thread::spawn(move || {
+                for i in 0..50 {
+                    let run_id = format!("run-{iter}-{t}-{i}");
+                    let shutdown_flag = Arc::clone(&shutdown_finished_spawn);
+                    let leak_flag = Arc::clone(&task_active_after_shutdown_spawn);
+                    let res = supervisor_spawn.spawn(&run_id, move |_cancel| {
+                        if shutdown_flag.load(Ordering::Acquire) {
+                            leak_flag.store(true, Ordering::Release);
+                        }
+                        thread::sleep(Duration::from_millis(1));
+                        if shutdown_flag.load(Ordering::Acquire) {
+                            leak_flag.store(true, Ordering::Release);
+                        }
+                    });
+                    if res.is_err() {
+                        break;
+                    }
+                }
+            }));
+        }
+
+        let supervisor_shut = Arc::clone(&supervisor);
+        let shutdown_finished_shut = Arc::clone(&shutdown_finished);
+        let shutdown_handle = std::thread::spawn(move || {
+            thread::sleep(Duration::from_millis(5));
+            supervisor_shut.shutdown();
+            shutdown_finished_shut.store(true, Ordering::Release);
+        });
+
+        for spawner in spawners {
+            spawner.join().expect("spawner join");
+        }
+        shutdown_handle.join().expect("shutdown join");
+
+        assert!(
+            !task_active_after_shutdown.load(Ordering::Acquire),
+            "Race condition detected at iteration {iter}: task was active after shutdown() completed!"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn challenge_completion_barrier_task_panic_unwinds_cleanly_without_hanging() {
+    let barrier = Arc::new(super::CompletionBarrier::default());
+    let guard = barrier.enter();
+
+    let join_handle = tokio::task::spawn_blocking(move || {
+        let _guard = guard;
+        panic!("simulated worker panic inside continuation");
+    });
+
+    let panic_result = join_handle.await;
+    assert!(panic_result.is_err(), "Task must have panicked");
+
+    // CompletionBarrier must have observed the drop during stack unwinding
+    let start = std::time::Instant::now();
+    let wait_ok = barrier.wait_timeout(Duration::from_millis(500));
+    let elapsed = start.elapsed();
+
+    assert!(wait_ok, "Barrier must be 0 after panicking task unwinds");
+    assert!(
+        elapsed < Duration::from_millis(100),
+        "Barrier wait should return immediately, not timeout: elapsed {elapsed:?}"
+    );
+}

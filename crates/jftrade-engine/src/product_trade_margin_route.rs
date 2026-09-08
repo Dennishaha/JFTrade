@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use jftrade_integration_futu::{TradeMarginRatioSnapshot, TradeReadPort, TradeSecurity};
+use jftrade_integration_futu::{
+    TradeMarginRatioSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
+};
 use serde_json::{Value, json};
 
 use super::product_trade_margin_cache::{MARGIN_RATIO_CACHE_FALLBACK_TTL, MARGIN_RATIO_CACHE_TTL};
@@ -61,11 +63,11 @@ pub(super) fn read_margin_ratios(
             }
             ratios
         }
-        Err(error) if is_margin_ratio_rate_limited(&error.to_string()) => runtime
+        Err(TradeSessionError::RateLimited) => runtime
             .and_then(|runtime| {
                 runtime.margin_ratio_cache_get(&cache_key, MARGIN_RATIO_CACHE_FALLBACK_TTL)
             })
-            .ok_or_else(|| session_error(error))?,
+            .ok_or_else(|| session_error(TradeSessionError::RateLimited))?,
         Err(error) => return Err(session_error(error)),
     };
     Ok(project_margin_ratios(&resolved, ratios))
@@ -101,13 +103,4 @@ fn margin_ratio_cache_key(resolved: &ResolvedTradeRequest, securities: &[TradeSe
         resolved.market.to_ascii_uppercase(),
         symbols.join(",")
     )
-}
-
-fn is_margin_ratio_rate_limited(message: &str) -> bool {
-    let lower = message.to_ascii_lowercase();
-    lower.contains("频率太高")
-        || lower.contains("每30秒最多10次")
-        || (lower.contains("too high") && lower.contains("request"))
-        || lower.contains("rate limit")
-        || lower.contains("rate-limit")
 }

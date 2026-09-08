@@ -12,6 +12,7 @@ desktop-updater-rustls = ["jftrade-integration-marketdata-helper/rustls-ring-pro
 
 [dependencies]
 axum.workspace = true
+eventsource-stream.workspace = true
 getrandom.workspace = true
 jftrade-api.workspace = true
 jftrade-assistant.workspace = true
@@ -38,6 +39,7 @@ rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+subtle.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 time.workspace = true

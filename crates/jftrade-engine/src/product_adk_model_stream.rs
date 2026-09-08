@@ -1,8 +1,10 @@
 //! OpenAI Responses SSE adapter used by the production ADK chat runtime.
 
+use eventsource_stream::{EventStreamError, Eventsource};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use std::time::Duration;
+use tokio_stream::StreamExt;
 
 use super::{
     MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, model_input,
@@ -75,8 +77,7 @@ where
             return Ok(ModelResponse { text, tool_calls });
         }
 
-        let mut response = response;
-        let mut decoder = SseDecoder::default();
+        let mut stream = response.bytes_stream().eventsource();
         let mut text = String::new();
         let mut tool_calls = Vec::new();
         let mut completed = false;
@@ -89,8 +90,17 @@ where
                     message: "assistant chat client disconnected".to_owned(),
                 });
             }
-            let chunk = tokio::select! {
-                result = response.chunk() => result.map_err(|error| model_request_error(error, request.timeout))?,
+            let event = tokio::select! {
+                item = stream.next() => match item {
+                    Some(Ok(event)) => Some(event),
+                    Some(Err(err)) => return Err(match err {
+                        EventStreamError::Transport(error) => {
+                            model_request_error(error, request.timeout)
+                        }
+                        other => upstream_error(format!("decode model stream event: {other}")),
+                    }),
+                    None => None,
+                },
                 _ = tokio::time::sleep(Duration::from_millis(250)) => {
                     if is_cancelled() {
                         return Err(AdkChatPortError::Failed {
@@ -102,65 +112,53 @@ where
                     continue;
                 }
             };
-            let Some(chunk) = chunk else { break };
-            bytes_seen = bytes_seen.saturating_add(chunk.len());
+            let Some(event) = event else { break };
+            bytes_seen = bytes_seen.saturating_add(event.data.len());
             if bytes_seen > MAX_RESPONSE_BYTES {
-                return Err(upstream_error("assistant model response exceeded size limit"));
+                return Err(upstream_error(
+                    "assistant model response exceeded size limit",
+                ));
             }
-            let chunk = std::str::from_utf8(&chunk)
-                .map_err(|error| upstream_error(format!("decode model stream bytes: {error}")))?;
-            decoder.push(chunk, |value| {
-                on_event(value)?;
-                match value.get("type").and_then(Value::as_str).unwrap_or_default() {
-                    "response.output_text.delta" => {
-                        if let Some(delta) = value.get("delta").and_then(Value::as_str) {
-                            text.push_str(delta);
-                        }
+            let data = event.data.trim();
+            if data.is_empty() || data == "[DONE]" {
+                continue;
+            }
+            let value: Value = serde_json::from_str(data)
+                .map_err(|error| upstream_error(format!("decode model stream event: {error}")))?;
+            on_event(&value)?;
+            match value
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+            {
+                "response.output_text.delta" => {
+                    if let Some(delta) = value.get("delta").and_then(Value::as_str) {
+                        text.push_str(delta);
                     }
-                    "response.completed" => {
-                        if let Some(response) = value.get("response") {
-                            let completed_text = extract_text(response);
-                            if !completed_text.trim().is_empty() {
-                                text = completed_text;
-                            }
-                            tool_calls = extract_tool_calls(response)?;
-                        }
-                        completed = true;
-                    }
-                    "response.failed" | "error" => {
-                        let message = value
-                            .pointer("/error/message")
-                            .or_else(|| value.pointer("/response/error/message"))
-                            .and_then(Value::as_str)
-                            .unwrap_or("assistant model stream failed");
-                        return Err(upstream_error(message));
-                    }
-                    _ => {}
                 }
-                Ok(())
-            })?;
+                "response.completed" => {
+                    if let Some(response) = value.get("response") {
+                        let completed_text = extract_text(response);
+                        if !completed_text.trim().is_empty() {
+                            text = completed_text;
+                        }
+                        tool_calls = extract_tool_calls(response)?;
+                    }
+                    completed = true;
+                }
+                "response.failed" | "error" => {
+                    let message = value
+                        .pointer("/error/message")
+                        .or_else(|| value.pointer("/response/error/message"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("assistant model stream failed");
+                    return Err(upstream_error(message));
+                }
+                _ => {}
+            }
             if completed {
                 break;
             }
-        }
-        if !completed {
-            decoder.finish(|value| {
-                on_event(value)?;
-                if value.get("type").and_then(Value::as_str) == Some("response.completed") {
-                    completed = true;
-                    let completed_text = value
-                        .get("response")
-                        .map(extract_text)
-                        .unwrap_or_default();
-                    if !completed_text.trim().is_empty() {
-                        text = completed_text;
-                    }
-                    if let Some(response) = value.get("response") {
-                        tool_calls = extract_tool_calls(response)?;
-                    }
-                }
-                Ok(())
-            })?;
         }
         if !completed {
             return Err(upstream_error(
@@ -232,68 +230,6 @@ fn provider_rejection(
         code: code.to_owned(),
         message,
     }
-}
-
-#[derive(Default)]
-struct SseDecoder {
-    buffer: String,
-}
-
-impl SseDecoder {
-    fn push<F>(&mut self, chunk: &str, mut on_event: F) -> Result<(), AdkChatPortError>
-    where
-        F: FnMut(&Value) -> Result<(), AdkChatPortError>,
-    {
-        self.buffer.push_str(chunk);
-        while let Some((index, separator_len)) = event_boundary(&self.buffer) {
-            let frame: String = self.buffer.drain(..index + separator_len).collect();
-            decode_frame(&frame, &mut on_event)?;
-        }
-        Ok(())
-    }
-
-    fn finish<F>(&mut self, mut on_event: F) -> Result<(), AdkChatPortError>
-    where
-        F: FnMut(&Value) -> Result<(), AdkChatPortError>,
-    {
-        if self.buffer.trim().is_empty() {
-            return Ok(());
-        }
-        let frame = std::mem::take(&mut self.buffer);
-        decode_frame(&frame, &mut on_event)
-    }
-}
-
-fn event_boundary(buffer: &str) -> Option<(usize, usize)> {
-    let lf = buffer.find("\n\n").map(|index| (index, 2));
-    let crlf = buffer.find("\r\n\r\n").map(|index| (index, 4));
-    match (lf, crlf) {
-        (Some(left), Some(right)) => Some(if left.0 < right.0 { left } else { right }),
-        (Some(boundary), None) | (None, Some(boundary)) => Some(boundary),
-        (None, None) => None,
-    }
-}
-
-fn decode_frame<F>(frame: &str, on_event: &mut F) -> Result<(), AdkChatPortError>
-where
-    F: FnMut(&Value) -> Result<(), AdkChatPortError>,
-{
-    let mut data = String::new();
-    for line in frame.lines() {
-        let Some(value) = line.strip_prefix("data:") else {
-            continue;
-        };
-        if !data.is_empty() {
-            data.push('\n');
-        }
-        data.push_str(value.trim_start());
-    }
-    if data.trim().is_empty() || data.trim() == "[DONE]" {
-        return Ok(());
-    }
-    let value: Value = serde_json::from_str(data.trim())
-        .map_err(|error| upstream_error(format!("decode model stream event: {error}")))?;
-    on_event(&value)
 }
 
 #[cfg(test)]
