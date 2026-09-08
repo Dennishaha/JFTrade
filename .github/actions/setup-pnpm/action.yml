@@ -37,7 +37,6 @@ runs:
         npm install \
           --prefix "$install_dir" \
           --no-save \
-          --ignore-scripts \
           --no-audit \
           --no-fund \
           "$package_manager"

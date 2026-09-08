@@ -4,7 +4,13 @@ const windowsCommandExtensions = new Set(["pnpm", "pnpx"]);
 
 export function spawnChecked(command, args, options = {}) {
   const resolved = resolveCommand(command, args);
-  const result = spawnSync(resolved.command, resolved.args, { stdio: "inherit", ...options });
+  let result = spawnSync(resolved.command, resolved.args, { stdio: "inherit", ...options });
+  if (result.error && result.error.code === "ENOEXEC") {
+    result = spawnSync("/bin/sh", ["-c", '"$@"', "_", resolved.command, ...resolved.args], {
+      stdio: "inherit",
+      ...options,
+    });
+  }
   if (result.error) {
     console.error(result.error.message);
     return result.status ?? 1;
