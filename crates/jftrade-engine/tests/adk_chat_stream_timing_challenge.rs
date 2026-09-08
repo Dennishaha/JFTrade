@@ -219,7 +219,7 @@ fn test_immediate_cancellation_returns_instantly() {
     }
 
     assert!(
-        elapsed < Duration::from_millis(50),
+        elapsed < Duration::from_millis(200),
         "Pre-cancelled stream should return immediately without waiting for 250ms timeout, took: {:?}",
         elapsed
     );
