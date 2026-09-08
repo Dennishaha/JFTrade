@@ -34,7 +34,7 @@ mod product_trade_margin_cache;
 mod product_trade_margin_route;
 #[path = "product_trade_runtime_projection.rs"]
 mod product_trade_runtime_projection;
-pub(crate) use product_trade_runtime_projection::SharedTradeReadRuntime;
+pub(crate) use product_trade_runtime_projection::{SharedTradeReadRuntime, canonical_candle_time};
 #[path = "product_production_ports_trade_requests.rs"]
 mod product_production_ports_trade_requests;
 #[path = "product_trade_runtime_options.rs"]
@@ -96,30 +96,32 @@ impl std::fmt::Debug for ProductionBrokerPort {
 impl BrokerReadSnapshotPort for ProductionBrokerPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, BrokerReadSnapshotError> {
         if path == "/api/v1/brokers/capabilities" {
-            self.ensure_ready()?;
-            let runtime = self
-                .trade_runtime
-                .as_ref()
-                .ok_or_else(|| unavailable("Futu market-data reader is unavailable"))?;
-            if !runtime.market_data_reader_available() {
-                return Err(unavailable("Futu market-data reader is unavailable"));
-            }
+            // Catalog discovery must remain available before OpenD login.
+            // The projection reports unavailable readers per capability;
+            // gating the catalog itself hides Futu and all chart periods.
+            let fallback_runtime = Arc::new(SharedTradeReadRuntime::default());
+            let runtime = self.trade_runtime.as_ref().unwrap_or(&fallback_runtime);
             let provider = self.active_provider_state.snapshot();
             return product_broker_capabilities_projection::project(runtime, &provider, query)
                 .map_err(unavailable);
         }
         let request = TradeRequest::parse(path, query).map_err(BrokerReadSnapshotError::Invalid)?;
-        self.ensure_ready()?;
+        let is_simulated = matches!(request.environment_code(), Ok(Some(0)));
+        let is_catalog_or_market_data = matches!(
+            request.resource.as_str(),
+            "runtime" | "securities" | "quote" | "klines"
+        );
+        if !is_simulated && !is_catalog_or_market_data {
+            self.ensure_ready()?;
+        }
+        if self.active_provider_state.snapshot().closing {
+            return Err(unavailable("Futu trade session is shutting down"));
+        }
         let runtime_snapshot = self.trade_runtime.as_ref().map(|r| r.snapshot());
         let client = runtime_snapshot
             .as_ref()
             .and_then(|s| s.client.as_ref())
-            .or_else(|| {
-                self.trade_runtime
-                    .is_none()
-                    .then_some(self.trade_read_port.as_ref())
-                    .flatten()
-            })
+            .or(self.trade_read_port.as_ref())
             .ok_or_else(|| unavailable("Futu trade read client is unavailable"))?;
         match request.resource.as_str() {
             "runtime" => {
@@ -148,9 +150,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
             "quote" => self.read_quote_route(&request),
             "klines" => self.read_klines_route(&request),
             "funds" => {
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let funds = client
                     .read_funds(resolved.header.clone(), request.refresh_cache(), None, None)
                     .map_err(session_error)?;
@@ -162,9 +162,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                         "query parameter clearingDate is required".to_owned(),
                     )
                 })?;
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let flows = client
                     .read_cash_flows(
                         resolved.header.clone(),
@@ -184,9 +182,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 let order_ids = request
                     .order_id_ex_list()
                     .map_err(BrokerReadSnapshotError::Invalid)?;
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let fees = client
                     .read_order_fees(resolved.header.clone(), order_ids)
                     .map_err(session_error)?;
@@ -196,11 +192,16 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                     .collect::<Vec<_>>();
                 Ok(json!({"checkedAt": checked_at(), "connectivity": "connected", "fees": fees}))
             }
-            "margin-ratios" => product_trade_margin_route::read_margin_ratios(
-                &request,
-                client.as_ref(),
-                self.trade_runtime.as_ref(),
-            ),
+            "margin-ratios" => {
+                if !matches!(request.environment_code(), Ok(Some(0))) {
+                    self.ensure_ready()?;
+                }
+                product_trade_margin_route::read_margin_ratios(
+                    &request,
+                    client.as_ref(),
+                    self.trade_runtime.as_ref(),
+                )
+            }
             "max-trade-qtys" => {
                 let (market, code, sec_market) = request
                     .max_trade_symbol()
@@ -208,6 +209,9 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 let resolved = request
                     .resolve_account_with_environment(client.as_ref(), None, Some(&market))
                     .map_err(map_broker_header_error)?;
+                if resolved.header.trd_env != 0 {
+                    self.ensure_ready()?;
+                }
                 let max_request = request
                     .max_trade_quantity_request(resolved.header.clone(), code, sec_market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
@@ -221,9 +225,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 }))
             }
             "positions" => {
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let positions = client
                     .read_positions(
                         resolved.header.clone(),
@@ -259,9 +261,7 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 let history = request
                     .history_scope()
                     .map_err(BrokerReadSnapshotError::Invalid)?;
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let filter = request
                     .trade_filter(history, &resolved.market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
@@ -292,13 +292,11 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                 let history = request
                     .history_scope()
                     .map_err(BrokerReadSnapshotError::Invalid)?;
-                let resolved = request
-                    .resolve_account(client.as_ref())
-                    .map_err(map_broker_header_error)?;
+                let resolved = self.resolve_account(&request, client.as_ref())?;
                 let filter = request
                     .trade_filter(history, &resolved.market)
                     .map_err(BrokerReadSnapshotError::Invalid)?;
-                let fills = if history {
+                let fills_result = if history {
                     client.read_history_fills(
                         resolved.header.clone(),
                         filter,
@@ -310,8 +308,17 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
                         request.filter(),
                         request.refresh_cache(),
                     )
-                }
-                .map_err(session_error)?;
+                };
+                let fills = match fills_result {
+                    Ok(fills) => fills,
+                    Err(error)
+                        if resolved.header.trd_env == 0
+                            || error.to_string().contains("模拟交易不支持成交数据") =>
+                    {
+                        Vec::new()
+                    }
+                    Err(error) => return Err(session_error(error)),
+                };
                 Ok(
                     json!({"checkedAt": checked_at(), "connectivity": "connected", "fills": fills.into_iter().map(|v| fill_value(&resolved, v)).collect::<Vec<_>>() }),
                 )
@@ -325,6 +332,20 @@ impl BrokerReadSnapshotPort for ProductionBrokerPort {
 }
 
 impl ProductionBrokerPort {
+    fn resolve_account(
+        &self,
+        request: &TradeRequest,
+        client: &dyn TradeReadPort,
+    ) -> Result<ResolvedTradeRequest, BrokerReadSnapshotError> {
+        let resolved = request
+            .resolve_account(client)
+            .map_err(map_broker_header_error)?;
+        if resolved.header.trd_env != 0 {
+            self.ensure_ready()?;
+        }
+        Ok(resolved)
+    }
+
     fn ensure_ready(&self) -> Result<(), BrokerReadSnapshotError> {
         if self.active_provider_state.snapshot().closing {
             return Err(unavailable("Futu trade session is shutting down"));
@@ -368,8 +389,12 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
     fn read(&self, path: &str, query: &str) -> Result<Value, PortfolioSnapshotError> {
         let request = TradeRequest::parse_with_prefix(path, query, "/api/v1/portfolio/")
             .map_err(PortfolioSnapshotError::Unavailable)?;
-        if self.active_provider_state.snapshot().closing
-            || !trade_session_ready(
+        if self.active_provider_state.snapshot().closing {
+            return Err(unavailable_portfolio("Futu trade session is shutting down"));
+        }
+        let is_simulated = matches!(request.environment_code(), Ok(Some(0)));
+        if !is_simulated
+            && !trade_session_ready(
                 self.trade_runtime.as_ref(),
                 self.trade_read_port.as_ref(),
                 self.trade_logged_in,
@@ -393,6 +418,17 @@ impl PortfolioSnapshotPort for ProductionPortfolioPort {
         let resolved = request
             .resolve_account(client.as_ref())
             .map_err(map_portfolio_header_error)?;
+        if resolved.header.trd_env != 0
+            && !trade_session_ready(
+                self.trade_runtime.as_ref(),
+                self.trade_read_port.as_ref(),
+                self.trade_logged_in,
+            )
+        {
+            return Err(unavailable_portfolio(
+                "Futu trade session login/account not ready",
+            ));
+        }
         match request.resource.as_str() {
             "positions" => {
                 let positions = client

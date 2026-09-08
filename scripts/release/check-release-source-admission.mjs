@@ -21,7 +21,7 @@ export function validateReleaseConfiguration(root = repositoryRoot) {
   const errors = [];
   const packageManifest = readJson(root, "package.json");
   const tauriConfig = readJson(root, "apps/desktop/src-tauri/tauri.conf.json");
-  if (packageManifest.packageManager !== "pnpm@11.21.0") errors.push("packageManager must be pnpm@11.21.0");
+  if (packageManifest.packageManager !== "pnpm@12.3.4") errors.push("packageManager must be pnpm@12.3.4");
   if (readToolchain(root) !== "1.97.1") errors.push("Rust toolchain must be 1.97.1");
   if (tauriConfig.bundle?.active !== true) errors.push("Tauri bundle must remain active");
   if (tauriConfig.bundle?.createUpdaterArtifacts !== true) errors.push("Tauri updater artifacts must remain enabled");

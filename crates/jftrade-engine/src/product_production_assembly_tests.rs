@@ -18,7 +18,7 @@ mod product_production_assembly_tests {
         TradeMaxTradeQuantityRequest, TradeMaxTradeQuantitySnapshot, TradeOrderFeeSnapshot,
         TradeOrderSnapshot, TradePositionSnapshot, TradeReadPort, TradeSecurity, TradeSessionError,
     };
-    use jftrade_kernel::{Fixed8, WireTimestamp};
+    use jftrade_kernel::WireTimestamp;
     use jftrade_marketdata::{ProviderRouter, Tick};
     use jftrade_settings::MarketDataProvider;
     use serde_json::{Value, json};
@@ -426,7 +426,7 @@ mod product_production_assembly_tests {
             .insert(
                 Tick {
                     instrument_id: "US.AAPL".to_owned(),
-                    price: Fixed8::from_scaled(1_234_000_000),
+                    price: "12.34".parse().expect("price"),
                     volume: "100".parse().expect("volume"),
                     snapshot: None,
                     observed_at_ms: 1_700_000_000_000,
@@ -1870,14 +1870,11 @@ mod product_production_assembly_tests {
         let ports = production_ports(&config, &security).expect("production ports");
 
         // 1. Broker & Portfolio dynamic fail-closed capability
-        let broker_err = ports
+        let capabilities = ports
             .broker
             .read("/api/v1/brokers/capabilities", "")
-            .expect_err("broker read must fail closed when not configured");
-        assert!(matches!(
-            broker_err,
-            crate::product::BrokerReadSnapshotError::Unavailable(_)
-        ));
+            .expect("catalog discovery does not require a trade login");
+        assert_eq!(capabilities["brokers"][0]["id"], "futu");
 
         let portfolio_err = ports
             .portfolio
@@ -3789,14 +3786,6 @@ mod product_production_assembly_tests {
             ),
             (
                 "GET",
-                "/api/v1/brokers/capabilities",
-                "",
-                "",
-                503,
-                "BROKER_READ_UNAVAILABLE",
-            ),
-            (
-                "GET",
                 "/api/v1/brokers/{brokerId}/cash-flows",
                 "",
                 "",
@@ -4610,6 +4599,12 @@ mod product_production_assembly_tests {
                             *method == binding.method && *path == binding.path
                         })
                 else {
+                    if binding.path == "/api/v1/brokers/capabilities" {
+                        // Catalog discovery is intentionally available before
+                        // OpenD login; individual capabilities remain marked
+                        // unavailable in the response projection.
+                        continue;
+                    }
                     // Some adapters intentionally expose many mutation
                     // operations whose request-specific validation differs
                     // (for example ADK run controls).  The generic request

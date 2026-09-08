@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::{Decimal, DecimalTradingExt};
 use jftrade_owner_lock::{OwnerDiagnostic, WriterLease, WriterLeaseError};
 use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
@@ -167,7 +167,7 @@ impl BacktestMarketDataStore {
 
     /// Atomically create the provider/symbol/interval table and upsert a page
     /// of validated candles. Table names follow the Go KLineStore naming
-    /// scheme, while all values remain the public Fixed8 text representation.
+    /// scheme, while all values remain the public Decimal text representation.
     pub fn insert_candles(
         &self,
         provider_id: &str,
@@ -591,7 +591,7 @@ fn validate_candle(candle: &StoredBacktestCandle) -> Result<(), BacktestMarketDa
     }
     let parse = |name: &str, value: &str| {
         value
-            .parse::<Fixed8>()
+            .parse::<Decimal>()
             .map_err(|error| BacktestMarketDataStoreError::Validation(format!("{name}: {error}")))
     };
     let open = parse("open", &candle.open)?;
@@ -599,7 +599,10 @@ fn validate_candle(candle: &StoredBacktestCandle) -> Result<(), BacktestMarketDa
     let low = parse("low", &candle.low)?;
     let close = parse("close", &candle.close)?;
     let volume = parse("volume", &candle.volume)?;
-    if open <= Fixed8::ZERO || high <= Fixed8::ZERO || low <= Fixed8::ZERO || close <= Fixed8::ZERO
+    if open <= Decimal::ZERO
+        || high <= Decimal::ZERO
+        || low <= Decimal::ZERO
+        || close <= Decimal::ZERO
     {
         return Err(BacktestMarketDataStoreError::Validation(
             "OHLC values must be positive".to_owned(),
@@ -610,7 +613,7 @@ fn validate_candle(candle: &StoredBacktestCandle) -> Result<(), BacktestMarketDa
             "OHLC values are inconsistent".to_owned(),
         ));
     }
-    if volume < Fixed8::ZERO {
+    if volume < Decimal::ZERO {
         return Err(BacktestMarketDataStoreError::Validation(
             "volume cannot be negative".to_owned(),
         ));
@@ -624,8 +627,8 @@ fn canonical_candle(
     validate_candle(candle)?;
     let canonical = |value: &str| {
         value
-            .parse::<Fixed8>()
-            .map(|parsed| parsed.storage_text())
+            .parse::<Decimal>()
+            .map(|parsed| parsed.to_storage_text())
             .map_err(|error| BacktestMarketDataStoreError::Validation(error.to_string()))
     };
     Ok(StoredBacktestCandle {

@@ -10,6 +10,7 @@ mod frame;
 mod future_info_query;
 mod health;
 mod history;
+pub mod kline_query;
 mod managed_session;
 mod market_microstructure_query;
 mod news_query;
@@ -87,6 +88,11 @@ pub use health::{
 pub use history::{
     HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
     HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
+};
+pub use kline_query::{
+    CurrentKlineError, CurrentKlineQuery, CurrentKlineReadPort, CurrentKlineResult, GET_KL_TIMEOUT,
+    adjust_kline_time, merge_klines_by_time, period_duration_seconds, period_to_kl_type,
+    query_current_klines, should_query_current_kline,
 };
 pub use managed_session::{
     OpenDManagedSession, OpenDManagedSessionError, OpenDSessionCloseReason, OpenDSessionEvent,

@@ -1,4 +1,4 @@
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::Decimal;
 
 use crate::BacktestError;
 use crate::model::{BacktestCase, OrderIntent};
@@ -9,14 +9,14 @@ pub(crate) fn validate_case(case: &BacktestCase) -> Result<(), BacktestError> {
             "case id and symbol are required".to_owned(),
         ));
     }
-    if case.initial_balance < Fixed8::ZERO {
+    if case.initial_balance < Decimal::ZERO {
         return Err(BacktestError::InvalidInput(
             "initial balance cannot be negative".to_owned(),
         ));
     }
-    if case.market.quantity_step <= Fixed8::ZERO
-        || case.market.tick_size <= Fixed8::ZERO
-        || case.market.min_quantity < Fixed8::ZERO
+    if case.market.quantity_step <= Decimal::ZERO
+        || case.market.tick_size <= Decimal::ZERO
+        || case.market.min_quantity < Decimal::ZERO
     {
         return Err(BacktestError::InvalidInput(
             "market increments must be positive".to_owned(),
@@ -54,7 +54,7 @@ pub(crate) fn validate_submit_intent(intent: &OrderIntent) -> Result<(), Backtes
             intent.action
         )));
     }
-    if intent.id.trim().is_empty() || intent.quantity <= Fixed8::ZERO {
+    if intent.id.trim().is_empty() || intent.quantity <= Decimal::ZERO {
         return Err(BacktestError::InvalidInput(
             "submit intent requires id and positive quantity".to_owned(),
         ));
@@ -66,13 +66,15 @@ pub(crate) fn validate_submit_intent(intent: &OrderIntent) -> Result<(), Backtes
         )));
     }
     match normalized_order_type(&intent.order_type) {
-        "limit" | "limit_maker" if intent.limit_price <= Fixed8::ZERO => Err(
+        "limit" | "limit_maker" if intent.limit_price <= Decimal::ZERO => Err(
             BacktestError::InvalidInput(format!("intent {} requires a limit price", intent.id)),
         ),
-        "stop_market" if intent.stop_price <= Fixed8::ZERO => Err(BacktestError::InvalidInput(
+        "stop_market" if intent.stop_price <= Decimal::ZERO => Err(BacktestError::InvalidInput(
             format!("intent {} requires a stop price", intent.id),
         )),
-        "stop_limit" if intent.stop_price <= Fixed8::ZERO || intent.limit_price <= Fixed8::ZERO => {
+        "stop_limit"
+            if intent.stop_price <= Decimal::ZERO || intent.limit_price <= Decimal::ZERO =>
+        {
             Err(BacktestError::InvalidInput(format!(
                 "intent {} requires stop and limit prices",
                 intent.id

@@ -34,7 +34,9 @@ rust-version = "1.97.1"
 argon2 = { version = "=0.5.3", default-features = false, features = ["alloc", "password-hash"] }
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "matched-path", "original-uri", "query", "tokio", "ws"] }
 base64 = { version = "=0.23.1", default-features = false, features = ["alloc"] }
+eventsource-stream = "=0.2.3"
 getrandom = "=0.4.3"
+governor = { version = "=0.8.1", default-features = false, features = ["std"] }
 http-body-util = "=0.1.5"
 jftrade-api = { path = "crates/jftrade-api", version = "=0.1.0" }
 jftrade-assistant = { path = "crates/jftrade-assistant", version = "=0.1.0" }
@@ -65,9 +67,11 @@ prost = "=0.14.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
-rustls = { version = "=0.23.43", default-features = false, features = ["ring", "std"] }
+rust_decimal = { version = "=1.43.0", default-features = false, features = ["maths", "serde", "serde-arbitrary-precision", "serde-float", "std"] }
+rustls = { version = "=0.23.44", default-features = false, features = ["ring", "std"] }
 sha1 = { version = "=0.11.0", default-features = false }
 sha2 = { version = "=0.11.0", default-features = false }
+subtle = "=2.6.1"
 thiserror = "=2.0.20"
 time = { version = "=0.3.55", default-features = false, features = ["formatting", "parsing", "serde", "std"] }
 tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
@@ -77,13 +81,13 @@ tonic-health = "=0.14.6"
 tonic-prost = "=0.14.6"
 tonic-prost-build = "=0.14.6"
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
-tower-http = { version = "=0.7.0", default-features = false, features = ["trace"] }
+tower-http = { version = "=0.7.1", default-features = false, features = ["trace"] }
 tauri = { version = "=2.11.5", default-features = false }
 tauri-build = "=2.6.3"
-tauri-plugin-opener = "=2.5.4"
-tauri-plugin-notification = "=2.3.3"
-tauri-plugin-single-instance = "=2.4.3"
-tauri-plugin-updater = { version = "=2.10.1", default-features = false, features = ["rustls-tls", "zip"] }
+tauri-plugin-opener = "=2.5.5"
+tauri-plugin-notification = "=2.4.0"
+tauri-plugin-single-instance = "=2.4.4"
+tauri-plugin-updater = { version = "=2.11.0", default-features = false, features = ["rustls-tls", "zip"] }
 tempfile = "=3.27.0"
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }

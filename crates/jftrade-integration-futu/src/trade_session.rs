@@ -1,8 +1,11 @@
+use std::num::NonZeroU32;
 use std::sync::{
     Arc,
     atomic::{AtomicU32, Ordering},
 };
+use std::time::Duration;
 
+use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use thiserror::Error;
 
 use crate::health::OpenDInitializedSession;
@@ -242,6 +245,8 @@ pub enum TradeSessionError {
     Coordinator(#[from] OpenDSessionCoordinatorError),
     #[error("OpenD trade capability is unsupported: {0}")]
     Unsupported(String),
+    #[error("OpenD trade rate limit exceeded")]
+    RateLimited,
 }
 
 /// Authenticated, read-only Futu trade RPC client.
@@ -254,6 +259,7 @@ pub struct OpenDTradeReadClient {
     session: Arc<OpenDManagedSession>,
     conn_id: u64,
     command_serial: Arc<AtomicU32>,
+    margin_ratio_limiter: Arc<DefaultDirectRateLimiter>,
 }
 
 impl std::fmt::Debug for OpenDTradeReadClient {
@@ -272,6 +278,7 @@ impl OpenDTradeReadClient {
             session: session.managed_session_handle(),
             conn_id,
             command_serial: Arc::new(AtomicU32::new(0)),
+            margin_ratio_limiter: Arc::new(default_margin_ratio_limiter()),
         }
     }
 
@@ -287,6 +294,7 @@ impl OpenDTradeReadClient {
             session,
             conn_id: 0,
             command_serial: Arc::new(AtomicU32::new(0)),
+            margin_ratio_limiter: Arc::new(default_margin_ratio_limiter()),
         }
     }
 
@@ -382,6 +390,9 @@ impl OpenDTradeReadClient {
         &self,
         request: trd_get_margin_ratio::Request,
     ) -> Result<trd_get_margin_ratio::S2c, TradeSessionError> {
+        self.margin_ratio_limiter
+            .check()
+            .map_err(|_| TradeSessionError::RateLimited)?;
         let body = self.call(
             trd_get_margin_ratio::PROTOCOL_ID,
             &trd_get_margin_ratio::encode_request(&request),
@@ -1014,6 +1025,27 @@ impl TradeWritePort for OpenDTradeReadClient {
         )?;
         trd_sub_acc_push::decode_response(&body)?;
         Ok(())
+    }
+}
+
+fn default_margin_ratio_limiter() -> DefaultDirectRateLimiter {
+    let quota = Quota::with_period(Duration::from_millis(3100))
+        .expect("valid 3100ms quota period")
+        .allow_burst(NonZeroU32::new(9).expect("non-zero burst"));
+    RateLimiter::direct(quota)
+}
+
+#[cfg(test)]
+mod rate_limit_tests {
+    use super::*;
+
+    #[test]
+    fn test_margin_ratio_limiter_rate_limits_after_burst() {
+        let limiter = default_margin_ratio_limiter();
+        for _ in 0..9 {
+            assert!(limiter.check().is_ok());
+        }
+        assert!(limiter.check().is_err());
     }
 }
 

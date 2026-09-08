@@ -222,7 +222,7 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
               {{ pickString(entry, ["name"]) || "--" }}
             </td>
             <td class="concept-sector-view__num tv-num">
-              {{ formatPrice(pickNumber(entry, ["price", "lastPrice"])) }}
+              {{ formatPrice(pickNumber(entry, ["price", "lastPrice"]), props.market) }}
             </td>
             <td
               class="concept-sector-view__num tv-num"
@@ -283,7 +283,12 @@ const stockColumns: Array<{ key: SortKey; label: string }> = [
               {{ pickString(entry, ["name"]) || "--" }}
             </td>
             <td class="concept-sector-view__num tv-num">
-              {{ formatPrice(pickNumber(entry, ["price", "lastPrice"])) }}
+              {{
+                formatPrice(
+                  pickNumber(entry, ["price", "lastPrice"]),
+                  pickString(entry, ["market", "instrumentId", "symbol"]) || props.market,
+                )
+              }}
             </td>
             <td
               class="concept-sector-view__num tv-num"

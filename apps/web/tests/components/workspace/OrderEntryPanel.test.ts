@@ -732,7 +732,7 @@ describe("OrderEntryPanel", () => {
 
   it("reports sell-side internal ids, broker rejections, and transport failures", async () => {
     let executionCalls = 0;
-    const fetchMock = vi.fn((input: string | URL | Request) => {
+    const fetchMock = vi.fn((input: string | URL | Request, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/v1/settings/ui")) {
         return Promise.resolve({
@@ -744,6 +744,18 @@ describe("OrderEntryPanel", () => {
                 upColor: "#16c784",
                 downColor: "#ea3943",
               },
+            },
+          }),
+        });
+      }
+      if (url.includes("/api/v1/execution/orders/io-9")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            ok: true,
+            data: {
+              internalOrderId: "io-9",
+              status: "SUBMITTED",
             },
           }),
         });

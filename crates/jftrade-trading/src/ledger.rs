@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use jftrade_kernel::{Fixed8, WireTimestamp};
+use jftrade_kernel::WireTimestamp;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -159,7 +160,7 @@ impl ShadowTrading {
                 projection: OrderProjection {
                     broker_order_id: event.broker_order_id.clone(),
                     status: OrderStatus::Unknown,
-                    filled_quantity: Fixed8::ZERO,
+                    filled_quantity: Decimal::ZERO,
                     last_sequence: 0,
                     accepted_events: 0,
                     duplicate_events: 0,
@@ -188,7 +189,7 @@ impl ShadowTrading {
                         .projection
                         .filled_quantity
                         .checked_add(quantity)
-                        .map_err(|_| TradingError::Arithmetic)?;
+                        .ok_or(TradingError::Arithmetic)?;
                 }
                 state.projection.accepted_events += 1;
                 EventOutcome::Applied
@@ -258,7 +259,8 @@ impl ShadowTrading {
 mod tests {
     use std::str::FromStr;
 
-    use jftrade_kernel::{Fixed8, WireTimestamp};
+    use jftrade_kernel::WireTimestamp;
+    use rust_decimal::Decimal;
 
     use super::ShadowTrading;
     use crate::{
@@ -286,8 +288,8 @@ mod tests {
             market: "US".to_owned(),
             symbol: "AAPL".to_owned(),
             side: OrderSide::Buy,
-            quantity: Fixed8::from_str("2").expect("quantity"),
-            price: Some(Fixed8::from_str("100").expect("price")),
+            quantity: Decimal::from_str("2").expect("quantity"),
+            price: Some(Decimal::from_str("100").expect("price")),
             client_order_id: "client-order".to_owned(),
         }
     }
@@ -311,7 +313,7 @@ mod tests {
             sequence,
             raw_status: status.to_owned(),
             fill_id: fill.map(|(fill_id, _)| fill_id.to_owned()),
-            fill_quantity: fill.map(|(_, quantity)| Fixed8::from_str(quantity).expect("fill")),
+            fill_quantity: fill.map(|(_, quantity)| Decimal::from_str(quantity).expect("fill")),
             occurred_at: timestamp(sequence),
         }
     }

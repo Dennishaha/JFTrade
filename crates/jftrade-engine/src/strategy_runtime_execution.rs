@@ -1,4 +1,6 @@
-use jftrade_kernel::Fixed8;
+use std::str::FromStr;
+
+use jftrade_kernel::Decimal;
 use jftrade_store_sqlite::StrategyRuntimeStore;
 use jftrade_trading::{RuntimeRiskContext, RuntimeRiskOrder, RuntimeRiskSettings};
 use serde_json::{Value, json};
@@ -156,25 +158,24 @@ pub(super) fn execute_strategy_intents(
         };
 
         let order_price = if intent.has_limit_price {
-            Fixed8::from_f64(intent.limit_price).ok()
+            Decimal::from_str(&intent.limit_price.to_string()).ok()
         } else {
-            ctx.fallback_price.and_then(|p| Fixed8::from_f64(p).ok())
+            ctx.fallback_price.and_then(|p| Decimal::from_str(&p.to_string()).ok())
         };
+        let risk_quantity = Decimal::from_str(&quantity.to_string()).unwrap_or_default();
         let risk_order = RuntimeRiskOrder {
             symbol: ctx.symbol.to_owned(),
             side: side.to_owned(),
-            quantity: Fixed8::from_f64(quantity).unwrap_or_default(),
+            quantity: risk_quantity,
             price: order_price,
         };
         let risk_sellable_qty = ctx
             .sellable_quantity
-            .and_then(|q| Fixed8::from_f64(q).ok())
-            .unwrap_or_else(|| {
-                if reduce_only || is_close {
-                    Fixed8::from_f64(quantity).unwrap_or(Fixed8::ZERO)
-                } else {
-                    Fixed8::ZERO
-                }
+            .and_then(|q| Decimal::from_str(&q.to_string()).ok())
+            .unwrap_or(if reduce_only || is_close {
+                risk_quantity
+            } else {
+                Decimal::ZERO
             });
         let risk_context = RuntimeRiskContext {
             current_price: order_price,

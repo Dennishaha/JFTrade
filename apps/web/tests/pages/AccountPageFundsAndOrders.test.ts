@@ -105,8 +105,19 @@ function createConsoleDataState() {
   };
 }
 
+import { createMemoryHistory, createRouter } from "vue-router";
+
 function mountAccountPage() {
-  const wrapper = mount(AccountPage);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/:pathMatch(.*)*", component: { template: "<div />" } }],
+  });
+  void router.push("/account");
+  const wrapper = mount(AccountPage, {
+    global: {
+      plugins: [router],
+    },
+  });
   wrappers.push(wrapper);
   return {
     wrapper,

@@ -16,10 +16,7 @@ pub(super) fn insert_rich_quote_fields(
         ("lastClose", rich.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
+            item.insert(key.to_owned(), json!(value));
         }
     }
     if let Some(turnover) = rich.turnover.as_ref() {
@@ -48,10 +45,7 @@ fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<V
         ("lowPrice", value.low_price),
     ] {
         if let Some(number) = number {
-            result.insert(
-                key.to_owned(),
-                json!(number.to_f64().map_err(|error| error.to_string())?),
-            );
+            result.insert(key.to_owned(), json!(number));
         }
     }
     for (key, number) in [
@@ -82,12 +76,31 @@ pub(super) fn insert_rich_security_fields(
     }
     if let Some(value) = rich.is_suspended {
         item.insert("isSuspended".to_owned(), Value::Bool(value));
+        item.insert("isSuspend".to_owned(), Value::Bool(value));
     }
     if let Some(status) = rich.status {
         item.insert("status".to_owned(), json!(status));
     }
     if let Some(update_time) = rich.update_time.as_ref() {
         item.insert("updateTime".to_owned(), Value::String(update_time.clone()));
+    }
+    if let Some(value) = rich.lot_size {
+        item.insert("lotSize".to_owned(), json!(value));
+    }
+    if let Some(value) = rich.security_type.as_ref() {
+        item.insert("securityType".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = rich.pe_rate.as_ref() {
+        item.insert("peRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = rich.pb_rate.as_ref() {
+        item.insert("pbRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = rich.bid_price {
+        item.insert("bidPrice".to_owned(), json!(value));
+    }
+    if let Some(value) = rich.ask_price {
+        item.insert("askPrice".to_owned(), json!(value));
     }
     item.remove("marketTime");
     Ok(())
@@ -116,10 +129,7 @@ pub(super) fn security_snapshot_value(
         ("previousClose", snapshot.previous_close),
     ] {
         if let Some(value) = value {
-            item.insert(
-                key.to_owned(),
-                json!(value.to_f64().map_err(|error| error.to_string())?),
-            );
+            item.insert(key.to_owned(), json!(value));
         }
     }
     if let Some(turnover) = snapshot.turnover.as_ref() {
@@ -133,6 +143,7 @@ pub(super) fn security_snapshot_value(
     }
     if let Some(value) = snapshot.is_suspended {
         item.insert("isSuspended".to_owned(), Value::Bool(value));
+        item.insert("isSuspend".to_owned(), Value::Bool(value));
     }
     if let Some(value) = snapshot.lot_size {
         item.insert("lotSize".to_owned(), json!(value));

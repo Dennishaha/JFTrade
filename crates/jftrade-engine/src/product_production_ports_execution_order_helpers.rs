@@ -3,9 +3,11 @@
 use crate::product::product_brokers_write_port::BrokersWritePortError;
 use crate::product::product_execution_write_port::ExecutionWritePortError;
 use jftrade_integration_futu::TradeSessionError;
+use jftrade_kernel::Decimal;
 use jftrade_store_sqlite::{ExecutionOrderStoreError, StoredExecutionOrder};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 pub(crate) fn header_from_order(
@@ -579,14 +581,9 @@ pub(crate) fn build_pre_trade_risk_order(
         order_kind: parsed.order_kind.clone(),
         product_class: parsed.product_class.clone(),
         quantity_mode: parsed.quantity_mode.clone(),
-        quantity: jftrade_kernel::Fixed8::from_f64(parsed.quantity)
-            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
-        price: parsed
-            .price
-            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
-        amount: parsed
-            .amount
-            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        quantity: decimal_from_f64(parsed.quantity),
+        price: optional_decimal_from_f64(parsed.price),
+        amount: optional_decimal_from_f64(parsed.amount),
         legs: Vec::new(),
     }
 }
@@ -606,10 +603,9 @@ pub(crate) fn build_pre_trade_risk_combo_order(
                 .and_then(Value::as_f64)
                 .or_else(|| leg.qty_ratio.map(|r| combo_qty * r))
                 .unwrap_or(combo_qty);
-            let leg_price = raw
-                .and_then(|obj| obj.get("price"))
-                .and_then(Value::as_f64)
-                .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok());
+            let leg_price = optional_decimal_from_f64(
+                raw.and_then(|obj| obj.get("price")).and_then(Value::as_f64),
+            );
             let leg_side = leg
                 .side
                 .map(super::execution_order_parse::side_label)
@@ -628,22 +624,19 @@ pub(crate) fn build_pre_trade_risk_combo_order(
             let leg_multiplier = raw
                 .and_then(|obj| obj.get("multiplier"))
                 .and_then(Value::as_f64)
-                .and_then(|m| jftrade_kernel::Fixed8::from_f64(m).ok())
+                .and_then(|m| Decimal::from_str(&m.to_string()).ok())
                 .unwrap_or_else(|| {
                     if leg_product_class.eq_ignore_ascii_case("OPTION") {
-                        jftrade_kernel::Fixed8::from_f64(100.0)
-                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                        Decimal::from(100)
                     } else {
-                        jftrade_kernel::Fixed8::from_f64(1.0)
-                            .unwrap_or(jftrade_kernel::Fixed8::ZERO)
+                        Decimal::ONE
                     }
                 });
             jftrade_trading::PreTradeRiskComboLeg {
                 symbol: leg.code.trim().to_owned(),
                 market: leg_market,
                 side: leg_side,
-                quantity: jftrade_kernel::Fixed8::from_f64(leg_qty)
-                    .unwrap_or(jftrade_kernel::Fixed8::ZERO),
+                quantity: decimal_from_f64(leg_qty),
                 multiplier: leg_multiplier,
                 price: leg_price,
                 product_class: leg_product_class,
@@ -667,16 +660,9 @@ pub(crate) fn build_pre_trade_risk_combo_order(
         order_kind: parsed.order.order_kind.clone(),
         product_class: parsed.order.product_class.clone(),
         quantity_mode: parsed.order.quantity_mode.clone(),
-        quantity: jftrade_kernel::Fixed8::from_f64(combo_qty)
-            .unwrap_or(jftrade_kernel::Fixed8::ZERO),
-        price: parsed
-            .order
-            .price
-            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok()),
-        amount: parsed
-            .order
-            .amount
-            .and_then(|a| jftrade_kernel::Fixed8::from_f64(a).ok()),
+        quantity: decimal_from_f64(combo_qty),
+        price: optional_decimal_from_f64(parsed.order.price),
+        amount: optional_decimal_from_f64(parsed.order.amount),
         legs: risk_legs,
     }
 }
@@ -735,7 +721,7 @@ pub(crate) fn prefetch_combo_leg_quotes(
             .first()
             .and_then(|s| s.get("lastPrice").or_else(|| s.get("curPrice")))
             .and_then(Value::as_f64)
-            .and_then(|p| jftrade_kernel::Fixed8::from_f64(p).ok())
+            .and_then(|p| Decimal::from_str(&p.to_string()).ok())
             .ok_or_else(|| {
                 failed(
                     403,
@@ -746,4 +732,17 @@ pub(crate) fn prefetch_combo_leg_quotes(
         leg.price = Some(price);
     }
     Ok(())
+}
+
+fn decimal_from_f64(value: f64) -> Decimal {
+    if !value.is_finite() {
+        return Decimal::ZERO;
+    }
+    Decimal::from_str(&value.to_string()).unwrap_or(Decimal::ZERO)
+}
+
+fn optional_decimal_from_f64(value: Option<f64>) -> Option<Decimal> {
+    value
+        .filter(|v| v.is_finite())
+        .and_then(|v| Decimal::from_str(&v.to_string()).ok())
 }

@@ -157,7 +157,16 @@ function createConsoleDataState() {
 }
 
 function mountAccountPage() {
-  const wrapper = mount(AccountPage);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/:pathMatch(.*)*", component: { template: "<div />" } }],
+  });
+  void router.push("/account");
+  const wrapper = mount(AccountPage, {
+    global: {
+      plugins: [router],
+    },
+  });
   wrappers.push(wrapper);
   const setup = wrapper.vm.$.setupState as SetupState;
   const call = <T>(name: string, ...args: unknown[]) =>
@@ -225,6 +234,15 @@ describe("AccountPage business flows", () => {
         history.vm.$.setupState.supportsSelectedExecutionOrderFees,
       ),
     ).toBe(false);
+    const callFillPrice = (history.vm.$.setupState as Record<string, unknown>)
+      .formatFillPrice as (
+      value: number | null | undefined,
+      market?: string | null,
+      symbol?: string | null,
+    ) => string;
+    expect(callFillPrice(123.456, "HK")).toBe("123.456");
+    expect(callFillPrice(123.456, null, "HK.00700")).toBe("123.456");
+    expect(callFillPrice(123.456, null, null)).toBe("123.456");
     expect(mocks.loadHistoricalExecutionOrders).toHaveBeenCalled();
     expect(mocks.loadExecutionOrderDetails).toHaveBeenCalledWith("order-query");
   });
@@ -539,6 +557,17 @@ describe("AccountPage business flows", () => {
           fillPrice: 320,
           status: "FILLED",
           filledAt: "2026-06-01T09:46:00Z",
+        },
+        {
+          brokerFillId: "fill-2",
+          brokerFillIdEx: "fill-2-ex",
+          symbol: "HK.00700",
+          symbolName: "Tencent",
+          side: "SELL",
+          filledQuantity: 50,
+          fillPrice: 321,
+          status: null,
+          filledAt: "2026-06-01T09:47:00Z",
         },
       ],
       lastError: "",

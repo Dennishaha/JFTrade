@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { formatMarketPrice } from "@/utils/numberFormat";
 
 import EmptyState from "@/components/shared/EmptyState.vue";
 
@@ -106,11 +107,15 @@ function formatValue(value: number | null): string {
   return formatted;
 }
 
-function formatPrice(value: number | null): string {
+function formatPrice(
+  value: number | null,
+  market?: string | null,
+): string {
   if (value == null) return "--";
-  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(
-    value,
-  );
+  return formatMarketPrice(value, {
+    market,
+    fallback: "--",
+  });
 }
 
 function valueClass(value: number | null): string {
@@ -161,7 +166,7 @@ function valueClass(value: number | null): string {
             {{ formatValue(entryValue(entry)) }}
           </td>
           <td class="rank-list-panel__price tv-num">
-            {{ formatPrice(entryPrice(entry)) }}
+            {{ formatPrice(entryPrice(entry), pickString(entry, ["market", "instrumentId", "symbol"])) }}
           </td>
         </tr>
       </tbody>

@@ -208,7 +208,7 @@
       "acceptedEvents": 4,
       "brokerOrderId": "broker-1",
       "duplicateEvents": 1,
-      "filledQuantity": 2.00000000,
+      "filledQuantity": 2,
       "lastSequence": 5,
       "staleEvents": 2,
       "status": "FILLED"
@@ -244,18 +244,18 @@
   "positions": [
     {
       "accountId": "acc-live",
-      "lastPrice": 101.00000000,
+      "lastPrice": 101,
       "market": "US",
-      "quantity": 5.00000000,
-      "sellableQuantity": 5.00000000,
+      "quantity": 5,
+      "sellableQuantity": 5,
       "symbol": "AAPL"
     },
     {
       "accountId": "acc-live",
-      "lastPrice": 250.00000000,
+      "lastPrice": 250,
       "market": "US",
-      "quantity": -1.00000000,
-      "sellableQuantity": 0.00000000,
+      "quantity": -1,
+      "sellableQuantity": 0,
       "symbol": "TSLA"
     }
   ],

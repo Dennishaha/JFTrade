@@ -132,9 +132,6 @@ pub(crate) fn production_ports(
             |error| ProductError::Storage(format!("failed to open Web session store: {error}")),
         )?,
     );
-    let watchlist_port = Arc::new(ProductionWatchlistPort {
-        store: watchlist_store.clone(),
-    });
     let strategy_def_port = Arc::new(ProductionStrategyDefinitionPort {
         store: strategy_def_store.clone(),
     });
@@ -169,6 +166,13 @@ pub(crate) fn production_ports(
             .transpose()?;
         Arc::new(ActiveProviderState::new(initial_provider))
     };
+    let watchlist_port = Arc::new(ProductionWatchlistPort {
+        store: watchlist_store.clone(),
+        trade_runtime: config.trade_runtime.clone(),
+        active_provider_state: Some(Arc::clone(&active_provider_state)),
+        helper: config.market_data_helper.clone(),
+        quote_cache: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+    });
     let backtest_market_data_provider_state = if let Some(state) =
         config.backtest_market_data_provider_state.as_ref()
     {
@@ -534,9 +538,11 @@ pub(crate) fn production_ports(
         active_provider_state: Arc::clone(&active_provider_state),
         trade_runtime: config.trade_runtime.clone(),
     });
-    let system_write_port = Arc::new(ProductionSystemWritePort::with_coordinator(
-        Arc::clone(&risk_coordinator),
-    ));
+    let system_write_port = Arc::new(
+        ProductionSystemWritePort::with_coordinator(Arc::clone(&risk_coordinator))
+            .with_active_provider_state(Some(Arc::clone(&active_provider_state)))
+            .with_trade_runtime(config.trade_runtime.clone()),
+    );
     let market_data_catalog_port = Arc::new(ProductionMarketDataCatalogPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_helper.clone(),
@@ -623,7 +629,7 @@ pub(crate) fn production_ports(
         watchlist_write: watchlist_port,
         catalog: market_data_catalog_port,
         provider: Arc::new(ProductionMarketDataProviderPort {
-            active_provider_state,
+            active_provider_state: Arc::clone(&active_provider_state),
             runtime_status: config.market_data_runtime_status_port.clone(),
             router: config.market_data_router.clone(),
             physical: config.physical_subscription_port.clone(),
@@ -652,6 +658,8 @@ pub(crate) fn production_ports(
         alert_snapshot: alert_port.clone(),
         alert_write: alert_port,
         system_read: Arc::new(ProductionSystemPort {
+            active_provider_state,
+            trade_runtime: config.trade_runtime.clone(),
             runtime_status: config.market_data_runtime_status_port.clone(),
             live_hub: config.live_hub.clone(),
             settings: market_data_settings.clone(),

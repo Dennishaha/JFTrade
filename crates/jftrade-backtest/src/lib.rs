@@ -34,6 +34,8 @@ pub enum BacktestError {
     #[error(transparent)]
     Codec(#[from] CodecError),
     #[error(transparent)]
+    Decimal(#[from] rust_decimal::Error),
+    #[error(transparent)]
     Json(#[from] serde_json::Error),
 }
 

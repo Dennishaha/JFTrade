@@ -55,14 +55,14 @@ function tradingWindows(value: unknown): MarketProfileDto["regularSessions"] {
 function mapMarketProfiles(response: MarketProfilesWire): MarketProfilesResponse {
   const markets = response.markets.flatMap((raw) => {
     const entry = recordValue(raw);
-    const code = String(entry.code ?? "").trim();
+    const code = String(entry.code ?? entry.market ?? "").trim();
     if (code === "") return [];
     const precision = recordValue(entry.precision);
     return [{
       code,
       resolvedMarket: String(entry.resolvedMarket ?? code),
       preferredPrefix: String(entry.preferredPrefix ?? ""),
-      displayName: String(entry.displayName ?? code),
+      displayName: String(entry.displayName ?? entry.name ?? code),
       quoteCurrency: String(entry.quoteCurrency ?? ""),
       timezone: String(entry.timezone ?? ""),
       supportsExtendedHours: entry.supportsExtendedHours === true,
@@ -88,18 +88,17 @@ function normalizeMarketCode(value: string | null | undefined): string {
 }
 
 function profileMatchesMarket(profile: MarketProfileDto, market: string): boolean {
-  const normalized = normalizeMarketCode(market);
-  if (normalized === "") {
+  const raw = normalizeMarketCode(market);
+  if (raw === "") {
     return false;
   }
-  return [
+  const targets = [
     profile.code,
     profile.resolvedMarket,
     profile.preferredPrefix,
     ...(profile.aliases ?? []),
-  ]
-    .map(normalizeMarketCode)
-    .some((candidate) => candidate === normalized);
+  ].map(normalizeMarketCode);
+  return targets.includes(raw);
 }
 
 function selectableProfiles(profiles: MarketProfileDto[]): MarketProfileDto[] {
@@ -234,10 +233,18 @@ export function findMarketProfile(
   market: string | null | undefined,
 ): MarketProfileDto | null {
   const normalized = normalizeMarketCode(market);
-  return (
-    marketProfiles.value.find((profile) => profileMatchesMarket(profile, normalized)) ??
-    null
-  );
+  // For qualified symbols, prefer the exchange prefix when it is a known
+  // profile. Falling back to the suffix is needed for reversed forms such as
+  // `00700.HK`, but must not let a suffix override a valid prefix.
+  const parts = normalized.split(/[.:]/);
+  const candidates = [normalized, parts[0] ?? "", parts.at(-1) ?? ""];
+  for (const candidate of candidates) {
+    const match = marketProfiles.value.find((profile) =>
+      profileMatchesMarket(profile, candidate),
+    );
+    if (match) return match;
+  }
+  return null;
 }
 
 export function quoteCurrencyForMarket(
@@ -250,7 +257,7 @@ export function pricePrecisionForMarket(
   market: string | null | undefined,
 ): number | null {
   const precision = findMarketProfile(market)?.precision?.price;
-  return typeof precision === "number" && Number.isFinite(precision)
+  return typeof precision === "number" && Number.isFinite(precision) && precision > 0
     ? precision
     : marketPricePrecision(market);
 }

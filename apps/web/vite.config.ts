@@ -225,6 +225,7 @@ export default defineConfig({
       "vuetify/components/VChip",
       "vuetify/components/VDialog",
       "vuetify/components/VEmptyState",
+      "vuetify/components/VGrid",
       "vuetify/components/VIcon",
       "vuetify/components/VList",
       "vuetify/components/VMenu",

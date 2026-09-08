@@ -9,8 +9,8 @@ export interface NumericFormatOptions {
 }
 
 export interface MarketPriceFormatOptions extends NumericFormatOptions {
-  market?: string | null;
-  precision?: number | null;
+  market?: string | null | undefined;
+  precision?: number | null | undefined;
 }
 
 export interface PercentFormatOptions extends NumericFormatOptions {
@@ -89,7 +89,13 @@ export function marketPricePrecision(
   market: string | null | undefined,
 ): number | null {
   const normalized = (market ?? "").trim().toUpperCase();
-  return MARKET_PRICE_PRECISION[normalized] ?? null;
+  if (normalized === "") return null;
+  const parts = normalized.split(/[.:]/);
+  return (
+    MARKET_PRICE_PRECISION[parts[0]!] ??
+    MARKET_PRICE_PRECISION[parts[parts.length - 1]!] ??
+    null
+  );
 }
 
 function adaptivePricePrecision(value: number): number {

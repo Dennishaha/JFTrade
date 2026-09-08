@@ -50,6 +50,7 @@ fn main() {
         "../../proto/futu/Qot_OptionCommon.proto",
         "../../proto/futu/Qot_OptionScreen.proto",
         "../../proto/futu/Qot_RequestHistoryKL.proto",
+        "../../proto/futu/Qot_GetKL.proto",
         "../../proto/futu/Qot_GetUserSecurityGroup.proto",
         "../../proto/futu/Qot_GetUserSecurity.proto",
         "../../proto/futu/Qot_ModifyUserSecurity.proto",

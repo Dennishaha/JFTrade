@@ -680,7 +680,8 @@ export function createMarketDataQueryController(
         marketSecurityDetails.value =
           securityDetailsResult.status === "fulfilled"
             ? normalizeMarketSecurityDetailsQueryResult(securityDetailsResult.value)
-            : queryOptions.preserveExisting === true
+            : queryOptions.preserveExisting === true ||
+              marketSecurityDetails.value?.security?.instrumentId === requestInstrumentId
               ? marketSecurityDetails.value
               : null;
         marketDataCandles.value =

@@ -10,7 +10,7 @@
     },
     {
       "path": "backtest-corpus.expected.json",
-      "sha256": "47c7ecd6f8ea542072f39809a711ff2cc476322072a006ad1a1868cf4d379f6e"
+      "sha256": "da9061873ca5c4361bfa27a1b848364e0afade9e4ae23527cbaf5b5aa78b6bee"
     },
     {
       "path": "resource-baseline.darwin-arm64.json",

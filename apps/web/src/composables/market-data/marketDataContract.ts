@@ -65,8 +65,8 @@ function mapOrderBookLevels(value: unknown): OrderBookLevelDto[] {
     const level = recordOrEmpty(raw);
     const price = finiteNumberOrNull(level.price);
     const volume = finiteNumberOrNull(level.volume);
-    const orderCount = finiteNumberOrNull(level.orderCount);
-    if (price == null || volume == null || orderCount == null) return [];
+    const orderCount = finiteNumberOrNull(level.orderCount) ?? 0;
+    if (price == null || volume == null) return [];
     const detailList = Array.isArray(level.detailList)
       ? level.detailList.flatMap((rawDetail) => {
           const detail = recordOrEmpty(rawDetail);

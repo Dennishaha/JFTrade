@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use jftrade_kernel::Fixed8;
+use jftrade_kernel::Decimal;
 use jftrade_trading::BrokerOrderEvent;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -94,7 +94,7 @@ pub fn map_order_update(raw: RawOrderUpdate) -> Result<BrokerOrderEvent, TradePr
     let fill_quantity = raw
         .fill_quantity
         .as_deref()
-        .map(Fixed8::from_str)
+        .map(Decimal::from_str)
         .transpose()
         .map_err(|_| TradeProtocolError::InvalidFillQuantity)?;
     if raw.fill_id.is_some() != fill_quantity.is_some() {
@@ -104,7 +104,7 @@ pub fn map_order_update(raw: RawOrderUpdate) -> Result<BrokerOrderEvent, TradePr
         .fill_id
         .as_deref()
         .is_some_and(|fill_id| fill_id.trim().is_empty())
-        || fill_quantity.is_some_and(|quantity| quantity.signum() <= 0)
+        || fill_quantity.is_some_and(|quantity| quantity <= Decimal::ZERO)
     {
         return Err(TradeProtocolError::InvalidFillQuantity);
     }
@@ -128,7 +128,7 @@ pub fn map_order_update(raw: RawOrderUpdate) -> Result<BrokerOrderEvent, TradePr
 pub enum TradeProtocolError {
     #[error("OpenD trade write protocol {0} is forbidden in Stage 5 shadow mode")]
     WriteForbidden(u32),
-    #[error("OpenD fill quantity is not valid Fixed8 data")]
+    #[error("OpenD fill quantity is not valid decimal data")]
     InvalidFillQuantity,
     #[error("OpenD fill id and quantity must be present together")]
     IncompleteFill,

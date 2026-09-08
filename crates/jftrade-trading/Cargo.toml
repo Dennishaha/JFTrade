@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 jftrade-kernel.workspace = true
+rust_decimal.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

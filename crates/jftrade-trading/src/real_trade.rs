@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 const BLOCKED_OPERATIONS: [&str; 2] = ["PLACE", "MODIFY"];
@@ -17,8 +18,8 @@ pub struct RealTradeRuntimeRiskEntry {
     pub id: String,
     pub trading_environment: String,
     pub real_trading_enabled: bool,
-    pub max_order_quantity: Option<f64>,
-    pub max_order_notional: Option<f64>,
+    pub max_order_quantity: Option<Decimal>,
+    pub max_order_notional: Option<Decimal>,
     pub operator_id: String,
     pub reason: String,
     pub activated_at: String,
@@ -65,8 +66,8 @@ pub struct RealTradeControlEvent {
     pub market: Option<String>,
     pub symbol: Option<String>,
     pub order_id: Option<String>,
-    pub quantity: Option<f64>,
-    pub price: Option<f64>,
+    pub quantity: Option<Decimal>,
+    pub price: Option<Decimal>,
     pub kill_switch_source: Option<String>,
     pub hard_stop_scope: Option<String>,
     pub operator_id: Option<String>,
@@ -74,8 +75,8 @@ pub struct RealTradeControlEvent {
     pub error_code: Option<String>,
     pub hard_stop_id: Option<String>,
     pub real_trading_enabled: Option<bool>,
-    pub configured_max_order_quantity: Option<f64>,
-    pub configured_max_order_notional: Option<f64>,
+    pub configured_max_order_quantity: Option<Decimal>,
+    pub configured_max_order_notional: Option<Decimal>,
     pub activated_at: Option<String>,
     pub created_at: String,
 }
@@ -98,10 +99,10 @@ pub struct RealTradeRiskSnapshot {
     pub hard_stop_events: Vec<RealTradeControlEvent>,
     pub risk_enabled: bool,
     pub runtime_risk_configured: bool,
-    pub runtime_configured_max_order_quantity: Option<f64>,
-    pub runtime_configured_max_order_notional: Option<f64>,
-    pub effective_max_order_quantity: Option<f64>,
-    pub effective_max_order_notional: Option<f64>,
+    pub runtime_configured_max_order_quantity: Option<Decimal>,
+    pub runtime_configured_max_order_notional: Option<Decimal>,
+    pub effective_max_order_quantity: Option<Decimal>,
+    pub effective_max_order_notional: Option<Decimal>,
     pub risk_entry: Option<RealTradeRuntimeRiskEntry>,
     pub risk_events: Vec<RealTradeControlEvent>,
 }
@@ -262,7 +263,7 @@ pub struct RealTradeApprovalsResponse {
 pub struct RealTradeApprovalPolicy {
     pub approver_allowlist_enabled: bool,
     pub approver_count: usize,
-    pub large_order_notional: Option<f64>,
+    pub large_order_notional: Option<Decimal>,
     pub approval_workflow_available: bool,
     pub approval_mode: &'static str,
 }
@@ -325,10 +326,10 @@ pub struct RealTradeRiskLimitsResponse {
     pub real_trading_enabled: bool,
     pub risk_enabled: bool,
     pub runtime_risk_configured: bool,
-    pub runtime_configured_max_order_quantity: Option<f64>,
-    pub runtime_configured_max_order_notional: Option<f64>,
-    pub effective_max_order_quantity: Option<f64>,
-    pub effective_max_order_notional: Option<f64>,
+    pub runtime_configured_max_order_quantity: Option<Decimal>,
+    pub runtime_configured_max_order_notional: Option<Decimal>,
+    pub effective_max_order_quantity: Option<Decimal>,
+    pub effective_max_order_notional: Option<Decimal>,
     pub entry: Option<RealTradeRuntimeRiskEntry>,
 }
 
@@ -338,12 +339,12 @@ pub struct RealTradeRiskEventsResponse {
     pub real_trading_enabled: bool,
     pub risk_enabled: bool,
     pub runtime_risk_configured: bool,
-    pub runtime_configured_max_order_quantity: Option<f64>,
-    pub runtime_configured_max_order_notional: Option<f64>,
-    pub effective_max_order_quantity: Option<f64>,
-    pub effective_max_order_notional: Option<f64>,
-    pub max_order_quantity: Option<f64>,
-    pub max_order_notional: Option<f64>,
+    pub runtime_configured_max_order_quantity: Option<Decimal>,
+    pub runtime_configured_max_order_notional: Option<Decimal>,
+    pub effective_max_order_quantity: Option<Decimal>,
+    pub effective_max_order_notional: Option<Decimal>,
+    pub max_order_quantity: Option<Decimal>,
+    pub max_order_notional: Option<Decimal>,
     pub entries: Vec<RealTradeControlEvent>,
 }
 
@@ -351,8 +352,8 @@ fn blocked_operations() -> Vec<String> {
     BLOCKED_OPERATIONS.map(str::to_owned).to_vec()
 }
 
-fn positive_finite(value: Option<f64>) -> Option<f64> {
-    value.filter(|value| *value > 0.0 && value.is_finite())
+fn positive_finite(value: Option<Decimal>) -> Option<Decimal> {
+    value.filter(|value| *value > Decimal::ZERO)
 }
 
 fn events_with_prefix(

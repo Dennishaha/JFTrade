@@ -20,9 +20,20 @@ use crate::product::{
     WatchlistMembershipSnapshotPort, WatchlistReadSnapshotError, WatchlistReadSnapshotPort,
 };
 
+use crate::product::product_production_ports::SharedTradeReadRuntime;
+
+#[path = "product_production_ports_watchlist_quotes.rs"]
+mod quotes;
+
+pub(crate) use quotes::WatchlistQuoteCacheEntry;
+
 #[derive(Debug)]
 pub(crate) struct ProductionWatchlistPort {
     pub(crate) store: Arc<WatchlistStore>,
+    pub(crate) trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
+    pub(crate) active_provider_state: Option<Arc<ActiveProviderState>>,
+    pub(crate) helper: Option<jftrade_integration_marketdata_helper::HelperClient>,
+    pub(crate) quote_cache: Arc<std::sync::Mutex<std::collections::HashMap<String, WatchlistQuoteCacheEntry>>>,
 }
 
 const DEFAULT_PAGE_LIMIT: usize = 100;
@@ -531,11 +542,7 @@ impl WatchlistWritePort for ProductionWatchlistPort {
                     "previewId": run.preview_id,
                 }))
             }
-            "batch-quotes" => Err(WatchlistWritePortError {
-                status: 503,
-                code: "MARKET_DATA_UNAVAILABLE".to_owned(),
-                message: "market-data provider runtime is not configured".to_owned(),
-            }),
+            "batch-quotes" => self.handle_batch_quotes(&mutation.value),
             "replace-memberships" => {
                 let instrument_id = mutation
                     .value

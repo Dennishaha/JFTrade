@@ -232,9 +232,8 @@ function commitPeriod(period: RenderableKlinePeriod): void {
 }
 
 function reconcileSelectedPeriod(): void {
-  const supported = (supportedPeriodValues.value ?? []).filter((period) =>
-    renderablePeriods.has(period),
-  );
+  const candidates = supportedPeriodValues.value ?? providerSupportedPeriodValues.value ?? [];
+  const supported = candidates.filter((period) => renderablePeriods.has(period));
   const current = normalizedSelectedPeriod();
   if (supported.length > 0 && !supported.includes(current)) {
     commitPeriod(fallbackInstrumentPeriod(supported) as RenderableKlinePeriod);

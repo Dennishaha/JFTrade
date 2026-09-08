@@ -63,6 +63,9 @@ function createConsoleStore() {
 
 it("fails closed when the console data provider is missing", () => {
   const Consumer = defineComponent({
+    render() {
+      return null;
+    },
     setup() {
       useConsoleData();
       return () => null;

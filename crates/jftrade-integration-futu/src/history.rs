@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::{OpenDSessionCoordinator, OpenDSessionCoordinatorError, PROTO_REQUEST_HISTORY_KL};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HistoricalSecurity {
     pub market: i32,
     pub code: String,
@@ -53,6 +53,13 @@ pub trait HistoricalKlineReadPort: Send + Sync + std::fmt::Debug {
         &self,
         query: &HistoricalKlineQuery,
     ) -> Result<HistoricalKlineResult, HistoricalKlineError>;
+
+    fn query_current(
+        &self,
+        _query: &crate::CurrentKlineQuery,
+    ) -> Result<crate::CurrentKlineResult, crate::CurrentKlineError> {
+        Ok(crate::CurrentKlineResult::default())
+    }
 }
 
 #[derive(Debug, Error)]
@@ -87,6 +94,18 @@ impl std::fmt::Debug for OpenDHistoricalKlineReader {
 impl OpenDHistoricalKlineReader {
     pub fn new(coordinator: Arc<Mutex<OpenDSessionCoordinator>>) -> Self {
         Self { coordinator }
+    }
+
+    pub fn query_current(
+        &self,
+        query: &crate::CurrentKlineQuery,
+    ) -> Result<crate::CurrentKlineResult, crate::CurrentKlineError> {
+        let coordinator = self
+            .coordinator
+            .lock()
+            .map_err(|_| OpenDSessionCoordinatorError::Closed)?;
+        let session = coordinator.session()?;
+        crate::kline_query::query_current_klines(session, query, crate::kline_query::GET_KL_TIMEOUT)
     }
 }
 
@@ -130,7 +149,7 @@ impl HistoricalKlineReadPort for OpenDHistoricalKlineReader {
                 .kl_list
                 .into_iter()
                 .map(|kline| HistoricalKline {
-                    time: kline.time,
+                    time: crate::kline_query::adjust_kline_time(&kline.time, &query.period),
                     is_blank: kline.is_blank,
                     high_price: kline.high_price,
                     open_price: kline.open_price,
@@ -143,6 +162,13 @@ impl HistoricalKlineReadPort for OpenDHistoricalKlineReader {
                 .collect(),
             next_req_key: s2c.next_req_key.unwrap_or_default(),
         })
+    }
+
+    fn query_current(
+        &self,
+        query: &crate::CurrentKlineQuery,
+    ) -> Result<crate::CurrentKlineResult, crate::CurrentKlineError> {
+        self.query_current(query)
     }
 }
 

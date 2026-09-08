@@ -223,7 +223,7 @@ fn positive_or(value: i64, fallback: i64) -> i64 {
 mod tests {
     use std::sync::Arc;
 
-    use jftrade_kernel::Fixed8;
+    use rust_decimal::Decimal;
 
     use super::*;
 
@@ -239,7 +239,7 @@ mod tests {
     fn tick(instrument_id: &str, observed_at_ms: i64, generation: u64) -> Tick {
         Tick {
             instrument_id: instrument_id.to_owned(),
-            price: Fixed8::from_scaled(18_850_000_000),
+            price: Decimal::new(1885, 1),
             volume: "10".parse().expect("volume"),
             snapshot: None,
             observed_at_ms,

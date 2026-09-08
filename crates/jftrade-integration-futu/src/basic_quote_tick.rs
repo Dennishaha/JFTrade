@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use jftrade_kernel::{DecimalText, Fixed8};
+use jftrade_kernel::{Decimal, DecimalText};
 use jftrade_marketdata::{ExtendedQuoteSnapshot, Tick, TradeQuoteSnapshot};
 use thiserror::Error;
 
@@ -11,7 +11,7 @@ use crate::{BasicQuote, Security};
 pub enum BasicQuoteTickError {
     #[error("OpenD BasicQot price is not finite for {instrument_id}")]
     NonFinitePrice { instrument_id: String },
-    #[error("OpenD BasicQot price is outside Fixed8 range for {instrument_id}: {price}")]
+    #[error("OpenD BasicQot price is outside Decimal range for {instrument_id}: {price}")]
     PriceOutOfRange {
         instrument_id: String,
         price: String,
@@ -49,7 +49,7 @@ pub fn basic_quote_ticks(
         if price == 0.0 {
             continue;
         }
-        let price = fixed8_from_price(&instrument_id, price)?;
+        let price = decimal_from_price(&instrument_id, price)?;
         let volume = collector_volume(&instrument_id, &quote)?;
         ticks.insert(
             instrument_id.clone(),
@@ -63,10 +63,10 @@ pub fn basic_quote_ticks(
                     is_suspended: quote.is_suspended,
                     last_price: Some(price),
                     volume: Some(volume.clone()),
-                    open_price: optional_fixed8(quote.open_price),
-                    high_price: optional_fixed8(quote.high_price),
-                    low_price: optional_fixed8(quote.low_price),
-                    previous_close: optional_fixed8(quote.last_close_price),
+                    open_price: optional_price(quote.open_price),
+                    high_price: optional_price(quote.high_price),
+                    low_price: optional_price(quote.low_price),
+                    previous_close: optional_price(quote.last_close_price),
                     turnover: optional_decimal(quote.turnover),
                     update_time: quote.update_time,
                     status: quote.sec_status,
@@ -83,10 +83,10 @@ pub fn basic_quote_ticks(
     Ok(ticks.into_values().collect())
 }
 
-fn optional_fixed8(value: Option<f64>) -> Option<Fixed8> {
+fn optional_price(value: Option<f64>) -> Option<Decimal> {
     value
         .filter(|value| value.is_finite())
-        .and_then(|value| Fixed8::from_str(&value.to_string()).ok())
+        .and_then(|value| Decimal::from_str(&value.to_string()).ok())
 }
 
 fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
@@ -97,9 +97,9 @@ fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
 
 fn extended_snapshot(value: crate::PreAfterMarketData) -> ExtendedQuoteSnapshot {
     ExtendedQuoteSnapshot {
-        price: optional_fixed8(value.price),
-        high_price: optional_fixed8(value.high_price),
-        low_price: optional_fixed8(value.low_price),
+        price: optional_price(value.price),
+        high_price: optional_price(value.high_price),
+        low_price: optional_price(value.low_price),
         volume: value
             .volume
             .and_then(|v| DecimalText::from_str(&v.to_string()).ok()),
@@ -127,14 +127,14 @@ fn instrument_id_from_security(security: &Security) -> Option<String> {
     (!code.is_empty()).then(|| format!("{market}.{code}"))
 }
 
-fn fixed8_from_price(instrument_id: &str, price: f64) -> Result<Fixed8, BasicQuoteTickError> {
+fn decimal_from_price(instrument_id: &str, price: f64) -> Result<Decimal, BasicQuoteTickError> {
     if !price.is_finite() {
         return Err(BasicQuoteTickError::NonFinitePrice {
             instrument_id: instrument_id.to_owned(),
         });
     }
     let price = price.to_string();
-    Fixed8::from_str(&price).map_err(|_| BasicQuoteTickError::PriceOutOfRange {
+    Decimal::from_str(&price).map_err(|_| BasicQuoteTickError::PriceOutOfRange {
         instrument_id: instrument_id.to_owned(),
         price,
     })
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(ticks[0].instrument_id, "HK.00700");
         assert_eq!(ticks[0].price.to_string(), "300");
         assert_eq!(ticks[1].instrument_id, "US.AAPL");
-        assert_eq!(ticks[1].price.to_string(), "189.12345678");
+        assert_eq!(ticks[1].price.to_string(), "189.123456789");
         assert_eq!(ticks[1].volume.to_string(), "12");
         assert_eq!(ticks[1].observed_at_ms, 1_724_464_001_250);
         assert_eq!(ticks[1].provider_generation, 7);

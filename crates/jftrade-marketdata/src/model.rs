@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use jftrade_kernel::{DecimalText, Fixed8};
+use jftrade_kernel::{Decimal, DecimalText};
 use serde::{Deserialize, Serialize, Serializer};
 use thiserror::Error;
 
@@ -189,7 +189,7 @@ impl InstrumentRef {
 #[serde(rename_all = "camelCase")]
 pub struct Tick {
     pub instrument_id: String,
-    pub price: Fixed8,
+    pub price: Decimal,
     #[serde(serialize_with = "serialize_decimal_number")]
     pub volume: DecimalText,
     /// Optional fields preserved from a typed provider snapshot.  Keeping
@@ -210,11 +210,11 @@ pub struct TradeQuoteSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_suspended: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bid_price: Option<Fixed8>,
+    pub bid_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ask_price: Option<Fixed8>,
+    pub ask_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_price: Option<Fixed8>,
+    pub last_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub volume: Option<DecimalText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -224,13 +224,13 @@ pub struct TradeQuoteSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub market: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub open_price: Option<Fixed8>,
+    pub open_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub high_price: Option<Fixed8>,
+    pub high_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub low_price: Option<Fixed8>,
+    pub low_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub previous_close: Option<Fixed8>,
+    pub previous_close: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turnover: Option<DecimalText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -252,9 +252,9 @@ pub struct TradeQuoteSnapshot {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExtendedQuoteSnapshot {
-    pub price: Option<Fixed8>,
-    pub high_price: Option<Fixed8>,
-    pub low_price: Option<Fixed8>,
+    pub price: Option<Decimal>,
+    pub high_price: Option<Decimal>,
+    pub low_price: Option<Decimal>,
     pub volume: Option<DecimalText>,
     pub turnover: Option<DecimalText>,
     pub change: Option<DecimalText>,

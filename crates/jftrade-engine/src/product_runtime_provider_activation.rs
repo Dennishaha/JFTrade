@@ -207,19 +207,10 @@ pub(super) fn provider_activation(
                         ))
                             as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
                     };
-                    let security_snapshot_reader = {
-                        let coordinator = provider.coordinator();
-                        Arc::new(jftrade_integration_futu::OpenDSecuritySnapshotReader::new(
-                            coordinator
-                                .lock()
-                                .map_err(|error| {
-                                    format!("failed to lock OpenD coordinator: {error}")
-                                })?
-                                .session_clone()
-                                .map_err(|error| error.to_string())?,
-                        ))
-                            as Arc<dyn jftrade_integration_futu::SecuritySnapshotReadPort>
-                    };
+                    try_install_security_snapshot_reader(
+                        &trade_runtime_for_activation,
+                        &provider.coordinator(),
+                    );
                     trade_runtime_for_activation.set(read_client, trade_logged_in);
                     trade_runtime_for_activation.set_writer(write_client);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
@@ -381,8 +372,6 @@ pub(super) fn provider_activation(
                             provider.coordinator(),
                         ),
                     )));
-                    trade_runtime_for_activation
-                        .set_security_snapshots(Some(security_snapshot_reader));
                     *runtime = Some(provider);
                     // Provider activation is a readiness transition even
                     // when the session has not yet emitted a reconnect event.
@@ -404,7 +393,9 @@ pub(super) fn provider_activation(
                                     .as_ref()
                                     .is_some_and(|monitor| monitor.is_ready())
                         } else {
-                            false
+                            helper_health
+                                .as_ref()
+                                .is_some_and(|monitor| monitor.is_ready())
                         }
                     } else {
                         false
@@ -414,6 +405,8 @@ pub(super) fn provider_activation(
                         .as_ref()
                         .is_some_and(|monitor| monitor.is_ready())
                 };
+                let is_helper_ready =
+                    is_helper_ready || helper_health.as_ref().is_some_and(|m| m.snapshot().healthy);
                 if !is_helper_ready {
                     return Err("market-data helper is not ready".to_owned());
                 }
@@ -428,6 +421,15 @@ pub(super) fn provider_activation(
         }
         Ok(())
     }))
+}
+
+pub(crate) fn try_install_security_snapshot_reader(
+    trade_runtime: &SharedTradeReadRuntime,
+    coordinator: &Arc<Mutex<OpenDSessionCoordinator>>,
+) {
+    trade_runtime.set_security_snapshots(Some(Arc::new(
+        jftrade_integration_futu::OpenDSecuritySnapshotReader::new(Arc::clone(coordinator)),
+    )));
 }
 
 #[cfg(test)]

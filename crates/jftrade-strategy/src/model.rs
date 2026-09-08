@@ -1,4 +1,4 @@
-use jftrade_kernel::{Fixed8, WireTimestamp};
+use jftrade_kernel::{Decimal, WireTimestamp};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -45,8 +45,8 @@ pub struct Signal {
     pub market: String,
     pub symbol: String,
     pub side: String,
-    pub quantity: Fixed8,
-    pub price: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub price: Option<Decimal>,
     pub observed_at: WireTimestamp,
 }
 
@@ -62,7 +62,7 @@ impl Signal {
                 return Err(StrategyError::MissingField(field));
             }
         }
-        if self.quantity.signum() <= 0 {
+        if self.quantity <= Decimal::ZERO {
             return Err(StrategyError::InvalidQuantity);
         }
         let side = self.side.trim().to_ascii_uppercase();
@@ -83,8 +83,8 @@ pub struct TradeIntent {
     pub market: String,
     pub symbol: String,
     pub side: String,
-    pub quantity: Fixed8,
-    pub price: Option<Fixed8>,
+    pub quantity: Decimal,
+    pub price: Option<Decimal>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

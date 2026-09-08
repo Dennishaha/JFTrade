@@ -84,7 +84,21 @@ pub struct ProductRuntimeBuilder {
 
 impl ProductRuntimeBuilder {
     pub fn from_process_env() -> Result<Self, ProductRuntimeError> {
-        let product = ProductConfig::from_process_env()?;
+        let mut product = ProductConfig::from_process_env()?;
+        if let Ok(url) = std::env::var("JFTRADE_MARKETDATA_HELPER_URL") {
+            let token = std::env::var("JFTRADE_MARKETDATA_BEARER_TOKEN").ok();
+            if let Ok(client) = jftrade_integration_marketdata_helper::HelperClient::new(
+                jftrade_integration_marketdata_helper::HelperClientConfig {
+                    base_url: url,
+                    bearer_token: token,
+                    request_timeout: std::time::Duration::from_secs(5),
+                    max_attempts: 1,
+                    retry_delay: std::time::Duration::from_millis(50),
+                },
+            ) {
+                product = product.with_market_data_helper(client);
+            }
+        }
         let retained = DesktopRetainedRuntimeConfig::from_process_env();
         let mut config = ProductRuntimeConfig::desktop(product, retained)?;
         compose_market_data_runtime(&mut config)?;

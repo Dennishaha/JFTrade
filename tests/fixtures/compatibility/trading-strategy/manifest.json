@@ -10,7 +10,7 @@
     },
     {
       "path": "trading-strategy-corpus.expected.json",
-      "sha256": "9a66100ae3f0e6bdfda3f5ff8a517d929f003181d82654ef4820f1a7b0e49439"
+      "sha256": "49a81783fcf382c31a9cdc11371df5855c151859f0461efb1138dc307bc9f1f8"
     },
     {
       "path": "resource-baseline.darwin-arm64.json",

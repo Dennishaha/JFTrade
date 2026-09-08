@@ -1,8 +1,8 @@
-use jftrade_kernel::Fixed8;
 use jftrade_marketdata::{
     ActivationMode, HealthStatus, InstrumentRef, MarketDataError, ProviderCapabilities,
     ProviderConstraints, ProviderDescriptor, ProviderReadiness, ProviderRouter, Tick,
 };
+use rust_decimal::Decimal;
 
 fn descriptor(selection_id: &str, streaming_quotes: bool) -> ProviderDescriptor {
     ProviderDescriptor {
@@ -37,7 +37,7 @@ fn health(readiness: ProviderReadiness, connected: bool, last_error: Option<&str
 fn snapshot_tick(generation: u64, observed_at_ms: i64) -> Tick {
     Tick {
         instrument_id: "US.AAPL".to_owned(),
-        price: Fixed8::from_scaled(188_500_000_000),
+        price: Decimal::new(1885, 0),
         volume: "10".parse().expect("decimal volume"),
         snapshot: None,
         observed_at_ms,

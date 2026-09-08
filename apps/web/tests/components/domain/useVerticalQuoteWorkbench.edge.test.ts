@@ -106,6 +106,7 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
     expect(state.directionClass(0)).toBe("");
     expect(state.directionClass(-1)).toBe("tv-down");
     expect(state.formatPrice(null)).toBe("--");
+    expect(state.formatPrice(12.5)).toBe("12.50");
     expect(state.formatSigned(null)).toBe("--");
     expect(state.formatSigned(0, "%")).toBe("0.00%");
     expect(state.formatSigned(2)).toBe("+2.00");
@@ -206,6 +207,41 @@ describe("useVerticalQuoteWorkbench edge behavior", () => {
       key: "after",
       quoteTime: "2026-07-31T00:00:00Z",
     });
+    wrapper.unmount();
+  });
+
+  it("formats integer statistics without decimals for plate members", async () => {
+    mocks.fetchEnvelope.mockImplementation((path: string) => {
+      if (path.includes("/securities/")) {
+        return Promise.resolve({
+          security: {
+            plate: {
+              raiseCount: 25,
+              fallCount: 10,
+              equalCount: 5,
+            },
+          },
+        });
+      }
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    mocks.getWatchlistMembership.mockResolvedValue({ groupIds: [] });
+
+    const wrapper = mountHarness({
+      target: {
+        kind: "plate",
+        instrumentId: "HK.BK1001",
+        name: "科技股",
+        productClass: "equity",
+      },
+      visible: false,
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("上涨=25");
+    expect(wrapper.text()).toContain("下跌=10");
+    expect(wrapper.text()).toContain("平盘=5");
+    expect(wrapper.text()).not.toContain("上涨=25.00");
     wrapper.unmount();
   });
 });

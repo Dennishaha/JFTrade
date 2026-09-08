@@ -21,7 +21,12 @@ describe("console router", () => {
     expect(router.resolve("/").matched.at(-1)?.redirect).toBe("/workspace");
     expect(router.resolve("/workspace").meta.title).toBe("交易");
     expect(router.resolve("/settings/security").meta.title).toBe("设置");
-    expect(router.resolve("/system").matched).toHaveLength(0);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(router.resolve("/system").matched).toHaveLength(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
     expect(router.resolve("/desktop-logs").meta).toMatchObject({
       title: "桌面日志",
       standalone: true,

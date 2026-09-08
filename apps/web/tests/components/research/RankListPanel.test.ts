@@ -126,4 +126,11 @@ describe("RankListPanel", () => {
       wrapper.get("th.rank-list-panel__sortable").attributes("aria-sort"),
     ).toBe("ascending");
   });
+
+  it("formats stock prices preserving market decimal precision", () => {
+    const wrapper = mountPanel();
+    const prices = wrapper.findAll("td.rank-list-panel__price").map((cell) => cell.text());
+    // Descending changeRate order: HK.00700 (500 -> 500.000), US.AAPL (201.12 -> 201.12), US.TSLA (180.5 -> 180.50)
+    expect(prices).toEqual(["500.000", "201.12", "180.50"]);
+  });
 });

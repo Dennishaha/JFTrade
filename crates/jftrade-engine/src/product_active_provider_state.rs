@@ -15,6 +15,7 @@ pub(crate) struct ProviderRuntimeSnapshot {
     pub opend_ready: bool,
     pub router_ready: bool,
     pub closing: bool,
+    pub activated: bool,
 }
 
 #[derive(Clone, Default)]
@@ -52,6 +53,7 @@ impl ActiveProviderState {
                 opend_ready: false,
                 router_ready: false,
                 closing: false,
+                activated: false,
             })),
         }
     }
@@ -110,7 +112,14 @@ impl ActiveProviderState {
 
 impl MarketDataProviderRuntimePort for ActiveProviderState {
     fn needs_activation(&self, provider: MarketDataProvider) -> bool {
-        self.get() != Some(provider)
+        let snap = self.snapshot();
+        if snap.provider != Some(provider) || !snap.activated {
+            return true;
+        }
+        if provider == MarketDataProvider::Futu && !snap.opend_ready {
+            return true;
+        }
+        false
     }
 
     fn activate(&self, provider: MarketDataProvider) -> Result<(), String> {
@@ -122,7 +131,10 @@ impl MarketDataProviderRuntimePort for ActiveProviderState {
             return Err("market-data provider runtime is shutting down".to_owned());
         }
         let previous = self.get();
-        if previous == Some(provider) {
+        if previous == Some(provider)
+            && self.snapshot().activated
+            && (provider != MarketDataProvider::Futu || self.snapshot().opend_ready)
+        {
             return Ok(());
         }
         let activation = self
@@ -135,6 +147,7 @@ impl MarketDataProviderRuntimePort for ActiveProviderState {
         }
         let mut snapshot = self.snapshot.write().unwrap_or_else(|e| e.into_inner());
         snapshot.provider = Some(provider);
+        snapshot.activated = true;
         snapshot.generation = snapshot.generation.saturating_add(1);
         // `opend_ready` describes the physical OpenD session, not which
         // market-data provider currently owns catalog/quote reads.  The

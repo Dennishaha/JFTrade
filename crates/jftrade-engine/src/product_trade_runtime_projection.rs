@@ -49,8 +49,9 @@ mod prediction;
 
 use product_trade_runtime_candles::{historical_snapshot, parse_requested_sessions};
 
-#[cfg(test)]
-pub(super) fn canonical_candle_time(value: &str, market: &str) -> String { product_trade_runtime_candles::canonical_candle_time(value, market) }
+pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
+    product_trade_runtime_candles::canonical_candle_time(value, market)
+}
 use product_trade_runtime_projection_values::{
     insert_rich_quote_fields, insert_rich_security_fields, security_snapshot_value,
 };
@@ -253,31 +254,6 @@ impl SharedTradeReadRuntime {
             .ok_or_else(|| "Futu market microstructure reader is unavailable".to_owned())?
             .query(operation, instrument_id, params)
             .map_err(|error| error.to_string())
-    }
-
-    pub(crate) fn set_historical_klines(&self, reader: Option<Arc<dyn HistoricalKlineReadPort>>) {
-        *self
-            .historical_klines
-            .write()
-            .unwrap_or_else(|error| error.into_inner()) = reader;
-    }
-
-    pub(crate) fn historical_klines_available(&self) -> bool {
-        self.historical_klines
-            .read()
-            .unwrap_or_else(|error| error.into_inner())
-            .is_some()
-    }
-
-    /// Return the current OpenD historical-candle reader for consumers that
-    /// own a long-lived task but must follow provider activation/replacement.
-    /// The reader is cloned from the lock so callers never hold runtime state
-    /// while issuing the blocking OpenD request.
-    pub(crate) fn historical_klines_reader(&self) -> Option<Arc<dyn HistoricalKlineReadPort>> {
-        self.historical_klines
-            .read()
-            .unwrap_or_else(|error| error.into_inner())
-            .clone()
     }
 
     pub(crate) fn set_security_snapshots(&self, reader: Option<Arc<dyn SecuritySnapshotReadPort>>) {
@@ -551,23 +527,12 @@ impl SharedTradeReadRuntime {
             .map_err(|error| error.to_string())
     }
 
-    pub(crate) fn historical_klines(
-        &self,
-        query: &HistoricalKlineQuery,
-    ) -> Result<HistoricalKlineResult, String> {
-        let reader = self
-            .historical_klines
-            .read()
-            .unwrap_or_else(|error| error.into_inner())
-            .clone()
-            .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
-        reader.query(query).map_err(|error| error.to_string())
-    }
-
     pub(crate) fn security_snapshots(
         &self,
         securities: &[TradeSecurity],
     ) -> Result<Vec<Value>, String> {
+        let mut results = Vec::new();
+        let mut resolved = std::collections::HashSet::new();
         if let Some(reader) = self
             .security_snapshots
             .read()
@@ -576,62 +541,89 @@ impl SharedTradeReadRuntime {
         {
             let instruments = securities
                 .iter()
-                .filter_map(|security| {
-                    qot_market_label(security.market)
-                        .map(|market| format!("{market}.{}", security.code))
+                .filter_map(|s| {
+                    qot_market_label(s.market).map(|m| format!("{m}.{}", s.code))
                 })
                 .collect::<Vec<_>>();
-            let snapshots = reader.query(&instruments)?;
-            return snapshots.into_iter().map(security_snapshot_value).collect();
+            if let Ok(snapshots) = reader.query(&instruments) {
+                for snap in snapshots {
+                    if let Some(sym) = snap.symbol.as_ref() {
+                        resolved.insert(sym.trim().to_ascii_uppercase());
+                    }
+                    if let Ok(val) = security_snapshot_value(snap) {
+                        results.push(val);
+                    }
+                }
+            }
         }
-        let router = self
+        let missing: Vec<&TradeSecurity> = securities
+            .iter()
+            .filter(|s| {
+                let code_upper = s.code.trim().to_ascii_uppercase();
+                qot_market_label(s.market)
+                    .is_none_or(|m| !resolved.contains(&format!("{m}.{code_upper}")))
+            })
+            .collect();
+        if missing.is_empty() {
+            return Ok(results);
+        }
+        let router = match self
             .market_data_router
             .read()
-            .unwrap_or_else(|error| error.into_inner())
+            .unwrap_or_else(|e| e.into_inner())
             .clone()
-            .ok_or_else(|| "Futu market-data router is unavailable".to_owned())?;
+        {
+            Some(r) => r,
+            None if results.is_empty() => {
+                return Err("Futu market-data router is unavailable".to_owned());
+            }
+            None => return Ok(results),
+        };
         let now_ms = current_unix_millis();
         let router_guard = router
             .lock()
-            .map_err(|error| format!("failed to lock market-data router: {error}"))?;
+            .map_err(|e| format!("failed to lock market-data router: {e}"))?;
         let cache = router_guard.cache_handle();
         let cache_guard = cache
             .lock()
-            .map_err(|error| format!("failed to lock market-data cache: {error}"))?;
-        let mut snapshots = Vec::new();
-        for security in securities {
-            let Some(market) = qot_market_label(security.market) else {
-                continue;
-            };
-            let instrument_id = format!("{market}.{}", security.code);
-            let tick = match cache_guard.lookup(&instrument_id, now_ms, 30_000) {
-                CacheLookup::Fresh(tick) | CacheLookup::Stale(tick) => tick,
-                CacheLookup::Missing => continue,
-            };
-            let volume = tick
-                .volume
-                .as_str()
-                .parse::<serde_json::Number>()
-                .map_err(|error| format!("invalid cached volume for {instrument_id}: {error}"))?;
-            let mut snapshot = Map::from_iter([
-                ("symbol".to_owned(), Value::String(tick.instrument_id)),
-                (
-                    "lastPrice".to_owned(),
-                    json!(tick.price.to_f64().map_err(|error| error.to_string())?),
-                ),
-                ("volume".to_owned(), Value::Number(volume)),
-                (
-                    "observedAt".to_owned(),
-                    Value::String(format_unix_millis_rfc3339(tick.observed_at_ms)),
-                ),
-            ]);
-            if let Some(rich) = tick.snapshot {
-                insert_rich_security_fields(&mut snapshot, &rich)?;
+            .map_err(|e| format!("failed to lock market-data cache: {e}"))?;
+        for security in missing {
+            if let Some(val) = Self::lookup_tick_snapshot(&cache_guard, security, now_ms) {
+                results.push(val);
             }
-            snapshots.push(Value::Object(snapshot));
         }
-        Ok(snapshots)
+        Ok(results)
     }
+
+fn lookup_tick_snapshot(
+    cache: &jftrade_marketdata::TickCache,
+    security: &TradeSecurity,
+    now_ms: i64,
+) -> Option<Value> {
+    let market = qot_market_label(security.market)?;
+    let instrument_id = format!("{market}.{}", security.code);
+    let tick = match cache.lookup(&instrument_id, now_ms, 30_000) {
+        CacheLookup::Fresh(tick) | CacheLookup::Stale(tick) => tick,
+        CacheLookup::Missing => return None,
+    };
+    let volume = tick.volume.as_str().parse::<serde_json::Number>().ok()?;
+    let mut snapshot = Map::from_iter([
+        ("symbol".to_owned(), Value::String(tick.instrument_id)),
+        (
+            "lastPrice".to_owned(),
+            json!(tick.price),
+        ),
+        ("volume".to_owned(), Value::Number(volume)),
+        (
+            "observedAt".to_owned(),
+            Value::String(format_unix_millis_rfc3339(tick.observed_at_ms)),
+        ),
+    ]);
+    if let Some(rich) = tick.snapshot {
+        let _ = insert_rich_security_fields(&mut snapshot, &rich);
+    }
+    Some(Value::Object(snapshot))
+}
 
     pub(crate) fn quote_snapshot(
         &self,
@@ -663,10 +655,7 @@ impl SharedTradeReadRuntime {
                     return Err(format!("no cached quote available for {instrument_id}"));
                 }
             };
-            let last_price = tick
-                .price
-                .to_f64()
-                .map_err(|error| format!("invalid cached price for {instrument_id}: {error}"))?;
+            let last_price = tick.price;
             let volume = tick
                 .volume
                 .as_str()
@@ -779,10 +768,7 @@ impl SharedTradeReadRuntime {
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
             .map_or(
-                TradeReadRuntimeSnapshot {
-                    client: None,
-                    trade_logged_in: None,
-                },
+                TradeReadRuntimeSnapshot { client: None, trade_logged_in: None },
                 |(c, logged)| TradeReadRuntimeSnapshot {
                     client: Some(Arc::clone(c)),
                     trade_logged_in: Some(*logged),

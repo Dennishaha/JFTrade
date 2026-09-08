@@ -37,7 +37,7 @@
         "tick": {
           "instrumentId": "US.AAPL",
           "observedAtMs": 100,
-          "price": 188.50000000,
+          "price": 188.5,
           "providerGeneration": 1,
           "volume": 10
         }

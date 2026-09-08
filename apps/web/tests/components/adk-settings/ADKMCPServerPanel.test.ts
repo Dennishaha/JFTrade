@@ -156,7 +156,7 @@ describe("ADKMCPServerPanel", () => {
     const modelInputStub = defineComponent({
       props: ["modelValue"],
       emits: ["update:modelValue"],
-      template: "<input :value='modelValue' @input='$emit(\"update:modelValue\", $event.target.value)' /><slot name='append-inner' />",
+      template: "<label><input :value='modelValue' @input='$emit(\"update:modelValue\", $event.target.value)' /><slot name='append-inner' /></label>",
     });
     const modelSwitchStub = defineComponent({
       props: ["modelValue"],

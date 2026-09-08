@@ -81,7 +81,7 @@ pub(super) fn historical_snapshot(
     })
 }
 
-pub(super) fn canonical_candle_time(value: &str, market: &str) -> String {
+pub(crate) fn canonical_candle_time(value: &str, market: &str) -> String {
     if value.contains('T') || value.ends_with('Z') {
         return value.to_owned();
     }
@@ -135,4 +135,59 @@ pub(super) fn parse_requested_sessions(
         }
     }
     Ok(result)
+}
+
+impl super::SharedTradeReadRuntime {
+    pub(crate) fn set_historical_klines(
+        &self,
+        reader: Option<std::sync::Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>>,
+    ) {
+        *self
+            .historical_klines
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn historical_klines_available(&self) -> bool {
+        self.historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn historical_klines_reader(
+        &self,
+    ) -> Option<std::sync::Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>> {
+        self.historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn historical_klines(
+        &self,
+        query: &jftrade_integration_futu::HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, String> {
+        let reader = self
+            .historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
+        reader.query(query).map_err(|error| error.to_string())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn current_kline(
+        &self,
+        query: &jftrade_integration_futu::CurrentKlineQuery,
+    ) -> Result<jftrade_integration_futu::CurrentKlineResult, String> {
+        let reader = self
+            .historical_klines
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
+        reader.query_current(query).map_err(|error| error.to_string())
+    }
 }

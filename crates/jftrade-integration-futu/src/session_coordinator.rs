@@ -182,9 +182,15 @@ impl OpenDSessionCoordinator {
         let Some(session) = self.session.as_ref() else {
             return Err(OpenDSessionCoordinatorError::Closed);
         };
+        let request_body = GetSubInfoRequest {
+            c2s: GetSubInfoC2s {
+                is_req_all_conn: Some(true),
+            },
+        }
+        .encode_to_vec();
         let body = session
             .managed_session()
-            .call(crate::PROTO_GET_SUB_INFO, &[])?;
+            .call(crate::PROTO_GET_SUB_INFO, &request_body)?;
         let response = GetSubInfoResponse::decode(body.as_slice())
             .map_err(|error| OpenDSessionCoordinatorError::Decode(error.to_string()))?;
         if response.ret_type.unwrap_or(-400) != 0 {
@@ -437,6 +443,18 @@ impl OpenDSessionCoordinator {
             Ok(())
         }
     }
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct GetSubInfoRequest {
+    #[prost(message, required, tag = "1")]
+    c2s: GetSubInfoC2s,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct GetSubInfoC2s {
+    #[prost(bool, optional, tag = "1")]
+    is_req_all_conn: Option<bool>,
 }
 
 #[derive(Clone, PartialEq, Message)]

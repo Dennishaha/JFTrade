@@ -51,7 +51,14 @@ const instrumentName = computed(() => {
   const option = marketInstrumentSearchOptions.value.find(
     (candidate) => candidate.instrumentId === instrumentId.value,
   );
-  return option?.name ?? security.value?.name ?? "";
+  const candidateName = option?.name?.trim() || security.value?.name?.trim() || "";
+  if (
+    candidateName.toUpperCase() === prefs.value.symbol.toUpperCase() ||
+    candidateName.toUpperCase() === instrumentId.value.toUpperCase()
+  ) {
+    return "";
+  }
+  return candidateName;
 });
 const { query: watchlistMembershipQuery } = useWatchlistMembership(
   () => prefs.value.market,
@@ -513,7 +520,7 @@ function formatSecurityStatus(item: MarketSecurityDetails): string {
       </div>
       <div v-else
         class="jf-empty-panel">
-        当前标的暂无快照，行情加载后会在这里显示价格信息。
+        <span>{{ instrumentId }}</span> 当前标的暂无快照，行情加载后会在这里显示价格信息。
       </div>
     </div>
     <WatchlistMembershipDialog

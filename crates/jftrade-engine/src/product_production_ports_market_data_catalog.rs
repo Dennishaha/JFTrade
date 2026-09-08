@@ -1,5 +1,9 @@
 //! Production market-data catalog adapter for markets and instrument search.
 
+#[cfg(test)]
+#[path = "product_production_ports_market_data_catalog_tests.rs"]
+mod tests;
+
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperMarketsResponse, HelperSearchResponse,
 };
@@ -84,17 +88,43 @@ impl ProductionMarketDataCatalogPort {
                     .get_provider_json::<HelperMarketsResponse>(provider_str, &["markets"])
                     .await
                     .map_err(|error| map_helper_catalog_error(error, "MARKET_DATA_FAILED"))?;
-                let markets_array = markets_resp
+                let mut markets_array = markets_resp
                     .markets
                     .iter()
                     .map(|p| {
                         json!({
+                            "code": p.code,
                             "market": p.code,
+                            "resolvedMarket": p.resolved_market,
+                            "preferredPrefix": p.preferred_prefix,
                             "name": p.display_name,
+                            "displayName": p.display_name,
+                            "quoteCurrency": p.quote_currency,
                             "timezone": p.timezone,
+                            "supportsExtendedHours": p.supports_extended_hours,
+                            "requiresExchangePrefix": p.requires_exchange_prefix,
+                            "aliases": p.aliases,
+                            "regularSessions": p.regular_sessions,
+                            "precision": {
+                                "price": p.precision.price,
+                                "quote": p.precision.quote,
+                            },
+                            "tickSize": p.tick_size,
                         })
                     })
                     .collect::<Vec<_>>();
+                if markets_array
+                    .iter()
+                    .any(|m| m["code"] == "SH" || m["code"] == "SZ")
+                    && !markets_array.iter().any(|m| m["code"] == "CN")
+                {
+                    let insert_pos = markets_array
+                        .iter()
+                        .position(|m| m["code"] == "SH" || m["code"] == "SZ")
+                        .unwrap_or(markets_array.len());
+                    markets_array
+                        .insert(insert_pos, jftrade_marketdata::cn_market_rule().to_api_value());
+                }
                 let default_market = markets_resp
                     .default_market
                     .unwrap_or_else(|| "US".to_owned());
@@ -105,12 +135,10 @@ impl ProductionMarketDataCatalogPort {
             }
             MarketDataProvider::Futu => Ok(json!({
                 "defaultMarket": "HK",
-                "markets": [
-                    {"market": "HK", "name": "Hong Kong", "timezone": "Asia/Hong_Kong"},
-                    {"market": "US", "name": "United States", "timezone": "America/New_York"},
-                    {"market": "SH", "name": "Shanghai", "timezone": "Asia/Shanghai"},
-                    {"market": "SZ", "name": "Shenzhen", "timezone": "Asia/Shanghai"},
-                ],
+                "markets": jftrade_marketdata::default_markets()
+                    .into_iter()
+                    .map(|m| m.to_api_value())
+                    .collect::<Vec<_>>(),
             })),
         }
     }
@@ -274,9 +302,75 @@ impl ProductionMarketDataCatalogPort {
                     "totalReturned": total_returned,
                 }))
             }
-            MarketDataProvider::Futu => Err(MarketDataCatalogReadSnapshotError::Unavailable(
-                "futu instrument search is not available without active search provider".to_owned(),
-            )),
+            MarketDataProvider::Futu => {
+                let norm_q = search_query.trim().to_ascii_uppercase();
+                let (market_part, symbol_part) = if let Some((m, s)) = norm_q.split_once('.') {
+                    (m.trim(), s.trim())
+                } else if let Some((m, s)) = norm_q.split_once(':') {
+                    (m.trim(), s.trim())
+                } else if !requested_market.is_empty() {
+                    (requested_market.trim(), norm_q.as_str())
+                } else {
+                    ("", norm_q.as_str())
+                };
+
+                let market_upper = market_part.to_ascii_uppercase();
+                let is_valid_market = matches!(
+                    market_upper.as_str(),
+                    "HK" | "US" | "SH" | "SZ" | "CN" | "CNSH" | "CNSZ" | "SG" | "JP" | "AU" | "MY" | "CA"
+                );
+
+                let mut entries = Vec::new();
+                if is_valid_market && !symbol_part.is_empty() {
+                    let canonical_market = if market_upper == "CNSH" {
+                        "SH".to_owned()
+                    } else if market_upper == "CNSZ" {
+                        "SZ".to_owned()
+                    } else if market_upper == "CN" {
+                        jftrade_marketdata::infer_cn_prefix(symbol_part).to_owned()
+                    } else {
+                        market_upper.clone()
+                    };
+                    let resolved_market = if canonical_market == "SH" || canonical_market == "SZ" {
+                        "CN".to_owned()
+                    } else {
+                        canonical_market.clone()
+                    };
+                    let selectable = matches!(
+                        canonical_market.as_str(),
+                        "HK" | "US" | "SH" | "SZ" | "CN"
+                    );
+                    let instrument_id = format!("{canonical_market}.{symbol_part}");
+                    let entry = json!({
+                        "instrumentId": instrument_id,
+                        "market": canonical_market,
+                        "resolvedMarket": resolved_market,
+                        "symbol": symbol_part,
+                        "code": symbol_part,
+                        "name": "",
+                        "securityType": "stock",
+                        "source": "futu",
+                        "selectable": selectable,
+                    });
+                    entries.push(entry);
+                }
+
+                let resolution_status = if entries.is_empty() {
+                    "not_found"
+                } else {
+                    "resolved"
+                };
+                let total_returned = entries.len();
+
+                Ok(json!({
+                    "entries": entries,
+                    "failures": [],
+                    "query": search_query,
+                    "requestedMarket": requested_market,
+                    "resolutionStatus": resolution_status,
+                    "totalReturned": total_returned,
+                }))
+            }
         }
     }
 }

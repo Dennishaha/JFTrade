@@ -1096,8 +1096,10 @@ describe("ResearchPage information architecture and quote rail", () => {
     });
     expect(router.currentRoute.value.query.tab).toBe("chart");
 
-    (setup.activeSection as string) = "instrument";
-    (setup.activeInstrumentId as string) = "US.MSFT";
+    await router.push({
+      path: "/research",
+      query: { section: "instrument", instrumentId: "US.MSFT" },
+    });
     (setup.openResearchEntry as (value: unknown) => void)(null);
     await vi.waitFor(() => {
       expect(router.currentRoute.value.query.marketSegment).toBe("securities");

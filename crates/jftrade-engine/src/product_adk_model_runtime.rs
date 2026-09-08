@@ -5,9 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use reqwest::{Client, StatusCode, Url};
 use serde_json::{Value, json};
@@ -126,14 +126,76 @@ impl RunCancellationRegistry {
     }
 }
 
-/// Owns every approval continuation thread started by a production ADK
-/// runtime. A runtime-owned reaper joins completed workers immediately, while
-/// shutdown cancels and joins every worker that is still active.
+/// Synchronization barrier tracking active background continuation tasks.
+/// Enforces graceful shutdown with timeout before SQLite lease lock release.
+#[derive(Debug, Default)]
+pub(crate) struct CompletionBarrier {
+    active_count: Mutex<usize>,
+    cvar: Condvar,
+}
+
+pub(crate) struct BarrierGuard {
+    barrier: Arc<CompletionBarrier>,
+}
+
+impl Drop for BarrierGuard {
+    fn drop(&mut self) {
+        if let Ok(mut count) = self.barrier.active_count.lock() {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                self.barrier.cvar.notify_all();
+            }
+        }
+    }
+}
+
+impl CompletionBarrier {
+    pub(crate) fn enter(self: &Arc<Self>) -> BarrierGuard {
+        if let Ok(mut count) = self.active_count.lock() {
+            *count += 1;
+        }
+        BarrierGuard {
+            barrier: Arc::clone(self),
+        }
+    }
+
+    pub(crate) fn wait_timeout(&self, timeout: Duration) -> bool {
+        let Ok(mut count) = self.active_count.lock() else {
+            return false;
+        };
+        let deadline = Instant::now() + timeout;
+        while *count > 0 {
+            let now = Instant::now();
+            if now >= deadline {
+                return false;
+            }
+            match self.cvar.wait_timeout(count, deadline - now) {
+                Ok((new_guard, timeout_result)) => {
+                    count = new_guard;
+                    if timeout_result.timed_out() && *count > 0 {
+                        return false;
+                    }
+                }
+                Err(poisoned) => {
+                    let (new_guard, timeout_result) = poisoned.into_inner();
+                    count = new_guard;
+                    if timeout_result.timed_out() && *count > 0 {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
+}
+
+/// Owns every approval continuation task started by a production ADK runtime.
+/// Tasks execute via `tokio::task::spawn_blocking` and coordinate graceful shutdown
+/// using a `CompletionBarrier` with a 5-second timeout.
 #[derive(Debug)]
 pub(crate) struct ContinuationSupervisor {
     tasks: Arc<Mutex<BTreeMap<String, Arc<ContinuationTask>>>>,
-    completion_tx: Mutex<Option<Sender<ContinuationCompletion>>>,
-    reaper: Mutex<Option<JoinHandle<()>>>,
+    barrier: Arc<CompletionBarrier>,
     stopping: AtomicBool,
 }
 
@@ -142,44 +204,13 @@ struct ContinuationTask {
     #[allow(dead_code)]
     cancellation: Arc<AtomicBool>,
     done: AtomicBool,
-    join: Mutex<Option<JoinHandle<()>>>,
-}
-
-#[derive(Debug)]
-struct ContinuationCompletion {
-    run_id: String,
-    task: Arc<ContinuationTask>,
 }
 
 impl Default for ContinuationSupervisor {
     fn default() -> Self {
-        let tasks = Arc::new(Mutex::new(BTreeMap::new()));
-        let (completion_tx, completion_rx) = mpsc::channel::<ContinuationCompletion>();
-        let reaper_tasks = Arc::clone(&tasks);
-        let reaper = thread::Builder::new()
-            .name("jftrade-adk-continuation-reaper".to_owned())
-            .spawn(move || {
-                while let Ok(completion) = completion_rx.recv() {
-                    let completed = reaper_tasks.lock().ok().and_then(|mut tasks| {
-                        let current = tasks.get(&completion.run_id)?;
-                        if !Arc::ptr_eq(current, &completion.task) {
-                            return None;
-                        }
-                        tasks.remove(&completion.run_id)
-                    });
-                    if let Some(completed) = completed
-                        && let Ok(mut join) = completed.join.lock()
-                        && let Some(handle) = join.take()
-                    {
-                        let _ = handle.join();
-                    }
-                }
-            })
-            .ok();
         Self {
-            tasks,
-            completion_tx: Mutex::new(reaper.as_ref().map(|_| completion_tx)),
-            reaper: Mutex::new(reaper),
+            tasks: Arc::new(Mutex::new(BTreeMap::new())),
+            barrier: Arc::new(CompletionBarrier::default()),
             stopping: AtomicBool::new(false),
         }
     }
@@ -197,9 +228,8 @@ impl ContinuationSupervisor {
         let state = Arc::new(ContinuationTask {
             cancellation: Arc::clone(&cancellation),
             done: AtomicBool::new(false),
-            join: Mutex::new(None),
         });
-        // Reserve the run id before starting the OS thread.  This closes the
+        // Reserve the run id before starting the task.  This closes the
         // check-then-spawn race when two approvals are resolved concurrently.
         let mut tasks = self
             .tasks
@@ -214,72 +244,35 @@ impl ContinuationSupervisor {
                     "assistant continuation is already running".to_owned(),
                 ));
             }
-            let stale = tasks
-                .remove(run_id)
-                .expect("continuation reservation disappeared");
-            if let Ok(mut guard) = stale.join.lock()
-                && let Some(handle) = guard.take()
-            {
-                let _ = handle.join();
-            }
+            tasks.remove(run_id);
         }
         tasks.insert(run_id.to_owned(), Arc::clone(&state));
         drop(tasks);
-        // Do not let a very short continuation finish before its join handle
-        // is published in the reservation.  The start gate closes the race
-        // where a second approval request observes `done = true` and removes
-        // the task before shutdown can take ownership of the handle.
-        let (start_tx, start_rx) = mpsc::sync_channel(0);
-        let state_for_thread = Arc::clone(&state);
-        let completion_tx = self
-            .completion_tx
-            .lock()
-            .ok()
-            .and_then(|sender| sender.as_ref().cloned());
-        let completion_run_id = run_id.to_owned();
-        let handle = match thread::Builder::new()
-            .name("jftrade-adk-approval-resume".to_owned())
-            .spawn(move || {
-                if start_rx.recv().is_err() {
-                    state_for_thread.done.store(true, Ordering::Release);
-                    if let Some(sender) = completion_tx.as_ref() {
-                        let _ = sender.send(ContinuationCompletion {
-                            run_id: completion_run_id,
-                            task: state_for_thread,
-                        });
-                    }
-                    return;
-                }
-                task(cancellation);
-                state_for_thread.done.store(true, Ordering::Release);
-                if let Some(sender) = completion_tx.as_ref() {
-                    let _ = sender.send(ContinuationCompletion {
-                        run_id: completion_run_id,
-                        task: state_for_thread,
-                    });
-                }
-            }) {
-            Ok(handle) => handle,
-            Err(error) => {
-                if let Ok(mut tasks) = self.tasks.lock() {
-                    tasks.remove(run_id);
-                }
-                return Err(unavailable(format!(
-                    "assistant continuation unavailable: {error}"
-                )));
+
+        let guard = self.barrier.enter();
+        let state_for_task = Arc::clone(&state);
+        let tasks_for_task = Arc::clone(&self.tasks);
+        let run_id_for_task = run_id.to_owned();
+
+        let runner = move || {
+            let _guard = guard;
+            task(cancellation);
+            state_for_task.done.store(true, Ordering::Release);
+            if let Ok(mut tasks) = tasks_for_task.lock()
+                && let Some(current) = tasks.get(&run_id_for_task)
+                && Arc::ptr_eq(current, &state_for_task)
+            {
+                tasks.remove(&run_id_for_task);
             }
         };
-        match state.join.lock() {
-            Ok(mut guard) => *guard = Some(handle),
-            Err(poisoned) => {
-                // Keep ownership of the thread even if a previous panic
-                // poisoned this bookkeeping mutex; dropping `handle` would
-                // detach the continuation from shutdown supervision.
-                let mut guard = poisoned.into_inner();
-                *guard = Some(handle);
-            }
+
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn_blocking(runner);
+        } else {
+            let _ = thread::Builder::new()
+                .name("jftrade-adk-approval-resume".to_owned())
+                .spawn(runner);
         }
-        let _ = start_tx.send(());
         Ok(())
     }
 
@@ -298,23 +291,7 @@ impl ContinuationSupervisor {
         for task in &tasks {
             task.cancellation.store(true, Ordering::Release);
         }
-        for task in tasks {
-            if let Ok(mut guard) = task.join.lock()
-                && let Some(handle) = guard.take()
-                && handle.thread().id() != thread::current().id()
-            {
-                let _ = handle.join();
-            }
-        }
-        if let Ok(mut sender) = self.completion_tx.lock() {
-            sender.take();
-        }
-        if let Ok(mut reaper) = self.reaper.lock()
-            && let Some(handle) = reaper.take()
-            && handle.thread().id() != thread::current().id()
-        {
-            let _ = handle.join();
-        }
+        let _ = self.barrier.wait_timeout(Duration::from_secs(5));
     }
 }
 

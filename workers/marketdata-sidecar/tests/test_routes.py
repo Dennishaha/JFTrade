@@ -105,6 +105,8 @@ async def test_health_and_markets_do_not_need_upstream(
     assert body["markets"][0]["aliases"] == ["USA", "NYSE", "NASDAQ", "AMEX"]
     assert body["markets"][1]["timezone"] == "Asia/Hong_Kong"
     assert body["markets"][1]["supports_extended_hours"] is False
+    assert body["markets"][1]["tick_size"] == 0.001
+    assert body["markets"][1]["precision"]["price"] == 3
     assert [item["resolved_market"] for item in body["markets"]] == [
         "US",
         "HK",

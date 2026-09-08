@@ -1144,4 +1144,37 @@ describe("OrderBookPanel", () => {
       value: originalVisibilityState,
     });
   });
+
+  it("falls back to depth level 1 BBO when snapshot bid and ask prices are missing", async () => {
+    marketSecurityDetails.value = {
+      security: {
+        instrumentId: "US.TME",
+        currentPrice: 18.55,
+      },
+    };
+    marketDataSnapshot.value = {
+      snapshot: {
+        price: 18.55,
+      },
+    };
+    fetchEnvelopeWithInitMock.mockResolvedValueOnce({
+      meta: { instrumentId: "US.TME", resolvedAt: "2026-09-07T12:00:00Z" },
+      request: { market: "US", symbol: "TME", instrumentId: "US.TME", num: 10 },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.42, volume: 500 }],
+        asks: [{ price: 18.58, volume: 300 }],
+      },
+    });
+
+    const wrapper = mountOrderBookPanel();
+    await flushOrderBook();
+
+    expect(readSetupValue<number | null>(wrapper, "bidPrice")).toBe(18.42);
+    expect(readSetupValue<number | null>(wrapper, "askPrice")).toBe(18.58);
+    expect(readSetupValue<number | null>(wrapper, "bidVolume")).toBe(500);
+    expect(readSetupValue<number | null>(wrapper, "askVolume")).toBe(300);
+
+    wrapper.unmount();
+  });
 });

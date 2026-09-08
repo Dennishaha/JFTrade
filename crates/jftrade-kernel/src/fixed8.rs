@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use rust_decimal::Decimal;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::CodecError;
@@ -9,78 +11,148 @@ use crate::decimal::{ParsedDecimal, parse_decimal};
 const SCALE: u64 = 100_000_000;
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Fixed8(i64);
+pub struct Fixed8 {
+    non_finite: i8, // -1: NEG_INFINITY, 0: Finite, 1: POS_INFINITY
+    scaled: i64,
+}
 
 impl Fixed8 {
-    pub const NEG_INFINITY: Self = Self(i64::MIN);
-    pub const POS_INFINITY: Self = Self(i64::MAX);
-    pub const ZERO: Self = Self(0);
+    pub const NEG_INFINITY: Self = Self {
+        non_finite: -1,
+        scaled: i64::MIN,
+    };
+    pub const POS_INFINITY: Self = Self {
+        non_finite: 1,
+        scaled: i64::MAX,
+    };
+    pub const ZERO: Self = Self {
+        non_finite: 0,
+        scaled: 0,
+    };
 
     pub const fn from_scaled(scaled: i64) -> Self {
-        Self(scaled)
+        Self {
+            non_finite: 0,
+            scaled,
+        }
     }
 
     pub const fn scaled(self) -> i64 {
-        self.0
+        self.scaled
     }
 
     pub const fn is_zero(self) -> bool {
-        self.0 == 0
+        self.non_finite == 0 && self.scaled == 0
+    }
+
+    pub const fn is_finite(self) -> bool {
+        self.non_finite == 0
     }
 
     pub const fn signum(self) -> i8 {
-        if self.0 > 0 {
+        if self.non_finite != 0 {
+            self.non_finite
+        } else if self.scaled > 0 {
             1
-        } else if self.0 < 0 {
+        } else if self.scaled < 0 {
             -1
         } else {
             0
         }
     }
 
+    pub fn to_decimal(self) -> Decimal {
+        if self.non_finite == 1 {
+            Decimal::MAX
+        } else if self.non_finite == -1 {
+            Decimal::MIN
+        } else {
+            Decimal::from_i128_with_scale(self.scaled as i128, 8)
+        }
+    }
+
+    pub fn to_decimal_checked(self) -> Result<Decimal, CodecError> {
+        self.ensure_finite()?;
+        Ok(Decimal::from_i128_with_scale(self.scaled as i128, 8))
+    }
+
+    pub fn from_decimal(decimal: Decimal) -> Result<Self, CodecError> {
+        if decimal == Decimal::MAX {
+            return Ok(Self::POS_INFINITY);
+        }
+        if decimal == Decimal::MIN {
+            return Ok(Self::NEG_INFINITY);
+        }
+        let scaled = decimal
+            .checked_mul(Decimal::from(SCALE))
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?
+            .trunc();
+        let mantissa = scaled.mantissa();
+        let val = i64::try_from(mantissa).map_err(|_| CodecError::Fixed8OutOfRange)?;
+        Ok(Self::from_scaled(val))
+    }
+
     pub fn to_f64(self) -> Result<f64, CodecError> {
         self.ensure_finite()?;
-        Ok(self.0 as f64 / SCALE as f64)
+        let dec = self.to_decimal_checked()?;
+        dec.to_f64().ok_or(CodecError::Fixed8ArithmeticOverflow)
+    }
+
+    pub fn from_f64(value: f64) -> Result<Self, CodecError> {
+        if !value.is_finite() {
+            return Err(CodecError::Fixed8ArithmeticOverflow);
+        }
+        let dec = Decimal::from_f64(value).ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(dec)
     }
 
     pub fn checked_add(self, other: Self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
         other.ensure_finite()?;
-        self.0
-            .checked_add(other.0)
-            .map(Self)
-            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        let a = self.to_decimal_checked()?;
+        let b = other.to_decimal_checked()?;
+        let res = a
+            .checked_add(b)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(res)
     }
 
     pub fn checked_sub(self, other: Self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
         other.ensure_finite()?;
-        self.0
-            .checked_sub(other.0)
-            .map(Self)
-            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        let a = self.to_decimal_checked()?;
+        let b = other.to_decimal_checked()?;
+        let res = a
+            .checked_sub(b)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(res)
     }
 
     pub fn checked_neg(self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
-        self.0
-            .checked_neg()
-            .map(Self)
-            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        let a = self.to_decimal_checked()?;
+        let res = Decimal::ZERO
+            .checked_sub(a)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(res)
     }
 
     pub fn checked_abs(self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
-        self.0
-            .checked_abs()
-            .map(Self)
-            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        let a = self.to_decimal_checked()?;
+        let res = a.abs();
+        Self::from_decimal(res)
     }
 
     pub fn checked_mul(self, other: Self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
         other.ensure_finite()?;
-        Self::from_go_float(self.to_f64()? * other.to_f64()?)
+        let a = self.to_decimal_checked()?;
+        let b = other.to_decimal_checked()?;
+        let res = a
+            .checked_mul(b)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(res)
     }
 
     pub fn checked_div(self, other: Self) -> Result<Self, CodecError> {
@@ -89,63 +161,51 @@ impl Fixed8 {
         if other.is_zero() {
             return Err(CodecError::Fixed8DivisionByZero);
         }
-        Self::from_go_float(self.to_f64()? / other.to_f64()?)
+        let a = self.to_decimal_checked()?;
+        let b = other.to_decimal_checked()?;
+        let res = a
+            .checked_div(b)
+            .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+        Self::from_decimal(res)
     }
 
     pub fn truncate_to_increment(self, increment: Self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
         increment.ensure_finite()?;
-        if increment.0 <= 0 {
+        if increment.is_zero() || increment.scaled <= 0 {
             return Err(CodecError::InvalidFixed8Increment);
         }
-        Ok(Self(self.0 / increment.0 * increment.0))
+        let val_dec = self.to_decimal_checked()?;
+        let inc_dec = increment.to_decimal_checked()?;
+        let res = truncate_decimal_to_increment(val_dec, inc_dec)?;
+        Self::from_decimal(res)
     }
 
     pub fn ceil_to_increment(self, increment: Self) -> Result<Self, CodecError> {
         self.ensure_finite()?;
         increment.ensure_finite()?;
-        if increment.0 <= 0 {
+        if increment.is_zero() || increment.scaled <= 0 {
             return Err(CodecError::InvalidFixed8Increment);
         }
-        let quotient = self.0.div_euclid(increment.0);
-        let rounded = if self.0.rem_euclid(increment.0) == 0 {
-            quotient
-        } else {
-            quotient
-                .checked_add(1)
-                .ok_or(CodecError::Fixed8ArithmeticOverflow)?
-        };
-        rounded
-            .checked_mul(increment.0)
-            .map(Self)
-            .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        let val_dec = self.to_decimal_checked()?;
+        let inc_dec = increment.to_decimal_checked()?;
+        let res = ceil_decimal_to_increment(val_dec, inc_dec)?;
+        Self::from_decimal(res)
     }
 
     fn ensure_finite(self) -> Result<(), CodecError> {
-        if self == Self::POS_INFINITY || self == Self::NEG_INFINITY {
+        if self.non_finite != 0 {
             Err(CodecError::Fixed8NonFiniteArithmetic)
         } else {
             Ok(())
         }
     }
 
-    pub fn from_f64(value: f64) -> Result<Self, CodecError> {
-        Self::from_go_float(value)
-    }
-
-    fn from_go_float(value: f64) -> Result<Self, CodecError> {
-        let scaled = value * SCALE as f64;
-        if !scaled.is_finite() || scaled < i64::MIN as f64 || scaled > i64::MAX as f64 {
-            return Err(CodecError::Fixed8ArithmeticOverflow);
-        }
-        Ok(Self(scaled.trunc() as i64))
-    }
-
     pub fn storage_text(self) -> String {
-        if self == Self::POS_INFINITY {
+        if self.non_finite == 1 {
             return "inf".to_owned();
         }
-        if self == Self::NEG_INFINITY {
+        if self.non_finite == -1 {
             return "-inf".to_owned();
         }
         self.fixed_text()
@@ -154,11 +214,135 @@ impl Fixed8 {
             .to_owned()
     }
 
-    fn fixed_text(self) -> String {
-        let sign = if self.0 < 0 { "-" } else { "" };
-        let magnitude = self.0.unsigned_abs();
+    pub fn fixed_text(self) -> String {
+        if self.non_finite == 1 {
+            return "inf".to_owned();
+        }
+        if self.non_finite == -1 {
+            return "-inf".to_owned();
+        }
+        let sign = if self.scaled < 0 { "-" } else { "" };
+        let magnitude = self.scaled.unsigned_abs();
         format!("{sign}{}.{:08}", magnitude / SCALE, magnitude % SCALE)
     }
+}
+
+impl From<Fixed8> for Decimal {
+    fn from(value: Fixed8) -> Self {
+        value.to_decimal()
+    }
+}
+
+impl From<Decimal> for Fixed8 {
+    fn from(value: Decimal) -> Self {
+        Self::from_decimal(value).unwrap_or_else(|_| {
+            if value.is_sign_negative() {
+                Self::NEG_INFINITY
+            } else {
+                Self::POS_INFINITY
+            }
+        })
+    }
+}
+
+/// Trading math helper extension on [`Decimal`].
+pub trait DecimalTradingExt {
+    /// Truncates `self` down to the nearest positive increment.
+    fn truncate_to_increment(self, increment: Decimal) -> Result<Decimal, CodecError>;
+
+    /// Ceils `self` up to the nearest positive increment.
+    fn ceil_to_increment(self, increment: Decimal) -> Result<Decimal, CodecError>;
+
+    /// Aligns `self` to the nearest step (rounding half to even / nearest).
+    fn align_to_step(self, step: Decimal) -> Decimal;
+
+    /// Formats decimal as canonical storage text (trimming trailing zeros after decimal point).
+    fn to_storage_text(self) -> String;
+
+    /// Parses percentage or decimal string (e.g. "12.5%", "100.25").
+    fn parse_trading_str(input: &str) -> Result<Decimal, CodecError>;
+}
+
+impl DecimalTradingExt for Decimal {
+    fn truncate_to_increment(self, increment: Decimal) -> Result<Decimal, CodecError> {
+        truncate_decimal_to_increment(self, increment)
+    }
+
+    fn ceil_to_increment(self, increment: Decimal) -> Result<Decimal, CodecError> {
+        ceil_decimal_to_increment(self, increment)
+    }
+
+    fn align_to_step(self, step: Decimal) -> Decimal {
+        align_decimal_to_step(self, step)
+    }
+
+    fn to_storage_text(self) -> String {
+        self.normalize().to_string()
+    }
+
+    fn parse_trading_str(input: &str) -> Result<Decimal, CodecError> {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return Ok(Decimal::ZERO);
+        }
+        if let Some(pct) = trimmed.strip_suffix('%') {
+            let val: Decimal = pct
+                .parse()
+                .map_err(|_| CodecError::InvalidDecimal(input.to_owned()))?;
+            val.checked_div(Decimal::from(100))
+                .ok_or(CodecError::Fixed8ArithmeticOverflow)
+        } else {
+            trimmed
+                .parse()
+                .map_err(|_| CodecError::InvalidDecimal(input.to_owned()))
+        }
+    }
+}
+
+/// Truncates `value` to a positive `increment`.
+pub fn truncate_decimal_to_increment(
+    value: Decimal,
+    increment: Decimal,
+) -> Result<Decimal, CodecError> {
+    if increment <= Decimal::ZERO {
+        return Err(CodecError::InvalidFixed8Increment);
+    }
+    let quotient = value
+        .checked_div(increment)
+        .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+    let units = quotient.trunc();
+    units
+        .checked_mul(increment)
+        .ok_or(CodecError::Fixed8ArithmeticOverflow)
+}
+
+/// Ceils `value` to a positive `increment`.
+pub fn ceil_decimal_to_increment(
+    value: Decimal,
+    increment: Decimal,
+) -> Result<Decimal, CodecError> {
+    if increment <= Decimal::ZERO {
+        return Err(CodecError::InvalidFixed8Increment);
+    }
+    let quotient = value
+        .checked_div(increment)
+        .ok_or(CodecError::Fixed8ArithmeticOverflow)?;
+    let units = quotient.ceil();
+    units
+        .checked_mul(increment)
+        .ok_or(CodecError::Fixed8ArithmeticOverflow)
+}
+
+/// Aligns `value` to the nearest positive `step`.
+pub fn align_decimal_to_step(value: Decimal, step: Decimal) -> Decimal {
+    if step.is_zero() {
+        return value;
+    }
+    let Some(quotient) = value.checked_div(step) else {
+        return value;
+    };
+    let rounded = quotient.round();
+    rounded.checked_mul(step).unwrap_or(value)
 }
 
 impl fmt::Display for Fixed8 {
@@ -189,7 +373,7 @@ impl FromStr for Fixed8 {
                 .checked_add(2)
                 .ok_or(CodecError::Fixed8OutOfRange)?;
         }
-        scaled_value(parsed).map(Self)
+        scaled_value(parsed).map(Self::from_scaled)
     }
 }
 
@@ -232,7 +416,7 @@ impl Serialize for Fixed8 {
     where
         S: Serializer,
     {
-        if *self == Self::POS_INFINITY || *self == Self::NEG_INFINITY {
+        if self.non_finite != 0 {
             return serializer.serialize_str(&self.storage_text());
         }
         let number =
@@ -265,7 +449,9 @@ impl<'de> Deserialize<'de> for Fixed8 {
 
 #[cfg(test)]
 mod tests {
-    use super::Fixed8;
+    use super::{DecimalTradingExt, Fixed8};
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
 
     #[test]
     fn rejects_values_outside_the_fixed_width() {
@@ -297,6 +483,58 @@ mod tests {
                 .expect("ceil")
                 .storage_text(),
             "1.01"
+        );
+    }
+
+    #[test]
+    fn conversions_between_fixed8_and_decimal() {
+        let f = "100.25".parse::<Fixed8>().expect("fixed8");
+        let d: Decimal = f.into();
+        assert_eq!(d, Decimal::from_str("100.25").unwrap());
+        assert_eq!(f.to_decimal(), Decimal::from_str("100.25").unwrap());
+
+        let back: Fixed8 = d.into();
+        assert_eq!(back, f);
+        assert_eq!(Fixed8::from_decimal(d).unwrap(), f);
+
+        assert_eq!(Fixed8::POS_INFINITY.to_decimal(), Decimal::MAX);
+        assert_eq!(Fixed8::NEG_INFINITY.to_decimal(), Decimal::MIN);
+        assert_eq!(Fixed8::from(Decimal::MAX), Fixed8::POS_INFINITY);
+        assert_eq!(Fixed8::from(Decimal::MIN), Fixed8::NEG_INFINITY);
+    }
+
+    #[test]
+    fn decimal_trading_ext_helpers() {
+        let val = Decimal::from_str("1.239").unwrap();
+        let step = Decimal::from_str("0.01").unwrap();
+        assert_eq!(
+            val.truncate_to_increment(step).unwrap(),
+            Decimal::from_str("1.23").unwrap()
+        );
+        assert_eq!(
+            Decimal::from_str("1.001")
+                .unwrap()
+                .ceil_to_increment(step)
+                .unwrap(),
+            Decimal::from_str("1.01").unwrap()
+        );
+        assert_eq!(
+            Decimal::from_str("1.004")
+                .unwrap()
+                .align_to_step(Decimal::from_str("0.005").unwrap()),
+            Decimal::from_str("1.005").unwrap()
+        );
+        assert_eq!(
+            Decimal::from_str("100.250000").unwrap().to_storage_text(),
+            "100.25"
+        );
+        assert_eq!(
+            Decimal::parse_trading_str("12.5%").unwrap(),
+            Decimal::from_str("0.125").unwrap()
+        );
+        assert_eq!(
+            Decimal::parse_trading_str(" 100.5 ").unwrap(),
+            Decimal::from_str("100.5").unwrap()
         );
     }
 }

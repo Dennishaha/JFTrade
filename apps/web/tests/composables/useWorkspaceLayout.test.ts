@@ -187,12 +187,18 @@ describe("useWorkspaceLayout", () => {
 
   it("throws clear errors when view or trading stores are missing", () => {
     const MissingViewHost = defineComponent({
+      render() {
+        return h("div");
+      },
       setup() {
         useWorkspaceViewState();
         return () => h("div");
       },
     });
     const MissingTradingHost = defineComponent({
+      render() {
+        return h("div");
+      },
       setup() {
         useWorkspaceTradingPrefs();
         return () => h("div");

@@ -537,7 +537,11 @@ function createConsoleDataStore(
   async function initialize(): Promise<void> {
     await initializeConsoleStream();
     await loadMarketProfiles();
-    await reloadMarketDataProvider({ load: false, refreshProfiles: false });
+    // Rehydrate the previously selected instrument and its data after login.
+    // Provider selection invalidates the query cache, so skipping the initial
+    // load leaves the UI stuck on an empty chart until the user clicks the
+    // watchlist item again.
+    await reloadMarketDataProvider({ load: true, refreshProfiles: false });
   }
 
   return {

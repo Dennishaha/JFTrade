@@ -1,5 +1,9 @@
 //! Production market-data provider actions adapter.
 
+#[cfg(test)]
+#[path = "product_production_ports_market_data_actions_tests.rs"]
+mod tests;
+
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -61,12 +65,13 @@ impl ProductionMarketDataProviderActionsPort {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NormalizeRequestBody {
     market: Option<String>,
     symbol: Option<String>,
     code: Option<String>,
+    #[serde(alias = "instrument_id")]
     instrument_id: Option<String>,
     instrument: Option<String>,
 }
@@ -415,67 +420,43 @@ impl ProductionMarketDataProviderActionsPort {
         &self,
         request: &MarketDataProviderActionsRequest,
     ) -> Result<Value, MarketDataProviderActionsPortError> {
-        let body: NormalizeRequestBody = serde_json::from_slice(&request.body).map_err(|_| {
-            MarketDataProviderActionsPortError::Failed {
-                status: 400,
-                code: "BAD_REQUEST".to_owned(),
-                message: "invalid normalize request".to_owned(),
-                retry_after_seconds: None,
-            }
-        })?;
+        let body: Option<NormalizeRequestBody> =
+            serde_json::from_slice(&request.body).map_err(|_| {
+                MarketDataProviderActionsPortError::Failed {
+                    status: 400,
+                    code: "BAD_REQUEST".to_owned(),
+                    message: "invalid normalize request".to_owned(),
+                    retry_after_seconds: None,
+                }
+            })?;
+        let body = body.unwrap_or_default();
 
         let candidate = body
             .instrument_id
-            .clone()
-            .or_else(|| body.instrument.clone())
-            .or_else(|| body.code.clone())
-            .or_else(|| body.symbol.clone());
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| body.instrument.as_deref().filter(|s| !s.trim().is_empty()))
+            .or_else(|| body.symbol.as_deref().filter(|s| !s.trim().is_empty()))
+            .or_else(|| body.code.as_deref().filter(|s| !s.trim().is_empty()));
 
-        let (market, symbol) = if let Some(candidate) = candidate {
-            let trimmed = candidate.trim();
-            if trimmed.contains('.') {
-                let mut parts = trimmed.splitn(2, '.');
-                let m = parts.next().unwrap_or("US").to_ascii_uppercase();
-                let s = parts.next().unwrap_or("").to_ascii_uppercase();
-                (m, s)
-            } else {
-                let m = body
-                    .market
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|m| !m.is_empty())
-                    .unwrap_or("US")
-                    .to_ascii_uppercase();
-                (m, trimmed.to_ascii_uppercase())
-            }
-        } else if let (Some(m), Some(s)) = (body.market.as_deref(), body.symbol.as_deref()) {
-            (m.trim().to_ascii_uppercase(), s.trim().to_ascii_uppercase())
-        } else {
-            return Err(MarketDataProviderActionsPortError::Failed {
-                status: 400,
-                code: "MARKET_INSTRUMENT_INVALID".to_owned(),
-                message: "symbol or code is required".to_owned(),
-                retry_after_seconds: None,
-            });
-        };
+        let normalized = jftrade_marketdata::normalize_instrument(
+            body.market.as_deref(),
+            candidate,
+        )
+        .map_err(|err| MarketDataProviderActionsPortError::Failed {
+            status: 400,
+            code: "MARKET_INSTRUMENT_INVALID".to_owned(),
+            message: err.to_string(),
+            retry_after_seconds: None,
+        })?;
 
-        if symbol.is_empty() {
-            return Err(MarketDataProviderActionsPortError::Failed {
-                status: 400,
-                code: "MARKET_INSTRUMENT_INVALID".to_owned(),
-                message: "symbol or code is required".to_owned(),
-                retry_after_seconds: None,
-            });
-        }
-
-        let instrument_id = format!("{market}.{symbol}");
         Ok(json!({
-            "code": symbol,
-            "instrumentId": instrument_id,
-            "market": market,
-            "prefix": market,
-            "resolvedMarket": market,
-            "symbol": format!("{market}.{symbol}"),
+            "code": normalized.code,
+            "instrumentId": normalized.instrument_id,
+            "market": normalized.market,
+            "prefix": normalized.prefix,
+            "resolvedMarket": normalized.resolved_market,
+            "symbol": normalized.symbol,
         }))
     }
 

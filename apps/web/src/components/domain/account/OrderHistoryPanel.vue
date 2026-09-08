@@ -96,9 +96,10 @@ function formatFillPrice(
   value: number | null | undefined,
   market: string | null | undefined,
 ): string {
+  const resolvedMarket = market?.trim() || null;
   return formatMarketPrice(value, {
-    market: market ?? null,
-    precision: pricePrecisionForMarket(market),
+    market: resolvedMarket,
+    precision: pricePrecisionForMarket(resolvedMarket),
   });
 }
 
@@ -331,7 +332,7 @@ function formatFeeMoney(value: number | null | undefined): string {
                 </td>
                 <td>{{ formatOrderSideLabel(fill.side) }}</td>
                 <td class="tv-num">{{ formatQuantity(fill.filledQuantity) }}</td>
-                <td class="tv-num">{{ formatFillPrice(fill.fillPrice, fill.market) }}</td>
+                <td class="tv-num">{{ formatFillPrice(fill.fillPrice, fill.market || fill.symbol) }}</td>
                 <td>{{ fill.status ?? "—" }}</td>
                 <td>{{ formatDateTime(fill.filledAt) }}</td>
               </tr>

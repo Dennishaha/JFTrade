@@ -947,6 +947,9 @@ describe("StrategyDesignStage business flows", () => {
 
   it("fails fast when a split strategy component is mounted without its context", () => {
     const ContextProbe = defineComponent({
+      render() {
+        return null;
+      },
       setup() {
         useStrategyDesignContext();
         return () => null;

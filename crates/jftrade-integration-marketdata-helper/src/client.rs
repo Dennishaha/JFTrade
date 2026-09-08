@@ -65,7 +65,7 @@ pub enum HttpAdapterError {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HelperClient {
     base_url: Url,
     bearer_token: Option<String>,
@@ -156,6 +156,20 @@ impl HelperClient {
         full_segments.push(norm_provider);
         full_segments.extend_from_slice(segments);
         self.get_json(&full_segments).await
+    }
+
+    pub async fn post_provider_json<I: Serialize + ?Sized, T: DeserializeOwned>(
+        &self,
+        provider: &str,
+        segments: &[&str],
+        input: &I,
+    ) -> Result<T, HttpAdapterError> {
+        let norm_provider = Self::normalize_provider(provider)?;
+        let mut full_segments = Vec::with_capacity(segments.len() + 2);
+        full_segments.push("providers");
+        full_segments.push(norm_provider);
+        full_segments.extend_from_slice(segments);
+        self.post_json(&full_segments, input).await
     }
 
     pub async fn get_provider_json_with_query<T: DeserializeOwned>(
