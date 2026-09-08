@@ -67,8 +67,13 @@
     "CLAUDE.md",
     "docs/architecture/quality-gates.md",
     "docs/architecture/release-qualification.md",
+    "crates/AGENTS.md",
+    "apps/desktop/src-tauri/AGENTS.md",
     "apps/web/AGENTS.md",
     "workers/AGENTS.md"
   ],
-  "legacyPaths": ["pkg/jftradeapi", "pkg/adk", "pkg/jftsettings"]
+  "legacyPaths": [
+    "pkg/jftradeapi", "pkg/adk", "pkg/jftsettings", "pkg/futu", "pkg/backtest",
+    "internal/app/apiserver", "internal/marketdata", "internal/api"
+  ]
 }

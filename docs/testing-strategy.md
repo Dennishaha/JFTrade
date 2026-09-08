@@ -1,5 +1,7 @@
 # 测试与质量门禁
 
+本文维护行为测试、覆盖率和外部依赖隔离要求；命令编排、CI DAG 与 affected 规则以 [质量门禁](architecture/quality-gates.md) 和对应脚本为准。
+
 JFTrade 不再以全仓每一类代码都达到 98% 为目标。覆盖率是发现未验证行为的信号，不是业务正确性的替代品：风险越高的边界要求越严格，新增代码必须有足够的增量覆盖，路由、订单和迁移等有限契约面则要求完整枚举。
 
 ## 覆盖率政策
@@ -76,8 +78,8 @@ pnpm run clean:rust:artifacts
 # 单独运行 Web 与 Pine worker 覆盖率门禁
 pnpm run test:coverage
 
-# 开发依赖安装后运行离线 helper 契约测试
-python -m pytest workers/marketdata-sidecar/tests
+# 在锁定的 Python/uv 环境运行 helper 契约测试（测试不访问真实行情网络）
+pnpm run check:python
 
 # 构建当前平台的 PyInstaller helper（发布矩阵预先构建四个平台资产）
 pnpm run build:marketdata-sidecar

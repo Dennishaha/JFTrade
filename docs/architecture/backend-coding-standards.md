@@ -66,12 +66,12 @@ Integration 不拥有全局 Provider 选择、业务缓存、策略状态或用�
 Rust 变更按风险由窄到宽运行：
 
 ```bash
-cargo test -p <changed-crate> --all-targets
+node scripts/quality/cargo-nextest.mjs run -p <changed-crate> --all-targets --locked
 pnpm run check:quick
 pnpm run check:rust
 ```
 
-契约变化额外运行 `pnpm run check:generated`。所有变更都必须保持：
+测试统一使用仓库 nextest wrapper，固定版本、校验和及非打包编译环境；生产 crate 改动还需覆盖反向依赖。局部入口见 [crates/AGENTS.md](../../crates/AGENTS.md)，门禁语义见 [quality-gates.md](quality-gates.md)。契约变化额外运行 `pnpm run check:generated`。所有变更都必须保持：
 
 ```bash
 pnpm run check:zero-go

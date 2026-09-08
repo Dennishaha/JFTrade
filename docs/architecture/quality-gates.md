@@ -16,6 +16,16 @@ JFTrade 的质量门禁面向当前 Rust/Tauri 产品，不使用迁移阶段作
 - `check:web`、`check:pine`、`check:python`、`check:desktop`：各运行时独立验证。
 - `check:quick`、`check:affected`、`check:all`：工作树快速反馈、merge-base affected 和完整本地入口。
 
+## 本地选择与副作用
+
+命令从仓库根目录运行。先执行目标模块的最窄测试，再运行 `pnpm run check:quick`；可用 `pnpm run check:quick -- --print` 预览计划。`pnpm run test:affected -- --print` 预览 merge-base 测试集合，不执行检查。
+
+- `check:quick` 比较当前工作树与 `HEAD`，`check:affected` / `test:affected` 比较 merge-base，均包含未跟踪文件。
+- 根 `AGENTS.md`、模块表、共享工具链、workflow 或门禁脚本变化触发全量兜底；此时 quick 执行 `test:preflight`，不意味着只检查 Markdown。未分类路径和 planner 失败同样 fail closed，具体命令以 planner 输出为准。
+- `check:quick` / `check:generated` 不重写跟踪源码或生成物；检查可以产生测试缓存、报告和编译输出。`check:all` 还包含依赖审计、资产构建与 smoke，不是纯只读检查，也不能替代四平台发布资格。
+- `generate:docs`、`prepare:tauri-release`、`build:desktop` 是显式写入的生成/构建入口，不用于替代生成一致性检查。
+- Rust 实现变化必须完成 `check:rust`；quick 输出的 deferred 项不是已通过。环境缺失、失败或未执行的检查应在交付中明确列出。
+
 ## PR 与 main
 
 PR 的 `gate-plan` 从 merge-base 计算受影响 lane。未知产品路径、Cargo/lockfile/toolchain、workflow、门禁脚本或 module map 变化会 fail closed 为全量；生产 crate 变化包含 workspace 反向依赖。planner 失败同样输出全量计划。

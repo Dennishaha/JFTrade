@@ -1,7 +1,7 @@
 # Claude Code instructions
 
-仓库级规则统一维护在 [`AGENTS.md`](AGENTS.md)，Claude Code 进入任意任务前应加载它以及目标目录下最近的局部 `AGENTS.md`。
+仓库级规则统一维护在 [AGENTS.md](AGENTS.md)。先加载根规则，再读取从根到目标路径沿途适用的局部 `AGENTS.md`；局部规则只补充所属范围。
 
 @AGENTS.md
 
-Claude 专用 agent/instruction 只描述交互方式，不复制模块边界、命令或已删除路径。需要架构事实时，以 [`scripts/module-map.json`](scripts/module-map.json) 和 [`docs/README.md`](docs/README.md) 为准。
+本文件只负责 Claude Code 的加载入口，不复制命令、工具链版本或架构边界。任务路由、验证和交付要求均遵循根规则；实现与文档冲突时先核对源码、配置和测试，不依据旧快照改回实现。
