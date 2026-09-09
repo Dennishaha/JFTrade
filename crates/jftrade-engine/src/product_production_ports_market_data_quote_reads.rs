@@ -474,7 +474,7 @@ impl ProductionMarketDataQuotePort {
             );
             let extended_hours = sessions.iter().any(|s| *s == "extended" || *s == "overnight");
             let futu_result = runtime
-                .historical_klines(&jftrade_integration_futu::HistoricalKlineQuery {
+                .historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
                     market: market_code,
                     symbol: symbol.clone(),
                     period: period.to_owned(),
@@ -580,6 +580,13 @@ impl ProductionMarketDataQuotePort {
 
             for (index, kline) in non_blank_klines.into_iter().enumerate() {
                 let at = canonical_candle_time(&kline.time, &market);
+                if before.as_deref().is_some_and(|cursor| {
+                    at.parse::<jiff::Timestamp>().ok()
+                        .zip(cursor.parse::<jiff::Timestamp>().ok())
+                        .is_some_and(|(at, cursor)| at >= cursor)
+                }) {
+                    continue;
+                }
                 let open = time::OffsetDateTime::parse(&at, &time::format_description::well_known::Rfc3339)
                     .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
                 let now = time::OffsetDateTime::from_unix_timestamp_nanos(now_ts.as_nanosecond())
@@ -599,6 +606,7 @@ impl ProductionMarketDataQuotePort {
                     "closed": is_closed,
                 }));
             }
+            let has_older = candles.len() > limit;
             if candles.len() > limit {
                 candles = candles.split_off(candles.len() - limit);
             }
@@ -607,8 +615,8 @@ impl ProductionMarketDataQuotePort {
                 .and_then(|c| c.get("at"))
                 .and_then(|v| v.as_str())
                 .map(str::to_owned);
-            let bounded = from_time.is_some() || to_time.is_some() || before.is_some();
-            let pagination = if !bounded && !result.next_req_key.is_empty() {
+            let bounded = from_time.is_some() || to_time.is_some();
+            let pagination = if !bounded && has_older {
                 json!({ "hasMore": true, "nextBefore": next_before })
             } else {
                 json!({ "hasMore": false })

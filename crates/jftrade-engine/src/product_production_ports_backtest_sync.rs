@@ -563,10 +563,10 @@ async fn fetch_futu_page_with_retry(
 fn futu_error_retryable(error: &HistoricalKlineError) -> bool {
     match error {
         HistoricalKlineError::Session(_) => true,
-        HistoricalKlineError::Rejected { err_code, .. } => {
-            *err_code == 408 || *err_code == 425 || *err_code == 429 || *err_code >= 500
-        }
-        HistoricalKlineError::Decode(_) | HistoricalKlineError::MissingS2c => false,
+        HistoricalKlineError::Rejected { err_code, .. } => matches!(err_code, 408 | 425 | 429 | 500..),
+        HistoricalKlineError::Decode(_)
+        | HistoricalKlineError::MissingS2c
+        | HistoricalKlineError::InvalidPagination => false,
     }
 }
 
