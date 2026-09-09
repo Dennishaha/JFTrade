@@ -12,6 +12,14 @@ pub mod qot_option_common {
 pub mod qot_get_security_snapshot {
     include!(concat!(env!("OUT_DIR"), "/qot_get_security_snapshot.rs"));
 }
+pub mod qot_get_search_quote {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_search_quote.rs"));
+    pub const PROTOCOL_ID: u32 = 3262;
+}
+pub mod qot_get_static_info {
+    include!(concat!(env!("OUT_DIR"), "/qot_get_static_info.rs"));
+    pub const PROTOCOL_ID: u32 = 3202;
+}
 pub mod qot_get_kl {
     include!(concat!(env!("OUT_DIR"), "/qot_get_kl.rs"));
     pub const PROTOCOL_ID: u32 = 3006;

@@ -25,6 +25,8 @@ fn main() {
         "../../proto/futu/Qot_GetFutureInfo.proto",
         "../../proto/futu/Qot_GetValuationDetail.proto",
         "../../proto/futu/Qot_GetSearchNews.proto",
+        "../../proto/futu/Qot_GetSearchQuote.proto",
+        "../../proto/futu/Qot_GetStaticInfo.proto",
         "../../proto/futu/Qot_GetCorporateActionsDividends.proto",
         "../../proto/futu/Qot_GetCorporateActionsBuybacks.proto",
         "../../proto/futu/Qot_GetCorporateActionsStockSplits.proto",

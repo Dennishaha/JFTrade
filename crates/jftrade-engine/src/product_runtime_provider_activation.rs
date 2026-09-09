@@ -207,7 +207,7 @@ pub(super) fn provider_activation(
                         ))
                             as Arc<dyn jftrade_integration_futu::HistoricalKlineReadPort>
                     };
-                    try_install_security_snapshot_reader(
+                    install_security_catalog_readers(
                         &trade_runtime_for_activation,
                         &provider.coordinator(),
                     );
@@ -423,12 +423,15 @@ pub(super) fn provider_activation(
     }))
 }
 
-pub(crate) fn try_install_security_snapshot_reader(
+pub(crate) fn install_security_catalog_readers(
     trade_runtime: &SharedTradeReadRuntime,
     coordinator: &Arc<Mutex<OpenDSessionCoordinator>>,
 ) {
     trade_runtime.set_security_snapshots(Some(Arc::new(
         jftrade_integration_futu::OpenDSecuritySnapshotReader::new(Arc::clone(coordinator)),
+    )));
+    trade_runtime.set_instrument_search_reader(Some(Arc::new(
+        jftrade_integration_futu::OpenDInstrumentSearchReader::new(Arc::clone(coordinator)),
     )));
 }
 

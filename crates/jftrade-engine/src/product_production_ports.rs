@@ -547,7 +547,7 @@ pub(crate) fn production_ports(
     let market_data_catalog_port = Arc::new(ProductionMarketDataCatalogPort::new(
         Arc::clone(&active_provider_state),
         config.market_data_helper.clone(),
-    ));
+    ).with_trade_runtime(config.trade_runtime.clone()));
     let calendar_manager = Arc::new(
         CalendarManager::new(
             CalendarSourceRegistry::default(),
