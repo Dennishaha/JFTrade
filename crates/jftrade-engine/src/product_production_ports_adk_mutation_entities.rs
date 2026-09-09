@@ -35,7 +35,7 @@ pub(super) fn dispatch(
                 .or_else(|| input.body.get("name").and_then(Value::as_str))
                 .map(normalize_id)
                 .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| next_id("agent", &AGENT_ID_SEQUENCE));
+                .unwrap_or_else(|| next_id("agent"));
             let mut payload = new_entity_payload(&input.body, "agent", &id)?;
             let object = payload
                 .as_object_mut()

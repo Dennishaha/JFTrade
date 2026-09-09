@@ -41,6 +41,8 @@ flowchart LR
 
 业务状态必须保持唯一写入者。内部 adapter 缺失会阻止生产启动；外部 Provider 或 OpenD 不可用时按公开契约返回 502/503，不伪造成功结果。
 
+策略成交写入、bar 收盘与补偿、工作流逐节点 checkpoint 和后台任务关闭规则见[运行中执行、恢复与停止](architecture/runtime-execution-ownership.md)。
+
 ## 契约与持久化
 
 `contracts/openapi/openapi.json` 是 HTTP 规范源，Node 生成前端类型和参考文档。`proto/futu` 与 `proto/pineworker` 是中立 protobuf 规范，只由当前 Rust/Node 链消费。

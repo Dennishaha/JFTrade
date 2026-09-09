@@ -190,4 +190,14 @@ impl super::SharedTradeReadRuntime {
             .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
         reader.query_current(query).map_err(|error| error.to_string())
     }
+
+    pub(crate) fn historical_klines_window(
+        &self,
+        query: &jftrade_integration_futu::HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, String> {
+        let reader = self
+            .historical_klines_reader()
+            .ok_or_else(|| "Futu historical klines runtime is unavailable".to_owned())?;
+        reader.query_window(query).map_err(|error| error.to_string())
+    }
 }

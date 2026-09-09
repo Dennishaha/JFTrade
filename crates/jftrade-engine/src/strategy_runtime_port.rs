@@ -1,5 +1,5 @@
-use super::*;
 use super::strategy_runtime_activity::*;
+use super::*;
 #[derive(Debug)]
 pub(crate) struct ProductionStrategyRuntimePort {
     pub(crate) store: Arc<StrategyRuntimeStore>,
@@ -68,11 +68,10 @@ impl ProductionStrategyRuntimePort {
                 self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
                 continue;
             }
-            if let Err(error) = self.manager.spawn_task(
-                instance.id.clone(),
-                binding,
-                Arc::clone(&self.store),
-            ) {
+            if let Err(error) =
+                self.manager
+                    .spawn_task(instance.id.clone(), binding, Arc::clone(&self.store))
+            {
                 self.manager.release_demand(&instance.id);
                 self.mark_recovery_failed(&instance, strategy_write_error_message(error))?;
                 continue;
@@ -140,15 +139,15 @@ impl ProductionStrategyRuntimePort {
                     message: error.to_string(),
                 })?
         {
-                if !object.contains_key("script") && !definition.script.trim().is_empty() {
-                    object.insert("script".to_owned(), Value::String(definition.script));
-                }
-                if !object.contains_key("symbol") && !definition.symbol.trim().is_empty() {
-                    object.insert("symbols".to_owned(), json!([definition.symbol]));
-                }
-                if !object.contains_key("interval") && !definition.interval.trim().is_empty() {
-                    object.insert("interval".to_owned(), Value::String(definition.interval));
-                }
+            if !object.contains_key("script") && !definition.script.trim().is_empty() {
+                object.insert("script".to_owned(), Value::String(definition.script));
+            }
+            if !object.contains_key("symbol") && !definition.symbol.trim().is_empty() {
+                object.insert("symbols".to_owned(), json!([definition.symbol]));
+            }
+            if !object.contains_key("interval") && !definition.interval.trim().is_empty() {
+                object.insert("interval".to_owned(), Value::String(definition.interval));
+            }
         }
         normalize_strategy_binding(&mut binding)?;
         Ok(binding)

@@ -18,6 +18,9 @@ use crate::product::product_production_ports::ProductionMarketDataQuotePort;
 
 use super::*;
 
+#[path = "product_market_data_candle_pagination_tests.rs"]
+mod candle_pagination_tests;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MarketDataQuoteReadFixture {

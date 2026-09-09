@@ -8,7 +8,7 @@ type Activation =
 type ReadinessReader = dyn Fn() -> (bool, bool, bool) + Send + Sync;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub(crate) struct ProviderRuntimeSnapshot {
+pub struct ProviderRuntimeSnapshot {
     pub provider: Option<MarketDataProvider>,
     pub generation: u64,
     pub helper_ready: bool,
@@ -19,7 +19,7 @@ pub(crate) struct ProviderRuntimeSnapshot {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct ActiveProviderState {
+pub struct ActiveProviderState {
     activation: Arc<Mutex<Option<Arc<Activation>>>>,
     readiness_reader: Arc<Mutex<Option<Arc<ReadinessReader>>>>,
     /// Serializes the physical transition and publication of the snapshot.
@@ -78,7 +78,7 @@ impl ActiveProviderState {
             .closing = true;
     }
 
-    pub(crate) fn snapshot(&self) -> ProviderRuntimeSnapshot {
+    pub fn snapshot(&self) -> ProviderRuntimeSnapshot {
         let mut snapshot = self
             .snapshot
             .read()

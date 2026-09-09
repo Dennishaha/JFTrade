@@ -30,7 +30,7 @@ pub(super) fn dispatch(
                 .or_else(|| body.get("id").and_then(Value::as_str).map(str::to_owned))
                 .map(|value| normalize_id(&value))
                 .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| next_id("workflow", &WORKFLOW_ID_SEQUENCE));
+                .unwrap_or_else(|| next_id("workflow"));
             let existing = port
                 .store
                 .get_workflow(&id)
@@ -248,7 +248,7 @@ pub(super) fn dispatch(
                 .unwrap_or_else(|| default_trigger_title(&trigger_type).to_owned());
             let id = normalize_id(&normalized_string(body.get("id")));
             let id = if id.is_empty() {
-                next_id("workflow-trigger", &TRIGGER_ID_SEQUENCE)
+                next_id("workflow-trigger")
             } else {
                 id
             };
@@ -259,8 +259,14 @@ pub(super) fn dispatch(
             object.insert("type".to_owned(), Value::String(trigger_type.clone()));
             object.insert("title".to_owned(), Value::String(title));
             object.insert("status".to_owned(), Value::String(status.clone()));
+            let next_run_at = if trigger_type == "schedule" && status == "ENABLED" {
+                crate::product_workflow_cron::next_run_at_string(&config, time::OffsetDateTime::now_utc())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
             object.insert("config".to_owned(), config);
-            object.insert("nextRunAt".to_owned(), Value::String(String::new()));
+            object.insert("nextRunAt".to_owned(), Value::String(next_run_at.clone()));
             let secret = if trigger_type == "webhook" {
                 let (secret, hash) = generate_webhook_secret()?;
                 object.insert("secretHash".to_owned(), Value::String(hash));
@@ -278,7 +284,7 @@ pub(super) fn dispatch(
                     &workflow_id,
                     &trigger_type,
                     &status,
-                    "",
+                    &next_run_at,
                     &payload.to_string(),
                 )
                 .map_err(storage_mutation_failed)?;
@@ -361,7 +367,7 @@ pub(super) fn dispatch(
             object.insert("type".to_owned(), Value::String(trigger_type.clone()));
             object.insert("title".to_owned(), Value::String(title));
             object.insert("status".to_owned(), Value::String(status.clone()));
-            object.insert("config".to_owned(), config);
+            object.insert("config".to_owned(), config.clone());
             let secret = if trigger_type == "webhook"
                 && (reset_secret
                     || object
@@ -381,6 +387,17 @@ pub(super) fn dispatch(
                 object.insert("hasSecret".to_owned(), Value::Bool(false));
                 String::new()
             };
+            let next_run_at = if trigger_type == "schedule" {
+                if status == "ENABLED" {
+                    crate::product_workflow_cron::next_run_at_string(&config, time::OffsetDateTime::now_utc())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+            object.insert("nextRunAt".to_owned(), Value::String(next_run_at.clone()));
             let expected = expected_updated_at(&body, &existing.updated_at)?;
             let payload_json = payload.to_string();
             let changed = port
@@ -391,7 +408,7 @@ pub(super) fn dispatch(
                     &workflow_id,
                     &trigger_type,
                     &status,
-                    &existing.next_run_at,
+                    &next_run_at,
                     &payload_json,
                 )
                 .map_err(storage_mutation_failed)?;

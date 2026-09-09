@@ -54,6 +54,42 @@ pub trait HistoricalKlineReadPort: Send + Sync + std::fmt::Debug {
         query: &HistoricalKlineQuery,
     ) -> Result<HistoricalKlineResult, HistoricalKlineError>;
 
+    /// Exhaust forward OpenD pages before a consumer selects the latest bars.
+    /// A partial window must never be spliced directly to current quotes.
+    fn query_window(
+        &self,
+        query: &HistoricalKlineQuery,
+    ) -> Result<HistoricalKlineResult, HistoricalKlineError> {
+        let mut request = query.clone();
+        request.max_ack_kl_num = Some(query.max_ack_kl_num.unwrap_or(1000).clamp(200, 1000));
+        let mut seen = std::collections::HashSet::new();
+        seen.insert(request.next_req_key.clone());
+        let mut result = self.query(&request)?;
+        result.klines = crate::merge_klines_by_time(&[], &result.klines);
+        // Match the bounded chart-history budget, not the bulk-sync budget.
+        for _ in 1..32 {
+            if result.next_req_key.is_empty() {
+                return Ok(result);
+            }
+            if !seen.insert(result.next_req_key.clone()) {
+                return Err(HistoricalKlineError::InvalidPagination);
+            }
+            request.next_req_key.clone_from(&result.next_req_key);
+            let page = self.query(&request)?;
+            if page.security != result.security {
+                return Err(HistoricalKlineError::InvalidPagination);
+            }
+            result.klines = crate::merge_klines_by_time(&result.klines, &page.klines);
+            result.name = result.name.or(page.name);
+            result.next_req_key = page.next_req_key;
+        }
+        if result.next_req_key.is_empty() {
+            Ok(result)
+        } else {
+            Err(HistoricalKlineError::InvalidPagination)
+        }
+    }
+
     fn query_current(
         &self,
         _query: &crate::CurrentKlineQuery,
@@ -64,6 +100,8 @@ pub trait HistoricalKlineReadPort: Send + Sync + std::fmt::Debug {
 
 #[derive(Debug, Error)]
 pub enum HistoricalKlineError {
+    #[error("OpenD historical K-line pagination did not complete safely")]
+    InvalidPagination,
     #[error("OpenD session unavailable: {0}")]
     Session(#[from] OpenDSessionCoordinatorError),
     #[error("decode OpenD Qot_RequestHistoryKL response: {0}")]
@@ -272,6 +310,10 @@ struct HistoryS2c {
     #[prost(string, optional, tag = "4")]
     name: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "history_window_tests.rs"]
+mod window_tests;
 
 #[cfg(test)]
 mod tests {

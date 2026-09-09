@@ -14,10 +14,14 @@ impl ProductApi {
                     "market-data quote-read snapshot is not configured",
                 )
             })?;
-        port.read(path, query)
-            .await
-            .map(ApiOutput::Json)
-            .map_err(market_data_quote_read_snapshot_failure)
+        let mut value = port.read(path, query).await.map_err(market_data_quote_read_snapshot_failure)?;
+        if path.starts_with("/api/v1/market-data/candles/")
+            && let Some(candles) = value.get_mut("candles").and_then(Value::as_array_mut) {
+            for candle in candles {
+                if let Some(candle) = candle.as_object_mut() { candle.remove("closed"); }
+            }
+        }
+        Ok(ApiOutput::Json(value))
     }
 }
 

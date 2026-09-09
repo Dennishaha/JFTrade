@@ -1,8 +1,11 @@
 use std::str::FromStr;
 
+use super::strategy_runtime_simulate::*;
 use jftrade_kernel::Decimal;
 use jftrade_store_sqlite::StrategyRuntimeStore;
-use jftrade_trading::{RuntimeRiskContext, RuntimeRiskOrder, RuntimeRiskSettings};
+use jftrade_trading::{
+    RuntimeRiskContext, RuntimeRiskOrder, RuntimeRiskSettings, VirtualAccountState,
+};
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 
@@ -27,17 +30,22 @@ pub(super) struct StrategyExecutionContext<'a> {
     pub sellable_quantity: Option<f64>,
     pub current_position: Option<f64>,
     pub available_cash: Option<f64>,
+    pub virtual_account: Option<&'a mut VirtualAccountState>,
 }
 
 pub(super) fn execute_strategy_intents(
-    ctx: StrategyExecutionContext<'_>,
+    mut ctx: StrategyExecutionContext<'_>,
     intents: &[PineOrderIntent],
 ) -> Result<bool, String> {
-    let Some(execution) = ctx.execution else {
-        return Err("strategy execution order port is unavailable".to_owned());
-    };
+    let is_real = execution_binding_is_real(ctx.binding);
     let (broker_id, account_id, trading_environment) =
         strategy_execution_binding(ctx.binding, ctx.provider)?;
+
+    let execution = match ctx.execution {
+        Some(exec) => Some(exec),
+        None if !is_real => None,
+        None => return Err("strategy execution order port is unavailable".to_owned()),
+    };
 
     let stored_instance = ctx
         .store
@@ -85,26 +93,41 @@ pub(super) fn execute_strategy_intents(
     for (index, intent) in intents.iter().enumerate() {
         let kind = intent.kind.trim().to_ascii_lowercase();
         if kind == "cancel" || kind == "cancel_all" {
-            let cancelled = dispatch_cancel_intent(
-                execution,
-                ctx.execution_store,
-                ctx.store,
-                ctx.instance_id,
-                &broker_id,
-                &account_id,
-                &trading_environment,
-                ctx.market,
-                ctx.symbol,
-                intent,
-            )?;
-            if cancelled {
-                placed = true;
+            if let Some(exec) = execution {
+                let cancelled = dispatch_cancel_intent(
+                    exec,
+                    ctx.execution_store,
+                    ctx.store,
+                    ctx.instance_id,
+                    &broker_id,
+                    &account_id,
+                    &trading_environment,
+                    ctx.market,
+                    ctx.symbol,
+                    intent,
+                )?;
+                if cancelled {
+                    placed = true;
+                }
+            } else {
+                let _ = ctx.store.append_audit_event(
+                    ctx.instance_id,
+                    "ORDER_CANCELLED",
+                    "offline simulate mode: no pending broker orders",
+                    now_millis(),
+                );
             }
             continue;
         }
 
         let is_close = matches!(kind.as_str(), "close" | "close_all" | "exit");
-        let current_pos = ctx.current_position.or(ctx.sellable_quantity);
+        let current_pos = ctx
+            .virtual_account
+            .as_ref()
+            .and_then(|va| va.get_position(ctx.symbol))
+            .map(|p| p.quantity)
+            .or(ctx.current_position)
+            .or(ctx.sellable_quantity);
 
         if is_close
             && current_pos.unwrap_or(0.0) == 0.0
@@ -132,20 +155,30 @@ pub(super) fn execute_strategy_intents(
             match intent.direction.trim().to_ascii_lowercase().as_str() {
                 "buy" | "long" | "bull" | "bullish" => "BUY",
                 "sell" | "short" | "bear" | "bearish" => "SELL",
-                _ => return Err(format!("strategy order intent {index} has invalid direction")),
+                _ => {
+                    return Err(format!(
+                        "strategy order intent {index} has invalid direction"
+                    ));
+                }
             }
         };
+
+        let active_cash = ctx
+            .virtual_account
+            .as_ref()
+            .map(|va| va.available_cash)
+            .or(ctx.available_cash);
 
         let resolved_qty = resolve_strategy_intent_quantity(
             intent,
             ctx.binding,
             current_pos,
             ctx.fallback_price,
-            ctx.available_cash,
+            active_cash,
             side,
             is_close,
             index,
-            !execution_binding_is_real(ctx.binding),
+            !is_real,
         )?;
         let Some((quantity, reduce_only)) = resolved_qty else {
             let _ = ctx.store.append_audit_event(
@@ -160,7 +193,8 @@ pub(super) fn execute_strategy_intents(
         let order_price = if intent.has_limit_price {
             Decimal::from_str(&intent.limit_price.to_string()).ok()
         } else {
-            ctx.fallback_price.and_then(|p| Decimal::from_str(&p.to_string()).ok())
+            ctx.fallback_price
+                .and_then(|p| Decimal::from_str(&p.to_string()).ok())
         };
         let risk_quantity = Decimal::from_str(&quantity.to_string()).unwrap_or_default();
         let risk_order = RuntimeRiskOrder {
@@ -170,8 +204,14 @@ pub(super) fn execute_strategy_intents(
             price: order_price,
         };
         let risk_sellable_qty = ctx
-            .sellable_quantity
-            .and_then(|q| Decimal::from_str(&q.to_string()).ok())
+            .virtual_account
+            .as_ref()
+            .and_then(|va| va.get_position(ctx.symbol))
+            .map(|p| Decimal::from_str(&p.sellable_quantity.to_string()).unwrap_or_default())
+            .or_else(|| {
+                ctx.sellable_quantity
+                    .and_then(|q| Decimal::from_str(&q.to_string()).ok())
+            })
             .unwrap_or(if reduce_only || is_close {
                 risk_quantity
             } else {
@@ -201,7 +241,9 @@ pub(super) fn execute_strategy_intents(
             );
             if decision.pause_on_reject {
                 let rfc3339 = now_rfc3339()?;
-                let _ = ctx.store.update_status_cas(ctx.instance_id, &["RUNNING"], "PAUSED", &rfc3339);
+                let _ =
+                    ctx.store
+                        .update_status_cas(ctx.instance_id, &["RUNNING"], "PAUSED", &rfc3339);
             }
             return Err(format!("runtime risk rejected: {detail}"));
         } else if decision.matched {
@@ -238,19 +280,15 @@ pub(super) fn execute_strategy_intents(
             }
         }
 
-        let reservation_key = format!(
-            "{ctx_instance}:{symbol}:{bar}:{index}",
-            ctx_instance = ctx.instance_id,
-            symbol = ctx.symbol,
-            bar = intent.bar_index,
-        );
+        let reservation_key = strategy_client_order_id(ctx.instance_id, ctx.symbol, intent, index);
         let reservation_required =
             risk_settings.mode == "enforce" && risk_settings.daily_max_orders.is_some();
         if reservation_required {
             ctx.store
                 .reserve_daily_order(
                     ctx.instance_id,
-                    ctx.expected_risk_revision.unwrap_or(stored_instance.runtime_risk_revision),
+                    ctx.expected_risk_revision
+                        .unwrap_or(stored_instance.runtime_risk_revision),
                     today_midnight_ms,
                     risk_settings.daily_max_orders,
                     &reservation_key,
@@ -258,22 +296,45 @@ pub(super) fn execute_strategy_intents(
                 )
                 .map_err(|error| format!("reserve strategy daily order slot: {error}"))?;
         }
-        if let Err(error) = dispatch_place_order(
-            execution,
-            ctx.store,
-            ctx.instance_id,
-            ctx.market,
-            ctx.symbol,
-            &broker_id,
-            &account_id,
-            &trading_environment,
-            side,
-            quantity,
-            reduce_only,
-            intent,
-            index,
-            Some(&reservation_key),
-        ) {
+        let dispatch_result = match execution {
+            Some(exec) => {
+                let res = dispatch_place_order(
+                    exec,
+                    ctx.store,
+                    ctx.instance_id,
+                    ctx.market,
+                    ctx.symbol,
+                    &broker_id,
+                    &account_id,
+                    &trading_environment,
+                    side,
+                    quantity,
+                    reduce_only,
+                    intent,
+                    index,
+                    Some(&reservation_key),
+                );
+                // A successful broker submission is not a fill.  The broker
+                // reconciliation worker is the sole owner of fill state for
+                // real orders; never manufacture a local fill after SUBMITTED.
+                res
+            }
+            None => dispatch_simulated_fill(
+                ctx.store,
+                ctx.execution_store,
+                ctx.instance_id,
+                ctx.market,
+                ctx.symbol,
+                side,
+                quantity,
+                ctx.fallback_price,
+                intent,
+                index,
+                ctx.virtual_account.as_deref_mut(),
+            ),
+        };
+
+        if let Err(error) = dispatch_result {
             if reservation_required {
                 let _ = ctx.store.release_order_reservation(
                     ctx.instance_id,
@@ -350,7 +411,10 @@ fn dispatch_cancel_intent(
             }
         }
         if !failures.is_empty() {
-            return Err(format!("cancel_all partially failed: {}", failures.join("; ")));
+            return Err(format!(
+                "cancel_all partially failed: {}",
+                failures.join("; ")
+            ));
         }
         return Ok(cancelled_any);
     }
@@ -385,7 +449,9 @@ fn dispatch_cancel_intent(
                     ));
                 }
             } else {
-                return Err(format!("strategy order {target_order_id} is not owned by instance {instance_id}"));
+                return Err(format!(
+                    "strategy order {target_order_id} is not owned by instance {instance_id}"
+                ));
             }
         } else {
             String::new()
@@ -493,15 +559,12 @@ fn dispatch_place_order(
     execution.mutate(&input).map_err(execution_error_message)?;
 
     let detail = match reservation_key {
-        Some(key) => format!("{symbol} {side} {quantity} (clientOrderId: {client_order_id}; reservation: {key})"),
+        Some(key) => format!(
+            "{symbol} {side} {quantity} (clientOrderId: {client_order_id}; reservation: {key})"
+        ),
         None => format!("{symbol} {side} {quantity} (clientOrderId: {client_order_id})"),
     };
-    let _ = store.append_audit_event(
-        instance_id,
-        "ORDER_SUBMITTED",
-        &detail,
-        now_millis(),
-    );
+    let _ = store.append_audit_event(instance_id, "ORDER_SUBMITTED", &detail, now_millis());
     Ok(())
 }
 
@@ -522,7 +585,10 @@ pub(super) fn notify_strategy_intents(
         let now = now_millis();
         let _ = store.append_log_event(
             instance_id,
-            &format!("Signal detected: {symbol} {side} {} (notify_only)", intent.quantity),
+            &format!(
+                "Signal detected: {symbol} {side} {} (notify_only)",
+                intent.quantity
+            ),
             "INFO",
             now,
         );
@@ -544,95 +610,6 @@ pub(super) fn notify_strategy_intents(
         let _ = store.append_audit_event(instance_id, event_kind, &body, now);
     }
     Ok(())
-}
-
-pub(super) fn validate_strategy_execution_binding(
-    binding: &Value,
-    provider: &ActiveProviderState,
-) -> Result<(), String> {
-    strategy_execution_binding(binding, provider).map(|_| ())
-}
-
-pub(super) fn strategy_execution_binding(
-    binding: &Value,
-    provider: &ActiveProviderState,
-) -> Result<(String, String, String), String> {
-    let broker_id = binding_scalar_string(binding, &["brokerId", "broker"])
-        .or_else(|| {
-            nested_binding_scalar_string(binding, "brokerAccount", &["brokerId", "broker"])
-        })
-        .or_else(|| {
-            (provider.snapshot().provider == Some(jftrade_settings::MarketDataProvider::Futu))
-                .then_some("futu".to_owned())
-        })
-        .ok_or_else(|| "strategy execution broker is not configured".to_owned())?;
-    let account_id = binding_scalar_string(binding, &["accountId", "account"])
-        .or_else(|| {
-            nested_binding_scalar_string(binding, "brokerAccount", &["accountId", "account"])
-        })
-        .ok_or_else(|| "strategy execution accountId is not configured".to_owned())?;
-    if account_id.parse::<u64>().is_err() {
-        return Err("strategy execution accountId must be numeric for Futu".to_owned());
-    }
-    let trading_environment = binding_scalar_string(
-        binding,
-        &["tradingEnvironment", "environment", "env"],
-    )
-    .or_else(|| {
-        nested_binding_scalar_string(
-            binding,
-            "brokerAccount",
-            &["tradingEnvironment", "environment", "env"],
-        )
-    })
-    .ok_or_else(|| "strategy execution tradingEnvironment is not configured".to_owned())?
-    .to_ascii_uppercase();
-    if !matches!(trading_environment.as_str(), "REAL" | "SIMULATE") {
-        return Err("strategy execution tradingEnvironment must be REAL or SIMULATE".to_owned());
-    }
-    Ok((broker_id, account_id, trading_environment))
-}
-
-fn binding_scalar_string(binding: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|key| binding.get(*key).and_then(value_scalar_string))
-}
-
-fn nested_binding_scalar_string(
-    binding: &Value,
-    object_key: &str,
-    keys: &[&str],
-) -> Option<String> {
-    binding
-        .get(object_key)
-        .and_then(Value::as_object)
-        .and_then(|object| {
-            keys.iter()
-                .find_map(|key| object.get(*key).and_then(value_scalar_string))
-        })
-}
-
-fn value_scalar_string(value: &Value) -> Option<String> {
-    match value {
-        Value::String(value) => {
-            let value = value.trim();
-            (!value.is_empty()).then_some(value.to_owned())
-        }
-        Value::Number(value) => Some(value.to_string()),
-        _ => None,
-    }
-}
-
-fn execution_binding_is_real(binding: &Value) -> bool {
-    binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
-        .or_else(|| {
-            nested_binding_scalar_string(
-                binding,
-                "brokerAccount",
-                &["tradingEnvironment", "environment", "env"],
-            )
-        })
-        .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -657,7 +634,14 @@ fn resolve_strategy_intent_quantity(
         if pos <= 0.0 {
             return Ok(None);
         }
-        pos
+        if intent.has_quantity_pct {
+            if !intent.quantity_pct.is_finite() || intent.quantity_pct <= 0.0 {
+                return Err("close percentage must be positive and finite".to_owned());
+            }
+            pos * (intent.quantity_pct / 100.0).min(1.0)
+        } else {
+            pos
+        }
     } else if intent.has_quantity_pct {
         let pct = if intent.quantity_pct > 0.0 {
             intent.quantity_pct
@@ -674,9 +658,8 @@ fn resolve_strategy_intent_quantity(
             } else {
                 current_price.filter(|p| *p > 0.0)
             };
-            let p = price.ok_or_else(|| {
-                "price required to resolve quantity percentage".to_owned()
-            })?;
+            let p =
+                price.ok_or_else(|| "price required to resolve quantity percentage".to_owned())?;
             (notional / p).floor()
         } else {
             let pos = current_position
@@ -704,6 +687,12 @@ fn resolve_strategy_intent_quantity(
         qty = (qty / lot).floor() * lot;
     }
 
+    if !qty.is_finite() {
+        return Err("resolved strategy quantity must be finite".to_owned());
+    }
+    if is_close {
+        qty = qty.min(current_position.unwrap_or(qty).abs());
+    }
     if qty <= 0.0 {
         return Ok(None);
     }
@@ -711,16 +700,7 @@ fn resolve_strategy_intent_quantity(
     Ok(Some((qty, reduce_only)))
 }
 
-fn binding_scalar_f64(binding: &Value, keys: &[&str]) -> Option<f64> {
-    keys.iter().find_map(|key| {
-        binding.get(*key).and_then(|v| {
-            v.as_f64()
-                .or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok()))
-        })
-    })
-}
-
-fn strategy_client_order_id(
+pub(super) fn strategy_client_order_id(
     instance_id: &str,
     symbol: &str,
     intent: &PineOrderIntent,
@@ -731,10 +711,14 @@ fn strategy_client_order_id(
     } else {
         intent.id.trim().to_owned()
     };
+    let candle = if intent.time > 0 {
+        intent.time
+    } else {
+        i64::from(intent.bar_index)
+    };
     format!(
-        "strategy-{instance_id}-{symbol}-{intent_id}-{}-{candle_time}",
-        intent.bar_index,
-        candle_time = intent.time
+        "strategy-{instance_id}-{symbol}-{intent_id}-{}-{candle}",
+        intent.kind
     )
 }
 

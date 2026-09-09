@@ -7,7 +7,6 @@ use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use reqwest::Url;
@@ -118,8 +117,7 @@ fn test_provider(
             message: "assistant model runtime is unavailable".to_owned(),
         });
     };
-    let sequence = SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let request_id = format!("provider-test-{id}-{sequence}");
+    let request_id = format!("provider-test-{id}-{}", crate::product_id::generate_uuid_v4());
     let body = json!({
         "clientRequestId": request_id,
         "providerId": id,

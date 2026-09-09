@@ -1,57 +1,67 @@
 # JFTrade AI 开发指令
 
-本文件是仓库级事实源。局部目录的 `AGENTS.md` 只补充该领域的入口、依赖边界和最小验证命令；冲突时以更深层文件为准。`CLAUDE.md`、`.github/agents` 和 `.github/instructions` 不得维护另一套架构事实。
+本文件是仓库级开发规则的唯一入口。目标路径下的局部 `AGENTS.md` 只补充入口、依赖边界和最小验证；同一事项冲突时以更深层文件为准，其余根规则继续生效。`CLAUDE.md`、`.github/agents` 和 `.github/instructions` 只引用这些规则，不维护另一套架构事实。
 
-## 项目边界
+## 开始任务
 
-JFTrade 当前产品是 Rust 引擎与 API 服务、Vue 3 控制台、Tauri 2 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。全量 278 条 API 路由和生产桌面壳均由 Rust/Tauri 持有；仓库不再包含 Go 源码、模块、生成器、构建入口或运行产物。当前质量与发布事实源见 [`docs/architecture/quality-gates.md`](docs/architecture/quality-gates.md) 和 [`docs/architecture/release-qualification.md`](docs/architecture/release-qualification.md)，入口和影响范围见 [`scripts/module-map.json`](scripts/module-map.json)。
+1. 查看 `git status --short`，保留用户已有改动；读取从根到目标目录沿途适用的 `AGENTS.md`。
+2. 用 [模块表](scripts/module-map.json) 定位入口和 affected 范围，再从 [文档导航](docs/README.md) 选择相关专题，不默认通读全部文档或扫描全仓。
+3. 先定位调用方、状态写入所有者和测试，再编辑。只做当前需求必要的变更，不因文件名相似跨域复制实现。
+4. 验证后复查 diff，交付时说明改动、实际执行的检查及未完成项；未运行、跳过或缺少环境的检查不能记为通过。
 
-配置要求：Node `>=22.13`、pnpm `12.3.4`、Rust `1.97.1`、protoc `34.1`。安装依赖统一使用 `pnpm install --frozen-lockfile`；Rust 使用根 `rust-toolchain.toml` 和已提交的 `Cargo.lock`，测试入口自动下载并校验固定的 cargo-nextest `0.9.143`。
+## 项目与职责边界
 
-## 日常入口
+JFTrade 是 Rust 引擎/API、Vue 3 控制台、Tauri 2 桌面壳、Node PineTS worker 和 Python market-data helper 组成的本地量化工作台。Rust/Tauri 持有全部生产 API 和桌面运行时；仓库不包含 Go/Wails 源码、模块、生成器、构建入口或运行产物。
 
-```bash
-pnpm run dev:desktop      # Tauri 原生桌面联调开发
-pnpm run prepare:tauri-release  # 显式准备发布版前端、Pine 与 market-data 资产
-pnpm run build:desktop    # 构建发布版 Tauri 桌面应用
-cargo run -p jftrade-engine --bin jftrade-api-rust  # 独立 Rust API，默认 127.0.0.1:3000
-pnpm run dev:web          # 浏览器前端，默认 127.0.0.1:3003
-pnpm run check:quick      # 变更范围快速检查，不能修改工作树
-pnpm run check:clippy     # 独立只读 Clippy 门禁（--all-targets --all-features --locked -D warnings）
-pnpm run test:affected    # 只跑受影响测试
-pnpm run check:generated  # 临时目录生成并比较契约，不能修改工作树
-pnpm run check:zero-go    # 检查源码、构建链和传入发布产物中没有 Go/Wails
-pnpm run check:compatibility # 七类冻结产品语料 replay
-pnpm run check:rust       # Rust fmt、Clippy 与 workspace 测试
-pnpm run check:all        # 完整本地门禁
-```
-
-`test:preflight`、`test:pr` 是兼容别名。改公开 HTTP 契约时运行 `pnpm run generate:docs`；开发检查使用 `check:generated`，不要把生成步骤隐含在只读检查里。
-
-## 架构事实
-
-- `crates/jftrade-engine` (`jftrade-api-rust`) 和 `apps/desktop/src-tauri` (`jftrade-desktop`) 承载核心生产 API 与桌面运行时。
-- `crates/jftrade-api` 只做绑定、校验、port 调用、错误映射和 wire DTO；禁止直接依赖具体 SQLite driver、Futu protobuf 或模型 Provider。
-- `crates/jftrade-{settings,marketdata,trading,strategy,backtest,assistant,watchlist}` 承载领域规则；具体存储与外部协议放在 `jftrade-store-*` 和 `jftrade-integration-*`，由 `jftrade-engine` composition 注入。
-- Rust 引擎承载全部 9 个 SQLite 数据库的权威写入与 `WriterLease` 租约锁，具备单一写属主语义。
+- `crates/jftrade-engine` 是唯一生产 composition root；`apps/desktop/src-tauri` 管理桌面专属能力，不另建业务 API。
+- `crates/jftrade-api` 只做 transport、绑定、校验、port 调用、错误映射和 wire DTO，不直接依赖 SQLite driver、Futu protobuf 或模型 Provider。
+- 业务规则归属对应领域 crate；具体持久化和外部协议放在 `jftrade-store-*`、`jftrade-integration-*`，由 engine 注入。依赖方向见 [后端规范](docs/architecture/backend-coding-standards.md)。
+- Rust engine 持有 SQLite 权威写入与 `WriterLease`。SQLite、交易、订阅、通知、Assistant 审批/任务和 artifact 必须保持唯一写入所有者，禁止双写。
 - PineTS 只产出信号、图形和 order intents；Rust 负责撮合、成交、资金曲线、风控和下单。
 - 前端只承诺 `/api/v1/*`；bbgo 原生 `/api/*` 不是控制台运行模式。
 
-## 硬性约束
+| 修改范围 | 局部指令 / 先读文档 |
+| --- | --- |
+| Rust 领域、API、存储与集成 | [crates/AGENTS.md](crates/AGENTS.md) |
+| Vue 控制台 | [apps/web/AGENTS.md](apps/web/AGENTS.md) |
+| Tauri 桌面 | [apps/desktop/src-tauri/AGENTS.md](apps/desktop/src-tauri/AGENTS.md) |
+| PineTS / Python helper | [workers/AGENTS.md](workers/AGENTS.md) |
+| 脚本、CI、质量门禁 | [质量门禁](docs/architecture/quality-gates.md) |
+| 候选、签名、升级回滚、发布 | [发布资格](docs/architecture/release-qualification.md) |
 
-- 不改变公开 HTTP/OpenAPI、SSE、WebSocket、SQLite schema 或 worker wire contract，除非需求明确要求。
-- 生成代码（OpenAPI、reference、protobuf、embedded assets）不得手工改。
-- 生产函数通常不超过 80 行/60 语句，生产文件目标不超过 800 行。
-- 新测试文件名描述业务行为，不使用覆盖率数字或 `more/additional/extra/complete` 等空泛命名。
-- 真实 Futu/OpenD 只在显式 live workflow 使用；普通测试使用 fixture、mock server 或 testkit。
-- 使用 `rg` 优先搜索，编辑使用 `apply_patch`，不回退用户已有改动。
+## 环境与命令
+
+所有命令默认从仓库根目录运行。Node 要求和 pnpm 精确版本以 [package.json](package.json) 为准；Rust 使用 [rust-toolchain.toml](rust-toolchain.toml) 和已提交的 `Cargo.lock`。protoc 版本以 [setup-rust](.github/actions/setup-rust/action.yml) 为准；Python/uv 环境见 [helper README](workers/marketdata-sidecar/README.md)。不要绕过锁文件升级工具链或依赖。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run dev:desktop       # Tauri 原生桌面联调
+pnpm run dev:web           # 纯浏览器前端；须另启 API 并开启 Web 访问
+cargo run -p jftrade-engine --bin jftrade-api-rust
+pnpm run check:quick       # 当前工作树快速反馈，只读检查
+pnpm run check:affected    # merge-base affected 集成检查
+pnpm run check:rust        # Rust static、workspace 测试和兼容 replay
+pnpm run check:generated   # 临时目录生成并比较，不改工作树
+pnpm run check:all         # 完整本地门禁，含构建与 smoke
+```
+
+`pnpm run test:affected -- --print` 可预览 merge-base 测试计划，`pnpm run check:quick -- --print` 可预览工作树计划。根指令、模块表、共享工具链或门禁变更会触发全量兜底；`quick` 不保证只跑少量测试。`test:preflight` / `test:pr` 是兼容入口，完整命令与 CI 边界见 [质量门禁](docs/architecture/quality-gates.md)。
+
+## 修改约束
+
+- 未经需求明确要求，不改变公开 HTTP/OpenAPI、SSE、WebSocket、SQLite schema 或 worker wire contract。
+- [contracts/openapi/openapi.json](contracts/openapi/openapi.json) 和 `proto/` 是契约源；生成的 OpenAPI 类型、reference、protobuf 和 embedded assets 不得手工改。有意修改 HTTP 契约时运行 `pnpm run generate:docs`；不要将生成写入步骤混进只读检查。
 - Rust 默认 `#![forbid(unsafe_code)]`；直接依赖集中精确锁定，新增依赖遵守“官方优先、其次高采用项目”和 `deny.toml`，不得提前引入未使用的迁移候选。
-- 业务状态保证唯一写入所有者；SQLite、交易、订阅、通知、Assistant 审批/任务和 artifact 禁止双写。
+- 生产函数通常不超过 80 行/60 语句，生产文件目标不超过 800 行；按职责拆分，不为规避门禁搬运代码或调高预算。
+- 测试名描述业务行为，不使用覆盖率数字或 `more/additional/extra/complete` 等空泛命名。
+- 普通测试使用 fixture、mock server、临时目录或 testkit，不连接真实 Futu/OpenD、行情源或模型 Provider；真实外部依赖只在显式 live workflow 验证。
+- 使用 `rg` 优先搜索，编辑使用 `apply_patch`，不回退用户已有改动。发布、实盘、数据清理和迁移不由普通开发请求隐含授权。
 
-## AI 工作流
+## 验证与文档收尾
 
-1. 先读本文件和最近的局部 `AGENTS.md`，再按模块表进入专题文档和入口文件；质量门禁任务先读 `docs/architecture/quality-gates.md`，候选或发布任务先读 `docs/architecture/release-qualification.md`。
-2. 先定位调用方、所有权和测试，再编辑；不要因文件名相似跨域复制实现。
-3. 变更后先跑最窄的 affected test，再跑 `check:quick`；Rust 变更至少跑 `pnpm run check:rust`，契约变化额外跑 `check:generated`。
-4. 若边界发生变化，同步 `docs/architecture*`、`docs/README.md` 和模块表。
-5. 不把一次性迁移记录、覆盖率目标或旧包路径写回架构事实文档。
+1. 先跑局部指令中最窄的受影响测试，再跑 `pnpm run check:quick`；先查看计划，不能通过缩小 diff 范围绕过门禁。
+2. Rust 变更至少跑 `pnpm run check:rust`；公开契约变更额外跑 `pnpm run check:generated`。检查失败应保留错误证据，不静默重写 fixture 或放宽阈值。
+3. 纯文档/指令修改先跑 `pnpm run check:ai-context`、核对链接与命令，再跑 `check:quick`。门禁选择和执行语义以脚本为准。
+4. 边界变化时同步对应 `docs/architecture*` 专题、[文档导航](docs/README.md) 和模块表；入口文档只保留摘要及链接。
+5. 架构事实不收录一次性迁移记录、覆盖率冲刺目标或旧包路径；活动计划归 [roadmap](docs/roadmap.md)，历史资料与当前规则分开。
+6. 本地检查通过不代表发布资格。候选证据和发布后验证按 [发布资格](docs/architecture/release-qualification.md) 独立完成。

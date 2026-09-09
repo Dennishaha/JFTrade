@@ -12,6 +12,7 @@ mod ports;
 pub mod rig_adapter;
 mod runtime;
 mod workflow;
+mod workflow_canvas;
 
 pub use artifact::{ArtifactError, ArtifactStore};
 pub use claims::{
@@ -31,3 +32,7 @@ pub use ports::{
 };
 pub use runtime::{AssistantRuntime, RuntimeError, TransitionResult};
 pub use workflow::{TaskGraph, WorkflowError};
+pub use workflow_canvas::{
+    CanvasCompiler, CanvasCompilerError, WorkflowCanvasEdge, WorkflowCanvasGraph,
+    WorkflowCanvasNode, WorkflowNodeRun,
+};

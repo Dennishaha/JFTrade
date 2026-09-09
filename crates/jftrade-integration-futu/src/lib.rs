@@ -10,6 +10,7 @@ mod frame;
 mod future_info_query;
 mod health;
 mod history;
+mod instrument_search_query;
 pub mod kline_query;
 mod managed_session;
 mod market_microstructure_query;
@@ -88,6 +89,10 @@ pub use health::{
 pub use history::{
     HistoricalKline, HistoricalKlineError, HistoricalKlineQuery, HistoricalKlineReadPort,
     HistoricalKlineResult, HistoricalSecurity, OpenDHistoricalKlineReader,
+};
+pub use instrument_search_query::{
+    InstrumentSearchEntry, InstrumentSearchError, InstrumentSearchReadPort,
+    OpenDInstrumentSearchReader,
 };
 pub use kline_query::{
     CurrentKlineError, CurrentKlineQuery, CurrentKlineReadPort, CurrentKlineResult, GET_KL_TIMEOUT,

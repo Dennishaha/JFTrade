@@ -1,18 +1,43 @@
 //! Durable workflow invocation and recovery helpers.
 
-use std::sync::atomic::Ordering;
+use std::collections::BTreeMap;
 
+use jftrade_assistant::{CanvasCompiler, WorkflowCanvasGraph};
 use jftrade_store_sqlite::AdkStore;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use super::*;
-use crate::product::product_adk_chat_stream_port::{AdkChatInput, AdkChatPortOutput, AdkChatRoute};
+
+#[path = "product_production_ports_adk_mutation_workflow_canvas.rs"]
+mod canvas;
+#[path = "product_workflow_resume.rs"]
+mod resume;
+#[path = "product_workflow_queue_dispatch.rs"]
+mod queue_dispatch;
+
+impl ProductionAdkPort {
+    pub fn run_queued_workflow(&self, id: &str) -> Result<(), AdkMutationPortError> {
+        queue_dispatch::run(self, id)
+    }
+    pub fn resume_workflow(&self, log_id: &str) -> Result<(), AdkMutationPortError> {
+        resume::resume(self, log_id)
+    }
+}
+
+use canvas::{
+    CanvasExecutionContext, execute_canvas_workflow,
+};
 
 pub(super) fn run_workflow(
     port: &ProductionAdkPort,
     input: &AdkMutationInput,
 ) -> Result<Value, AdkMutationPortError> {
+    run_workflow_with_checkpoint(port, input, None)
+}
+
+fn run_workflow_with_checkpoint(port: &ProductionAdkPort, input: &AdkMutationInput,
+    queued: Option<jftrade_store_sqlite::StoredAdkWorkflowTriggerLog>) -> Result<Value, AdkMutationPortError> {
     let (workflow_id, trigger) = match input.operation {
         AdkMutationOperation::RunWorkflow => {
             let id = required_identifier(input, "workflowId")?;
@@ -31,10 +56,9 @@ pub(super) fn run_workflow(
                     )
                 })?;
             if input.operation == AdkMutationOperation::RunWorkflowWebhook {
-                if !trigger.trigger_type.eq_ignore_ascii_case("webhook") {
-                    return Err(not_found_mutation(
-                        "ADK_WORKFLOW_WEBHOOK_NOT_FOUND",
-                        "workflow webhook not found",
+                if !trigger.trigger_type.eq_ignore_ascii_case("WEBHOOK") {
+                    return Err(invalid_mutation_input(
+                        "workflow trigger is not a webhook trigger",
                     ));
                 }
                 if !trigger.status.eq_ignore_ascii_case("ENABLED") {
@@ -76,23 +100,27 @@ pub(super) fn run_workflow(
         .filter(Value::is_object)
         .unwrap_or_else(|| json!({}));
     if let Some(object) = inputs.as_object_mut() {
+        if let Some(explicit_inputs) = input.body.get("inputs").and_then(Value::as_object) {
+            object.extend(explicit_inputs.clone());
+        }
         object.extend(input.body.as_object().cloned().unwrap_or_default());
     }
-    let prompt = workflow_value
-        .get("promptTemplate")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| invalid_mutation_input("workflow promptTemplate is required"))?;
-    let message = render_template(prompt, &inputs);
-    let sequence = WORKFLOW_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let request_id = format!("workflow-{workflow_id}-{sequence}");
+    let canvas_graph_opt = workflow_value
+        .get("canvasGraph")
+        .filter(|v| !v.is_null())
+        .filter(|v| v.as_object().is_some_and(|o| !o.is_empty()));
+
+    let canvas_graph = match canvas_graph_opt {
+        Some(value) => serde_json::from_value::<WorkflowCanvasGraph>(value.clone())
+            .map_err(|e| invalid_mutation_input(&format!("invalid workflow canvasGraph: {e}")))?,
+        None => WorkflowCanvasGraph::single_agent(),
+    };
+    let topological_order = CanvasCompiler::new(&canvas_graph)
+        .and_then(|c| c.compile()).map_err(|e| invalid_mutation_input(&e.to_string()))?;
+
+    let invocation_uuid = crate::product_id::generate_uuid_v4();
     let started_at = now_rfc3339();
-    let log_id = generate_workflow_log_id()?;
-    // Record the invocation before crossing the external model boundary. A
-    // crash or provider timeout therefore leaves a durable RUNNING record that
-    // startup recovery can fence and mark orphaned instead of losing the
-    // invocation entirely.
+    let log_id = match queued.as_ref() { Some(row) => row.id.clone(), None => generate_workflow_log_id()? };
     let trigger_id = trigger
         .as_ref()
         .map(|value| value.id.as_str())
@@ -101,7 +129,7 @@ pub(super) fn run_workflow(
         .as_ref()
         .map(|value| value.trigger_type.as_str())
         .unwrap_or("manual");
-    let invocation = json!({
+    let mut invocation = json!({
         "id": log_id.clone(),
         "workflowId": workflow_id,
         "triggerId": trigger_id,
@@ -113,19 +141,21 @@ pub(super) fn run_workflow(
         "result": Value::Null,
         "startedAt": started_at.clone(),
     });
-    let stored_invocation = port
-        .store
-        .create_workflow_trigger_log(
-            &log_id,
-            &workflow_id,
-            trigger_id,
-            trigger_type,
-            "RUNNING",
-            "",
-            &invocation.to_string(),
-        )
-        .map_err(storage_mutation_failed)?;
-    let invocation_revision = stored_invocation.updated_at.clone();
+    invocation["canvasExecution"] = json!({
+        "workflow": workflow_value, "graph": canvas_graph, "invocationUuid": invocation_uuid,
+        "trigger": trigger,
+    });
+    let _owner = port.store.try_claim_workflow_execution(&log_id).map_err(storage_mutation_failed)?;
+    let stored_invocation = match queued {
+        Some(row) => port.store.update_workflow_trigger_log_if_revision(
+            &log_id, &row.updated_at, "RUNNING", "", &invocation.to_string(),
+        ).map_err(storage_mutation_failed)?.ok_or_else(|| invalid_mutation_input("workflow queue claim changed"))?,
+        None => port.store.create_workflow_trigger_log(
+            &log_id, &workflow_id, trigger_id, trigger_type, "RUNNING", "", &invocation.to_string(),
+        ).map_err(storage_mutation_failed)?,
+    };
+    let checkpoint = crate::product_workflow_checkpoint::WorkflowCheckpoint::new(&port.store, stored_invocation);
+    let invocation_revision = checkpoint.revision();
     let Some(runtime) = port.chat_runtime.as_deref() else {
         return Err(finalize_workflow_failure(
             port,
@@ -136,131 +166,46 @@ pub(super) fn run_workflow(
             "ADK_WORKFLOW_RUNTIME_UNAVAILABLE",
         ));
     };
-    let body = json!({
-        "clientRequestId": request_id,
-        "sessionId": format!("workflow-session-{sequence}"),
-        "agentId": workflow_value.get("agentId").and_then(Value::as_str).unwrap_or("jftrade-default"),
-        "providerId": workflow_value.get("providerId").and_then(Value::as_str).unwrap_or_default(),
-        "model": workflow_value.get("model").and_then(Value::as_str).unwrap_or_default(),
-        "message": message,
-        "objective": workflow_value.get("objectiveTemplate").and_then(Value::as_str).unwrap_or_default(),
+
+    let outcome_result = execute_canvas_workflow(&CanvasExecutionContext {
+        runtime, workflow_id: &workflow_id, workflow_value: &workflow_value,
+        trigger: trigger.as_ref(), inputs: &inputs, graph: &canvas_graph,
+        topological_order: &topological_order, invocation_uuid: &invocation_uuid,
+        checkpoint: &checkpoint,
     });
-    let response = match serde_json::to_vec(&body)
-        .map_err(|error| AdkMutationPortError::Failed {
-            status: 500,
-            code: "ADK_WORKFLOW_FAILED".to_owned(),
-            message: error.to_string(),
-        })
-        .and_then(|body| {
-            runtime
-                .dispatch(
-                    AdkChatRoute::Chat,
-                    &AdkChatInput {
-                        body,
-                        client_request_id: request_id.clone(),
-                    },
-                )
-                .map_err(|error| super::runtime::runtime_error(error, 503, "ADK_WORKFLOW_FAILED"))
-        }) {
-        Ok(response) => response,
-        Err(error) => {
-            let message = error.to_string();
-            let code = match &error {
-                AdkMutationPortError::Failed { code, .. } => code.as_str(),
-                _ => "ADK_WORKFLOW_FAILED",
-            };
+    let outcome = match outcome_result {
+        Ok(outcome) => outcome,
+        Err((message, code)) => {
+            let durable = checkpoint.payload().unwrap_or_else(|_| invocation.clone());
             return Err(finalize_workflow_failure(
                 port,
                 &log_id,
-                &invocation_revision,
-                &invocation,
+                &checkpoint.revision(),
+                &durable,
                 &message,
-                code,
+                &code,
             ));
         }
     };
-    let response = match response {
-        AdkChatPortOutput::Json(value) => value,
-        AdkChatPortOutput::Stream(_) | AdkChatPortOutput::LiveStream(_) => {
-            return Err(finalize_workflow_failure(
-                port,
-                &log_id,
-                &invocation_revision,
-                &invocation,
-                "workflow runtime returned a stream",
-                "ADK_WORKFLOW_FAILED",
-            ));
-        }
-    };
-    let run = match response.get("run").and_then(Value::as_object) {
-        Some(run) => run,
-        None => {
-            return Err(finalize_workflow_failure(
-                port,
-                &log_id,
-                &invocation_revision,
-                &invocation,
-                "workflow runtime response did not include a run",
-                "ADK_WORKFLOW_FAILED",
-            ));
-        }
-    };
-    let run_id = match run
-        .get("id")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        Some(value) => value,
-        None => {
-            return Err(finalize_workflow_failure(
-                port,
-                &log_id,
-                &invocation_revision,
-                &invocation,
-                "workflow runtime response did not include a run id",
-                "ADK_WORKFLOW_FAILED",
-            ));
-        }
-    };
-    let run_status = match run
-        .get("status")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        Some(value) => value,
-        None => {
-            return Err(finalize_workflow_failure(
-                port,
-                &log_id,
-                &invocation_revision,
-                &invocation,
-                "workflow runtime response did not include a run status",
-                "ADK_WORKFLOW_FAILED",
-            ));
-        }
-    };
-    let status = match run_status.to_ascii_uppercase().as_str() {
-        "COMPLETED" | "SUCCEEDED" => "SUCCEEDED",
-        "PENDING" | "PENDING_APPROVAL" | "PENDING_INPUT" => "PENDING_APPROVAL",
-        "RUNNING" => "RUNNING",
-        "FAILED" => "FAILED",
-        "CANCELLED" | "DENIED" | "TIMED_OUT" => "CANCELLED",
-        _ => {
-            let message = format!("workflow runtime returned unknown run status {run_status}");
-            return Err(finalize_workflow_failure(
-                port,
-                &log_id,
-                &invocation_revision,
-                &invocation,
-                &message,
-                "ADK_WORKFLOW_FAILED",
-            ));
-        }
-    };
-    let mut log = json!({"id": log_id, "workflowId": workflow_id, "triggerId": trigger.as_ref().map(|value| value.id.clone()).unwrap_or_default(), "triggerType": trigger.as_ref().map(|value| value.trigger_type.clone()).unwrap_or_else(|| "manual".to_owned()), "status": status, "runId": run_id, "sessionId": response.get("session").and_then(|session| session.get("id")).and_then(Value::as_str).unwrap_or_default(), "inputs": inputs, "result": response.clone(), "startedAt": started_at});
-    if !matches!(status, "RUNNING" | "PENDING_APPROVAL")
+
+    let invocation_revision = checkpoint.revision();
+    let mut log = json!({
+        "id": log_id,
+        "workflowId": workflow_id,
+        "triggerId": trigger_id,
+        "triggerType": trigger_type,
+        "status": outcome.status,
+        "runId": outcome.run_id,
+        "sessionId": outcome.session_id,
+        "inputs": inputs,
+        "nodeRuns": outcome.node_runs,
+        "result": outcome.response.clone(),
+        "startedAt": started_at,
+    });
+    if let Some(execution) = invocation.get("canvasExecution") {
+        log["canvasExecution"] = execution.clone();
+    }
+    if !matches!(outcome.status.as_str(), "RUNNING" | "PENDING_APPROVAL")
         && let Some(object) = log.as_object_mut()
     {
         object.insert("finishedAt".to_owned(), Value::String(now_rfc3339()));
@@ -270,17 +215,14 @@ pub(super) fn run_workflow(
         .update_workflow_trigger_log_if_revision(
             &log_id,
             &invocation_revision,
-            status,
-            run_id,
+            &outcome.status,
+            &outcome.run_id,
             &log.to_string(),
         )
         .map_err(storage_mutation_failed)?
     {
         Some(stored) => stored,
         None => {
-            // Another executor won the terminal CAS.  Re-read that durable
-            // winner and return it instead of manufacturing a conflict from
-            // a benign duplicate completion.
             let winner = port
                 .store
                 .get_workflow_trigger_log(&log_id)
@@ -297,6 +239,7 @@ pub(super) fn run_workflow(
                 object.insert("updatedAt".to_owned(), Value::String(winner.updated_at));
             }
             let winner_response = winner_log.get("result").cloned().unwrap_or(Value::Null);
+            super::super::projection::public_workflow_log(&mut winner_log);
             return Ok(json!({
                 "workflow": workflow_payload(&workflow)?,
                 "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?,
@@ -305,26 +248,22 @@ pub(super) fn run_workflow(
             }));
         }
     };
-    // Return the durable timestamps/status from SQLite instead of claiming a
-    // successful invocation solely from the in-memory response projection.
     log = decode_mutation_payload(&stored.payload_json, "workflow trigger log")?;
     if let Some(object) = log.as_object_mut() {
         object.insert("createdAt".to_owned(), Value::String(stored.created_at));
         object.insert("updatedAt".to_owned(), Value::String(stored.updated_at));
     }
-    Ok(
-        json!({"workflow": workflow_payload(&workflow)?, "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?, "log": log, "response": response}),
-    )
+    super::super::projection::public_workflow_log(&mut log);
+    Ok(json!({
+        "workflow": workflow_payload(&workflow)?,
+        "trigger": trigger.as_ref().map(workflow_trigger_payload).transpose()?,
+        "log": log,
+        "response": outcome.response,
+    }))
 }
 
 fn generate_workflow_log_id() -> Result<String, AdkMutationPortError> {
-    let mut bytes = [0_u8; 32];
-    getrandom::fill(&mut bytes).map_err(|error| AdkMutationPortError::Failed {
-        status: 500,
-        code: "ADK_WORKFLOW_LOG_ID_GENERATION_FAILED".to_owned(),
-        message: error.to_string(),
-    })?;
-    Ok(format!("workflow-log-{}", encode_hex(&bytes)))
+    Ok(crate::product_id::generate_prefixed_id("workflow-log"))
 }
 
 fn finalize_workflow_failure(
@@ -433,20 +372,6 @@ fn workflow_failure_from_winner(
             winner.status
         ),
     }
-}
-
-fn render_template(template: &str, inputs: &Value) -> String {
-    let mut output = template.to_owned();
-    if let Some(object) = inputs.as_object() {
-        for (key, value) in object {
-            let rendered = value
-                .as_str()
-                .map(str::to_owned)
-                .unwrap_or_else(|| value.to_string());
-            output = output.replace(&format!("{{{{{key}}}}}"), &rendered);
-        }
-    }
-    output
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
-use super::*;
 use super::strategy_runtime_port::ProductionStrategyRuntimePort;
+use super::*;
 
 #[derive(Debug)]
 pub(super) struct StrategyActivityQuery {
@@ -275,9 +275,17 @@ pub(super) fn binding_params(binding: &Value) -> BTreeMap<String, String> {
 pub(super) fn normalize_symbol_string(value: &str) -> String {
     let trimmed = value.trim();
     if let Some((market, code)) = trimmed.split_once(':') {
-        format!("{}.{}", market.trim().to_ascii_uppercase(), code.trim().to_ascii_uppercase())
+        format!(
+            "{}.{}",
+            market.trim().to_ascii_uppercase(),
+            code.trim().to_ascii_uppercase()
+        )
     } else if let Some((market, code)) = trimmed.split_once('.') {
-        format!("{}.{}", market.trim().to_ascii_uppercase(), code.trim().to_ascii_uppercase())
+        format!(
+            "{}.{}",
+            market.trim().to_ascii_uppercase(),
+            code.trim().to_ascii_uppercase()
+        )
     } else {
         trimmed.to_ascii_uppercase()
     }
@@ -302,14 +310,20 @@ pub(crate) fn normalize_strategy_binding(
             message: "strategy binding must be an object".to_owned(),
         })?;
 
-    if object.get("executionMode").is_some_and(|value| !value.is_string()) {
+    if object
+        .get("executionMode")
+        .is_some_and(|value| !value.is_string())
+    {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
             code: "BAD_REQUEST".to_owned(),
             message: "executionMode must be live or notify_only".to_owned(),
         });
     }
-    if object.get("executeOrders").is_some_and(|value| !value.is_boolean()) {
+    if object
+        .get("executeOrders")
+        .is_some_and(|value| !value.is_boolean())
+    {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
             code: "BAD_REQUEST".to_owned(),
@@ -342,7 +356,8 @@ pub(crate) fn normalize_strategy_binding(
             return Err(StrategyRuntimeWritePortError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
-                message: "conflicting executionMode 'notify_only' and executeOrders true".to_owned(),
+                message: "conflicting executionMode 'notify_only' and executeOrders true"
+                    .to_owned(),
             });
         }
         (Some(other), _) => {
@@ -353,7 +368,10 @@ pub(crate) fn normalize_strategy_binding(
             });
         }
     };
-    object.insert("executionMode".to_owned(), Value::String(final_mode.to_owned()));
+    object.insert(
+        "executionMode".to_owned(),
+        Value::String(final_mode.to_owned()),
+    );
     object.insert("executeOrders".to_owned(), Value::Bool(final_exec));
 
     for key in ["interval", "timeframe"] {
@@ -376,7 +394,10 @@ pub(crate) fn normalize_strategy_binding(
     object.insert("interval".to_owned(), Value::String(interval.clone()));
     object.insert("timeframe".to_owned(), Value::String(interval));
 
-    if object.get("chartType").is_some_and(|value| !value.is_string()) {
+    if object
+        .get("chartType")
+        .is_some_and(|value| !value.is_string())
+    {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
             code: "BAD_REQUEST".to_owned(),
@@ -413,7 +434,10 @@ pub(crate) fn normalize_strategy_binding(
         .filter(|s| !s.is_empty())
         .unwrap_or("US")
         .to_ascii_uppercase();
-    if !matches!(default_market.as_str(), "US" | "HK" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA") {
+    if !matches!(
+        default_market.as_str(),
+        "US" | "HK" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA"
+    ) {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
             code: "BAD_REQUEST".to_owned(),
@@ -442,7 +466,11 @@ pub(crate) fn normalize_strategy_binding(
             code: "BAD_REQUEST".to_owned(),
             message: "sessions must be an array or comma-separated string".to_owned(),
         })?;
-        if values.is_empty() || values.iter().any(|item| !matches!(item.as_str(), "regular" | "extended" | "overnight")) {
+        if values.is_empty()
+            || values
+                .iter()
+                .any(|item| !matches!(item.as_str(), "regular" | "extended" | "overnight"))
+        {
             return Err(StrategyRuntimeWritePortError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
@@ -483,7 +511,10 @@ pub(crate) fn normalize_strategy_binding(
                 .map(str::trim)
                 .map(str::to_owned)
                 .or_else(|| value.as_u64().map(|value| value.to_string()));
-            if text.as_deref().is_none_or(|value| value.parse::<u64>().is_err()) {
+            if text
+                .as_deref()
+                .is_none_or(|value| value.parse::<u64>().is_err())
+            {
                 return Err(StrategyRuntimeWritePortError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
@@ -512,7 +543,10 @@ pub(crate) fn normalize_strategy_binding(
             object.insert(key.to_owned(), Value::String(normalized));
         }
     }
-    if let Some(account) = object.get_mut("brokerAccount").and_then(Value::as_object_mut) {
+    if let Some(account) = object
+        .get_mut("brokerAccount")
+        .and_then(Value::as_object_mut)
+    {
         for key in ["brokerId", "broker", "accountId", "account"] {
             if let Some(value) = account.get(key)
                 && !value.is_string()
@@ -532,7 +566,10 @@ pub(crate) fn normalize_strategy_binding(
                     .map(str::trim)
                     .map(str::to_owned)
                     .or_else(|| value.as_u64().map(|value| value.to_string()));
-                if text.as_deref().is_none_or(|value| value.parse::<u64>().is_err()) {
+                if text
+                    .as_deref()
+                    .is_none_or(|value| value.parse::<u64>().is_err())
+                {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,
                         code: "BAD_REQUEST".to_owned(),
@@ -542,24 +579,26 @@ pub(crate) fn normalize_strategy_binding(
             }
         }
         for key in ["tradingEnvironment", "environment", "env"] {
-        if let Some(value) = account.get(key).cloned() {
-            let Some(value) = value.as_str().map(str::trim).map(str::to_owned) else {
-                return Err(StrategyRuntimeWritePortError::Failed {
-                    status: 400,
-                    code: "BAD_REQUEST".to_owned(),
-                    message: "brokerAccount.tradingEnvironment must be REAL or SIMULATE".to_owned(),
-                });
-            };
-            let normalized = value.to_ascii_uppercase();
-            if !matches!(normalized.as_str(), "REAL" | "SIMULATE") {
-                return Err(StrategyRuntimeWritePortError::Failed {
-                    status: 400,
-                    code: "BAD_REQUEST".to_owned(),
-                    message: "brokerAccount.tradingEnvironment must be REAL or SIMULATE".to_owned(),
-                });
+            if let Some(value) = account.get(key).cloned() {
+                let Some(value) = value.as_str().map(str::trim).map(str::to_owned) else {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "brokerAccount.tradingEnvironment must be REAL or SIMULATE"
+                            .to_owned(),
+                    });
+                };
+                let normalized = value.to_ascii_uppercase();
+                if !matches!(normalized.as_str(), "REAL" | "SIMULATE") {
+                    return Err(StrategyRuntimeWritePortError::Failed {
+                        status: 400,
+                        code: "BAD_REQUEST".to_owned(),
+                        message: "brokerAccount.tradingEnvironment must be REAL or SIMULATE"
+                            .to_owned(),
+                    });
+                }
+                account.insert(key.to_owned(), Value::String(normalized));
             }
-            account.insert(key.to_owned(), Value::String(normalized));
-        }
         }
     }
 
@@ -569,10 +608,13 @@ pub(crate) fn normalize_strategy_binding(
         if !normalized.contains('.') {
             normalized = format!("{default_market}.{normalized}");
         }
-        let invalid = normalized
-            .split_once('.')
-            .is_none_or(|(market, code)| code.trim().is_empty() ||
-                !matches!(market, "US" | "HK" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA"));
+        let invalid = normalized.split_once('.').is_none_or(|(market, code)| {
+            code.trim().is_empty()
+                || !matches!(
+                    market,
+                    "US" | "HK" | "SH" | "SZ" | "CN" | "SG" | "JP" | "AU" | "MY" | "CA"
+                )
+        });
         if invalid {
             return Err(StrategyRuntimeWritePortError::Failed {
                 status: 400,
@@ -585,7 +627,9 @@ pub(crate) fn normalize_strategy_binding(
         }
         Ok(())
     };
-    let symbols_value = object.get("symbols").or_else(|| object.get("activeSymbols"));
+    let symbols_value = object
+        .get("symbols")
+        .or_else(|| object.get("activeSymbols"));
     if symbols_value.is_some_and(|value| !value.is_array()) {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
@@ -593,7 +637,10 @@ pub(crate) fn normalize_strategy_binding(
             message: "symbols must be an array".to_owned(),
         });
     }
-    if object.get("instruments").is_some_and(|value| !value.is_array()) {
+    if object
+        .get("instruments")
+        .is_some_and(|value| !value.is_array())
+    {
         return Err(StrategyRuntimeWritePortError::Failed {
             status: 400,
             code: "BAD_REQUEST".to_owned(),
@@ -630,7 +677,10 @@ pub(crate) fn normalize_strategy_binding(
                         message: "instrument.market must be a string".to_owned(),
                     });
                 }
-                let market = obj.get("market").and_then(Value::as_str).unwrap_or(&default_market);
+                let market = obj
+                    .get("market")
+                    .and_then(Value::as_str)
+                    .unwrap_or(&default_market);
                 let Some(code) = obj.get("code").and_then(Value::as_str) else {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,

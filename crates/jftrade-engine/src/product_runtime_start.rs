@@ -129,7 +129,7 @@ pub async fn start_product_runtime(
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                 trade_runtime.set_writer(config.product.trade_write_port.clone());
                 trade_runtime.set_historical_klines(Some(historical_reader));
-                product_runtime_provider_activation::try_install_security_snapshot_reader(
+                product_runtime_provider_activation::install_security_catalog_readers(
                     &trade_runtime,
                     &runtime.coordinator(),
                 );
@@ -354,7 +354,7 @@ pub async fn start_product_runtime(
         trade_runtime
             .set_customization_readers(Some(customization_reader.clone()), Some(alert_reader));
         trade_runtime.set_customization_writers(Some(customization_reader), Some(alert_writer));
-        product_runtime_provider_activation::try_install_security_snapshot_reader(
+        product_runtime_provider_activation::install_security_catalog_readers(
             &trade_runtime,
             coordinator,
         );

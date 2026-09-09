@@ -10,6 +10,8 @@ ADK 是 JFTrade 的核心差异化能力，不是可以随时裁掉的辅助模�
 
 ## 后端边界
 
+Canvas 节点持久化、审批后续跑及 scheduler 任务所有权见[运行中执行、恢复与停止](architecture/runtime-execution-ownership.md)。
+
 - `crates/jftrade-assistant`：provider、agent、session、run、approval、skill 与 workflow 领域规则和窄 port。
 - `crates/jftrade-api`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
 - `crates/jftrade-engine`：构造并持有 ADK store/session/artifact、工具目录、workflow/task runtime 与本机 MCP listener；跨领域能力通过 production port 注入。

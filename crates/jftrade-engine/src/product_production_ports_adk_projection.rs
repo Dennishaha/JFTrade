@@ -16,7 +16,15 @@ pub(super) fn payload<const N: usize>(
     for (key, field_value) in fields {
         put_string(&mut value, key, field_value);
     }
+    if resource == "workflow trigger log" { public_workflow_log(&mut value); }
     Ok(value)
+}
+
+pub(crate) fn public_workflow_log(value: &mut Value) {
+    if let Some(object) = value.as_object_mut() {
+        object.remove("canvasExecution");
+        object.remove("schedulerInvocation");
+    }
 }
 
 pub(super) fn workflow_trigger_value(

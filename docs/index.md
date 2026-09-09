@@ -10,7 +10,7 @@
 
 - [快速开始](./quick-start.md)：启动开发态、文档站或发布构建。
 - [配置](./configuration.md)：了解运行时目录、可选 Web 访问、端口绑定和 OpenD 集成。
-- [行情数据源](./market-data-providers.md)：了解内置 yfinance 的延迟美股、港股和沪深行情，并按需切换到 Futu OpenD。
+- [行情数据源](./market-data-providers.md)：了解内置 yfinance/AKShare 与 Futu OpenD 的能力边界和选择方式。
 - [使用指南](./usage.md)：按控制台功能区进入账户、行情、策略、回测和系统功能。
 - [回测执行模型](./backtest-execution-model.md)：了解 `conservative-bar-v1` 的成交规则与实盘差异。
 - [自选系统](./watchlist.md)：管理多分组收藏、使用工作台自选栏，并从 Futu 预览导入。
@@ -19,7 +19,7 @@
 
 ## 专题参考
 
-- [PineTS shadow engine](./pinets-shadow-engine.md)：外部 PineTS 影子引擎的实验模式和边界。
+- [PineTS 诊断引擎](./pinets-shadow-engine.md)：保留的诊断协议与生产执行边界，不是第二套生产引擎。
 - [PineTS 契约审计](./pinets-contract-audit.md)：PineTS 切换后的执行契约、迁移兼容和 visual output 边界。
 
 ## 自动生成参考
@@ -30,4 +30,4 @@
 - [JFTrade 开源许可](./legal/license.md)：AGPL-3.0-only 全文、无担保说明和对应源码义务。
 - [第三方许可证](./legal/third-party-notices.md)：PineTS、BBGO 及其他上游组件的版权、许可与源码说明。
 
-如果你是在维护仓库本身，而不是使用控制台，请回到 [README.md](./README.md) 和 [architecture.md](./architecture.md)；当前版本快照也维护在 [README.md](./README.md)。
+维护仓库请从 [维护者导航](./README.md) 进入相关专题，并通过 [系统架构](./architecture.md) 确认运行边界；未完成事项和发布证据要求分别见 [roadmap](./roadmap.md) 与 [发布资格](./architecture/release-qualification.md)。

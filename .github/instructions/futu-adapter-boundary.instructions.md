@@ -1,24 +1,15 @@
 ---
 name: Futu 适配层边界守卫
-description: "当你新增或修改 pkg/futu 下代码、实现交易所适配能力、拆分 Futu 模块，或评审协议翻译与业务编排边界时使用。"
-applyTo: "pkg/futu/**"
+description: "修改或评审 Rust Futu/OpenD 集成的协议映射、能力声明与生命周期边界时使用。"
+applyTo: "crates/jftrade-integration-futu/**"
 ---
 
 # Futu 适配层边界守卫
 
-`pkg/futu` 只承担 OpenD/bbgo 协议翻译、能力声明和传输生命周期钩子。
+先读取根 [AGENTS.md](../../AGENTS.md)、[Rust 局部指令](../../crates/AGENTS.md) 和 [后端依赖边界](../../docs/architecture/backend-coding-standards.md)。本文件只提供 Futu 评审清单，不另行定义分层。
 
-## 分层边界
-
-- `pkg/futu`：请求/响应映射、codec、协议传输和明确的 `ErrNotSupported`。
-- `internal/marketdata`：demand、订阅 freshness、tick cache、回退轮询和 backoff。
-- `internal/app/apiserver/marketdataapp`：行情 runtime 装配和 provider 投影。
-- `internal/api/*`：HTTP/SSE/WS 参数绑定、错误映射和 wire DTO。
-- `apps/web`：展示格式化和交互状态，不改写 API 原始值。
-
-## 评审清单
-
-1. 这是协议翻译，还是业务编排？编排不得进入 `pkg/futu`。
-2. 不支持能力是否显式返回 `ErrNotSupported`？
-3. 是否会影响 sidecar、策略 runtime 和回测三个调用方？
-4. 修改协议后是否更新 fixture、生成代码和 reference 文档？
+1. 改动是否属于协议翻译、I/O 或传输生命周期？Provider 选择、业务缓存和策略编排应回到后端规范定义的 owner。
+2. 生成 protobuf 类型是否仍封装在 integration 内，跨边界使用协议中立 DTO/port？
+3. 不支持能力、上游不可用、超时与取消是否保留明确失败语义，而非伪造成功？
+4. 是否检查行情、交易、策略等实际调用方，并用 fixture/mock/testkit 覆盖拒绝与恢复路径？
+5. 契约变化是否从规范源重新生成并验证？普通测试不得连接真实 OpenD；live 验证按根规则执行。

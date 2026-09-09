@@ -72,6 +72,9 @@ impl ProductionAdkChatRuntime {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<PreparedChat, AdkChatPortError> {
+        if self.continuation_supervisor.stopping.load(Ordering::Acquire) {
+            return Err(unavailable("assistant runtime is stopping"));
+        }
         let request: Value =
             serde_json::from_slice(&input.body).map_err(|error| AdkChatPortError::Failed {
                 status: 400,

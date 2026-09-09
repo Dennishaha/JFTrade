@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
+mod candle;
 mod manager;
+pub use candle::candle_is_closed;
 mod manager_calendar;
 mod manager_policy;
 mod manager_probe;

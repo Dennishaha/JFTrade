@@ -206,6 +206,26 @@ struct ContinuationTask {
     done: AtomicBool,
 }
 
+struct ContinuationTaskGuard {
+    state: Arc<ContinuationTask>,
+    tasks: Arc<Mutex<BTreeMap<String, Arc<ContinuationTask>>>>,
+    run_id: String,
+    _barrier: BarrierGuard,
+}
+
+impl Drop for ContinuationTaskGuard {
+    fn drop(&mut self) {
+        self.state.done.store(true, Ordering::Release);
+        let mut tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
+        if tasks
+            .get(&self.run_id)
+            .is_some_and(|current| Arc::ptr_eq(current, &self.state))
+        {
+            tasks.remove(&self.run_id);
+        }
+    }
+}
+
 impl Default for ContinuationSupervisor {
     fn default() -> Self {
         Self {
@@ -247,31 +267,28 @@ impl ContinuationSupervisor {
             tasks.remove(run_id);
         }
         tasks.insert(run_id.to_owned(), Arc::clone(&state));
+        // Reserve barrier participation under the same lock as admission.
+        // shutdown cannot observe a task that is absent from its join count.
+        let guard = ContinuationTaskGuard {
+            state: Arc::clone(&state),
+            tasks: Arc::clone(&self.tasks),
+            run_id: run_id.to_owned(),
+            _barrier: self.barrier.enter(),
+        };
         drop(tasks);
-
-        let guard = self.barrier.enter();
-        let state_for_task = Arc::clone(&state);
-        let tasks_for_task = Arc::clone(&self.tasks);
-        let run_id_for_task = run_id.to_owned();
 
         let runner = move || {
             let _guard = guard;
             task(cancellation);
-            state_for_task.done.store(true, Ordering::Release);
-            if let Ok(mut tasks) = tasks_for_task.lock()
-                && let Some(current) = tasks.get(&run_id_for_task)
-                && Arc::ptr_eq(current, &state_for_task)
-            {
-                tasks.remove(&run_id_for_task);
-            }
         };
 
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             handle.spawn_blocking(runner);
         } else {
-            let _ = thread::Builder::new()
+            thread::Builder::new()
                 .name("jftrade-adk-approval-resume".to_owned())
-                .spawn(runner);
+                .spawn(runner)
+                .map_err(|error| unavailable(format!("start assistant continuation: {error}")))?;
         }
         Ok(())
     }

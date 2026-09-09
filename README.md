@@ -2,9 +2,9 @@
 
 JFTrade 是一个面向 Futu OpenD 的交易研发控制台。它把行情查看、历史数据同步、策略编写、回测、运行时设置和 ADK 助手放在同一个本地工作台里。
 
-当前主线是零 Go 的 Rust/Tauri 产品树：278 条 `/api/v1/*` 路由均由 Rust 持有，Go/Wails 源码、工具链和运行产物已删除。`0.29.0` 将是首个零 Go 版本，但四平台签名、真实升级/回滚、SBOM、安全审查和发布后 smoke 尚未闭合，因此当前工作树不代表已经具备 `0.29.0` 发布资格。
+当前主线是零 Go 的 Rust/Tauri 产品树：全部 `/api/v1/*` 生产路由均由 Rust 持有，Tauri 是唯一桌面壳。运行边界见 [系统架构](docs/architecture.md)，未完成工作见 [roadmap](docs/roadmap.md)；构建成功不代表具备 [发布资格](docs/architecture/release-qualification.md)。
 
-前端与构建工具要求 Node.js `>=22.13` 和仓库固定的 pnpm `12.3.4`；依赖安装统一使用根目录 `pnpm-lock.yaml`。
+前端与构建工具的 Node.js / pnpm 要求以 [package.json](package.json) 为准；Rust 使用 [rust-toolchain.toml](rust-toolchain.toml)，protoc 版本见 [setup-rust](.github/actions/setup-rust/action.yml)。依赖安装使用已提交的锁文件；Python helper 环境见 [安装说明](workers/marketdata-sidecar/README.md)。参与开发前先读 [AGENTS.md](AGENTS.md)。
 
 ## 快速开始
 
@@ -66,19 +66,15 @@ Web 已在 `JFTrade Dev` 中开启后的入口：
 
 - 前端 + API：`http://127.0.0.1:6688/`
 
-生成 Tauri 发布产物：
+构建当前平台的 Tauri 发布包（版本号为示例，须替换为计划发布版本）：
 
 ```bash
-pnpm run prepare:desktop-release
-pnpm run build:desktop
+JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run build:desktop
 ```
 
-推送正式桌面 tag 会自动触发 GitHub Actions，在全部平台构建通过后创建或更新同名 GitHub Release，并上传可下载二进制、SBOM 和 `SHA256SUMS`：
+`build:desktop` 会先运行 `prepare:tauri-release`，准备前端、PineTS、market-data helper 和受管 Node runtime 资产，再打包；只准备资产可显式运行 `pnpm run prepare:tauri-release`。构建会写入资产和输出目录，不属于只读检查。PowerShell 等平台的版本注入方式见 [桌面发布文档](docs/troubleshooting/desktop-release.md)。
 
-```bash
-git tag v1.2.3
-git push origin v1.2.3
-```
+正式发布通过 [Desktop Release workflow](.github/workflows/desktop-release.yml) 手动选择 `rehearsal`、`candidate` 或 `publish`，不是推送 tag 自动发布。`publish` 要求同 SHA 的正式候选证据和已有 tag，只消费封存产物、不重新构建；流程和证据边界以 [发布资格](docs/architecture/release-qualification.md) 为准。
 
 ## 常用命令
 
@@ -112,7 +108,7 @@ pnpm run generate:docs
 - `generate:reference` 生成 `docs/reference/generated/*`
 - `generate:docs` 在契约生成后刷新参考文档
 - `check:generated` 在临时目录生成全部契约，并逐字节比较需要提交的契约产物，不修改工作树
-- `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 在其上增加静态检查
+- `test:affected` 依据 merge-base 和模块映射选择受影响测试；`check:quick` 检查相对 `HEAD` 的工作树并增加静态检查，共享输入变更时会全量兜底
 - `check:zero-go` 拒绝 Go 源码/模块/命令、Wails 入口，以及传入发布扫描器的 Go/Wails 产物
 - `check:compatibility` 并行回放七类冻结产品语料，不重新生成 golden
 
@@ -151,7 +147,8 @@ Futu 接入要求 OpenD `10.9.6908` 或更高版本。低于该版本时 JFTrade
 
 ## 接下来读什么
 
-- 想确认当前版本状态、发布形态和验收基线：读 [docs/README.md](docs/README.md)
+- 想按任务查找开发规范和专题：读 [docs/README.md](docs/README.md)
+- 想确认未完成工作和发布证据要求：读 [roadmap](docs/roadmap.md) 和 [发布资格](docs/architecture/release-qualification.md)
 - 想快速使用控制台：读 [docs/quick-start.md](docs/quick-start.md)
 - 想改启动、端口或可选 Web 访问：读 [docs/configuration.md](docs/configuration.md)
 - 想构建或排查 Tauri 桌面产品：读 [docs/troubleshooting/desktop-release.md](docs/troubleshooting/desktop-release.md)

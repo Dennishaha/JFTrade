@@ -474,7 +474,7 @@ impl ProductionMarketDataQuotePort {
             );
             let extended_hours = sessions.iter().any(|s| *s == "extended" || *s == "overnight");
             let futu_result = runtime
-                .historical_klines(&jftrade_integration_futu::HistoricalKlineQuery {
+                .historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
                     market: market_code,
                     symbol: symbol.clone(),
                     period: period.to_owned(),
@@ -573,12 +573,27 @@ impl ProductionMarketDataQuotePort {
                 }
             }
 
-            let mut candles = Vec::with_capacity(result.klines.len());
-            for kline in &result.klines {
-                if kline.is_blank {
+            let non_blank_klines: Vec<_> = result.klines.iter().filter(|k| !k.is_blank).collect();
+            let mut candles = Vec::with_capacity(non_blank_klines.len());
+            let now_ts = jiff::Timestamp::now();
+            let total_klines = non_blank_klines.len();
+
+            for (index, kline) in non_blank_klines.into_iter().enumerate() {
+                let at = canonical_candle_time(&kline.time, &market);
+                if before.as_deref().is_some_and(|cursor| {
+                    at.parse::<jiff::Timestamp>().ok()
+                        .zip(cursor.parse::<jiff::Timestamp>().ok())
+                        .is_some_and(|(at, cursor)| at >= cursor)
+                }) {
                     continue;
                 }
-                let at = canonical_candle_time(&kline.time, &market);
+                let open = time::OffsetDateTime::parse(&at, &time::format_description::well_known::Rfc3339)
+                    .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
+                let now = time::OffsetDateTime::from_unix_timestamp_nanos(now_ts.as_nanosecond())
+                    .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
+                let is_closed = index < total_klines - 1 || jftrade_calendar::candle_is_closed(
+                    self.calendar.as_deref(), &market, period, open, now, &sessions,
+                ).map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
                 candles.push(json!({
                     "at": at,
                     "close": kline.close_price.map(|v| v.to_string()).unwrap_or_default(),
@@ -588,8 +603,10 @@ impl ProductionMarketDataQuotePort {
                     "period": period,
                     "session": "regular",
                     "volume": kline.volume.map(|v| v.to_string()).unwrap_or_else(|| "0".to_owned()),
+                    "closed": is_closed,
                 }));
             }
+            let has_older = candles.len() > limit;
             if candles.len() > limit {
                 candles = candles.split_off(candles.len() - limit);
             }
@@ -598,8 +615,8 @@ impl ProductionMarketDataQuotePort {
                 .and_then(|c| c.get("at"))
                 .and_then(|v| v.as_str())
                 .map(str::to_owned);
-            let bounded = from_time.is_some() || to_time.is_some() || before.is_some();
-            let pagination = if !bounded && !result.next_req_key.is_empty() {
+            let bounded = from_time.is_some() || to_time.is_some();
+            let pagination = if !bounded && has_older {
                 json!({ "hasMore": true, "nextBefore": next_before })
             } else {
                 json!({ "hasMore": false })

@@ -1,11 +1,11 @@
 use super::*;
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
 use jftrade_store_sqlite::{
     EXECUTION_ORDERS_TEST_CUTOVER_PROFILE, ExecutionOrderStore,
-    STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
-    StoredExecutionOrder,
+    STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StoredExecutionOrder, StrategyDefinitionStore,
+    StrategyRuntimeStore,
 };
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default)]
 struct MockNotificationPort {
@@ -32,10 +32,7 @@ struct MockExecutionPort {
 }
 
 impl ExecutionWritePort for MockExecutionPort {
-    fn mutate(
-        &self,
-        input: &ExecutionWriteInput,
-    ) -> Result<Value, ExecutionWritePortError> {
+    fn mutate(&self, input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
         self.mutations.lock().unwrap().push(input.clone());
         Ok(json!({"internalOrderId": "mock-order-1"}))
     }
@@ -97,14 +94,8 @@ fn test_notify_strategy_intents_delivers_and_records_audit() {
     let notifier = MockNotificationPort::default();
     let intents = vec![test_intent(10.0, 150.0)];
 
-    notify_strategy_intents(
-        Some(&notifier),
-        &store,
-        "inst-notify",
-        "US.AAPL",
-        &intents,
-    )
-    .expect("notify strategy intents");
+    notify_strategy_intents(Some(&notifier), &store, "inst-notify", "US.AAPL", &intents)
+        .expect("notify strategy intents");
 
     let delivered = notifier.delivered.lock().unwrap();
     assert_eq!(delivered.len(), 1);
@@ -164,6 +155,7 @@ fn test_execute_strategy_intents_risk_rejection_blocks_broker_order() {
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let intents = vec![test_intent(10.0, 150.0)];
@@ -218,6 +210,7 @@ fn test_execute_strategy_intents_success_calls_execution_and_audits() {
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let intents = vec![test_intent(10.0, 150.0)];
@@ -274,12 +267,16 @@ fn test_execute_strategy_intents_unknown_risk_mode_fails_closed() {
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let intents = vec![test_intent(10.0, 150.0)];
     let res = execute_strategy_intents(ctx, &intents);
     assert!(res.is_err());
-    assert!(res.unwrap_err().contains("unknown strategy runtime risk mode"));
+    assert!(
+        res.unwrap_err()
+            .contains("unknown strategy runtime risk mode")
+    );
 }
 
 #[test]
@@ -320,6 +317,7 @@ fn test_execute_strategy_intents_resolves_quantity_pct_and_close_intent() {
         sellable_quantity: None,
         current_position: Some(1.0),
         available_cash: Some(30_000.0),
+        virtual_account: None,
     };
 
     let mut pct_intent = test_intent(0.0, 150.0);
@@ -345,7 +343,12 @@ fn test_execute_strategy_intents_resolves_quantity_pct_and_close_intent() {
     assert_eq!(mutations[1].payload["quantity"], 1.0);
     assert_eq!(mutations[1].payload["reduceOnly"], true);
     assert_eq!(mutations[1].payload["side"], "SELL");
-    assert!(mutations[1].payload["clientOrderId"].as_str().unwrap().starts_with("strategy-inst-pct-US.AAPL-"));
+    assert!(
+        mutations[1].payload["clientOrderId"]
+            .as_str()
+            .unwrap()
+            .starts_with("strategy-inst-pct-US.AAPL-")
+    );
 }
 
 #[test]
@@ -385,6 +388,7 @@ fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let intents = vec![test_intent(10.0, 150.0)];
@@ -394,7 +398,11 @@ fn test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits() {
     assert!(err_msg.contains("runtime risk revision fence triggered"));
 
     let audit = store.list_audit_events("inst-fence").expect("audit events");
-    assert!(audit.iter().any(|ev| ev.kind == "RUNTIME_RISK_REVISION_MISMATCH"));
+    assert!(
+        audit
+            .iter()
+            .any(|ev| ev.kind == "RUNTIME_RISK_REVISION_MISMATCH")
+    );
 }
 
 #[test]
@@ -434,6 +442,7 @@ fn test_execute_strategy_intents_close_short_maps_to_buy() {
         sellable_quantity: Some(20.0),
         current_position: Some(-20.0),
         available_cash: None,
+        virtual_account: None,
     };
 
     let mut close_short = test_intent(20.0, 0.0);
@@ -488,6 +497,7 @@ fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let mut cancel_intent = test_intent(0.0, 0.0);
@@ -502,7 +512,9 @@ fn test_execute_strategy_intents_cancel_dispatches_order_cancel() {
     let mutations = execution.mutations.lock().unwrap();
     assert!(mutations.is_empty());
 
-    let audit = store.list_audit_events("inst-cancel").expect("audit events");
+    let audit = store
+        .list_audit_events("inst-cancel")
+        .expect("audit events");
     assert!(!audit.iter().any(|ev| ev.kind == "ORDER_CANCELLED"));
 }
 
@@ -543,6 +555,7 @@ fn test_execute_strategy_intents_parameterless_close_skips_when_no_position() {
         sellable_quantity: Some(0.0),
         current_position: Some(0.0),
         available_cash: None,
+        virtual_account: None,
     };
 
     let mut close_intent = test_intent(0.0, 0.0);
@@ -656,6 +669,7 @@ fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() 
         sellable_quantity: None,
         current_position: None,
         available_cash: None,
+        virtual_account: None,
     };
 
     let mut cancel_all = test_intent(0.0, 0.0);
@@ -682,4 +696,214 @@ fn test_execute_strategy_intents_cancel_all_queries_and_cancels_active_orders() 
             .iter()
             .any(|ev| ev.kind == "ORDER_CANCELLED" && ev.detail.contains("ord-active-1"))
     );
+}
+
+#[test]
+fn test_execute_strategy_intents_offline_simulate_matches_order_and_updates_virtual_account() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-sim", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "tradingEnvironment": "SIMULATE"
+    });
+
+    let mut virtual_account = VirtualAccountState::new("sim-inst-sim", 100_000.0, 1000);
+
+    // 1. Percentage BUY order (20% of 100,000 = 20,000 -> 200 shares at 100.0)
+    let mut pct_buy = test_intent(0.0, 100.0);
+    pct_buy.has_quantity = false;
+    pct_buy.has_quantity_pct = true;
+    pct_buy.quantity_pct = 20.0;
+
+    let ctx = StrategyExecutionContext {
+        execution: None, // Offline simulate mode
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sim",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(100.0),
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: Some(&mut virtual_account),
+    };
+
+    let res = execute_strategy_intents(ctx, &[pct_buy]);
+    assert!(
+        res.is_ok(),
+        "offline simulate percentage buy should succeed"
+    );
+    assert_eq!(virtual_account.available_cash, 80_000.0);
+    let pos = virtual_account
+        .get_position("US.AAPL")
+        .expect("open position");
+    assert_eq!(pos.quantity, 200.0);
+    assert_eq!(pos.average_cost, 100.0);
+
+    let audits = store.list_audit_events("inst-sim").expect("audit events");
+    assert!(audits.iter().any(|ev| ev.kind == "ORDER_FILLED"));
+    assert!(
+        audits
+            .iter()
+            .any(|ev| ev.kind == "SIMULATE_ACCOUNT_CHECKPOINT")
+    );
+
+    // 2. Full CLOSE order at price 110.0
+    let mut close_intent = test_intent(0.0, 0.0);
+    close_intent.kind = "close".to_owned();
+    close_intent.has_quantity = false;
+    close_intent.has_limit_price = false;
+
+    let ctx2 = StrategyExecutionContext {
+        execution: None,
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-sim",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(110.0),
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: Some(&mut virtual_account),
+    };
+
+    let res2 = execute_strategy_intents(ctx2, &[close_intent]);
+    assert!(res2.is_ok(), "offline simulate close should succeed");
+    assert_eq!(virtual_account.available_cash, 80_000.0 + 200.0 * 110.0);
+    assert!(virtual_account.get_position("US.AAPL").is_none());
+    let restored = restore_or_init_virtual_account(&store, "inst-sim", &binding).unwrap();
+    assert_eq!(restored, virtual_account);
+}
+
+#[test]
+fn submitted_broker_order_never_updates_virtual_cash_or_positions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+    let defs = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .unwrap(),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&defs);
+    store
+        .seed_instance("submitted", "RUNNING", "2026-09-08T00:00:00Z")
+        .unwrap();
+    let execution = MockExecutionPort::default();
+    let provider = ActiveProviderState::default();
+    let binding = json!({"brokerId":"futu","accountId":"42","tradingEnvironment":"SIMULATE"});
+    let mut account = VirtualAccountState::new("42", 10000.0, 0);
+    let initial = account.clone();
+    for _ in 0..2 {
+        execute_strategy_intents(
+            StrategyExecutionContext {
+                execution: Some(&execution),
+                execution_store: None,
+                provider: &provider,
+                store: &store,
+                instance_id: "submitted",
+                market: "US",
+                symbol: "US.AAPL",
+                binding: &binding,
+                expected_risk_revision: None,
+                fallback_price: Some(200.0),
+                sellable_quantity: None,
+                current_position: None,
+                available_cash: Some(10000.0),
+                virtual_account: Some(&mut account),
+            },
+            &[test_intent(1.0, 100.0)],
+        )
+        .unwrap();
+    }
+    assert_eq!(account, initial);
+    assert!(
+        !store
+            .list_audit_events("submitted")
+            .unwrap()
+            .iter()
+            .any(|e| e.kind == "ORDER_FILLED" || e.kind == "SIMULATE_ACCOUNT_CHECKPOINT")
+    );
+}
+
+#[derive(Debug, Default)]
+struct UnavailableExecutionPort;
+
+impl ExecutionWritePort for UnavailableExecutionPort {
+    fn mutate(&self, _input: &ExecutionWriteInput) -> Result<Value, ExecutionWritePortError> {
+        Err(ExecutionWritePortError::Unavailable(
+            "Futu OpenD runtime is not ready".to_owned(),
+        ))
+    }
+}
+
+#[test]
+fn broker_unavailability_does_not_create_a_virtual_fill() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("strategy.db");
+    seed_strategy_test_db(&path);
+
+    let def_store = Arc::new(
+        StrategyDefinitionStore::open_existing(&path, STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE)
+            .expect("open def store"),
+    );
+    let store = StrategyRuntimeStore::from_definition_store(&def_store);
+    store
+        .seed_instance("inst-fallback", "RUNNING", "2026-08-30T00:00:00Z")
+        .expect("seed instance");
+
+    let execution = UnavailableExecutionPort;
+    let provider = ActiveProviderState::default();
+    let binding = json!({
+        "brokerId": "futu",
+        "accountId": "12345",
+        "tradingEnvironment": "SIMULATE"
+    });
+
+    let mut virtual_account = VirtualAccountState::new("sim-fallback", 50_000.0, 1000);
+
+    let ctx = StrategyExecutionContext {
+        execution: Some(&execution),
+        execution_store: None,
+        provider: &provider,
+        store: &store,
+        instance_id: "inst-fallback",
+        market: "US",
+        symbol: "US.AAPL",
+        binding: &binding,
+        expected_risk_revision: None,
+        fallback_price: Some(150.0),
+        sellable_quantity: None,
+        current_position: None,
+        available_cash: None,
+        virtual_account: Some(&mut virtual_account),
+    };
+
+    let intents = vec![test_intent(10.0, 150.0)];
+    let res = execute_strategy_intents(ctx, &intents);
+    assert!(res.is_err(), "broker unavailability must remain an error");
+
+    assert_eq!(virtual_account.available_cash, 50_000.0);
+    assert!(virtual_account.get_position("US.AAPL").is_none());
+
+    let audits = store.list_audit_events("inst-fallback").expect("audits");
+    assert!(!audits.iter().any(|ev| ev.kind == "ORDER_FILLED"));
 }

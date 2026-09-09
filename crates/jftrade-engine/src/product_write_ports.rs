@@ -1,5 +1,5 @@
 #[path = "product_execution_write_port.rs"]
-mod product_execution_write_port;
+pub mod product_execution_write_port;
 use product_execution_write_port::{
     ExecutionWriteContext, ExecutionWritePort, ExecutionWriteRequest, ExecutionWriteResponse,
     dispatch_execution_write, execution_write_routes,

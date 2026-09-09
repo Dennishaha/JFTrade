@@ -61,12 +61,12 @@ pub const PRODUCT_PRODUCTION_ROUTE_PROFILE: &str = "production.v1";
 const DEFAULT_PRODUCT_BIND: &str = "127.0.0.1:3000";
 const DEFAULT_SETTINGS_PATH: &str = "var/jftrade-api/settings.json";
 #[path = "product_active_provider_state.rs"]
-pub(crate) mod product_active_provider_state;
+pub mod product_active_provider_state;
 #[path = "product_production_ports_backtest_provider.rs"]
 pub(crate) mod product_backtest_provider;
 #[path = "product_query.rs"]
 pub(crate) mod product_query;
-pub(crate) use product_active_provider_state::ActiveProviderState;
+pub use product_active_provider_state::ActiveProviderState;
 pub(crate) use product_backtest_provider::BacktestMarketDataProviderState;
 #[path = "product_execution_risk_coordinator.rs"]
 pub(crate) mod product_execution_risk_coordinator;
@@ -175,8 +175,8 @@ use product_strategy_definition_write_port::{
     dispatch_strategy_definition_write, strategy_definition_write_routes,
 };
 #[path = "product_adk_chat_stream_port.rs"]
-mod product_adk_chat_stream_port;
-use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
+pub mod product_adk_chat_stream_port;
+pub use product_adk_chat_stream_port::{ADK_CHAT_PATH, ADK_CHAT_STREAM_PATH, AdkChatStreamPort};
 #[path = "product_adk_input_canonical.rs"]
 pub(crate) mod product_adk_input_canonical;
 #[path = "product_adk_model_runtime.rs"]

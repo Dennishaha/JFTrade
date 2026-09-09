@@ -1,7 +1,5 @@
 //! ADK mutation production adapter.
 
-use std::sync::atomic::AtomicU64;
-
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
@@ -35,12 +33,6 @@ use provider::{
     commit_provider_secret, provider_delete_failure, provider_payload, read_adk_secrets,
     sanitized_provider_payload, write_adk_secrets,
 };
-
-static SESSION_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
-static AGENT_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
-static TASK_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
-static TRIGGER_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
-static WORKFLOW_ID_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 fn object_payload(
     stored: &jftrade_store_sqlite::StoredAdkEntity,
@@ -697,8 +689,13 @@ fn validate_trigger_config(trigger_type: &str, config: &Value) -> Result<(), Adk
         .as_object()
         .ok_or_else(|| invalid_mutation_input("workflow trigger config must be an object"))?;
     match trigger_type {
-        "schedule" if normalized_string(config.get("cron")).is_empty() => {
-            Err(invalid_mutation_input("schedule trigger requires cron"))
+        "schedule" => {
+            if normalized_string(config.get("cron")).is_empty() {
+                return Err(invalid_mutation_input("schedule trigger requires cron"));
+            }
+            crate::product_workflow_cron::validate_cron_config(&Value::Object(config.clone()))
+                .map_err(|err| invalid_mutation_input(&format!("invalid schedule cron: {err}")))?;
+            Ok(())
         }
         "market_threshold" => {
             let instruments = config

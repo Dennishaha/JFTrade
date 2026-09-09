@@ -14,11 +14,16 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use crate::adk_artifact::AdkArtifactStore;
 use crate::adk_session::{AdkSessionStore, AdkSessionWriteLease};
 use crate::schema_manifest::{SchemaManifestError, validate_current};
+#[path = "adk_workflow_queue.rs"]
+mod workflow_queue;
 
 const ADK_COMPONENT: &str = "adk";
 const ADK_SCHEMA_VERSION: i64 = 4;
 pub const ADK_TEST_CUTOVER_PROFILE: &str = "cutover-test-only.v1";
 pub const ADK_PRODUCTION_PROFILE: &str = "production.v1";
+
+pub type WorkflowTriggerRow = StoredAdkWorkflowTrigger;
+pub type StoreError = AdkStoreError;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -299,6 +304,22 @@ pub struct AdkStore {
     path: PathBuf,
     connection: Mutex<Connection>,
     _writer_lease: WriterLease,
+    workflow_executors: Mutex<std::collections::BTreeSet<String>>,
+}
+
+struct WorkflowExecutorGuard<'a> {
+    store: &'a AdkStore,
+    id: String,
+}
+
+impl Drop for WorkflowExecutorGuard<'_> {
+    fn drop(&mut self) {
+        self.store
+            .workflow_executors
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&self.id);
+    }
 }
 
 impl std::fmt::Debug for AdkStore {
@@ -353,7 +374,26 @@ impl AdkStore {
             path: path.to_path_buf(),
             connection: Mutex::new(connection),
             _writer_lease: writer_lease,
+            workflow_executors: Mutex::new(Default::default()),
         })
+    }
+
+    /// The database WriterLease fences other runtimes; this guard fences
+    /// concurrent invocation/resume attempts within that single writer.
+    /// Durable progress still uses the trigger log's CAS revision.
+    pub fn try_claim_workflow_execution(
+        &self,
+        id: &str,
+    ) -> Result<Option<impl Drop + '_>, AdkStoreError> {
+        let claimed = self
+            .workflow_executors
+            .lock()
+            .map_err(|_| AdkStoreError::LockUnavailable)?
+            .insert(id.to_owned());
+        Ok(claimed.then(|| WorkflowExecutorGuard {
+            store: self,
+            id: id.to_owned(),
+        }))
     }
 
     fn lock_connection(&self) -> Result<MutexGuard<'_, Connection>, AdkStoreError> {
@@ -3882,6 +3922,126 @@ impl AdkStore {
         collect_rows(rows)
     }
 
+    pub fn list_due_workflow_schedule_triggers(
+        &self,
+        now_iso: &str,
+        limit: usize,
+    ) -> Result<Vec<StoredAdkWorkflowTrigger>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, workflow_id, trigger_type, status, next_run_at, payload_json, created_at, updated_at
+                 FROM adk_workflow_triggers
+                 WHERE trigger_type = 'schedule'
+                   AND status = 'ENABLED'
+                   AND next_run_at <> ''
+                   AND next_run_at <= ?1
+                   AND COALESCE(json_extract(payload_json, '$.deletedAt'), '') = ''
+                 ORDER BY next_run_at ASC, id ASC
+                 LIMIT ?2",
+            )
+            .map_err(AdkStoreError::Query)?;
+        let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
+        let rows = statement
+            .query_map(params![now_iso, limit_i64], stored_workflow_trigger)
+            .map_err(AdkStoreError::Query)?;
+        collect_rows(rows)
+    }
+
+    pub fn list_enabled_workflow_triggers_by_type(
+        &self,
+        trigger_type: &str,
+    ) -> Result<Vec<StoredAdkWorkflowTrigger>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT id, workflow_id, trigger_type, status, next_run_at, payload_json, created_at, updated_at
+                 FROM adk_workflow_triggers
+                 WHERE trigger_type = ?1
+                   AND status = 'ENABLED'
+                   AND COALESCE(json_extract(payload_json, '$.deletedAt'), '') = ''
+                 ORDER BY updated_at DESC, id ASC",
+            )
+            .map_err(AdkStoreError::Query)?;
+        let rows = statement
+            .query_map(params![trigger_type], stored_workflow_trigger)
+            .map_err(AdkStoreError::Query)?;
+        collect_rows(rows)
+    }
+
+    pub fn update_workflow_trigger_run_state(
+        &self,
+        trigger_id: &str,
+        last_run_at: &str,
+        next_run_at: &str,
+        last_error: Option<&str>,
+    ) -> Result<(), AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let existing_payload: Option<String> = connection
+            .query_row(
+                "SELECT payload_json FROM adk_workflow_triggers WHERE id = ?1",
+                params![trigger_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        let Some(payload_str) = existing_payload else {
+            return Err(AdkStoreError::NotFound(format!(
+                "workflow trigger {trigger_id} not found"
+            )));
+        };
+        let mut payload: Value = serde_json::from_str(&payload_str).map_err(|err| {
+            AdkStoreError::Invariant(format!("corrupt workflow trigger payload: {err}"))
+        })?;
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert(
+                "lastRunAt".to_owned(),
+                Value::String(last_run_at.to_owned()),
+            );
+            obj.insert(
+                "nextRunAt".to_owned(),
+                Value::String(next_run_at.to_owned()),
+            );
+            match last_error {
+                Some(err) => obj.insert("lastError".to_owned(), Value::String(err.to_owned())),
+                None => obj.insert("lastError".to_owned(), Value::String(String::new())),
+            };
+            obj.insert("updatedAt".to_owned(), Value::String(now.clone()));
+        }
+        let updated_payload = payload.to_string();
+        connection
+            .execute(
+                "UPDATE adk_workflow_triggers
+                 SET next_run_at = ?1, payload_json = ?2, updated_at = ?3
+                 WHERE id = ?4",
+                params![next_run_at, updated_payload, now, trigger_id],
+            )
+            .map_err(AdkStoreError::Query)?;
+        Ok(())
+    }
+
+    pub fn update_workflow_trigger_payload(
+        &self,
+        trigger_id: &str,
+        payload_json: &str,
+    ) -> Result<(), AdkStoreError> {
+        let now = Self::now_rfc3339();
+        let connection = self.lock_connection()?;
+        let affected = connection
+            .execute(
+                "UPDATE adk_workflow_triggers SET payload_json = ?1, updated_at = ?2 WHERE id = ?3",
+                params![payload_json, now, trigger_id],
+            )
+            .map_err(AdkStoreError::Query)?;
+        if affected == 0 {
+            return Err(AdkStoreError::NotFound(format!(
+                "workflow trigger {trigger_id} not found"
+            )));
+        }
+        Ok(())
+    }
+
     pub fn list_audit_events(&self) -> Result<Vec<StoredAdkAuditEvent>, AdkStoreError> {
         let connection = self.lock_connection()?;
         let mut statement = connection
@@ -4040,6 +4200,15 @@ impl AdkStore {
         let mut recovered = 0;
         for log in candidates {
             let mut payload = decode_json_object(&log.payload_json, "workflow trigger log")?;
+            if payload.get("canvasExecution").is_some_and(Value::is_object)
+                || payload
+                    .get("schedulerInvocation")
+                    .is_some_and(Value::is_object)
+            {
+                // Each node request has a durable, idempotent request ID.
+                // The product scheduler resumes this checkpoint after startup.
+                continue;
+            }
             payload.insert("status".to_owned(), Value::String("FAILED".to_owned()));
             payload.insert(
                 "error".to_owned(),
@@ -5230,5 +5399,46 @@ impl AdkTestCutoverStore {
 
     pub fn list_memories(&self) -> Result<Vec<StoredAdkMemory>, AdkStoreError> {
         self.inner.list_memories()
+    }
+
+    pub fn list_due_workflow_schedule_triggers(
+        &self,
+        now_iso: &str,
+        limit: usize,
+    ) -> Result<Vec<WorkflowTriggerRow>, StoreError> {
+        self.inner
+            .list_due_workflow_schedule_triggers(now_iso, limit)
+    }
+
+    pub fn list_enabled_workflow_triggers_by_type(
+        &self,
+        trigger_type: &str,
+    ) -> Result<Vec<WorkflowTriggerRow>, StoreError> {
+        self.inner
+            .list_enabled_workflow_triggers_by_type(trigger_type)
+    }
+
+    pub fn update_workflow_trigger_run_state(
+        &self,
+        trigger_id: &str,
+        last_run_at: &str,
+        next_run_at: &str,
+        last_error: Option<&str>,
+    ) -> Result<(), StoreError> {
+        self.inner.update_workflow_trigger_run_state(
+            trigger_id,
+            last_run_at,
+            next_run_at,
+            last_error,
+        )
+    }
+
+    pub fn update_workflow_trigger_payload(
+        &self,
+        trigger_id: &str,
+        payload_json: &str,
+    ) -> Result<(), StoreError> {
+        self.inner
+            .update_workflow_trigger_payload(trigger_id, payload_json)
     }
 }

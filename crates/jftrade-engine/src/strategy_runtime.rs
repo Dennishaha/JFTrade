@@ -7,32 +7,36 @@ use crate::product::product_strategy_runtime_write_port::{
     StrategyRuntimeWritePortError,
 };
 use crate::product::{
-    MarketDataQuoteReadSnapshotPort, ProductNotificationPort,
-    StrategyReadSnapshotError, StrategyReadSnapshotPort, StrategyRuntimeStatusPort,
-    StrategyRuntimeSummary,
+    MarketDataQuoteReadSnapshotPort, ProductNotificationPort, StrategyReadSnapshotError,
+    StrategyReadSnapshotPort, StrategyRuntimeStatusPort, StrategyRuntimeSummary,
 };
-use jftrade_integration_pine::{
-    GrpcPineExecutionPort, PineExecutionError, PineRunRequest,
-};
+use jftrade_integration_futu::{TradeFilter, TradeHeader};
+use jftrade_integration_pine::{GrpcPineExecutionPort, PineExecutionError, PineRunRequest};
 use jftrade_marketdata::{InstrumentRef, ProviderRouter};
 use jftrade_store_sqlite::{ExecutionOrderStore, StrategyDefinitionStore, StrategyRuntimeStore};
-use jftrade_integration_futu::{TradeFilter, TradeHeader};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
+pub(crate) const STRATEGY_STOP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+pub(crate) const STRATEGY_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
 #[derive(Debug)]
 struct RuntimeTask {
     cancel: Arc<AtomicBool>,
     wake: Arc<tokio::sync::Notify>,
-    _join: Option<JoinHandle<()>>,
+    done_rx: std::sync::mpsc::Receiver<()>,
+    thread_handle: Option<JoinHandle<()>>,
 }
+
+type RuntimeTaskMap = BTreeMap<String, RuntimeTask>;
 
 #[derive(Debug)]
 struct SymbolSessionState {
     revision: u64,
+    bar_count: usize,
     submitted_intents: BTreeSet<String>,
 }
 
@@ -43,9 +47,12 @@ struct SymbolSessionState {
 /// the persisted CAS transition before applying cancellation side effects.
 #[derive(Debug)]
 pub(crate) struct StrategyRuntimeManager {
-    tasks: Mutex<BTreeMap<String, RuntimeTask>>,
+    mutation_lock: Mutex<()>,
+    stopping: AtomicBool,
+    tasks: Mutex<RuntimeTaskMap>,
+    reclaiming_tasks: Mutex<RuntimeTaskMap>,
     router: Option<Arc<Mutex<ProviderRouter>>>,
-    worker: Option<Arc<GrpcPineExecutionPort>>,
+    worker: Option<Arc<dyn jftrade_integration_pine::PineExecutionPort>>,
     quote: Option<Arc<dyn MarketDataQuoteReadSnapshotPort>>,
     execution: Option<Arc<dyn ExecutionWritePort>>,
     execution_store: Option<Arc<ExecutionOrderStore>>,
@@ -63,9 +70,12 @@ impl StrategyRuntimeManager {
         provider: Arc<ActiveProviderState>,
     ) -> Self {
         Self {
+            mutation_lock: Mutex::new(()),
+            stopping: AtomicBool::new(false),
             tasks: Mutex::new(BTreeMap::new()),
+            reclaiming_tasks: Mutex::new(BTreeMap::new()),
             router,
-            worker,
+            worker: worker.map(|w| w as Arc<dyn jftrade_integration_pine::PineExecutionPort>),
             quote,
             execution,
             execution_store: None,
@@ -93,7 +103,9 @@ impl StrategyRuntimeManager {
 
     pub(crate) fn with_trade_runtime(
         mut self,
-        trade_runtime: Option<Arc<crate::product::product_production_ports::SharedTradeReadRuntime>>,
+        trade_runtime: Option<
+            Arc<crate::product::product_production_ports::SharedTradeReadRuntime>,
+        >,
     ) -> Self {
         self.trade_runtime = trade_runtime;
         self
@@ -132,13 +144,21 @@ impl StrategyRuntimeManager {
     }
 
     fn wake(&self, instance_id: &str) {
-        if let Some(task) = self
+        let wake = self
             .tasks
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .get(instance_id)
-        {
-            task.wake.notify_waiters();
+            .map(|task| Arc::clone(&task.wake))
+            .or_else(|| {
+                self.reclaiming_tasks
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .get(instance_id)
+                    .map(|task| Arc::clone(&task.wake))
+            });
+        if let Some(wake) = wake {
+            wake.notify_waiters();
         }
     }
 
@@ -147,9 +167,14 @@ impl StrategyRuntimeManager {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .contains_key(instance_id)
+            || self
+                .reclaiming_tasks
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .contains_key(instance_id)
     }
 
-    fn cancel(&self, instance_id: &str) {
+    pub(crate) fn cancel(&self, instance_id: &str) -> bool {
         let task = self
             .tasks
             .lock()
@@ -160,33 +185,112 @@ impl StrategyRuntimeManager {
             task.wake.notify_waiters();
             // Do not hold the task-map mutex while waiting for the worker;
             // the worker may need to finish a final observation write.
-            if let Some(join) = task._join.take() {
-                let _ = join.join();
+            match task.done_rx.recv_timeout(STRATEGY_STOP_TIMEOUT) {
+                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    if let Some(join) = task.thread_handle.take() {
+                        let _ = join.join();
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // The call is detached from lifecycle control after the
+                    // deadline. Keep a reclaiming owner so later shutdown can
+                    // still join it, but let duplicate stops return promptly.
+                    tracing::warn!(
+                        instance_id = %instance_id,
+                        timeout_secs = STRATEGY_STOP_TIMEOUT.as_secs(),
+                        "strategy runtime exceeded stop timeout; awaiting reclaim"
+                    );
+                    self.reclaiming_tasks
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .insert(instance_id.to_owned(), task);
+                    return false;
+                }
             }
         }
+        let reclaiming_task = self
+            .reclaiming_tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(instance_id);
+        if let Some(mut task) = reclaiming_task {
+            match task.done_rx.try_recv() {
+                Ok(()) | Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    if let Some(join) = task.thread_handle.take() {
+                        let _ = join.join();
+                    }
+                    return true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    self.reclaiming_tasks
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .insert(instance_id.to_owned(), task);
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     /// Stop all live strategy tasks before external workers and SQLite leases
-    /// are torn down.  Joining here is bounded by the Pine client's request
-    /// timeout and prevents a task from retaining a store lease after shutdown.
-    pub(crate) fn shutdown(&self) {
-        let tasks = std::mem::take(&mut *self.tasks.lock().unwrap_or_else(|e| e.into_inner()));
-        let instance_ids = tasks.keys().cloned().collect::<Vec<_>>();
+    /// are torn down. Joining here is bounded by a global deadline and
+    /// prevents a task from hanging process termination or retaining a store lease.
+    pub(crate) fn shutdown(&self) -> bool {
+        self.stopping.store(true, Ordering::Release);
+        let _mutation = self.mutation_lock.lock().unwrap_or_else(|e| e.into_inner());
+        let mut tasks = std::mem::take(&mut *self.tasks.lock().unwrap_or_else(|e| e.into_inner()));
+        tasks.extend(std::mem::take(
+            &mut *self
+                .reclaiming_tasks
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
+        ));
         for task in tasks.values() {
             task.cancel.store(true, Ordering::Release);
             task.wake.notify_waiters();
         }
-        for (_, mut task) in tasks {
-            if let Some(join) = task._join.take() {
-                let _ = join.join();
+        let deadline = std::time::Instant::now() + STRATEGY_SHUTDOWN_TIMEOUT;
+        let mut joined_ids = Vec::new();
+        for (id, mut task) in tasks {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                tracing::warn!(
+                    instance_id = %id,
+                    "strategy shutdown deadline expired; detaching task"
+                );
+                joined_ids.push(id);
+                continue;
+            }
+            match task.done_rx.recv_timeout(remaining) {
+                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    if let Some(join) = task.thread_handle.take() {
+                        let _ = join.join();
+                    }
+                    joined_ids.push(id);
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    tracing::warn!(
+                        instance_id = %id,
+                        "strategy task exceeded shutdown deadline; retaining task owner"
+                    );
+                    joined_ids.push(id);
+                }
             }
         }
-        // A shutdown may happen without an explicit Stop mutation.  Release
-        // every consumer after its task has joined so the router cannot keep
-        // stale strategy demand alive while the provider is being torn down.
-        for instance_id in instance_ids {
+        // A shutdown may happen without an explicit Stop mutation. Release
+        // every consumer after joining or detaching its task so the router
+        // cannot keep stale strategy demand alive.
+        for instance_id in joined_ids {
             self.release_demand(&instance_id);
         }
+        let stopped = self
+            .tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_empty();
+        self.stopping.store(false, Ordering::Release);
+        stopped
     }
 
     fn release_demand(&self, instance_id: &str) {
@@ -242,386 +346,6 @@ impl StrategyRuntimeManager {
             .map(|_| ())
             .map_err(|error| StrategyRuntimeWritePortError::Unavailable(error.to_string()))
     }
-
-    fn spawn_task(
-        &self,
-        instance_id: String,
-        binding: Value,
-        store: Arc<StrategyRuntimeStore>,
-    ) -> Result<(), StrategyRuntimeWritePortError> {
-        let Some(worker) = self.worker.clone() else {
-            return Err(StrategyRuntimeWritePortError::Unavailable(
-                "strategy PineTS worker is unavailable".to_owned(),
-            ));
-        };
-        let Some(quote) = self.quote.clone() else {
-            return Err(StrategyRuntimeWritePortError::Unavailable(
-                "strategy market-data quote port is unavailable".to_owned(),
-            ));
-        };
-        let execution = self.execution.clone();
-        let execution_store = self.execution_store.clone();
-        let trade_runtime = self.trade_runtime.clone();
-        let notification = self.notification.clone();
-        let provider = Arc::clone(&self.provider);
-        let router = self.router.clone();
-        let script = binding_string_opt(&binding, &["script", "source"]);
-        let script = script.ok_or_else(|| StrategyRuntimeWritePortError::Failed {
-            status: 400,
-            code: "STRATEGY_SCRIPT_REQUIRED".to_owned(),
-            message: "strategy runtime requires a non-empty Pine script".to_owned(),
-        })?;
-        let active_symbols = binding_symbols(&binding).unwrap_or_default();
-        if active_symbols.is_empty() {
-            return Err(StrategyRuntimeWritePortError::Failed {
-                status: 400,
-                code: "STRATEGY_SYMBOLS_REQUIRED".to_owned(),
-                message: "strategy runtime requires at least one symbol".to_owned(),
-            });
-        }
-        let timeframe = binding_string_opt(&binding, &["interval", "timeframe"])
-            .unwrap_or_else(|| "1m".to_owned());
-        let script_id = binding_string_opt(&binding, &["scriptId", "definitionId", "strategyId"])
-            .unwrap_or_else(|| instance_id.clone());
-        let default_market = binding_string_opt(&binding, &["market"])
-            .unwrap_or_else(|| "US".to_owned());
-        let candle_limit = binding
-            .get("candleLimit")
-            .or_else(|| binding.get("limit"))
-            .and_then(Value::as_u64)
-            .map(|value| value.clamp(1, 1_000) as usize)
-            .unwrap_or(200);
-        let sessions = binding_sessions(&binding);
-        let execution_mode = binding_string_opt(&binding, &["executionMode"]);
-        let execute_orders = match execution_mode.as_deref() {
-            Some("notify_only") => false,
-            Some("live") => true,
-            _ => binding
-                .get("executeOrders")
-                .and_then(Value::as_bool)
-                .unwrap_or(true),
-        };
-        if execute_orders {
-            if execution.is_none() {
-                return Err(StrategyRuntimeWritePortError::Unavailable(
-                    "strategy execution order port is unavailable".to_owned(),
-                ));
-            }
-            validate_strategy_execution_binding(&binding, &provider).map_err(|message| {
-                StrategyRuntimeWritePortError::Failed {
-                    status: 400,
-                    code: "STRATEGY_EXECUTION_BINDING_INVALID".to_owned(),
-                    message,
-                }
-            })?;
-        }
-        let cancel = Arc::new(AtomicBool::new(false));
-        let cancel_for_thread = Arc::clone(&cancel);
-        let wake = Arc::new(tokio::sync::Notify::new());
-        let wake_for_thread = Arc::clone(&wake);
-        let id_for_thread = instance_id.clone();
-        let join = std::thread::Builder::new()
-            .name(format!("strategy-runtime-{instance_id}"))
-            .spawn(move || {
-                let runtime = match tokio::runtime::Runtime::new() {
-                    Ok(runtime) => runtime,
-                    Err(error) => {
-                        fail_strategy_task(
-                            &store,
-                            &router,
-                            &id_for_thread,
-                            &active_symbols,
-                            format!("create strategy runtime executor: {error}"),
-                        );
-                        return;
-                    }
-                };
-                let (mut last_closed_by_symbol, mut session_state_by_symbol) =
-                    match restore_pine_runtime_state(&store, &id_for_thread, &active_symbols) {
-                        Ok(state) => state,
-                        Err(error) => {
-                            fail_strategy_task(&store, &router, &id_for_thread, &active_symbols, error);
-                            return;
-                        }
-                    };
-                // The worker process is not assumed to survive an engine
-                // restart.  A fresh worker session is opened on the first
-                // cycle; durable checkpoints still fence already-processed
-                // candles and intent keys. This does not restore JS heap state.
-                for state in session_state_by_symbol.values_mut() {
-                    state.revision = 0;
-                }
-                while !cancel_for_thread.load(Ordering::Acquire) {
-                    let current_instance = match store.get_instance(&id_for_thread) {
-                        Ok(Some(inst)) => inst,
-                        Ok(None) => break,
-                        Err(_) => {
-                            sleep_until_next_strategy_poll(&cancel_for_thread);
-                            continue;
-                        }
-                    };
-                    if current_instance.status.eq_ignore_ascii_case("PAUSED") {
-                        runtime.block_on(async {
-                            tokio::select! {
-                                _ = wake_for_thread.notified() => {}
-                                _ = tokio::time::sleep(std::time::Duration::from_millis(500)) => {}
-                            }
-                        });
-                        continue;
-                    }
-                    if !current_instance.status.eq_ignore_ascii_case("RUNNING")
-                        && !current_instance.status.eq_ignore_ascii_case("STARTING")
-                    {
-                        break;
-                    }
-                    let current_risk_revision = Some(current_instance.runtime_risk_revision);
-                    let mut last_closed = None;
-                    let mut last_signal = None;
-                    let mut last_order = None;
-                    let mut cycle_error = None;
-                    for requested_symbol in &active_symbols {
-                        if cancel_for_thread.load(Ordering::Acquire) {
-                            break;
-                        }
-                        let (market, symbol) =
-                            split_strategy_symbol(requested_symbol, &default_market);
-                        let candles = match runtime.block_on(read_strategy_candles(
-                            quote.as_ref(),
-                            &market,
-                            &symbol,
-                            &timeframe,
-                            candle_limit,
-                            &sessions,
-                        )) {
-                            Ok(candles) => candles,
-                            Err(error) => {
-                                cycle_error = Some(error);
-                                break;
-                            }
-                        };
-                        let Some(latest) = candles.last() else {
-                            continue;
-                        };
-                        let latest_open_time = latest.open_time;
-                        let latest_close = latest.close;
-                        last_closed = Some(last_closed.map_or(latest_open_time, |value: i64| {
-                            value.max(latest_open_time)
-                        }));
-                        if last_closed_by_symbol
-                            .get(requested_symbol)
-                            .is_some_and(|previous| *previous >= latest_open_time)
-                        {
-                            continue;
-                        }
-                        let latest_bar_index = i32::try_from(candles.len().saturating_sub(1))
-                            .unwrap_or(i32::MAX);
-                        let session = session_state_by_symbol
-                            .entry(requested_symbol.clone())
-                            .or_insert_with(|| SymbolSessionState {
-                                revision: 0,
-                                submitted_intents: BTreeSet::new(),
-                            });
-                        let (session_operation, expected_revision, candles_to_send) =
-                            if session.revision == 0 {
-                                ("open".to_owned(), 0, candles)
-                            } else {
-                                ("append".to_owned(), session.revision, vec![latest.clone()])
-                            };
-                        let request = PineRunRequest {
-                            job_id: format!(
-                                "live:{id_for_thread}:{symbol}:{}",
-                                latest_open_time
-                            ),
-                            script_id: script_id.clone(),
-                            source: script.clone(),
-                            symbol: format!("{market}.{symbol}"),
-                            timeframe: timeframe.clone(),
-                            chart_type: binding_string_opt(&binding, &["chartType"])
-                                .unwrap_or_else(|| "standard".to_owned()),
-                            mode: "live".to_owned(),
-                            candles: candles_to_send,
-                            params: binding_params(&binding),
-                            session_id: format!("strategy:{id_for_thread}:{symbol}"),
-                            session_operation,
-                            expected_revision,
-                        };
-                        let was_append = session.revision > 0;
-                        let response = match runtime.block_on(run_session_request(
-                            |request| worker.run_script(request), request, &mut session.revision,
-                        )) {
-                            Ok(response) => response,
-                            Err(error) => {
-                                if was_append {
-                                    let err_msg = pine_error_message(error);
-                                    let _ = store.append_audit_event(
-                                        &id_for_thread,
-                                        "SESSION_APPEND_RETRY",
-                                        &format!("Pine append failed; retained revision {}: {err_msg}", session.revision),
-                                        now_millis(),
-                                    );
-                                    continue;
-                                }
-                                cycle_error = Some(pine_error_message(error));
-                                break;
-                            }
-                        };
-                        let raw_intents = current_bar_intents(
-                            &response.order_intents,
-                            latest_bar_index,
-                            latest_open_time,
-                        );
-                        let mut current_intents = Vec::new();
-                        for intent in raw_intents {
-                            let key = format!("{}:{}:{}", latest_open_time, intent.id, intent.bar_index);
-                            if !session.submitted_intents.contains(&key) {
-                                session.submitted_intents.insert(key);
-                                current_intents.push(intent);
-                            }
-                        }
-                        if !current_intents.is_empty() {
-                            last_signal = Some(latest_open_time);
-                            if execute_orders {
-                                let account_inputs = match if trading_environment_is_real(&binding) {
-                                    read_strategy_account_inputs(
-                                        trade_runtime.as_deref(),
-                                        &binding,
-                                        &market,
-                                        &symbol,
-                                    )
-                                } else {
-                                    Ok(StrategyAccountInputs::default())
-                                } {
-                                    Ok(inputs) => inputs,
-                                    Err(error) => {
-                                        cycle_error = Some(error);
-                                        break;
-                                    }
-                                };
-                                match execute_strategy_intents(
-                                    StrategyExecutionContext {
-                                        execution: execution.as_deref(),
-                                        execution_store: execution_store.as_deref(),
-                                        provider: &provider,
-                                        store: &store,
-                                        instance_id: &id_for_thread,
-                                        market: &market,
-                                        symbol: &symbol,
-                                        binding: &binding,
-                                        expected_risk_revision: current_risk_revision,
-                                        fallback_price: Some(latest_close),
-                                        sellable_quantity: account_inputs.sellable_quantity,
-                                        current_position: account_inputs.current_position,
-                                        available_cash: account_inputs.available_cash,
-                                    },
-                                    &current_intents,
-                                ) {
-                                    Ok(true) => last_order = Some(latest_open_time),
-                                    Ok(false) => {}
-                                    Err(error) => {
-                                        cycle_error = Some(error);
-                                        break;
-                                    }
-                                }
-                            } else if let Err(error) = notify_strategy_intents(
-                                notification.as_deref(),
-                                &store,
-                                &id_for_thread,
-                                &format!("{market}.{symbol}"),
-                                &current_intents,
-                            ) {
-                                cycle_error = Some(error);
-                                break;
-                            }
-                        }
-                        if let Err(error) =
-                            record_worker_output(&store, &id_for_thread, &response, latest_open_time)
-                        {
-                            cycle_error = Some(format!("persist Pine worker output: {error}"));
-                            break;
-                        }
-                        if let Err(error) = persist_pine_runtime_checkpoint(
-                            &store,
-                            &id_for_thread,
-                            requested_symbol,
-                            session.revision,
-                            latest_open_time,
-                            &session.submitted_intents,
-                        ) {
-                            cycle_error = Some(format!("persist Pine runtime checkpoint: {error}"));
-                            break;
-                        }
-                        last_closed_by_symbol.insert(requested_symbol.clone(), latest_open_time);
-                    }
-                    if let Some(error) = cycle_error {
-                        let is_paused = store
-                            .get_instance(&id_for_thread)
-                            .ok()
-                            .flatten()
-                            .is_some_and(|inst| inst.status.eq_ignore_ascii_case("PAUSED"));
-                        if is_paused {
-                            continue;
-                        }
-                        close_strategy_pine_sessions(
-                            &runtime,
-                            worker.as_ref(),
-                            &store,
-                            &id_for_thread,
-                            &script_id,
-                            &script,
-                            &default_market,
-                            &timeframe,
-                            &binding,
-                            &session_state_by_symbol,
-                        );
-                        fail_strategy_task(
-                            &store,
-                            &router,
-                            &id_for_thread,
-                            &active_symbols,
-                            error,
-                        );
-                        return;
-                    }
-                    let _ = store.update_observation_with_events(
-                        &id_for_thread,
-                        "RUNNING",
-                        &active_symbols,
-                        None,
-                        last_closed,
-                        last_signal,
-                        last_order,
-                        now_millis(),
-                    );
-                    sleep_until_next_strategy_poll(&cancel_for_thread);
-                }
-                close_strategy_pine_sessions(
-                    &runtime,
-                    worker.as_ref(),
-                    &store,
-                    &id_for_thread,
-                    &script_id,
-                    &script,
-                    &default_market,
-                    &timeframe,
-                    &binding,
-                    &session_state_by_symbol,
-                );
-            })
-            .map_err(|error| {
-                StrategyRuntimeWritePortError::Unavailable(format!(
-                    "start strategy runtime task: {error}"
-                ))
-            })?;
-        self.tasks.lock().unwrap_or_else(|e| e.into_inner()).insert(
-            instance_id,
-            RuntimeTask {
-                cancel,
-                wake,
-                _join: Some(join),
-            },
-        );
-        Ok(())
-    }
 }
 
 impl Drop for StrategyRuntimeManager {
@@ -648,9 +372,13 @@ fn restore_pine_runtime_state(
     let mut last_closed = BTreeMap::new();
     let mut sessions = BTreeMap::new();
     let scope = pine_checkpoint_scope(store, instance_id)?;
-    let events = store.list_audit_events(instance_id)
+    let events = store
+        .list_audit_events(instance_id)
         .map_err(|error| format!("read Pine recovery checkpoints: {error}"))?;
-    let wanted = active_symbols.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let wanted = active_symbols
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
     for event in events {
         if event.kind != "PINE_SESSION_CHECKPOINT" {
             continue;
@@ -660,12 +388,16 @@ fn restore_pine_runtime_state(
         if payload.get("scope").and_then(Value::as_str) != Some(scope.as_str()) {
             continue;
         }
-        let symbol = payload.get("symbol").and_then(Value::as_str)
+        let symbol = payload
+            .get("symbol")
+            .and_then(Value::as_str)
             .ok_or_else(|| "Pine recovery checkpoint is missing symbol".to_owned())?;
         if !wanted.contains(symbol) || last_closed.contains_key(symbol) {
             continue;
         }
-        let open_time = payload.get("lastClosedOpenTime").and_then(Value::as_i64)
+        let open_time = payload
+            .get("lastClosedOpenTime")
+            .and_then(Value::as_i64)
             .ok_or_else(|| "Pine recovery checkpoint is missing lastClosedOpenTime".to_owned())?;
         last_closed.insert(symbol.to_owned(), open_time);
         let submitted_intents = payload
@@ -673,12 +405,17 @@ fn restore_pine_runtime_state(
             .and_then(Value::as_array)
             .ok_or_else(|| "Pine recovery checkpoint is missing submittedIntentKeys".to_owned())?
             .iter()
-            .map(|value| value.as_str().map(ToOwned::to_owned)
-                .ok_or_else(|| "invalid Pine recovery intent key".to_owned()))
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .ok_or_else(|| "invalid Pine recovery intent key".to_owned())
+            })
             .collect::<Result<BTreeSet<_>, _>>()?;
         sessions.insert(
             symbol.to_owned(),
             SymbolSessionState {
+                bar_count: 0,
                 revision: payload
                     .get("sessionRevision")
                     .and_then(Value::as_u64)
@@ -707,17 +444,30 @@ fn persist_pine_runtime_checkpoint(
     }))
     .map_err(|error| error.to_string())?;
     store
-        .append_audit_event(instance_id, "PINE_SESSION_CHECKPOINT", &detail, now_millis())
+        .append_audit_event(
+            instance_id,
+            "PINE_SESSION_CHECKPOINT",
+            &detail,
+            now_millis(),
+        )
         .map_err(|error| error.to_string())
 }
 
-fn pine_checkpoint_scope(store: &StrategyRuntimeStore, instance_id: &str) -> Result<String, String> {
+fn pine_checkpoint_scope(
+    store: &StrategyRuntimeStore,
+    instance_id: &str,
+) -> Result<String, String> {
     use sha2::{Digest, Sha256};
-    let instance = store.get_instance(instance_id)
+    let instance = store
+        .get_instance(instance_id)
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "Pine checkpoint instance no longer exists".to_owned())?;
-    let source = json!({"binding": instance.binding, "definitionRevision": instance.definition_revision});
-    Ok(Sha256::digest(source.to_string().as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect())
+    let source =
+        json!({"binding": instance.binding, "definitionRevision": instance.definition_revision});
+    Ok(Sha256::digest(source.to_string().as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect())
 }
 
 #[derive(Default)]
@@ -727,10 +477,14 @@ struct StrategyAccountInputs {
     sellable_quantity: Option<f64>,
 }
 
+#[cfg(test)]
 fn trading_environment_is_real(binding: &Value) -> bool {
     binding_string_opt(binding, &["tradingEnvironment", "environment", "env"])
-        .or_else(|| binding.get("brokerAccount").and_then(|account|
-            binding_string_opt(account, &["tradingEnvironment", "environment", "env"])))
+        .or_else(|| {
+            binding.get("brokerAccount").and_then(|account| {
+                binding_string_opt(account, &["tradingEnvironment", "environment", "env"])
+            })
+        })
         .is_some_and(|value| value.eq_ignore_ascii_case("REAL"))
 }
 
@@ -740,23 +494,60 @@ fn read_strategy_account_inputs(
     market: &str,
     symbol: &str,
 ) -> Result<StrategyAccountInputs, String> {
-    let runtime = runtime.ok_or_else(|| "trade account runtime is unavailable for REAL strategy execution".to_owned())?;
+    let runtime = runtime.ok_or_else(|| {
+        "trade account runtime is unavailable for REAL strategy execution".to_owned()
+    })?;
     let snapshot = runtime.snapshot();
     let client = snapshot
         .client
         .filter(|_| snapshot.trade_logged_in == Some(true))
-        .ok_or_else(|| "trade account session is not ready for REAL strategy execution".to_owned())?;
+        .ok_or_else(|| {
+            "trade account session is not ready for REAL strategy execution".to_owned()
+        })?;
+    strategy_account_snapshot(client.as_ref(), binding, market, symbol)
+}
+
+fn strategy_account_snapshot(
+    client: &dyn jftrade_integration_futu::TradeReadPort,
+    binding: &Value,
+    market: &str,
+    symbol: &str,
+) -> Result<StrategyAccountInputs, String> {
     let account_id = strategy_binding_scalar_string(binding, &["accountId", "account"])
-        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["accountId", "account"]))
+        .or_else(|| {
+            strategy_nested_binding_scalar_string(
+                binding,
+                "brokerAccount",
+                &["accountId", "account"],
+            )
+        })
         .ok_or_else(|| "strategy execution accountId is not configured".to_owned())?
         .parse::<u64>()
-        .map_err(|_| "strategy execution accountId must be numeric for trade snapshot".to_owned())?;
-    let environment = strategy_binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
-        .or_else(|| strategy_nested_binding_scalar_string(binding, "brokerAccount", &["tradingEnvironment", "environment", "env"]))
-        .unwrap_or_else(|| "REAL".to_owned());
-    let trd_env = if environment.eq_ignore_ascii_case("SIMULATE") { 0 } else { 1 };
+        .map_err(|_| {
+            "strategy execution accountId must be numeric for trade snapshot".to_owned()
+        })?;
+    let environment =
+        strategy_binding_scalar_string(binding, &["tradingEnvironment", "environment", "env"])
+            .or_else(|| {
+                strategy_nested_binding_scalar_string(
+                    binding,
+                    "brokerAccount",
+                    &["tradingEnvironment", "environment", "env"],
+                )
+            })
+            .unwrap_or_else(|| "REAL".to_owned());
+    let trd_env = if environment.eq_ignore_ascii_case("SIMULATE") {
+        0
+    } else {
+        1
+    };
     let trd_market = strategy_trade_market_code(market)?;
-    let header = TradeHeader { trd_env, acc_id: account_id, trd_market, jp_acc_type: None };
+    let header = TradeHeader {
+        trd_env,
+        acc_id: account_id,
+        trd_market,
+        jp_acc_type: None,
+    };
     let funds = client
         .read_funds(header.clone(), Some(true), None, None)
         .map_err(|error| format!("read strategy account funds: {error}"))?;
@@ -772,7 +563,10 @@ fn read_strategy_account_inputs(
     let positions = client
         .read_positions(
             header,
-            Some(TradeFilter { code_list: vec![symbol.to_owned()], ..TradeFilter::default() }),
+            Some(TradeFilter {
+                code_list: vec![symbol.to_owned()],
+                ..TradeFilter::default()
+            }),
             None,
             None,
             Some(true),
@@ -781,12 +575,23 @@ fn read_strategy_account_inputs(
             None,
         )
         .map_err(|error| format!("read strategy account positions: {error}"))?;
-    let position = positions.into_iter().find(|position| position.code.eq_ignore_ascii_case(symbol));
-    let (current_position, sellable_quantity) = position.map_or((Some(0.0), Some(0.0)), |position| {
-        let signed_qty = if position.position_side == 2 { -position.qty.abs() } else { position.qty.abs() };
-        (Some(signed_qty), Some(position.can_sell_qty.max(0.0)))
-    });
-    Ok(StrategyAccountInputs { available_cash, current_position, sellable_quantity })
+    let position = positions
+        .into_iter()
+        .find(|position| position.code.eq_ignore_ascii_case(symbol));
+    let (current_position, sellable_quantity) =
+        position.map_or((Some(0.0), Some(0.0)), |position| {
+            let signed_qty = if position.position_side == 2 {
+                -position.qty.abs()
+            } else {
+                position.qty.abs()
+            };
+            (Some(signed_qty), Some(position.can_sell_qty.max(0.0)))
+        });
+    Ok(StrategyAccountInputs {
+        available_cash,
+        current_position,
+        sellable_quantity,
+    })
 }
 
 fn strategy_trade_market_code(market: &str) -> Result<i32, String> {
@@ -800,16 +605,20 @@ fn strategy_trade_market_code(market: &str) -> Result<i32, String> {
         "AU" => Ok(51),
         "MY" => Ok(61),
         "CA" => Ok(71),
-        value => Err(format!("unsupported trade market for strategy account snapshot: {value}")),
+        value => Err(format!(
+            "unsupported trade market for strategy account snapshot: {value}"
+        )),
     }
 }
 
 fn strategy_binding_scalar_string(binding: &Value, keys: &[&str]) -> Option<String> {
-    keys.iter().find_map(|key| binding.get(*key).and_then(|value| match value {
-        Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
-        Value::Number(value) => Some(value.to_string()),
-        _ => None,
-    }))
+    keys.iter().find_map(|key| {
+        binding.get(*key).and_then(|value| match value {
+            Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
+            Value::Number(value) => Some(value.to_string()),
+            _ => None,
+        })
+    })
 }
 
 fn strategy_nested_binding_scalar_string(
@@ -820,11 +629,17 @@ fn strategy_nested_binding_scalar_string(
     binding
         .get(object_key)
         .and_then(Value::as_object)
-        .and_then(|object| keys.iter().find_map(|key| object.get(*key).and_then(|value| match value {
-            Value::String(value) if !value.trim().is_empty() => Some(value.trim().to_owned()),
-            Value::Number(value) => Some(value.to_string()),
-            _ => None,
-        })))
+        .and_then(|object| {
+            keys.iter().find_map(|key| {
+                object.get(*key).and_then(|value| match value {
+                    Value::String(value) if !value.trim().is_empty() => {
+                        Some(value.trim().to_owned())
+                    }
+                    Value::Number(value) => Some(value.to_string()),
+                    _ => None,
+                })
+            })
+        })
 }
 fn now_rfc3339() -> Result<String, String> {
     time::OffsetDateTime::now_utc()
@@ -838,7 +653,7 @@ fn pine_error_message(error: PineExecutionError) -> String {
 #[allow(clippy::too_many_arguments)]
 fn close_strategy_pine_sessions(
     runtime: &tokio::runtime::Runtime,
-    worker: &GrpcPineExecutionPort,
+    worker: &dyn jftrade_integration_pine::PineExecutionPort,
     store: &StrategyRuntimeStore,
     instance_id: &str,
     script_id: &str,
@@ -865,13 +680,28 @@ fn close_strategy_pine_sessions(
                 session_operation: "close".to_owned(),
                 expected_revision: session.revision,
             };
-            if let Err(err) = runtime.block_on(worker.run_script(request)) {
-                let _ = store.append_audit_event(
-                    instance_id,
-                    "SESSION_CLOSE_FAILED",
-                    &format!("close session for {symbol} failed: {err}"),
-                    now_millis(),
-                );
+            let close_result = runtime.block_on(async {
+                tokio::time::timeout(std::time::Duration::from_millis(500), worker.run(request))
+                    .await
+            });
+            match close_result {
+                Ok(Err(err)) => {
+                    let _ = store.append_audit_event(
+                        instance_id,
+                        "SESSION_CLOSE_FAILED",
+                        &format!("close session for {symbol} failed: {err}"),
+                        now_millis(),
+                    );
+                }
+                Err(_) => {
+                    let _ = store.append_audit_event(
+                        instance_id,
+                        "SESSION_CLOSE_TIMEOUT",
+                        &format!("close session for {symbol} timed out after 500ms"),
+                        now_millis(),
+                    );
+                }
+                Ok(Ok(_)) => {}
             }
         }
     }
@@ -942,22 +772,35 @@ impl From<jftrade_store_sqlite::StrategyRuntimeStoreError> for StrategyRuntimeWr
     }
 }
 
-#[path = "strategy_runtime_port.rs"]
-mod strategy_runtime_port;
 #[path = "strategy_runtime_activity.rs"]
 mod strategy_runtime_activity;
-#[path = "strategy_runtime_mutation.rs"]
-mod strategy_runtime_mutation;
-#[path = "strategy_runtime_execution.rs"]
-mod strategy_runtime_execution;
 #[path = "strategy_runtime_candles.rs"]
 mod strategy_runtime_candles;
+#[path = "strategy_runtime_execution.rs"]
+mod strategy_runtime_execution;
+#[path = "strategy_runtime_mutation.rs"]
+mod strategy_runtime_mutation;
+#[path = "strategy_runtime_port.rs"]
+mod strategy_runtime_port;
 #[path = "strategy_runtime_session_recovery.rs"]
 mod strategy_runtime_session_recovery;
-use strategy_runtime_session_recovery::run_session_request;
+#[path = "strategy_runtime_simulate.rs"]
+mod strategy_runtime_simulate;
 use strategy_runtime_activity::*;
 use strategy_runtime_candles::*;
 use strategy_runtime_execution::*;
+use strategy_runtime_session_recovery::run_session_request;
+use strategy_runtime_simulate::*;
 
-pub(crate) use strategy_runtime_port::ProductionStrategyRuntimePort;
 pub(crate) use strategy_runtime_activity::normalize_strategy_binding;
+#[allow(unused_imports)]
+pub(crate) use strategy_runtime_port::ProductionStrategyRuntimePort;
+
+#[cfg(test)]
+#[path = "strategy_runtime_account_tests.rs"]
+mod account_tests;
+#[cfg(test)]
+#[path = "strategy_runtime_owner_tests.rs"]
+mod owner_tests;
+#[path = "strategy_runtime_task.rs"]
+mod strategy_runtime_task;

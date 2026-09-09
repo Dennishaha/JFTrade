@@ -11,4 +11,10 @@
 
 滚动升级基线记录在 `tests/fixtures/release/upgrade-baselines.json`。`0.29.0` 使用线上原样发布的 `v0.27.0` 安装包和 checksum；禁止从历史源码重建基线。
 
-本轮门禁重构不创建候选分支、版本 tag、GitHub Release 或 rehearsal。
+## 操作入口与授权
+
+[Desktop Release workflow](../../.github/workflows/desktop-release.yml) 通过 `workflow_dispatch` 显式选择 `rehearsal`、`candidate` 或 `publish`，不由推送 tag 自动触发。`publish` 要求已有 tag 指向经验证的同一 SHA，并提供正式 qualification run/artifact；不能以重新构建或 unsigned artifact 替代 sealed candidate。
+
+unsigned rehearsal 只证明构建演练，通过时使用独立 `rehearsal_passed` receipt，始终 `releaseQualified=false`；不读取签名 secret，不创建 tag、Release 或 updater feed。
+
+普通开发、文档整理或本地门禁不隐含创建候选分支、tag、Release 或触发 rehearsal 的授权。执行这些操作前必须有明确任务要求；本地构建方法见 [桌面发布文档](../troubleshooting/desktop-release.md)，未完成事项见 [roadmap](../roadmap.md)。

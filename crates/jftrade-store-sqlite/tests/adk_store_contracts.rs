@@ -323,3 +323,180 @@ fn adk_workflow_and_trigger_mutations_use_timestamp_cas_and_atomic_delete() {
     assert_eq!(deleted_trigger.status, "DISABLED");
     assert!(deleted_trigger.payload_json.contains("deletedAt"));
 }
+
+#[test]
+fn adk_store_workflow_scheduler_due_and_threshold_triggers() {
+    let directory = tempdir().expect("temp dir");
+    let database_path = directory.path().join("adk.db");
+    seed_valid_go_adk_database(&database_path);
+
+    let store = AdkTestCutoverStore::open_existing(&database_path, ADK_TEST_CUTOVER_PROFILE)
+        .expect("open store");
+
+    store
+        .upsert_workflow("wf-sched", "ENABLED", r#"{"name":"scheduler wf"}"#)
+        .expect("upsert workflow");
+
+    // Seed schedule triggers: 2 due, 1 future, 1 disabled, 1 soft-deleted
+    store
+        .upsert_workflow_trigger(
+            "trig-due-1",
+            "wf-sched",
+            "schedule",
+            "ENABLED",
+            "2026-09-08T10:00:00Z",
+            r#"{"id":"trig-due-1","workflowId":"wf-sched","config":{"cron":"0 * * * *"}}"#,
+        )
+        .expect("upsert trig-due-1");
+    store
+        .upsert_workflow_trigger(
+            "trig-due-2",
+            "wf-sched",
+            "schedule",
+            "ENABLED",
+            "2026-09-08T11:00:00Z",
+            r#"{"id":"trig-due-2","workflowId":"wf-sched","config":{"cron":"0 * * * *"}}"#,
+        )
+        .expect("upsert trig-due-2");
+    store
+        .upsert_workflow_trigger(
+            "trig-future",
+            "wf-sched",
+            "schedule",
+            "ENABLED",
+            "2026-09-08T15:00:00Z",
+            r#"{"id":"trig-future","workflowId":"wf-sched","config":{"cron":"0 * * * *"}}"#,
+        )
+        .expect("upsert trig-future");
+    store
+        .upsert_workflow_trigger(
+            "trig-disabled",
+            "wf-sched",
+            "schedule",
+            "DISABLED",
+            "2026-09-08T09:00:00Z",
+            r#"{"id":"trig-disabled","workflowId":"wf-sched","config":{"cron":"0 * * * *"}}"#,
+        )
+        .expect("upsert trig-disabled");
+    store
+        .upsert_workflow_trigger(
+            "trig-deleted",
+            "wf-sched",
+            "schedule",
+            "ENABLED",
+            "2026-09-08T09:00:00Z",
+            r#"{"id":"trig-deleted","workflowId":"wf-sched","deletedAt":"2026-09-08T09:30:00Z"}"#,
+        )
+        .expect("upsert trig-deleted");
+
+    // Seed market threshold triggers: 1 enabled, 1 disabled
+    store
+        .upsert_workflow_trigger(
+            "trig-thresh-1",
+            "wf-sched",
+            "market_threshold",
+            "ENABLED",
+            "",
+            r#"{"id":"trig-thresh-1","workflowId":"wf-sched","config":{"instrumentIds":["US.AAPL"]}}"#,
+        )
+        .expect("upsert trig-thresh-1");
+    store
+        .upsert_workflow_trigger(
+            "trig-thresh-disabled",
+            "wf-sched",
+            "market_threshold",
+            "DISABLED",
+            "",
+            r#"{"id":"trig-thresh-disabled","workflowId":"wf-sched","config":{"instrumentIds":["US.MSFT"]}}"#,
+        )
+        .expect("upsert trig-thresh-disabled");
+
+    // 1. Query due triggers with now = 12:00:00Z
+    let due = store
+        .list_due_workflow_schedule_triggers("2026-09-08T12:00:00Z", 10)
+        .expect("list due triggers");
+    assert_eq!(due.len(), 2);
+    assert_eq!(due[0].id, "trig-due-1");
+    assert_eq!(due[0].next_run_at, "2026-09-08T10:00:00Z");
+    assert_eq!(due[1].id, "trig-due-2");
+    assert_eq!(due[1].next_run_at, "2026-09-08T11:00:00Z");
+
+    // 2. Query with limit 1
+    let due_limited = store
+        .list_due_workflow_schedule_triggers("2026-09-08T12:00:00Z", 1)
+        .expect("list due triggers limit 1");
+    assert_eq!(due_limited.len(), 1);
+    assert_eq!(due_limited[0].id, "trig-due-1");
+
+    // 3. Query enabled market threshold triggers
+    let thresholds = store
+        .list_enabled_workflow_triggers_by_type("market_threshold")
+        .expect("list enabled threshold triggers");
+    assert_eq!(thresholds.len(), 1);
+    assert_eq!(thresholds[0].id, "trig-thresh-1");
+
+    // 4. Update trigger run state for trig-due-1
+    store
+        .update_workflow_trigger_run_state(
+            "trig-due-1",
+            "2026-09-08T12:00:00Z",
+            "2026-09-08T13:00:00Z",
+            None,
+        )
+        .expect("update trigger run state");
+
+    let updated = store
+        .get_workflow_trigger("trig-due-1")
+        .expect("get trigger")
+        .expect("trigger exists");
+    assert_eq!(updated.next_run_at, "2026-09-08T13:00:00Z");
+    assert!(
+        updated
+            .payload_json
+            .contains(r#""lastRunAt":"2026-09-08T12:00:00Z""#)
+    );
+    assert!(
+        updated
+            .payload_json
+            .contains(r#""nextRunAt":"2026-09-08T13:00:00Z""#)
+    );
+
+    // After updating trig-due-1's next_run_at to 13:00:00Z, querying for <= 12:00:00Z returns only trig-due-2
+    let due_after = store
+        .list_due_workflow_schedule_triggers("2026-09-08T12:00:00Z", 10)
+        .expect("list due triggers after update");
+    assert_eq!(due_after.len(), 1);
+    assert_eq!(due_after[0].id, "trig-due-2");
+
+    // 5. Update with error
+    store
+        .update_workflow_trigger_run_state(
+            "trig-due-2",
+            "2026-09-08T12:00:00Z",
+            "2026-09-08T13:00:00Z",
+            Some("simulated failure"),
+        )
+        .expect("update with error");
+    let updated_err = store
+        .get_workflow_trigger("trig-due-2")
+        .expect("get trigger")
+        .expect("trigger exists");
+    assert!(
+        updated_err
+            .payload_json
+            .contains(r#""lastError":"simulated failure""#)
+    );
+
+    // 6. Update payload directly
+    store
+        .update_workflow_trigger_payload(
+            "trig-thresh-1",
+            r#"{"id":"trig-thresh-1","workflowId":"wf-sched","state":{"lastValues":{"US.AAPL":185.5}}}"#,
+        )
+        .expect("update payload");
+    let updated_thresh = store
+        .get_workflow_trigger("trig-thresh-1")
+        .expect("get thresh trigger")
+        .expect("thresh trigger exists");
+    assert!(updated_thresh.payload_json.contains("185.5"));
+}

@@ -23,6 +23,15 @@ Vue dev server、Rust API 和受管 helper。修改 Vue/TypeScript 文件时由 
 JFTRADE_DESKTOP_RELEASE_TAG=v1.2.3 pnpm run build:desktop
 ```
 
+版本号仅为示例，须替换为计划发布版本；设置变量不会创建 Git tag。PowerShell 使用：
+
+```powershell
+$env:JFTRADE_DESKTOP_RELEASE_TAG = 'v1.2.3'
+pnpm run build:desktop
+```
+
+正式发布的候选证据、tag 与 publish 流程见 [发布资格](../architecture/release-qualification.md)。推送 tag 不会自动触发发布，本地打包也不生成发布资格。
+
 `run-tauri.mjs build` 会先运行 `prepare:tauri-release`，准备前端、PineTS、
 market-data 和受管 Node runtime 资产，再构建当前平台的 Tauri bundle。生产 API
 默认监听 `127.0.0.1:6699`，正式产品数据写入系统用户数据目录；可选 Web 入口默认

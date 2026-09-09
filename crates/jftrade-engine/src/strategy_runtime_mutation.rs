@@ -1,10 +1,20 @@
-use super::*;
 use super::strategy_runtime_port::ProductionStrategyRuntimePort;
+use super::*;
 impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
     fn mutate(
         &self,
         input: &StrategyRuntimeWriteInput,
     ) -> Result<Value, StrategyRuntimeWritePortError> {
+        let _mutation = self
+            .manager
+            .mutation_lock
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if self.manager.stopping.load(Ordering::Acquire) {
+            return Err(StrategyRuntimeWritePortError::Unavailable(
+                "strategy runtime is stopping".to_owned(),
+            ));
+        }
         let timestamp = time::OffsetDateTime::now_utc()
             .format(&time::format_description::well_known::Rfc3339)
             .map_err(|error| StrategyRuntimeWritePortError::Failed {
@@ -65,6 +75,13 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                 }
 
                 let runtime_binding = self.effective_binding(&current)?;
+                if self.manager.is_task_alive(&input.instance_id)
+                    && !self.manager.cancel(&input.instance_id)
+                {
+                    return Err(StrategyRuntimeWritePortError::Unavailable(
+                        "strategy is still stopping".to_owned(),
+                    ));
+                }
                 self.store
                     .update_status_cas(
                         &input.instance_id,
@@ -72,12 +89,10 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         "STARTING",
                         &timestamp,
                     )
-                    .map_err(|e| {
-                        StrategyRuntimeWritePortError::Failed {
-                            status: 409,
-                            code: "CONFLICT".to_owned(),
-                            message: format!("transition to STARTING failed: {e}"),
-                        }
+                    .map_err(|e| StrategyRuntimeWritePortError::Failed {
+                        status: 409,
+                        code: "CONFLICT".to_owned(),
+                        message: format!("transition to STARTING failed: {e}"),
                     })?;
 
                 if let Err(error) = self
@@ -137,7 +152,13 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         message: "strategy instance is already stopped".to_owned(),
                     });
                 }
-                let stopped = self.store
+                if !self.manager.cancel(&input.instance_id) {
+                    return Err(StrategyRuntimeWritePortError::Unavailable(
+                        "strategy stop timed out; task owner retained".to_owned(),
+                    ));
+                }
+                let stopped = self
+                    .store
                     .update_status_cas(
                         &input.instance_id,
                         &["RUNNING", "PAUSED", "STARTING", "FAILED"],
@@ -145,7 +166,6 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                         &timestamp,
                     )
                     .map_err(StrategyRuntimeWritePortError::from)?;
-                self.manager.cancel(&input.instance_id);
                 self.manager.release_demand(&input.instance_id);
                 Ok(stopped)
             }
@@ -167,24 +187,30 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,
                         code: "BAD_REQUEST".to_owned(),
-                        message: "only STOPPED or FAILED strategy instances can be deleted".to_owned(),
+                        message: "only STOPPED or FAILED strategy instances can be deleted"
+                            .to_owned(),
                     });
                 }
-                self.manager.cancel(&input.instance_id);
+                if !self.manager.cancel(&input.instance_id) {
+                    return Err(StrategyRuntimeWritePortError::Unavailable(
+                        "strategy is still stopping".to_owned(),
+                    ));
+                }
                 self.manager.release_demand(&input.instance_id);
                 self.store
                     .delete_instance(&input.instance_id, &timestamp)
                     .map_err(Into::into)
             }
             StrategyRuntimeWriteOperation::Update => {
-                let mut binding = input
-                    .binding
-                    .clone()
-                    .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
-                        status: 400,
-                        code: "BAD_REQUEST".to_owned(),
-                        message: "strategy binding is required".to_owned(),
-                    })?;
+                let mut binding =
+                    input
+                        .binding
+                        .clone()
+                        .ok_or_else(|| StrategyRuntimeWritePortError::Failed {
+                            status: 400,
+                            code: "BAD_REQUEST".to_owned(),
+                            message: "strategy binding is required".to_owned(),
+                        })?;
                 if current.runtime_active || !current.status.eq_ignore_ascii_case("STOPPED") {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 400,
@@ -216,7 +242,9 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
                     return Err(StrategyRuntimeWritePortError::Failed {
                         status: 409,
                         code: "STRATEGY_REFRESH_REQUIRES_STOP".to_owned(),
-                        message: "refresh definition requires an explicitly stopped strategy instance".to_owned(),
+                        message:
+                            "refresh definition requires an explicitly stopped strategy instance"
+                                .to_owned(),
                     });
                 }
                 let refreshed = self
@@ -246,11 +274,11 @@ impl StrategyRuntimeWritePort for ProductionStrategyRuntimePort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::Connection;
-    use std::sync::Arc;
     use jftrade_store_sqlite::{
         STRATEGY_DEFINITION_TEST_CUTOVER_PROFILE, StrategyDefinitionStore, StrategyRuntimeStore,
     };
+    use rusqlite::Connection;
+    use std::sync::Arc;
 
     fn seed_strategy_test_db(path: &std::path::Path) {
         let conn = Connection::open(path).expect("open test db");
@@ -273,9 +301,8 @@ mod tests {
             .seed_instance("running-inst", "RUNNING", "2026-08-30T00:00:00Z")
             .expect("seed running instance");
 
-        let active_provider = Arc::new(
-            crate::product::product_active_provider_state::ActiveProviderState::default(),
-        );
+        let active_provider =
+            Arc::new(crate::product::product_active_provider_state::ActiveProviderState::default());
         let manager = Arc::new(StrategyRuntimeManager::new(
             None,
             None,
@@ -331,9 +358,8 @@ mod tests {
             .seed_instance("stopped-inst", "STOPPED", "2026-08-30T00:00:00Z")
             .expect("seed stopped instance");
 
-        let active_provider = Arc::new(
-            crate::product::product_active_provider_state::ActiveProviderState::default(),
-        );
+        let active_provider =
+            Arc::new(crate::product::product_active_provider_state::ActiveProviderState::default());
         let manager = Arc::new(StrategyRuntimeManager::new(
             None,
             None,
@@ -385,13 +411,25 @@ mod tests {
         assert!(normalize_strategy_binding(&mut invalid).is_err());
         let mut invalid = json!({"sessions": ["regular", "premarket"]});
         assert!(normalize_strategy_binding(&mut invalid).is_err());
-        for mut invalid in [json!({"chartType": 1}), json!({"interval": 5}),
-            json!({"symbols": 1}), json!({"symbols": [false]}),
-            json!({"executeOrders": "false"}), json!({"brokerAccount": []})] {
-            assert!(normalize_strategy_binding(&mut invalid).is_err(), "{invalid}");
+        for mut invalid in [
+            json!({"chartType": 1}),
+            json!({"interval": 5}),
+            json!({"symbols": 1}),
+            json!({"symbols": [false]}),
+            json!({"executeOrders": "false"}),
+            json!({"brokerAccount": []}),
+        ] {
+            assert!(
+                normalize_strategy_binding(&mut invalid).is_err(),
+                "{invalid}"
+            );
         }
-        assert!(trading_environment_is_real(&json!({"brokerAccount": {"env": "REAL"}})));
-        assert!(!trading_environment_is_real(&json!({"tradingEnvironment": "SIMULATE", "brokerAccount": {"env": "REAL"}})));
+        assert!(trading_environment_is_real(
+            &json!({"brokerAccount": {"env": "REAL"}})
+        ));
+        assert!(!trading_environment_is_real(
+            &json!({"tradingEnvironment": "SIMULATE", "brokerAccount": {"env": "REAL"}})
+        ));
     }
 
     #[test]
@@ -426,14 +464,33 @@ mod tests {
         assert_eq!(last_closed.get("US.AAPL"), Some(&300));
         assert_eq!(sessions["US.AAPL"].revision, 3);
         assert_eq!(sessions["US.AAPL"].submitted_intents.len(), 2);
-        store.update_status("checkpoint-inst", "STOPPED", "2026-09-05T00:30:00Z").expect("stop before binding update");
-        store.update_binding("checkpoint-inst", json!({"symbols": ["US.AAPL"], "interval": "1h"}),
-            "2026-09-05T01:00:00Z").expect("change binding scope");
-        let (last_closed, _) = restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()])
-            .expect("restore changed binding");
-        assert!(last_closed.is_empty(), "old binding checkpoints must not suppress new signals");
-        store.append_audit_event("checkpoint-inst", "PINE_SESSION_CHECKPOINT", "{broken", i64::MAX)
+        store
+            .update_status("checkpoint-inst", "STOPPED", "2026-09-05T00:30:00Z")
+            .expect("stop before binding update");
+        store
+            .update_binding(
+                "checkpoint-inst",
+                json!({"symbols": ["US.AAPL"], "interval": "1h"}),
+                "2026-09-05T01:00:00Z",
+            )
+            .expect("change binding scope");
+        let (last_closed, _) =
+            restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()])
+                .expect("restore changed binding");
+        assert!(
+            last_closed.is_empty(),
+            "old binding checkpoints must not suppress new signals"
+        );
+        store
+            .append_audit_event(
+                "checkpoint-inst",
+                "PINE_SESSION_CHECKPOINT",
+                "{broken",
+                i64::MAX,
+            )
             .expect("inject corrupt checkpoint");
-        assert!(restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()]).is_err());
+        assert!(
+            restore_pine_runtime_state(&store, "checkpoint-inst", &["US.AAPL".to_owned()]).is_err()
+        );
     }
 }

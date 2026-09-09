@@ -119,6 +119,8 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) short_interest_reader: Arc<RwLock<Option<Arc<dyn FutuShortInterestReadPort>>>>,
     pub(crate) technical_indicator_reader: Arc<RwLock<Option<Arc<dyn FutuIndicatorReadPort>>>>,
     pub(crate) news_reader: Arc<RwLock<Option<Arc<dyn FutuNewsReadPort>>>>,
+    pub(crate) instrument_search_reader:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::InstrumentSearchReadPort>>>>,
     pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
     pub(crate) remote_watchlist_reader:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>>>>,
@@ -268,6 +270,12 @@ impl SharedTradeReadRuntime {
             .news_reader
             .write()
             .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn set_instrument_search_reader(
+        &self, reader: Option<Arc<dyn jftrade_integration_futu::InstrumentSearchReadPort>>,
+    ) {
+        *self.instrument_search_reader.write().unwrap_or_else(|error| error.into_inner()) = reader;
     }
 
     pub(crate) fn set_prediction_adapters(
@@ -749,6 +757,7 @@ fn lookup_tick_snapshot(
         *self.state.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.set_writer(None);
         self.set_news_reader(None);
+        self.set_instrument_search_reader(None);
         self.set_institution_reader(None);
         self.set_short_interest_reader(None);
         self.set_technical_indicator_reader(None);

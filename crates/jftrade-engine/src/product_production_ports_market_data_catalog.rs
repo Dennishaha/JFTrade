@@ -4,6 +4,9 @@
 #[path = "product_production_ports_market_data_catalog_tests.rs"]
 mod tests;
 
+#[path = "product_production_ports_market_data_catalog_futu.rs"]
+mod futu;
+
 use jftrade_integration_marketdata_helper::{
     HelperClient, HelperMarketsResponse, HelperSearchResponse,
 };
@@ -12,6 +15,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::product::product_active_provider_state::ActiveProviderState;
+use crate::product::product_production_ports::SharedTradeReadRuntime;
 use crate::product::{
     MarketDataCatalogReadFuture, MarketDataCatalogReadSnapshotError,
     MarketDataCatalogReadSnapshotPort,
@@ -21,6 +25,7 @@ use crate::product::{
 pub(crate) struct ProductionMarketDataCatalogPort {
     active_provider_state: Arc<ActiveProviderState>,
     helper: Option<HelperClient>,
+    trade_runtime: Option<Arc<SharedTradeReadRuntime>>,
 }
 
 impl std::fmt::Debug for ProductionMarketDataCatalogPort {
@@ -40,7 +45,16 @@ impl ProductionMarketDataCatalogPort {
         Self {
             active_provider_state,
             helper,
+            trade_runtime: None,
         }
+    }
+
+    pub(crate) fn with_trade_runtime(
+        mut self,
+        runtime: Option<Arc<SharedTradeReadRuntime>>,
+    ) -> Self {
+        self.trade_runtime = runtime;
+        self
     }
 
     fn active_provider(&self) -> Result<MarketDataProvider, MarketDataCatalogReadSnapshotError> {
@@ -302,75 +316,7 @@ impl ProductionMarketDataCatalogPort {
                     "totalReturned": total_returned,
                 }))
             }
-            MarketDataProvider::Futu => {
-                let norm_q = search_query.trim().to_ascii_uppercase();
-                let (market_part, symbol_part) = if let Some((m, s)) = norm_q.split_once('.') {
-                    (m.trim(), s.trim())
-                } else if let Some((m, s)) = norm_q.split_once(':') {
-                    (m.trim(), s.trim())
-                } else if !requested_market.is_empty() {
-                    (requested_market.trim(), norm_q.as_str())
-                } else {
-                    ("", norm_q.as_str())
-                };
-
-                let market_upper = market_part.to_ascii_uppercase();
-                let is_valid_market = matches!(
-                    market_upper.as_str(),
-                    "HK" | "US" | "SH" | "SZ" | "CN" | "CNSH" | "CNSZ" | "SG" | "JP" | "AU" | "MY" | "CA"
-                );
-
-                let mut entries = Vec::new();
-                if is_valid_market && !symbol_part.is_empty() {
-                    let canonical_market = if market_upper == "CNSH" {
-                        "SH".to_owned()
-                    } else if market_upper == "CNSZ" {
-                        "SZ".to_owned()
-                    } else if market_upper == "CN" {
-                        jftrade_marketdata::infer_cn_prefix(symbol_part).to_owned()
-                    } else {
-                        market_upper.clone()
-                    };
-                    let resolved_market = if canonical_market == "SH" || canonical_market == "SZ" {
-                        "CN".to_owned()
-                    } else {
-                        canonical_market.clone()
-                    };
-                    let selectable = matches!(
-                        canonical_market.as_str(),
-                        "HK" | "US" | "SH" | "SZ" | "CN"
-                    );
-                    let instrument_id = format!("{canonical_market}.{symbol_part}");
-                    let entry = json!({
-                        "instrumentId": instrument_id,
-                        "market": canonical_market,
-                        "resolvedMarket": resolved_market,
-                        "symbol": symbol_part,
-                        "code": symbol_part,
-                        "name": "",
-                        "securityType": "stock",
-                        "source": "futu",
-                        "selectable": selectable,
-                    });
-                    entries.push(entry);
-                }
-
-                let resolution_status = if entries.is_empty() {
-                    "not_found"
-                } else {
-                    "resolved"
-                };
-                let total_returned = entries.len();
-
-                Ok(json!({
-                    "entries": entries,
-                    "failures": [],
-                    "query": search_query,
-                    "requestedMarket": requested_market,
-                    "resolutionStatus": resolution_status,
-                    "totalReturned": total_returned,
-                }))
-            }
+            MarketDataProvider::Futu => futu::read(self, requested_market, search_query, limit).await,
         }
     }
 }
