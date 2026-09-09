@@ -101,6 +101,7 @@ pub(crate) use product_production_calendar::{
 use crate::product::ProductError;
 use crate::product::product_auth_session_manager::ProductionAuthSessionManager;
 pub(crate) use crate::product::product_production_route_registry::ProductionRouteAdapter;
+use crate::product_workflow_scheduler::WorkflowScheduler;
 
 pub(crate) fn production_ports(
     config: &ProductConfig,
@@ -696,6 +697,7 @@ pub(crate) fn production_ports(
         backtest_sync_workers,
         backtest_execution_workers,
         execution_reconciliation_worker,
+        workflow_scheduler: None,
         backtest_execution_ready: config.backtest_execution_port_verified
             && config.backtest_execution_port.is_some(),
         trade_read_port: config.trade_read_port.clone(),
@@ -719,5 +721,14 @@ pub(crate) fn production_ports(
     adk_ports_bundle.adk_mutation = detached_adk_port.clone();
     adk_ports_bundle.adk_chat_stream = detached_adk_port;
     adk_chat_runtime.attach_ports(Arc::new(adk_ports_bundle));
+    bundle.workflow_scheduler = tokio::runtime::Handle::try_current().ok().map(|_| {
+        WorkflowScheduler::start(
+            Arc::clone(&adk_store),
+            Arc::clone(&adk_port),
+            Some(bundle.market_data_quote.clone()),
+            std::time::Duration::from_secs(30),
+        )
+    });
+
     Ok(bundle)
 }

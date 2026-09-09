@@ -32,8 +32,10 @@ pub(crate) fn convert_helper_candles_response(
     let bounds = CandleBounds::parse(&params)?;
     let mut candles = Vec::with_capacity(resp.candles.len());
     let mut previous = None;
+    let total_candles = resp.candles.len();
+    let now_utc = time::OffsetDateTime::now_utc();
 
-    for candle in &resp.candles {
+    for (index, candle) in resp.candles.iter().enumerate() {
         let at = parse_timestamp("at", &candle.at)?;
         validate_timestamp_order(previous, at)?;
         bounds.validate(at)?;
@@ -44,6 +46,16 @@ pub(crate) fn convert_helper_candles_response(
             continue;
         }
         let volume = candle_volume(&values, session.label.as_deref(), params.is_yfinance);
+        let is_closed = index < total_candles - 1
+            || jftrade_calendar::candle_is_closed(
+                params.calendar,
+                params.market,
+                params.period,
+                at,
+                now_utc,
+                params.sessions,
+            )
+            .map_err(|e| candle_error(e.to_string()))?;
         candles.push(json!({
             "at": canonical_timestamp(at),
             "close": values.close.as_str(),
@@ -53,7 +65,15 @@ pub(crate) fn convert_helper_candles_response(
             "period": params.period,
             "session": session.label,
             "volume": volume,
+            "closed": is_closed,
         }));
+    }
+
+    if candles.len() > 1 {
+        let count = candles.len();
+        for candle in &mut candles[..count - 1] {
+            candle["closed"] = json!(true);
+        }
     }
 
     let pagination = validate_pagination(&resp, &candles, &params)?;

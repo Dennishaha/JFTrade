@@ -1,13 +1,9 @@
 //! Shared ADK mutation decoding and entity payload helpers.
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use serde_json::{Map, Value};
 
 use crate::product::product_adk_mutation_port::{AdkMutationInput, AdkMutationPortError};
-
-use super::SESSION_ID_SEQUENCE;
+use crate::product_id::generate_prefixed_id;
 
 pub(super) fn decode_mutation_payload(
     raw: &str,
@@ -71,23 +67,11 @@ pub(super) fn required_identifier(
 }
 
 pub(super) fn next_session_id() -> String {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
-        .unwrap_or_default();
-    let sequence = SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    format!("session-{millis}-{sequence}")
+    generate_prefixed_id("session")
 }
 
-pub(super) fn next_id(prefix: &str, sequence: &AtomicU64) -> String {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
-        .unwrap_or_default();
-    let sequence = sequence.fetch_add(1, Ordering::Relaxed);
-    format!("{prefix}-{millis}-{sequence}")
+pub(super) fn next_id(prefix: &str) -> String {
+    generate_prefixed_id(prefix)
 }
 
 pub(super) fn normalize_id(value: &str) -> String {

@@ -155,7 +155,7 @@ fn install_skill(
     let skill_dir = skills_root.join(&id);
     let temporary_dir = skills_root.join(format!(
         ".{id}.tmp-{}",
-        SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        crate::product_id::generate_uuid_v4()
     ));
     fs::create_dir(&temporary_dir).map_err(|error| AdkMutationPortError::Failed {
         status: 500,

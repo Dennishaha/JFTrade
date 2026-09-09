@@ -17,23 +17,24 @@ impl ProductHandle {
     /// its stores (and their WriterLeases) are released.  This mirrors the
     /// shutdown supervisor's reverse-of-construction order for the direct
     /// `start_product` entrypoint, where the bundle remains on this handle.
-    async fn shutdown_production_runtime(&self) {
+    async fn shutdown_production_runtime(&self) -> Result<(), ProductError> {
         let Some(ports) = self.production_ports.as_ref() else {
-            return;
+            return Ok(());
         };
-        ports.shutdown_strategy_runtime();
-        ports.shutdown_adk_runtime();
+        let strategy = ports.shutdown_strategy_runtime();
+        let adk = ports.shutdown_adk_runtime();
         if let Some(worker) = ports.execution_reconciliation_worker() {
             worker.shutdown().await;
         }
+        strategy.and(adk).map_err(ProductError::Storage)
     }
 
     fn terminate_production_runtime(&self) {
         let Some(ports) = self.production_ports.as_ref() else {
             return;
         };
-        ports.shutdown_strategy_runtime();
-        ports.shutdown_adk_runtime();
+        if let Err(error) = ports.shutdown_strategy_runtime() { tracing::error!(%error); }
+        if let Err(error) = ports.shutdown_adk_runtime() { tracing::error!(%error); }
         if let Some(worker) = ports.execution_reconciliation_worker() {
             worker.terminate();
         }
@@ -87,7 +88,7 @@ impl ProductHandle {
         if let Some(manager) = self.calendar_manager.take() {
             manager.close().map_err(ProductError::Calendar)?;
         }
-        self.shutdown_production_runtime().await;
+        self.shutdown_production_runtime().await?;
         drop(self.production_ports.take());
         Ok(())
     }

@@ -45,6 +45,7 @@
 - PineTS worker / worker pool：[Worker 局部指令](../workers/AGENTS.md)、[PineTS 契约](pinets-contract-audit.md)。
 - PineTS embedded assets 与非 mock smoke：[worker 发布排障](troubleshooting/pinets-worker-release.md)。
 - 撮合、成交语义、executionModel 与实盘差异：[回测执行模型](backtest-execution-model.md)。
+- 策略收盘、券商模拟账户、工作流恢复及停止写入所有权：[运行中执行、恢复与停止](architecture/runtime-execution-ownership.md)。
 - ADK、agent、approval、provider 和 tools：[ADK 控制面](adk.md)。
 
 ### Vue 控制台

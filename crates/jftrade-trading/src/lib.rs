@@ -9,6 +9,7 @@ mod portfolio;
 mod real_trade;
 mod risk;
 mod session;
+mod simulate_account;
 
 pub use ledger::{ShadowCheckpoint, ShadowTrading};
 pub use model::{
@@ -35,3 +36,4 @@ pub use risk::{
     RuntimeRiskSettings, evaluate_pre_trade_risk, evaluate_runtime_risk,
 };
 pub use session::{AccountSnapshot, BrokerSession, SessionState};
+pub use simulate_account::{SimulateExecutionError, VirtualAccountState, VirtualPosition};

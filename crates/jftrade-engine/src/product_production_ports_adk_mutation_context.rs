@@ -4,8 +4,6 @@
 //! handoff segment is written before the new context snapshot so a restart can
 //! reconstruct the same active boundary from SQLite alone.
 
-use std::sync::atomic::Ordering;
-
 use jftrade_store_sqlite::StoredAdkHandoffSegment;
 use serde_json::{Value, json};
 
@@ -147,10 +145,7 @@ pub(super) fn compact_session_context(
     let previous_revision = current_revision.clone();
     let mut pending_segment: Option<(String, i64, String, bool)> = None;
     let (revision, revision_created_at, compacted_cutoff, active_segments) = if should_write {
-        let revision = format!(
-            "ctx-{}",
-            SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        );
+        let revision = format!("ctx-{}", crate::product_id::generate_uuid_v4());
         let compacted_cutoff = compaction_cutoff.min(events.len());
         let summary_events = if mode == "aggressive" {
             &events[..compacted_cutoff]
@@ -171,7 +166,7 @@ pub(super) fn compact_session_context(
         let id = format!(
             "handoff-{}-{}",
             normalize_id(&session_id),
-            SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            crate::product_id::generate_uuid_v4()
         );
         let payload = json!({
             "id": id,
@@ -223,10 +218,7 @@ pub(super) fn compact_session_context(
         (revision, now.clone(), compacted_cutoff, vec![synthetic])
     } else {
         let revision = if current_revision.is_empty() {
-            format!(
-                "ctx-{}",
-                SESSION_ID_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-            )
+            format!("ctx-{}", crate::product_id::generate_uuid_v4())
         } else {
             current_revision
         };

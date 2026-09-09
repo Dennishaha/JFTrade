@@ -110,7 +110,7 @@ pub(super) fn dispatch(
             let body = object_body(&input.body, "task")?;
             let id = normalize_id(&normalized_string(body.get("id")));
             let id = if id.is_empty() {
-                next_id("task", &TASK_ID_SEQUENCE)
+                next_id("task")
             } else {
                 id
             };

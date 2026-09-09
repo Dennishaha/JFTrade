@@ -136,8 +136,12 @@ impl ProductShutdownSupervisor {
         // Strategy runtime tasks own Pine calls and DemandBook consumers;
         // stop and join them before tearing down provider workers or stores.
         if let Some(ports) = self.production_ports.as_ref() {
-            ports.shutdown_strategy_runtime();
-            ports.shutdown_adk_runtime();
+            if let Err(error) = ports.shutdown_strategy_runtime() {
+                failures.push(error);
+            }
+            if let Err(error) = ports.shutdown_adk_runtime() {
+                failures.push(error);
+            }
         }
         // 2. Stop reconciliation before provider/OpenD teardown.  It reads
         // the trade session at scan time, so leaving it alive while the
@@ -254,8 +258,12 @@ impl ProductShutdownSupervisor {
             self.recorder.record("http_join");
         }
         if let Some(ports) = self.production_ports.as_ref() {
-            ports.shutdown_strategy_runtime();
-            ports.shutdown_adk_runtime();
+            if let Err(error) = ports.shutdown_strategy_runtime() {
+                tracing::error!(%error);
+            }
+            if let Err(error) = ports.shutdown_adk_runtime() {
+                tracing::error!(%error);
+            }
         }
         // 2. Stop reconciliation before provider/OpenD teardown.  Keep the
         // synchronous Drop path in the same lifecycle order as async
