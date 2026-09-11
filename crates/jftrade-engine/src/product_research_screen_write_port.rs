@@ -335,6 +335,13 @@ fn normalize_conditions(
         } else {
             operator
         };
+        if let Some(operators) = catalog_factor_operators(catalog, market, &factor_key)
+            && !operators.iter().any(|candidate| candidate == &operator)
+        {
+            return Err(ParseQueryError::InvalidDefinition(format!(
+                "{path}.operator: {operator:?} is not supported for factor {factor_key:?}"
+            )));
+        }
         validate_condition_value(&path, &operator, condition.value.as_ref(), &factor_key)?;
         let mut value = Map::new();
         value.insert(
@@ -455,7 +462,7 @@ fn normalize_factor(
             "{path}.factor.factorKey: factor key is required"
         )));
     }
-    if !known_factor(catalog, &factor_key) {
+    if !known_factor(catalog, market, &factor_key) {
         return Err(ParseQueryError::InvalidDefinition(format!(
             "{path}.factor.factorKey: unknown research screen factor {factor_key:?}"
         )));
@@ -479,7 +486,7 @@ fn normalize_factor(
     Ok((Value::Object(value), factor_key))
 }
 
-fn known_factor(catalog: &str, factor: &str) -> bool {
+fn known_factor(catalog: &str, market: &str, factor: &str) -> bool {
     if catalog == EMBEDDED_CATALOG_VERSION {
         return matches!(
             factor,
@@ -494,10 +501,45 @@ fn known_factor(catalog: &str, factor: &str) -> bool {
                 | "simple.pb"
         );
     }
-    matches!(
-        factor,
-        "basic.code" | "basic.name" | "basic.industry" | "simple.price" | "simple.market_cap"
-    )
+    jftrade_research::screen_catalog("futu", market)
+        .ok()
+        .and_then(|catalog| catalog.get("factors").and_then(Value::as_array).cloned())
+        .is_some_and(|factors| {
+            factors.iter().any(|entry| {
+                entry.get("key").and_then(Value::as_str) == Some(factor)
+                    && entry.get("availability").and_then(Value::as_str) != Some("unsupported")
+            })
+        })
+}
+
+fn catalog_factor_operators(catalog: &str, market: &str, factor: &str) -> Option<Vec<String>> {
+    // The embedded helper intentionally accepts generic comparison operators
+    // (gte/gt/lte/lt), even though its compact catalog uses a range editor.
+    // Futu's wire protocol only carries the catalog-declared filter forms, so
+    // enforce that list here and fail closed before encoding.
+    if catalog == EMBEDDED_CATALOG_VERSION {
+        return None;
+    }
+    jftrade_research::screen_catalog("futu", market)
+        .ok()
+        .and_then(|catalog| catalog.get("factors").and_then(Value::as_array).cloned())
+        .and_then(|factors| {
+            factors.into_iter().find_map(|entry| {
+                (entry.get("key").and_then(Value::as_str) == Some(factor)).then(|| {
+                    entry
+                        .get("operators")
+                        .and_then(Value::as_array)
+                        .map(|operators| {
+                            operators
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(str::to_owned)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default()
+                })
+            })
+        })
 }
 
 fn validate_condition_value(

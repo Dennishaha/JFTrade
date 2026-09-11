@@ -1,6 +1,7 @@
 //! Execution-order and broker write production adapters.
 
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use jftrade_integration_futu::{TradeModifyOrderRequest, TradeUnlockRequest, TradeWritePort};
@@ -15,6 +16,13 @@ use jftrade_trading::{
 use serde_json::{Value, json};
 use tokio::sync::{Notify, oneshot};
 use tokio::task::JoinHandle;
+
+#[cfg(test)]
+const EXECUTION_RECONCILIATION_SHUTDOWN_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_millis(250);
+#[cfg(not(test))]
+const EXECUTION_RECONCILIATION_SHUTDOWN_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(5);
 
 use super::super::product_production_ports_trade::SharedTradeReadRuntime;
 use crate::product::product_brokers_write_port::{
@@ -116,6 +124,10 @@ pub(crate) struct ExecutionReconciliationWorker {
     wake: Arc<Notify>,
     handle: Mutex<Option<JoinHandle<()>>>,
     status: Arc<Mutex<ExecutionReconciliationWorkerStatus>>,
+    /// Once shutdown starts, a late `spawn_blocking` result may still finish
+    /// its durable reconciliation, but it must not publish notifications or
+    /// make the retired worker look healthy again.
+    accept_results: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for ExecutionReconciliationWorker {
@@ -139,9 +151,11 @@ impl ExecutionReconciliationWorker {
         let port = Arc::downgrade(&port);
         let wake = wake.unwrap_or_else(|| Arc::new(Notify::new()));
         let status = Arc::new(Mutex::new(ExecutionReconciliationWorkerStatus::default()));
+        let accept_results = Arc::new(AtomicBool::new(true));
         let (stop_tx, mut stop_rx) = oneshot::channel();
         let task_wake = Arc::clone(&wake);
         let task_status = Arc::clone(&status);
+        let task_accept_results = Arc::clone(&accept_results);
         let handle = tokio::spawn(async move {
             let mut retry_delay = std::time::Duration::from_secs(1);
             let max_retry_delay = std::time::Duration::from_secs(60);
@@ -150,10 +164,29 @@ impl ExecutionReconciliationWorker {
                     let Some(port) = port.upgrade() else {
                         break;
                     };
-                    let result = port.reconcile_pending_orders();
-                    port.project_notifications();
-                    result
+                    // Broker/OpenD RPCs and their SQLite projection are
+                    // synchronous. Keep them off Tokio worker threads so a
+                    // slow/disconnected broker cannot stall HTTP or shutdown
+                    // coordination. The blocking task owns the upgraded port
+                    // only for the duration of one scan.
+                    let accept_results = Arc::clone(&task_accept_results);
+                    match tokio::task::spawn_blocking(move || {
+                        port.reconcile_pending_orders_with_projection(&accept_results)
+                    })
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(error) => Err(format!(
+                            "execution reconciliation blocking task failed: {error}"
+                        )),
+                    }
                 };
+                // Shutdown/terminate fences the owner before waiting for the
+                // blocking call.  Do not let that late result update status or
+                // re-enter the cadence after the fence has been observed.
+                if !task_accept_results.load(Ordering::Acquire) {
+                    break;
+                }
                 let now = crate::product::product_production_ports::provider_now_rfc3339();
                 let mut next_delay = std::time::Duration::from_secs(15);
                 {
@@ -195,14 +228,20 @@ impl ExecutionReconciliationWorker {
             let mut state = task_status
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            state.state = "stopped".to_owned();
-            state.next_retry_at = None;
+            // A shutdown deadline is a durable failure signal.  Preserve it
+            // when the detached outer task eventually observes the stop; a
+            // normal stop (or weak-owner drop) still reports `stopped`.
+            if state.state != "failed" {
+                state.state = "stopped".to_owned();
+                state.next_retry_at = None;
+            }
         });
         Arc::new(Self {
             stop_tx: Mutex::new(Some(stop_tx)),
             wake,
             handle: Mutex::new(Some(handle)),
             status,
+            accept_results,
         })
     }
 
@@ -219,6 +258,7 @@ impl ExecutionReconciliationWorker {
     }
 
     pub(crate) async fn shutdown(&self) {
+        self.accept_results.store(false, Ordering::Release);
         if let Some(sender) = self
             .stop_tx
             .lock()
@@ -232,21 +272,41 @@ impl ExecutionReconciliationWorker {
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .take();
-        if let Some(handle) = handle
-            && let Err(error) = handle.await
-        {
-            let mut state = self
-                .status
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            state.state = "failed".to_owned();
-            state.last_error = Some(format!(
-                "execution reconciliation worker join failed: {error}"
-            ));
+        if let Some(handle) = handle {
+            match tokio::time::timeout(EXECUTION_RECONCILIATION_SHUTDOWN_TIMEOUT, handle).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => {
+                    let mut state = self
+                        .status
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    state.state = "failed".to_owned();
+                    state.last_error = Some(format!(
+                        "execution reconciliation worker join failed: {error}"
+                    ));
+                }
+                Err(_) => {
+                    // A started spawn_blocking task cannot be cancelled. The
+                    // outer worker is detached by the timeout, while the
+                    // blocking closure keeps its port Arc until the current
+                    // broker call returns. Do not report a clean stop.
+                    let mut state = self
+                        .status
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    state.state = "failed".to_owned();
+                    state.last_error = Some(format!(
+                        "execution reconciliation worker shutdown exceeded {:?}",
+                        EXECUTION_RECONCILIATION_SHUTDOWN_TIMEOUT
+                    ));
+                    state.next_retry_at = None;
+                }
+            }
         }
     }
 
     pub(crate) fn terminate(&self) {
+        self.accept_results.store(false, Ordering::Release);
         if let Some(sender) = self
             .stop_tx
             .lock()

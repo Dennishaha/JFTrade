@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 use jftrade_integration_futu::{
     OpenDPredictionMarketReader, OpenDProviderRuntime, OpenDProviderRuntimeError,
-    OpenDSessionCoordinator,
+    OpenDSessionCoordinator, QuoteSessionResolver,
 };
 use jftrade_integration_marketdata_helper::HelperProcess;
 use jftrade_marketdata::ProviderRouter;
@@ -134,6 +134,7 @@ type Activation =
 /// Build the activation callback: starting the Futu provider runtime on
 /// demand, or failing closed when a helper-backed provider is requested while
 /// the helper is not ready.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn provider_activation(
     helper_process: &Option<Arc<Mutex<Option<HelperProcess>>>>,
     helper_health: Option<Arc<HelperHealthMonitor>>,
@@ -142,6 +143,7 @@ pub(super) fn provider_activation(
     live_hub: &Arc<jftrade_api::LiveHub>,
     settings_path: &std::path::Path,
     trade_runtime: Arc<SharedTradeReadRuntime>,
+    session_resolver: Option<Arc<dyn QuoteSessionResolver>>,
 ) -> Result<Activation, OpenDProviderRuntimeError> {
     let dyn_helper_for_activation = helper_process.clone();
     let activation_runtime = Arc::clone(dynamic_opend);
@@ -149,6 +151,7 @@ pub(super) fn provider_activation(
     let activation_hub = Arc::clone(live_hub);
     let settings_path = settings_path.to_owned();
     let trade_runtime_for_activation = Arc::clone(&trade_runtime);
+    let session_resolver_for_activation = session_resolver;
     Ok(Arc::new(move |provider, previous| {
         let has_managed_consumers = if previous.is_some_and(|prev| prev != provider) {
             let router = activation_router
@@ -176,6 +179,7 @@ pub(super) fn provider_activation(
                     let mut configuration =
                         opend_provider_config(&settings_path, Arc::clone(router))
                             .map_err(|error| error.to_string())?;
+                    configuration.task.session_resolver = session_resolver_for_activation.clone();
                     configuration.task.event_listener = Some(Arc::new(
                         LiveHubOpenDEventListener::with_reconciliation_wake(
                             Arc::clone(&activation_hub),
@@ -214,6 +218,11 @@ pub(super) fn provider_activation(
                     trade_runtime_for_activation.set(read_client, trade_logged_in);
                     trade_runtime_for_activation.set_writer(write_client);
                     trade_runtime_for_activation.set_historical_klines(Some(historical_reader));
+                    trade_runtime_for_activation.set_stock_screen_reader(Some(Arc::new(
+                        jftrade_integration_futu::OpenDStockScreenReader::new(
+                            provider.coordinator(),
+                        ),
+                    )));
                     trade_runtime_for_activation.set_market_microstructure(Some(Arc::new(
                         jftrade_integration_futu::OpenDMarketMicrostructureReader::new(
                             provider.coordinator(),

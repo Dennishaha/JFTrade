@@ -14,6 +14,7 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use crate::adk_artifact::AdkArtifactStore;
 use crate::adk_session::{AdkSessionStore, AdkSessionWriteLease};
 use crate::schema_manifest::{SchemaManifestError, validate_current};
+use crate::session_deletion_fence;
 #[path = "adk_workflow_queue.rs"]
 mod workflow_queue;
 
@@ -402,6 +403,65 @@ impl AdkStore {
             .map_err(|_| AdkStoreError::LockUnavailable)
     }
 
+    fn ensure_session_write_allowed(&self, session_id: &str) -> Result<(), AdkStoreError> {
+        if session_deletion_fence::is_fenced(&self.path, session_id) {
+            return Err(AdkStoreError::Conflict(format!(
+                "session {session_id} is fenced by cascade deletion"
+            )));
+        }
+        Ok(())
+    }
+
+    fn ensure_run_write_allowed(
+        &self,
+        connection: &Connection,
+        run_id: &str,
+    ) -> Result<(), AdkStoreError> {
+        let session_id = connection
+            .query_row(
+                "SELECT session_id FROM adk_runs WHERE id = ?1",
+                params![run_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?
+            .ok_or_else(|| AdkStoreError::NotFound(run_id.to_owned()))?;
+        self.ensure_session_write_allowed(&session_id)
+    }
+
+    fn ensure_optional_run_write_allowed(
+        &self,
+        connection: &Connection,
+        run_id: &str,
+    ) -> Result<(), AdkStoreError> {
+        if run_id.trim().is_empty() {
+            Ok(())
+        } else {
+            self.ensure_run_write_allowed(connection, run_id)
+        }
+    }
+
+    fn ensure_existing_run_write_allowed(
+        &self,
+        connection: &Connection,
+        run_id: &str,
+    ) -> Result<bool, AdkStoreError> {
+        let session_id = connection
+            .query_row(
+                "SELECT session_id FROM adk_runs WHERE id = ?1",
+                params![run_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        if let Some(session_id) = session_id {
+            self.ensure_session_write_allowed(&session_id)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn now_rfc3339() -> String {
         OffsetDateTime::now_utc()
             .format(&Rfc3339)
@@ -783,6 +843,7 @@ impl AdkStore {
     ) -> Result<StoredAdkEntity, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(id)?;
         let created_at = connection
             .query_row(
                 "SELECT created_at FROM adk_sessions WHERE id = ?1",
@@ -815,6 +876,9 @@ impl AdkStore {
                 "cannot delete reserved user session or empty session id".to_owned(),
             ));
         }
+        session_deletion_fence::begin(&self.path, id).map_err(|_| {
+            AdkStoreError::Invariant("session deletion fence is unavailable".to_owned())
+        })?;
         let mut connection = self.lock_connection()?;
         let transaction = connection.transaction().map_err(AdkStoreError::Query)?;
         let mut total_deleted = 0;
@@ -861,6 +925,15 @@ impl AdkStore {
             return Err(AdkStoreError::Validation(
                 "cannot delete reserved user session or empty session id".to_owned(),
             ));
+        }
+        for path in [
+            self.path.as_path(),
+            session_store.path(),
+            artifact_store.path(),
+        ] {
+            session_deletion_fence::begin(path, id).map_err(|_| {
+                AdkStoreError::Invariant("session deletion fence is unavailable".to_owned())
+            })?;
         }
         let artifacts_deleted = artifact_store.delete_session_artifacts_by_id(id)?;
         let session_db_deleted = session_store.delete_session_by_id(id)?;
@@ -911,7 +984,7 @@ impl AdkStore {
         session_id: &str,
         payload_json: &str,
     ) -> Result<StoredAdkEntity, AdkStoreError> {
-        self.upsert_simple_entity("adk_session_context_state", session_id, payload_json)
+        self.upsert_simple_entity_for_session("adk_session_context_state", session_id, payload_json)
     }
 
     /// Commit a context projection and its handoff segment under one SQLite
@@ -944,6 +1017,7 @@ impl AdkStore {
 
         let now = Self::now_rfc3339();
         let mut connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(session_id)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(AdkStoreError::Query)?;
@@ -1089,6 +1163,7 @@ impl AdkStore {
         }
         let now = Self::now_rfc3339();
         let mut connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(session_id)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(AdkStoreError::Query)?;
@@ -1160,6 +1235,7 @@ impl AdkStore {
         }
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(session_id)?;
         connection
             .execute(
                 "INSERT INTO adk_handoff_segments
@@ -1202,6 +1278,7 @@ impl AdkStore {
     ) -> Result<StoredAdkEntity, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(session_id)?;
         let created_at = connection
             .query_row(
                 "SELECT created_at FROM adk_session_composer_state WHERE session_id = ?1 ORDER BY updated_at DESC LIMIT 1",
@@ -1254,6 +1331,10 @@ impl AdkStore {
             .format(&Rfc3339)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned());
         let mut connection = self.lock_connection()?;
+        // Resolve the session while holding the ADK connection mutex.  The
+        // deletion fence is set before a cascade acquires any database lock,
+        // so a late claim cannot race the destructive boundary.
+        self.ensure_existing_run_write_allowed(&connection, run_id)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(AdkStoreError::Query)?;
@@ -1482,6 +1563,7 @@ impl AdkStore {
     ) -> Result<StoredAdkRun, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(params.session_id)?;
         connection
             .execute(
                 "INSERT INTO adk_runs (id, session_id, agent_id, status, client_request_id, request_fingerprint, payload_json, created_at, updated_at)
@@ -1532,6 +1614,7 @@ impl AdkStore {
         }
         let mut connection = self.lock_connection()?;
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
+        self.ensure_session_write_allowed(params.session_id)?;
         let now = Self::now_rfc3339();
         let result = (|| {
             let transaction = connection
@@ -1599,6 +1682,7 @@ impl AdkStore {
         }
         let mut connection = self.lock_connection()?;
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
+        self.ensure_session_write_allowed(params.session_id)?;
         let result = (|| {
             let transaction = connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -1939,6 +2023,7 @@ impl AdkStore {
         validate_run_lease_identity(owner_id, run_lease_token)?;
         let mut connection = self.lock_connection()?;
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
+        self.ensure_existing_run_write_allowed(&connection, id)?;
         let result = (|| {
             let now = Self::now_rfc3339();
             let transaction = connection
@@ -2034,6 +2119,9 @@ impl AdkStore {
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
+        if !self.ensure_existing_run_write_allowed(&connection, id)? {
+            return Ok(false);
+        }
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
@@ -2427,6 +2515,7 @@ impl AdkStore {
         })?;
 
         let mut connection = self.lock_connection()?;
+        self.ensure_existing_run_write_allowed(&connection, id)?;
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
@@ -2660,6 +2749,9 @@ impl AdkStore {
         lease: Option<(&str, i64)>,
     ) -> Result<bool, AdkStoreError> {
         let mut connection = self.lock_connection()?;
+        if !self.ensure_existing_run_write_allowed(&connection, id)? {
+            return Ok(false);
+        }
         let _session_write_lease = attach_adk_session_database(&connection, session_store)?;
         let result = (|| {
             let now = Self::now_rfc3339();
@@ -2739,6 +2831,7 @@ impl AdkStore {
     ) -> Result<StoredAdkApproval, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_run_write_allowed(&connection, run_id)?;
         connection
             .execute(
                 "INSERT INTO adk_approvals (id, run_id, agent_id, status, payload_json, created_at, updated_at)
@@ -3666,6 +3759,18 @@ impl AdkStore {
     ) -> Result<StoredAdkTask, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_optional_run_write_allowed(&connection, run_id)?;
+        let existing_run_id = connection
+            .query_row(
+                "SELECT run_id FROM adk_tasks WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        if let Some(existing_run_id) = existing_run_id {
+            self.ensure_optional_run_write_allowed(&connection, &existing_run_id)?;
+        }
         let created_at = connection
             .query_row(
                 "SELECT created_at FROM adk_tasks WHERE id = ?1",
@@ -3708,6 +3813,18 @@ impl AdkStore {
     ) -> Result<bool, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        let existing_run_id = connection
+            .query_row(
+                "SELECT run_id FROM adk_tasks WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(AdkStoreError::Query)?;
+        if let Some(existing_run_id) = existing_run_id {
+            self.ensure_optional_run_write_allowed(&connection, &existing_run_id)?;
+        }
+        self.ensure_optional_run_write_allowed(&connection, run_id)?;
         let affected = connection
             .execute(
                 "UPDATE adk_tasks
@@ -4298,8 +4415,30 @@ impl AdkStore {
         id: &str,
         payload_json: &str,
     ) -> Result<StoredAdkEntity, AdkStoreError> {
+        self.upsert_simple_entity_inner(table, id, payload_json, None)
+    }
+
+    fn upsert_simple_entity_for_session(
+        &self,
+        table: &str,
+        session_id: &str,
+        payload_json: &str,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
+        self.upsert_simple_entity_inner(table, session_id, payload_json, Some(session_id))
+    }
+
+    fn upsert_simple_entity_inner(
+        &self,
+        table: &str,
+        id: &str,
+        payload_json: &str,
+        session_id: Option<&str>,
+    ) -> Result<StoredAdkEntity, AdkStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        if let Some(session_id) = session_id {
+            self.ensure_session_write_allowed(session_id)?;
+        }
         let created_at = connection
             .query_row(
                 &format!("SELECT created_at FROM {table} WHERE id = ?1"),

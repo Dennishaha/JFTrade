@@ -6,7 +6,7 @@
 //! the Rust ownership boundary.
 
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use jftrade_kernel::{Decimal, DecimalTradingExt};
@@ -19,6 +19,7 @@ use crate::schema_manifest::{SchemaManifestError, validate_current};
 #[path = "backtest_market_data_aggregation.rs"]
 mod aggregation;
 use aggregation::*;
+pub use aggregation::{CalendarDaySchedule, CalendarDaySession, CalendarScheduleResolver};
 
 const BACKTEST_COMPONENT: &str = "backtest";
 const BACKTEST_SCHEMA_VERSION: i64 = 3;
@@ -67,6 +68,7 @@ pub enum BacktestMarketDataStoreError {
 pub struct BacktestMarketDataStore {
     path: PathBuf,
     connection: Mutex<Connection>,
+    calendar_resolver: RwLock<Option<Arc<dyn CalendarScheduleResolver>>>,
     _writer_lease: WriterLease,
 }
 
@@ -131,8 +133,17 @@ impl BacktestMarketDataStore {
         Ok(Self {
             path: path.to_path_buf(),
             connection: Mutex::new(connection),
+            calendar_resolver: RwLock::new(None),
             _writer_lease: writer_lease,
         })
+    }
+
+    /// Bind the composition root's calendar owner. Legacy and test callers
+    /// may leave this unset and retain the deterministic fallback schedule.
+    pub fn set_calendar_resolver(&self, resolver: Arc<dyn CalendarScheduleResolver>) {
+        if let Ok(mut slot) = self.calendar_resolver.write() {
+            *slot = Some(resolver);
+        }
     }
 
     pub fn path(&self) -> &Path {
@@ -257,15 +268,90 @@ impl BacktestMarketDataStore {
             .connection
             .lock()
             .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?;
+        let calendar_resolver = self
+            .calendar_resolver
+            .read()
+            .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?
+            .clone();
+        let prefer_extended_daily_source = period_interval(interval) == Some(CalendarPeriod::Day)
+            && market_from_symbol(symbol) == Some("US")
+            && session_scope.trim().eq_ignore_ascii_case("extended");
+        let mut direct_candles = None;
         if table_exists(&connection, &table)? {
             let candles = read_direct_range(&connection, &table, start_time_ms, end_time_ms)?;
-            if !candles.is_empty() || !is_aggregate_interval(interval) {
+            if !candles.is_empty() {
+                if !prefer_extended_daily_source {
+                    return Ok(candles);
+                }
+                direct_candles = Some(candles);
+            } else if !is_aggregate_interval(interval) {
                 return Ok(candles);
             }
         } else if !is_aggregate_interval(interval) {
             // Preserve the existing direct-read error for a missing table.
             return read_direct_range(&connection, &table, start_time_ms, end_time_ms);
         }
+
+        if let Some(period) = period_interval(interval) {
+            let mut last_coverage_error = None;
+            let mut saw_empty_period = false;
+            for (base_interval, source_minutes) in period_source_intervals(period, session_scope) {
+                let base_table = kline_table_name(
+                    provider_id,
+                    symbol,
+                    base_interval,
+                    rehab_type,
+                    session_scope,
+                )?;
+                if !table_exists(&connection, &base_table)? {
+                    continue;
+                }
+                match aggregate_period_range(
+                    &connection,
+                    &base_table,
+                    base_interval,
+                    *source_minutes,
+                    symbol,
+                    interval,
+                    session_scope,
+                    calendar_resolver.as_deref(),
+                    start_time_ms,
+                    end_time_ms,
+                ) {
+                    Ok(candles) if !candles.is_empty() => return Ok(candles),
+                    // A source can be present and valid while the requested
+                    // cutoff falls inside its calendar bucket.  The Go
+                    // trading-period reader omits that open bucket and
+                    // returns an empty result; keep looking for a more
+                    // suitable lower-period source first, then preserve the
+                    // empty result instead of misreporting missing coverage.
+                    Ok(_) => saw_empty_period = true,
+                    Err(BacktestMarketDataStoreError::Coverage(error)) => {
+                        last_coverage_error = Some(BacktestMarketDataStoreError::Coverage(error));
+                    }
+                    Err(other_error) => return Err(other_error),
+                }
+            }
+            if let Some(error) = last_coverage_error {
+                if let Some(candles) = direct_candles {
+                    return Ok(candles);
+                }
+                return Err(error);
+            }
+            if let Some(candles) = direct_candles {
+                return Ok(candles);
+            }
+            if saw_empty_period {
+                return Ok(Vec::new());
+            }
+            return Err(missing_coverage(
+                symbol,
+                interval,
+                start_time_ms,
+                end_time_ms,
+            ));
+        }
+
         let candidates = aggregation_candidate_intervals(interval);
         let mut last_coverage_error = None;
         for (cand_interval, cand_min) in &candidates {
@@ -284,6 +370,7 @@ impl BacktestMarketDataStore {
                     symbol,
                     interval,
                     session_scope,
+                    calendar_resolver.as_deref(),
                     start_time_ms,
                     end_time_ms,
                 ) {
@@ -312,6 +399,7 @@ impl BacktestMarketDataStore {
             symbol,
             interval,
             session_scope,
+            calendar_resolver.as_deref(),
             start_time_ms,
             end_time_ms,
         )
@@ -348,7 +436,10 @@ impl BacktestMarketDataStore {
             .connection
             .lock()
             .map_err(|_| BacktestMarketDataStoreError::LockUnavailable)?;
-        if table_exists(&connection, &table)? {
+        let prefer_extended_daily_source = period_interval(interval) == Some(CalendarPeriod::Day)
+            && market_from_symbol(symbol) == Some("US")
+            && session_scope.trim().eq_ignore_ascii_case("extended");
+        if table_exists(&connection, &table)? && !prefer_extended_daily_source {
             if is_desc {
                 let candles = read_direct_desc_limit(
                     &connection,
@@ -398,6 +489,26 @@ impl BacktestMarketDataStore {
         start_time_ms: i64,
         limit: usize,
     ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        if let Some(period) = period_interval(interval) {
+            let normalized = normalize_limit(limit);
+            let nominal = period_nominal_duration_ms(period);
+            let lookback = nominal.saturating_mul(2);
+            let broad_start = start_time_ms.saturating_sub(lookback);
+            let broad_end = start_time_ms
+                .saturating_add(nominal.saturating_mul((normalized as i64).saturating_add(2)));
+            let mut candles = self.read_candles(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                broad_start,
+                broad_end,
+            )?;
+            candles.retain(|candle| candle.end_time >= start_time_ms);
+            candles.truncate(normalized);
+            return Ok(candles);
+        }
         let duration = interval_duration_ms(interval).unwrap_or(1);
         let first = floor_div(start_time_ms, duration).saturating_mul(duration);
         let end = first.saturating_add(duration.saturating_mul(normalize_limit(limit) as i64));
@@ -425,6 +536,26 @@ impl BacktestMarketDataStore {
         end_time_ms: i64,
         limit: usize,
     ) -> Result<Vec<StoredBacktestCandle>, BacktestMarketDataStoreError> {
+        if let Some(period) = period_interval(interval) {
+            let normalized = normalize_limit(limit);
+            let nominal = period_nominal_duration_ms(period);
+            let lookback = nominal.saturating_mul((normalized as i64).saturating_add(2));
+            let broad_start = end_time_ms.saturating_sub(lookback);
+            let mut candles = self.read_candles(
+                provider_id,
+                symbol,
+                interval,
+                rehab_type,
+                session_scope,
+                broad_start,
+                end_time_ms,
+            )?;
+            candles.retain(|candle| candle.end_time < end_time_ms);
+            if candles.len() > normalized {
+                candles = candles[candles.len() - normalized..].to_vec();
+            }
+            return Ok(candles);
+        }
         let count = normalize_limit(limit) as i64;
         let duration = interval_duration_ms(interval).unwrap_or(1);
         let start = end_time_ms.saturating_sub(duration.saturating_mul(count));
@@ -706,8 +837,19 @@ fn kline_table_name(
 fn canonical_interval(interval: &str) -> String {
     match interval.trim().to_ascii_lowercase().as_str() {
         "1min" => "1m",
+        "3min" => "3m",
         "5min" => "5m",
+        "10min" => "10m",
         "15min" => "15m",
+        "30min" => "30m",
+        "60m" | "60min" | "1hour" => "1h",
+        "2hour" => "2h",
+        "4hour" => "4h",
+        "6hour" => "6h",
+        "12hour" => "12h",
+        "day" | "daily" | "d" => "1d",
+        "week" | "weekly" | "w" => "1w",
+        "1mon" | "1month" | "month" | "monthly" | "mo" => "1mo",
         normalized => normalized,
     }
     .to_owned()

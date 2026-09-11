@@ -4,6 +4,7 @@ use crate::product::product_research_screen_write_port::{
 };
 use std::io::{Read, Write};
 use std::net::TcpListener as StdTcpListener;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -20,6 +21,144 @@ fn helper(base_url: String) -> HelperClient {
         retry_delay: Duration::ZERO,
     })
     .expect("helper client")
+}
+
+#[derive(Debug)]
+struct FutuScreenFixture {
+    page: jftrade_integration_futu::StockScreenPage,
+}
+
+impl jftrade_integration_futu::StockScreenReadPort for FutuScreenFixture {
+    fn query(
+        &self,
+        _query: &jftrade_integration_futu::StockScreenQuery,
+    ) -> Result<jftrade_integration_futu::StockScreenPage, jftrade_integration_futu::StockScreenQueryError>
+    {
+        Ok(self.page.clone())
+    }
+}
+
+#[test]
+fn futu_stock_screen_projects_exact_mainland_rows_and_omits_combined_total() {
+    use jftrade_integration_futu::{
+        StockScreenProperty, StockScreenPropertyParams, StockScreenResult, StockScreenSecurity,
+        StockScreenValue,
+    };
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, true);
+    let runtime = Arc::new(SharedTradeReadRuntime::default());
+    runtime.set_stock_screen_reader(Some(Arc::new(FutuScreenFixture {
+        page: jftrade_integration_futu::StockScreenPage {
+            last_page: false,
+            all_count: Some(20),
+            items: vec![
+                jftrade_integration_futu::StockScreenItem {
+                    stock_id: 101,
+                    security: Some(StockScreenSecurity {
+                        market: "SH".to_owned(),
+                        code: "600519".to_owned(),
+                        instrument_id: "SH.600519".to_owned(),
+                    }),
+                    results: vec![
+                        StockScreenResult {
+                            factor_key: "basic.code".to_owned(),
+                            property: StockScreenProperty {
+                                category: "basic".to_owned(),
+                                provider_id: 1101,
+                                factor_key: "basic.code".to_owned(),
+                                params: StockScreenPropertyParams::default(),
+                            },
+                            value: StockScreenValue::String {
+                                value: "600519".to_owned(),
+                            },
+                            enum_type_name: None,
+                            enum_name: None,
+                            end_time: None,
+                        },
+                        StockScreenResult {
+                            factor_key: "basic.name".to_owned(),
+                            property: StockScreenProperty {
+                                category: "basic".to_owned(),
+                                provider_id: 1102,
+                                factor_key: "basic.name".to_owned(),
+                                params: StockScreenPropertyParams::default(),
+                            },
+                            value: StockScreenValue::String {
+                                value: "贵州茅台".to_owned(),
+                            },
+                            enum_type_name: None,
+                            enum_name: None,
+                            end_time: None,
+                        },
+                        StockScreenResult {
+                            factor_key: "simple.price".to_owned(),
+                            property: StockScreenProperty {
+                                category: "simple".to_owned(),
+                                provider_id: 2201,
+                                factor_key: "simple.price".to_owned(),
+                                params: StockScreenPropertyParams::default(),
+                            },
+                            value: StockScreenValue::Number { value: 1_700.0 },
+                            enum_type_name: None,
+                            enum_name: None,
+                            end_time: None,
+                        },
+                    ],
+                },
+                jftrade_integration_futu::StockScreenItem {
+                    stock_id: 202,
+                    security: Some(StockScreenSecurity {
+                        market: "SZ".to_owned(),
+                        code: "000001".to_owned(),
+                        instrument_id: "SZ.000001".to_owned(),
+                    }),
+                    results: Vec::new(),
+                },
+            ],
+        },
+    })));
+    let port = ProductionResearchScreenHelperPort {
+        active_provider_state: state,
+        helper: None,
+        trade_runtime: Some(runtime),
+    };
+    let request = ResearchScreenWriteQuery {
+        broker_id: "futu".to_owned(),
+        account_id: String::new(),
+        trading_environment: String::new(),
+        market: "SH".to_owned(),
+        offset: 10,
+        limit: 10,
+        definition: json!({
+            "catalogVersion": "futu-stock-screen-v1",
+            "querySchemaVersion": 2,
+            "market": "SH",
+            "pool": {},
+            "conditions": [],
+            "columns": [{"columnId": "price", "factor": {"instanceId": "price", "factorKey": "simple.price", "params": {}}}],
+            "sorts": []
+        }),
+        columns: vec![ResearchScreenColumn {
+            column_id: "price".to_owned(),
+            instance_id: "price".to_owned(),
+            factor_key: "simple.price".to_owned(),
+            label: "最新价".to_owned(),
+            unit: "currency".to_owned(),
+        }],
+    };
+    let value = port.query(&request).expect("Futu stock screen");
+    assert_eq!(value["entries"].as_array().map(Vec::len), Some(1));
+    assert_eq!(value["entries"][0]["instrumentId"], "SH.600519");
+    assert_eq!(value["entries"][0]["quoteCurrency"], "CNY");
+    assert_eq!(value["entries"][0]["cells"]["price"]["value"]["number"], 1_700.0);
+    assert!(value.get("total").is_none());
+    assert_eq!(
+        value["warnings"][0],
+        "OpenD reports only a combined A-share total; total is omitted for exact SH/SZ results."
+    );
+    assert_eq!(value["nextOffset"], 12);
 }
 
 #[test]
@@ -258,6 +397,7 @@ async fn research_screen_helper_projects_rows_and_cells_without_fixture_defaults
     let port = ProductionResearchScreenHelperPort {
         active_provider_state: state,
         helper: Some(helper(format!("http://{address}"))),
+        trade_runtime: None,
     };
     let request = ResearchScreenWriteQuery {
         broker_id: "yfinance".to_owned(),

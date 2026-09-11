@@ -5,6 +5,8 @@ use std::fs;
 use std::io::Read as _;
 use std::net::{SocketAddr, TcpListener as StdTcpListener, TcpStream as StdTcpStream};
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -800,6 +802,147 @@ async fn test_active_provider_mutation_atomic_single_state_source() {
         prov_resp3.body["data"]["descriptor"]["selectionId"],
         "akshare"
     );
+
+    runtime.shutdown().await.expect("clean shutdown");
+    helper_task.abort();
+}
+
+#[tokio::test]
+async fn test_research_screen_route_uses_production_helper_and_preserves_upstream_rate_limit() {
+    let helper_listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind research helper fixture");
+    let helper_address = helper_listener
+        .local_addr()
+        .expect("research helper fixture address");
+    let screen_calls = Arc::new(AtomicUsize::new(0));
+    let server_calls = Arc::clone(&screen_calls);
+    let helper_task = tokio::spawn(async move {
+        loop {
+            let Ok((mut stream, _)) = helper_listener.accept().await else {
+                break;
+            };
+            let calls = Arc::clone(&server_calls);
+            tokio::spawn(async move {
+                let mut request = vec![0_u8; 16 * 1024];
+                let read = stream.read(&mut request).await.unwrap_or(0);
+                let request = String::from_utf8_lossy(&request[..read]);
+                let (status, body, retry_after) = if request.starts_with("GET /healthz ") {
+                    (200, r#"{"status":"ok"}"#.to_owned(), None)
+                } else if request.starts_with("POST /providers/yfinance/screen ") {
+                    assert!(request.contains(r#""market":"US""#));
+                    assert!(request.contains(r#""offset":0"#));
+                    let call = calls.fetch_add(1, Ordering::SeqCst) + 1;
+                    if call == 1 {
+                        (
+                            200,
+                            r#"{"entries":[{"instrument_id":"US.AAPL","name":"Apple","industry":"Technology","quote_currency":"USD","values":{"simple.price":189.25}}],"total":1,"has_more":false,"next_offset":null,"as_of":"2026-08-31T12:00:00-04:00"}"#.to_owned(),
+                            None,
+                        )
+                    } else {
+                        (
+                            429,
+                            r#"{"error":{"code":"RATE_LIMITED","message":"slow down"}}"#.to_owned(),
+                            Some(3),
+                        )
+                    }
+                } else {
+                    (404, r#"{"error":{"message":"not found"}}"#.to_owned(), None)
+                };
+                let retry_header = retry_after
+                    .map(|seconds| format!("Retry-After: {seconds}\r\n"))
+                    .unwrap_or_default();
+                let response = format!(
+                    "HTTP/1.1 {status} OK\r\nContent-Type: application/json\r\n{retry_header}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .await
+                    .expect("write research helper response");
+            });
+        }
+    });
+
+    let temp_dir = tempfile::tempdir().expect("temporary directory");
+    let settings_path = temp_dir.path().join("settings.json");
+    fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&json!({
+            "activeMarketDataProvider": "yfinance",
+            "marketData": {}
+        }))
+        .expect("settings JSON"),
+    )
+    .expect("write settings");
+    let product = ProductConfig::desktop_production(
+        "127.0.0.1:0".parse().expect("API address"),
+        &settings_path,
+        TEST_DESKTOP_TOKEN,
+    )
+    .expect("production config")
+    .with_market_data_helper(
+        HelperClient::new(HelperClientConfig {
+            base_url: format!("http://{helper_address}"),
+            bearer_token: None,
+            request_timeout: Duration::from_secs(2),
+            max_attempts: 1,
+            retry_delay: Duration::ZERO,
+        })
+        .expect("helper client"),
+    );
+    let runtime = start_product_runtime(
+        ProductRuntimeConfig::desktop(product, DesktopRetainedRuntimeConfig::default())
+            .expect("runtime config"),
+    )
+    .await
+    .expect("production runtime");
+
+    let body = json!({
+        "brokerId": "yfinance",
+        "market": "US",
+        "catalogVersion": "embedded-stock-screen-v1",
+        "querySchemaVersion": 2,
+        "columns": [
+            {"columnId": "code", "factor": {"instanceId": "code", "factorKey": "basic.code"}},
+            {"columnId": "price", "factor": {"instanceId": "price", "factorKey": "simple.price"}}
+        ],
+        "page": {"offset": 0, "limit": 50}
+    });
+    let success = request_api(
+        runtime.startup_record().address,
+        "POST",
+        "/api/v1/research/screens",
+        Some(&body),
+    )
+    .await;
+    assert_eq!(success.status, 200);
+    assert_eq!(success.body["data"]["provider"]["brokerId"], "yfinance");
+    assert_eq!(
+        success.body["data"]["entries"][0]["instrumentId"],
+        "US.AAPL"
+    );
+    assert_eq!(
+        success.body["data"]["entries"][0]["cells"]["price"]["value"]["number"],
+        189.25
+    );
+    assert_eq!(success.body["data"]["total"], 1);
+    assert_eq!(screen_calls.load(Ordering::SeqCst), 1);
+
+    let limited = request_api(
+        runtime.startup_record().address,
+        "POST",
+        "/api/v1/research/screens",
+        Some(&body),
+    )
+    .await;
+    assert_eq!(limited.status, 429);
+    assert_eq!(
+        limited.body["error"]["code"],
+        "RESEARCH_SCREEN_RATE_LIMITED"
+    );
+    assert_eq!(limited.body["error"]["message"], "slow down");
+    assert_eq!(screen_calls.load(Ordering::SeqCst), 2);
 
     runtime.shutdown().await.expect("clean shutdown");
     helper_task.abort();

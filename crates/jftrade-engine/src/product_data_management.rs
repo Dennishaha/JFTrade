@@ -457,6 +457,10 @@ mod tests {
         include!("product_data_management_backup_restore_drill_tests.rs");
     }
 
+    mod legacy_nine_database_tests {
+        include!("product_data_management_legacy_nine_database_tests.rs");
+    }
+
     use jftrade_datamanagement::OverviewRequest;
     use std::collections::BTreeMap;
     use std::path::PathBuf;

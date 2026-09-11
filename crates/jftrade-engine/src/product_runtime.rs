@@ -40,6 +40,11 @@ pub use product_runtime_helper_health::{
 #[path = "product_runtime_provider_activation.rs"]
 mod product_runtime_provider_activation;
 
+#[path = "product_runtime_calendar.rs"]
+mod product_runtime_calendar;
+pub(crate) use product_runtime_calendar::RuntimeBacktestCalendarResolver;
+use product_runtime_calendar::RuntimeCalendarSessionResolver;
+
 #[path = "product_runtime_opend_listener.rs"]
 mod product_runtime_opend_listener;
 use product_runtime_opend_listener::LiveHubOpenDEventListener;

@@ -16,6 +16,7 @@ mod status;
 
 pub use manager::{CalendarManager, CalendarManagerError};
 pub use manager_registry::CalendarSourceRegistry;
+pub use manager_session::CalendarSessionContext;
 pub use manager_types::{
     CalendarCancellationToken, CalendarManagerSettings, CalendarManualOverride,
     CalendarPersistencePort, CalendarProbeItem, CalendarProbeResult, CalendarRefreshResult,

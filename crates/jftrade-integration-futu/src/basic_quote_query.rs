@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -11,7 +12,8 @@ use crate::quote_push::decode_basic_quote_response;
 use crate::subscription_executor::split_instrument;
 use crate::{
     BasicQuote, BasicQuoteTickError, OpenDInitializedSession, OpenDManagedSessionError,
-    OpenDSubscriptionLifecycle, OpenDTcpProbeError, PROTO_GET_BASIC_QOT, basic_quote_ticks,
+    OpenDSubscriptionLifecycle, OpenDTcpProbeError, PROTO_GET_BASIC_QOT, QuoteSessionResolver,
+    basic_quote_ticks_with_resolver,
 };
 
 const BASIC_QUOTE_QUERY_TIMEOUT: Duration = Duration::from_millis(900);
@@ -24,6 +26,7 @@ const BASIC_QUOTE_RETRY_BACKOFF: Duration = Duration::ZERO;
 pub struct OpenDBasicQuoteExecutor {
     session: OpenDInitializedSession,
     query_timeout: Duration,
+    session_resolver: Option<Arc<dyn QuoteSessionResolver>>,
 }
 
 impl OpenDBasicQuoteExecutor {
@@ -31,7 +34,16 @@ impl OpenDBasicQuoteExecutor {
         Self {
             session,
             query_timeout: BASIC_QUOTE_QUERY_TIMEOUT,
+            session_resolver: None,
         }
+    }
+
+    pub fn with_session_resolver(
+        mut self,
+        resolver: Option<Arc<dyn QuoteSessionResolver>>,
+    ) -> Self {
+        self.session_resolver = resolver;
+        self
     }
 
     #[cfg(test)]
@@ -111,7 +123,12 @@ impl OpenDBasicQuoteExecutor {
     ) -> Result<Vec<Tick>, BasicQuoteQueryError> {
         let generation = lifecycle.generation();
         let quotes = self.query(lifecycle, instruments)?;
-        Ok(basic_quote_ticks(quotes, observed_at_ms, generation)?)
+        Ok(basic_quote_ticks_with_resolver(
+            quotes,
+            observed_at_ms,
+            generation,
+            self.session_resolver.as_deref(),
+        )?)
     }
 }
 

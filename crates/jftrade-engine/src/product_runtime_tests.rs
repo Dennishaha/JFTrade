@@ -186,6 +186,15 @@ async fn product_runtime_composes_opend_provider_and_fences_shutdown_ownership()
     assert_eq!(runtime.startup_record().worker_status, "unavailable");
     assert!(runtime.market_data_opend().is_some());
     assert!(runtime.market_data_opend_runtime_status().is_some());
+    assert!(
+        runtime
+            .supervisor
+            .production_ports
+            .as_ref()
+            .and_then(|ports| ports.trade_runtime.as_ref())
+            .is_some_and(|trade_runtime| trade_runtime.stock_screen_reader_available()),
+        "provider startup must install the typed Futu stock-screen reader"
+    );
     {
         let state = router.lock().expect("router lock").runtime().clone();
         assert_eq!(state.active_provider, "futu");

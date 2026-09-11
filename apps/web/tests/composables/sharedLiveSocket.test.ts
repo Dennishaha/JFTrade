@@ -311,6 +311,82 @@ describe("SharedLiveSocketHub", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("does not replay a duplicate event into socket-local state after reconnect", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    const hub = getSharedLiveSocketHub();
+    const listener = vi.fn();
+    hub.addEventListener(listener);
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+
+    const event = createLiveEnvelope(
+      {
+        type: "heartbeat",
+        at: "2026-07-18T00:00:00Z",
+      },
+      {
+        source: "system",
+        entityId: "live-heartbeat",
+        eventId: "heartbeat-replayed",
+      },
+    );
+    MockWebSocket.instances[0]?.emitMessage(event);
+    MockWebSocket.instances[0]?.emitMessage(event);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(hub.events.value).toHaveLength(1);
+    expect(hub.lastHeartbeat.value).toBe("2026-07-18T00:00:00Z");
+  });
+
+  it("resubscribes after the server reports a lagged broadcast receiver", async () => {
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+    const hub = getSharedLiveSocketHub();
+    const listener = vi.fn();
+    hub.addEventListener(listener);
+    hub.setProviderBrokerId(hub.createOwnerId("provider"), "alpha");
+    hub.setActiveInstrument(hub.createOwnerId("chart"), "US.AAPL");
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+
+    const socket = MockWebSocket.instances[0];
+    expect(socket?.sentMessages).toHaveLength(1);
+
+    socket?.emitMessage(
+      createLiveEnvelope(
+        {
+          type: "live.resync",
+          at: "2026-07-18T00:00:01Z",
+          reason: "broadcast_lagged",
+          droppedEvents: 3,
+          action: "resubscribe",
+        },
+        {
+          source: "system",
+          entityId: "live-websocket",
+          eventId: "live-resync-1",
+        },
+      ),
+    );
+
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "live.resync",
+        droppedEvents: 3,
+      }),
+    );
+    expect(socket?.sentMessages).toHaveLength(2);
+    expect(JSON.parse(socket?.sentMessages.at(-1) ?? "{}")).toEqual({
+      type: "subscribe",
+      subscriptions: {
+        providerBrokerId: "alpha",
+        activeInstruments: ["US.AAPL"],
+        securityDetails: [],
+        depth: [],
+        consoleRefresh: false,
+      },
+    });
+  });
+
   it("waits for connection immediately, after async connects, and on timeouts", async () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
 

@@ -16,6 +16,7 @@ mod maintenance;
 mod research_preset;
 mod schema_manifest;
 mod schema_migrations;
+mod session_deletion_fence;
 mod strategy_definition;
 mod strategy_runtime;
 mod strategy_runtime_link;
@@ -46,7 +47,8 @@ pub use adk_session::{
 };
 pub use backtest_market_data::{
     BACKTEST_MARKET_DATA_PRODUCTION_PROFILE, BACKTEST_MARKET_DATA_TEST_CUTOVER_PROFILE,
-    BacktestMarketDataStore, BacktestMarketDataStoreError, StoredBacktestCandle,
+    BacktestMarketDataStore, BacktestMarketDataStoreError, CalendarDaySchedule, CalendarDaySession,
+    CalendarScheduleResolver, StoredBacktestCandle,
 };
 pub use backtest_run::{
     BACKTEST_RUNS_PRODUCTION_PROFILE, BACKTEST_RUNS_TEST_CUTOVER_PROFILE, BacktestRunStore,

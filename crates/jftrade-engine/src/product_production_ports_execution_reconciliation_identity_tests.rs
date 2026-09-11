@@ -28,10 +28,17 @@ fn reconciliation_broker_identity_claims_are_scoped_to_the_trading_account() {
             ..Default::default()
         });
         let port = production_port(Arc::clone(&store), reader);
-        assert_eq!(port.reconcile_pending_orders().unwrap(), 1, "{different_scope}");
+        assert_eq!(
+            port.reconcile_pending_orders().unwrap(),
+            1,
+            "{different_scope}"
+        );
         let saved = store.get_order("rust-order-reconcile").unwrap().unwrap();
         assert_eq!(saved.status, "SUBMITTED", "{different_scope}");
-        assert_eq!(store.get_order("another-scope").unwrap().unwrap().status, "FILLED");
+        assert_eq!(
+            store.get_order("another-scope").unwrap().unwrap().status,
+            "FILLED"
+        );
     }
 }
 
@@ -53,7 +60,13 @@ fn reconciliation_missing_snapshot_remains_retryable_without_terminal_failure() 
         assert_eq!(saved.status, "UNKNOWN");
         assert!(saved.broker_order_id.is_none());
         assert_eq!(store.list_reconciliation_candidates().unwrap().len(), 1);
-        assert_eq!(store.list_order_events(&saved.internal_order_id).unwrap().len(), 1);
+        assert_eq!(
+            store
+                .list_order_events(&saved.internal_order_id)
+                .unwrap()
+                .len(),
+            1
+        );
     }
     // A later broker response can resolve UNKNOWN; an empty snapshot was not rejection.
     let mut snapshot = order_snapshot(5, Some(0.0));
@@ -65,7 +78,14 @@ fn reconciliation_missing_snapshot_remains_retryable_without_terminal_failure() 
     });
     let port = production_port(Arc::clone(&store), reader);
     assert_eq!(port.reconcile_pending_orders().unwrap(), 1);
-    assert_eq!(store.get_order("rust-order-reconcile").unwrap().unwrap().status, "SUBMITTED");
+    assert_eq!(
+        store
+            .get_order("rust-order-reconcile")
+            .unwrap()
+            .unwrap()
+            .status,
+        "SUBMITTED"
+    );
 }
 
 #[test]

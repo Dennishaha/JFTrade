@@ -9,6 +9,7 @@ use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::schema_manifest::{SchemaManifestError, validate_current};
+use crate::session_deletion_fence;
 
 const ADK_ARTIFACT_COMPONENT: &str = "adk-artifact";
 const ADK_ARTIFACT_SCHEMA_VERSION: i64 = 1;
@@ -189,10 +190,23 @@ impl AdkArtifactStore {
             .map_err(|_| AdkArtifactStoreError::LockUnavailable)
     }
 
+    fn ensure_session_write_allowed(&self, session_id: &str) -> Result<(), AdkArtifactStoreError> {
+        if session_deletion_fence::is_fenced(&self.path, session_id) {
+            return Err(AdkArtifactStoreError::Validation(format!(
+                "session {session_id} is fenced by cascade deletion"
+            )));
+        }
+        Ok(())
+    }
+
     fn now_rfc3339() -> String {
         OffsetDateTime::now_utc()
             .format(&Rfc3339)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_owned())
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     pub fn put_artifact(
@@ -201,6 +215,7 @@ impl AdkArtifactStore {
     ) -> Result<StoredAdkArtifact, AdkArtifactStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(params.session_id)?;
         connection
             .execute(
                 "INSERT INTO artifacts (app_name, user_id, session_id, file_name, version, part_json, mime_type, custom_metadata_json, created_at, updated_at)

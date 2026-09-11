@@ -11,8 +11,8 @@ use thiserror::Error;
 use crate::{
     OpenDInitializedSession, OpenDManagedSessionError, OpenDSessionCloseReason,
     OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
-    OpenDSubscriptionExecutor, OpenDSubscriptionLifecycle, OpenDTcpProbeConfig, ReconcileAction,
-    SubscriptionExecutorError, desired_subscriptions,
+    OpenDSubscriptionExecutor, OpenDSubscriptionLifecycle, OpenDTcpProbeConfig,
+    QuoteSessionResolver, ReconcileAction, SubscriptionExecutorError, desired_subscriptions,
 };
 
 #[derive(Debug, Error)]
@@ -66,6 +66,7 @@ pub struct OpenDSessionCoordinator {
     desired: Vec<InstrumentRef>,
     session: Option<OpenDInitializedSession>,
     pending_reconnect: Option<PendingReconnect>,
+    session_resolver: Option<Arc<dyn QuoteSessionResolver>>,
     closed: bool,
 }
 
@@ -77,6 +78,7 @@ impl std::fmt::Debug for OpenDSessionCoordinator {
             .field("generation", &self.generation())
             .field("has_session", &self.session.is_some())
             .field("pending_reconnect", &self.pending_reconnect.is_some())
+            .field("session_resolver", &self.session_resolver.is_some())
             .field("closed", &self.closed)
             .finish()
     }
@@ -108,6 +110,7 @@ impl OpenDSessionCoordinator {
             desired,
             session: Some(session),
             pending_reconnect: None,
+            session_resolver: None,
             closed: false,
         };
         if let Err(error) = coordinator.execute_actions(&actions, now_ms) {
@@ -312,6 +315,12 @@ impl OpenDSessionCoordinator {
         self.desired.clone()
     }
 
+    /// Installs the composition-owned calendar resolver used by BasicQot
+    /// projection. The coordinator stores only a shared reference.
+    pub fn set_session_resolver(&mut self, resolver: Option<Arc<dyn QuoteSessionResolver>>) {
+        self.session_resolver = resolver;
+    }
+
     pub fn physical_snapshot(&self) -> Option<jftrade_marketdata::PhysicalSubscriptionSnapshot> {
         if self.closed {
             None
@@ -356,6 +365,7 @@ impl OpenDSessionCoordinator {
             .as_ref()
             .ok_or(OpenDSessionCoordinatorError::Closed)?
             .clone();
+        let session_resolver = self.session_resolver.clone();
         let lifecycle = &self.lifecycle;
         let observed_at_ms = now_unix_millis(now)?;
         Ok(SnapshotPollExecutor::default().execute(
@@ -366,6 +376,7 @@ impl OpenDSessionCoordinator {
             now,
             |instruments| {
                 crate::OpenDBasicQuoteExecutor::new(session)
+                    .with_session_resolver(session_resolver.clone())
                     .query_ticks(lifecycle, instruments, observed_at_ms)
                     .map_err(|error| error.to_string())
             },

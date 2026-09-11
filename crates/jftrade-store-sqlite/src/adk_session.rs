@@ -10,6 +10,7 @@ use thiserror::Error;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::schema_manifest::{SchemaManifestError, validate_current};
+use crate::session_deletion_fence;
 
 const ADK_SESSION_COMPONENT: &str = "adk-session";
 const ADK_SESSION_SCHEMA_VERSION: i64 = 4;
@@ -165,6 +166,15 @@ impl AdkSessionStore {
             .map_err(|_| AdkSessionStoreError::LockUnavailable)
     }
 
+    fn ensure_session_write_allowed(&self, session_id: &str) -> Result<(), AdkSessionStoreError> {
+        if session_deletion_fence::is_fenced(&self.path, session_id) {
+            return Err(AdkSessionStoreError::Validation(format!(
+                "session {session_id} is fenced by cascade deletion"
+            )));
+        }
+        Ok(())
+    }
+
     /// Acquire the process-local mutex together with the store's already-held
     /// cross-process writer lease.  The resulting capability is required by
     /// `AdkStore` for every transaction that appends events to this database.
@@ -196,6 +206,7 @@ impl AdkSessionStore {
     ) -> Result<StoredAdkSessionState, AdkSessionStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(id)?;
         connection
             .execute(
                 "INSERT INTO sessions (app_name, user_id, id, state, create_time, update_time)
@@ -313,6 +324,7 @@ impl AdkSessionStore {
     ) -> Result<StoredAdkEvent, AdkSessionStoreError> {
         let now = Self::now_rfc3339();
         let connection = self.lock_connection()?;
+        self.ensure_session_write_allowed(params.session_id)?;
         connection
             .execute(
                 "INSERT INTO events (id, app_name, user_id, session_id, invocation_id, author, content, timestamp)

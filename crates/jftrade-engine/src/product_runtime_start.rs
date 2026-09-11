@@ -3,6 +3,10 @@
 use super::*;
 use jftrade_settings::MarketDataProviderRuntimePort;
 
+#[path = "runtime_start_helpers.rs"]
+mod start_helpers;
+use start_helpers::{configure_opend_hooks, production_provider_status};
+
 pub async fn start_product_runtime(
     mut config: ProductRuntimeConfig,
 ) -> Result<ProductRuntimeHandle, ProductRuntimeError> {
@@ -50,6 +54,16 @@ pub async fn start_product_runtime(
     if config.market_data_opend_task.is_some() && config.market_data_opend.is_none() {
         return Err(ProductRuntimeError::MissingOpenDSession);
     }
+    // Provider tasks start before the production port bundle is prepared. Keep
+    // a shared resolver slot and bind it to that bundle's CalendarManager
+    // before exposing the HTTP listener.
+    let runtime_calendar_resolver = config
+        .product
+        .is_production()
+        .then(RuntimeCalendarSessionResolver::new);
+    let runtime_calendar_resolver_port = runtime_calendar_resolver.as_ref().map(|resolver| {
+        Arc::clone(resolver) as Arc<dyn jftrade_integration_futu::QuoteSessionResolver>
+    });
     // Validate/create the production schema before any external worker or
     // provider is started.  A migration failure therefore cannot leave an
     // external process running while the API is unable to serve its stores.
@@ -74,28 +88,23 @@ pub async fn start_product_runtime(
     let market_data_router = config.market_data_router.take();
     let market_data_opend = config.market_data_opend.take();
     let mut market_data_opend_task = config.market_data_opend_task.take();
-    if let Some(task) = market_data_opend_task.as_mut()
-        && task.event_listener.is_none()
-    {
-        task.event_listener = Some(Arc::new(
-            LiveHubOpenDEventListener::with_reconciliation_wake(
-                Arc::clone(&live_hub),
-                trade_runtime.reconciliation_wake(),
-            ),
-        ));
-    }
+    configure_opend_hooks(
+        runtime_calendar_resolver_port.as_ref(),
+        market_data_opend.as_ref(),
+        &mut market_data_opend_task,
+        &live_hub,
+        &trade_runtime,
+    );
     let (market_data_opend_provider, market_data_router) = if let Some(mut provider) =
         config.market_data_opend_provider.clone()
     {
         let shared_router = Arc::clone(&provider.router);
-        if provider.task.event_listener.is_none() {
-            provider.task.event_listener = Some(Arc::new(
-                LiveHubOpenDEventListener::with_reconciliation_wake(
-                    Arc::clone(&live_hub),
-                    trade_runtime.reconciliation_wake(),
-                ),
-            ));
-        }
+        start_helpers::configure_provider_hooks(
+            &mut provider,
+            runtime_calendar_resolver_port.as_ref(),
+            &live_hub,
+            &trade_runtime,
+        );
         match OpenDProviderRuntime::start(provider) {
             Ok(runtime) => {
                 let trade_logged_in = runtime.trade_logged_in();
@@ -129,6 +138,9 @@ pub async fn start_product_runtime(
                 trade_runtime.set(config.product.trade_read_port.clone(), trade_logged_in);
                 trade_runtime.set_writer(config.product.trade_write_port.clone());
                 trade_runtime.set_historical_klines(Some(historical_reader));
+                trade_runtime.set_stock_screen_reader(Some(Arc::new(
+                    jftrade_integration_futu::OpenDStockScreenReader::new(runtime.coordinator()),
+                )));
                 product_runtime_provider_activation::install_security_catalog_readers(
                     &trade_runtime,
                     &runtime.coordinator(),
@@ -358,6 +370,9 @@ pub async fn start_product_runtime(
             &trade_runtime,
             coordinator,
         );
+        trade_runtime.set_stock_screen_reader(Some(Arc::new(
+            jftrade_integration_futu::OpenDStockScreenReader::new(Arc::clone(coordinator)),
+        )));
         trade_runtime.set_future_info(Some(Arc::new(
             jftrade_integration_futu::OpenDFutureInfoReader::new(Arc::clone(coordinator)),
         )));
@@ -516,7 +531,6 @@ pub async fn start_product_runtime(
     };
     supervisor.market_data_dynamic_opend = Some(Arc::clone(&dynamic_opend));
     supervisor.market_data_opend = market_data_opend.clone();
-
     if let (Some(coordinator), Some(task_config)) = (
         supervisor.market_data_opend.as_ref(),
         market_data_opend_task,
@@ -528,7 +542,6 @@ pub async fn start_product_runtime(
             }
         }
     }
-
     let mut healthy_pine_execution_config = None;
     let mut backtest_execution_verified = false;
     for worker in std::mem::take(&mut config.pine_workers) {
@@ -597,7 +610,6 @@ pub async fn start_product_runtime(
             config.product.with_backtest_execution_port(port)
         };
     }
-
     let helper_process = if let Some(helper) = config.marketdata_helper.take() {
         match start_marketdata_helper(helper).await {
             Ok((process, client, monitor)) => {
@@ -624,7 +636,6 @@ pub async fn start_product_runtime(
         supervisor.helper_health =
             Some(super::product_runtime_workers::monitor_external_helper(client).await);
     }
-
     let configured_provider =
         product_runtime_provider_activation::configured_provider(config.product.settings_path())?;
     let dynamic_opend_ready = dynamic_opend
@@ -655,6 +666,7 @@ pub async fn start_product_runtime(
         &live_hub,
         &settings_path,
         Arc::clone(&trade_runtime),
+        runtime_calendar_resolver_port.clone(),
     )?;
     let active_provider_state = Arc::new(
         ActiveProviderState::new(initial_provider)
@@ -731,6 +743,12 @@ pub async fn start_product_runtime(
             }
         };
 
+    if let Some(resolver) = runtime_calendar_resolver.as_ref()
+        && let Some(calendar_manager) = prepared.handle.production_calendar_manager()
+    {
+        resolver.bind(calendar_manager);
+    }
+
     #[cfg(test)]
     if config.inject_startup_failure {
         let ports = {
@@ -779,21 +797,4 @@ pub async fn start_product_runtime(
         supervisor,
         market_data_router,
     })
-}
-
-fn production_provider_status(
-    configured: bool,
-    recorder: Option<&MarketDataRuntimeRecorder>,
-) -> ProductionRuntimeStatus {
-    let Some(state) = recorder.map(MarketDataRuntimeRecorder::snapshot) else {
-        return match configured {
-            true => ProductionRuntimeStatus::Degraded,
-            false => ProductionRuntimeStatus::Unavailable,
-        };
-    };
-    match (state.closed, state.connected) {
-        (true, _) => ProductionRuntimeStatus::Failed,
-        (false, true) => ProductionRuntimeStatus::Ready,
-        (false, false) => ProductionRuntimeStatus::Degraded,
-    }
 }

@@ -29,12 +29,15 @@ mod mcp;
 mod mutation;
 #[path = "product_production_ports_adk_projection.rs"]
 mod projection;
+#[path = "product_production_ports_adk_support.rs"]
+mod support;
 
 use projection::{
     builtin_agent, builtin_skills, composer_state_value, dynamic_id, invalid_payload,
     is_deleted_payload, normalize_memory_key, not_found, page, payload, put_string, query_param,
     session_entity_value, timeline_value, workflow_trigger_value,
 };
+use support::{allowed_modes, helper_provider, is_provider_dynamic_adapter};
 
 #[derive(Debug)]
 pub struct ProductionAdkPort {
@@ -123,13 +126,17 @@ impl ProductionToolCatalog {
             ("instrument", unavailable),
             ("financials", unavailable),
             ("valuation", unavailable),
+            ("news", unavailable),
             ("institutions", unavailable),
             ("analyst", unavailable),
             ("ownership", unavailable),
             ("corporate_actions", unavailable),
             ("short_interest", unavailable),
             ("technical_indicators", unavailable),
-            ("news", unavailable),
+            ("rankings", unavailable),
+            ("industry", unavailable),
+            ("calendar", unavailable),
+            ("macro", unavailable),
         ]);
         Self::from_bindings_with_research(bindings, &research)
     }
@@ -155,10 +162,16 @@ impl ProductionToolCatalog {
                 Some(ProductionAdapterBinding::Ready)
             } else {
                 match definition.research_operation {
-                    Some(operation) => research_bindings
-                        .get(operation)
-                        .copied()
-                        .or_else(|| bindings.get(&definition.adapter).copied()),
+                    // Research tools deliberately use operation-level
+                    // readiness. Falling back to the shared ResearchRead
+                    // umbrella would advertise a tool whenever any unrelated
+                    // company-research operation happened to be installed.
+                    Some(operation) => Some(
+                        research_bindings
+                            .get(operation)
+                            .copied()
+                            .unwrap_or(ProductionAdapterBinding::ExternalUnavailable),
+                    ),
                     None => bindings.get(&definition.adapter).copied(),
                 }
             };
@@ -478,12 +491,131 @@ impl ProductionToolCatalog {
                     ProductionAdapterBinding::ExternalUnavailable
                 }
             }
+            ProductionRouteAdapter::MarketDataFuturesRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.future_info_available());
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataOptionsChainRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_chains_available());
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataOptionsScreenRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.option_screens_available());
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataOptionsAnalysisRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self.trade_runtime.as_ref().is_some_and(|runtime| {
+                        runtime.option_quotes_available()
+                            || runtime.option_volatility_available()
+                            || runtime.option_exercise_probability_available()
+                            || runtime.option_underlying_overview_available()
+                            || runtime.option_underlying_his_volatility_available()
+                            || runtime.option_market_statistic_available()
+                            || runtime.option_underlying_his_statistic_available()
+                            || runtime.option_strategy_spread_available()
+                            || runtime.option_strategy_available()
+                            || runtime.option_strategy_analysis_available()
+                            || runtime.option_underlying_rank_available()
+                            || runtime.option_contract_rank_available()
+                    });
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::MarketDataOptionsEventsRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self.trade_runtime.as_ref().is_some_and(|runtime| {
+                        runtime.option_events_available()
+                            || runtime.option_zero_dte_screener_available()
+                            || runtime.option_zero_dte_contract_available()
+                            || runtime.option_earnings_screener_available()
+                            || runtime.option_seller_screener_available()
+                    });
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::RemoteWatchlistRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.remote_watchlist_reader().is_some());
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            ProductionRouteAdapter::AlertsRead => {
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.alert_reader().is_some());
+                if futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
             ProductionRouteAdapter::ResearchScreenWrite => {
-                // The POST screen adapter is backed by the embedded helper;
-                // Futu's OpenD stock-filter reader is not wired here. Keep
-                // this dynamic so an activation/reconnect cannot retain a
-                // stale Ready descriptor from the startup provider.
-                if snapshot.helper_ready && helper_provider(snapshot.provider) {
+                // Helper providers and the typed Futu OpenD stock-screen
+                // reader are both concrete production paths. Keep the
+                // provider boundaries independent so an activation/reconnect
+                // cannot retain a stale Ready descriptor.
+                let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.stock_screen_reader_available());
+                if helper_ready || futu_ready {
                     ProductionAdapterBinding::Ready
                 } else {
                     ProductionAdapterBinding::ExternalUnavailable
@@ -548,6 +680,38 @@ impl ProductionToolCatalog {
                     ProductionAdapterBinding::ExternalUnavailable
                 }
             }
+            "rankings" | "analyst" | "ownership" => {
+                if snapshot.helper_ready && helper_provider(snapshot.provider) {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            "industry" | "calendar" | "macro" => {
+                if snapshot.helper_ready
+                    && snapshot.provider
+                        == Some(jftrade_settings::MarketDataProvider::Akshare)
+                {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
+            "corporate_actions" => {
+                let helper_ready = snapshot.helper_ready && helper_provider(snapshot.provider);
+                let futu_ready = snapshot.provider
+                    == Some(jftrade_settings::MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && self
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.corporate_actions_reader_available());
+                if helper_ready || futu_ready {
+                    ProductionAdapterBinding::Ready
+                } else {
+                    ProductionAdapterBinding::ExternalUnavailable
+                }
+            }
             // Futu valuation has an additional trade-runtime capability that
             // is captured by the startup binding. Preserve that decision when
             // Futu remains active, but never advertise it for helper modes.
@@ -605,42 +769,6 @@ impl ProductionToolCatalog {
             _ => ProductionAdapterBinding::ExternalUnavailable,
         }
     }
-}
-
-fn allowed_modes(binding: ProductionAdapterBinding) -> Value {
-    if binding == ProductionAdapterBinding::Ready {
-        json!(["approval", "less_approval", "all"])
-    } else {
-        json!([])
-    }
-}
-
-fn helper_provider(provider: Option<jftrade_settings::MarketDataProvider>) -> bool {
-    matches!(
-        provider,
-        Some(jftrade_settings::MarketDataProvider::Yfinance)
-            | Some(jftrade_settings::MarketDataProvider::Akshare)
-    )
-}
-
-fn is_provider_dynamic_adapter(adapter: ProductionRouteAdapter) -> bool {
-    matches!(
-        adapter,
-        ProductionRouteAdapter::MarketDataSearchRead
-            | ProductionRouteAdapter::MarketDataCandlesRead
-            | ProductionRouteAdapter::MarketDataSecuritiesRead
-            | ProductionRouteAdapter::MarketDataMarketsRead
-            | ProductionRouteAdapter::MarketDataSnapshotsRead
-            | ProductionRouteAdapter::MarketDataBatchSnapshotsWrite
-            | ProductionRouteAdapter::MarketDataSubscriptionRead
-            | ProductionRouteAdapter::MarketDataSubscriptionAcquireWrite
-            | ProductionRouteAdapter::MarketDataSubscriptionReleaseWrite
-            | ProductionRouteAdapter::MarketDataSubscriptionClearWrite
-            | ProductionRouteAdapter::MarketDataSubscriptionHeartbeatWrite
-            | ProductionRouteAdapter::MarketDataNewsActionsRead
-            | ProductionRouteAdapter::MarketDataNewsSearchRead
-            | ProductionRouteAdapter::ResearchScreenWrite
-    )
 }
 
 include!("product_production_ports_adk_catalog.rs");

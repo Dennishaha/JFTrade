@@ -13,6 +13,12 @@ impl ProductHandle {
         self.production_ports.take()
     }
 
+    pub(crate) fn production_calendar_manager(&self) -> Option<Arc<CalendarManager>> {
+        self.production_ports
+            .as_ref()
+            .map(|ports| Arc::clone(&ports.calendar_manager))
+    }
+
     /// Stop runtime tasks that are owned by the production port bundle before
     /// its stores (and their WriterLeases) are released.  This mirrors the
     /// shutdown supervisor's reverse-of-construction order for the direct

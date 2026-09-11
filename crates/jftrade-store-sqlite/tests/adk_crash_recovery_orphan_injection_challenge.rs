@@ -666,10 +666,9 @@ fn challenge_concurrent_back_to_back_deletions() {
 #[test]
 fn challenge_multi_stage_crash_recovery_resilience() {
     let cluster = ChallengeCluster::new();
-    let session_id = "sess-crash-recovery";
 
     // Helper to populate all 3 databases
-    let populate = || {
+    let populate = |session_id: &str| {
         cluster
             .adk_store
             .upsert_session(session_id, "agent-cr", "{}")
@@ -694,47 +693,60 @@ fn challenge_multi_stage_crash_recovery_resilience() {
     };
 
     // Stage 1: Artifacts deleted, process crashes before session & adk deletion
-    populate();
+    let stage_one_session = "sess-crash-recovery-stage-one";
+    populate(stage_one_session);
     let conn_artifact = Connection::open(&cluster.artifact_path).expect("open artifact");
     conn_artifact
         .execute(
             "DELETE FROM artifacts WHERE session_id = ?1",
-            params![session_id],
+            params![stage_one_session],
         )
         .expect("simulate crash 1");
 
     // Recover via delete_session_cascade
     let recovered_1 = cluster
         .adk_store
-        .delete_session_cascade(&cluster.session_store, &cluster.artifact_store, session_id)
+        .delete_session_cascade(
+            &cluster.session_store,
+            &cluster.artifact_store,
+            stage_one_session,
+        )
         .expect("crash recovery 1");
     assert!(recovered_1);
     assert_eq!(
-        audit_records(&cluster, session_id),
+        audit_records(&cluster, stage_one_session),
         SessionRecordAudit::default()
     );
 
     // Stage 2: Artifacts AND session DB deleted, process crashes before adk.db deletion
-    populate();
+    let stage_two_session = "sess-crash-recovery-stage-two";
+    populate(stage_two_session);
     conn_artifact
         .execute(
             "DELETE FROM artifacts WHERE session_id = ?1",
-            params![session_id],
+            params![stage_two_session],
         )
         .expect("simulate crash 2a");
     let conn_session = Connection::open(&cluster.session_path).expect("open session");
     conn_session
-        .execute("DELETE FROM sessions WHERE id = ?1", params![session_id])
+        .execute(
+            "DELETE FROM sessions WHERE id = ?1",
+            params![stage_two_session],
+        )
         .expect("simulate crash 2b");
 
     // Recover via delete_session_cascade
     let recovered_2 = cluster
         .adk_store
-        .delete_session_cascade(&cluster.session_store, &cluster.artifact_store, session_id)
+        .delete_session_cascade(
+            &cluster.session_store,
+            &cluster.artifact_store,
+            stage_two_session,
+        )
         .expect("crash recovery 2");
     assert!(recovered_2);
     assert_eq!(
-        audit_records(&cluster, session_id),
+        audit_records(&cluster, stage_two_session),
         SessionRecordAudit::default()
     );
 }

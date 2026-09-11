@@ -87,7 +87,9 @@ pub(crate) fn research_tool_binding(
         Some(MarketDataProvider::Yfinance) | Some(MarketDataProvider::Akshare)
     );
     let ready = match operation {
-        "instrument" | "financials" => snapshot.helper_ready && helper_provider,
+        "instrument" | "financials" | "analyst" | "ownership" => {
+            snapshot.helper_ready && helper_provider
+        }
         "valuation" => {
             snapshot.provider == Some(MarketDataProvider::Futu)
                 && snapshot.opend_ready
@@ -100,16 +102,27 @@ pub(crate) fn research_tool_binding(
             (snapshot.helper_ready && helper_provider)
                 || (snapshot.provider == Some(MarketDataProvider::Futu)
                     && snapshot.opend_ready
-                    && config
+                && config
                         .trade_runtime
                         .as_ref()
                         .is_some_and(|runtime| runtime.news_reader_available()))
         }
-        // Stock screening has a concrete embedded-helper adapter.  Keep it
-        // separate from the ResearchRead umbrella used by the legacy GET
-        // route so provider transitions cannot leave the screen tool Ready
-        // after switching away from a healthy helper.
-        "screen" | "screens" => snapshot.helper_ready && helper_provider,
+        "rankings" => snapshot.helper_ready && helper_provider,
+        "industry" | "calendar" | "macro" => {
+            snapshot.helper_ready && snapshot.provider == Some(MarketDataProvider::Akshare)
+        }
+        // Stock screening uses the embedded helper for helper providers and
+        // the typed OpenD reader for Futu. Keep the two readiness boundaries
+        // independent so a provider switch cannot leave a stale tool Ready.
+        "screen" | "screens" => {
+            (snapshot.helper_ready && helper_provider)
+                || (snapshot.provider == Some(MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && config
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.stock_screen_reader_available()))
+        }
         // These broker operations are Futu/OpenD-backed.  Keep each reader's
         // readiness independent so one installed reader cannot make the
         // other research tools appear callable.
@@ -135,7 +148,16 @@ pub(crate) fn research_tool_binding(
                 && config
                     .trade_runtime
                     .as_ref()
-                    .is_some_and(|runtime| runtime.institution_reader_available())
+                .is_some_and(|runtime| runtime.institution_reader_available())
+        }
+        "corporate_actions" => {
+            (snapshot.helper_ready && helper_provider)
+                || (snapshot.provider == Some(MarketDataProvider::Futu)
+                    && snapshot.opend_ready
+                    && config
+                        .trade_runtime
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.corporate_actions_reader_available()))
         }
         _ => false,
     };

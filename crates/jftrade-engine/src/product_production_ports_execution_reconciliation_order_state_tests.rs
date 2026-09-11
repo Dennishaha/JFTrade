@@ -56,7 +56,10 @@ fn reconciliation_does_not_guess_an_identity_for_an_uncertain_submission() {
         assert!(saved.broker_order_id_ex.is_none());
         assert_eq!(saved.client_order_id.as_deref(), Some("client-reconcile"));
         assert_eq!(
-            store.list_order_events(&saved.internal_order_id).unwrap().len(),
+            store
+                .list_order_events(&saved.internal_order_id)
+                .unwrap()
+                .len(),
             1
         );
     }
@@ -81,7 +84,10 @@ fn reconciliation_crash_window_recovers_submitting_order_and_binds_broker_ids() 
     assert_eq!(saved.status, "SUBMITTED");
     assert_eq!(saved.broker_order_id.as_deref(), Some("11"));
     assert_eq!(saved.broker_order_id_ex.as_deref(), Some("order-ex"));
-    assert_eq!(reader.calls.lock().unwrap().active_orders, 1);
+    // The local submission is resolved first, then the account-scoped
+    // discovery pass scans active orders so an external order cannot be
+    // missed after the crash window.
+    assert_eq!(reader.calls.lock().unwrap().active_orders, 2);
 }
 
 #[test]
@@ -173,7 +179,9 @@ fn reconciliation_claimed_order_exclusion_protects_against_cross_binding() {
     existing_order.internal_order_id = "rust-order-existing".to_owned();
     existing_order.broker_order_id = Some("11".to_owned());
     existing_order.broker_order_id_ex = Some("order-ex".to_owned());
-    store.save_order(existing_order, "2026-08-30T00:00:01Z").unwrap();
+    store
+        .save_order(existing_order, "2026-08-30T00:00:01Z")
+        .unwrap();
 
     let mut pending = pending_order("SUBMITTING");
     pending.internal_order_id = "rust-order-pending".to_owned();
@@ -239,11 +247,24 @@ fn reconciliation_stale_fill_quantity_cannot_replace_the_average_price() {
         let revision = store.order_revision(&current.internal_order_id).unwrap();
         snapshot.fill_qty = stale_quantity;
         snapshot.fill_avg_price = Some(90.0);
-        assert!(!port.apply_broker_snapshot(&current, &snapshot, revision).unwrap());
-        let saved = store.get_order(&current.internal_order_id).unwrap().unwrap();
+        assert!(
+            !port
+                .apply_broker_snapshot(&current, &snapshot, revision)
+                .unwrap()
+        );
+        let saved = store
+            .get_order(&current.internal_order_id)
+            .unwrap()
+            .unwrap();
         assert_eq!(saved.filled_quantity, Some(3.0));
         assert_eq!(saved.filled_average_price, Some(105.0));
-        assert_eq!(store.list_order_events(&current.internal_order_id).unwrap().len(), 1);
+        assert_eq!(
+            store
+                .list_order_events(&current.internal_order_id)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 }
 
@@ -255,8 +276,14 @@ fn reconciliation_advancing_fill_quantity_updates_its_average_price() {
         let revision = store.order_revision(&current.internal_order_id).unwrap();
         let mut snapshot = correlated_order_snapshot(10, Some(quantity));
         snapshot.fill_avg_price = Some(price);
-        assert!(port.apply_broker_snapshot(&current, &snapshot, revision).unwrap());
-        let saved = store.get_order(&current.internal_order_id).unwrap().unwrap();
+        assert!(
+            port.apply_broker_snapshot(&current, &snapshot, revision)
+                .unwrap()
+        );
+        let saved = store
+            .get_order(&current.internal_order_id)
+            .unwrap()
+            .unwrap();
         assert_eq!(saved.filled_quantity, Some(quantity));
         assert_eq!(saved.filled_average_price, Some(price));
     }
@@ -291,14 +318,26 @@ fn apply_order_snapshot(
     let revision = store
         .order_revision(&current.internal_order_id)
         .expect("read reconciliation revision");
-    port.apply_broker_snapshot(&current, &correlated_order_snapshot(status, filled), revision)
-        .expect("apply broker order snapshot")
+    port.apply_broker_snapshot(
+        &current,
+        &correlated_order_snapshot(status, filled),
+        revision,
+    )
+    .expect("apply broker order snapshot")
 }
 
 #[test]
 fn reconciliation_rejects_terminal_and_partial_status_regressions() {
     let cases = [
-        ("filled ignores submitted", 11, Some(5.0), 5, Some(0.0), "FILLED", 5.0),
+        (
+            "filled ignores submitted",
+            11,
+            Some(5.0),
+            5,
+            Some(0.0),
+            "FILLED",
+            5.0,
+        ),
         (
             "filled ignores cancelled",
             11,
@@ -319,7 +358,16 @@ fn reconciliation_rejects_terminal_and_partial_status_regressions() {
         ),
     ];
 
-    for (name, advance_status, advance_fill, regression_status, regression_fill, expected_status, expected_fill) in cases {
+    for (
+        name,
+        advance_status,
+        advance_fill,
+        regression_status,
+        regression_fill,
+        expected_status,
+        expected_fill,
+    ) in cases
+    {
         let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
         assert!(
             apply_order_snapshot(&port, &store, advance_status, advance_fill),
@@ -372,7 +420,10 @@ fn reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation() {
         .list_order_events("rust-order-reconcile")
         .expect("list fill-wins events");
     assert_eq!(events.len(), 2);
-    assert_eq!(events[1].previous_status.as_deref(), Some("CANCEL_SUBMITTED"));
+    assert_eq!(
+        events[1].previous_status.as_deref(),
+        Some("CANCEL_SUBMITTED")
+    );
     assert_eq!(events[1].next_status, "FILLED");
 
     let (store, port, _directory) = persist_reconciliation_order("SUBMITTED");
@@ -387,7 +438,10 @@ fn reconciliation_cancel_submitted_resolves_fill_and_cancel_confirmation() {
         .list_order_events("rust-order-reconcile")
         .expect("list cancel-confirm events");
     assert_eq!(events.len(), 2);
-    assert_eq!(events[1].previous_status.as_deref(), Some("CANCEL_SUBMITTED"));
+    assert_eq!(
+        events[1].previous_status.as_deref(),
+        Some("CANCEL_SUBMITTED")
+    );
     assert_eq!(events[1].next_status, "CANCELLED");
 }
 
@@ -630,7 +684,10 @@ fn challenge_edge_case_1_three_identical_broker_orders_no_client_id_remains_unkn
         Some("BROKER_ORDER_NOT_FOUND")
     );
     assert!(saved.broker_order_id.is_none(), "Must NOT guess numeric ID");
-    assert!(saved.broker_order_id_ex.is_none(), "Must NOT guess extended ID");
+    assert!(
+        saved.broker_order_id_ex.is_none(),
+        "Must NOT guess extended ID"
+    );
 }
 
 #[test]
@@ -703,7 +760,10 @@ fn challenge_edge_case_3_broker_network_failure_does_not_mutate_or_release_quota
     assert!(saved.broker_order_id.is_none());
     assert!(saved.broker_order_id_ex.is_none());
     assert_eq!(
-        store.list_order_events("rust-order-reconcile").unwrap().len(),
+        store
+            .list_order_events("rust-order-reconcile")
+            .unwrap()
+            .len(),
         0,
         "No state transition events allowed during connection error"
     );

@@ -14,10 +14,20 @@ impl ProductionExecutionPort {
         header: &jftrade_integration_futu::TradeHeader,
     ) -> Result<TradeOrderSnapshot, String> {
         let active_orders = reader
-            .read_orders(header.clone(), Some(TradeFilter::default()), Vec::new(), Some(true))
+            .read_orders(
+                header.clone(),
+                Some(TradeFilter::default()),
+                Vec::new(),
+                Some(true),
+            )
             .map_err(|error| format!("broker order read failed: {error}"))?;
         let history_orders = reader
-            .read_history_orders(header.clone(), Some(TradeFilter::default()), Vec::new(), Some(true))
+            .read_history_orders(
+                header.clone(),
+                Some(TradeFilter::default()),
+                Vec::new(),
+                Some(true),
+            )
             .map_err(|error| format!("broker order history read failed: {error}"))?;
 
         let mut broker_order_map: HashMap<(u64, String), TradeOrderSnapshot> = HashMap::new();
@@ -75,13 +85,17 @@ impl ProductionExecutionPort {
             }
         }
     }
-
 }
 
 fn same_order_scope(left: &StoredExecutionOrder, right: &StoredExecutionOrder) -> bool {
-    left.broker_id.trim().eq_ignore_ascii_case(right.broker_id.trim())
+    left.broker_id
+        .trim()
+        .eq_ignore_ascii_case(right.broker_id.trim())
         && left.account_id.trim() == right.account_id.trim()
-        && left.trading_environment.trim().eq_ignore_ascii_case(right.trading_environment.trim())
+        && left
+            .trading_environment
+            .trim()
+            .eq_ignore_ascii_case(right.trading_environment.trim())
         && left.market.trim().eq_ignore_ascii_case(right.market.trim())
 }
 
@@ -161,8 +175,16 @@ fn symbols_match(local_symbol: Option<&str>, local_market: &str, broker_code: &s
     broker_normalized == local_normalized
 }
 
-fn matches_submission_identity(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
-    let Some(cand_remark) = candidate.remark.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+fn matches_submission_identity(
+    candidate: &TradeOrderSnapshot,
+    order: &StoredExecutionOrder,
+) -> bool {
+    let Some(cand_remark) = candidate
+        .remark
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    else {
         return false;
     };
     if order
@@ -174,13 +196,23 @@ fn matches_submission_identity(candidate: &TradeOrderSnapshot, order: &StoredExe
     }
     // Only the client id actually sent on the wire is correlation evidence.
     // User remarks and matching market attributes are not unique identities.
-    let Some(client_id) = order.client_order_id.as_deref().map(str::trim).filter(|id| !id.is_empty())
+    let Some(client_id) = order
+        .client_order_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
     else {
         return false;
     };
-    let sent_remark = order.remark.as_deref().map(str::trim).filter(|value| !value.is_empty())
+    let sent_remark = order
+        .remark
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
         .unwrap_or(client_id);
-    sent_remark == client_id && cand_remark == client_id && matches_safe_attributes(candidate, order)
+    sent_remark == client_id
+        && cand_remark == client_id
+        && matches_safe_attributes(candidate, order)
 }
 
 fn matches_safe_attributes(candidate: &TradeOrderSnapshot, order: &StoredExecutionOrder) -> bool {
@@ -205,10 +237,14 @@ fn matches_safe_attributes(candidate: &TradeOrderSnapshot, order: &StoredExecuti
     }) {
         return false;
     }
-    let is_limit = order.order_type.as_deref().is_none_or(|t| t.eq_ignore_ascii_case("LIMIT"));
+    let is_limit = order
+        .order_type
+        .as_deref()
+        .is_none_or(|t| t.eq_ignore_ascii_case("LIMIT"));
     if is_limit {
         match (order.requested_price, candidate.price) {
-            (Some(expected), Some(cand)) if cand.is_finite() && (cand - expected).abs() <= 1e-6 => {}
+            (Some(expected), Some(cand)) if cand.is_finite() && (cand - expected).abs() <= 1e-6 => {
+            }
             (Some(_), _) => return false,
             _ => {}
         }

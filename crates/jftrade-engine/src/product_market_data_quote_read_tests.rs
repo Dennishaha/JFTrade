@@ -226,6 +226,62 @@ async fn market_data_quote_read_routes_are_not_registered_without_snapshot_port(
     handle.shutdown().await.expect("shutdown product");
 }
 
+#[tokio::test]
+async fn futu_snapshot_route_projects_cached_extended_quote_contract() {
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    let router = ProviderRouter::new(4);
+    let observed_at_ms = 1_750_000_000_000;
+    let tick = jftrade_marketdata::Tick {
+        instrument_id: "US.AAPL".to_owned(),
+        price: "114.97".parse().expect("tick price"),
+        volume: "100".parse().expect("tick volume"),
+        snapshot: Some(jftrade_marketdata::TradeQuoteSnapshot {
+            symbol: Some("US.AAPL".to_owned()),
+            last_price: Some("114.97".parse().expect("regular price")),
+            previous_close: Some("112.50".parse().expect("previous close")),
+            last_close: Some("111.25".parse().expect("last close")),
+            session: Some("after".to_owned()),
+            after_market: Some(jftrade_marketdata::ExtendedQuoteSnapshot {
+                price: Some("118.40".parse().expect("after price")),
+                high_price: Some("121.20".parse().expect("after high")),
+                low_price: Some("115.50".parse().expect("after low")),
+                volume: Some("0".parse().expect("after volume")),
+                turnover: Some("67722995.69".parse().expect("after turnover")),
+                trading_date: Some("2026-07-18".to_owned()),
+                exchange_timezone: Some("America/New_York".to_owned()),
+                session_start_at: Some("2026-07-18T16:00:00Z".to_owned()),
+                session_end_at: Some("2026-07-19T00:00:00Z".to_owned()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        observed_at_ms,
+        provider_generation: 1,
+    };
+    router.cache_mut().insert(tick, 1).expect("cache tick");
+    let port =
+        ProductionMarketDataQuotePort::new(state, Some(Arc::new(Mutex::new(router))), None, None);
+
+    let response = port
+        .read("/api/v1/market-data/snapshots/US/AAPL", "")
+        .await
+        .expect("Futu snapshot route");
+    let snapshot = &response["snapshot"];
+    assert_eq!(snapshot["price"], "118.40");
+    assert_eq!(snapshot["session"], "after");
+    assert_eq!(snapshot["extendedHours"], true);
+    assert_eq!(snapshot["volume"], "0");
+    assert_eq!(snapshot["previousClosePrice"], "114.97");
+    assert_eq!(snapshot["lastClosePrice"], "111.25");
+    assert_eq!(
+        snapshot["extended"]["afterMarket"]["sessionStartAt"],
+        "2026-07-18T16:00:00Z"
+    );
+    assert_eq!(response["meta"]["fromCache"], true);
+}
+
 #[derive(Debug)]
 struct MicrostructureReaderFixture {
     calls: AtomicUsize,

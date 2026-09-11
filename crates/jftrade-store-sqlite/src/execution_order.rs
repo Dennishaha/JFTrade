@@ -80,6 +80,12 @@ pub enum ExecutionOrderStoreError {
 pub struct ExecutionOrderStore {
     path: PathBuf,
     connection: Mutex<Connection>,
+    /// Serializes account-wide reconciliation scans that share this store in
+    /// one process.  A timed-out broker call may continue in Tokio's blocking
+    /// pool; keeping the scan fence on the leased store prevents a replacement
+    /// worker from projecting a newer snapshot concurrently with that late
+    /// owner.
+    reconciliation_scan: Mutex<()>,
     _writer_lease: WriterLease,
 }
 impl std::fmt::Debug for ExecutionOrderStore {
@@ -160,8 +166,19 @@ impl ExecutionOrderStore {
         Ok(Self {
             path: path.to_path_buf(),
             connection: Mutex::new(connection),
+            reconciliation_scan: Mutex::new(()),
             _writer_lease: writer_lease,
         })
+    }
+
+    /// Acquire the process-local fence for one broker reconciliation scan.
+    /// The cross-process `WriterLease` still protects the database boundary;
+    /// this mutex additionally serializes workers that share one `Arc` in a
+    /// runtime restart or test harness.
+    pub fn lock_reconciliation_scan(&self) -> Result<MutexGuard<'_, ()>, ExecutionOrderStoreError> {
+        self.reconciliation_scan
+            .lock()
+            .map_err(|_| ExecutionOrderStoreError::LockUnavailable)
     }
     pub fn path(&self) -> &Path {
         &self.path

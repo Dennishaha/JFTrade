@@ -3,9 +3,10 @@ use std::str::FromStr;
 
 use jftrade_kernel::{Decimal, DecimalText};
 use jftrade_marketdata::{ExtendedQuoteSnapshot, Tick, TradeQuoteSnapshot};
+use jiff::{Timestamp, ToSpan, civil::Date, tz::TimeZone};
 use thiserror::Error;
 
-use crate::{BasicQuote, Security};
+use crate::{BasicQuote, QuoteSessionResolver, Security};
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum BasicQuoteTickError {
@@ -34,6 +35,18 @@ pub fn basic_quote_ticks(
     observed_at_ms: i64,
     provider_generation: u64,
 ) -> Result<Vec<Tick>, BasicQuoteTickError> {
+    basic_quote_ticks_with_resolver(quotes, observed_at_ms, provider_generation, None)
+}
+
+/// Maps BasicQot rows with a composition-owned exchange calendar resolver.
+/// The no-resolver wrapper above intentionally keeps the legacy fallback for
+/// explicit embedders; production OpenD always supplies the shared manager.
+pub fn basic_quote_ticks_with_resolver(
+    quotes: Vec<BasicQuote>,
+    observed_at_ms: i64,
+    provider_generation: u64,
+    resolver: Option<&dyn QuoteSessionResolver>,
+) -> Result<Vec<Tick>, BasicQuoteTickError> {
     let mut ticks = BTreeMap::new();
     for quote in quotes {
         let Some(instrument_id) = quote
@@ -51,6 +64,7 @@ pub fn basic_quote_ticks(
         }
         let price = decimal_from_price(&instrument_id, price)?;
         let volume = collector_volume(&instrument_id, &quote)?;
+        let session = session_context_with_resolver(&instrument_id, observed_at_ms, resolver);
         ticks.insert(
             instrument_id.clone(),
             Tick {
@@ -67,12 +81,21 @@ pub fn basic_quote_ticks(
                     high_price: optional_price(quote.high_price),
                     low_price: optional_price(quote.low_price),
                     previous_close: optional_price(quote.last_close_price),
+                    last_close: optional_price(quote.last_close_price),
                     turnover: optional_decimal(quote.turnover),
                     update_time: quote.update_time,
                     status: quote.sec_status,
-                    pre_market: quote.pre_market.map(extended_snapshot),
-                    after_market: quote.after_market.map(extended_snapshot),
-                    overnight: quote.overnight.map(extended_snapshot),
+                    trading_date: session.as_ref().map(|value| value.trading_date.clone()),
+                    session: session.as_ref().map(|value| value.session.clone()),
+                    pre_market: quote
+                        .pre_market
+                        .map(|value| extended_snapshot(value, session.as_ref(), "pre")),
+                    after_market: quote
+                        .after_market
+                        .map(|value| extended_snapshot(value, session.as_ref(), "after")),
+                    overnight: quote
+                        .overnight
+                        .map(|value| extended_snapshot(value, session.as_ref(), "overnight")),
                     ..Default::default()
                 }),
                 observed_at_ms,
@@ -95,7 +118,13 @@ fn optional_decimal(value: Option<f64>) -> Option<DecimalText> {
         .and_then(|value| DecimalText::from_str(&value.to_string()).ok())
 }
 
-fn extended_snapshot(value: crate::PreAfterMarketData) -> ExtendedQuoteSnapshot {
+fn extended_snapshot(
+    value: crate::PreAfterMarketData,
+    context: Option<&SessionContext>,
+    session: &str,
+) -> ExtendedQuoteSnapshot {
+    let (trading_date, exchange_timezone, session_start_at, session_end_at) =
+        extended_session_metadata(context, session);
     ExtendedQuoteSnapshot {
         price: optional_price(value.price),
         high_price: optional_price(value.high_price),
@@ -107,7 +136,165 @@ fn extended_snapshot(value: crate::PreAfterMarketData) -> ExtendedQuoteSnapshot 
         change: optional_decimal(value.change_value),
         change_rate: optional_decimal(value.change_rate),
         amplitude: optional_decimal(value.amplitude),
+        quote_time: None,
+        trading_date,
+        exchange_timezone,
+        session_start_at,
+        session_end_at,
     }
+}
+
+#[derive(Clone, Debug)]
+struct SessionContext {
+    session: String,
+    trading_date: String,
+    timezone: String,
+    sessions: Vec<SessionWindow>,
+}
+
+#[derive(Clone, Debug)]
+struct SessionWindow {
+    kind: String,
+    start_minute: i32,
+    end_minute: i32,
+}
+
+fn session_context_with_resolver(
+    instrument_id: &str,
+    observed_at_ms: i64,
+    resolver: Option<&dyn QuoteSessionResolver>,
+) -> Option<SessionContext> {
+    let market = instrument_id.split_once('.')?.0.to_ascii_uppercase();
+    let timezone_name = match market.as_str() {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "CN" | "SH" | "SZ" => "Asia/Shanghai",
+        _ => return None,
+    };
+    let timestamp = Timestamp::from_millisecond(observed_at_ms).ok()?;
+    let zone = TimeZone::get(timezone_name).ok()?;
+    if let Some(resolver) = resolver
+        && let Some(context) = resolver.resolve_quote_session(instrument_id, observed_at_ms)
+    {
+        return Some(SessionContext {
+            session: context.session,
+            trading_date: context.trading_date,
+            timezone: context.timezone,
+            sessions: context
+                .sessions
+                .into_iter()
+                .map(|window| SessionWindow {
+                    kind: window.kind,
+                    start_minute: window.start_minute,
+                    end_minute: window.end_minute,
+                })
+                .collect(),
+        });
+    }
+    let local = timestamp.to_zoned(zone);
+    let minute = i32::from(local.hour()) * 60 + i32::from(local.minute());
+    let mut trading_date = local.date();
+    let session = if market == "US" {
+        match minute {
+            0..=239 => "overnight".to_owned(),
+            240..=569 => "pre".to_owned(),
+            570..=959 => "regular".to_owned(),
+            960..=1199 => "after".to_owned(),
+            1200..=1439 => {
+                trading_date = trading_date.tomorrow().ok()?;
+                "overnight".to_owned()
+            }
+            _ => "closed".to_owned(),
+        }
+    } else {
+        "regular".to_owned()
+    };
+    Some(SessionContext {
+        session,
+        trading_date: trading_date.to_string(),
+        timezone: timezone_name.to_owned(),
+        sessions: fallback_sessions(&market),
+    })
+}
+
+fn fallback_sessions(market: &str) -> Vec<SessionWindow> {
+    let windows: &[(&str, i32, i32)] = match market {
+        "US" => &[
+            ("overnight", 0, 240),
+            ("pre", 240, 570),
+            ("regular", 570, 960),
+            ("after", 960, 1200),
+        ],
+        "HK" => &[("regular", 570, 720), ("regular", 780, 960)],
+        "CN" | "SH" | "SZ" => &[("regular", 570, 690), ("regular", 780, 900)],
+        _ => &[],
+    };
+    windows
+        .iter()
+        .map(|(kind, start_minute, end_minute)| SessionWindow {
+            kind: (*kind).to_owned(),
+            start_minute: *start_minute,
+            end_minute: *end_minute,
+        })
+        .collect()
+}
+
+fn extended_session_metadata(
+    context: Option<&SessionContext>,
+    session: &str,
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
+    let Some(context) = context else {
+        return (None, None, None, None);
+    };
+    let Some(date) = Date::strptime("%Y-%m-%d", &context.trading_date).ok() else {
+        return (None, None, None, None);
+    };
+    let Ok(zone) = TimeZone::get(&context.timezone) else {
+        return (None, None, None, None);
+    };
+    let Some(window) = context
+        .sessions
+        .iter()
+        .find(|window| window.kind == session)
+    else {
+        return (
+            Some(context.trading_date.clone()),
+            Some(context.timezone.clone()),
+            None,
+            None,
+        );
+    };
+    let (start_date, start_minute, end_date, end_minute) = if session == "overnight" {
+        (
+            date.checked_sub(1.days()).ok().unwrap_or(date),
+            1200,
+            date,
+            window.end_minute,
+        )
+    } else {
+        (date, window.start_minute, date, window.end_minute)
+    };
+    let start = start_date
+        .at((start_minute / 60) as i8, (start_minute % 60) as i8, 0, 0)
+        .to_zoned(zone.clone())
+        .ok()
+        .map(|value| value.timestamp().to_string());
+    let end = end_date
+        .at((end_minute / 60) as i8, (end_minute % 60) as i8, 0, 0)
+        .to_zoned(zone)
+        .ok()
+        .map(|value| value.timestamp().to_string());
+    (
+        Some(context.trading_date.clone()),
+        Some(context.timezone.clone()),
+        start,
+        end,
+    )
 }
 
 fn instrument_id_from_security(security: &Security) -> Option<String> {
@@ -165,7 +352,24 @@ fn collector_volume(
 mod tests {
     use serde::Deserialize;
 
+    use crate::{
+        PreAfterMarketData, QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow,
+    };
+
     use super::*;
+
+    #[derive(Clone, Debug)]
+    struct StaticSessionResolver(QuoteSessionContext);
+
+    impl QuoteSessionResolver for StaticSessionResolver {
+        fn resolve_quote_session(
+            &self,
+            _instrument_id: &str,
+            _observed_at_ms: i64,
+        ) -> Option<QuoteSessionContext> {
+            Some(self.0.clone())
+        }
+    }
 
     #[derive(Debug, Deserialize)]
     struct NonFinitePriceCorpus {
@@ -333,5 +537,98 @@ mod tests {
         quote.hp_volume = Some(f64::INFINITY);
         let ticks = basic_quote_ticks(vec![quote], 0, 1).expect("fallback volume");
         assert_eq!(ticks[0].volume.to_string(), "9");
+    }
+
+    #[test]
+    fn resolver_keeps_hk_lunch_closed_in_snapshot_projection() {
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "closed".to_owned(),
+            trading_date: "2026-06-22".to_owned(),
+            timezone: "Asia/Hong_Kong".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 720,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 780,
+                    end_minute: 960,
+                },
+            ],
+        });
+        let ticks = basic_quote_ticks_with_resolver(
+            vec![quote(1, "00700", 300.0, 1)],
+            1_766_000_000_000,
+            3,
+            Some(&resolver),
+        )
+        .expect("mapped lunch tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("closed"));
+        assert_eq!(snapshot.trading_date.as_deref(), Some("2026-06-22"));
+    }
+
+    #[test]
+    fn resolver_projects_us_early_close_extended_window_with_timezone() {
+        let resolver = StaticSessionResolver(QuoteSessionContext {
+            session: "regular".to_owned(),
+            trading_date: "2026-07-02".to_owned(),
+            timezone: "America/New_York".to_owned(),
+            sessions: vec![
+                QuoteSessionWindow {
+                    kind: "overnight".to_owned(),
+                    start_minute: 0,
+                    end_minute: 240,
+                },
+                QuoteSessionWindow {
+                    kind: "pre".to_owned(),
+                    start_minute: 240,
+                    end_minute: 570,
+                },
+                QuoteSessionWindow {
+                    kind: "regular".to_owned(),
+                    start_minute: 570,
+                    end_minute: 780,
+                },
+                QuoteSessionWindow {
+                    kind: "after".to_owned(),
+                    start_minute: 780,
+                    end_minute: 1080,
+                },
+            ],
+        });
+        let mut value = quote(11, "AAPL", 189.25, 1);
+        let extended = || PreAfterMarketData {
+            price: Some(188.0),
+            high_price: None,
+            low_price: None,
+            volume: Some(1),
+            turnover: None,
+            change_value: None,
+            change_rate: None,
+            amplitude: None,
+        };
+        value.pre_market = Some(extended());
+        value.after_market = Some(extended());
+        value.overnight = Some(extended());
+        let ticks =
+            basic_quote_ticks_with_resolver(vec![value], 1_767_000_000_000, 4, Some(&resolver))
+                .expect("mapped early-close tick");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.session.as_deref(), Some("regular"));
+        assert_eq!(snapshot.last_close, None);
+        let after = snapshot.after_market.as_ref().expect("after block");
+        assert_eq!(after.trading_date.as_deref(), Some("2026-07-02"));
+        assert_eq!(after.exchange_timezone.as_deref(), Some("America/New_York"));
+        assert_eq!(
+            after.session_start_at.as_deref(),
+            Some("2026-07-02T17:00:00Z")
+        );
+        assert_eq!(
+            after.session_end_at.as_deref(),
+            Some("2026-07-02T22:00:00Z")
+        );
     }
 }

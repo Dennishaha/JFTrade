@@ -19,6 +19,15 @@ pub(super) fn insert_rich_quote_fields(
             item.insert(key.to_owned(), json!(value));
         }
     }
+    if let Some(value) = rich.last_close {
+        item.insert("lastClosePrice".to_owned(), json!(value));
+    }
+    if let Some(value) = rich.trading_date.as_ref() {
+        item.insert("tradingDate".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = rich.session.as_ref() {
+        item.insert("session".to_owned(), Value::String(value.clone()));
+    }
     if let Some(turnover) = rich.turnover.as_ref() {
         item.insert("turnover".to_owned(), decimal_number(turnover)?);
     }
@@ -31,7 +40,11 @@ pub(super) fn insert_rich_quote_fields(
         ("overnight", rich.overnight.as_ref()),
     ] {
         if let Some(value) = value {
-            item.insert(key.to_owned(), extended_value(value)?);
+            let mut projected = extended_value(value)?;
+            if let Value::Object(object) = &mut projected {
+                insert_extended_metadata(object, value);
+            }
+            item.insert(key.to_owned(), projected);
         }
     }
     Ok(())
@@ -60,6 +73,23 @@ fn extended_value(value: &jftrade_marketdata::ExtendedQuoteSnapshot) -> Result<V
         }
     }
     Ok(Value::Object(result))
+}
+
+fn insert_extended_metadata(
+    object: &mut Map<String, Value>,
+    value: &jftrade_marketdata::ExtendedQuoteSnapshot,
+) {
+    for (key, value) in [
+        ("quoteTime", value.quote_time.as_ref()),
+        ("tradingDate", value.trading_date.as_ref()),
+        ("exchangeTimezone", value.exchange_timezone.as_ref()),
+        ("sessionStartAt", value.session_start_at.as_ref()),
+        ("sessionEndAt", value.session_end_at.as_ref()),
+    ] {
+        if let Some(value) = value.filter(|value| !value.trim().is_empty()) {
+            object.insert(key.to_owned(), Value::String(value.clone()));
+        }
+    }
 }
 
 pub(super) fn insert_rich_security_fields(
@@ -127,6 +157,7 @@ pub(super) fn security_snapshot_value(
         ("highPrice", snapshot.high_price),
         ("lowPrice", snapshot.low_price),
         ("previousClose", snapshot.previous_close),
+        ("lastClosePrice", snapshot.last_close),
     ] {
         if let Some(value) = value {
             item.insert(key.to_owned(), json!(value));
@@ -159,6 +190,25 @@ pub(super) fn security_snapshot_value(
     }
     if let Some(value) = snapshot.pb_rate.as_ref() {
         item.insert("pbRate".to_owned(), decimal_number(value)?);
+    }
+    if let Some(value) = snapshot.trading_date.as_ref() {
+        item.insert("tradingDate".to_owned(), Value::String(value.clone()));
+    }
+    if let Some(value) = snapshot.session.as_ref() {
+        item.insert("session".to_owned(), Value::String(value.clone()));
+    }
+    for (key, value) in [
+        ("preMarket", snapshot.pre_market.as_ref()),
+        ("afterMarket", snapshot.after_market.as_ref()),
+        ("overnight", snapshot.overnight.as_ref()),
+    ] {
+        if let Some(value) = value {
+            let mut projected = extended_value(value)?;
+            if let Value::Object(object) = &mut projected {
+                insert_extended_metadata(object, value);
+            }
+            item.insert(key.to_owned(), projected);
+        }
     }
     Ok(Value::Object(item))
 }

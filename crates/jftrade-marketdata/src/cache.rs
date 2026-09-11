@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
+use jiff::Timestamp;
+
 use crate::{MarketDataError, Tick};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,6 +43,10 @@ impl TickCache {
                 "tick timestamp moved backwards".to_owned(),
             ));
         }
+        let mut tick = tick;
+        if let Some(last) = entries.back().cloned() {
+            inherit_snapshot_context(&mut tick, &last);
+        }
         entries.push_back(tick);
         while entries.len() > self.capacity_per_instrument {
             entries.pop_front();
@@ -57,7 +63,13 @@ impl TickCache {
         else {
             return CacheLookup::Missing;
         };
-        if max_age_ms >= 0 && now_ms.saturating_sub(tick.observed_at_ms) <= max_age_ms {
+        // A wall-clock rollback must never make a future observation appear
+        // fresh. `saturating_sub` intentionally protects the age arithmetic
+        // from overflow, but by itself would turn a negative age into zero.
+        if max_age_ms >= 0
+            && now_ms >= tick.observed_at_ms
+            && now_ms.saturating_sub(tick.observed_at_ms) <= max_age_ms
+        {
             CacheLookup::Fresh(tick)
         } else {
             CacheLookup::Stale(tick)
@@ -122,6 +134,139 @@ impl TickCache {
     pub fn instrument_count(&self) -> usize {
         self.ticks.len()
     }
+}
+
+/// Preserve the context that BasicQot deliberately omits from trade pushes.
+/// The Go cache performs this merge before deciding whether an observation is
+/// equivalent; keeping it in the provider-neutral cache means snapshots from
+/// polling and streaming follow the same close/session rules.
+fn inherit_snapshot_context(incoming: &mut Tick, latest: &Tick) {
+    let same_trading_day = shares_trading_day(incoming, latest);
+    let (Some(incoming_snapshot), Some(latest_snapshot)) =
+        (incoming.snapshot.as_mut(), latest.snapshot.as_ref())
+    else {
+        return;
+    };
+
+    if incoming_snapshot.open_price.is_none() {
+        incoming_snapshot.open_price = latest_snapshot.open_price;
+    }
+    if incoming_snapshot.high_price.is_none() {
+        incoming_snapshot.high_price = latest_snapshot.high_price;
+    }
+    if incoming_snapshot.low_price.is_none() {
+        incoming_snapshot.low_price = latest_snapshot.low_price;
+    }
+    if incoming_snapshot.previous_close.is_none() {
+        if should_promote_regular_close(
+            &incoming.instrument_id,
+            incoming_snapshot,
+            latest_snapshot,
+            same_trading_day,
+        ) {
+            incoming_snapshot.previous_close = latest_snapshot.last_price;
+        } else {
+            incoming_snapshot.previous_close = latest_snapshot.previous_close;
+        }
+    }
+    if incoming_snapshot.last_close.is_none() {
+        incoming_snapshot.last_close = latest_snapshot.last_close;
+    }
+    if same_trading_day {
+        if incoming_snapshot.pre_market.is_none() {
+            incoming_snapshot.pre_market = latest_snapshot.pre_market.clone();
+        }
+        if incoming_snapshot.after_market.is_none() {
+            incoming_snapshot.after_market = latest_snapshot.after_market.clone();
+        }
+        if incoming_snapshot.overnight.is_none() {
+            incoming_snapshot.overnight = latest_snapshot.overnight.clone();
+        }
+        if incoming_snapshot
+            .session
+            .as_deref()
+            .is_none_or(|value| value.trim().is_empty() || value.eq_ignore_ascii_case("unknown"))
+        {
+            incoming_snapshot.session = latest_snapshot.session.clone();
+        }
+    }
+    if incoming_snapshot.trading_date.is_none() {
+        incoming_snapshot.trading_date = latest_snapshot.trading_date.clone();
+    }
+    if incoming_snapshot.symbol.is_none() {
+        incoming_snapshot.symbol = latest_snapshot.symbol.clone();
+    }
+    if incoming_snapshot.market.is_none() {
+        incoming_snapshot.market = latest_snapshot.market.clone();
+    }
+}
+
+fn should_promote_regular_close(
+    instrument_id: &str,
+    incoming: &crate::TradeQuoteSnapshot,
+    latest: &crate::TradeQuoteSnapshot,
+    same_trading_day: bool,
+) -> bool {
+    same_trading_day
+        && is_us_symbol(instrument_id)
+        && latest
+            .session
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case("regular"))
+        && incoming
+            .session
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case("after"))
+        && latest
+            .last_price
+            .is_some_and(|value| value > rust_decimal::Decimal::ZERO)
+}
+
+fn is_us_symbol(value: &str) -> bool {
+    value
+        .trim()
+        .to_ascii_uppercase()
+        .split_once('.')
+        .is_some_and(|(market, _)| market == "US")
+        || value.trim().eq_ignore_ascii_case("US")
+}
+
+fn shares_trading_day(incoming: &Tick, latest: &Tick) -> bool {
+    let incoming_date = incoming
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.trading_date.as_deref())
+        .map(str::to_owned);
+    let latest_date = latest
+        .snapshot
+        .as_ref()
+        .and_then(|snapshot| snapshot.trading_date.as_deref())
+        .map(str::to_owned);
+    if let (Some(left), Some(right)) = (incoming_date, latest_date) {
+        return left == right;
+    }
+    trading_day_key(&incoming.instrument_id, incoming.observed_at_ms)
+        == trading_day_key(&latest.instrument_id, latest.observed_at_ms)
+}
+
+fn trading_day_key(instrument_id: &str, observed_at_ms: i64) -> Option<String> {
+    let timestamp = Timestamp::from_millisecond(observed_at_ms).ok()?;
+    let market = instrument_id
+        .split_once('.')
+        .map(|(market, _)| market.to_ascii_uppercase())?;
+    let timezone = match market.as_str() {
+        "US" => "America/New_York",
+        "HK" => "Asia/Hong_Kong",
+        "CN" | "SH" | "SZ" => "Asia/Shanghai",
+        _ => "UTC",
+    };
+    let zone = jiff::tz::TimeZone::get(timezone).ok()?;
+    let local = timestamp.to_zoned(zone);
+    let mut date = local.date();
+    if market == "US" && local.hour() >= 20 {
+        date = date.tomorrow().ok()?;
+    }
+    Some(date.to_string())
 }
 
 #[cfg(test)]

@@ -111,10 +111,9 @@ impl ProductionPortBundle {
         let technical_indicators_route = path
             .strip_prefix("/api/v1/research/technical-indicators/")
             .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('/'));
-        // These public research operations are present in the compatibility
-        // route catalog, but no production adapter is wired for screens yet.
-        // Keep the distinction explicit so adding a broad helper route later
-        // cannot accidentally advertise a synthetic Ready state.
+        // The legacy GET stock-screen route is backed by the same typed Futu
+        // OpenD reader as the POST route.  Helper providers intentionally do
+        // not advertise this route because their screen contract is POST-only.
         let unsupported_route = path == "/api/v1/research/screens";
         let futu_reader_ready =
             |reader_available: fn(&super::super::SharedTradeReadRuntime) -> bool| {
@@ -126,7 +125,7 @@ impl ProductionPortBundle {
                         .is_some_and(|runtime| reader_available(runtime))
             };
         let ready = if unsupported_route {
-            false
+            futu_reader_ready(super::super::SharedTradeReadRuntime::stock_screen_reader_available)
         } else if institutions_route {
             futu_reader_ready(super::super::SharedTradeReadRuntime::institution_reader_available)
         } else if short_interest_route {

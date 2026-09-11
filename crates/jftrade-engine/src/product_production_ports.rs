@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::product::ProductConfig;
+use crate::product_runtime::RuntimeBacktestCalendarResolver;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_adk_model_runtime::{
     ProductionAdkChatRuntime, RunCancellationRegistry,
@@ -292,6 +293,7 @@ pub(crate) fn production_ports(
     let has_router = provider_snapshot.router_ready;
     let backtest_sync_workers = Arc::new(BacktestSyncWorkerRegistry::default());
     let backtest_execution_workers = Arc::new(BacktestExecutionTaskRegistry::default());
+    let backtest_market_data_store_for_calendar = Arc::clone(&backtest_market_data_store);
     let backtest_store_for_storage = Arc::clone(&backtest_store);
     let backtest_sync_tasks_for_storage = Arc::clone(&backtest_sync_tasks);
     let pine_readiness = config
@@ -442,6 +444,22 @@ pub(crate) fn production_ports(
             research_tool_binding(&provider_snapshot, config, "technical_indicators"),
         ),
         (
+            "rankings",
+            research_tool_binding(&provider_snapshot, config, "rankings"),
+        ),
+        (
+            "industry",
+            research_tool_binding(&provider_snapshot, config, "industry"),
+        ),
+        (
+            "calendar",
+            research_tool_binding(&provider_snapshot, config, "calendar"),
+        ),
+        (
+            "macro",
+            research_tool_binding(&provider_snapshot, config, "macro"),
+        ),
+        (
             "analyst",
             research_tool_binding(&provider_snapshot, config, "analyst"),
         ),
@@ -513,6 +531,7 @@ pub(crate) fn production_ports(
     let research_screen_port = Arc::new(ProductionResearchScreenHelperPort {
         active_provider_state: Arc::clone(&active_provider_state),
         helper: config.market_data_helper.clone(),
+        trade_runtime: config.trade_runtime.clone(),
     });
     let strategy_pine_port = Arc::new(ProductionStrategyPinePort {
         worker: config.strategy_pine_worker_port.clone(),
@@ -558,6 +577,9 @@ pub(crate) fn production_ports(
         )
         .map_err(ProductError::Calendar)?,
     );
+    backtest_market_data_store_for_calendar.set_calendar_resolver(RuntimeBacktestCalendarResolver::new(
+        Arc::clone(&calendar_manager),
+    ));
     let market_data_quote_port = Arc::new(
         ProductionMarketDataQuotePort::new(
             Arc::clone(&active_provider_state),

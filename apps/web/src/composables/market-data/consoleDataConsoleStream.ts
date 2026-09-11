@@ -29,6 +29,12 @@ export function createConsoleDataConsoleStreamController(
     hub.setConsoleRefreshEnabled(ownerId, true);
     removeListener = hub.addEventListener((event) => {
       if (!isConsoleRefreshEvent(event)) {
+        if (isLiveResyncEvent(event)) {
+          void options.reloadSystemState({
+            background: true,
+            bypassCooldown: true,
+          });
+        }
         return;
       }
       options.liveStreamCheckedAt.value = event.checkedAt ?? "";
@@ -36,9 +42,25 @@ export function createConsoleDataConsoleStreamController(
     });
     stopConnectionStateWatch = watch(
       hub.connectionState,
-      (state) => {
+      (state, previousState) => {
         options.liveStreamStatus.value =
           state === "connected" ? "connected" : state === "error" ? "degraded" : "disconnected";
+
+        // The server does not replay console.refresh events that were
+        // published while this socket was disconnected.  Reconcile the
+        // server-owned state whenever a live channel recovers after the
+        // initial subscription; otherwise a background disconnect can leave
+        // every page showing a stale execution/settings snapshot indefinitely.
+        if (
+          state === "connected" &&
+          previousState !== undefined &&
+          previousState !== "connected"
+        ) {
+          void options.reloadSystemState({
+            background: true,
+            bypassCooldown: true,
+          });
+        }
       },
       { immediate: true },
     );
@@ -73,4 +95,10 @@ function isConsoleRefreshEvent(
   event: { type: string },
 ): event is ConsoleRefreshLiveStreamEvent {
   return event.type === "console.refresh";
+}
+
+function isLiveResyncEvent(
+  event: { type: string },
+): event is { type: "live.resync" } {
+  return event.type === "live.resync";
 }

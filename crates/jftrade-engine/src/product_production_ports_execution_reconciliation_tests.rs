@@ -7,7 +7,8 @@ use jftrade_integration_futu::{
     TradePositionSnapshot, TradeSecurity, TradeSessionError,
 };
 use jftrade_settings::MarketDataProvider;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 
 #[derive(Debug, Default)]
 struct FixtureTradeReader {
@@ -21,8 +22,27 @@ struct FixtureTradeReader {
     fail_accounts: bool,
     fail_active_orders: bool,
     fail_history_orders: bool,
+    fail_active_fills: bool,
+    fail_history_fills: bool,
+    blocking_accounts: Option<Arc<BlockingAccounts>>,
     fee_batches: Mutex<Vec<Vec<TradeOrderFeeSnapshot>>>,
     calls: Mutex<FixtureCallCounts>,
+}
+
+#[derive(Debug)]
+struct BlockingAccounts {
+    entered: Arc<tokio::sync::Notify>,
+    finished: Arc<tokio::sync::Notify>,
+    entries: Arc<AtomicUsize>,
+    release: Arc<(Mutex<bool>, Condvar)>,
+}
+
+impl BlockingAccounts {
+    fn release(&self) {
+        let (released, wake) = &*self.release;
+        *released.lock().expect("blocking reader release lock") = true;
+        wake.notify_all();
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -46,6 +66,18 @@ impl TradeReadPort for FixtureTradeReader {
         _: Option<i32>,
         _: Option<bool>,
     ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+        if let Some(blocking) = self.blocking_accounts.as_ref() {
+            blocking.entries.fetch_add(1, Ordering::SeqCst);
+            blocking.entered.notify_one();
+            let (released, wake) = &*blocking.release;
+            let mut released = released.lock().expect("blocking reader wait lock");
+            while !*released {
+                released = wake
+                    .wait(released)
+                    .expect("blocking reader wait condvar");
+            }
+            blocking.finished.notify_one();
+        }
         self.calls.lock().expect("fixture calls").accounts += 1;
         if self.fail_accounts {
             return unavailable("fixture accounts unavailable");
@@ -150,6 +182,9 @@ impl TradeReadPort for FixtureTradeReader {
         _: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         self.calls.lock().expect("fixture calls").active_fills += 1;
+        if self.fail_active_fills {
+            return unavailable("fixture active fills unavailable");
+        }
         Ok(self.active_fills.clone())
     }
 
@@ -160,6 +195,9 @@ impl TradeReadPort for FixtureTradeReader {
         _: Option<bool>,
     ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
         self.calls.lock().expect("fixture calls").history_fills += 1;
+        if self.fail_history_fills {
+            return unavailable("fixture history fills unavailable");
+        }
         Ok(self.history_fills.clone())
     }
 }
@@ -236,6 +274,96 @@ fn account() -> TradeAccountSnapshot {
         jp_acc_type: Vec::new(),
         competition_acc_name: None,
     }
+}
+
+#[test]
+fn reconciliation_scope_accepts_only_stock_trade_markets() {
+    for (market, expected) in [(1, Some("HK")), (2, Some("US")), (3, Some("CN"))] {
+        assert_eq!(market_label(market), expected);
+    }
+    for market in [0, 4, 5, 6, 7, 10, 11, 17, 21, 22, 113, 123, 999] {
+        assert_eq!(market_label(market), None, "non-stock market {market}");
+    }
+
+    let mut account = account();
+    account.trd_market_auth_list = vec![1, 2, 3, 4, 5, 11, 21, 22];
+    let scopes = reconciliation_scopes(&[account]);
+    assert_eq!(scopes.len(), 3, "scopes={scopes:?}");
+}
+
+#[test]
+fn reconciliation_account_identity_requires_positive_numeric_id() {
+    let mut invalid = account();
+    invalid.acc_id = 0;
+    invalid.card_num = Some("CARD-ABC".to_owned());
+    invalid.uni_card_num = Some("BROKER-42".to_owned());
+    assert_eq!(account_identity(&invalid), None);
+    assert!(reconciliation_scopes(&[invalid]).is_empty());
+
+    let mut numeric = account();
+    numeric.acc_id = 0;
+    numeric.card_num = Some(" 0042 ".to_owned());
+    assert_eq!(account_identity(&numeric).as_deref(), Some("0042"));
+    let scopes = reconciliation_scopes(&[numeric]);
+    assert_eq!(scopes.len(), 1);
+}
+
+#[test]
+fn reconciliation_order_discovery_fails_closed_on_one_sided_snapshot_failure() {
+    let scope = reconciliation_scopes(&[account()])
+        .pop()
+        .expect("stock scope");
+    let header = TradeHeader {
+        trd_env: 1,
+        acc_id: 42,
+        trd_market: 1,
+        jp_acc_type: None,
+    };
+
+    let active_failure = Arc::new(FixtureTradeReader {
+        fail_active_orders: true,
+        ..FixtureTradeReader::default()
+    });
+    let reader: Arc<dyn TradeReadPort> = active_failure;
+    let error = read_order_scope(&reader, &header, &scope).expect_err("active failure");
+    assert!(error.contains("active read failed"), "error={error}");
+
+    let history_failure = Arc::new(FixtureTradeReader {
+        fail_history_orders: true,
+        ..FixtureTradeReader::default()
+    });
+    let reader: Arc<dyn TradeReadPort> = history_failure;
+    let error = read_order_scope(&reader, &header, &scope).expect_err("history failure");
+    assert!(error.contains("history read failed"), "error={error}");
+}
+
+#[test]
+fn reconciliation_fill_discovery_fails_closed_on_one_sided_snapshot_failure() {
+    let scope = reconciliation_scopes(&[account()])
+        .pop()
+        .expect("stock scope");
+    let header = TradeHeader {
+        trd_env: 1,
+        acc_id: 42,
+        trd_market: 1,
+        jp_acc_type: None,
+    };
+
+    let active_failure = Arc::new(FixtureTradeReader {
+        fail_active_fills: true,
+        ..FixtureTradeReader::default()
+    });
+    let reader: Arc<dyn TradeReadPort> = active_failure;
+    let error = read_fill_scope(&reader, &header, &scope).expect_err("active failure");
+    assert!(error.contains("active read failed"), "error={error}");
+
+    let history_failure = Arc::new(FixtureTradeReader {
+        fail_history_fills: true,
+        ..FixtureTradeReader::default()
+    });
+    let reader: Arc<dyn TradeReadPort> = history_failure;
+    let error = read_fill_scope(&reader, &header, &scope).expect_err("history failure");
+    assert!(error.contains("history read failed"), "error={error}");
 }
 
 fn order_snapshot(status: i32, fill_qty: Option<f64>) -> TradeOrderSnapshot {
@@ -457,7 +585,9 @@ fn reconciliation_replays_history_fill_and_fee_once_after_restart() {
             .len(),
         3
     );
-    assert_eq!(reader.calls.lock().unwrap().history_orders, 1);
+    // The local candidate lookup is followed by the account-scoped discovery
+    // pass, so the history endpoint is intentionally queried twice.
+    assert_eq!(reader.calls.lock().unwrap().history_orders, 2);
     drop(port);
     drop(store);
 
@@ -485,6 +615,39 @@ fn reconciliation_replays_history_fill_and_fee_once_after_restart() {
             .fees,
         Some(1.5)
     );
+}
+
+#[test]
+fn reconciliation_discovers_external_order_into_empty_ledger() {
+    let (store, _directory) = reconciliation_store();
+    let mut account = account();
+    account.trd_market_auth_list = vec![2];
+    let mut external = order_snapshot(11, Some(5.0));
+    external.trd_market = Some(2);
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account],
+        active_orders: vec![external.clone()],
+        history_orders: vec![external],
+        ..FixtureTradeReader::default()
+    });
+    let port = production_port(Arc::clone(&store), reader);
+
+    assert_eq!(port.reconcile_pending_orders().expect("discover order"), 1);
+    let orders = store.list_orders().expect("list discovered orders");
+    assert_eq!(orders.len(), 1);
+    assert_eq!(orders[0].broker_order_id.as_deref(), Some("11"));
+    assert_eq!(orders[0].source, "broker-sync");
+    assert_eq!(orders[0].status, "FILLED");
+    assert_eq!(
+        store
+            .list_order_events(&orders[0].internal_order_id)
+            .expect("list discovery events")
+            .len(),
+        1
+    );
+
+    assert_eq!(port.reconcile_pending_orders().expect("idempotent scan"), 0);
+    assert_eq!(store.list_orders().expect("list after retry").len(), 1);
 }
 
 #[test]
@@ -763,3 +926,6 @@ mod identity_tests;
 
 #[path = "product_production_ports_execution_reconciliation_push_worker_tests.rs"]
 mod push_worker_tests;
+
+#[path = "product_production_ports_execution_reconciliation_read_boundaries_tests.rs"]
+mod read_boundaries_tests;

@@ -84,3 +84,33 @@ fn route_and_page_validation_precede_provider_calls() {
         404
     );
 }
+
+#[test]
+fn futu_interval_factor_rejects_non_catalog_operator_before_provider_call() {
+    let response = dispatch_research_screen_write(
+        &ResearchScreenWriteRequest {
+            method: "POST".to_owned(),
+            path: RESEARCH_SCREEN_PATH.to_owned(),
+            body: Some(
+                br#"{
+                    "brokerId":"futu",
+                    "market":"US",
+                    "catalogVersion":"futu-stock-screen-v1",
+                    "querySchemaVersion":2,
+                    "conditions":[{
+                        "factor":{"factorKey":"simple.price"},
+                        "operator":"gte",
+                        "value":10
+                    }]
+                }"#
+                .to_vec(),
+            ),
+        },
+        Some(&TestPort),
+        "fixture-time",
+    );
+    assert_eq!(response.status, 400);
+    assert!(response.body["error"]["message"]
+        .as_str()
+        .is_some_and(|message| message.contains("operator")));
+}

@@ -46,6 +46,9 @@ mod runtime_task;
 mod security_snapshot_query;
 mod session_coordinator;
 mod session_event_pump;
+mod session_resolver;
+mod stock_screen_factors;
+mod stock_screen_query;
 mod subscription_executor;
 mod subscriptions;
 mod technical_indicator_query;
@@ -67,7 +70,9 @@ mod trading;
 mod transport;
 
 pub use basic_quote_query::{BasicQuoteQueryError, OpenDBasicQuoteExecutor};
-pub use basic_quote_tick::{BasicQuoteTickError, basic_quote_ticks};
+pub use basic_quote_tick::{
+    BasicQuoteTickError, basic_quote_ticks, basic_quote_ticks_with_resolver,
+};
 pub use corporate_actions_query::{
     CorporateActionKind, FutuCorporateAction, FutuCorporateActionsQuery,
     FutuCorporateActionsQueryError, FutuCorporateActionsReadPort, FutuCorporateActionsResult,
@@ -247,6 +252,13 @@ pub use session_coordinator::{
 };
 pub use session_event_pump::{
     OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
+};
+pub use session_resolver::{QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow};
+pub use stock_screen_query::{
+    OpenDStockScreenReader, STOCK_SCREEN_LIMIT, STOCK_SCREEN_PROTOCOL_ID, STOCK_SCREEN_WINDOW,
+    StockScreenItem, StockScreenLimiter, StockScreenPage, StockScreenParam, StockScreenProperty,
+    StockScreenPropertyParams, StockScreenQuery, StockScreenQueryError, StockScreenReadPort,
+    StockScreenResult, StockScreenSecurity, StockScreenValue,
 };
 pub use subscription_executor::{OpenDSubscriptionExecutor, SubscriptionExecutorError};
 pub use subscriptions::{

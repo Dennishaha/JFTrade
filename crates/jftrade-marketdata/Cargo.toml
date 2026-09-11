@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
+jiff.workspace = true
 jftrade-kernel.workspace = true
 rust_decimal.workspace = true
 serde.workspace = true

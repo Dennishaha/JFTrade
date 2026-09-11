@@ -122,6 +122,8 @@ pub(crate) struct SharedTradeReadRuntime {
     pub(crate) instrument_search_reader:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::InstrumentSearchReadPort>>>>,
     pub(crate) corporate_actions_reader: Arc<RwLock<Option<Arc<dyn FutuCorporateActionsReadPort>>>>,
+    pub(crate) stock_screen_reader:
+        Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::StockScreenReadPort>>>>,
     pub(crate) remote_watchlist_reader:
         Arc<RwLock<Option<Arc<dyn jftrade_integration_futu::RemoteWatchlistReadPort>>>>,
     pub(crate) remote_watchlist_writer:
@@ -767,6 +769,7 @@ fn lookup_tick_snapshot(
             .unwrap_or_else(|error| error.into_inner())
             .clear();
         self.set_corporate_actions_reader(None);
+        self.set_stock_screen_reader(None);
         self.set_customization_readers(None, None);
         self.set_customization_writers(None, None);
     }

@@ -3,6 +3,7 @@ use super::generate_strategy_id;
 use crate::product::product_active_provider_state::ActiveProviderState;
 use crate::product::product_production_ports::SharedTradeReadRuntime;
 use crate::product::product_query::QueryMap;
+use crate::product::product_research_screen_write_port::ResearchScreenWritePortError;
 use crate::product::product_research_preset_write_port::{
     ResearchPresetWriteMutation, ResearchPresetWritePort, ResearchPresetWritePortError,
 };
@@ -24,6 +25,10 @@ use company::{project_research_payload, research_helper_request};
 #[path = "product_production_ports_research_screen.rs"]
 mod screen;
 pub(crate) use screen::ProductionResearchScreenHelperPort;
+
+#[path = "research_screen_query.rs"]
+mod screen_query;
+use screen_query::read_futu_screen;
 
 #[path = "product_production_ports_research_futu.rs"]
 mod futu;
@@ -278,6 +283,14 @@ impl ResearchReadSnapshotPort for ProductionResearchPort {
             );
         }
         if provider == jftrade_settings::MarketDataProvider::Futu {
+            if path == "/api/v1/research/screens" {
+                if !snapshot.opend_ready {
+                    return Err(ResearchReadSnapshotError::Unavailable(
+                        "Futu OpenD stock-screen research runtime is not ready".to_owned(),
+                    ));
+                }
+                return read_futu_screen(self.trade_runtime.as_ref(), query);
+            }
             if path == "/api/v1/research/institutions" {
                 if !snapshot.opend_ready {
                     return Err(ResearchReadSnapshotError::Unavailable(

@@ -423,6 +423,81 @@ fn test_adk_cascade_cleanup_removes_all_entities_across_three_databases() {
         control_after, control_before,
         "Control session records must not be affected"
     );
+
+    // A stale runtime must not recreate rows after the cascade has crossed
+    // the deletion boundary in any of the three databases.
+    let stale_run = cluster.adk_store.create_run(CreateAdkRunParams {
+        id: "run-stale-after-delete",
+        session_id: "sess-target",
+        agent_id: "agent-alpha",
+        status: "RUNNING",
+        client_request_id: "req-stale-after-delete",
+        request_fingerprint: "fp-stale-after-delete",
+        payload_json: "{}",
+    });
+    assert!(
+        matches!(stale_run, Err(AdkStoreError::Conflict(_))),
+        "stale ADK run writes must be fenced: {stale_run:?}"
+    );
+    let stale_approval = cluster.adk_store.create_approval(
+        "approval-stale-after-delete",
+        "run-target-1",
+        "agent-alpha",
+        "PENDING",
+        "{}",
+    );
+    assert!(
+        matches!(stale_approval, Err(AdkStoreError::NotFound(_))),
+        "stale approval writes must not recreate a deleted run: {stale_approval:?}"
+    );
+    let stale_task = cluster.adk_store.upsert_task(
+        "task-stale-after-delete",
+        "RUNNING",
+        "agent-alpha",
+        "run-target-1",
+        "{}",
+    );
+    assert!(
+        matches!(stale_task, Err(AdkStoreError::NotFound(_))),
+        "stale task writes must not recreate a deleted run: {stale_task:?}"
+    );
+    let stale_session =
+        cluster
+            .session_store
+            .upsert_session("jftrade", "local", "sess-target", "ACTIVE");
+    assert!(
+        stale_session.is_err(),
+        "stale session-store writes must be fenced"
+    );
+    let stale_event = cluster.session_store.record_event(RecordAdkEventParams {
+        id: "evt-stale-after-delete",
+        app_name: "jftrade",
+        user_id: "local",
+        session_id: "sess-target",
+        invocation_id: "run-stale-after-delete",
+        author: "assistant",
+        content: "late",
+    });
+    assert!(stale_event.is_err(), "late event writes must be fenced");
+    let stale_artifact = cluster.artifact_store.put_artifact(PutAdkArtifactParams {
+        app_name: "jftrade",
+        user_id: "local",
+        session_id: "sess-target",
+        file_name: "late.txt",
+        version: 1,
+        part_json: "{}",
+        mime_type: "text/plain",
+        custom_metadata_json: None,
+    });
+    assert!(
+        stale_artifact.is_err(),
+        "late artifact writes must be fenced"
+    );
+    assert_eq!(
+        count_session_records(&cluster, "sess-target"),
+        SessionRecordCounts::default(),
+        "fenced writes must not recreate deleted rows"
+    );
 }
 
 #[test]

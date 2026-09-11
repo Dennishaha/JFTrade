@@ -2,7 +2,9 @@ use super::*;
 use std::time::Duration;
 use tokio::sync::Notify;
 
-use crate::product::product_production_ports::{ExecutionReconciliationWorker, SharedTradeReadRuntime};
+use crate::product::product_production_ports::{
+    ExecutionReconciliationWorker, SharedTradeReadRuntime,
+};
 
 #[test]
 fn test_tc_d5_01_sequential_partial_fills_and_fees_monotonic() {
@@ -20,7 +22,11 @@ fn test_tc_d5_01_sequential_partial_fills_and_fees_monotonic() {
 
     struct DynamicTradeReader {
         accounts: Vec<TradeAccountSnapshot>,
-        dynamic: Mutex<(Vec<TradeFillSnapshot>, TradeOrderSnapshot, Vec<TradeOrderFeeSnapshot>)>,
+        dynamic: Mutex<(
+            Vec<TradeFillSnapshot>,
+            TradeOrderSnapshot,
+            Vec<TradeOrderFeeSnapshot>,
+        )>,
         fail_accounts: std::sync::atomic::AtomicBool,
     }
 
@@ -31,40 +37,104 @@ fn test_tc_d5_01_sequential_partial_fills_and_fees_monotonic() {
     }
 
     impl TradeReadPort for DynamicTradeReader {
-        fn read_accounts(&self, _: u64, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
-            if self.fail_accounts.load(std::sync::atomic::Ordering::Relaxed) {
-                return Err(TradeSessionError::Unsupported("simulated disconnect".to_owned()));
+        fn read_accounts(
+            &self,
+            _: u64,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeAccountSnapshot>, TradeSessionError> {
+            if self
+                .fail_accounts
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                return Err(TradeSessionError::Unsupported(
+                    "simulated disconnect".to_owned(),
+                ));
             }
             Ok(self.accounts.clone())
         }
-        fn read_funds(&self, _: TradeHeader, _: Option<bool>, _: Option<i32>, _: Option<i32>) -> Result<TradeFundsSnapshot, TradeSessionError> {
+        fn read_funds(
+            &self,
+            _: TradeHeader,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+        ) -> Result<TradeFundsSnapshot, TradeSessionError> {
             unavailable("funds")
         }
-        fn read_cash_flows(&self, _: TradeHeader, _: String, _: Option<i32>) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
+        fn read_cash_flows(
+            &self,
+            _: TradeHeader,
+            _: String,
+            _: Option<i32>,
+        ) -> Result<Vec<TradeCashFlowSnapshot>, TradeSessionError> {
             unavailable("cash flows")
         }
-        fn read_order_fees(&self, _: TradeHeader, _: Vec<String>) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
+        fn read_order_fees(
+            &self,
+            _: TradeHeader,
+            _: Vec<String>,
+        ) -> Result<Vec<TradeOrderFeeSnapshot>, TradeSessionError> {
             Ok(self.dynamic.lock().unwrap().2.clone())
         }
-        fn read_margin_ratios(&self, _: TradeHeader, _: Vec<TradeSecurity>) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
+        fn read_margin_ratios(
+            &self,
+            _: TradeHeader,
+            _: Vec<TradeSecurity>,
+        ) -> Result<Vec<TradeMarginRatioSnapshot>, TradeSessionError> {
             unavailable("margin")
         }
-        fn read_max_trade_quantity(&self, _: TradeMaxTradeQuantityRequest) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
+        fn read_max_trade_quantity(
+            &self,
+            _: TradeMaxTradeQuantityRequest,
+        ) -> Result<TradeMaxTradeQuantitySnapshot, TradeSessionError> {
             unavailable("max qty")
         }
-        fn read_positions(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<f64>, _: Option<f64>, _: Option<bool>, _: Option<i32>, _: Option<i32>, _: Option<bool>) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
+        fn read_positions(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<f64>,
+            _: Option<f64>,
+            _: Option<bool>,
+            _: Option<i32>,
+            _: Option<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradePositionSnapshot>, TradeSessionError> {
             unavailable("positions")
         }
-        fn read_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        fn read_orders(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Vec<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
             Ok(vec![self.dynamic.lock().unwrap().1.clone()])
         }
-        fn read_history_orders(&self, _: TradeHeader, _: Option<TradeFilter>, _: Vec<i32>, _: Option<bool>) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
+        fn read_history_orders(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Vec<i32>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeOrderSnapshot>, TradeSessionError> {
             Ok(vec![self.dynamic.lock().unwrap().1.clone()])
         }
-        fn read_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        fn read_fills(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
             Ok(self.dynamic.lock().unwrap().0.clone())
         }
-        fn read_history_fills(&self, _: TradeHeader, _: Option<TradeFilter>, _: Option<bool>) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
+        fn read_history_fills(
+            &self,
+            _: TradeHeader,
+            _: Option<TradeFilter>,
+            _: Option<bool>,
+        ) -> Result<Vec<TradeFillSnapshot>, TradeSessionError> {
             Ok(self.dynamic.lock().unwrap().0.clone())
         }
     }
@@ -189,7 +259,10 @@ fn test_tc_d5_02_out_of_order_push_chaos_covered_by_snapshot() {
 
     // Reconcile must recognize covered_by_snapshot and not double-count
     let changed = port_delayed.reconcile_pending_orders().unwrap();
-    assert_eq!(changed, 0, "covered fills must not alter already reconciled snapshot quantity");
+    assert_eq!(
+        changed, 0,
+        "covered fills must not alter already reconciled snapshot quantity"
+    );
 
     let final_order = store.get_order("rust-order-reconcile").unwrap().unwrap();
     assert_eq!(final_order.filled_quantity, Some(50.0));
@@ -205,10 +278,7 @@ async fn test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing() {
     let port = Arc::new(production_port(Arc::clone(&store), Arc::clone(&reader)));
     let wake = Arc::new(Notify::new());
 
-    let worker = ExecutionReconciliationWorker::start(
-        Arc::clone(&port),
-        Some(Arc::clone(&wake)),
-    );
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), Some(Arc::clone(&wake)));
 
     // Initial scan executes -> ready
     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -240,10 +310,8 @@ async fn test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing() {
         notification_projector: None,
     });
 
-    let failing_worker = ExecutionReconciliationWorker::start(
-        Arc::clone(&failing_port),
-        Some(Arc::clone(&wake)),
-    );
+    let failing_worker =
+        ExecutionReconciliationWorker::start(Arc::clone(&failing_port), Some(Arc::clone(&wake)));
 
     tokio::time::sleep(Duration::from_millis(50)).await;
     let degraded_status = failing_worker.status();
@@ -274,10 +342,8 @@ async fn test_tc_d5_04_opend_disconnect_degraded_backoff_and_self_healing() {
         notification_projector: None,
     });
 
-    let self_healing_worker = ExecutionReconciliationWorker::start(
-        Arc::clone(&recovered_port),
-        Some(Arc::clone(&wake)),
-    );
+    let self_healing_worker =
+        ExecutionReconciliationWorker::start(Arc::clone(&recovered_port), Some(Arc::clone(&wake)));
 
     tokio::time::sleep(Duration::from_millis(50)).await;
     let healed_status = self_healing_worker.status();
@@ -296,10 +362,7 @@ async fn test_p1_02_push_wake_latency_and_polling_fallback() {
     let port = Arc::new(production_port(Arc::clone(&store), Arc::clone(&reader)));
     let wake = Arc::new(Notify::new());
 
-    let worker = ExecutionReconciliationWorker::start(
-        Arc::clone(&port),
-        Some(Arc::clone(&wake)),
-    );
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), Some(Arc::clone(&wake)));
 
     tokio::time::sleep(Duration::from_millis(40)).await;
     let count_before = worker.status().scans;
@@ -310,8 +373,14 @@ async fn test_p1_02_push_wake_latency_and_polling_fallback() {
     let elapsed = start.elapsed();
 
     let count_after = worker.status().scans;
-    assert!(count_after > count_before, "wake() must immediately trigger scan");
-    assert!(elapsed < Duration::from_secs(1), "push wake latency must be sub-second");
+    assert!(
+        count_after > count_before,
+        "wake() must immediately trigger scan"
+    );
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "push wake latency must be sub-second"
+    );
 }
 
 #[tokio::test]
@@ -332,10 +401,7 @@ async fn test_p1_02_single_writer_lease_and_concurrency_fencing() {
     let port = Arc::new(production_port(Arc::clone(&store), Arc::clone(&reader)));
     let wake = Arc::new(Notify::new());
 
-    let worker = ExecutionReconciliationWorker::start(
-        Arc::clone(&port),
-        Some(Arc::clone(&wake)),
-    );
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), Some(Arc::clone(&wake)));
 
     // Flood with concurrent wake calls
     for _ in 0..10 {
@@ -347,4 +413,107 @@ async fn test_p1_02_single_writer_lease_and_concurrency_fencing() {
     assert_eq!(saved.status, "PARTIALLY_FILLED");
     assert_eq!(saved.filled_quantity, Some(2.0));
     assert_eq!(worker.status().failures, 0);
+}
+
+#[tokio::test]
+async fn test_reconciliation_shutdown_is_bounded_for_blocking_broker_scan() {
+    let (store, _directory) = reconciliation_store();
+    let entered = Arc::new(Notify::new());
+    let finished = Arc::new(Notify::new());
+    let gate = Arc::new(BlockingAccounts {
+        entered: Arc::clone(&entered),
+        finished: Arc::clone(&finished),
+        entries: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        release: Arc::new((Mutex::new(false), Condvar::new())),
+    });
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        blocking_accounts: Some(Arc::clone(&gate)),
+        ..Default::default()
+    });
+    let reader_port: Arc<dyn TradeReadPort> = reader;
+    let provider = Arc::new(ActiveProviderState::new(Some(MarketDataProvider::Yfinance)));
+    provider.set_readiness(true, true, false);
+    let port = Arc::new(ProductionExecutionPort {
+        store,
+        active_provider_state: provider,
+        trade_logged_in: Some(true),
+        trade_read_port: Some(reader_port),
+        trade_write_port: None,
+        trade_runtime: None,
+        cancel_inflight: Arc::new(Mutex::new(std::collections::BTreeSet::new())),
+        risk_coordinator: None,
+        default_trading_environment: None,
+        notification_projector: None,
+    });
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), None);
+
+    tokio::time::timeout(Duration::from_secs(1), entered.notified())
+        .await
+        .expect("worker must enter blocking broker scan");
+    let started = std::time::Instant::now();
+    tokio::time::timeout(Duration::from_secs(1), worker.shutdown())
+        .await
+        .expect("shutdown must have a bounded deadline");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "shutdown exceeded the test deadline: {:?}",
+        started.elapsed()
+    );
+    let status = worker.status();
+    assert_eq!(status.state, "failed");
+    assert!(status
+        .last_error
+        .as_deref()
+        .is_some_and(|error| error.contains("shutdown exceeded")));
+
+    // The blocking task cannot be force-cancelled. Once the fake broker call
+    // returns it must still complete and release its port Arc cleanly.
+    gate.release();
+    tokio::time::timeout(Duration::from_secs(1), finished.notified())
+        .await
+        .expect("blocking broker task must finish after release");
+}
+
+#[tokio::test]
+async fn test_reconciliation_terminate_suppresses_late_scan_updates() {
+    let (store, _directory) = reconciliation_store();
+    let entered = Arc::new(Notify::new());
+    let finished = Arc::new(Notify::new());
+    let gate = Arc::new(BlockingAccounts {
+        entered: Arc::clone(&entered),
+        finished: Arc::clone(&finished),
+        entries: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+        release: Arc::new((Mutex::new(false), Condvar::new())),
+    });
+    let reader = Arc::new(FixtureTradeReader {
+        accounts: vec![account()],
+        blocking_accounts: Some(Arc::clone(&gate)),
+        ..Default::default()
+    });
+    let port = Arc::new(production_port(Arc::clone(&store), Arc::clone(&reader)));
+    let worker = ExecutionReconciliationWorker::start(Arc::clone(&port), None);
+
+    tokio::time::timeout(Duration::from_secs(1), entered.notified())
+        .await
+        .expect("worker must enter blocking broker scan");
+    worker.terminate();
+    assert_eq!(worker.status().state, "stopped");
+
+    // `terminate` aborts only the async owner.  The synchronous provider call
+    // still returns eventually, but its late result must not count as a scan,
+    // publish notifications, or revive the retired worker.
+    gate.release();
+    tokio::time::timeout(Duration::from_secs(1), finished.notified())
+        .await
+        .expect("terminated blocking task must finish after release");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let status = worker.status();
+    assert_eq!(status.state, "stopped");
+    assert_eq!(status.scans, 0, "late terminated result must not update status");
+    assert_eq!(
+        gate.entries.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "terminated owner must not start another scan"
+    );
 }

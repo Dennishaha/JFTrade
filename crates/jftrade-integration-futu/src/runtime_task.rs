@@ -11,6 +11,7 @@ use thiserror::Error;
 
 use crate::{
     OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionCoordinatorOutcome,
+    QuoteSessionResolver,
 };
 
 /// Configuration for the explicitly composed OpenD runtime task.
@@ -36,6 +37,7 @@ pub struct OpenDSessionRuntimeConfig {
     pub reconnect_initial_delay: Duration,
     pub reconnect_max_delay: Duration,
     pub quota_refresh_enabled: bool,
+    pub session_resolver: Option<Arc<dyn QuoteSessionResolver>>,
     pub event_listener: Option<Arc<dyn OpenDSessionEventListener>>,
 }
 
@@ -48,6 +50,7 @@ impl Default for OpenDSessionRuntimeConfig {
             reconnect_initial_delay: Duration::from_millis(250),
             reconnect_max_delay: Duration::from_secs(5),
             quota_refresh_enabled: false,
+            session_resolver: None,
             event_listener: None,
         }
     }
@@ -147,6 +150,10 @@ impl OpenDSessionRuntime {
         router: Option<Arc<Mutex<ProviderRouter>>>,
         config: OpenDSessionRuntimeConfig,
     ) -> Result<Self, OpenDSessionRuntimeError> {
+        coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .set_session_resolver(config.session_resolver.clone());
         let initial_demand = coordinator
             .lock()
             .unwrap_or_else(|error| error.into_inner())

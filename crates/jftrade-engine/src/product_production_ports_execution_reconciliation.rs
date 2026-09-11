@@ -6,7 +6,7 @@ use jftrade_integration_futu::{
     TradeFillSnapshot, TradeFilter, TradeOrderFeeSnapshot, TradeOrderSnapshot, TradeReadPort,
 };
 use jftrade_store_sqlite::{StoredExecutionOrder, StoredExecutionOrderEvent};
-use jftrade_trading::{OrderStatus, canonical_stored_status};
+use jftrade_trading::{OrderStatus, canonical_broker_status, canonical_stored_status};
 use serde_json::{Value, json};
 
 use super::ProductionExecutionPort;
@@ -19,8 +19,44 @@ use crate::product::product_execution_write_port::ExecutionWritePortError;
 mod recovery;
 use recovery::*;
 
+#[path = "execution_reconciliation_discovery.rs"]
+mod discovery;
+use discovery::*;
+
 impl ProductionExecutionPort {
+    #[allow(dead_code)]
     pub(super) fn reconcile_pending_orders(&self) -> Result<usize, String> {
+        // A timed-out `spawn_blocking` scan cannot be force-cancelled.  Keep
+        // the store-owned process-local fence for the whole read/project
+        // sequence so a replacement worker cannot race the late owner.
+        let _scan_guard = self
+            .store
+            .lock_reconciliation_scan()
+            .map_err(|error| format!("acquire reconciliation scan fence: {error}"))?;
+        self.reconcile_pending_orders_inner()
+    }
+
+    /// Run a worker-owned scan while retaining the same store fence through
+    /// notification projection.  `accept_results` is checked only after the
+    /// blocking provider call returns, so a shutdown that races that call
+    /// suppresses all late user-visible side effects while preserving durable
+    /// order/fill reconciliation.
+    pub(super) fn reconcile_pending_orders_with_projection(
+        &self,
+        accept_results: &std::sync::atomic::AtomicBool,
+    ) -> Result<usize, String> {
+        let _scan_guard = self
+            .store
+            .lock_reconciliation_scan()
+            .map_err(|error| format!("acquire reconciliation scan fence: {error}"))?;
+        let result = self.reconcile_pending_orders_inner();
+        if accept_results.load(std::sync::atomic::Ordering::Acquire) {
+            self.project_notifications();
+        }
+        result
+    }
+
+    fn reconcile_pending_orders_inner(&self) -> Result<usize, String> {
         let reader = self.reconciliation_reader()?;
         let accounts = reader
             .read_accounts(0, None, None)
@@ -28,8 +64,8 @@ impl ProductionExecutionPort {
         if accounts.is_empty() {
             return Err("broker account discovery returned no accounts".to_owned());
         }
-        let mut account_keys = HashSet::with_capacity(accounts.len());
-        for account in accounts {
+        let mut account_keys = HashSet::with_capacity(accounts.len() * 2);
+        for account in &accounts {
             let environment = match account.trd_env {
                 0 => "SIMULATE",
                 1 => "REAL",
@@ -39,7 +75,12 @@ impl ProductionExecutionPort {
                     ));
                 }
             };
-            account_keys.insert((account.acc_id.to_string(), environment.to_owned()));
+            if account.acc_id > 0 {
+                account_keys.insert((account.acc_id.to_string(), environment.to_owned()));
+            }
+            if let Some(identity) = account_identity(account) {
+                account_keys.insert((identity, environment.to_owned()));
+            }
         }
         let candidates = self.reconciliation_candidates()?;
         let mut failures = Vec::new();
@@ -50,44 +91,20 @@ impl ProductionExecutionPort {
                 Err(error) => failures.push(format!("{}: {error}", order.internal_order_id)),
             }
         }
+        // Existing local submissions are reconciled first so an unidentified
+        // submission can claim its unique broker identity before the same
+        // snapshot is considered an external order.  The discovery pass then
+        // persists every remaining active/history order and fill, including
+        // the empty-ledger and fill-before-order restart cases.
+        match self.discover_external_ledger(&reader, &accounts) {
+            Ok(count) => reconciled += count,
+            Err(error) => failures.push(error),
+        }
         if failures.is_empty() {
             Ok(reconciled)
         } else {
             Err(failures.join("; "))
         }
-    }
-
-    fn reconciliation_candidates(&self) -> Result<Vec<StoredExecutionOrder>, String> {
-        let mut candidates = self
-            .store
-            .list_reconciliation_candidates()
-            .map_err(|error| format!("list execution reconciliation candidates: {error}"))?;
-        let known = candidates
-            .iter()
-            .map(|order| order.internal_order_id.clone())
-            .collect::<HashSet<_>>();
-        let terminal_fee_candidates = self
-            .store
-            .list_orders()
-            .map_err(|error| format!("list terminal fee reconciliation candidates: {error}"))?
-            .into_iter()
-            .filter(|order| {
-                !known.contains(&order.internal_order_id)
-                    && is_terminal(&order.status)
-                    && order.fees.is_none()
-                    && order
-                        .broker_order_id_ex
-                        .as_deref()
-                        .is_some_and(|value| !value.trim().is_empty())
-            });
-        candidates.extend(terminal_fee_candidates);
-        candidates.sort_by(|left, right| {
-            left.updated_at
-                .cmp(&right.updated_at)
-                .then_with(|| left.created_at.cmp(&right.created_at))
-                .then_with(|| left.internal_order_id.cmp(&right.internal_order_id))
-        });
-        Ok(candidates)
     }
 
     fn reconciliation_reader(&self) -> Result<std::sync::Arc<dyn TradeReadPort>, String> {
@@ -175,24 +192,29 @@ impl ProductionExecutionPort {
             };
             let active =
                 reader.read_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true));
-            let active_error = active.as_ref().err().map(ToString::to_string);
-            let mut matched = active.ok().and_then(|orders| {
-                orders.into_iter().find(|candidate| {
+            let history = reader.read_history_orders(
+                header.clone(),
+                Some(filter.clone()),
+                Vec::new(),
+                Some(true),
+            );
+            let matched = match (active, history) {
+                (Ok(active), Ok(history)) => active.into_iter().chain(history).find(|candidate| {
                     matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
-                })
-            });
-            if matched.is_none() {
-                let history = reader
-                    .read_history_orders(header.clone(), Some(filter.clone()), Vec::new(), Some(true))
-                    .map_err(|error| format!("broker order history read failed: {error}"))?;
-                matched = history.into_iter().find(|candidate| {
-                    matches_order(candidate, broker_id, broker_order_id_ex.as_deref())
-                });
-            }
-            if matched.is_none() {
-                if let Some(error) = active_error {
-                    return Err(format!("broker order read failed: {error}"));
+                }),
+                (Err(active), Ok(_)) => {
+                    return Err(format!("broker order read failed: {active}"));
                 }
+                (Ok(_), Err(history)) => {
+                    return Err(format!("broker order history read failed: {history}"));
+                }
+                (Err(active), Err(history)) => {
+                    return Err(format!(
+                        "broker order reads failed: active={active}; history={history}"
+                    ));
+                }
+            };
+            if matched.is_none() {
                 if is_terminal(&order.status) {
                     return self.reconcile_terminal_fees_only(reader, header, order);
                 }
@@ -347,7 +369,12 @@ impl ProductionExecutionPort {
                 active.extend(history);
                 active
             }
-            (Ok(active), Err(_)) | (Err(_), Ok(active)) => active,
+            (Err(active), Ok(_)) => {
+                return Err(format!("broker fill read failed: {active}"));
+            }
+            (Ok(_), Err(history)) => {
+                return Err(format!("broker fill history read failed: {history}"));
+            }
             (Err(active), Err(history)) => {
                 return Err(format!(
                     "broker fill and history reads failed: {active}; {history}"
@@ -592,195 +619,6 @@ impl ProductionExecutionPort {
             .map_err(super::execution_order_helpers::map_transition_store_error)?;
         Ok(true)
     }
-}
-
-fn matches_order(snapshot: &TradeOrderSnapshot, id: Option<u64>, id_ex: Option<&str>) -> bool {
-    let id_matches = id.is_some_and(|value| snapshot.order_id == value);
-    let ex_matches = id_ex.is_some_and(|value| snapshot.order_id_ex.trim() == value);
-    let id_consistent = id.is_none_or(|value| snapshot.order_id == value);
-    let ex_consistent = id_ex.is_none_or(|value| {
-        let actual = snapshot.order_id_ex.trim();
-        actual.is_empty() || actual == value
-    });
-    (id_matches || ex_matches) && id_consistent && ex_consistent
-}
-
-fn matches_fill(snapshot: &TradeFillSnapshot, id: Option<u64>, id_ex: Option<&str>) -> bool {
-    let id_matches = id.is_some_and(|value| snapshot.order_id == Some(value));
-    let ex_matches = id_ex.is_some_and(|value| {
-        snapshot
-            .order_id_ex
-            .as_deref()
-            .is_some_and(|actual| actual.trim() == value)
-    });
-    let id_consistent =
-        id.is_none_or(|value| snapshot.order_id.is_none_or(|actual| actual == value));
-    let ex_consistent = id_ex.is_none_or(|value| {
-        snapshot
-            .order_id_ex
-            .as_deref()
-            .is_none_or(|actual| actual.trim().is_empty() || actual.trim() == value)
-    });
-    (id_matches || ex_matches) && id_consistent && ex_consistent
-}
-
-fn matches_fee(snapshot: &TradeOrderFeeSnapshot, order_id_ex: &str) -> bool {
-    let expected = order_id_ex.trim();
-    !expected.is_empty() && snapshot.broker_order_id_ex.trim() == expected
-}
-
-fn fill_identity(fill: &TradeFillSnapshot) -> String {
-    if !fill.fill_id_ex.trim().is_empty() {
-        fill.fill_id_ex.trim().to_owned()
-    } else {
-        fill.fill_id.to_string()
-    }
-}
-
-fn equivalent_fill_observation(left: &TradeFillSnapshot, right: &TradeFillSnapshot) -> bool {
-    left.order_id == right.order_id
-        && left.order_id_ex.as_deref().map(str::trim) == right.order_id_ex.as_deref().map(str::trim)
-        && left.code.trim().eq_ignore_ascii_case(right.code.trim())
-        && left.qty.to_bits() == right.qty.to_bits()
-        && left.price.to_bits() == right.price.to_bits()
-        && left.create_time.trim() == right.create_time.trim()
-}
-
-fn validate_fill_snapshot(fill: &TradeFillSnapshot) -> Result<(), ExecutionWritePortError> {
-    if fill.fill_id == 0 && fill.fill_id_ex.trim().is_empty() {
-        return Err(invalid_fill(
-            "OpenD returned a fill without a broker fill identity",
-        ));
-    }
-    if fill.order_id.is_none()
-        && fill
-            .order_id_ex
-            .as_deref()
-            .is_none_or(|value| value.trim().is_empty())
-    {
-        return Err(invalid_fill(
-            "OpenD returned a fill without a broker order identity",
-        ));
-    }
-    if !fill.qty.is_finite() || fill.qty <= 0.0 {
-        return Err(invalid_fill("OpenD returned a non-positive fill quantity"));
-    }
-    if !fill.price.is_finite() || fill.price <= 0.0 {
-        return Err(invalid_fill("OpenD returned a non-positive fill price"));
-    }
-    if fill.code.trim().is_empty() {
-        return Err(invalid_fill(
-            "OpenD returned a fill without a security code",
-        ));
-    }
-    time::OffsetDateTime::parse(
-        fill.create_time.trim(),
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map(|_| ())
-    .map_err(|error| invalid_fill(format!("OpenD returned an invalid fill timestamp: {error}")))
-}
-
-fn invalid_fill(message: impl Into<String>) -> ExecutionWritePortError {
-    failed(502, "BROKER_INVALID_RESPONSE", message)
-}
-
-fn fee_amount(fee: &TradeOrderFeeSnapshot) -> Option<f64> {
-    fee.fee_amount.or_else(|| {
-        (!fee.fee_items.is_empty()).then(|| fee.fee_items.iter().map(|item| item.value).sum())
-    })
-}
-
-fn finite_positive(value: f64) -> Option<f64> {
-    (value.is_finite() && value > 0.0).then_some(value)
-}
-
-fn covered_by_snapshot(
-    events: &[jftrade_store_sqlite::StoredExecutionOrderEventRecord],
-    fill: &TradeFillSnapshot,
-) -> Result<f64, ExecutionWritePortError> {
-    let fill_at = fill.create_time.trim();
-    let mut best = 0.0;
-    let mut best_at = String::new();
-    let mut known = 0.0;
-    for event in events {
-        let payload = serde_json::from_str::<Value>(&event.payload_json).map_err(|error| {
-            invalid_stored(format!(
-                "stored order event {} has invalid JSON payload: {error}",
-                event.id
-            ))
-        })?;
-        if event.event_type == "BROKER_FILL_RECEIVED" {
-            if let Some(at) = payload.get("filledAt").filter(|value| !value.is_null()) {
-                let at = at.as_str().ok_or_else(|| {
-                    invalid_stored(format!(
-                        "stored fill event {} has invalid filledAt",
-                        event.id
-                    ))
-                })?;
-                if !at.is_empty() && !time_after(at, fill_at) {
-                    let quantity = payload
-                        .get("filledQuantity")
-                        .and_then(Value::as_f64)
-                        .ok_or_else(|| {
-                            invalid_stored(format!(
-                                "stored fill event {} has invalid filledQuantity",
-                                event.id
-                            ))
-                        })?;
-                    if !quantity.is_finite() || quantity < 0.0 {
-                        return Err(invalid_stored(format!(
-                            "stored fill event {} has an invalid filledQuantity",
-                            event.id
-                        )));
-                    }
-                    known += quantity;
-                }
-            }
-            continue;
-        }
-        let Some(quantity_value) = payload
-            .get("filledQuantity")
-            .filter(|value| !value.is_null())
-        else {
-            continue;
-        };
-        let quantity = quantity_value.as_f64().ok_or_else(|| {
-            invalid_stored(format!(
-                "stored order event {} has invalid filledQuantity",
-                event.id
-            ))
-        })?;
-        if !quantity.is_finite() || quantity < 0.0 {
-            return Err(invalid_stored(format!(
-                "stored order event {} has an invalid filledQuantity",
-                event.id
-            )));
-        }
-        let at = payload
-            .get("updatedAt")
-            .filter(|value| !value.is_null())
-            .map_or(Ok(event.created_at.as_str()), |value| {
-                value.as_str().ok_or_else(|| {
-                    invalid_stored(format!(
-                        "stored order event {} has invalid updatedAt",
-                        event.id
-                    ))
-                })
-            })?;
-        if quantity > best && !time_after(fill_at, at) {
-            best = quantity;
-            best_at = at.to_owned();
-        }
-    }
-    if best <= 0.0 || best_at.is_empty() {
-        return Ok(0.0);
-    }
-    Ok((best - known).max(0.0).min(fill.qty))
-}
-
-fn invalid_stored(message: impl Into<String>) -> ExecutionWritePortError {
-    failed(500, "EXECUTION_ORDER_DATA_INVALID", message)
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use jftrade_kernel::{Decimal, DecimalText};
-use jftrade_marketdata::BrokerSecuritySnapshot;
+use jftrade_marketdata::{BrokerSecuritySnapshot, ExtendedQuoteSnapshot};
 use prost::Message;
 use thiserror::Error;
 
@@ -216,9 +216,13 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
         high_price: optional_price(Some(basic.high_price)),
         low_price: optional_price(Some(basic.low_price)),
         previous_close: optional_price(Some(basic.last_close_price)),
+        last_close: optional_price(Some(basic.last_close_price)),
         turnover: optional_decimal(Some(basic.turnover)),
         update_time: Some(basic.update_time),
         status: basic.sec_status,
+        pre_market: basic.pre_market.map(map_extended_snapshot),
+        after_market: basic.after_market.map(map_extended_snapshot),
+        overnight: basic.overnight.map(map_extended_snapshot),
         pe_rate: snapshot
             .equity_ex_data
             .as_ref()
@@ -229,6 +233,24 @@ fn map_snapshot(snapshot: wire::Snapshot) -> Option<BrokerSecuritySnapshot> {
             .and_then(|v| optional_decimal(Some(v.pb_rate))),
         ..Default::default()
     })
+}
+
+fn map_extended_snapshot(
+    value: crate::trade_proto::qot_common::PreAfterMarketData,
+) -> ExtendedQuoteSnapshot {
+    ExtendedQuoteSnapshot {
+        price: optional_price(value.price),
+        high_price: optional_price(value.high_price),
+        low_price: optional_price(value.low_price),
+        volume: value
+            .volume
+            .and_then(|value| DecimalText::from_str(&value.to_string()).ok()),
+        turnover: optional_decimal(value.turnover),
+        change: optional_decimal(value.change_val),
+        change_rate: optional_decimal(value.change_rate),
+        amplitude: optional_decimal(value.amplitude),
+        ..Default::default()
+    }
 }
 
 fn optional_price(value: Option<f64>) -> Option<Decimal> {

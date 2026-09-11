@@ -137,6 +137,23 @@ fn cache_rejects_empty_generation_and_backwards_timestamp_inputs() {
 }
 
 #[test]
+fn cache_treats_clock_rollback_as_stale() {
+    let generation = 4;
+    let mut cache = TickCache::new(1);
+    let current = tick("US.AAPL", "100", "1", 2_000, generation, None);
+    cache
+        .insert(current, generation)
+        .expect("current-generation tick");
+
+    // A wall clock that moves behind the observation must not be accepted as
+    // a zero-age sample merely because the age subtraction saturates.
+    assert_eq!(
+        cache.lookup("US.AAPL", 1_999, 10),
+        CacheLookup::Stale(tick("US.AAPL", "100", "1", 2_000, generation, None))
+    );
+}
+
+#[test]
 fn cache_preserves_same_price_quote_context_and_generation_fencing() {
     let generation = 11;
     let mut cache = TickCache::new(2);

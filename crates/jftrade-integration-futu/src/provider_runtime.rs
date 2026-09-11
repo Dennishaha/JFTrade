@@ -8,7 +8,7 @@ use thiserror::Error;
 use crate::{
     OpenDSessionCoordinator, OpenDSessionCoordinatorError, OpenDSessionRuntime,
     OpenDSessionRuntimeConfig, OpenDSessionRuntimeError, OpenDTcpProbe, OpenDTcpProbeConfig,
-    OpenDTcpProbeError, market_data_health_from_probe,
+    OpenDTcpProbeError, QuoteSessionResolver, market_data_health_from_probe,
 };
 
 /// Explicit composition input for the Futu/OpenD provider runtime.
@@ -169,6 +169,15 @@ impl OpenDProviderRuntime {
 
     pub fn runtime(&self) -> &OpenDSessionRuntime {
         &self.runtime
+    }
+
+    /// Updates the shared calendar resolver for future BasicQot polls.
+    pub fn set_session_resolver(&self, resolver: Option<Arc<dyn QuoteSessionResolver>>) {
+        let coordinator = self.runtime.coordinator();
+        coordinator
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .set_session_resolver(resolver);
     }
 
     /// Login evidence captured by the initial OpenD global-state probe.

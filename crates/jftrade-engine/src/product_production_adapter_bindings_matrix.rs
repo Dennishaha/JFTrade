@@ -106,10 +106,10 @@ impl MarketDataCapabilityMatrix {
         ) && self.helper_ready
     }
 
-    /// Stock screening is provided by the embedded helper only. Futu's
-    /// OpenD stock-filter reader is not wired into the production bundle, so
-    /// a Futu selection must remain explicitly unavailable rather than being
-    /// advertised by the route's compatibility adapter.
+    /// The static matrix can prove helper-backed screening, while Futu's
+    /// OpenD reader is resolved dynamically from the shared runtime. Keep the
+    /// conservative matrix result here; route/tool readiness performs the
+    /// provider-specific reader check before dispatch.
     pub(crate) fn can_read_research_screen(&self) -> bool {
         self.can_search()
     }

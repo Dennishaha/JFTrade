@@ -12,22 +12,38 @@ export type ResultMarker = {
   alertCount: number;
   visualCount: number;
   drawingCount: number;
+  /**
+   * A structural snapshot of the drawings that were already emitted.
+   *
+   * PineTS keeps drawing objects in place while a live session advances.  A
+   * length marker therefore cannot tell an in-place update from an unchanged
+   * drawing (or a replacement at the same array index).  The field is
+   * optional for backwards compatibility with callers that construct markers
+   * themselves; those callers retain the historical count-slice behaviour.
+   */
+  drawingSnapshots?: Record<string, DrawingSnapshot>;
   logCount: number;
   warningCount: number;
   diagnosticCount: number;
 };
 
+type DrawingSnapshot = {
+  serialized: string;
+  index: number;
+  id?: unknown;
+  name?: unknown;
+  kind?: unknown;
+};
+
 export function resultMarker(result: PineTSRunResult, capture: OrderIntentCapture): ResultMarker {
+  const drawings = drawingItems(result.drawings);
   return {
     intentCount: capture.intents.length,
     plotLengths: Object.fromEntries(Object.entries(result.plots ?? {}).map(([name, plot]) => [name, plotLength(plot)])),
     alertCount: result.alerts?.length ?? 0,
     visualCount: result.visualOutputs?.length ?? 0,
-    drawingCount: Array.isArray(result.drawings)
-      ? result.drawings.length
-      : result.drawings !== undefined && result.drawings !== null
-        ? 1
-        : 0,
+    drawingCount: drawings.length,
+    drawingSnapshots: snapshotDrawings(drawings),
     logCount: result.logs?.length ?? 0,
     warningCount: result.warnings?.length ?? 0,
     diagnosticCount: result.diagnostics?.length ?? 0,
@@ -46,7 +62,13 @@ export function incrementalResult(
   };
   if (result.alerts !== undefined) delta.alerts = result.alerts.slice(marker.alertCount);
   if (result.visualOutputs !== undefined) delta.visualOutputs = result.visualOutputs.slice(marker.visualCount);
-  if (Array.isArray(result.drawings)) {
+  const drawings = drawingItems(result.drawings);
+  if (marker.drawingSnapshots !== undefined) {
+    delta.drawings = drawingDelta(drawings, marker.drawingSnapshots);
+  } else if (Array.isArray(result.drawings)) {
+    // Markers created before structural snapshots were introduced keep their
+    // old append-only semantics.  This fallback is deliberately retained so
+    // external integrations do not silently change behaviour.
     delta.drawings = result.drawings.slice(marker.drawingCount ?? 0);
   } else if (result.drawings !== undefined) {
     delta.drawings = marker.drawingCount > 0 ? undefined : result.drawings;
@@ -64,6 +86,116 @@ export function incrementalResult(
     ]));
   }
   return compactPineTSResult(delta, includePlots);
+}
+
+function drawingItems(value: unknown): unknown[] {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function snapshotDrawings(items: unknown[]): Record<string, DrawingSnapshot> {
+  const snapshots: Record<string, DrawingSnapshot> = {};
+  const occurrences = new Map<string, number>();
+  for (const [index, item] of items.entries()) {
+    const identity = drawingIdentity(item, index);
+    const occurrence = occurrences.get(identity.base) ?? 0;
+    occurrences.set(identity.base, occurrence + 1);
+    const key = `${identity.base}#${occurrence}`;
+    snapshots[key] = {
+      serialized: stableSerialize(item),
+      index,
+      id: identity.id,
+      name: identity.name,
+      kind: identity.kind,
+    };
+  }
+  return snapshots;
+}
+
+function drawingDelta(
+  current: unknown[],
+  previous: Record<string, DrawingSnapshot>,
+): unknown[] {
+  const next = snapshotDrawings(current);
+  const changed: unknown[] = [];
+
+  for (const [key, snapshot] of Object.entries(next)) {
+    const before = previous[key];
+    if (before === undefined || before.serialized !== snapshot.serialized) {
+      changed.push(current[snapshot.index]);
+    }
+  }
+
+  for (const [key, snapshot] of Object.entries(previous)) {
+    if (next[key] !== undefined) continue;
+    changed.push(drawingTombstone(snapshot));
+  }
+  return changed;
+}
+
+function drawingTombstone(snapshot: DrawingSnapshot): Record<string, unknown> {
+  const tombstone: Record<string, unknown> = {
+    deleted: true,
+    tombstone: true,
+    operation: "delete",
+  };
+  if (snapshot.id !== undefined) tombstone.id = snapshot.id;
+  if (snapshot.name !== undefined) tombstone.name = snapshot.name;
+  if (snapshot.kind !== undefined) tombstone.kind = snapshot.kind;
+  // Positional drawings have no stable identity.  Keeping the old position in
+  // the tombstone lets a consumer remove the correct entry when it chooses to
+  // render anonymous drawings.
+  if (snapshot.id === undefined && snapshot.name === undefined) {
+    tombstone.index = snapshot.index;
+  }
+  return tombstone;
+}
+
+function drawingIdentity(value: unknown, index: number): {
+  base: string;
+  id?: unknown;
+  name?: unknown;
+  kind?: unknown;
+} {
+  if (typeof value !== "object" || value === null) {
+    return { base: `index:${index}` };
+  }
+  const raw = value as Record<string, unknown>;
+  if (raw.id !== undefined && raw.id !== null && String(raw.id) !== "") {
+    return { base: `id:${stableSerialize(raw.id)}`, id: raw.id, name: raw.name, kind: raw.kind };
+  }
+  if (raw.name !== undefined && raw.name !== null && String(raw.name) !== "") {
+    return { base: `name:${stableSerialize(raw.name)}`, name: raw.name, id: raw.id, kind: raw.kind };
+  }
+  return { base: `index:${index}`, id: raw.id, name: raw.name, kind: raw.kind };
+}
+
+/** Stable, JSON-like serialization used only for equality comparisons. */
+function stableSerialize(value: unknown): string {
+  if (value === null) return "null";
+  switch (typeof value) {
+    case "string":
+      return JSON.stringify(value);
+    case "number":
+      return Number.isFinite(value) ? JSON.stringify(value) : "null";
+    case "boolean":
+      return value ? "true" : "false";
+    case "bigint":
+      return JSON.stringify(`${value.toString()}n`);
+    case "undefined":
+      return "undefined";
+    case "function":
+    case "symbol":
+      return JSON.stringify(String(value));
+    default:
+      break;
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(",")}]`;
+  }
+  const object = value as Record<string, unknown>;
+  const keys = Object.keys(object).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableSerialize(object[key])}`).join(",")}}`;
 }
 
 function plotLength(plot: PineTSPlot | number[]): number {

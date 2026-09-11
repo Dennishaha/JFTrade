@@ -8,11 +8,49 @@ use jftrade_integration_futu::{
     FutuInstitutionQueryError, FutuInstitutionReadPort, FutuInstitutionResult,
     FutuShortInterestQuery, FutuShortInterestQueryError,
     FutuShortInterestReadPort, FutuShortInterestResult, IndicatorCalcQuery,
+    StockScreenPage, StockScreenQuery, StockScreenQueryError, StockScreenReadPort,
 };
 
 use super::SharedTradeReadRuntime;
 
 impl SharedTradeReadRuntime {
+    pub(crate) fn set_stock_screen_reader(
+        &self,
+        reader: Option<Arc<dyn StockScreenReadPort>>,
+    ) {
+        *self
+            .stock_screen_reader
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reader;
+    }
+
+    pub(crate) fn stock_screen_reader_available(&self) -> bool {
+        self.stock_screen_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_some()
+    }
+
+    pub(crate) fn stock_screen_reader(&self) -> Option<Arc<dyn StockScreenReadPort>> {
+        self.stock_screen_reader
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn stock_screen(
+        &self,
+        query: &StockScreenQuery,
+    ) -> Result<StockScreenPage, StockScreenQueryError> {
+        self.stock_screen_reader()
+            .ok_or_else(|| {
+                StockScreenQueryError::InvalidQuery(
+                    "Futu stock-screen research runtime is unavailable".to_owned(),
+                )
+            })?
+            .query(query)
+    }
+
     pub(crate) fn set_institution_reader(
         &self,
         reader: Option<Arc<dyn FutuInstitutionReadPort>>,

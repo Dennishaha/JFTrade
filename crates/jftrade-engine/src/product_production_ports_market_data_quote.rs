@@ -1,21 +1,23 @@
 //! Production market-data quote adapter for subscriptions, securities, snapshots, candles, and depth.
 
 use jftrade_calendar::CalendarManager;
+use jftrade_integration_futu::{
+    MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
+};
 use jftrade_integration_marketdata_helper::{
     HelperCandlesResponse, HelperClient, HelperPriceValue, HelperSecurityResponse,
     HelperSnapshotResponse,
 };
 use jftrade_marketdata::{CacheLookup, ProviderRouter};
-use jftrade_integration_futu::{
-    MarketMicrostructureError, MarketMicrostructureOperation, MarketMicrostructureReadPort,
-};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
 
 #[path = "product_production_ports_market_data_quote_reads.rs"]
 mod quote_reads;
-use std::sync::{Arc, Mutex};
+#[path = "product_production_ports_market_data_quote_snapshot.rs"]
+mod quote_snapshot;
 use super::super::product_production_ports_trade::{canonical_candle_time, quote_market_code};
+use std::sync::{Arc, Mutex};
 
 use super::product_production_ports_market_data_projection::{
     current_unix_millis, format_unix_millis_rfc3339, map_helper_quote_error,
@@ -92,8 +94,9 @@ impl ProductionMarketDataQuotePort {
 
     pub(crate) fn with_trade_runtime(
         mut self,
-        trade_runtime:
-            Option<Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>>,
+        trade_runtime: Option<
+            Arc<super::super::product_production_ports_trade::SharedTradeReadRuntime>,
+        >,
     ) -> Self {
         self.trade_runtime = trade_runtime;
         self
@@ -174,10 +177,8 @@ impl ProductionMarketDataQuotePort {
                     "market-data subscription provider is not configured".to_owned(),
                 ));
             }
-            let mut response = render_subscriptions_data(
-                &jftrade_marketdata::DemandSnapshot::default(),
-                None,
-            );
+            let mut response =
+                render_subscriptions_data(&jftrade_marketdata::DemandSnapshot::default(), None);
             response["transport"] = json!({"mode": "snapshot-poll-fallback"});
             return Ok(response);
         }
@@ -274,13 +275,14 @@ impl ProductionMarketDataQuotePort {
         }
 
         if provider == MarketDataProvider::Futu {
-            let market_code = quote_market_code(&market)
-                .ok_or_else(|| MarketDataQuoteReadSnapshotError::Failed {
+            let market_code = quote_market_code(&market).ok_or_else(|| {
+                MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
                     message: format!("invalid market: {market}"),
                     retry_after_seconds: None,
-                })?;
+                }
+            })?;
             let security = jftrade_integration_futu::TradeSecurity {
                 market: market_code,
                 code: symbol.clone(),
@@ -327,25 +329,37 @@ impl ProductionMarketDataQuotePort {
             let security_type = resolved_security_type.as_deref().unwrap_or("EQUITY");
 
             let mut sec = serde_json::Map::new();
-            sec.insert("currency".to_owned(), json!(match market.as_str() {
-                "HK" => "HKD",
-                "US" => "USD",
-                "SH" | "SZ" | "CN" => "CNY",
-                _ => "USD",
-            }));
+            sec.insert(
+                "currency".to_owned(),
+                json!(match market.as_str() {
+                    "HK" => "HKD",
+                    "US" => "USD",
+                    "SH" | "SZ" | "CN" => "CNY",
+                    _ => "USD",
+                }),
+            );
             sec.insert("exchange".to_owned(), json!(market));
-            sec.insert("instrumentId".to_owned(), json!(format!("{market}.{symbol}")));
+            sec.insert(
+                "instrumentId".to_owned(),
+                json!(format!("{market}.{symbol}")),
+            );
             sec.insert("market".to_owned(), json!(market));
             sec.insert("name".to_owned(), json!(name));
             sec.insert("securityType".to_owned(), json!(security_type));
-            sec.insert("supportedPeriods".to_owned(), json!([
-                "tick", "1m", "3m", "5m", "10m", "15m", "30m", "1h", "1d", "1w", "1mo"
-            ]));
+            sec.insert(
+                "supportedPeriods".to_owned(),
+                json!([
+                    "tick", "1m", "3m", "5m", "10m", "15m", "30m", "1h", "1d", "1w", "1mo"
+                ]),
+            );
             sec.insert("symbol".to_owned(), json!(symbol));
-            sec.insert("timezone".to_owned(), json!(match market.as_str() {
-                "US" => "America/New_York",
-                _ => "Asia/Shanghai",
-            }));
+            sec.insert(
+                "timezone".to_owned(),
+                json!(match market.as_str() {
+                    "US" => "America/New_York",
+                    _ => "Asia/Shanghai",
+                }),
+            );
 
             if let Some(s) = snapshot_obj.as_ref() {
                 enrich_security_from_snapshot(&mut sec, s);
@@ -371,7 +385,6 @@ impl ProductionMarketDataQuotePort {
         )))
     }
 
-
     fn read_depth(
         &self,
         suffix: &str,
@@ -385,12 +398,7 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        let num = parse_bounded_query_i64(
-            &query_map,
-            "num",
-            Self::DEPTH_NUM_MAX,
-        )?
-        .unwrap_or(10);
+        let num = parse_bounded_query_i64(&query_map, "num", Self::DEPTH_NUM_MAX)?.unwrap_or(10);
 
         let provider = self.active_provider()?;
         if provider == MarketDataProvider::Futu {
@@ -401,15 +409,17 @@ impl ProductionMarketDataQuotePort {
             );
             self.require_order_book_subscription(&instrument_id)?;
             let params = json!({"num": num});
-            let reader = self
-                .microstructure_reader()
-                .ok_or_else(|| {
-                    MarketDataQuoteReadSnapshotError::Unavailable(
-                        "Futu market depth reader is unavailable".to_owned(),
-                    )
-                })?;
+            let reader = self.microstructure_reader().ok_or_else(|| {
+                MarketDataQuoteReadSnapshotError::Unavailable(
+                    "Futu market depth reader is unavailable".to_owned(),
+                )
+            })?;
             return reader
-                .query(MarketMicrostructureOperation::Depth, &instrument_id, &params)
+                .query(
+                    MarketMicrostructureOperation::Depth,
+                    &instrument_id,
+                    &params,
+                )
                 .map_err(|error| map_microstructure_error(error, "OPEND_DEPTH_FAILED"));
         }
 
@@ -431,11 +441,8 @@ impl ProductionMarketDataQuotePort {
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
             })?;
-        let page_size = parse_bounded_query_i64(
-            &query_map,
-            "pageSize",
-            Self::MICROSTRUCTURE_PAGE_SIZE_MAX,
-        )?;
+        let page_size =
+            parse_bounded_query_i64(&query_map, "pageSize", Self::MICROSTRUCTURE_PAGE_SIZE_MAX)?;
         let period_type = parse_optional_query_i32(&query_map, "periodType")?;
         let begin_time = validate_optional_query_time(&query_map, "beginTime")?;
         let end_time = validate_optional_query_time(&query_map, "endTime")?;
@@ -445,7 +452,9 @@ impl ProductionMarketDataQuotePort {
             return Err(MarketDataQuoteReadSnapshotError::Failed {
                 status: 409,
                 code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
-                message: format!("broker feature capability is unavailable: feature \"{feature_name}\" with broker \"{broker_id}\" is not registered"),
+                message: format!(
+                    "broker feature capability is unavailable: feature \"{feature_name}\" with broker \"{broker_id}\" is not registered"
+                ),
                 retry_after_seconds: None,
             });
         }
@@ -465,17 +474,23 @@ impl ProductionMarketDataQuotePort {
             },
             "market.intraday" => MarketMicrostructureOperation::Intraday,
             "market.instrument_profile" => MarketMicrostructureOperation::Profile,
-            _ => return Err(MarketDataQuoteReadSnapshotError::Unavailable("unsupported market microstructure feature".to_owned())),
+            _ => {
+                return Err(MarketDataQuoteReadSnapshotError::Unavailable(
+                    "unsupported market microstructure feature".to_owned(),
+                ));
+            }
         };
         let instrument = _instrument_id.trim();
-        let instrument_id = if instrument.contains('.') { instrument.to_ascii_uppercase() } else { format!("US.{}", instrument.to_ascii_uppercase()) };
-        let reader = self
-            .microstructure_reader()
-            .ok_or_else(|| {
-                MarketDataQuoteReadSnapshotError::Unavailable(
-                    "Futu market microstructure reader is unavailable".to_owned(),
-                )
-            })?;
+        let instrument_id = if instrument.contains('.') {
+            instrument.to_ascii_uppercase()
+        } else {
+            format!("US.{}", instrument.to_ascii_uppercase())
+        };
+        let reader = self.microstructure_reader().ok_or_else(|| {
+            MarketDataQuoteReadSnapshotError::Unavailable(
+                "Futu market microstructure reader is unavailable".to_owned(),
+            )
+        })?;
         let mut params = serde_json::Map::new();
         if let Some(value) = page_size {
             params.insert("pageSize".to_owned(), json!(value));
@@ -499,26 +514,37 @@ impl ProductionMarketDataQuotePort {
         suffix: &str,
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
-        let query_map = QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed { status: 400, code: "BAD_REQUEST".to_owned(), message: "invalid URL escape".to_owned(), retry_after_seconds: None })?;
-        let page_size = parse_bounded_query_i64(
-            &query_map,
-            "pageSize",
-            Self::TICKS_PAGE_SIZE_MAX,
-        )?
-        .unwrap_or(100);
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "invalid URL escape".to_owned(),
+                retry_after_seconds: None,
+            })?;
+        let page_size = parse_bounded_query_i64(&query_map, "pageSize", Self::TICKS_PAGE_SIZE_MAX)?
+            .unwrap_or(100);
         let provider = self.active_provider()?;
         if provider != MarketDataProvider::Futu {
             let broker_id = query_map.get_first("brokerId").unwrap_or("api-test");
-            return Err(MarketDataQuoteReadSnapshotError::Failed { status: 409, code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(), message: format!("broker feature capability is unavailable: feature \"market.ticks\" with broker \"{broker_id}\" is not registered"), retry_after_seconds: None });
+            return Err(MarketDataQuoteReadSnapshotError::Failed {
+                status: 409,
+                code: "BROKER_CAPABILITY_UNAVAILABLE".to_owned(),
+                message: format!(
+                    "broker feature capability is unavailable: feature \"market.ticks\" with broker \"{broker_id}\" is not registered"
+                ),
+                retry_after_seconds: None,
+            });
         }
-        let instrument_id = if suffix.contains('.') { suffix.to_ascii_uppercase() } else { format!("US.{}", suffix.to_ascii_uppercase()) };
-        let reader = self
-            .microstructure_reader()
-            .ok_or_else(|| {
-                MarketDataQuoteReadSnapshotError::Unavailable(
-                    "Futu market ticks reader is unavailable".to_owned(),
-                )
-            })?;
+        let instrument_id = if suffix.contains('.') {
+            suffix.to_ascii_uppercase()
+        } else {
+            format!("US.{}", suffix.to_ascii_uppercase())
+        };
+        let reader = self.microstructure_reader().ok_or_else(|| {
+            MarketDataQuoteReadSnapshotError::Unavailable(
+                "Futu market ticks reader is unavailable".to_owned(),
+            )
+        })?;
         reader
             .query(
                 MarketMicrostructureOperation::Ticks,
@@ -635,14 +661,12 @@ fn map_microstructure_error(
             message,
             retry_after_seconds: None,
         },
-        MarketMicrostructureError::Session(message) => {
-            MarketDataQuoteReadSnapshotError::Failed {
-                status: 503,
-                code: "MARKET_DATA_PROVIDER_UNAVAILABLE".to_owned(),
-                message,
-                retry_after_seconds: None,
-            }
-        }
+        MarketMicrostructureError::Session(message) => MarketDataQuoteReadSnapshotError::Failed {
+            status: 503,
+            code: "MARKET_DATA_PROVIDER_UNAVAILABLE".to_owned(),
+            message,
+            retry_after_seconds: None,
+        },
         MarketMicrostructureError::Decode {
             operation: _,
             message,

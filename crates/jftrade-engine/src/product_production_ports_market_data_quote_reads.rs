@@ -1,3 +1,4 @@
+use super::quote_snapshot::{project_cached_snapshot, project_fallback_snapshot};
 use super::*;
 
 impl ProductionMarketDataQuotePort {
@@ -123,35 +124,7 @@ impl ProductionMarketDataQuotePort {
 
             if let Some(tick) = cached_tick {
                 let observed_at = format_unix_millis_rfc3339(tick.observed_at_ms);
-                let snap = tick.snapshot.as_ref();
-                let ask = snap
-                    .and_then(|s| s.ask_price)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let bid = snap
-                    .and_then(|s| s.bid_price)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let open_price = snap
-                    .and_then(|s| s.open_price)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let high_price = snap
-                    .and_then(|s| s.high_price)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let low_price = snap
-                    .and_then(|s| s.low_price)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let prev_close = snap
-                    .and_then(|s| s.previous_close)
-                    .map(|v| json!(v.to_string()))
-                    .unwrap_or(Value::Null);
-                let turnover = snap
-                    .and_then(|s| s.turnover.as_ref())
-                    .map(|v| json!(v.as_str()))
-                    .unwrap_or(Value::Null);
+                let snapshot = project_cached_snapshot(&tick, &market, &observed_at);
 
                 return Ok(json!({
                     "meta": {
@@ -166,61 +139,40 @@ impl ProductionMarketDataQuotePort {
                         "market": market,
                         "symbol": symbol
                     },
-                    "snapshot": {
-                        "ask": ask,
-                        "at": observed_at,
-                        "bid": bid,
-                        "extended": {
-                            "afterMarket": Value::Null,
-                            "overnight": Value::Null,
-                            "preMarket": Value::Null
-                        },
-                        "extendedHours": false,
-                        "highPrice": high_price,
-                        "lastClosePrice": prev_close.clone(),
-                        "lowPrice": low_price,
-                        "observedAt": observed_at,
-                        "openPrice": open_price,
-                        "previousClosePrice": prev_close,
-                        "price": tick.price.to_string(),
-                        "session": "regular",
-                        "turnover": turnover,
-                        "volume": tick.volume.as_str(),
-                    }
+                    "snapshot": snapshot
                 }));
             }
 
-            let fallback_snapshot = if let (Some(runtime), Some(market_code)) = (
-                &self.trade_runtime,
-                quote_market_code(&market),
-            ) {
+            let fallback_snapshot = if let (Some(runtime), Some(market_code)) =
+                (&self.trade_runtime, quote_market_code(&market))
+            {
                 let security = jftrade_integration_futu::TradeSecurity {
                     market: market_code,
                     code: symbol.clone(),
                 };
-                runtime.security_snapshots(&[security]).ok().and_then(|mut list| {
-                    if list.is_empty() { None } else { Some(list.remove(0)) }
-                })
+                runtime
+                    .security_snapshots(&[security])
+                    .ok()
+                    .and_then(|mut list| {
+                        if list.is_empty() {
+                            None
+                        } else {
+                            Some(list.remove(0))
+                        }
+                    })
             } else {
                 None
             };
 
             if let Some(snap) = fallback_snapshot {
-                let price_str = snap.get("lastPrice")
-                    .and_then(|v| {
-                        if let Some(f) = v.as_f64() {
-                            Some(f.to_string())
-                        } else {
-                            v.as_str().map(str::to_owned)
-                        }
-                    })
-                    .unwrap_or_default();
-                if !price_str.trim().is_empty() {
-                    let observed_at = snap.get("updateTime")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_owned)
-                        .unwrap_or_else(|| format_unix_millis_rfc3339(now_ms));
-                    let to_val = |key: &str| snap.get(key).cloned().unwrap_or(Value::Null);
+                let fallback_observed_at = format_unix_millis_rfc3339(now_ms);
+                if let Some(snapshot) =
+                    project_fallback_snapshot(&snap, &market, &fallback_observed_at)
+                {
+                    let observed_at = snapshot
+                        .get("observedAt")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&fallback_observed_at);
                     return Ok(json!({
                         "meta": {
                             "fromCache": false,
@@ -234,27 +186,7 @@ impl ProductionMarketDataQuotePort {
                             "market": market,
                             "symbol": symbol,
                         },
-                        "snapshot": {
-                            "ask": to_val("askPrice"),
-                            "at": observed_at,
-                            "bid": to_val("bidPrice"),
-                            "extended": {
-                                "afterMarket": Value::Null,
-                                "overnight": Value::Null,
-                                "preMarket": Value::Null
-                            },
-                            "extendedHours": false,
-                            "highPrice": to_val("highPrice"),
-                            "lastClosePrice": to_val("previousClose"),
-                            "lowPrice": to_val("lowPrice"),
-                            "observedAt": observed_at,
-                            "openPrice": to_val("openPrice"),
-                            "previousClosePrice": to_val("previousClose"),
-                            "price": price_str,
-                            "session": "regular",
-                            "turnover": to_val("turnover"),
-                            "volume": to_val("volume"),
-                        }
+                        "snapshot": snapshot
                     }));
                 }
             }
@@ -452,13 +384,14 @@ impl ProductionMarketDataQuotePort {
         }
 
         if provider == MarketDataProvider::Futu {
-            let market_code = quote_market_code(&market)
-                .ok_or_else(|| MarketDataQuoteReadSnapshotError::Failed {
+            let market_code = quote_market_code(&market).ok_or_else(|| {
+                MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
                     message: format!("invalid market: {market}"),
                     retry_after_seconds: None,
-                })?;
+                }
+            })?;
             let Some(runtime) = &self.trade_runtime else {
                 return Err(MarketDataQuoteReadSnapshotError::Unavailable(
                     "Futu historical klines runtime is unavailable".to_owned(),
@@ -472,9 +405,11 @@ impl ProductionMarketDataQuotePort {
                 to_time.as_deref(),
                 before.as_deref(),
             );
-            let extended_hours = sessions.iter().any(|s| *s == "extended" || *s == "overnight");
-            let futu_result = runtime
-                .historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
+            let extended_hours = sessions
+                .iter()
+                .any(|s| *s == "extended" || *s == "overnight");
+            let futu_result =
+                runtime.historical_klines_window(&jftrade_integration_futu::HistoricalKlineQuery {
                     market: market_code,
                     symbol: symbol.clone(),
                     period: period.to_owned(),
@@ -496,10 +431,17 @@ impl ProductionMarketDataQuotePort {
                             "akshare"
                         };
                         let limit_str = limit.to_string();
-                        let mut query_params = vec![("period", period), ("limit", limit_str.as_str())];
-                        if let Some(ft) = from_time.as_deref() { query_params.push(("from", ft)); }
-                        if let Some(tt) = to_time.as_deref() { query_params.push(("to", tt)); }
-                        if let Some(bf) = before.as_deref() { query_params.push(("before", bf)); }
+                        let mut query_params =
+                            vec![("period", period), ("limit", limit_str.as_str())];
+                        if let Some(ft) = from_time.as_deref() {
+                            query_params.push(("from", ft));
+                        }
+                        if let Some(tt) = to_time.as_deref() {
+                            query_params.push(("to", tt));
+                        }
+                        if let Some(bf) = before.as_deref() {
+                            query_params.push(("before", bf));
+                        }
                         let sessions_joined = sessions.join(",");
                         query_params.push(("sessions", sessions_joined.as_str()));
 
@@ -529,18 +471,20 @@ impl ProductionMarketDataQuotePort {
                             );
                         }
                     }
-                    return Err(other.err().map(MarketDataQuoteReadSnapshotError::Unavailable).unwrap_or_else(|| {
-                        MarketDataQuoteReadSnapshotError::Unavailable("no candles found".to_owned())
-                    }));
+                    return Err(other
+                        .err()
+                        .map(MarketDataQuoteReadSnapshotError::Unavailable)
+                        .unwrap_or_else(|| {
+                            MarketDataQuoteReadSnapshotError::Unavailable(
+                                "no candles found".to_owned(),
+                            )
+                        }));
                 }
             };
 
             if query_current {
-                let current_query = jftrade_integration_futu::CurrentKlineQuery::new(
-                    market_code,
-                    &symbol,
-                    period,
-                );
+                let current_query =
+                    jftrade_integration_futu::CurrentKlineQuery::new(market_code, &symbol, period);
                 if let Ok(current_res) = runtime.current_kline(&current_query) {
                     if !current_res.klines.is_empty() {
                         result.klines = jftrade_integration_futu::kline_query::merge_klines_by_time(
@@ -555,12 +499,16 @@ impl ProductionMarketDataQuotePort {
             }
 
             let name_missing = result.name.as_deref().unwrap_or_default().trim().is_empty()
-                || result.name.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(&symbol));
+                || result
+                    .name
+                    .as_deref()
+                    .is_some_and(|n| n.eq_ignore_ascii_case(&symbol));
             if name_missing
-                && let Ok(snapshots) = runtime.security_snapshots(&[jftrade_integration_futu::TradeSecurity {
-                    market: market_code,
-                    code: symbol.clone(),
-                }])
+                && let Ok(snapshots) =
+                    runtime.security_snapshots(&[jftrade_integration_futu::TradeSecurity {
+                        market: market_code,
+                        code: symbol.clone(),
+                    }])
             {
                 for snap in snapshots {
                     if let Some(n) = snap.get("name").and_then(|v| v.as_str()) {
@@ -581,19 +529,32 @@ impl ProductionMarketDataQuotePort {
             for (index, kline) in non_blank_klines.into_iter().enumerate() {
                 let at = canonical_candle_time(&kline.time, &market);
                 if before.as_deref().is_some_and(|cursor| {
-                    at.parse::<jiff::Timestamp>().ok()
+                    at.parse::<jiff::Timestamp>()
+                        .ok()
                         .zip(cursor.parse::<jiff::Timestamp>().ok())
                         .is_some_and(|(at, cursor)| at >= cursor)
                 }) {
                     continue;
                 }
-                let open = time::OffsetDateTime::parse(&at, &time::format_description::well_known::Rfc3339)
-                    .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
+                let open = time::OffsetDateTime::parse(
+                    &at,
+                    &time::format_description::well_known::Rfc3339,
+                )
+                .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
                 let now = time::OffsetDateTime::from_unix_timestamp_nanos(now_ts.as_nanosecond())
+                    .map_err(|e| {
+                    MarketDataQuoteReadSnapshotError::Unavailable(e.to_string())
+                })?;
+                let is_closed = index < total_klines - 1
+                    || jftrade_calendar::candle_is_closed(
+                        self.calendar.as_deref(),
+                        &market,
+                        period,
+                        open,
+                        now,
+                        &sessions,
+                    )
                     .map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
-                let is_closed = index < total_klines - 1 || jftrade_calendar::candle_is_closed(
-                    self.calendar.as_deref(), &market, period, open, now, &sessions,
-                ).map_err(|e| MarketDataQuoteReadSnapshotError::Unavailable(e.to_string()))?;
                 candles.push(json!({
                     "at": at,
                     "close": kline.close_price.map(|v| v.to_string()).unwrap_or_default(),

@@ -85,6 +85,13 @@ impl PineWorker for FixtureWorker {
 }
 
 async fn fixture_port(worker: FixtureWorker) -> (GrpcPineExecutionPort, oneshot::Sender<()>) {
+    fixture_port_with_limit(worker, DEFAULT_MAX_MESSAGE_BYTES).await
+}
+
+async fn fixture_port_with_limit(
+    worker: FixtureWorker,
+    max_message_bytes: usize,
+) -> (GrpcPineExecutionPort, oneshot::Sender<()>) {
     let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind");
@@ -102,10 +109,151 @@ async fn fixture_port(worker: FixtureWorker) -> (GrpcPineExecutionPort, oneshot:
     let port = GrpcPineExecutionPort::new(PineExecutionConfig {
         endpoint: format!("http://{address}"),
         bearer_token: None,
+        max_message_bytes,
         ..PineExecutionConfig::default()
     })
     .expect("port");
     (port, shutdown_tx)
+}
+
+#[tokio::test]
+async fn grpc_request_message_limit_has_exact_encoded_boundaries() {
+    let request = request();
+    let probe = GrpcPineExecutionPort::new(PineExecutionConfig {
+        endpoint: "http://127.0.0.1:50051".to_owned(),
+        ..PineExecutionConfig::default()
+    })
+    .expect("probe port");
+    let encoded_len = probe
+        .request_to_proto(&request)
+        .expect("request encoding")
+        .encoded_len();
+    assert!(encoded_len > 1);
+
+    let worker = FixtureWorker {
+        response: RunScriptResponse {
+            job_id: "job-1".to_owned(),
+            ..RunScriptResponse::default()
+        },
+        status: None,
+        delay: Duration::ZERO,
+        captured: None,
+    };
+    let (port, shutdown) = fixture_port_with_limit(worker, encoded_len).await;
+    assert_eq!(
+        port.run(request.clone()).await.expect("exact limit").job_id,
+        "job-1"
+    );
+    let _ = shutdown.send(());
+
+    let worker = FixtureWorker {
+        response: RunScriptResponse {
+            job_id: "job-1".to_owned(),
+            ..RunScriptResponse::default()
+        },
+        status: None,
+        delay: Duration::ZERO,
+        captured: None,
+    };
+    let (port, shutdown) = fixture_port_with_limit(worker, encoded_len - 1).await;
+    assert!(matches!(
+        port.run(request.clone()).await,
+        Err(PineExecutionError::InvalidRequest(message))
+            if message.contains("encoded request exceeds")
+    ));
+    let _ = shutdown.send(());
+
+    let worker = FixtureWorker {
+        response: RunScriptResponse {
+            job_id: "job-1".to_owned(),
+            ..RunScriptResponse::default()
+        },
+        status: None,
+        delay: Duration::ZERO,
+        captured: None,
+    };
+    let (port, shutdown) = fixture_port_with_limit(worker, encoded_len + 1).await;
+    assert_eq!(
+        port.run(request).await.expect("limit plus one").job_id,
+        "job-1"
+    );
+    let _ = shutdown.send(());
+}
+
+#[tokio::test]
+async fn grpc_response_message_limit_keeps_multibyte_visuals_and_order_intents_atomic() {
+    let response = RunScriptResponse {
+        job_id: "job-1".to_owned(),
+        order_intents: vec![wire::OrderIntent {
+            kind: "entry".to_owned(),
+            id: "intent-完整-🌟".to_owned(),
+            direction: "long".to_owned(),
+            quantity: 3.0,
+            has_quantity: true,
+            ..wire::OrderIntent::default()
+        }],
+        visual_outputs: vec![wire::VisualOutput {
+            kind: "line".to_owned(),
+            name: "收盘线-📈".to_owned(),
+            payload_json: format!(
+                r#"{{"label":"多字节图形🌏","points":[{}]}}"#,
+                (0..128)
+                    .map(|index| index.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+        }],
+        logs: vec!["保持完整，不截断".to_owned()],
+        ..RunScriptResponse::default()
+    };
+    let response_len = response.encoded_len();
+    let request_len = GrpcPineExecutionPort::new(PineExecutionConfig {
+        endpoint: "http://127.0.0.1:50051".to_owned(),
+        ..PineExecutionConfig::default()
+    })
+    .expect("probe port")
+    .request_to_proto(&request())
+    .expect("request encoding")
+    .encoded_len();
+    assert!(response_len > request_len);
+
+    let worker = FixtureWorker {
+        response: response.clone(),
+        status: None,
+        delay: Duration::ZERO,
+        captured: None,
+    };
+    let (port, shutdown) = fixture_port_with_limit(worker, response_len - 1).await;
+    let boundary_error = port.run(request()).await;
+    assert!(matches!(
+        boundary_error,
+        Err(PineExecutionError::Transport(message))
+            if message.contains("decoded message length too large")
+                && message.contains("limit is")
+    ));
+    let _ = shutdown.send(());
+
+    for max_message_bytes in [response_len, response_len + 1] {
+        let worker = FixtureWorker {
+            response: response.clone(),
+            status: None,
+            delay: Duration::ZERO,
+            captured: None,
+        };
+        let (port, shutdown) = fixture_port_with_limit(worker, max_message_bytes).await;
+        let result = port.run(request()).await.expect("response at boundary");
+        assert_eq!(result.order_intents.len(), 1);
+        assert_eq!(result.order_intents[0].id, "intent-完整-🌟");
+        assert_eq!(result.order_intents[0].quantity, 3.0);
+        assert_eq!(result.visual_outputs.len(), 1);
+        assert_eq!(result.visual_outputs[0].name, "收盘线-📈");
+        assert!(
+            result.visual_outputs[0]
+                .payload_json
+                .contains("多字节图形🌏")
+        );
+        let _ = shutdown.send(());
+    }
 }
 
 fn request() -> PineRunRequest {

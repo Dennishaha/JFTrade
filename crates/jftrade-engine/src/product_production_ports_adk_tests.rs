@@ -141,6 +141,122 @@ fn research_tools_use_operation_specific_readiness() {
 }
 
 #[test]
+fn research_catalog_does_not_fall_back_to_shared_adapter_readiness() {
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let research = BTreeMap::from([("instrument", ProductionAdapterBinding::Ready)]);
+    let catalog = ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
+        .expect("catalog bindings");
+
+    for id in [
+        "research.financials",
+        "research.analyst",
+        "research.ownership",
+        "research.corporate_actions",
+        "research.rankings",
+        "research.industry",
+        "research.calendar",
+        "research.macro",
+    ] {
+        let tool = catalog
+            .tools
+            .iter()
+            .find(|tool| tool["id"] == id)
+            .expect("research tool");
+        assert_eq!(tool["allowedModes"], json!([]), "{id} must fail closed");
+    }
+}
+
+#[test]
+fn provider_tool_catalog_requires_concrete_futu_readers() {
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let research = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .filter_map(|definition| definition.research_operation)
+        .map(|operation| (operation, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Futu,
+    )));
+    state.set_readiness(false, true, false);
+    let catalog = ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
+        .expect("catalog bindings")
+        .with_active_provider_state(state);
+
+    let allowed_modes = |id: &str| {
+        catalog
+            .values()
+            .into_iter()
+            .find(|tool| tool["id"] == id)
+            .and_then(|tool| tool["allowedModes"].as_array().cloned())
+            .expect("tool descriptor")
+    };
+
+    for id in [
+        "derivatives.futures",
+        "derivatives.option_chain",
+        "derivatives.option_analysis",
+        "derivatives.option_events",
+        "derivatives.option_screen",
+        "alerts.price.list",
+        "alerts.option_event.list",
+        "watchlist.remote.list",
+    ] {
+        assert!(allowed_modes(id).is_empty(), "{id} must require its reader");
+    }
+}
+
+#[test]
+fn helper_research_catalog_matches_provider_operation_support() {
+    use jftrade_settings::MarketDataProviderRuntimePort;
+
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let research = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .filter_map(|definition| definition.research_operation)
+        .map(|operation| (operation, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
+    let state = Arc::new(ActiveProviderState::new(Some(
+        jftrade_settings::MarketDataProvider::Yfinance,
+    )));
+    state.set_readiness(true, false, false);
+    let catalog = ProductionToolCatalog::from_bindings_with_research(&bindings, &research)
+        .expect("catalog bindings")
+        .with_active_provider_state(Arc::clone(&state));
+    let allowed_modes = |id: &str| {
+        catalog
+            .values()
+            .into_iter()
+            .find(|tool| tool["id"] == id)
+            .and_then(|tool| tool["allowedModes"].as_array().cloned())
+            .is_some_and(|modes| !modes.is_empty())
+    };
+
+    assert!(allowed_modes("research.rankings"));
+    assert!(allowed_modes("research.analyst"));
+    assert!(allowed_modes("research.ownership"));
+    assert!(!allowed_modes("research.industry"));
+    assert!(!allowed_modes("research.calendar"));
+    assert!(!allowed_modes("research.macro"));
+
+    state
+        .activate(jftrade_settings::MarketDataProvider::Akshare)
+        .expect("provider activation");
+    assert!(allowed_modes("research.rankings"));
+    assert!(allowed_modes("research.industry"));
+    assert!(allowed_modes("research.calendar"));
+    assert!(allowed_modes("research.macro"));
+}
+
+#[test]
 fn tool_catalog_reprojects_provider_readiness_after_activation() {
     use jftrade_settings::MarketDataProviderRuntimePort;
 

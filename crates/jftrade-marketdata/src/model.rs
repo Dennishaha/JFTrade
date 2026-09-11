@@ -231,10 +231,20 @@ pub struct TradeQuoteSnapshot {
     pub low_price: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous_close: Option<Decimal>,
+    /// Raw provider LastClosePrice. Kept distinct from previous_close so
+    /// extended-hours projections can promote the regular close without
+    /// losing the wire value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_close: Option<Decimal>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turnover: Option<DecimalText>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub update_time: Option<String>,
+    /// Exchange-local trading date/session resolved by the provider calendar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trading_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -260,6 +270,16 @@ pub struct ExtendedQuoteSnapshot {
     pub change: Option<DecimalText>,
     pub change_rate: Option<DecimalText>,
     pub amplitude: Option<DecimalText>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_time: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trading_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exchange_timezone: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_start_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_end_at: Option<String>,
 }
 
 /// Security routes consume the same provider-neutral BasicQot row.  Keep the

@@ -704,6 +704,55 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn lagged_connection_receives_resync_control_before_future_events() {
+        let hub = Arc::new(LiveHub::new(1));
+        let mut connection = hub.connect();
+        connection.set_subscription("futu", &["US.AAPL".to_owned()]);
+
+        for price in [1, 2, 3] {
+            assert!(hub.publish(serde_json::json!({
+                "eventId": format!("tick-{price}"),
+                "type": "market-data.tick",
+                "source": "market-data",
+                "entityId": "US.AAPL",
+                "serverTime": "2026-07-18T00:00:00Z",
+                "payload": {
+                    "type": "market-data.tick",
+                    "instrumentId": "US.AAPL",
+                    "price": price,
+                },
+            })));
+        }
+
+        let resync = connection.recv().await.expect("lagged resync");
+        assert_eq!(resync["type"], "live.resync");
+        assert_eq!(resync["payload"]["reason"], "broadcast_lagged");
+        assert_eq!(resync["payload"]["action"], "resubscribe");
+        assert!(resync["payload"]["droppedEvents"].as_u64().unwrap_or(0) >= 1);
+
+        // The lagged receiver is positioned at the oldest retained event;
+        // consume it before publishing another event into the one-slot
+        // buffer, otherwise the test would intentionally lag a second time.
+        let retained_event = connection.recv().await.expect("retained event");
+        assert_eq!(retained_event["payload"]["price"], 3);
+
+        assert!(hub.publish(serde_json::json!({
+            "eventId": "tick-after-resync",
+            "type": "market-data.tick",
+            "source": "market-data",
+            "entityId": "US.AAPL",
+            "serverTime": "2026-07-18T00:00:01Z",
+            "payload": {
+                "type": "market-data.tick",
+                "instrumentId": "US.AAPL",
+                "price": 4,
+            },
+        })));
+        let next_event = connection.recv().await.expect("event after resync");
+        assert_eq!(next_event["payload"]["price"], 4);
+    }
+
     #[test]
     fn live_hub_demand_listener_tracks_subscriptions_and_disconnect() {
         #[derive(Debug, Eq, PartialEq)]

@@ -51,6 +51,14 @@ export type ConsoleRefreshLiveStreamEvent = {
   checkedAt?: string;
 };
 
+export type LiveResyncLiveStreamEvent = {
+  type: "live.resync";
+  at: string;
+  reason?: string;
+  droppedEvents?: number;
+  action?: "resubscribe" | string;
+};
+
 export type LiveHeartbeatEvent = {
   type: "heartbeat";
   at: string;
@@ -92,6 +100,7 @@ export type LiveStreamEvent =
   | SystemNotificationLiveStreamEvent
   | MarketDataTickLiveEvent
   | ConsoleRefreshLiveStreamEvent
+  | LiveResyncLiveStreamEvent
   | MarketSecurityDetailsLiveStreamEvent
   | MarketDepthLiveStreamEvent
   | {
@@ -225,6 +234,22 @@ class SharedLiveSocketHub {
         if (!this.acceptsProviderEvent(payload)) {
           return;
         }
+        // The server may replay the last event after a reconnect.  The shared
+        // bus owns event-id/version fencing, so only publish accepted events
+        // to the socket-local buffer and listeners.  Without this check a
+        // replayed event would still update Vue state twice even though the
+        // bus correctly rejected it for downstream subscribers.
+        if (!getLiveEventBus().publish(envelope)) {
+          return;
+        }
+        if (payload.type === "live.resync") {
+          // The Rust hub emits this control event when a per-connection
+          // broadcast receiver falls behind.  The receiver remains open, but
+          // events published while it was lagged are gone; explicitly
+          // replaying the complete snapshot asks the server/provider owners
+          // to rebuild the stream before accepting new deltas.
+          this.sendSubscriptionSnapshot(true);
+        }
         this.events.value = [
           ...this.events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
           payload,
@@ -233,7 +258,6 @@ class SharedLiveSocketHub {
           this.lastHeartbeat.value = payload.at || envelope.serverTime;
           this.lastHeartbeatEvent.value = payload as LiveHeartbeatEvent;
         }
-        getLiveEventBus().publish(envelope);
         for (const listener of this.eventListeners) {
           listener(payload);
         }
