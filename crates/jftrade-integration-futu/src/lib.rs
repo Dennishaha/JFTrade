@@ -253,7 +253,10 @@ pub use session_coordinator::{
 pub use session_event_pump::{
     OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
 };
-pub use session_resolver::{QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow};
+pub use session_resolver::{
+    QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow,
+    market_sessions_for_candle_sessions,
+};
 pub use stock_screen_query::{
     OpenDStockScreenReader, STOCK_SCREEN_LIMIT, STOCK_SCREEN_PROTOCOL_ID, STOCK_SCREEN_WINDOW,
     StockScreenItem, StockScreenLimiter, StockScreenPage, StockScreenParam, StockScreenProperty,
