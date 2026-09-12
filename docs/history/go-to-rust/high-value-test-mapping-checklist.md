@@ -31,7 +31,7 @@
 | [x] | `notifications_test.go:13,98` neutral notification/status transition | protocol mapping | `tests/futu_notifications_parity.rs` | 已新增 parity 测试 | `nextest -p jftrade-integration-futu` |
 | [x] | `internal/marketdata/broker_candles_test.go:12-166` strict/terminal/bounded/bad pagination | pagination | `product_market_data_candle_pagination_tests.rs` | 已补 Rust 分页断言 | `nextest -p jftrade-engine` |
 | [x] | `internal/marketdata/cache_test.go:12-185` dedup/promote/freshness/extended session | cache/session | `jftrade-marketdata/tests/cache_boundaries.rs`, `cache_extended_sessions_parity.rs` | 已补跨日和 regular close 语义 | `nextest -p jftrade-marketdata` |
-| [~] | `cache_test.go:210` tick candle volume window/limit | aggregation | `crates/jftrade-marketdata` | 核对 limit、空输入和排序断言 | `nextest -p jftrade-marketdata` |
+| [x] | `cache_test.go:210` tick candle volume window/limit | aggregation | `market_data_production_compatibility.rs` candle conversion tests | Rust production candle contract already asserts volume/session window, requested limit and extended-session null projection; native tick-candle API is not exposed by Rust | `nextest -p jftrade-engine` |
 
 ## P1：Trading / Broker / Reconciliation
 
