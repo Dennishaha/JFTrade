@@ -92,6 +92,28 @@ async fn adk_mutation_routes_register_only_with_explicit_test_port() {
 }
 
 #[tokio::test]
+async fn optimization_task_cancel_route_preserves_go_operation_identity() {
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_mutation_port(Arc::new(FixtureAdkMutationPort));
+    let handle = start_product(config).await.expect("start product");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/adk/optimization-tasks/opt-test/cancel",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["operation"], "cancel-optimization-task");
+    handle.shutdown().await.expect("shutdown product");
+}
+
+#[tokio::test]
 async fn adk_mutation_product_fails_closed_and_recovers_after_restart_without_settings_write() {
     let directory = tempdir().expect("temporary directory");
     let settings_path = directory.path().join("settings.json");
