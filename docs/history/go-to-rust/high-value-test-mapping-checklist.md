@@ -13,7 +13,7 @@
 | 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
 |---|---|---|---|---|---|
 | [~] | `internal/api/assistant/adk_normalize_test.go:15` 空 slice 序列化为数组 | wire shape | `crates/jftrade-api/tests/transport_contracts.rs`；部分通用 envelope | 补 ADK route 专项空数组断言 | `nextest -p jftrade-api` |
-| [~] | `internal/api/assistant/adk_routes_test.go:214` audit 非法分页 | pagination/error mapping | `crates/jftrade-engine/tests/api_transport_compatibility.rs` | 补 production route 分页/错误映射 | `nextest -p jftrade-engine` |
+| [x] | `internal/api/assistant/adk_routes_test.go:214` audit 非法分页 | pagination/error mapping | `product_adk_read_api.rs` + `product_adk_read_tests.rs` | 已拒绝 `limit<=0` 与 `offset<0`，并保持端口不可用前置校验 | `nextest -p jftrade-engine` |
 | [~] | `internal/api/assistant/adk_ops_test.go:247` task 查询与取消 | cancel/lifecycle | `crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs` | 核对取消后不可复活 | `nextest -p jftrade-engine` |
 | [~] | `internal/api/assistant/adk_routes_test.go:245` chat stream session/run/final 事件 | stream ordering | `crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs` | 补 disconnect/cancel 端到端 fixture | `nextest -p jftrade-engine` |
 | [x] | `internal/api/httpserver/sse_*` 断连、并发、边界 | disconnect/backpressure | `crates/jftrade-engine/tests/ws_live_compatibility.rs`、`adk_chat_stream_timing_challenge.rs` | 已有隔离覆盖；继续核对 production composition | `nextest -p jftrade-engine` |

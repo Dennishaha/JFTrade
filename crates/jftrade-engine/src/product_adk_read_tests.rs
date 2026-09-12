@@ -386,6 +386,17 @@ async fn request_adk_json_response(address: SocketAddr, method: &str, path: &str
     (status, serde_json::from_str(body).expect("JSON response"))
 }
 
+#[test]
+fn adk_read_pagination_rejects_non_positive_limits_and_negative_offsets() {
+    for query in ["limit=0", "limit=-1", "offset=-1"] {
+        let failure = dispatch_adk_read(None, "GET", "/api/v1/adk/audit", query)
+            .expect_err("invalid pagination must fail before port availability");
+        assert_eq!(failure.status, 400, "query {query}");
+        assert_eq!(failure.code, "BAD_REQUEST", "query {query}");
+        assert_eq!(failure.message, "invalid audit query", "query {query}");
+    }
+}
+
 #[derive(Debug)]
 struct AdkRawResponse {
     status: u16,

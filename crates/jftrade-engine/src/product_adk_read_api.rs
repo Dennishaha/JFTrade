@@ -214,8 +214,16 @@ fn validate_query(route: AdkReadRoute, query: &str) -> Result<(), AdkReadFailure
         return Ok(());
     }
     for (key, value) in pairs {
-        if matches!(key.as_str(), "limit" | "offset") && value.parse::<i64>().is_err() {
-            return Err(query_failure(route));
+        if matches!(key.as_str(), "limit" | "offset") {
+            let parsed = value.parse::<i64>().map_err(|_| query_failure(route))?;
+            let valid = match key.as_str() {
+                "limit" => parsed > 0,
+                "offset" => parsed >= 0,
+                _ => true,
+            };
+            if !valid {
+                return Err(query_failure(route));
+            }
         }
     }
     Ok(())
