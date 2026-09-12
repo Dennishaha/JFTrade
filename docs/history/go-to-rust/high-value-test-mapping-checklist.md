@@ -27,7 +27,7 @@
 | 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
 |---|---|---|---|---|---|
 | [x] | `internal/integration/futu/candle_sessions_test.go:11` session windows | session/timezone | `crates/jftrade-integration-futu/src/session_resolver.rs` | 已补 resolver 边界 | `nextest -p jftrade-integration-futu` |
-| [~] | `marketdata_runtime_test.go:267,364` tick 无效价格、quote fallback、缓存继承 | fallback/cache | `basic_quote_tick.rs`、provider runtime tests | 补 exchange reset 与 delayed fallback 组合 | `nextest -p jftrade-integration-futu` |
+| [x] | `marketdata_runtime_test.go:267,364` tick 无效价格、quote fallback、缓存继承 | fallback/cache | `basic_quote_tick.rs`、`basic_quote_query.rs`、`session_coordinator.rs`、fake OpenD runtime tests | non-finite/invalid price fallback、quote field inheritance、generation-fenced cache、fallback establishment/recovery and retry/reset lifecycle all have Rust assertions | `nextest -p jftrade-integration-futu --lib` |
 | [x] | `notifications_test.go:13,98` neutral notification/status transition | protocol mapping | `tests/futu_notifications_parity.rs` | 已新增 parity 测试 | `nextest -p jftrade-integration-futu` |
 | [x] | `internal/marketdata/broker_candles_test.go:12-166` strict/terminal/bounded/bad pagination | pagination | `product_market_data_candle_pagination_tests.rs` | 已补 Rust 分页断言 | `nextest -p jftrade-engine` |
 | [x] | `internal/marketdata/cache_test.go:12-185` dedup/promote/freshness/extended session | cache/session | `jftrade-marketdata/tests/cache_boundaries.rs`, `cache_extended_sessions_parity.rs` | 已补跨日和 regular close 语义 | `nextest -p jftrade-marketdata` |
