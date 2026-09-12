@@ -54,7 +54,7 @@
 | [x] | `store_failure_test.go:121` canceled maintenance no mutation | rollback | `backtest_run_store_contracts.rs` | 已补 store contract | `nextest -p jftrade-store-sqlite` |
 | [x] | `normalization_and_persistence_test.go`、`rollback_test.go` | rollback/malformed input | `settings_file_contracts.rs` | 已补 normalization/rollback | `nextest -p jftrade-store-settings-file` |
 | [x] | `store_boundaries_test.go`、snapshot failures | idempotency/schema | `jftrade-calendar`、SQLite audit tests | 已有 calendar/schema 断言 | `nextest -p jftrade-calendar -p jftrade-store-sqlite` |
-| [~] | `internal/watchlist/futu/source_test.go:44-418` duplicate/cache/fallback/extended metadata | cache/fallback | `crates/jftrade-watchlist` | 核对 duplicate ambiguity 与 timezone 不猜测 | `nextest -p jftrade-watchlist` |
+| [~] | `internal/watchlist/futu/source_test.go:44-418` duplicate/cache/fallback/extended metadata | cache/fallback | `crates/jftrade-watchlist` | generic watchlist identity/cache boundaries are covered; Futu-specific remote group reader and quote projection are not represented in this crate, so duplicate-name and extended-session cases remain an explicit architecture gap | `nextest -p jftrade-watchlist` |
 
 ## 尚未映射的高风险集合
 
