@@ -194,6 +194,24 @@ fn adk_read_fixture() -> AdkReadFixture {
     fixture
 }
 
+#[test]
+fn adk_read_fixture_preserves_empty_collections_as_json_arrays() {
+    let fixture = adk_read_fixture();
+    for case_name in ["runs", "sessions"] {
+        let case = fixture
+            .cases
+            .iter()
+            .find(|case| case.name == case_name)
+            .unwrap_or_else(|| panic!("fixture case {case_name}"));
+        let data = case.data.as_ref().expect("successful fixture case");
+        if case_name == "runs" {
+            assert!(data["runs"].is_array());
+        } else {
+            assert!(data["sessions"].is_array());
+        }
+    }
+}
+
 fn adk_read_sse_fixture() -> AdkReadSseFixture {
     let fixture: AdkReadSseFixture = serde_json::from_str(include_str!(
         "../../../tests/fixtures/compatibility/api-transport/adk-read-sse.json"
