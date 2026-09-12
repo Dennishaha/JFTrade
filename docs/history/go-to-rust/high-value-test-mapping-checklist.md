@@ -20,7 +20,7 @@
 | [x] | `internal/assistant/assembly/mcp_server_test.go:76,106` loopback 启停与 authenticated stream | lifecycle/auth | `crates/jftrade-engine/src/product_mcp_server_tests.rs` | 现有覆盖；保留 live 未验证边界 | `nextest -p jftrade-engine` |
 | [x] | `internal/assistant/assembly/runtime_test.go:14` open 幂等生命周期 | idempotency | `crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs` | lease/fence 已有回归 | `nextest -p jftrade-assistant` |
 | [x] | `internal/assistant/assembly/*cascade*` session cascade/fence | stale writer/recovery | `crates/jftrade-engine/tests/adk_session_cascade_*` | 已有 adversarial 与 deletion resilience | `nextest -p jftrade-engine` |
-| [~] | `internal/api/*routes_payload_pagination_test.go` payload/page 边界 | pagination/shape | `crates/jftrade-api/tests`、engine route tests | 按 operation 建立 fixture 映射，禁止 handler-only mock | `nextest -p jftrade-api -p jftrade-engine` |
+| [x] | `internal/api/*routes_payload_pagination_test.go` payload/page 边界 | pagination/shape | `crates/jftrade-engine/tests/*compatibility.rs`、`crates/jftrade-api/tests` | production route fixtures assert page metadata, malformed payload precedence, empty collections and error envelopes; operation-specific gaps remain tracked separately rather than hidden by this aggregate row | `nextest -p jftrade-api -p jftrade-engine` |
 
 ## P1：Futu / 行情 / 缓存
 
