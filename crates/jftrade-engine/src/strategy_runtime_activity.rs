@@ -739,4 +739,24 @@ mod tests {
         assert_eq!(audit_page["total"], 0);
         assert_eq!(audit_page["hasMore"], false);
     }
+
+    #[test]
+    fn catalog_activity_paging_and_filters_match_go_boundaries() {
+        // Parity: internal/strategy/catalog/runtime_reconciliation_business_test.go:113
+        // TestCatalogActivitySupportsPagingFilteringAndRuntimeObservationEnrichment
+        let query =
+            parse_activity_query("limit=1&offset=1&level= ERROR ", "logs").expect("log query");
+        assert_eq!(query.limit, 1);
+        assert_eq!(query.offset, 1);
+        assert_eq!(query.selector, "error");
+
+        let (page_values, page) = page_values(vec!["info", "warning", "error"], &query);
+        assert_eq!(page_values, vec!["warning"]);
+        assert_eq!(page["total"], 3);
+        assert_eq!(page["returned"], 1);
+        assert_eq!(page["hasMore"], true);
+
+        let audit = parse_activity_query("kind=kind.error", "audit").expect("audit query");
+        assert_eq!(audit.selector, "kind.error");
+    }
 }

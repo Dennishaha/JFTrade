@@ -48,7 +48,7 @@
 | 状态 | Go 来源与行为 | 风险 | Rust 对应入口/现状 | 结论与动作 | 验证 |
 |---|---|---|---|---|---|
 | [x] | `asset_selection_boundaries_test.go:30` missing/empty worker bundle | unavailable | `crates/jftrade-integration-pine/src/asset.rs` | 已补资源选择边界 | `nextest -p jftrade-integration-pine` |
-| [~] | `runtime_reconciliation_business_test.go:12-113` catalog state/activity/paging | reconciliation/paging | `crates/jftrade-engine/src/strategy_runtime_activity.rs` | 补 startup stale state 与 enrichment 断言 | `nextest -p jftrade-engine` |
+| [~] | `runtime_reconciliation_business_test.go:12-113` catalog state/activity/paging | reconciliation/paging | `crates/jftrade-engine/src/strategy_runtime_activity.rs` | activity 分页/过滤已补；startup stale state 与运行时 enrichment 仍需补验 | `nextest -p jftrade-engine` |
 | [x] | `historical_source_test.go:111-341` retry/cancel/empty/broken page | retry/cancel | `product_production_ports_backtest_sync_helpers.rs` | 已补同步 helper 边界 | `nextest -p jftrade-engine` |
 | [x] | `recovery_test.go:11-45` nil/panic/blank script | recovery/validation | `product_research_backtest_execution.rs` | 已补错误恢复语义 | `nextest -p jftrade-engine` |
 | [x] | `store_failure_test.go:121` canceled maintenance no mutation | rollback | `backtest_run_store_contracts.rs` | 已补 store contract | `nextest -p jftrade-store-sqlite` |
