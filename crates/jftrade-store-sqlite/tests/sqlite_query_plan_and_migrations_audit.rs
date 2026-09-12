@@ -314,6 +314,38 @@ fn test_p1_06_supported_legacy_migrations_upgrade_and_repeated_open() {
 }
 
 #[test]
+fn test_reopen_database_preserves_existing_tables_and_pragmas() {
+    // Parity: internal/store/sqlite/query_plan_and_reopen_test.go:48 TestReopenDatabasePreservesExistingTablesAndPragmas
+    let dir = tempdir().expect("tempdir");
+    let path = dir.path().join("reopen_test.db");
+    {
+        let conn = Connection::open(&path).expect("open");
+        initialize_current(&conn, "strategy").expect("init");
+    }
+    for _ in 0..3 {
+        let conn = Connection::open(&path).expect("reopen");
+        assert_eq!(current_version(&conn, "strategy"), Some(2));
+        validate_current(&conn, &path.display().to_string(), "strategy", 2).expect("valid");
+    }
+}
+
+#[test]
+fn test_reopen_database_preserves_tables_indexes_and_pragmas() {
+    // Parity: internal/store/assistantdurable/durable_reopen_test.go:12 TestReopenDatabasePreservesTablesIndexesAndPragmas
+    let dir = tempdir().expect("tempdir");
+    let path = dir.path().join("adk_reopen_test.db");
+    {
+        let conn = Connection::open(&path).expect("open");
+        initialize_current(&conn, "adk").expect("init");
+    }
+    for _ in 0..3 {
+        let conn = Connection::open(&path).expect("reopen");
+        assert_eq!(current_version(&conn, "adk"), Some(4));
+        validate_current(&conn, &path.display().to_string(), "adk", 4).expect("valid");
+    }
+}
+
+#[test]
 fn test_p1_06_migration_syntax_error_triggers_atomic_rollback() {
     let dir = tempdir().expect("tempdir");
     let path = dir.path().join("faulty.db");

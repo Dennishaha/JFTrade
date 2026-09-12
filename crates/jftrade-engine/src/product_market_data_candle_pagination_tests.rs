@@ -136,3 +136,95 @@ async fn candle_route_rejects_partial_history_before_querying_current_bars() {
     );
     assert_eq!(reader.current_calls.load(Ordering::SeqCst), 0);
 }
+
+#[tokio::test]
+async fn test_broker_k_line_candles_response_projects_strict_page() {
+    // Parity: internal/marketdata/broker_candles_test.go:12 TestBrokerKLineCandlesResponseProjectsStrictPage
+    let reader = Arc::new(PagedHistory::default());
+    let result = port(reader.clone())
+        .read("/api/v1/market-data/candles/HK/00700", "period=1m&limit=2")
+        .await
+        .unwrap();
+    assert_eq!(result["totalReturned"], 2);
+    let candles = result["candles"].as_array().expect("candles array");
+    assert_eq!(candles.len(), 2);
+    assert!(candles[0]["at"].as_str().is_some());
+    assert!(candles[0]["close"].is_string() || candles[0]["close"].is_number());
+    assert_eq!(result["pagination"]["hasMore"], true);
+    assert!(result["pagination"]["nextBefore"].as_str().is_some());
+    assert!(result["meta"].is_object());
+}
+
+#[tokio::test]
+async fn test_broker_k_line_candles_response_handles_terminal_and_bounded_pages() {
+    // Parity: internal/marketdata/broker_candles_test.go:51 TestBrokerKLineCandlesResponseHandlesTerminalAndBoundedPages
+    let reader = Arc::new(PagedHistory::default());
+    let port = port(reader.clone());
+    // Terminal page where no older records exist
+    let result = port
+        .read(
+            "/api/v1/market-data/candles/HK/00700",
+            "period=1m&limit=2&before=2026-01-05T02:02:00Z",
+        )
+        .await
+        .unwrap();
+    assert_eq!(result["pagination"]["hasMore"], false);
+}
+
+#[test]
+fn test_broker_k_line_helpers_classify_sessions_and_numbers() {
+    // Parity: internal/marketdata/broker_candles_test.go:109 TestBrokerKLineHelpersClassifySessionsAndNumbers
+    use crate::product::product_candle_converter::{
+        parse_candle_number, parse_optional_iso_timestamp,
+    };
+
+    // 1. Time parsing (empty is Ok(None), valid RFC3339 parsed)
+    assert_eq!(parse_optional_iso_timestamp("").unwrap(), None);
+    assert!(
+        parse_optional_iso_timestamp("2026-07-15T22:00:00+08:00")
+            .unwrap()
+            .is_some()
+    );
+
+    // 2. Number parsing
+    let val = 12.5;
+    let num_str = parse_candle_number(Some(val), "close").expect("valid float");
+    assert_eq!(num_str, "12.5");
+    assert!(parse_candle_number(None, "close").is_err());
+}
+
+#[test]
+fn test_broker_k_line_pagination_rejects_invalid_bounded_and_paged_metadata() {
+    // Parity: internal/marketdata/broker_candles_test.go:137 TestBrokerKLinePaginationRejectsInvalidBoundedAndPagedMetadata
+    use crate::product::product_candle_converter::validate_candle_pagination;
+
+    // 1. Bounded query (has from) returned hasMore=true
+    let err = validate_candle_pagination(
+        true,
+        Some("2026-07-15T01:00:00Z"),
+        Some("2026-07-14T00:00:00Z"),
+        1,
+        1,
+    );
+    assert!(err.is_err());
+    assert!(err.unwrap_err().contains("bounded"));
+
+    // 2. Page exceeds limit
+    let err_limit = validate_candle_pagination(false, None, None, 2, 1);
+    assert!(err_limit.is_err());
+    assert!(err_limit.unwrap_err().contains("exceeds limit"));
+}
+
+#[test]
+fn test_broker_k_line_candles_response_rejects_invalid_provider_rows() {
+    // Parity: internal/marketdata/broker_candles_test.go:76 TestBrokerKLineCandlesResponseRejectsInvalidProviderRows
+    use crate::product::product_candle_converter::validate_candle_positive_decimal;
+
+    // 1. Non-positive close price
+    assert!(validate_candle_positive_decimal("close", "0.0").is_err());
+    assert!(validate_candle_positive_decimal("close", "-1.5").is_err());
+    assert!(validate_candle_positive_decimal("close", "bad").is_err());
+
+    // 2. Valid close price
+    assert!(validate_candle_positive_decimal("close", "100.5").is_ok());
+}

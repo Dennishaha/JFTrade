@@ -503,4 +503,47 @@ mod tests {
         ));
         assert!(WireTimestamp::from_str("2026-01-01T00:00:00Z").is_ok());
     }
+
+    #[test]
+    fn test_calendar_store_empty_load_and_delete_are_idempotent() {
+        // Parity: internal/store/exchangecalendar/store_boundaries_test.go:45 TestCalendarStoreEmptyLoadAndDeleteAreIdempotent
+        let directory = tempdir().expect("temporary directory");
+        let store = CalendarSnapshotStore::new(directory.path());
+        let loaded = store.load();
+        assert!(loaded.snapshots.is_empty());
+        assert!(loaded.errors.is_empty());
+
+        // Store with non-existent root
+        let non_existent = CalendarSnapshotStore::new(directory.path().join("non_existent"));
+        let loaded_empty = non_existent.load();
+        assert!(loaded_empty.snapshots.is_empty());
+    }
+
+    #[test]
+    fn test_save_snapshot_validates_inputs_and_resolves_year_fallbacks() {
+        // Parity: internal/store/exchangecalendar/store_snapshot_failures_test.go:95 TestSaveSnapshotValidatesInputsAndResolvesYearFallbacks
+        let directory = tempdir().expect("temporary directory");
+        let store = CalendarSnapshotStore::new(directory.path());
+
+        // Empty market / source fails validation
+        let empty = CalendarSnapshot {
+            market_code: "".to_string(),
+            source_id: "".to_string(),
+            from: WireTimestamp::from_str("2026-01-01T00:00:00Z").unwrap(),
+            to: WireTimestamp::from_str("2026-12-31T00:00:00Z").unwrap(),
+            schedules: Vec::new(),
+            fetched_at: WireTimestamp::from_str("2026-01-01T00:00:00Z").unwrap(),
+            valid_until: WireTimestamp::from_str("2026-12-31T00:00:00Z").unwrap(),
+            checksum: "".to_string(),
+        };
+        assert!(store.save(&empty).is_err());
+
+        // Valid snapshot resolves path by year
+        let mut valid = empty;
+        valid.market_code = "US".to_string();
+        valid.source_id = "nyse_official".to_string();
+        let path = store.save(&valid).expect("save valid snapshot");
+        assert!(path.ends_with("US/2026/nyse_official.json"));
+        assert!(path.exists());
+    }
 }

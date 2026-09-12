@@ -116,3 +116,67 @@ fn combo_preview_hash_binds_client_order_id() {
     .expect("second combo hash");
     assert_ne!(first_hash, second_hash);
 }
+
+#[test]
+fn test_normalize_execution_order_uses_env_fallback_and_supports_non_limit_us_sessions() {
+    // Parity: internal/trading/execution_test.go:965 TestNormalizeExecutionOrderUsesEnvFallbackAndSupportsNonLimitUSSessions
+    let payload = json!({
+        "env": "real",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "MARKET",
+        "session": "OVERNIGHT",
+        "quantity": 2,
+        "accountId": "1001",
+    });
+
+    let order = parse_order(&payload).expect("parse market overnight order");
+    assert_eq!(order.header.trd_env, 1); // REAL
+    assert_eq!(order.session, Some(4)); // OVERNIGHT
+    assert_eq!(order.fill_outside_rth, None); // Must be None for non-limit orders
+}
+
+#[test]
+fn test_execution_normalization_helpers_reject_unsupported_inputs() {
+    // Parity: internal/trading/execution_test.go:988 TestExecutionNormalizationHelpersRejectUnsupportedInputs
+    let unsupported_type = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "iceberg",
+        "quantity": 1,
+        "price": 100,
+    });
+    let err = parse_order(&unsupported_type).expect_err("iceberg must be rejected");
+    assert!(err.to_lowercase().contains("unsupported") || err.to_lowercase().contains("invalid"));
+
+    let unsupported_session = json!({
+        "accountId": "1001",
+        "market": "US",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "session": "pre-open",
+        "quantity": 1,
+        "price": 100,
+    });
+    let err = parse_order(&unsupported_session).expect_err("pre-open session must be rejected");
+    assert!(err.to_lowercase().contains("session") || err.to_lowercase().contains("unsupported") || err.to_lowercase().contains("invalid"));
+}
+
+#[test]
+fn test_normalize_execution_order_rejects_invalid_instrument() {
+    // Parity: internal/trading/execution_test.go:997 TestNormalizeExecutionOrderRejectsInvalidInstrumentAndUnsupportedOrderType
+    let missing_symbol = json!({
+        "accountId": "1001",
+        "market": "US",
+        "side": "BUY",
+        "orderType": "LIMIT",
+        "quantity": 1,
+        "price": 100,
+    });
+    let err = parse_order(&missing_symbol).expect_err("missing symbol must be rejected");
+    assert!(err.to_lowercase().contains("symbol") || err.to_lowercase().contains("instrument") || err.to_lowercase().contains("code"));
+}

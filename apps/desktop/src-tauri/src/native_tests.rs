@@ -61,6 +61,10 @@ mod tests {
 
     #[test]
     fn log_reader_matches_go_filter_paging_and_day_order() {
+        // Parity: cmd/jftrade-desktop/main_test.go:395 TestListDesktopLogDaysAndReadsFilteredPage
+        // Parity: cmd/jftrade-desktop/main_test.go:426 TestDesktopLogPageCapsLimitAndPaginatesAllLines
+        // Parity: cmd/jftrade-desktop/main_test.go:464 TestDesktopLogPageTailOffsetReturnsLastPageInFileOrder
+        // Parity: cmd/jftrade-desktop/main_test.go:506 TestDesktopLogPageTailOffsetAppliesFiltersBeforePaging
         let directory = tempfile::tempdir().expect("temporary directory");
         let port = test_port(directory.path());
         fs::create_dir_all(&port.log_dir).expect("create logs");
@@ -94,6 +98,16 @@ mod tests {
             .log_read_page("2026-08-18", "ALL", "", 0, 0)
             .expect("default page");
         assert_eq!(default_page.limit, DEFAULT_LOG_LIMIT);
+    }
+
+    #[test]
+    fn test_list_desktop_log_days_missing_dir_returns_empty() {
+        // Parity: cmd/jftrade-desktop/main_test.go:523 TestListDesktopLogDaysMissingDirReturnsEmpty
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let missing = directory.path().join("missing_logs");
+        let port = test_port(&missing);
+        let days = port.log_list_days().expect("missing dir returns empty");
+        assert!(days.is_empty());
     }
 
     #[test]

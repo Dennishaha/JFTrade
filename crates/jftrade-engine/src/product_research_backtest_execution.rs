@@ -31,6 +31,9 @@ pub(crate) fn research_script_hash(script: &str) -> String {
 pub(crate) fn validate_research_script(
     script: &str,
 ) -> Result<jftrade_strategy::pinespec::ValidationPayload, String> {
+    if script.trim().is_empty() {
+        return Err("script is required".to_owned());
+    }
     let validation = jftrade_strategy::pinespec::validate_script(script, true, false);
     if !validation.ok {
         return Err(format!(
@@ -320,4 +323,22 @@ pub(crate) fn execute_research_backtest(
 
     attach_result_view(ports, &mut response, &run_id, arguments.get("resultView"));
     Ok(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_start_script_rejects_blank_research_script() {
+        // Parity: internal/backtest/recovery_test.go:45 TestStartScriptRejectsBlankResearchScript
+        assert_eq!(
+            validate_research_script(" \n\t "),
+            Err("script is required".to_owned())
+        );
+        assert_eq!(
+            validate_research_script(""),
+            Err("script is required".to_owned())
+        );
+    }
 }

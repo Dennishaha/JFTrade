@@ -9,8 +9,9 @@ mod runtime_registry;
 mod service;
 
 pub use model::{
-    ExecutionMode, PluginUninstallCommands, PluginUninstallGuidance, RuntimeState, Signal,
-    SignalOutcome, StrategyError, StrategyNotification, TradeIntent, TradePlanReceipt,
+    BrokerAccountBinding, ExecutionMode, PluginUninstallCommands, PluginUninstallGuidance,
+    RuntimeState, Signal, SignalOutcome, StrategyError, StrategyNotification, TradeIntent,
+    TradePlanReceipt, normalize_broker_account,
 };
 pub use runtime_registry::{
     RuntimeInstanceSummary, RuntimeRegistryError, RuntimeRegistrySnapshot, StrategyRuntimeRegistry,

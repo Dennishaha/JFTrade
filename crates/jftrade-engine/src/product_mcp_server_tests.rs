@@ -1593,6 +1593,7 @@ fn origin_policy_matches_go_for_absent_same_origin_and_rejections() {
 
 #[test]
 fn disabled_runtime_has_stopped_status_and_releases_listener() {
+    // Parity: internal/assistant/assembly/mcp_server_test.go:76 TestMCPServerManagerStartsAndStopsOnLoopback
     let runtime = runtime();
     let port = available_port();
     runtime
@@ -1620,6 +1621,7 @@ fn disabled_runtime_has_stopped_status_and_releases_listener() {
 
 #[test]
 fn token_auth_and_tools_list_use_reviewed_catalog() {
+    // Parity: internal/assistant/assembly/mcp_server_test.go:106 TestMCPServerManagerServesAuthenticatedStreamableMCP
     let runtime = runtime();
     let port = available_port();
     let (token, token_hash) = jftrade_settings::SystemMcpServerSecrets

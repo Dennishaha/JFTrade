@@ -746,6 +746,9 @@ pub mod trd_update_order_fill {
 pub mod trd_notify {
     include!(concat!(env!("OUT_DIR"), "/trd_notify.rs"));
 }
+pub mod notify {
+    include!(concat!(env!("OUT_DIR"), "/notify.rs"));
+}
 
 #[cfg(test)]
 #[path = "trade_proto_tests.rs"]

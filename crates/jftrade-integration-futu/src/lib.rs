@@ -15,6 +15,7 @@ pub mod kline_query;
 mod managed_session;
 mod market_microstructure_query;
 mod news_query;
+pub mod notification;
 mod option_chain_query;
 mod option_contract_rank_query;
 mod option_earnings_screener_query;
@@ -57,7 +58,7 @@ mod valuation_detail_query;
 // engine consumers.  Generated code is intentionally exempt from local lint
 // rules because its field/enum names are dictated by the OpenD schema.
 #[allow(dead_code, clippy::all)]
-mod trade_proto;
+pub mod trade_proto;
 mod trade_proto_fee_validation;
 mod trade_proto_fill_validation;
 mod trade_proto_margin_ratio_validation;
@@ -254,7 +255,7 @@ pub use session_event_pump::{
     OpenDSessionEventPump, OpenDSessionPumpError, OpenDSessionPumpOutcome,
 };
 pub use session_resolver::{
-    QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow,
+    QuoteSessionContext, QuoteSessionResolver, QuoteSessionWindow, fallback_snapshot_session,
     market_sessions_for_candle_sessions,
 };
 pub use stock_screen_query::{

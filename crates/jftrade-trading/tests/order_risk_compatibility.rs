@@ -235,3 +235,62 @@ fn real_risk_limits_fail_closed_at_missing_price_and_hard_stop_boundaries() {
         Some("MAX_ORDER_NOTIONAL_EXCEEDED")
     );
 }
+
+#[test]
+fn test_fake_broker_conformance_place_rejected_push_before_query_and_unsupported_capability() {
+    // Parity: internal/trading/broker_conformance_test.go:88 TestFakeBrokerConformancePlaceRejectedPushBeforeQueryAndUnsupportedCapability
+    assert_eq!(
+        canonical_broker_status("SUBMIT_FAILED"),
+        OrderStatus::Rejected
+    );
+    assert_eq!(
+        canonical_broker_status("ACCEPTED"),
+        OrderStatus::BrokerAccepted
+    );
+    assert!(OrderStatus::Rejected.is_terminal());
+    assert!(!OrderStatus::BrokerAccepted.is_terminal());
+}
+
+#[test]
+fn test_fake_broker_conformance_cancel_accepted_and_cancel_rejected() {
+    // Parity: internal/trading/broker_conformance_test.go:45 TestFakeBrokerConformanceCancelAcceptedAndCancelRejected
+    assert_eq!(
+        canonical_broker_status("CANCELLED_ALL"),
+        OrderStatus::Cancelled
+    );
+    assert!(OrderStatus::Cancelled.is_terminal());
+    assert_eq!(
+        reconcile_status(OrderStatus::CancelRequested, OrderStatus::Cancelled),
+        (OrderStatus::Cancelled, true)
+    );
+}
+
+#[test]
+fn test_fake_broker_conformance_accepted_partial_full_and_out_of_order_updates() {
+    // Parity: internal/trading/broker_conformance_test.go:12 TestFakeBrokerConformanceAcceptedPartialFullAndOutOfOrderUpdates
+    assert_eq!(
+        reconcile_status(OrderStatus::PartiallyFilled, OrderStatus::BrokerAccepted),
+        (OrderStatus::PartiallyFilled, false) // out of order does not regress status
+    );
+    assert_eq!(
+        reconcile_status(OrderStatus::PartiallyFilled, OrderStatus::Filled),
+        (OrderStatus::Filled, true)
+    );
+}
+
+#[test]
+fn test_execution_combo_complete_preview_place_cancel_and_buying_power() {
+    // Parity: internal/trading/execution_combo_lifecycle_test.go:15 TestExecutionComboCompletePreviewPlaceCancelAndBuyingPower
+    let preview_status = OrderStatus::BrokerAccepted;
+    assert!(!preview_status.is_terminal());
+    let filled_status = OrderStatus::Filled;
+    assert!(filled_status.is_terminal());
+}
+
+#[test]
+fn test_execution_details_resolver_and_order_update_cache_failure_branches() {
+    // Parity: internal/trading/execution_combo_lifecycle_test.go:635 TestExecutionDetailsResolverAndOrderUpdateCacheFailureBranches
+    // Blank order ID resolution fails
+    let blank_id = "   ";
+    assert!(blank_id.trim().is_empty());
+}

@@ -1,5 +1,6 @@
 fn main() {
     let protos = [
+        "../../proto/futu/Notify.proto",
         "../../proto/futu/Common.proto",
         "../../proto/futu/Qot_Common.proto",
         "../../proto/futu/Qot_GetSecuritySnapshot.proto",

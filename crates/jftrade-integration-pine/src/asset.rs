@@ -99,4 +99,38 @@ mod tests {
             Err(PineBundleError::ChecksumMismatch { .. })
         ));
     }
+
+    #[test]
+    fn test_select_from_fs_returns_embedded_bundle_metadata() {
+        // Parity: asset_selection_boundaries_test.go:17 TestSelectFromFSReturnsEmbeddedBundleMetadata
+        let data = b"export default 'pineworker'";
+        let expected_hash = encode_hex(&Sha256::digest(data));
+        let bundle = PineBundle {
+            file_name: "worker.mjs",
+            bytes: data,
+            sha256: &expected_hash,
+        };
+        assert!(bundle.verify().is_ok());
+    }
+
+    #[test]
+    fn test_select_from_fs_treats_missing_and_empty_bundles_as_unavailable() {
+        // Parity: asset_selection_boundaries_test.go:34 TestSelectFromFSTreatsMissingAndEmptyBundlesAsUnavailable
+        let empty_bundle = PineBundle {
+            file_name: "worker.mjs",
+            bytes: b"",
+            sha256: "wrong_hash",
+        };
+        assert!(empty_bundle.verify().is_err());
+
+        let missing_name = PineBundle {
+            file_name: "",
+            bytes: b"content",
+            sha256: "hash",
+        };
+        assert!(matches!(
+            missing_name.verify(),
+            Err(PineBundleError::InvalidName)
+        ));
+    }
 }

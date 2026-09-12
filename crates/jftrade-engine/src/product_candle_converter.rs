@@ -387,6 +387,51 @@ fn non_negative_decimal(
     Ok(parsed)
 }
 
+#[allow(dead_code)]
+pub(crate) fn validate_candle_positive_decimal(field: &str, value: &str) -> Result<(), String> {
+    let parsed = DecimalText::from_str(value).map_err(|_| format!("invalid {field} decimal"))?;
+    if decimal_cmp(&parsed, &decimal_zero()) != Ordering::Greater {
+        return Err(format!("non-positive {field} price"));
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub(crate) fn parse_candle_number(value: Option<f64>, field: &str) -> Result<String, String> {
+    let val = value.ok_or_else(|| format!("missing {field}"))?;
+    Ok(val.to_string())
+}
+
+#[allow(dead_code)]
+pub(crate) fn parse_optional_iso_timestamp(
+    val: &str,
+) -> Result<Option<time::OffsetDateTime>, String> {
+    let s = val.trim();
+    if s.is_empty() {
+        return Ok(None);
+    }
+    time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339)
+        .map(Some)
+        .map_err(|e| format!("invalid RFC3339: {e}"))
+}
+
+#[allow(dead_code)]
+pub(crate) fn validate_candle_pagination(
+    has_more: bool,
+    _next_before: Option<&str>,
+    from_time: Option<&str>,
+    returned_count: usize,
+    limit: usize,
+) -> Result<(), String> {
+    if from_time.is_some() && has_more {
+        return Err("bounded K-line query returned hasMore=true".to_string());
+    }
+    if returned_count > limit {
+        return Err("page exceeds limit".to_string());
+    }
+    Ok(())
+}
+
 fn decimal_zero() -> DecimalText {
     DecimalText::from_str("0").expect("zero is a valid decimal")
 }

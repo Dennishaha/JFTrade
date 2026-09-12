@@ -230,3 +230,114 @@ fn test_cache_promotes_regular_close_only_for_after_session() {
     let pre_snapshot = pre_tick.snapshot.expect("pre snapshot");
     assert_eq!(pre_snapshot.previous_close, Some(price_dec("108.98")));
 }
+
+#[test]
+fn test_cache_does_not_inherit_extended_sessions_across_trading_days() {
+    // Parity: internal/marketdata/cache_test.go:103 TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays
+    let mut cache = TickCache::new(5);
+    let generation = 1;
+
+    let day1 = TradeQuoteSnapshot {
+        symbol: Some("AAPL".to_owned()),
+        last_price: Some(price_dec("100.0")),
+        previous_close: Some(price_dec("99.0")),
+        trading_date: Some("2026-06-18".to_owned()),
+        session: Some("pre".to_owned()),
+        pre_market: Some(ExtendedQuoteSnapshot {
+            price: Some(price_dec("100.5")),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    cache
+        .insert(
+            tick_at("US.AAPL", "100.0", "1000", 1_000, generation, Some(day1)),
+            generation,
+        )
+        .expect("day1 insert");
+
+    // Incoming tick on holiday / new trading day with different trading_date
+    let day2 = TradeQuoteSnapshot {
+        symbol: Some("AAPL".to_owned()),
+        last_price: Some(price_dec("101.0")),
+        trading_date: Some("2026-06-19".to_owned()),
+        session: Some("unknown".to_owned()),
+        ..Default::default()
+    };
+    cache
+        .insert(
+            tick_at("US.AAPL", "101.0", "0", 2_000, generation, Some(day2)),
+            generation,
+        )
+        .expect("day2 insert");
+
+    let cached = match cache.lookup("US.AAPL", 2_000, 0) {
+        CacheLookup::Fresh(t) => t,
+        other => panic!("expected fresh tick, got {other:?}"),
+    };
+    let snapshot = cached.snapshot.expect("snapshot");
+    assert_eq!(snapshot.trading_date.as_deref(), Some("2026-06-19"));
+    assert_eq!(snapshot.session.as_deref(), Some("unknown"));
+    assert!(snapshot.pre_market.is_none());
+    assert!(snapshot.after_market.is_none());
+}
+
+#[test]
+fn test_cache_promotes_us_regular_close_when_after_hours_trade_arrives() {
+    // Parity: internal/marketdata/cache_test.go:138 TestCachePromotesUSRegularCloseWhenAfterHoursTradeArrives
+    let mut cache = TickCache::new(5);
+    let generation = 1;
+
+    let regular_close = TradeQuoteSnapshot {
+        symbol: Some("BABA".to_owned()),
+        last_price: Some(price_dec("111.14")),
+        previous_close: Some(price_dec("108.98")),
+        last_close: Some(price_dec("108.98")),
+        trading_date: Some("2026-07-09".to_owned()),
+        session: Some("regular".to_owned()),
+        ..Default::default()
+    };
+    cache
+        .insert(
+            tick_at(
+                "US.BABA",
+                "111.14",
+                "14106666",
+                1_000,
+                generation,
+                Some(regular_close),
+            ),
+            generation,
+        )
+        .expect("regular close insert");
+
+    let after_hours = TradeQuoteSnapshot {
+        symbol: Some("BABA".to_owned()),
+        last_price: Some(price_dec("111.81")),
+        trading_date: Some("2026-07-09".to_owned()),
+        session: Some("after".to_owned()),
+        ..Default::default()
+    };
+    cache
+        .insert(
+            tick_at(
+                "US.BABA",
+                "111.81",
+                "100",
+                2_000,
+                generation,
+                Some(after_hours),
+            ),
+            generation,
+        )
+        .expect("after hours insert");
+
+    let cached = match cache.lookup("US.BABA", 2_000, 0) {
+        CacheLookup::Fresh(t) => t,
+        other => panic!("expected fresh tick, got {other:?}"),
+    };
+    let snapshot = cached.snapshot.expect("snapshot");
+    assert_eq!(snapshot.previous_close, Some(price_dec("111.14")));
+    assert_eq!(snapshot.last_close, Some(price_dec("108.98")));
+    assert_eq!(cached.price, price_dec("111.81"));
+}

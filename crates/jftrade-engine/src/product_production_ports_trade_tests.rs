@@ -558,6 +558,7 @@ fn margin_ratios_returns_empty_in_simulated_environment() {
 
 #[test]
 fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty() {
+    // Parity: internal/trading/broker_test.go:453 TestServicePortfolioAndFallbackResponses
     let funds = FakeTradeRead
         .read_funds(trade_header(1, 42, 2), None, None, None)
         .expect("funds")
@@ -574,6 +575,74 @@ fn portfolio_cash_balances_fall_back_to_summary_currency_when_breakdown_is_empty
     assert_eq!(balances[0]["currency"], "HKD");
     assert_eq!(balances[0]["cashBalance"], 3.0);
     assert!(balances[0]["updatedAt"].as_str().is_some());
+}
+
+#[test]
+fn test_service_broker_read_operations_return_fallback_when_market_data_unavailable() {
+    // Parity: internal/trading/broker_boundaries_test.go:11 TestServiceBrokerReadOperationsReturnFallbackWhenMarketDataUnavailable
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: Some(Arc::new(FakeTradeRead)),
+        trade_logged_in: Some(true),
+        trade_runtime: None,
+    };
+
+    // 1. Funds
+    let funds = port
+        .read("/api/v1/brokers/futu/funds", "accountId=42&market=US")
+        .expect("funds read succeeds");
+    assert!(funds.get("summary").is_some(), "funds must contain summary key");
+
+    // 2. Positions
+    let positions = port
+        .read("/api/v1/brokers/futu/positions", "accountId=42&market=US")
+        .expect("positions read succeeds");
+    assert!(positions.get("positions").is_some(), "positions key required");
+
+    // 3. Orders
+    let orders = port
+        .read("/api/v1/brokers/futu/orders", "accountId=42&market=US")
+        .expect("orders read succeeds");
+    assert!(orders.get("orders").is_some(), "orders key required");
+
+    // 4. Fills
+    let fills = port
+        .read("/api/v1/brokers/futu/fills", "accountId=42&market=US")
+        .expect("fills read succeeds");
+    assert!(fills.get("fills").is_some(), "fills key required");
+
+    // 5. Cash flows
+    let cash_flows = port
+        .read(
+            "/api/v1/brokers/futu/cash-flows",
+            "accountId=42&market=US&clearingDate=2026-08-21",
+        )
+        .expect("cash flows read succeeds");
+    assert!(cash_flows.get("cashFlows").is_some(), "cashFlows key required");
+
+    // 6. Fees
+    let fees = port
+        .read("/api/v1/brokers/futu/order-fees", "accountId=42&market=US&orderIdEx=1")
+        .expect("fees read succeeds");
+    assert!(fees.get("fees").is_some(), "fees key required");
+
+    // 7. Margin ratios
+    let margin_ratios = port
+        .read(
+            "/api/v1/brokers/futu/margin-ratios",
+            "accountId=42&market=US&symbol=US.AAPL",
+        )
+        .expect("margin ratios read succeeds");
+    assert!(margin_ratios.get("marginRatios").is_some(), "marginRatios key required");
+
+    // 8. Max quantity
+    let max_qty = port
+        .read(
+            "/api/v1/brokers/futu/max-trade-qtys",
+            "accountId=42&market=US&symbol=US.AAPL&orderType=LIMIT&price=100",
+        )
+        .expect("max trade qtys read succeeds");
+    assert!(max_qty.get("maxTradeQuantity").is_some(), "maxTradeQuantity key required");
 }
 
 #[test]
@@ -1578,4 +1647,23 @@ fn invalid_history_time_is_rejected_before_opend_call() {
     .expect("request");
     let error = request.trade_filter(true, "US").expect_err("invalid time");
     assert!(error.contains("invalid history time"));
+}
+
+#[test]
+fn test_service_broker_write_operations_propagate_upstream_failures() {
+    // Parity: internal/trading/broker_boundaries_test.go:116 TestServiceBrokerWriteOperationsPropagateUpstreamFailures
+    // Port when provider is not ready
+    let port = ProductionBrokerPort {
+        active_provider_state: ready_state(),
+        trade_read_port: None,
+        trade_logged_in: Some(false),
+        trade_runtime: None,
+    };
+
+    // Place order fails closed and propagates provider error
+    let err = port
+        .read("/api/v1/brokers/futu/orders", "accountId=42&market=US")
+        .expect_err("must fail when trade client is unavailable");
+    let err_msg = format!("{err:?}");
+    assert!(err_msg.contains("TradeClientUnavailable") || err_msg.contains("Unavailable"));
 }

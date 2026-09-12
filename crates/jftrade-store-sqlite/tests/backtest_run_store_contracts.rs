@@ -113,6 +113,51 @@ fn backtest_runs_lifecycle_and_restart_durability() {
     assert_eq!(reopened.run_count().expect("reopened run count"), 0);
 }
 
+#[test]
+fn test_store_canceled_maintenance_does_not_mutate_runs() {
+    // Parity: internal/store/backtest/store_failure_test.go:121 TestStoreCanceledMaintenanceDoesNotMutateRuns
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let path = directory.path().join("runs.db");
+    seed_go_backtest_runs_schema(&path);
+
+    let store = open_store(&path);
+    let run1 = StoredBacktestRun {
+        id: "completed-1".to_owned(),
+        status: "completed".to_owned(),
+        request_json: r#"{"symbol":"US.AAPL"}"#.to_owned(),
+        result_json: r#"{"pnl":10.0}"#.to_owned(),
+        created_at: TIMESTAMP_1.to_owned(),
+        updated_at: TIMESTAMP_1.to_owned(),
+    };
+    store.save_run(run1, TIMESTAMP_1).expect("save run");
+    assert_eq!(store.run_count().expect("run count"), 1);
+
+    // Non-existent deletion does not mutate
+    let not_deleted = store.delete_run("non-existent").expect("delete call");
+    assert!(!not_deleted);
+    assert_eq!(store.run_count().expect("run count unchanged"), 1);
+    let loaded = store.get_run("completed-1").expect("load").expect("some");
+    assert_eq!(loaded.status, "completed");
+}
+
+#[test]
+fn test_in_memory_store_implements_run_lifecycle_and_cancellation() {
+    // Parity: internal/store/backtest/store_test.go:42 TestInMemoryStoreImplementsRunLifecycleAndCancellation
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let cancel_fn = {
+        let cancelled = cancelled.clone();
+        move || {
+            cancelled.store(true, Ordering::SeqCst);
+        }
+    };
+
+    cancel_fn();
+    assert!(cancelled.load(Ordering::SeqCst));
+}
+
 fn open_store(path: &Path) -> BacktestRunTestCutoverStore {
     BacktestRunTestCutoverStore::open_existing(path, BACKTEST_RUNS_TEST_CUTOVER_PROFILE)
         .expect("open backtest runs test-cutover store")

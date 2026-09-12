@@ -316,3 +316,33 @@ fn pre_trade_risk_combo_amount_mode_precedence_and_leg_bypass() {
         Some("MAX_ORDER_NOTIONAL_EXCEEDED")
     );
 }
+
+#[test]
+fn test_place_broker_order_runs_pre_trade_risk_before_broker_submission() {
+    // Parity: internal/trading/broker_test.go:648 TestPlaceBrokerOrderRunsPreTradeRiskBeforeBrokerSubmission
+    let mut policy = valid_policy();
+    policy.kill_switch_active = true;
+
+    let order = test_order(TradingEnvironment::Real);
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("REAL_TRADE_KILL_SWITCH_ACTIVE")
+    );
+}
+
+#[test]
+fn test_place_broker_order_fails_closed_when_real_risk_gateway_is_unavailable() {
+    // Parity: internal/trading/broker_test.go:711 TestPlaceBrokerOrderFailsClosedWhenRealRiskGatewayIsUnavailable
+    let mut policy = valid_policy();
+    policy.control_plane_available = false;
+
+    let order = test_order(TradingEnvironment::Real);
+    let decision = evaluate_pre_trade_risk(&policy, &order);
+    assert!(!decision.allowed);
+    assert_eq!(
+        decision.reason_code.as_deref(),
+        Some("PRE_TRADE_RISK_UNAVAILABLE")
+    );
+}

@@ -788,12 +788,10 @@ fn validate_helper_page(
     let mut previous = None;
     for candle in &response.candles {
         let at = parse_timestamp(&candle.at)?;
-        if at.unix_timestamp() < 0 || at > now + time::Duration::days(1) {
+        if at.unix_timestamp() < 0 || at > (now + time::Duration::days(1)) {
             return Err("helper candle timestamp is outside the supported range".to_owned());
         }
-        if previous.is_some_and(|previous| at <= previous) {
-            return Err("helper candle timestamps are not strictly increasing".to_owned());
-        }
+    if previous.is_some_and(|p| at <= p) { return Err("helper candle timestamps are not strictly increasing".to_owned()); }
         previous = Some(at);
     }
     Ok(())

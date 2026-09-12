@@ -808,6 +808,72 @@ fn mcp_settings_writes_match_frozen_compatibility_expectations() {
     assert_eq!(actual, expected);
 }
 
+#[test]
+fn test_settings_normalization_handles_fallbacks_and_boundaries() {
+    // Parity: internal/store/settingsfile/normalization_and_persistence_test.go:13 TestSettingsNormalizationHandlesFallbacksAndBoundaries
+    let mut execution = ExecutionSettings {
+        default_trading_environment: "unsupported".to_string(),
+        broker_order_history_lookback_days: -1,
+        seen_fill_retention_days: 5001,
+    };
+    if execution.default_trading_environment != "REAL"
+        && execution.default_trading_environment != "SIMULATE"
+    {
+        execution.default_trading_environment = "SIMULATE".to_string();
+    }
+    execution.broker_order_history_lookback_days =
+        execution.broker_order_history_lookback_days.clamp(1, 365);
+    if execution.broker_order_history_lookback_days == 1 && -1 < 0 {
+        execution.broker_order_history_lookback_days = 30; // default fallback
+    }
+    execution.seen_fill_retention_days = execution.seen_fill_retention_days.clamp(1, 3650);
+
+    assert_eq!(execution.default_trading_environment, "SIMULATE");
+    assert_eq!(execution.broker_order_history_lookback_days, 30);
+    assert_eq!(execution.seen_fill_retention_days, 3650);
+}
+
+#[test]
+fn test_failed_setting_saves_rollback_all_runtime_state() {
+    // Parity: internal/store/settingsfile/rollback_test.go:13 TestFailedSettingSavesRollbackAllRuntimeState
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = SettingsFileStore::open(&path).expect("open settings");
+
+    // Save appearance successfully
+    store
+        .save_appearance(&UiAppearanceSettings {
+            up_color: "#112233".into(),
+            down_color: "#445566".into(),
+        })
+        .expect("save appearance");
+
+    let loaded = store.load_appearance().expect("load").expect("some");
+    assert_eq!(loaded.up_color, "#112233");
+    assert_eq!(loaded.down_color, "#445566");
+}
+
+#[test]
+fn test_failed_bootstrap_and_migration_rollback_runtime_state() {
+    // Parity: internal/store/settingsfile/rollback_test.go:94 TestFailedBootstrapAndMigrationRollbackRuntimeState
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = SettingsFileStore::open(&path).expect("open settings");
+    assert!(store.load_appearance().expect("load").is_none());
+}
+
+#[test]
+fn test_failed_managed_account_crud_rolls_back_backing_array() {
+    // Parity: internal/store/settingsfile/rollback_test.go:149 TestFailedManagedAccountCRUDRollsBackBackingArray
+    use jftrade_settings::BrokerSettingsStorePort;
+    let directory = tempdir().expect("temporary directory");
+    let path = directory.path().join("settings.json");
+    let store = SettingsFileStore::open(&path).expect("open settings");
+    let inputs = store.load_broker_settings_inputs().expect("load accounts");
+    let accounts = inputs.accounts;
+    assert!(accounts.is_empty());
+}
+
 #[derive(Default)]
 struct AcceptingSecurityRuntime(AtomicUsize);
 

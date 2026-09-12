@@ -718,3 +718,25 @@ pub(crate) fn normalize_strategy_binding(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_catalog_activity_returns_empty_pages_when_activity_store_is_unavailable() {
+        // Parity: internal/strategy/catalog/activity_degraded_test.go:12 TestCatalogActivityReturnsEmptyPagesWhenActivityStoreIsUnavailable
+        let query = parse_activity_query("limit=10&offset=0", "logs").expect("parsed");
+        let (logs, page) = page_values::<serde_json::Value>(Vec::new(), &query);
+        assert_eq!(logs.len(), 0);
+        assert_eq!(page["total"], 0);
+        assert_eq!(page["returned"], 0);
+        assert_eq!(page["hasMore"], false);
+
+        let audit_query = parse_activity_query("limit=10&offset=0", "audit").expect("parsed");
+        let (audit, audit_page) = page_values::<serde_json::Value>(Vec::new(), &audit_query);
+        assert_eq!(audit.len(), 0);
+        assert_eq!(audit_page["total"], 0);
+        assert_eq!(audit_page["hasMore"], false);
+    }
+}

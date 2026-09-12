@@ -39,7 +39,7 @@ pub enum WatchlistError {
     InvalidInstrument,
     #[error("group name is required")]
     MissingGroupName,
-    #[error("group name must not exceed 80 characters")]
+    #[error("group name must not exceed 64 characters")]
     GroupNameTooLong,
 }
 
@@ -93,7 +93,11 @@ pub fn plan_membership_replace(
     let mut name_keys = BTreeSet::new();
     let mut normalized_names = Vec::new();
     for name in new_group_names {
-        let normalized = normalize_group_name(&name)?;
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let normalized = normalize_group_name(trimmed)?;
         if name_keys.insert(group_name_key(&normalized)) {
             normalized_names.push(normalized);
         }
@@ -119,7 +123,7 @@ fn normalize_group_name(value: &str) -> Result<String, WatchlistError> {
     if normalized.is_empty() {
         return Err(WatchlistError::MissingGroupName);
     }
-    if normalized.chars().count() > 80 {
+    if normalized.chars().count() > 64 {
         return Err(WatchlistError::GroupNameTooLong);
     }
     Ok(normalized.to_owned())
@@ -172,6 +176,23 @@ mod tests {
     }
 
     #[test]
+    fn test_normalize_instrument_id_rejects_incomplete_values() {
+        // Parity: internal/marketdata/lifecycle_boundaries_test.go:87 TestNormalizeInstrumentIDRejectsIncompleteValues
+        assert_eq!(
+            normalize_instrument_id("US."),
+            Err(WatchlistError::InvalidInstrument)
+        );
+        assert_eq!(
+            normalize_instrument_id(".AAPL"),
+            Err(WatchlistError::InvalidInstrument)
+        );
+        assert_eq!(
+            normalize_instrument_id("US"),
+            Err(WatchlistError::InvalidInstrument)
+        );
+    }
+
+    #[test]
     fn instrument_normalization_rejects_multiple_qualified_separators() {
         for value in ["US:AAPL.EXTRA", "US:AAPL:EXTRA", "US:"] {
             assert_eq!(
@@ -180,5 +201,36 @@ mod tests {
                 "value={value}"
             );
         }
+    }
+
+    #[test]
+    fn test_quote_cache_and_import_helpers_keep_absent_data_explicit() {
+        // Parity: internal/watchlist/quote_preview_boundaries_test.go:37 TestQuoteCacheAndImportHelpersKeepAbsentDataExplicit
+        // In-range limit is kept exactly
+        assert_eq!(normalize_limit(17), 17);
+
+        // Group names trimming and deduplication case-folding
+        let plan = plan_membership_replace(
+            "US.AAPL",
+            Vec::<String>::new(),
+            [" ", "Growth", " growth ", "Value"].map(String::from),
+            1,
+        )
+        .expect("plan with folded groups");
+        assert_eq!(plan.new_group_names, vec!["Growth", "Value"]);
+    }
+
+    #[test]
+    fn test_preview_import_rejects_invalid_derived_group_name() {
+        // Parity: internal/watchlist/quote_preview_boundaries_test.go:82 TestPreviewImportRejectsInvalidDerivedGroupName
+        let oversized = "界".repeat(65);
+        let err = normalize_group_name(&oversized);
+        assert_eq!(err, Err(WatchlistError::GroupNameTooLong));
+
+        let empty = "   ";
+        assert_eq!(
+            normalize_group_name(empty),
+            Err(WatchlistError::MissingGroupName)
+        );
     }
 }

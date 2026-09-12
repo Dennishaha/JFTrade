@@ -532,6 +532,34 @@ mod tests {
     }
 
     #[test]
+    fn test_tick_conversion_rejects_unusable_prices_and_uses_quote_fallbacks() {
+        // Parity: internal/integration/futu/marketdata_runtime_test.go:267 TestTickConversionRejectsUnusablePricesAndUsesQuoteFallbacks
+        // 1. Invalid security dropped
+        let mut bad_sec = quote(11, "AAPL", 100.0, 10);
+        bad_sec.security = None;
+        let ticks = basic_quote_ticks(vec![bad_sec], 100, 1).expect("mapped");
+        assert!(ticks.is_empty());
+
+        // 2. Zero price dropped
+        let zero_price = quote(11, "AAPL", 0.0, 10);
+        let ticks = basic_quote_ticks(vec![zero_price], 100, 1).expect("mapped");
+        assert!(ticks.is_empty());
+
+        // 3. Valid price preserves snapshot range fields
+        let mut fallback_quote = quote(11, "MSFT", 401.10, 900);
+        fallback_quote.open_price = Some(399.00);
+        fallback_quote.high_price = Some(402.00);
+        fallback_quote.low_price = Some(398.50);
+        let ticks = basic_quote_ticks(vec![fallback_quote], 100, 1).expect("mapped");
+        assert_eq!(ticks.len(), 1);
+        assert_eq!(ticks[0].price.to_string(), "401.1");
+        let snapshot = ticks[0].snapshot.as_ref().expect("snapshot");
+        assert_eq!(snapshot.open_price.expect("open").to_string(), "399");
+        assert_eq!(snapshot.high_price.expect("high").to_string(), "402");
+        assert_eq!(snapshot.low_price.expect("low").to_string(), "398.5");
+    }
+
+    #[test]
     fn unusable_high_precision_volume_falls_back_to_the_required_int64_field() {
         let mut quote = quote(11, "AAPL", 1.0, 9);
         quote.hp_volume = Some(f64::INFINITY);

@@ -73,6 +73,40 @@ impl Signal {
     }
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokerAccountBinding {
+    pub broker_id: String,
+    pub account_id: String,
+    pub trading_environment: String,
+    pub market: String,
+}
+
+pub fn normalize_broker_account(
+    input: Option<&BrokerAccountBinding>,
+) -> Option<BrokerAccountBinding> {
+    let input = input?;
+    let broker_id = input.broker_id.trim().to_lowercase();
+    let account_id = input.account_id.trim().to_string();
+    let trading_environment = input.trading_environment.trim().to_uppercase();
+    let market = input.market.trim().to_uppercase();
+
+    if broker_id.is_empty()
+        && account_id.is_empty()
+        && trading_environment.is_empty()
+        && market.is_empty()
+    {
+        return None;
+    }
+
+    Some(BrokerAccountBinding {
+        broker_id,
+        account_id,
+        trading_environment,
+        market,
+    })
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TradeIntent {
     pub idempotency_key: String,
@@ -149,4 +183,62 @@ pub enum StrategyError {
     RuntimeNotRunning,
     #[error("strategy trading port failed: {0}")]
     TradingPort(String),
+    #[error("bad request: {0}")]
+    BadRequest(String),
+    #[error("busy: {0}")]
+    Busy(String),
+    #[error("not found: {0}")]
+    NotFound(String),
+    #[error("upstream failure: {0}")]
+    Upstream(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_classified_strategy_errors_match_sentinel_kinds() {
+        // Parity: internal/strategy/errors_test.go:8 TestClassifiedStrategyErrorsMatchSentinelKinds
+        let bad_req = StrategyError::BadRequest("invalid strategy".to_string());
+        assert!(matches!(bad_req, StrategyError::BadRequest(_)));
+        assert_eq!(bad_req.to_string(), "bad request: invalid strategy");
+
+        let busy = StrategyError::Busy("optimizer busy".to_string());
+        assert!(matches!(busy, StrategyError::Busy(_)));
+        assert_eq!(busy.to_string(), "busy: optimizer busy");
+
+        let not_found = StrategyError::NotFound("strategy missing".to_string());
+        assert!(matches!(not_found, StrategyError::NotFound(_)));
+        assert_eq!(not_found.to_string(), "not found: strategy missing");
+
+        let upstream = StrategyError::Upstream("pine worker failed".to_string());
+        assert!(matches!(upstream, StrategyError::Upstream(_)));
+        assert_eq!(upstream.to_string(), "upstream failure: pine worker failed");
+    }
+
+    #[test]
+    fn test_normalize_broker_account_drops_empty_input() {
+        // Parity: internal/strategy/instancebinding/binding_test.go:137 TestNormalizeBrokerAccountDropsEmptyInput
+        let empty_input = BrokerAccountBinding {
+            broker_id: " ".to_string(),
+            account_id: " ".to_string(),
+            trading_environment: " ".to_string(),
+            market: " ".to_string(),
+        };
+        assert!(normalize_broker_account(Some(&empty_input)).is_none());
+        assert!(normalize_broker_account(None).is_none());
+
+        let valid = BrokerAccountBinding {
+            broker_id: " FUTU ".to_string(),
+            account_id: " 12345 ".to_string(),
+            trading_environment: " sim ".to_string(),
+            market: " us ".to_string(),
+        };
+        let norm = normalize_broker_account(Some(&valid)).expect("normalized");
+        assert_eq!(norm.broker_id, "futu");
+        assert_eq!(norm.account_id, "12345");
+        assert_eq!(norm.trading_environment, "SIM");
+        assert_eq!(norm.market, "US");
+    }
 }
