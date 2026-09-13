@@ -283,3 +283,101 @@ async fn adk_sqlite_test_cutover_replays_mutations_and_recovers_across_restart()
         .expect("found");
     assert_eq!(retrieved.id, "analyst-1");
 }
+
+fn production_optimization_port(
+    root: &Path,
+    initialize: bool,
+) -> Arc<super::super::product_production_ports::ProductionAdkPort> {
+    use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore, initialize_current};
+    if initialize {
+        for component in ["adk", "adk-session", "adk-artifact"] {
+            let connection = rusqlite::Connection::open(root.join(format!("{component}.db")))
+                .expect("temporary database");
+            initialize_current(&connection, component).expect("current schema");
+        }
+    }
+    Arc::new(
+        super::super::product_production_ports::ProductionAdkPort::new_for_test(
+            Arc::new(AdkStore::open(root.join("adk.db")).expect("ADK writer")),
+            Arc::new(AdkSessionStore::open(root.join("adk-session.db")).expect("session writer")),
+            Arc::new(
+                AdkArtifactStore::open(root.join("adk-artifact.db")).expect("artifact writer"),
+            ),
+            root.join("settings.json"),
+        ),
+    )
+}
+
+#[tokio::test]
+async fn optimization_task_http_cancellation_persists_through_production_port_restart() {
+    // go:452dea11 internal/api/assistant/adk_ops_test.go:247
+    // TestADKOptimizationTaskCanBeQueriedAndCancelled
+    let directory = tempdir().expect("temporary directory");
+    let settings_path = directory.path().join("settings.json");
+    let port = production_optimization_port(directory.path(), true);
+    let original = json!({"status":"queued", "objective":"return",
+        "runs":[{"definitionId":"definition-1", "runId":"missing-run"}]});
+    port.store
+        .upsert_optimization_task("opt-persist", &original.to_string())
+        .expect("seed task");
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("config")
+            .with_adk_read_snapshot_port(port.clone())
+            .with_adk_mutation_port(port.clone());
+    let handle = start_product(config).await.expect("start product");
+    let path = "/api/v1/adk/optimization-tasks/opt-persist";
+    let (status, before) =
+        request_json_with_status(handle.startup_record().address, "GET", path, None, &[]).await;
+    assert_eq!(status, 200);
+    assert_eq!(before["data"]["status"], "queued");
+    let (status, response) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        "/api/v1/adk/optimization-tasks/opt-persist/cancel",
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(response["data"]["status"], "cancelled");
+    assert_eq!(response["data"]["runs"], original["runs"]);
+    let stored = port
+        .store
+        .get_optimization_task("opt-persist")
+        .unwrap()
+        .unwrap();
+    let (status, repeated) = request_json_with_status(
+        handle.startup_record().address,
+        "POST",
+        &format!("{path}/cancel"),
+        None,
+        &[],
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(repeated["ok"], true);
+    assert_eq!(repeated["data"], response["data"]);
+    assert_eq!(
+        port.store
+            .get_optimization_task("opt-persist")
+            .unwrap()
+            .unwrap()
+            .updated_at,
+        stored.updated_at,
+        "repeat cancellation must not rewrite terminal state"
+    );
+    handle.shutdown().await.expect("shutdown product");
+    drop(port);
+    let reopened = production_optimization_port(directory.path(), false);
+    let config =
+        ProductConfig::test_cutover("127.0.0.1:0".parse().expect("address"), &settings_path)
+            .expect("restart config")
+            .with_adk_read_snapshot_port(reopened);
+    let handle = start_product(config).await.expect("restart product");
+    let (status, restored) =
+        request_json_with_status(handle.startup_record().address, "GET", path, None, &[]).await;
+    assert_eq!(status, 200);
+    assert_eq!(restored["data"], response["data"]);
+    handle.shutdown().await.expect("shutdown restarted product");
+}

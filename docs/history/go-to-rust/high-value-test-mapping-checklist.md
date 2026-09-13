@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|
 | [x] | `internal/api/assistant/adk_normalize_test.go:15` 空 slice 序列化为数组 | wire shape | `product_adk_read_tests.rs` fixture replay + explicit array assertions | 已确认 runs/sessions 空集合保持 JSON array | `nextest -p jftrade-engine` |
 | [x] | `internal/api/assistant/adk_routes_test.go:214` audit 非法分页 | pagination/error mapping | `product_adk_read_api.rs` + `product_adk_read_tests.rs` | 已拒绝 `limit<=0` 与 `offset<0`，并保持端口不可用前置校验 | `nextest -p jftrade-engine` |
-| [~] | `internal/api/assistant/adk_ops_test.go:247` task 查询与取消 | cancel/lifecycle | `product_adk_mutation_product_tests.rs` + ADK read fixture | cancel operation identity 已对齐；真实持久 task 状态恢复仍需补验 | `nextest -p jftrade-engine` |
+| [x] | `internal/api/assistant/adk_ops_test.go:247` task 查询与取消 | cancel/lifecycle | `product_adk_mutation_product_tests.rs` SQLite cutover | operation identity、取消响应与重开数据库后的 `cancelled` 状态持久化均已断言 | `nextest -p jftrade-engine` |
 | [x] | `internal/api/assistant/adk_routes_test.go:245` chat stream session/run/final 事件 | stream ordering | `crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs` + product stream tests | Go wire fixture replay、session/run/final 顺序、client disconnect、retained terminal replay 已覆盖 | `nextest -p jftrade-engine` |
 | [x] | `internal/api/httpserver/sse_*` 断连、并发、边界 | disconnect/backpressure | `crates/jftrade-engine/tests/ws_live_compatibility.rs`、`adk_chat_stream_timing_challenge.rs` | 已有隔离覆盖；继续核对 production composition | `nextest -p jftrade-engine` |
 | [x] | `internal/assistant/assembly/mcp_server_test.go:76,106` loopback 启停与 authenticated stream | lifecycle/auth | `crates/jftrade-engine/src/product_mcp_server_tests.rs` | 现有覆盖；保留 live 未验证边界 | `nextest -p jftrade-engine` |
