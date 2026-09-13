@@ -278,6 +278,13 @@ def main():
 
     mapping_values = list(manual_details.values())
     partial_count = sum(item.get("status") == "[~]" for item in mapping_values)
+    generic_proofs = sum(
+        item.get("status") == "[x]"
+        and "待逐项复核" not in item.get("conclusion", "")
+        and not re.search(r"test[_/][A-Za-z0-9_]+", item.get("rust_entry", ""))
+        for item in mapping_values
+    )
+    print(f"WARNING: {generic_proofs} [x] mappings have no test-specific Rust evidence in rust_entry")
     # The report header is written above; append this evidence summary after loading
     # mappings so it cannot accidentally claim unverified rows are covered.
 
